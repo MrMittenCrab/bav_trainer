@@ -104,7 +104,8 @@ Register in CLI; BAV engine and trainer layers unchanged.
 ## References
 
 - `core/data/interface.py` — standardized data contract
-- `core/engine/components.py` — trainer component registry
+- `core/engine/component_catalog.py` — static trainer exercise definitions (semantic only)
+- `core/engine/semantic_map.py` — runtime coordinates resolved at build time
 - `skills/bav-pipeline/references/stage3_analyst.md` — condensed/DuPont rubric
 - `skills/bav-pipeline/references/stage4_modeler.md` — residual income model rubric
 - `skills/bav-pipeline/references/xlsx_patterns.md` — formatting conventions

@@ -12,10 +12,11 @@ import sys
 from pathlib import Path
 
 from .data.interface import DocumentManifest, DocumentType
-from .engine.components import TRAINER_COMPONENTS
+from .engine.component_catalog import COMPONENT_CATALOG
 from .ingestion.manual_hk import HKManualDocumentAdapter
 from .trainer.checker import check_component, check_dependencies
 from .trainer.hints import reveal_answer, show_hint
+from .trainer.semantic_io import load_semantic_map
 from .trainer.workbook import build_training_workbook
 
 
@@ -90,11 +91,12 @@ def cmd_build(args: argparse.Namespace) -> int:
         assumptions = json.loads(Path(args.assumptions).read_text(encoding="utf-8"))
 
     out = Path(args.output)
-    build_training_workbook(data, out, assumptions)
+    build_training_workbook(data, out)
     ref = out.with_name(out.stem + "_reference.xlsx")
+    smap = load_semantic_map(ref)
     print(f"Reference model: {ref}")
     print(f"Training workbook: {out}")
-    print(f"Components: {len(TRAINER_COMPONENTS)} practice cells in dependency order")
+    print(f"Components resolved: {len(smap.all_ordered())}")
     return 0
 
 
@@ -126,8 +128,21 @@ def cmd_reveal(args: argparse.Namespace) -> int:
 
 
 def cmd_list(args: argparse.Namespace) -> int:
-    for c in TRAINER_COMPONENTS:
-        print(f"{c.order:2d}. [{c.id}] {c.title} — {c.tab}!{c.cell} ({c.category})")
+    wb = Path(args.workbook) if args.workbook else None
+    if wb and wb.exists():
+        smap = load_semantic_map(wb)
+        for comp in smap.all_ordered():
+            print(
+                f"{comp.order:2d}. [{comp.id}] {comp.title} — "
+                f"{comp.tab}!{comp.cell} ({comp.category})"
+            )
+    else:
+        for spec in COMPONENT_CATALOG:
+            tab = spec.tab_template.replace("{scenario}", spec.scenario) if spec.scenario else spec.tab_template
+            print(
+                f"{spec.order:2d}. [{spec.id}] {spec.title} — "
+                f"{tab} (semantic: {spec.semantic_key}, {spec.category})"
+            )
     return 0
 
 
@@ -162,6 +177,7 @@ def main(argv: list[str] | None = None) -> int:
     p_reveal.set_defaults(func=cmd_reveal)
 
     p_list = sub.add_parser("list", help="List trainer components")
+    p_list.add_argument("--workbook", help="Show resolved coordinates from a built workbook")
     p_list.set_defaults(func=cmd_list)
 
     args = parser.parse_args(argv)

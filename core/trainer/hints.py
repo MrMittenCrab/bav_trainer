@@ -1,17 +1,17 @@
-"""Progressive hint system for trainer components."""
+"""Progressive hint system driven by SemanticMap metadata."""
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill
 
-from ..engine.components import TRAINER_COMPONENTS
+from .semantic_io import get_component, load_semantic_map, parse_cell_ref
 
 HINT_FILL = PatternFill("solid", start_color="FFF9E6")
+REVEALED_FILL = PatternFill("solid", start_color="E6F4EA")
 META_SHEET = "_TrainerMeta"
 
 
@@ -25,13 +25,6 @@ class HintResult:
     exhausted: bool
 
 
-def _component_by_id(component_id: str):
-    for c in TRAINER_COMPONENTS:
-        if c.id == component_id:
-            return c
-    raise KeyError(f"Unknown component: {component_id}")
-
-
 def _find_meta_row(wb, component_id: str) -> int | None:
     if META_SHEET not in wb.sheetnames:
         return None
@@ -42,9 +35,22 @@ def _find_meta_row(wb, component_id: str) -> int | None:
     return None
 
 
+def _sync_trainer_sheet_status(wb, comp, status: str) -> None:
+    if META_SHEET in wb.sheetnames:
+        meta_row = _find_meta_row(wb, comp.id)
+        if meta_row:
+            wb[META_SHEET].cell(row=meta_row, column=9, value=status)
+    if "Trainer" in wb.sheetnames:
+        for r in range(5, wb["Trainer"].max_row + 1):
+            if wb["Trainer"].cell(row=r, column=4).value == comp.cell:
+                if wb["Trainer"].cell(row=r, column=3).value == comp.tab:
+                    wb["Trainer"].cell(row=r, column=5, value=status)
+                    break
+
+
 def show_hint(workbook_path: Path, component_id: str) -> HintResult:
     """Reveal the next progressive hint and update metadata."""
-    comp = _component_by_id(component_id)
+    comp = get_component(workbook_path, component_id)
     wb = load_workbook(workbook_path)
     meta_row = _find_meta_row(wb, component_id)
     level = 0
@@ -62,10 +68,7 @@ def show_hint(workbook_path: Path, component_id: str) -> HintResult:
             wb[META_SHEET].cell(row=meta_row, column=7, value=level)
 
     if comp.tab in wb.sheetnames:
-        from openpyxl.utils import column_index_from_string
-
-        col = column_index_from_string("".join(c for c in comp.cell if c.isalpha()))
-        row = int("".join(c for c in comp.cell if c.isdigit()))
+        row, col = parse_cell_ref(comp.cell)
         hint_cell = wb[comp.tab].cell(row=row, column=col + 1)
         prefix = f"[Hint {level}/{len(comp.hints)}] "
         hint_cell.value = prefix + hint_text
@@ -86,54 +89,19 @@ def show_hint(workbook_path: Path, component_id: str) -> HintResult:
 
 
 def reveal_answer(workbook_path: Path, component_id: str) -> str:
-    """Insert the hidden reference formula into the practice cell."""
-    comp = _component_by_id(component_id)
+    """Insert the reference formula from SemanticMap into the practice cell."""
+    comp = get_component(workbook_path, component_id)
+    if not comp.formula:
+        raise ValueError(f"No reference formula for {component_id}")
+
     wb = load_workbook(workbook_path)
-
-    formula = None
-    if "_RefFormulas" in wb.sheetnames:
-        ws = wb["_RefFormulas"]
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            if row[0] == component_id:
-                formula = row[3]
-                break
-
-    if not formula:
-        ref_path = workbook_path.with_name(
-            workbook_path.stem.replace("_Trainer", "") + "_reference.xlsx"
-        )
-        if ref_path.exists():
-            ref_wb = load_workbook(ref_path, data_only=False)
-            if comp.tab in ref_wb.sheetnames:
-                from openpyxl.utils import column_index_from_string
-
-                col = column_index_from_string("".join(c for c in comp.cell if c.isalpha()))
-                row = int("".join(c for c in comp.cell if c.isdigit()))
-                formula = ref_wb[comp.tab].cell(row=row, column=col).value
-            ref_wb.close()
-
-    if not formula:
-        wb.close()
-        raise ValueError(f"No reference formula found for {component_id}")
-
-    from openpyxl.utils import column_index_from_string
-
-    col = column_index_from_string("".join(c for c in comp.cell if c.isalpha()))
-    row = int("".join(c for c in comp.cell if c.isdigit()))
+    row, col = parse_cell_ref(comp.cell)
     cell = wb[comp.tab].cell(row=row, column=col)
-    cell.value = formula
+    cell.value = comp.formula
+    cell.fill = REVEALED_FILL
 
-    meta_row = _find_meta_row(wb, component_id)
-    if meta_row:
-        wb[META_SHEET].cell(row=meta_row, column=9, value="revealed")
-
-    if "Trainer" in wb.sheetnames:
-        for r in range(5, wb["Trainer"].max_row + 1):
-            if wb["Trainer"].cell(row=r, column=3).value == comp.cell:
-                if wb["Trainer"].cell(row=r, column=2).value == comp.tab:
-                    wb["Trainer"].cell(row=r, column=4, value="revealed")
-                    break
+    _sync_trainer_sheet_status(wb, comp, "revealed")
 
     wb.save(workbook_path)
     wb.close()
-    return str(formula)
+    return comp.formula
