@@ -1,0 +1,213 @@
+[
+  {
+    "id": "nopat_fy",
+    "order": 1,
+    "tab": "Condensed Financials",
+    "cell": "B6",
+    "title": "NOPAT (first forecast year)",
+    "short_hint": "Reformulate net income to operating profit after tax.",
+    "hints": [
+      "Start from Net Income on the Income Statement.",
+      "Add back after-tax net interest expense: Net Interest \u00d7 (1 \u2212 Tax Rate).",
+      "NOPAT = Net Income + Net Interest After Tax.",
+      "Net Interest After Tax = (Interest Expense \u2212 Interest Income) \u00d7 (1 \u2212 ETR)."
+    ],
+    "related_cells": [
+      "'Income Statement'!B13",
+      "'Condensed Financials'!B10"
+    ],
+    "tolerance": 0.01,
+    "category": "accounting"
+  },
+  {
+    "id": "nowc_agg",
+    "order": 2,
+    "tab": "Condensed Financials",
+    "cell": "B20",
+    "title": "Net Operating Working Capital (NOWC)",
+    "short_hint": "Sum operating WC assets minus operating WC liabilities.",
+    "hints": [
+      "Use SUMIF over the classification column for 'Operating Working Capital Asset'.",
+      "Subtract SUMIF for 'Operating Working Capital Liability'.",
+      "NOWC = Op. WC Assets \u2212 Op. WC Liabilities."
+    ],
+    "related_cells": [
+      "Condensed Financials!G7:G30"
+    ],
+    "tolerance": 0.01,
+    "category": "accounting"
+  },
+  {
+    "id": "noa_agg",
+    "order": 3,
+    "tab": "Condensed Financials",
+    "cell": "B24",
+    "title": "Net Operating Assets (NOA)",
+    "short_hint": "NOWC plus net operating long-term assets.",
+    "hints": [
+      "Net Operating LT Assets = Op. LT Assets \u2212 Op. LT Liabilities (SUMIF).",
+      "NOA = NOWC + Net Operating LT Assets."
+    ],
+    "related_cells": [],
+    "tolerance": 0.01,
+    "category": "accounting"
+  },
+  {
+    "id": "net_debt",
+    "order": 4,
+    "tab": "Condensed Financials",
+    "cell": "B28",
+    "title": "Net Debt",
+    "short_hint": "Financial liabilities minus financial assets.",
+    "hints": [
+      "Net Debt = SUMIF(Financial Liability) \u2212 SUMIF(Financial Asset).",
+      "Positive net debt means the firm carries net financial obligations."
+    ],
+    "related_cells": [],
+    "tolerance": 0.01,
+    "category": "accounting"
+  },
+  {
+    "id": "rnoa",
+    "order": 5,
+    "tab": "ALT DuPont",
+    "cell": "C8",
+    "title": "Return on Net Operating Assets (RNOA)",
+    "short_hint": "NOPAT divided by average NOA.",
+    "hints": [
+      "RNOA = NOPAT / Average NOA.",
+      "Average NOA = (Beginning NOA + Ending NOA) / 2.",
+      "Use Condensed Financials for NOA and NOPAT."
+    ],
+    "related_cells": [
+      "Condensed Financials!B6",
+      "Condensed Financials!B24"
+    ],
+    "tolerance": 0.01,
+    "category": "dupont"
+  },
+  {
+    "id": "spread",
+    "order": 6,
+    "tab": "ALT DuPont",
+    "cell": "C12",
+    "title": "Operating Spread (RNOA \u2212 After-tax CoD)",
+    "short_hint": "Operating return minus after-tax cost of debt.",
+    "hints": [
+      "After-tax CoD = Net Interest After Tax / Average Net Debt.",
+      "Spread = RNOA \u2212 After-tax CoD."
+    ],
+    "related_cells": [],
+    "tolerance": 0.01,
+    "category": "dupont"
+  },
+  {
+    "id": "roe_decomp",
+    "order": 7,
+    "tab": "ALT DuPont",
+    "cell": "C16",
+    "title": "ROE decomposition",
+    "short_hint": "ROE = RNOA + FLEV \u00d7 Spread.",
+    "hints": [
+      "Financial leverage (FLEV) = Average Net Debt / Average Equity.",
+      "ROE (decomposed) = RNOA + FLEV \u00d7 (RNOA \u2212 After-tax CoD).",
+      "Compare to Actual ROE = Net Income / Average Equity."
+    ],
+    "related_cells": [],
+    "tolerance": 0.01,
+    "category": "dupont"
+  },
+  {
+    "id": "model_sales_y1",
+    "order": 8,
+    "tab": "Model_Base",
+    "cell": "C11",
+    "title": "Base case Y1 revenue forecast",
+    "short_hint": "Anchor revenue \u00d7 (1 + Y1 growth).",
+    "hints": [
+      "Y1 beginning sales = prior fiscal year revenue from Income Statement.",
+      "Y1 Sales = Anchor Revenue \u00d7 (1 + growthVector[0]).",
+      "Growth vector is a blue input cell in the assumption block."
+    ],
+    "related_cells": [],
+    "tolerance": 0.01,
+    "category": "forecasting"
+  },
+  {
+    "id": "model_nopat_y1",
+    "order": 9,
+    "tab": "Model_Base",
+    "cell": "C14",
+    "title": "Base case Y1 NOPAT",
+    "short_hint": "Forecast sales \u00d7 NOPAT margin.",
+    "hints": [
+      "NOPAT = Sales \u00d7 marginVector[t].",
+      "Margin vector is a blue forecast input."
+    ],
+    "related_cells": [],
+    "tolerance": 0.01,
+    "category": "forecasting"
+  },
+  {
+    "id": "model_ae_y1",
+    "order": 10,
+    "tab": "Model_Base",
+    "cell": "C20",
+    "title": "Year 1 abnormal earnings",
+    "short_hint": "Residual income: NI \u2212 Ke \u00d7 Equity.",
+    "hints": [
+      "Net Income = NOPAT \u2212 Net Debt \u00d7 after-tax cost of debt.",
+      "Abnormal Earnings = Net Income \u2212 Cost of Equity \u00d7 Book Equity.",
+      "Y1 equity comes from the anchor balance sheet."
+    ],
+    "related_cells": [],
+    "tolerance": 0.01,
+    "category": "valuation"
+  },
+  {
+    "id": "model_tv",
+    "order": 11,
+    "tab": "Model_Base",
+    "cell": "C35",
+    "title": "Terminal value (abnormal earnings)",
+    "short_hint": "Gordon growth on terminal-year abnormal earnings.",
+    "hints": [
+      "TV = AE\u2081\u2080 \u00d7 (1 + g) / (Ke \u2212 g).",
+      "Terminal growth g links to terminal-year revenue growth.",
+      "Discount TV back 10 years at Ke."
+    ],
+    "related_cells": [],
+    "tolerance": 0.01,
+    "category": "valuation"
+  },
+  {
+    "id": "model_ivps",
+    "order": 12,
+    "tab": "Model_Base",
+    "cell": "C38",
+    "title": "Intrinsic value per share",
+    "short_hint": "Book equity + PV(abnormal earnings) + PV(terminal value).",
+    "hints": [
+      "IV = Beginning Book Equity + \u03a3 PV(AE) + PV(TV).",
+      "IVPS = IV / Diluted Shares Outstanding."
+    ],
+    "related_cells": [],
+    "tolerance": 0.01,
+    "category": "valuation"
+  },
+  {
+    "id": "scenario_weighted",
+    "order": 13,
+    "tab": "Scenario_Summary",
+    "cell": "E5",
+    "title": "Probability-weighted IVPS",
+    "short_hint": "SUMPRODUCT of scenario IVPS and probabilities.",
+    "hints": [
+      "Weighted IVPS = \u03a3(probability \u00d7 IVPS) across Bear, Base, Bull.",
+      "Probabilities are blue input cells and must sum to 100%."
+    ],
+    "related_cells": [],
+    "tolerance": 0.01,
+    "category": "valuation"
+  }
+]

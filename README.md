@@ -1,3 +1,9 @@
+# BAVGems — BAV Pipeline + HK Excel Trainer
+
+> **Hong Kong Excel Trainer:** See [`README-HK-TRAINER.md`](README-HK-TRAINER.md) for the BAV Excel training workbook system for HK-listed companies (manual document input, practice workbooks with Check/Hint/Reveal). Quick start: `pip install -r requirements-trainer.txt && python -m core build example/DEMO_HK_Standardized.json -o example/DEMO_HK_Trainer.xlsx`
+
+---
+
 # BAV Pipeline — an AI-maintained equity coverage system
 
 A Claude Code plugin that builds and **continuously maintains** Business Analysis & Valuation (residual income / abnormal earnings) coverage of public companies. It is not a one-shot model generator: it is a coverage *system* — a persistent per-ticker knowledge base, a formula-driven Excel workbook you edit directly (ten years of as-filed statements with quarterly sections beneath them, a core-earnings bridge, forensic earnings-quality screens, valuation multiples, and a guidance-vs-consensus ledger alongside the three-scenario model), a learning loop that registers your judgment, and a daily sentinel that keeps everything current as filings and news arrive.
