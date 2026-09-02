@@ -15,6 +15,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from ..data.interface import LineItem, StandardizedFinancials
 from ..data.schema import normalize_label
 from ..model.financial_math import compute_anchor, guess_classification
+from ..model.line_resolver import resolve_line, workbook_row_for
 from ..model.ri_engine import run_scenario, weighted_ivps
 from .component_catalog import catalog_by_id
 from .map_embed import embed_component_map_sheet
@@ -22,6 +23,7 @@ from .semantic_map import SemanticMap
 
 NUM_FMT = "#,##0;(#,##0)"
 PCT_FMT = "0.0%"
+SOURCE_START_ROW = 7
 BLUE = Font(color="0000FF")
 BOLD = Font(bold=True)
 ORANGE = PatternFill("solid", start_color="FCE5CD")
@@ -153,34 +155,12 @@ class ReferenceModelBuilder:
         spec = catalog_by_id()[spec_id]
         self.semantic_map.register(spec, tab, row, col, formula, expected, related_cells=related)
 
-    def _source_row(self, *fragments: str, sheet: str | None = None) -> int | None:
-        """Resolve a source-statement row from the build-time rowmap by label fragments."""
-        preferred = (
-            [sheet]
-            if sheet
-            else ["Income Statement", "Balance Sheet", "Cash Flow Statement"]
+    def _resolved_source_row(self, items: list[LineItem], concept: str, *, required: bool = False) -> int | None:
+        """Workbook row for a canonical concept — same LineItem as compute_anchor()."""
+        return workbook_row_for(
+            resolve_line(items, concept, required=required),
+            start_row=SOURCE_START_ROW,
         )
-        for sh in preferred:
-            for key, row in self.rowmap.items():
-                if not isinstance(row, int):
-                    continue
-                if "!" not in str(key):
-                    continue
-                ksheet, label = str(key).split("!", 1)
-                if ksheet != sh:
-                    continue
-                low = label.lower()
-                if any(f.lower() in low for f in fragments):
-                    return row
-        return None
-
-    def _equity_bs_row(self) -> int:
-        row = self._source_row("total equity", sheet="Balance Sheet")
-        if row is None:
-            row = self._source_row("shareholders", sheet="Balance Sheet")
-        if row is None:
-            raise ValueError("Could not resolve Balance Sheet equity line semantically")
-        return row
 
     def _header_block(self, ws, statement: str) -> None:
         ws["A1"] = f"Company: {self.fin.company_name} ({self.fin.ticker})"
@@ -273,27 +253,20 @@ class ReferenceModelBuilder:
             c.font = BOLD
         r += 1
 
-        ni_row = self._source_row(
-            "profit for the year", "net income", "net profit", sheet="Income Statement"
-        )
-        pretax_row = self._source_row(
-            "pretax", "before tax", "profit before tax", sheet="Income Statement"
-        )
-        tax_row = self._source_row("income tax", "tax expense", sheet="Income Statement")
-        int_exp_row = self._source_row(
-            "finance cost", "interest expense", sheet="Income Statement"
-        )
-        int_inc_row = self._source_row(
-            "finance income", "interest income", sheet="Income Statement"
-        )
+        ni_src = self._resolved_source_row(self.fin.income_statement, "net_income", required=True)
+        pretax_src = self._resolved_source_row(self.fin.income_statement, "pretax_income")
+        tax_src = self._resolved_source_row(self.fin.income_statement, "tax_expense")
+        int_exp_src = self._resolved_source_row(self.fin.income_statement, "interest_expense")
+        int_inc_src = self._resolved_source_row(self.fin.income_statement, "interest_income")
+        equity_src = self._resolved_source_row(self.fin.balance_sheet, "total_equity")
         row_nums: dict[str, int] = {}
 
         for label, src_row, bold in [
-            ("Net Income", ni_row, False),
-            ("Pretax Income", pretax_row, False),
-            ("Tax Expense", tax_row, False),
-            ("Interest Expense", int_exp_row, False),
-            ("Interest Income", int_inc_row, False),
+            ("Net Income", ni_src, False),
+            ("Pretax Income", pretax_src, False),
+            ("Tax Expense", tax_src, False),
+            ("Interest Expense", int_exp_src, False),
+            ("Interest Income", int_inc_src, False),
         ]:
             if not src_row:
                 continue
@@ -302,6 +275,8 @@ class ReferenceModelBuilder:
                 col = self._col(2 + j)
                 ws.cell(row=r, column=2 + j, value=f"='Income Statement'!{col}{src_row}")
             row_nums[label] = r
+            if label == "Net Income":
+                self.rowmap["condensed_ni_row"] = r
             r += 1
 
         etr_row = r
@@ -309,26 +284,37 @@ class ReferenceModelBuilder:
         for j in range(self._n):
             col = self._col(2 + j)
             if "Tax Expense" in row_nums and "Pretax Income" in row_nums:
+                pretax_r = row_nums["Pretax Income"]
+                tax_r = row_nums["Tax Expense"]
                 ws.cell(
                     row=r,
                     column=2 + j,
-                    value=f"=-{col}{row_nums['Tax Expense']}/{col}{row_nums['Pretax Income']}",
+                    value=f"=IF({col}{pretax_r}=0,0,-{col}{tax_r}/{col}{pretax_r})",
                 ).number_format = PCT_FMT
+            else:
+                ws.cell(row=r, column=2 + j, value=0).number_format = PCT_FMT
         row_nums["Effective Tax Rate"] = etr_row
         r += 1
 
-        # Net interest expense (positive cost): -(interest_expense + interest_income)
-        # Matches financial_math.compute_anchor sign convention.
+        # Net interest: missing optional interest lines treated as zero (matches Python).
         net_int_row = r
         ws.cell(row=r, column=1, value="Net Interest")
+        has_ie = "Interest Expense" in row_nums
+        has_ii = "Interest Income" in row_nums
         for j in range(self._n):
             col = self._col(2 + j)
-            if "Interest Expense" in row_nums and "Interest Income" in row_nums:
-                ws.cell(
-                    row=r,
-                    column=2 + j,
-                    value=f"=-({col}{row_nums['Interest Expense']}+{col}{row_nums['Interest Income']})",
-                ).number_format = NUM_FMT
+            if has_ie and has_ii:
+                f: str | int = (
+                    f"=-({col}{row_nums['Interest Expense']}"
+                    f"+{col}{row_nums['Interest Income']})"
+                )
+            elif has_ie:
+                f = f"=-{col}{row_nums['Interest Expense']}"
+            elif has_ii:
+                f = f"=-{col}{row_nums['Interest Income']}"
+            else:
+                f = 0
+            ws.cell(row=r, column=2 + j, value=f).number_format = NUM_FMT
         row_nums["Net Interest"] = net_int_row
         r += 1
 
@@ -349,16 +335,16 @@ class ReferenceModelBuilder:
         ws.cell(row=r, column=1, value="NOPAT").font = BOLD
         for j in range(self._n):
             col = self._col(2 + j)
-            if "Net Income" in row_nums:
-                c = ws.cell(
-                    row=r,
-                    column=2 + j,
-                    value=f"={col}{row_nums['Net Income']}+{col}{niat_row}",
-                )
-                c.fill = GREEN
-                c.number_format = NUM_FMT
+            c = ws.cell(
+                row=r,
+                column=2 + j,
+                value=f"={col}{row_nums['Net Income']}+{col}{niat_row}",
+            )
+            c.fill = GREEN
+            c.number_format = NUM_FMT
         r += 1
         self.rowmap["condensed_nopat_row"] = nopat_row
+        self._condensed_equity_src = equity_src
 
         lc = self._last_fy_col
         nopat_formula = ws.cell(row=nopat_row, column=lc).value
@@ -441,9 +427,23 @@ class ReferenceModelBuilder:
             str(ws.cell(row=nd_row, column=lc).value),
             self.anchor.net_debt,
         )
+        r += 1
+
+        # Historical Equity — canonical BS line or NOA − Net Debt (matches Python).
+        equity_row = r
+        ws.cell(row=r, column=1, value="Equity").font = BOLD
+        for j in range(self._n):
+            col = self._col(2 + j)
+            if getattr(self, "_condensed_equity_src", None):
+                f = f"='Balance Sheet'!{col}{self._condensed_equity_src}"
+            else:
+                f = f"={col}{noa_row}-{col}{nd_row}"
+            c = ws.cell(row=r, column=2 + j, value=f)
+            c.number_format = NUM_FMT
         self.rowmap["condensed_nowc_row"] = nowc_row
         self.rowmap["condensed_noa_row"] = noa_row
         self.rowmap["condensed_nd_row"] = nd_row
+        self.rowmap["condensed_equity_row"] = equity_row
         self.rowmap["condensed_nola_via_noa"] = True
 
     def _build_dupont(self, wb: Workbook) -> None:
@@ -464,10 +464,8 @@ class ReferenceModelBuilder:
         niat_r = self.rowmap["condensed_niat_row"]
         noa_r = self.rowmap["condensed_noa_row"]
         nd_r = self.rowmap["condensed_nd_row"]
-        ni_row = self._source_row(
-            "profit for the year", "net income", "net profit", sheet="Income Statement"
-        )
-        eq_row = self._equity_bs_row()
+        eq_r = self.rowmap["condensed_equity_row"]
+        ni_r = self.rowmap["condensed_ni_row"]
 
         metrics = ["RNOA", "After-tax CoD", "Spread", "FLEV", "ROE (decomposed)", "Actual ROE"]
         metric_rows: dict[str, int] = {}
@@ -478,10 +476,9 @@ class ReferenceModelBuilder:
             r += 1
 
         j_last = self._n - 1
-        # Condensed / Balance Sheet / IS period columns start at column 2.
+        # Condensed period columns start at column 2.
         src_col = self._col(2 + j_last)
         src_prev = self._col(2 + j_last - 1)
-        # DuPont metric display column for the latest comparable year.
         out_col_idx = 1 + j_last
 
         rnoa_row = metric_rows["RNOA"]
@@ -521,7 +518,8 @@ class ReferenceModelBuilder:
             value=(
                 f"=(('Condensed Financials'!{src_col}{nd_r}+"
                 f"'Condensed Financials'!{src_prev}{nd_r})/2)/"
-                f"(('Balance Sheet'!{src_col}{eq_row}+'Balance Sheet'!{src_prev}{eq_row})/2)"
+                f"(('Condensed Financials'!{src_col}{eq_r}+"
+                f"'Condensed Financials'!{src_prev}{eq_r})/2)"
             ),
         )
 
@@ -537,8 +535,9 @@ class ReferenceModelBuilder:
             row=actual_row,
             column=out_col_idx,
             value=(
-                f"='Income Statement'!{src_col}{ni_row}/"
-                f"(('Balance Sheet'!{src_col}{eq_row}+'Balance Sheet'!{src_prev}{eq_row})/2)"
+                f"='Condensed Financials'!{src_col}{ni_r}/"
+                f"(('Condensed Financials'!{src_col}{eq_r}+"
+                f"'Condensed Financials'!{src_prev}{eq_r})/2)"
             ),
         ).number_format = PCT_FMT
 
@@ -597,8 +596,8 @@ class ReferenceModelBuilder:
 
         fc = self._first_fc_col
         anchor_col = self._col(self._last_fy_col)
-        rev_row = (
-            self._source_row("revenue", "turnover", "sales", sheet="Income Statement") or 7
+        rev_row = self._resolved_source_row(
+            self.fin.income_statement, "revenue", required=True
         )
         nowc_hist = self.rowmap["condensed_nowc_row"]
         noa_hist = self.rowmap["condensed_noa_row"]

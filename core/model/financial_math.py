@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Any
 
 from ..data.interface import LineItem, StandardizedFinancials
-from ..data.schema import normalize_label
+from .line_resolver import resolve_line
 
 CLASSIFICATIONS = {
     "cash": "FA",
@@ -49,14 +48,6 @@ def guess_classification(label: str) -> str:
     return "Ambiguous — Operating"
 
 
-def _find_line(items: list[LineItem], *fragments: str) -> LineItem | None:
-    for item in items:
-        low = item.label.lower()
-        if any(f in low for f in fragments):
-            return item
-    return None
-
-
 def _val(item: LineItem | None, period: date) -> float:
     if item is None:
         return 0.0
@@ -86,12 +77,12 @@ def compute_anchor(fin: StandardizedFinancials, periods: list[date]) -> AnchorMe
     if n < 1:
         raise ValueError("At least one period required")
 
-    rev_item = _find_line(is_items, "revenue", "turnover", "sales") or is_items[0]
-    ni_item = _find_line(is_items, "net income", "profit for the year", "net profit")
-    int_exp_item = _find_line(is_items, "interest expense", "finance cost")
-    int_inc_item = _find_line(is_items, "interest income", "finance income")
-    pretax_item = _find_line(is_items, "pretax", "before tax", "profit before tax")
-    tax_item = _find_line(is_items, "tax", "income tax")
+    rev_item = resolve_line(is_items, "revenue", required=True).item
+    ni_item = resolve_line(is_items, "net_income", required=True).item
+    pretax_item = resolve_line(is_items, "pretax_income", required=False).item
+    tax_item = resolve_line(is_items, "tax_expense", required=False).item
+    int_exp_item = resolve_line(is_items, "interest_expense", required=False).item
+    int_inc_item = resolve_line(is_items, "interest_income", required=False).item
 
     revenues = [_val(rev_item, p) for p in periods]
     ni = [_val(ni_item, p) for p in periods]
@@ -100,7 +91,7 @@ def compute_anchor(fin: StandardizedFinancials, periods: list[date]) -> AnchorMe
     pretax = [_val(pretax_item, p) for p in periods]
     tax = [_val(tax_item, p) for p in periods]
 
-    # Sign conventions: expenses negative in source data
+    # Sign conventions: expenses negative in source data; missing optional interest → 0
     net_int = [-(ie + ii) for ie, ii in zip(int_exp, int_inc)]
     etr = [(-tax[i] / pretax[i]) if pretax[i] else 0.0 for i in range(n)]
     niat = [net_int[i] * (1 - etr[i]) for i in range(n)]
@@ -143,8 +134,12 @@ def compute_anchor(fin: StandardizedFinancials, periods: list[date]) -> AnchorMe
     noa = [nowc[i] + nola[i] for i in range(n)]
     net_debt = [fl_t[i] - fa_t[i] for i in range(n)]
 
-    te_item = _find_line(bs_items, "total equity", "shareholders")
-    equity = [_val(te_item, p) for p in periods] if te_item else [noa[i] - net_debt[i] for i in range(n)]
+    te_item = resolve_line(bs_items, "total_equity", required=False).item
+    equity = (
+        [_val(te_item, p) for p in periods]
+        if te_item is not None
+        else [noa[i] - net_debt[i] for i in range(n)]
+    )
 
     def avg(series: list[float], i: int) -> float:
         if i == 0:
