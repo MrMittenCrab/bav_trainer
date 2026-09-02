@@ -2,7 +2,10 @@
 
 ## Product target
 
-Build **BAV Excel Trainer — Hong Kong Edition**: a training system that takes manually supplied Hong Kong company financial materials, builds the full BAV model as a hidden reference answer, and gives the learner a professional Excel workbook in which they reconstruct the model themselves part by part.
+Build **BAV Excel Trainer — Hong Kong Edition**: a training system that takes manually supplied Hong Kong company financial materials, builds the full BAV model, and produces two matching professional Excel workbooks:
+
+1. a **Trainer** workbook in which every substantive cell the learner must complete is blank and highlighted yellow; and
+2. an **Answer Key** workbook in which the same yellow cells contain the correct Excel formulas or inputs and each answer cell has a concise hint in an Excel legacy Note (the yellow sticky note shown on hover).
 
 The trainer is for learning the actual BAV modelling workflow, not for generating artificial exercises.
 
@@ -10,18 +13,24 @@ The trainer is for learning the actual BAV modelling workflow, not for generatin
 
 1. Supply company financial data/documents manually.
 2. Build a complete reference BAV model from those inputs.
-3. Generate a training workbook with source data, structure, labels, and professional formatting already prepared, while substantive practice formulas are withheld.
-4. Work through model components in dependency order.
-5. Get a short feedback loop through **Check**, **Hint**, and **Reveal Answer**.
-6. Preserve the ability to inspect and learn the real Excel formula when an answer is revealed.
+3. Generate a matched pair of user-facing workbooks from that one model.
+4. Complete the blank yellow cells in the Trainer workbook in dependency order.
+5. Open the matching Answer Key whenever feedback is needed; inspect the real Excel formula or input and hover over its Note for a concise hint.
+6. Optionally use existing Check, Hint, or Reveal tooling, but do not require macros or command-line actions to use the two-workbook learning flow.
 
 ## Hard requirements
 
 - **Reference-model first.** The system must derive trainer answers from a complete model, not from hand-authored answer keys.
-- **Answers remain hidden until requested.** The learner should be able to attempt each component before seeing the reference formula.
-- **Short feedback loop.** Check, Hint, and Reveal must be available without manually comparing against a second workbook.
+- **Exactly two user-facing workbooks.** One build must produce a clearly named Trainer workbook and its matching Answer Key. Internal metadata or non-Excel sidecars may remain implementation details, but a third reference workbook must not be required from the user.
+- **Yellow means learner work.** In the Trainer workbook, every substantive formula or input intentionally withheld for practice must be blank and use the same bright-yellow fill. Source data, labels, and non-practice formulas must remain populated.
+- **Answers and hints are co-located.** In the Answer Key, every corresponding yellow cell must contain the correct formula or input and a non-empty Excel legacy Note with a concise hint. Do not place hints in adjacent cells or use modern threaded comments as a substitute.
+- **Answers remain separate.** The Trainer workbook must not embed visible answers or hints. The learner chooses when to open the separate Answer Key.
+- **Real Excel logic.** Formula answers must remain working, inspectable Excel formulas rather than hard-coded displayed results.
+- **Visual parity.** The two workbooks must have identical visible sheet structure, cell locations, fonts, fills, borders, alignments, number formats, row heights, and column widths except for the intentionally blank versus completed practice-cell contents and Answer Key Notes.
+- **Reference aesthetic.** Match the supplied Oshkosh workbook's restrained financial-model style: Aptos Narrow, 20-point bold worksheet titles, 11-point body text, black text on a white base, bright-yellow practice/answer cells, and thin borders used for headers, sections, and totals. Preserve appropriate financial number formats.
+- **Short feedback loop.** The Answer Key and its cell Notes must be usable immediately without macros or command-line actions. Existing Check, Hint, and Reveal tooling may remain as optional aids.
 - **Semantic component mapping.** Trainer logic must resolve components by semantic identity at build time rather than depending on fragile hard-coded workbook coordinates.
-- **Professional workbook preserved.** Training mode should remove only the substantive work the learner is meant to practise; non-essential formatting/setup work should already be done.
+- **Professional workbook preserved.** Training mode should remove only the substantive work the learner is meant to practise; formatting, source data, labels, worksheet setup, and non-practice calculations should already be done.
 - **HK input is manual in v1.** Automatic HKEX scraping is not required for the first usable version. Manual filings or Excel/Bloomberg/Wind-style exports can feed a standardized interface.
 - **Full BAV logic is the source of truth.** Accounting reformulation, DuPont analysis, forecasting, residual-income valuation, DCF/cross-check logic, and scenario analysis should remain aligned with the underlying BAV model rather than becoming a simplified toy model.
 
@@ -30,11 +39,13 @@ The trainer is for learning the actual BAV modelling workflow, not for generatin
 - Automatically inventing practice questions or exercises.
 - Requiring the learner to reproduce decorative Excel formatting.
 - Automatic HKEX ingestion when manual document input is sufficient.
+- Requiring macros or CLI commands to see the answer or its hint.
+- Showing hints in separate visible columns or cells.
 - Giving the implementation agent freedom to redesign the product while implementing a bounded step.
 
 ## Definition of done
 
-A real Hong Kong company can be supplied through the supported manual input path and the system can produce a usable trainer workbook backed by a hidden complete reference model. The learner can reconstruct the major BAV components in sequence and use Check, Hint, and Reveal reliably without the trainer depending on fixed cell coordinates or corrupting the workbook.
+A real Hong Kong company can be supplied through the supported manual input path and the system produces a matched `*_Trainer.xlsx` and `*_Answer_Key.xlsx` pair. Every semantic practice cell is blank yellow in the Trainer and completed yellow with a concise Excel Note in the Answer Key. Both files share the same professional Oshkosh-derived aesthetic and working BAV logic, and neither depends on fixed cell coordinates or corrupts the workbook. Optional Check, Hint, and Reveal tooling continues to work if retained.
 
 ## Planning ownership
 
