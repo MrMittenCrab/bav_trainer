@@ -91,11 +91,10 @@ def cmd_build(args: argparse.Namespace) -> int:
         assumptions = json.loads(Path(args.assumptions).read_text(encoding="utf-8"))
 
     out = Path(args.output)
-    build_training_workbook(data, out)
-    ref = out.with_name(out.stem + "_reference.xlsx")
-    smap = load_semantic_map(ref)
-    print(f"Reference model: {ref}")
-    print(f"Training workbook: {out}")
+    trainer_path, answer_key_path = build_training_workbook(data, out)
+    smap = load_semantic_map(answer_key_path)
+    print(f"Trainer workbook: {trainer_path}")
+    print(f"Answer Key workbook: {answer_key_path}")
     print(f"Components resolved: {len(smap.all_ordered())}")
     return 0
 
@@ -155,9 +154,17 @@ def main(argv: list[str] | None = None) -> int:
     p_ingest.add_argument("-o", "--output", help="Write standardized JSON")
     p_ingest.set_defaults(func=cmd_ingest)
 
-    p_build = sub.add_parser("build", help="Build reference model + training workbook")
+    p_build = sub.add_parser(
+        "build",
+        help="Build matched Trainer + Answer Key workbooks from a complete BAV model",
+    )
     p_build.add_argument("input", help="Standardized JSON or Excel workbook")
-    p_build.add_argument("-o", "--output", required=True, help="Training workbook output path")
+    p_build.add_argument(
+        "-o",
+        "--output",
+        required=True,
+        help="Output path (stem ending in _Trainer, or a company stem to which _Trainer/_Answer_Key are appended)",
+    )
     p_build.add_argument("-a", "--assumptions", help="assumptions.json for scenarios")
     p_build.set_defaults(func=cmd_build)
 

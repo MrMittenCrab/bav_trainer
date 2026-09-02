@@ -8,9 +8,11 @@ An extension of the BAVGems pipeline that turns manually supplied Hong Kong comp
 cd bav_trainer
 pip install -r requirements-trainer.txt
 
-# Build demo training workbook from illustrative HK data
+# Build matched Trainer + Answer Key pair from illustrative HK data
 python -m core build example/DEMO_HK_Standardized.json \
   -o example/DEMO_HK_Trainer.xlsx
+# → example/DEMO_HK_Trainer.xlsx
+# → example/DEMO_HK_Answer_Key.xlsx
 
 # List practice components in dependency order
 python -m core list
@@ -25,10 +27,9 @@ python -m core reveal --workbook example/DEMO_HK_Trainer.xlsx --component nopat_
 
 1. **Ingests** HK annual reports, interim reports, results materials, or Excel/Bloomberg/Wind exports via `HKManualDocumentAdapter`
 2. **Reconciles** into standardized Income Statement / Balance Sheet / Cash Flow structure (`StandardizedFinancials`)
-3. **Builds** a complete reference BAV model (`*_reference.xlsx`) — hidden from the learner
-4. **Generates** a clean training workbook with source data, layout, labels, and formatting pre-done
-5. **Strips** substantive formulas from practice cells so the user reconstructs the model part-by-part
-6. **Provides** Check (output validation), Hint (progressive accounting guidance), and Reveal Answer (insert reference formula)
+3. **Builds** a complete BAV model and writes it as the **Answer Key** (`*_Answer_Key.xlsx`) — yellow practice cells with working formulas and concise Excel Notes
+4. **Derives** the matching **Trainer** workbook (`*_Trainer.xlsx`) — same layout, blank yellow practice cells, no embedded answers or Notes
+5. **Provides** optional Check (output validation), Hint (progressive accounting guidance), and Reveal Answer tooling
 
 ## Architecture
 
@@ -42,15 +43,15 @@ python -m core reveal --workbook example/DEMO_HK_Trainer.xlsx --component nopat_
                            │ StandardizedFinancials
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  ReferenceModelBuilder — full BAV workbook (hidden)          │
+│  ReferenceModelBuilder — full BAV workbook                   │
 │  IS/BS/CF → Condensed → DuPont → Model → Scenario Summary   │
 └──────────────────────────┬──────────────────────────────────┘
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  TrainingWorkbookGenerator                                   │
-│  Practice cells + _RefFormulas + _TrainerMeta + Trainer tab  │
-│  Check / Hint / Reveal via CLI + TrainerMacros.bas           │
+│  Answer Key (formulas + Notes) + Trainer (blank yellow)      │
+│  Optional Check / Hint / Reveal via CLI + TrainerMacros.bas  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
