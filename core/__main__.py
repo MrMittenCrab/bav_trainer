@@ -91,7 +91,7 @@ def cmd_build(args: argparse.Namespace) -> int:
         assumptions = json.loads(Path(args.assumptions).read_text(encoding="utf-8"))
 
     out = Path(args.output)
-    trainer_path, answer_key_path = build_training_workbook(data, out)
+    trainer_path, answer_key_path = build_training_workbook(data, out, assumptions)
     smap = load_semantic_map(answer_key_path)
     print(f"Trainer workbook: {trainer_path}")
     print(f"Answer Key workbook: {answer_key_path}")

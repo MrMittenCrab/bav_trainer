@@ -16,7 +16,7 @@ from ..data.interface import LineItem, StandardizedFinancials
 from ..data.schema import normalize_label
 from ..model.financial_math import compute_anchor, guess_classification
 from ..model.ri_engine import run_scenario, weighted_ivps
-from .component_catalog import catalog_by_id, COMPONENT_CATALOG
+from .component_catalog import catalog_by_id
 from .map_embed import embed_component_map_sheet
 from .semantic_map import SemanticMap
 
@@ -153,11 +153,34 @@ class ReferenceModelBuilder:
         spec = catalog_by_id()[spec_id]
         self.semantic_map.register(spec, tab, row, col, formula, expected, related_cells=related)
 
-    def _find_row(self, label_fragment: str) -> int | None:
-        for key, row in self.rowmap.items():
-            if isinstance(row, int) and label_fragment.lower() in key.lower():
-                return row
+    def _source_row(self, *fragments: str, sheet: str | None = None) -> int | None:
+        """Resolve a source-statement row from the build-time rowmap by label fragments."""
+        preferred = (
+            [sheet]
+            if sheet
+            else ["Income Statement", "Balance Sheet", "Cash Flow Statement"]
+        )
+        for sh in preferred:
+            for key, row in self.rowmap.items():
+                if not isinstance(row, int):
+                    continue
+                if "!" not in str(key):
+                    continue
+                ksheet, label = str(key).split("!", 1)
+                if ksheet != sh:
+                    continue
+                low = label.lower()
+                if any(f.lower() in low for f in fragments):
+                    return row
         return None
+
+    def _equity_bs_row(self) -> int:
+        row = self._source_row("total equity", sheet="Balance Sheet")
+        if row is None:
+            row = self._source_row("shareholders", sheet="Balance Sheet")
+        if row is None:
+            raise ValueError("Could not resolve Balance Sheet equity line semantically")
+        return row
 
     def _header_block(self, ws, statement: str) -> None:
         ws["A1"] = f"Company: {self.fin.company_name} ({self.fin.ticker})"
@@ -176,13 +199,14 @@ class ReferenceModelBuilder:
 
     def _fill_statement(self, ws, items: list[LineItem], start_row: int = 7) -> int:
         r = start_row
+        sheet = ws.title
         for item in items:
             ws.cell(row=r, column=1, value=item.label)
             for j, pd in enumerate(self.periods):
                 val = item.values.get(pd)
                 c = ws.cell(row=r, column=2 + j, value=val)
                 c.number_format = NUM_FMT
-            self.rowmap[normalize_label(item.label)] = r
+            self.rowmap[f"{sheet}!{normalize_label(item.label)}"] = r
             r += 1
         return r
 
@@ -202,9 +226,20 @@ class ReferenceModelBuilder:
         ws = wb.create_sheet("Condensed Financials")
         ws["A1"] = f"{self.fin.company_name} ({self.fin.ticker}) — Condensed Financials"
         ws.column_dimensions["A"].width = 42
+        ws.column_dimensions["B"].width = 32
+
         r = 4
         ws.cell(row=r, column=1, value="BALANCE SHEET CLASSIFICATION").font = BOLD
         r += 1
+        ws.cell(row=r, column=1, value="Line Item").font = BOLD
+        ws.cell(row=r, column=2, value="Classification").font = BOLD
+        for j, pd in enumerate(self.periods):
+            c = ws.cell(row=r, column=3 + j, value=pd)
+            c.number_format = "mmm dd, yyyy"
+            c.font = BOLD
+            ws.column_dimensions[self._col(3 + j)].width = 14
+        r += 1
+
         class_start = r
         dv = DataValidation(
             type="list",
@@ -212,6 +247,7 @@ class ReferenceModelBuilder:
             allow_blank=True,
         )
         ws.add_data_validation(dv)
+        # Keep label, classification, and period values together so SUMIF stays on-sheet.
         for item in self.fin.balance_sheet:
             if "total" in item.label.lower():
                 continue
@@ -220,8 +256,14 @@ class ReferenceModelBuilder:
             ws.cell(row=r, column=2, value=cat)
             if cat:
                 dv.add(ws.cell(row=r, column=2))
+            for j, pd in enumerate(self.periods):
+                c = ws.cell(row=r, column=3 + j, value=item.values.get(pd))
+                c.number_format = NUM_FMT
             r += 1
         class_end = r - 1
+        self.rowmap["condensed_class_start"] = class_start
+        self.rowmap["condensed_class_end"] = class_end
+        self.rowmap["condensed_class_value_col0"] = 3
 
         r += 1
         ws.cell(row=r, column=1, value="CONDENSED INCOME STATEMENT").font = BOLD
@@ -231,15 +273,27 @@ class ReferenceModelBuilder:
             c.font = BOLD
         r += 1
 
-        ni_row = self._find_row("profit") or self._find_row("net income")
-        pretax_row = self._find_row("pretax") or self._find_row("before tax")
-        tax_row = self._find_row("tax")
+        ni_row = self._source_row(
+            "profit for the year", "net income", "net profit", sheet="Income Statement"
+        )
+        pretax_row = self._source_row(
+            "pretax", "before tax", "profit before tax", sheet="Income Statement"
+        )
+        tax_row = self._source_row("income tax", "tax expense", sheet="Income Statement")
+        int_exp_row = self._source_row(
+            "finance cost", "interest expense", sheet="Income Statement"
+        )
+        int_inc_row = self._source_row(
+            "finance income", "interest income", sheet="Income Statement"
+        )
         row_nums: dict[str, int] = {}
 
         for label, src_row, bold in [
             ("Net Income", ni_row, False),
             ("Pretax Income", pretax_row, False),
             ("Tax Expense", tax_row, False),
+            ("Interest Expense", int_exp_row, False),
+            ("Interest Income", int_inc_row, False),
         ]:
             if not src_row:
                 continue
@@ -250,6 +304,7 @@ class ReferenceModelBuilder:
             row_nums[label] = r
             r += 1
 
+        etr_row = r
         ws.cell(row=r, column=1, value="Effective Tax Rate")
         for j in range(self._n):
             col = self._col(2 + j)
@@ -259,6 +314,35 @@ class ReferenceModelBuilder:
                     column=2 + j,
                     value=f"=-{col}{row_nums['Tax Expense']}/{col}{row_nums['Pretax Income']}",
                 ).number_format = PCT_FMT
+        row_nums["Effective Tax Rate"] = etr_row
+        r += 1
+
+        # Net interest expense (positive cost): -(interest_expense + interest_income)
+        # Matches financial_math.compute_anchor sign convention.
+        net_int_row = r
+        ws.cell(row=r, column=1, value="Net Interest")
+        for j in range(self._n):
+            col = self._col(2 + j)
+            if "Interest Expense" in row_nums and "Interest Income" in row_nums:
+                ws.cell(
+                    row=r,
+                    column=2 + j,
+                    value=f"=-({col}{row_nums['Interest Expense']}+{col}{row_nums['Interest Income']})",
+                ).number_format = NUM_FMT
+        row_nums["Net Interest"] = net_int_row
+        r += 1
+
+        niat_row = r
+        ws.cell(row=r, column=1, value="Net Interest After Tax")
+        for j in range(self._n):
+            col = self._col(2 + j)
+            ws.cell(
+                row=r,
+                column=2 + j,
+                value=f"={col}{net_int_row}*(1-{col}{etr_row})",
+            ).number_format = NUM_FMT
+        row_nums["Net Interest After Tax"] = niat_row
+        self.rowmap["condensed_niat_row"] = niat_row
         r += 1
 
         nopat_row = r
@@ -266,8 +350,13 @@ class ReferenceModelBuilder:
         for j in range(self._n):
             col = self._col(2 + j)
             if "Net Income" in row_nums:
-                c = ws.cell(row=r, column=2 + j, value=f"={col}{row_nums['Net Income']}")
+                c = ws.cell(
+                    row=r,
+                    column=2 + j,
+                    value=f"={col}{row_nums['Net Income']}+{col}{niat_row}",
+                )
                 c.fill = GREEN
+                c.number_format = NUM_FMT
         r += 1
         self.rowmap["condensed_nopat_row"] = nopat_row
 
@@ -286,17 +375,22 @@ class ReferenceModelBuilder:
         ws.cell(row=r, column=1, value="CONDENSED BALANCE SHEET").font = BOLD
         r += 1
 
+        def _class_sumif(category: str, value_col: str) -> str:
+            return (
+                f'SUMIF($B${class_start}:$B${class_end},"{category}",'
+                f"{value_col}${class_start}:{value_col}${class_end})"
+            )
+
         nowc_row = r
         ws.cell(row=r, column=1, value="NOWC").font = BOLD
         for j in range(self._n):
-            col = self._col(2 + j)
+            vcol = self._col(3 + j)
             f = (
-                f'=SUMIF($B${class_start}:$B${class_end},"Operating Working Capital Asset",'
-                f"'Balance Sheet'!{col}{class_start}:'Balance Sheet'!{col}{class_end})"
-                f'-SUMIF($B${class_start}:$B${class_end},"Operating Working Capital Liability",'
-                f"'Balance Sheet'!{col}{class_start}:'Balance Sheet'!{col}{class_end})"
+                f"={_class_sumif('Operating Working Capital Asset', vcol)}"
+                f"-{_class_sumif('Operating Working Capital Liability', vcol)}"
             )
-            ws.cell(row=r, column=2 + j, value=f)
+            c = ws.cell(row=r, column=2 + j, value=f)
+            c.number_format = NUM_FMT
         r += 1
         self._register(
             "nowc_agg",
@@ -311,14 +405,14 @@ class ReferenceModelBuilder:
         ws.cell(row=r, column=1, value="NOA").font = BOLD
         for j in range(self._n):
             col = self._col(2 + j)
+            vcol = self._col(3 + j)
             f = (
                 f"={col}{nowc_row}+"
-                f'SUMIF($B${class_start}:$B${class_end},"Operating Long-Term Asset",'
-                f"'Balance Sheet'!{col}{class_start}:'Balance Sheet'!{col}{class_end})"
-                f'-SUMIF($B${class_start}:$B${class_end},"Operating Long-Term Liability",'
-                f"'Balance Sheet'!{col}{class_start}:'Balance Sheet'!{col}{class_end})"
+                f"{_class_sumif('Operating Long-Term Asset', vcol)}"
+                f"-{_class_sumif('Operating Long-Term Liability', vcol)}"
             )
-            ws.cell(row=r, column=2 + j, value=f)
+            c = ws.cell(row=r, column=2 + j, value=f)
+            c.number_format = NUM_FMT
         r += 1
         self._register(
             "noa_agg",
@@ -332,14 +426,13 @@ class ReferenceModelBuilder:
         nd_row = r
         ws.cell(row=r, column=1, value="Net Debt").font = BOLD
         for j in range(self._n):
-            col = self._col(2 + j)
+            vcol = self._col(3 + j)
             f = (
-                f'=SUMIF($B${class_start}:$B${class_end},"Financial Liability",'
-                f"'Balance Sheet'!{col}{class_start}:'Balance Sheet'!{col}{class_end})"
-                f'-SUMIF($B${class_start}:$B${class_end},"Financial Asset",'
-                f"'Balance Sheet'!{col}{class_start}:'Balance Sheet'!{col}{class_end})"
+                f"={_class_sumif('Financial Liability', vcol)}"
+                f"-{_class_sumif('Financial Asset', vcol)}"
             )
-            ws.cell(row=r, column=2 + j, value=f)
+            c = ws.cell(row=r, column=2 + j, value=f)
+            c.number_format = NUM_FMT
         self._register(
             "net_debt",
             "Condensed Financials",
@@ -348,6 +441,10 @@ class ReferenceModelBuilder:
             str(ws.cell(row=nd_row, column=lc).value),
             self.anchor.net_debt,
         )
+        self.rowmap["condensed_nowc_row"] = nowc_row
+        self.rowmap["condensed_noa_row"] = noa_row
+        self.rowmap["condensed_nd_row"] = nd_row
+        self.rowmap["condensed_nola_via_noa"] = True
 
     def _build_dupont(self, wb: Workbook) -> None:
         ws = wb.create_sheet("ALT DuPont")
@@ -363,15 +460,14 @@ class ReferenceModelBuilder:
             c.number_format = "mmm dd, yyyy"
             c.font = BOLD
 
-        nopat_r = self.rowmap.get("condensed_nopat_row")
-        ni_row = self._find_row("profit") or self._find_row("net income")
-        noa_r = None
-        nd_r = None
-        for key, val in self.semantic_map.rowmap.items():
-            if key == "condensed.noa.latest_fy":
-                noa_r = val["row"]
-            if key == "condensed.net_debt.latest_fy":
-                nd_r = val["row"]
+        nopat_r = self.rowmap["condensed_nopat_row"]
+        niat_r = self.rowmap["condensed_niat_row"]
+        noa_r = self.rowmap["condensed_noa_row"]
+        nd_r = self.rowmap["condensed_nd_row"]
+        ni_row = self._source_row(
+            "profit for the year", "net income", "net profit", sheet="Income Statement"
+        )
+        eq_row = self._equity_bs_row()
 
         metrics = ["RNOA", "After-tax CoD", "Spread", "FLEV", "ROE (decomposed)", "Actual ROE"]
         metric_rows: dict[str, int] = {}
@@ -382,79 +478,93 @@ class ReferenceModelBuilder:
             r += 1
 
         j_last = self._n - 1
-        col = self._col(1 + j_last)
-        prev = self._col(1 + j_last - 1)
+        # Condensed / Balance Sheet / IS period columns start at column 2.
+        src_col = self._col(2 + j_last)
+        src_prev = self._col(2 + j_last - 1)
+        # DuPont metric display column for the latest comparable year.
+        out_col_idx = 1 + j_last
+
         rnoa_row = metric_rows["RNOA"]
         ws.cell(
             row=rnoa_row,
-            column=1 + j_last,
+            column=out_col_idx,
             value=(
-                f"='Condensed Financials'!{col}{nopat_r}/"
-                f"(('Condensed Financials'!{col}{noa_r}+'Condensed Financials'!{prev}{noa_r})/2)"
+                f"='Condensed Financials'!{src_col}{nopat_r}/"
+                f"(('Condensed Financials'!{src_col}{noa_r}+"
+                f"'Condensed Financials'!{src_prev}{noa_r})/2)"
             ),
         ).fill = YELLOW
 
         cod_row = metric_rows["After-tax CoD"]
         ws.cell(
             row=cod_row,
-            column=1 + j_last,
-            value=f"='Condensed Financials'!{col}{nopat_r}/('Condensed Financials'!{col}{nd_r})",
-        )
+            column=out_col_idx,
+            value=(
+                f"='Condensed Financials'!{src_col}{niat_r}/"
+                f"(('Condensed Financials'!{src_col}{nd_r}+"
+                f"'Condensed Financials'!{src_prev}{nd_r})/2)"
+            ),
+        ).number_format = PCT_FMT
 
         spread_row = metric_rows["Spread"]
+        out_col = self._col(out_col_idx)
         ws.cell(
             row=spread_row,
-            column=1 + j_last,
-            value=f"={col}{rnoa_row}-{col}{cod_row}",
-        )
+            column=out_col_idx,
+            value=f"={out_col}{rnoa_row}-{out_col}{cod_row}",
+        ).number_format = PCT_FMT
 
         flev_row = metric_rows["FLEV"]
         ws.cell(
             row=flev_row,
-            column=1 + j_last,
+            column=out_col_idx,
             value=(
-                f"=('Condensed Financials'!{col}{nd_r}+'Condensed Financials'!{prev}{nd_r})/2/"
-                f"(('Balance Sheet'!{col}7+'Balance Sheet'!{prev}7)/2)"
+                f"=(('Condensed Financials'!{src_col}{nd_r}+"
+                f"'Condensed Financials'!{src_prev}{nd_r})/2)/"
+                f"(('Balance Sheet'!{src_col}{eq_row}+'Balance Sheet'!{src_prev}{eq_row})/2)"
             ),
         )
 
         roe_row = metric_rows["ROE (decomposed)"]
         ws.cell(
             row=roe_row,
-            column=1 + j_last,
-            value=f"={col}{rnoa_row}+{col}{flev_row}*({col}{spread_row})",
+            column=out_col_idx,
+            value=f"={out_col}{rnoa_row}+{out_col}{flev_row}*({out_col}{spread_row})",
         ).fill = YELLOW
 
         actual_row = metric_rows["Actual ROE"]
         ws.cell(
             row=actual_row,
-            column=1 + j_last,
-            value=f"='Income Statement'!{col}{ni_row}/(('Balance Sheet'!{col}7+'Balance Sheet'!{prev}7)/2)",
-        )
+            column=out_col_idx,
+            value=(
+                f"='Income Statement'!{src_col}{ni_row}/"
+                f"(('Balance Sheet'!{src_col}{eq_row}+'Balance Sheet'!{src_prev}{eq_row})/2)"
+            ),
+        ).number_format = PCT_FMT
 
         dup = self.anchor.dupont
         self._register(
             "rnoa",
             "ALT DuPont",
             rnoa_row,
-            1 + j_last,
-            str(ws.cell(row=rnoa_row, column=1 + j_last).value),
+            out_col_idx,
+            str(ws.cell(row=rnoa_row, column=out_col_idx).value),
             dup["RNOA"][j_last],
         )
         self._register(
             "spread",
             "ALT DuPont",
             spread_row,
-            1 + j_last,
-            str(ws.cell(row=spread_row, column=1 + j_last).value),
+            out_col_idx,
+            str(ws.cell(row=spread_row, column=out_col_idx).value),
             dup["Spread"][j_last],
         )
         self._register(
             "roe_decomp",
             "ALT DuPont",
             roe_row,
-            1 + j_last,
-            str(ws.cell(row=roe_row, column=1 + j_last).value),
+            out_col_idx,
+            str(ws.cell(row=roe_row, column=out_col_idx).value),
             dup["ROE (decomposed)"][j_last],
         )
 
@@ -473,11 +583,12 @@ class ReferenceModelBuilder:
         ws["A6"] = "Tax rate"
         ws["B6"] = sc.get("taxRate", 0.165)
         ws["B6"].number_format = PCT_FMT
+        # Historical average is already after-tax — use directly; do not tax again.
         ws["A7"] = "After-tax CoD"
         ws["B7"] = self.anchor.hist_avg_after_tax_cod
         ws["B7"].number_format = PCT_FMT
-        ws["A8"] = "After-tax CoD (model)"
-        ws["B8"] = f"=B7*(1-B6)"
+        ws["A8"] = "Financial leverage"
+        ws["B8"] = self.anchor.leverage
         ws["B8"].number_format = PCT_FMT
         ws["A9"] = "Terminal growth (g)"
         ws["B9"] = sc["terminalGrowth"]
@@ -485,73 +596,185 @@ class ReferenceModelBuilder:
         ws["B9"].number_format = PCT_FMT
 
         fc = self._first_fc_col
-        fc_col = self._col(fc)
         anchor_col = self._col(self._last_fy_col)
-        rev_row = self._find_row("revenue") or self._find_row("turnover") or 7
+        rev_row = (
+            self._source_row("revenue", "turnover", "sales", sheet="Income Statement") or 7
+        )
+        nowc_hist = self.rowmap["condensed_nowc_row"]
+        noa_hist = self.rowmap["condensed_noa_row"]
+        nd_hist = self.rowmap["condensed_nd_row"]
+        # NOLA_hist = NOA - NOWC for Y1 bridge
+        nola_hist_formula = (
+            f"='Condensed Financials'!{anchor_col}{noa_hist}"
+            f"-'Condensed Financials'!{anchor_col}{nowc_hist}"
+        )
 
-        sales_row, margin_row, nopat_row = 31, 32, 34
-        ae_row, pv_ae_row, tv_pv_row, iv_row, shares_row, ivps_row = 42, 45, 47, 49, 50, 51
+        sales_row, margin_row = 21, 22
+        nowc_row, nola_row, nd_row, eq_row = 23, 24, 25, 26
+        nopat_row, ni_row, ae_row = 27, 28, 29
+        disc_row, pv_ae_row = 30, 31
+        sum_pv_ae_row, tv_row, tv_pv_row = 35, 36, 37
+        iv_row, shares_row, ivps_row = 38, 39, 40
 
-        ws.cell(row=30, column=1, value="FORECAST BLOCK").font = BOLD
-        ws.cell(row=sales_row, column=1, value="Sales")
-        ws.cell(row=margin_row, column=1, value="NOPAT Margin")
-        ws.cell(row=nopat_row, column=1, value="NOPAT")
-        ws.cell(row=41, column=1, value="Abnormal Earnings")
-        ws.cell(row=ae_row, column=1, value="Abnormal Earnings (Y1)")
-        ws.cell(row=pv_ae_row, column=1, value="PV Abnormal Earnings")
+        ws.cell(row=20, column=1, value="FORECAST BLOCK").font = BOLD
+        for t in range(10):
+            ws.cell(row=20, column=fc + t, value=f"Y{t + 1}").font = BOLD
+            ws.column_dimensions[self._col(fc + t)].width = 14
+
+        labels = {
+            sales_row: "Sales",
+            margin_row: "NOPAT Margin",
+            nowc_row: "NOWC",
+            nola_row: "NOLA",
+            nd_row: "Net Debt",
+            eq_row: "Book Equity",
+            nopat_row: "NOPAT",
+            ni_row: "Net Income",
+            ae_row: "Abnormal Earnings",
+            disc_row: "Discount Factor",
+            pv_ae_row: "PV Abnormal Earnings",
+        }
+        for row, label in labels.items():
+            ws.cell(row=row, column=1, value=label)
+
+        ws.cell(row=sum_pv_ae_row, column=1, value="Sum PV Abnormal Earnings")
+        ws.cell(row=tv_row, column=1, value="Terminal Value")
         ws.cell(row=tv_pv_row, column=1, value="PV Terminal Value")
-        ws.cell(row=48, column=1, value="Book Equity (Y1)")
         ws.cell(row=iv_row, column=1, value="Intrinsic Value")
         ws.cell(row=shares_row, column=1, value="Diluted Shares")
         ws.cell(row=ivps_row, column=1, value="Intrinsic Value per Share")
 
-        sales_formula = f"='Income Statement'!{anchor_col}{rev_row}*(1+{sc['growthVector'][0]})"
-        ws.cell(row=sales_row, column=fc, value=sales_formula)
-        ws.cell(row=margin_row, column=fc, value=sc["marginVector"][0])
-        ws.cell(row=margin_row, column=fc).font = BLUE
-        ws.cell(row=margin_row, column=fc).number_format = PCT_FMT
-        nopat_formula = f"={fc_col}{sales_row}*{fc_col}{margin_row}"
-        ws.cell(row=nopat_row, column=fc, value=nopat_formula)
+        for t in range(10):
+            col_i = fc + t
+            col = self._col(col_i)
+            prev = self._col(col_i - 1) if t > 0 else None
+            g = sc["growthVector"][t]
+            m = sc["marginVector"][t]
+            nowc_ratio = sc["nowcRatioVector"][t]
+            nola_ratio = sc["nolaRatioVector"][t]
+
+            if t == 0:
+                sales_f = f"='Income Statement'!{anchor_col}{rev_row}*(1+{g})"
+            else:
+                sales_f = f"={prev}{sales_row}*(1+{g})"
+            ws.cell(row=sales_row, column=col_i, value=sales_f).number_format = NUM_FMT
+
+            mc = ws.cell(row=margin_row, column=col_i, value=m)
+            mc.font = BLUE
+            mc.number_format = PCT_FMT
+
+            if t == 0:
+                ws.cell(
+                    row=nowc_row,
+                    column=col_i,
+                    value=f"='Condensed Financials'!{anchor_col}{nowc_hist}",
+                ).number_format = NUM_FMT
+                ws.cell(row=nola_row, column=col_i, value=nola_hist_formula).number_format = NUM_FMT
+                ws.cell(
+                    row=nd_row,
+                    column=col_i,
+                    value=f"='Condensed Financials'!{anchor_col}{nd_hist}",
+                ).number_format = NUM_FMT
+            else:
+                ws.cell(
+                    row=nowc_row,
+                    column=col_i,
+                    value=f"={col}{sales_row}*{nowc_ratio}",
+                ).number_format = NUM_FMT
+                ws.cell(
+                    row=nola_row,
+                    column=col_i,
+                    value=f"={col}{sales_row}*{nola_ratio}",
+                ).number_format = NUM_FMT
+                ws.cell(
+                    row=nd_row,
+                    column=col_i,
+                    value=f"=($B$8)*({col}{nowc_row}+{col}{nola_row})",
+                ).number_format = NUM_FMT
+
+            ws.cell(
+                row=eq_row,
+                column=col_i,
+                value=f"={col}{nowc_row}+{col}{nola_row}-{col}{nd_row}",
+            ).number_format = NUM_FMT
+            ws.cell(
+                row=nopat_row,
+                column=col_i,
+                value=f"={col}{sales_row}*{col}{margin_row}",
+            ).number_format = NUM_FMT
+            if scenario == "Base" and t == 0:
+                ws.cell(row=nopat_row, column=col_i).fill = GREEN
+
+            # After-tax CoD in B7 already after-tax — apply once.
+            ws.cell(
+                row=ni_row,
+                column=col_i,
+                value=f"={col}{nopat_row}-{col}{nd_row}*$B$7",
+            ).number_format = NUM_FMT
+            ws.cell(
+                row=ae_row,
+                column=col_i,
+                value=f"={col}{ni_row}-$B$5*{col}{eq_row}",
+            ).number_format = NUM_FMT
+            if scenario == "Base" and t == 0:
+                ws.cell(row=ae_row, column=col_i).fill = GREEN
+
+            ws.cell(
+                row=disc_row,
+                column=col_i,
+                value=f"=1/(1+$B$5)^{t + 1}",
+            ).number_format = "0.0000"
+            ws.cell(
+                row=pv_ae_row,
+                column=col_i,
+                value=f"={col}{ae_row}*{col}{disc_row}",
+            ).number_format = NUM_FMT
+
+        last_fc = self._col(fc + 9)
+        first_fc = self._col(fc)
+        sum_pv = f"=SUM({first_fc}{pv_ae_row}:{last_fc}{pv_ae_row})"
+        ws.cell(row=sum_pv_ae_row, column=fc, value=sum_pv).number_format = NUM_FMT
+
+        tv_formula = f"={last_fc}{ae_row}*(1+$B$9)/($B$5-$B$9)"
+        ws.cell(row=tv_row, column=fc + 9, value=tv_formula).number_format = NUM_FMT
+
+        tv_pv_formula = f"={last_fc}{tv_row}*{last_fc}{disc_row}"
+        ws.cell(row=tv_pv_row, column=fc, value=tv_pv_formula).number_format = NUM_FMT
+
+        iv_formula = f"={first_fc}{eq_row}+{first_fc}{sum_pv_ae_row}+{first_fc}{tv_pv_row}"
+        ws.cell(row=iv_row, column=fc, value=iv_formula).number_format = NUM_FMT
+
+        shares_cell = ws.cell(
+            row=shares_row,
+            column=fc,
+            value=self.assumptions["marketData"]["dilutedShares"],
+        )
+        shares_cell.font = BLUE
+        shares_cell.number_format = NUM_FMT
+
+        ivps_formula = f"={first_fc}{iv_row}/{first_fc}{shares_row}"
+        ivps_cell = ws.cell(row=ivps_row, column=fc, value=ivps_formula)
+        ivps_cell.number_format = "0.0000"
         if scenario == "Base":
-            ws.cell(row=nopat_row, column=fc).fill = GREEN
+            ivps_cell.fill = GREEN
 
-        # Simplified AE chain for Y1
-        eq_formula = f"='Condensed Financials'!{anchor_col}{self.semantic_map.rowmap['condensed.noa.latest_fy']['row']}-'Condensed Financials'!{anchor_col}{self.semantic_map.rowmap['condensed.net_debt.latest_fy']['row']}"
-        ws.cell(row=48, column=fc, value=eq_formula)
-        ni_formula = f"={fc_col}{nopat_row}-'Condensed Financials'!{anchor_col}{self.semantic_map.rowmap['condensed.net_debt.latest_fy']['row']}*B8"
-        ws.cell(row=40, column=fc, value=ni_formula)
-        ae_formula = f"={fc_col}40-B5*{fc_col}48"
-        ws.cell(row=ae_row, column=fc, value=ae_formula)
-        if scenario == "Base":
-            ws.cell(row=ae_row, column=fc).fill = GREEN
-
-        pv_factor = f"=1/(1+B5)"
-        ws.cell(row=44, column=fc, value=pv_factor)
-        pv_ae_formula = f"={fc_col}{ae_row}*{fc_col}44"
-        ws.cell(row=pv_ae_row, column=fc, value=pv_ae_formula)
-
-        last_fc = self._col(self._first_fc_col + 9)
-        tv_formula = f"={last_fc}{ae_row}*(1+B9)/(B5-B9)"
-        ws.cell(row=46, column=self._first_fc_col + 9, value=tv_formula)
-        tv_pv_formula = f"={last_fc}46*{last_fc}44"
-        ws.cell(row=tv_pv_row, column=fc, value=tv_pv_formula)
-
-        iv_formula = f"={fc_col}48+{fc_col}{pv_ae_row}+{fc_col}{tv_pv_row}"
-        ws.cell(row=iv_row, column=fc, value=iv_formula)
-        ws.cell(row=shares_row, column=fc, value=self.assumptions["marketData"]["dilutedShares"])
-        ws.cell(row=shares_row, column=fc).font = BLUE
-        ivps_formula = f"={fc_col}{iv_row}/{fc_col}{shares_row}"
-        ws.cell(row=ivps_row, column=fc, value=ivps_formula)
-        if scenario == "Base":
-            ws.cell(row=ivps_row, column=fc).fill = GREEN
+        self.rowmap[f"model_{scenario}_ivps_row"] = ivps_row
+        self.rowmap[f"model_{scenario}_fc_col"] = fc
+        self.rowmap[f"model_{scenario}_ae_row"] = ae_row
+        self.rowmap[f"model_{scenario}_disc_row"] = disc_row
+        self.rowmap[f"model_{scenario}_tv_row"] = tv_row
+        self.rowmap[f"model_{scenario}_sales_row"] = sales_row
 
         if scenario == "Base":
+            sales_y1 = str(ws.cell(row=sales_row, column=fc).value)
+            nopat_y1 = str(ws.cell(row=nopat_row, column=fc).value)
+            ae_y1 = str(ws.cell(row=ae_row, column=fc).value)
             self._register(
                 "model_sales_y1",
                 f"Model_{scenario}",
                 sales_row,
                 fc,
-                sales_formula,
+                sales_y1,
                 result.sales_y1,
             )
             self._register(
@@ -559,7 +782,7 @@ class ReferenceModelBuilder:
                 f"Model_{scenario}",
                 nopat_row,
                 fc,
-                nopat_formula,
+                nopat_y1,
                 result.nopat_y1,
             )
             self._register(
@@ -567,7 +790,7 @@ class ReferenceModelBuilder:
                 f"Model_{scenario}",
                 ae_row,
                 fc,
-                ae_formula,
+                ae_y1,
                 result.abnormal_earnings_y1,
             )
             self._register(
@@ -592,15 +815,15 @@ class ReferenceModelBuilder:
         ws["A1"] = f"{self.fin.company_name} — Scenario Summary"
         for j, h in enumerate(["Scenario", "Probability", "IVPS"], start=1):
             ws.cell(row=3, column=j, value=h).font = BOLD
-        base_ivps_row = 51
-        base_fc = self._first_fc_col
         for i, name in enumerate(("Bear", "Base", "Bull"), start=4):
             sc = self.assumptions["scenarios"][name]
+            ivps_row = self.rowmap[f"model_{name}_ivps_row"]
+            fc = self.rowmap[f"model_{name}_fc_col"]
             ws.cell(row=i, column=1, value=name)
             ws.cell(row=i, column=2, value=sc["probability"])
             ws.cell(row=i, column=2).font = BLUE
             ws.cell(row=i, column=2).number_format = PCT_FMT
-            ws.cell(row=i, column=3, value=f"='Model_{name}'!{self._col(base_fc)}{base_ivps_row}")
+            ws.cell(row=i, column=3, value=f"='Model_{name}'!{self._col(fc)}{ivps_row}")
         weighted_row = 8
         weighted_col = 5
         weighted_formula = "=SUMPRODUCT(B4:B6,C4:C6)"

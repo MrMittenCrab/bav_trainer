@@ -26,11 +26,18 @@ def run_scenario(
     shares: float,
     hist_avg_after_tax_cod: float | None = None,
 ) -> ScenarioResult:
-    """Compute residual-income valuation for one scenario."""
+    """Compute residual-income valuation for one scenario.
+
+    ``hist_avg_after_tax_cod`` / ``anchor.hist_avg_after_tax_cod`` are already
+    after-tax rates — tax must not be applied again.
+    """
     ke = scenario["costOfEquity"]
     g = scenario["terminalGrowth"]
-    tax = scenario.get("taxRate", 0.165)
-    cod = (hist_avg_after_tax_cod or anchor.hist_avg_after_tax_cod) * (1 - tax)
+    after_tax_cod = (
+        hist_avg_after_tax_cod
+        if hist_avg_after_tax_cod is not None
+        else anchor.hist_avg_after_tax_cod
+    )
 
     sales: list[float] = []
     prev = anchor.revenue
@@ -49,7 +56,7 @@ def run_scenario(
         noa_t = nowc_t + nola_t
         eq_t = noa_t - nd_t
         nopat_t = sales[t] * scenario["marginVector"][t]
-        ni_t = nopat_t - nd_t * cod
+        ni_t = nopat_t - nd_t * after_tax_cod
         ae_t = ni_t - ke * eq_t
         nowc_v.append(nowc_t)
         nola_v.append(nola_t)

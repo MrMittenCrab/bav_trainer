@@ -74,7 +74,7 @@ class AnchorMetrics:
     equity: float
     noa: float
     leverage: float
-    hist_avg_after_tax_cod: float
+    hist_avg_after_tax_cod: float  # already after-tax; do not multiply by (1 − tax) again
     dupont: dict[str, list[float | str | None]]
 
 
