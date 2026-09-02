@@ -19,38 +19,76 @@ This document does **not** claim that the product is complete. It records the wo
 
 ## Active implementation step
 
-**Status: no active step assigned.**
-
-Cursor must not infer or invent the next task. Wait for a ChatGPT-authored implementation instruction before changing product code.
-
-When ChatGPT assigns a step, replace this section with the following structure:
-
-### Step N — <specific objective>
+### Step 1 — Generate a matched Trainer and Answer Key workbook pair
 
 **Goal**
 
-One precise outcome.
+Change one HK-company build so it produces two user-facing Excel files from the same semantic reference model:
+
+- `*_Trainer.xlsx`: all semantic practice cells blank and bright yellow; and
+- `*_Answer_Key.xlsx`: the same cells bright yellow, populated with the correct Excel formulas or inputs, and carrying concise hints in Excel legacy Notes.
+
+The two files must otherwise be visually and structurally identical and must follow the supplied Oshkosh workbook's financial-model aesthetic.
 
 **Required changes**
 
-1. ...
-2. ...
-3. ...
+1. Update the build orchestration and CLI so an output named `<Company>_Trainer.xlsx` also produces `<Company>_Answer_Key.xlsx`. If the supplied trainer output stem does not end in `_Trainer`, append `_Trainer` for the trainer file and `_Answer_Key` for the answer file. Report both paths on successful completion.
+2. Build the complete model directly as the Answer Key (or promote the completed internal reference model to that name), then derive the Trainer from it. Do not require a third user-facing `*_reference.xlsx` file.
+3. Continue using `SemanticMap` / `ResolvedComponent` as the sole authority for which cells are practice cells and what formula, input, and hint belongs to each cell. Do not introduce a coordinate registry.
+4. In the Trainer workbook, for every resolved practice component:
+   - remove the answer formula or input;
+   - apply solid bright-yellow fill `#FFFF00`;
+   - preserve the cell's font, border, alignment, protection, and number format; and
+   - do not add a Note, threaded comment, adjacent hint cell, or visible answer.
+5. In the Answer Key workbook, for every resolved practice component:
+   - retain the working Excel formula or correct input rather than replacing it with a displayed value;
+   - apply the same solid bright-yellow fill `#FFFF00`; and
+   - attach a non-empty legacy Excel Note using the component's concise `short_hint`, with the first detailed hint as fallback when `short_hint` is empty. Use a stable author such as `BAV Trainer`.
+6. Remove the present blue practice-cell fill and visible adjacent hint-cell behavior from generated workbooks. Existing optional Check, Hint, and Reveal commands may remain, but their operation must not be required to access the static Answer Key and must not reintroduce visible hint columns during initial generation.
+7. Apply one shared Oshkosh-derived style profile to both outputs:
+   - Aptos Narrow throughout generated visible sheets;
+   - 20-point bold worksheet titles;
+   - 11-point body text;
+   - black text on a white base;
+   - bright yellow only for learner-input/answer areas; and
+   - restrained thin borders for headers, section boundaries, and totals, while preserving appropriate currency, percentage, multiple, and date formats.
+8. Ensure both output files have the same visible worksheet names/order, freeze panes, gridline setting, merged ranges, widths, heights, and practice-cell styling. Hidden semantic metadata may be retained in both files when needed by Check/Hint/Reveal.
+9. Update `README-HK-TRAINER.md` and CLI help/output examples only as needed to describe the paired files accurately. Do not broaden the documentation rewrite beyond this behavior.
 
 **Do not change**
 
-- ...
-- ...
+- HK manual-ingestion behavior or standardized financial-data interfaces.
+- BAV accounting reformulation, DuPont, forecast, residual-income, DCF, cross-check, or scenario mathematics.
+- The semantic component catalog's coordinate-free design.
+- Component dependency ordering or the meaning of existing hints.
+- Unrelated workbook layout, architecture, refactors, or features.
+- Git history. Do not commit, push, reset, rebase, or merge.
 
 **Acceptance criteria**
 
-- ...
-- ...
-- ...
+- A demo build creates both `DEMO_HK_Trainer.xlsx` and `DEMO_HK_Answer_Key.xlsx`, and no separate reference workbook is needed by the user.
+- For every resolved component, the Trainer cell is blank, has solid fill `#FFFF00`, and has no Note/comment.
+- For every resolved component, the Answer Key cell contains the expected working formula or input, has the same solid fill `#FFFF00`, and has a non-empty legacy Note with the expected hint text.
+- No generated visible sheet contains the former adjacent hint-cell text added by `_strip_practice_formulas`.
+- Corresponding practice cells have identical font, border, alignment, protection, and number format in both files.
+- Visible worksheet names/order, merged ranges, column widths, row heights, and sheet display settings match between the pair.
+- Generated visible sheets use Aptos Narrow, with 20-point bold titles and 11-point body text where those roles apply.
+- Existing semantic-map loading still resolves all catalog components from both workbooks.
+- Retained Check, Hint, and Reveal commands either continue to work with the new Answer Key path or are adjusted so their existing tests remain valid without creating a third reference workbook.
+- Both files open successfully in Excel-compatible readers without repair warnings.
 
 **Testing**
 
-Run the smallest relevant existing tests/checks. Add or change tests only when required to verify the requested behavior. Do not weaken tests to make them pass.
+Update or add focused tests under `core/tests/` for:
+
+1. paired output naming and existence;
+2. Trainer blank/yellow/no-Note behavior for every semantic component;
+3. Answer Key formula-or-input/yellow/legacy-Note behavior for every semantic component;
+4. corresponding-cell style parity and visible sheet-structure parity;
+5. Oshkosh-derived font/title/body conventions; and
+6. retained semantic-map and optional Check/Hint/Reveal compatibility.
+
+Run the smallest relevant trainer test module first, then the repository's existing relevant test suite. Do not weaken tests to make them pass. Report the exact commands and results.
 
 **Git boundary**
 
