@@ -13,82 +13,152 @@ Cursor should treat `TARGET.md` and this file as read-only unless the active ste
 
 ## Current architecture checkpoint
 
-The trainer has already moved from a coordinate-based component registry toward a semantic component system. Current runtime code uses `COMPONENT_CATALOG`, `SemanticMap` / `ResolvedComponent`, embedded component maps, and shared financial-model logic rather than the former `TRAINER_COMPONENTS` coordinate registry.
+The trainer now produces the intended matched `*_Trainer.xlsx` / `*_Answer_Key.xlsx` pair from one semantic reference model. The Trainer blanks resolved practice cells and keeps them bright yellow; the Answer Key keeps formulas and adds legacy Notes. The semantic component system remains coordinate-free at catalog level through `COMPONENT_CATALOG`, `SemanticMap`, and `ResolvedComponent`.
 
-This document does **not** claim that the product is complete. It records the workflow and the next bounded implementation step only.
+The previous paired-workbook step is structurally implemented, but code review found that the **underlying reference-model formulas are not yet reliable enough to serve as an answer key**. The next step therefore fixes model integrity before expanding the exercise catalog or adding new UX.
+
+### Review findings that define the next step
+
+1. `cmd_build()` reads `--assumptions` but does not pass the parsed assumptions into `build_training_workbook()`, so CLI-supplied assumptions are silently ignored.
+2. Several workbook formulas disagree with the Python-side expected-value logic used by the semantic map:
+   - latest-FY NOPAT in the workbook currently collapses to Net Income instead of adding after-tax net interest;
+   - the DuPont after-tax cost-of-debt formula uses NOPAT divided by Net Debt, which is not the metric computed by `financial_math.py`;
+   - the model labels a historical value as after-tax cost of debt and then taxes it again in the forecast model / scenario engine.
+3. Condensed balance-sheet `SUMIF` formulas use the classification rows on `Condensed Financials` but sum same-numbered rows on `Balance Sheet`. Those row numbers are not a stable semantic mapping and can become wrong whenever skipped/total rows differ.
+4. DuPont formulas hard-code `Balance Sheet` row `7` as equity in FLEV / Actual ROE instead of resolving the actual equity line semantically.
+5. The forecast model only populates the first forecast year, while terminal-value formulas reference year-10 abnormal earnings and discount-factor cells that are blank. This means an Answer Key can contain syntactically valid formulas whose dependency chain is incomplete.
+6. Current trainer tests mostly prove file naming, styling, Notes, formula presence, and semantic-map resolution. They do not prove that the formulas in those answer cells are financially coherent or that their referenced cells are populated.
+7. `check_component()` can treat an exact formula-string match as the expected value when Excel has no cached result. That fallback is useful for learner checking, but it can also mask a mathematically wrong reference formula during automated tests.
+
+This document does **not** claim that the product is complete. It records the next bounded implementation step only.
 
 ## Active implementation step
 
-### Step 1 — Generate a matched Trainer and Answer Key workbook pair
+### Step 2 — Make the existing semantic Answer Key mathematically trustworthy
 
 **Goal**
 
-Change one HK-company build so it produces two user-facing Excel files from the same semantic reference model:
+Repair the reference workbook and shared financial-model logic so the **existing 13 semantic components** produce coherent Excel formulas whose dependencies are populated and whose definitions agree with the Python-side expected values.
 
-- `*_Trainer.xlsx`: all semantic practice cells blank and bright yellow; and
-- `*_Answer_Key.xlsx`: the same cells bright yellow, populated with the correct Excel formulas or inputs, and carrying concise hints in Excel legacy Notes.
-
-The two files must otherwise be visually and structurally identical and must follow the supplied Oshkosh workbook's financial-model aesthetic.
+Do not expand the component catalog in this step. The purpose is to make the current Answer Key trustworthy before adding more exercises.
 
 **Required changes**
 
-1. Update the build orchestration and CLI so an output named `<Company>_Trainer.xlsx` also produces `<Company>_Answer_Key.xlsx`. If the supplied trainer output stem does not end in `_Trainer`, append `_Trainer` for the trainer file and `_Answer_Key` for the answer file. Report both paths on successful completion.
-2. Build the complete model directly as the Answer Key (or promote the completed internal reference model to that name), then derive the Trainer from it. Do not require a third user-facing `*_reference.xlsx` file.
-3. Continue using `SemanticMap` / `ResolvedComponent` as the sole authority for which cells are practice cells and what formula, input, and hint belongs to each cell. Do not introduce a coordinate registry.
-4. In the Trainer workbook, for every resolved practice component:
-   - remove the answer formula or input;
-   - apply solid bright-yellow fill `#FFFF00`;
-   - preserve the cell's font, border, alignment, protection, and number format; and
-   - do not add a Note, threaded comment, adjacent hint cell, or visible answer.
-5. In the Answer Key workbook, for every resolved practice component:
-   - retain the working Excel formula or correct input rather than replacing it with a displayed value;
-   - apply the same solid bright-yellow fill `#FFFF00`; and
-   - attach a non-empty legacy Excel Note using the component's concise `short_hint`, with the first detailed hint as fallback when `short_hint` is empty. Use a stable author such as `BAV Trainer`.
-6. Remove the present blue practice-cell fill and visible adjacent hint-cell behavior from generated workbooks. Existing optional Check, Hint, and Reveal commands may remain, but their operation must not be required to access the static Answer Key and must not reintroduce visible hint columns during initial generation.
-7. Apply one shared Oshkosh-derived style profile to both outputs:
-   - Aptos Narrow throughout generated visible sheets;
-   - 20-point bold worksheet titles;
-   - 11-point body text;
-   - black text on a white base;
-   - bright yellow only for learner-input/answer areas; and
-   - restrained thin borders for headers, section boundaries, and totals, while preserving appropriate currency, percentage, multiple, and date formats.
-8. Ensure both output files have the same visible worksheet names/order, freeze panes, gridline setting, merged ranges, widths, heights, and practice-cell styling. Hidden semantic metadata may be retained in both files when needed by Check/Hint/Reveal.
-9. Update `README-HK-TRAINER.md` and CLI help/output examples only as needed to describe the paired files accurately. Do not broaden the documentation rewrite beyond this behavior.
+1. **Pass CLI assumptions through correctly.**
+   - In `core/__main__.py`, pass the parsed `assumptions` object into `build_training_workbook(data, out, assumptions)`.
+   - Add a focused test using a non-default assumption value that visibly changes a generated model input / formula result path, so the test proves the CLI argument is not ignored.
+
+2. **Fix the condensed accounting chain so workbook formulas match the BAV definitions used by Python.**
+   - Build explicit historical rows for Net Interest and Net Interest After Tax (or an equivalent semantically clear structure) rather than making NOPAT equal Net Income.
+   - Define NOPAT consistently as Net Income plus after-tax net interest using the same sign convention as `compute_anchor()`.
+   - Ensure the latest-FY semantic `nopat_fy` formula points to this correct workbook calculation and its expected value still comes from the same financial definition.
+   - Do not hard-code an expected numeric answer into the workbook.
+
+3. **Remove positional coupling between the condensed classification table and raw Balance Sheet rows.**
+   - Do not use a classification range from one sheet with a same-row-number sum range from another sheet unless a verified one-to-one row mapping exists.
+   - Prefer one of these coherent designs:
+     - keep each balance-sheet label, classification, and period values together in the condensed classification table and `SUMIF` within that table; or
+     - store explicit source-row metadata and build formulas from those resolved source rows.
+   - NOWC, NOA, and Net Debt formulas must derive from the classifications actually shown to the user and remain correct if source statement row positions change.
+   - Preserve semantic component registration; do not introduce fixed catalog coordinates.
+
+4. **Fix DuPont definitions and remove hard-coded equity row assumptions.**
+   - After-tax CoD must use after-tax net interest divided by average Net Debt, matching the definition in `compute_anchor()`.
+   - RNOA must remain NOPAT divided by average NOA.
+   - Spread must remain RNOA minus after-tax CoD.
+   - FLEV must use average Net Debt divided by average Equity.
+   - Actual ROE must use Net Income divided by average Equity.
+   - Resolve the equity line from standardized/semantic data rather than assuming `Balance Sheet!row 7`.
+   - The semantic expected values for `rnoa`, `spread`, and `roe_decomp` must agree with the workbook definitions.
+
+5. **Use one unambiguous cost-of-debt convention across `financial_math.py`, `ri_engine.py`, and the workbook.**
+   - Decide whether the stored historical series is pre-tax or after-tax and name it accordingly.
+   - Apply tax exactly once.
+   - Update variable/field names where necessary to remove the current ambiguity.
+   - Keep the economic definition consistent between Python expected values and Excel formulas.
+   - Do not silently change unrelated scenario assumptions.
+
+6. **Build a complete ten-year forecast dependency chain before computing terminal value.**
+   - Populate Sales, NOPAT Margin, NOPAT, Net Debt / Equity (or the existing equivalent operating-financing bridge), Net Income, Abnormal Earnings, discount factors, and PV of Abnormal Earnings for all forecast years required by the residual-income model.
+   - Year-10 terminal value must reference populated year-10 abnormal earnings.
+   - PV Terminal Value must discount using a populated year-10 discount factor (or an equivalent explicit formula), not an empty cell.
+   - Intrinsic Value and IVPS must therefore trace through populated workbook cells from forecast assumptions to final value.
+   - Keep Bear / Base / Bull model construction aligned; only Base semantic components need to remain registered in this step unless already registered elsewhere.
+
+7. **Keep the workbook formula chain aligned with `ri_engine.run_scenario()`.**
+   - The same anchor revenue, growth vectors, margin vectors, tax treatment, leverage logic, cost of equity, terminal growth, and share count must produce the same conceptual result in both implementations.
+   - If the existing Python engine contains the same discovered bug (for example double-taxing a value already defined as after-tax CoD), fix the shared definition rather than forcing Excel to copy the bug.
+   - Do not add a second independent valuation methodology.
+
+8. **Add formula-integrity tests that can fail even when formula strings exist.**
+   Add focused tests under `core/tests/` that verify at minimum:
+   - CLI assumptions are propagated into the generated model;
+   - NOPAT formula uses Net Income plus after-tax net interest and is not merely `=Net Income`;
+   - condensed NOWC / NOA / Net Debt do not depend on accidental cross-sheet row-number alignment;
+   - DuPont CoD does not use NOPAT as its numerator;
+   - FLEV / Actual ROE do not hard-code `Balance Sheet!7` as equity;
+   - every required forecast-year cell in the ten-year Base forecast chain is populated;
+   - terminal value and PV terminal value reference populated year-10 cells;
+   - the 13 registered semantic component formulas have no direct references to required-but-blank cells in their model dependency chain;
+   - semantic expected values remain non-null and use the corrected shared financial definitions.
+
+9. **Do not let `check_component()` mask reference-model defects in the new integrity tests.**
+   - Existing learner-facing fallback behavior may remain if useful.
+   - New reference-model tests must inspect the generated workbook / semantic formulas directly rather than relying only on `check_component()` returning `passed=True`.
+
+10. **Preserve the paired-workbook behavior from Step 1.**
+    - Trainer practice cells remain blank bright yellow with no Notes.
+    - Answer Key practice cells remain bright yellow with formulas and legacy Notes.
+    - Trainer / Answer Key visible structure and styling remain matched.
+    - No third user-facing reference workbook returns.
+
+**Files expected to change**
+
+- `core/__main__.py`
+- `core/engine/reference_model.py`
+- `core/model/financial_math.py` if needed to make the cost-of-debt definition explicit and consistent
+- `core/model/ri_engine.py` if needed to remove double taxation / align the forecast math
+- `core/tests/test_trainer.py` and/or a new focused reference-model test module
+
+Only change other files if a concrete dependency requires it.
 
 **Do not change**
 
-- HK manual-ingestion behavior or standardized financial-data interfaces.
-- BAV accounting reformulation, DuPont, forecast, residual-income, DCF, cross-check, or scenario mathematics.
-- The semantic component catalog's coordinate-free design.
-- Component dependency ordering or the meaning of existing hints.
-- Unrelated workbook layout, architecture, refactors, or features.
+- `TARGET.md`.
+- The paired Trainer / Answer Key product contract.
+- `COMPONENT_CATALOG` membership, ordering, or coordinate-free architecture.
+- HK manual-ingestion interfaces except where a semantic source-row lookup helper is strictly required.
+- The learner-facing Hint/Reveal UX in this step; the adjacent-cell `hint` behavior can be handled separately after reference-model integrity is established.
+- Workbook aesthetics except where newly added model rows/columns need the existing shared style.
 - Git history. Do not commit, push, reset, rebase, or merge.
 
 **Acceptance criteria**
 
-- A demo build creates both `DEMO_HK_Trainer.xlsx` and `DEMO_HK_Answer_Key.xlsx`, and no separate reference workbook is needed by the user.
-- For every resolved component, the Trainer cell is blank, has solid fill `#FFFF00`, and has no Note/comment.
-- For every resolved component, the Answer Key cell contains the expected working formula or input, has the same solid fill `#FFFF00`, and has a non-empty legacy Note with the expected hint text.
-- No generated visible sheet contains the former adjacent hint-cell text added by `_strip_practice_formulas`.
-- Corresponding practice cells have identical font, border, alignment, protection, and number format in both files.
-- Visible worksheet names/order, merged ranges, column widths, row heights, and sheet display settings match between the pair.
-- Generated visible sheets use Aptos Narrow, with 20-point bold titles and 11-point body text where those roles apply.
-- Existing semantic-map loading still resolves all catalog components from both workbooks.
-- Retained Check, Hint, and Reveal commands either continue to work with the new Answer Key path or are adjusted so their existing tests remain valid without creating a third reference workbook.
-- Both files open successfully in Excel-compatible readers without repair warnings.
+- `python -m core build ... --assumptions <file>` produces a workbook that actually reflects the supplied assumptions.
+- Latest-FY workbook NOPAT uses the same definition and sign convention as Python `compute_anchor()`.
+- NOWC, NOA, and Net Debt no longer rely on matching row numbers between unrelated sheet layouts.
+- DuPont after-tax CoD, Spread, FLEV, ROE decomposition, and Actual ROE use financially correct numerators/denominators and semantically resolved source rows.
+- No cost-of-debt quantity is taxed twice.
+- All ten forecast years needed by the residual-income model are populated in each scenario model before terminal value is calculated.
+- Terminal value and PV terminal value do not reference blank forecast cells.
+- The existing 13 semantic Answer Key cells contain formulas that are internally coherent with their dependency chain and corresponding Python expected-value definitions.
+- The matched Trainer / Answer Key generation and styling tests from Step 1 still pass.
+- No new coordinate registry or catalog-level hard-coded workbook cell mapping is introduced.
 
 **Testing**
 
-Update or add focused tests under `core/tests/` for:
+Use a red/green workflow for each discovered defect. Run the smallest relevant test first after each change, then the full current core test suite.
 
-1. paired output naming and existence;
-2. Trainer blank/yellow/no-Note behavior for every semantic component;
-3. Answer Key formula-or-input/yellow/legacy-Note behavior for every semantic component;
-4. corresponding-cell style parity and visible sheet-structure parity;
-5. Oshkosh-derived font/title/body conventions; and
-6. retained semantic-map and optional Check/Hint/Reveal compatibility.
+At minimum run and report:
 
-Run the smallest relevant trainer test module first, then the repository's existing relevant test suite. Do not weaken tests to make them pass. Report the exact commands and results.
+```bash
+python -m pytest core/tests/test_trainer.py -v --tb=short
+python -m pytest core/tests/ -q --tb=line
+```
+
+If a new dedicated reference-model test module is added, run it explicitly before the full suite.
+
+Do not weaken existing tests to make them pass. Do not report formula correctness merely because openpyxl can reopen the file or because the formula string begins with `=`.
 
 **Git boundary**
 
@@ -119,10 +189,12 @@ After the user pushes the commit, ChatGPT should inspect the latest GitHub commi
 Verification asks:
 
 - Does the code actually implement every acceptance criterion?
+- Are the reference formulas financially coherent, not merely syntactically present?
+- Do workbook formulas and Python expected-value definitions agree?
+- Are required forecast dependencies populated before terminal value / IVPS use them?
 - Are important cases or requirements missing?
 - Did Cursor change unrelated behavior or architecture?
-- Do the new/changed tests appear to exercise the intended behavior?
-- Is the implementation internally coherent with the surrounding code?
+- Do the new/changed tests appear capable of catching the defects identified above?
 
 ChatGPT should not rerun the test suite. Cursor owns test execution; ChatGPT owns independent inspection of the committed implementation.
 
