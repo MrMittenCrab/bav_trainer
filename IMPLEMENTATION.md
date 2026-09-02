@@ -14,253 +14,456 @@ Cursor should treat `TARGET.md` and this file as read-only unless the active ste
 
 ## Current architecture checkpoint
 
-Step 2 substantially improved the reference workbook: CLI assumptions now flow into the build; the condensed workbook contains Net Interest / Net Interest After Tax; balance-sheet classifications and values are colocated; DuPont no longer hard-codes equity row 7; the model now populates a ten-year residual-income chain; and the Python scenario engine no longer taxes an already-after-tax cost of debt a second time.
+Commit `d327347` (`chat reference 2B`) substantially completes Step 2B. The trainer now has one canonical `resolve_line()` used by both Python expected-value math and Excel source-row construction; the supplied demo tax line resolves correctly; optional interest-income / interest-expense cases remain populated; the workbook and Python share the same equity alias/fallback behavior; and `RESULT.md` reports 34 passing core tests.
 
-However, independent code review found that **the underlying source-line resolver is still duplicated and ambiguous**, so the Answer Key is not yet trustworthy enough to move on to expanding the exercise catalog.
+The next blocker is no longer source-line lookup. It is **balance-sheet classification and source-data integrity**.
 
-### Review findings from commit `56b03a8` (`chat step 2`)
+### Review findings from commit `d327347`
 
-1. **The Python anchor still selects the wrong tax line in the supplied demo.** `financial_math._find_line()` performs unrestricted substring matching, and `compute_anchor()` calls `_find_line(is_items, "tax", "income tax")`. In `DEMO_HK_Standardized.json`, `Profit before tax` appears before `Income tax expense`, so the generic fragment `tax` resolves the pretax-profit row as the tax-expense row. That makes Python ETR, NIAT, NOPAT, historical CoD, and downstream scenario expected values wrong even though the workbook-side tax lookup was improved.
-2. **Workbook and Python use different source-line resolvers.** `reference_model.py` now has `_source_row()` with one set of aliases while `financial_math.py` still has `_find_line()` with another. This is the root cause of definition drift: a future label can resolve to different source data in Excel and Python.
-3. **Net-interest workbook logic incorrectly requires both interest expense and interest income.** If a company reports finance costs but no separate finance income line (or vice versa), `Net Interest` is left blank. Python treats a missing line as zero, so workbook and Python diverge for a valid input shape.
-4. **Equity fallback is inconsistent.** `compute_anchor()` falls back to `NOA - Net Debt` when it cannot find an equity line, but `ReferenceModelBuilder._equity_bs_row()` raises an exception unless a label contains `total equity` or `shareholders`. A valid HK input such as `Equity attributable to owners of the Company`, or a standardized input without a separate equity total, can therefore build in Python but fail when generating the workbook.
-5. **The new integrity tests remain demo-shape/string tests rather than true source-resolution tests.** They verify that formulas exist and that the ten-year chain is populated, but they do not catch the demo tax-line error above, do not test missing optional interest lines, and do not test equity fallback. `test_semantic_formulas_have_no_blank_required_refs` also does not actually inspect the direct references of all 13 semantic formulas; it mainly verifies formula presence plus two Y10 cells.
-6. **The handoff contains no Step 2 test report.** `RESULT.md` still reports Step 1, and the GitHub commit has no CI statuses. ChatGPT therefore cannot independently confirm what Cursor ran for Step 2 from the committed checkpoint.
+1. **The model can still be internally consistent while economically wrong because classification is not reconciled.** `financial_math.guess_classification()` recognizes only a small keyword set and returns `Ambiguous — Operating` for everything else. `compute_anchor()` then ignores that ambiguous category entirely because it only sums the six operating/financial categories. A balance-sheet line can therefore disappear from NOA / Net Debt without any error.
+2. **The classification contract has drifted from the parent BAVGEM model.** The trainer dropdown currently offers six operating/financial categories plus `Ambiguous — Operating` and `Ambiguous — Financial`. The BAVGEM Stage-3 contract instead uses eight real accounting destinations: the six operating/financial categories plus `Equity` and `Exclude`; genuinely ambiguous items receive a review flag while still carrying a real default category.
+3. **The supplied demo exposes the problem.** For FY2025, the currently classified detail produces implied equity of approximately `7,025` while reported Total Equity is `8,700`, a gap of `1,675`. Earlier years also have gaps. The source totals balance, but the detail supplied to the reformulation is incomplete, so current tests can pass while the BAV reformulation does not tie.
+4. **The workbook currently hides that gap.** Its `Equity` row links reported equity when a total-equity line exists. It does not show `Equity = NOA - Net Debt`, `Reported Equity`, and a reconciliation `CHECK` as separate rows. DuPont can therefore consume reported equity even when the classified NOA / Net Debt system does not reconcile to it.
+5. **`build` does not enforce the existing ingestion reconciliation report.** `cmd_ingest()` reports checksum failures, but `build_training_workbook()` proceeds directly to model construction. The current demo cash-flow data is arithmetically inconsistent (`CFO + CFI + CFF != Net change in cash`) yet a Trainer / Answer Key can still be generated.
+6. **Existing validators are too weak to detect detail completeness.** `validate_balance_sheet()` checks only `Total Assets = Total Liabilities + Total Equity`; it does not prove that the non-subtotal detail being classified sums to those totals. Equal omissions on the asset and liability sides could therefore evade even an implied-equity check.
+7. **The parent BAVGEM already contains the right domain contract.** `skills/bav-pipeline/references/stage2_assembler.md` makes source checksums blocking, and `stage3_analyst.md` requires complete classification, the eight-category dropdown, implied Equity = NOA − Net Debt, Reported Equity, and an explicit reconciliation CHECK. Reimplementing a different trainer-specific accounting convention creates avoidable drift.
+8. **The trainer skill itself is stale.** `skills/bav-trainer/SKILL.md` still describes a hidden `*_reference.xlsx`, visible adjacent hints, and the older workflow even though `TARGET.md` and runtime now use a paired Trainer / Answer Key with Notes.
+9. **One small resolver drift remains.** `_default_assumptions()` still derives its metadata `anchorRevenue` from `income_statement[0]` instead of the canonical revenue resolver. It does not drive the current scenario engine, but it should not be allowed to become a second revenue-selection rule.
 
-This document does **not** claim that the product is complete. The next bounded step removes the duplicated source-resolution logic and adds independent fixtures that can catch these failures before the project expands.
+## BAVGEM integration decision
+
+Use **selective integration**, not full runtime coupling.
+
+### Reuse now
+
+Treat these existing BAVGEM documents as the canonical domain contracts for the corresponding trainer logic:
+
+- `skills/bav-pipeline/references/stage2_assembler.md` — source-statement sign conventions and blocking arithmetic checks;
+- `skills/bav-pipeline/references/stage3_analyst.md` — balance-sheet classification categories, reformulation identities, and DuPont accounting definitions;
+- `skills/bav-pipeline/references/stage4_modeler.md` — later, when the trainer expands the valuation / DCF layer.
+
+The implementation should extract reusable **pure Python domain logic into `core/`** and have the Trainer / Answer Key build use it. Do **not** import markdown skill files at runtime.
+
+### Do not integrate yet
+
+Do not wire the trainer to BAVGEM's SEC/edgartools sourcing, coverage-vault orchestration, subagent gates, quarterly sections, Core Earnings Bridge, earnings-quality screens, Price Rationalization, ICC, sensitivity grids, or DCF feature chain in this step. Those are useful parent capabilities, but they would obscure the immediate problem: the trainer's annual accounting base must first reconcile.
+
+The intended long-run direction is one shared accounting/valuation engine with different front ends. This step only moves the Stage-2/3 accounting core in that direction.
+
+---
 
 ## Active implementation step
 
-### Step 2B — Unify financial-line resolution and prove workbook/Python parity
+### Step 3 — Adopt the BAVGEM Stage-2/3 accounting integrity contract
 
 **Goal**
 
-Make source-statement line selection a single canonical operation used by both Python expected-value calculations and Excel reference-model construction. Then add independent tests for misleading labels, missing optional lines, shuffled row order, and equity fallback so the current 13 semantic Answer Key components are based on the same underlying financial facts.
+Make the annual source data and balance-sheet reformulation trustworthy before expanding the trainer exercise catalog: every non-subtotal balance-sheet line must receive a real BAVGEM classification, the classified detail must reconcile to reported totals when those totals are available, `Equity = NOA - Net Debt` must tie Reported Equity, and a build must refuse source data whose evaluatable statement checks fail.
 
-Do **not** add new trainer components in this step.
+Do **not** add new trainer practice components in this step.
 
 ## Required changes
 
-### 1. Create one canonical line-item resolver
+### 1. Create a canonical balance-sheet classification / reformulation module
 
-Create `core/model/line_resolver.py` as the single source of truth for resolving the financial statement concepts needed by the current model.
+Create `core/model/classification.py`. This becomes the sole authority for balance-sheet classification used by both Python expected-value math and the workbook builder.
 
-Use this public interface (names may be adjusted only if an existing project convention clearly conflicts):
+Use these category strings exactly:
+
+```python
+BALANCE_SHEET_CATEGORIES = (
+    "Operating Working Capital Asset",
+    "Operating Working Capital Liability",
+    "Operating Long-Term Asset",
+    "Operating Long-Term Liability",
+    "Financial Asset",
+    "Financial Liability",
+    "Equity",
+    "Exclude",
+)
+```
+
+Use focused types equivalent to:
 
 ```python
 @dataclass(frozen=True)
-class ResolvedLine:
-    item: LineItem | None
-    index: int | None
+class ClassificationDecision:
+    category: str
+    ambiguous: bool = False
+    reason: str = ""
+    overridden: bool = False
 
 
-def resolve_line(
-    items: list[LineItem],
-    concept: str,
+@dataclass(frozen=True)
+class BalanceSheetReformulation:
+    decisions: dict[int, ClassificationDecision]
+    category_totals: dict[str, tuple[float, ...]]
+    nowc: tuple[float, ...]
+    nola: tuple[float, ...]
+    noa: tuple[float, ...]
+    net_debt: tuple[float, ...]
+    implied_equity: tuple[float, ...]
+    reported_equity: tuple[float | None, ...]
+    total_assets: tuple[float | None, ...]
+    total_liabilities: tuple[float | None, ...]
+    asset_detail_gap: tuple[float | None, ...]
+    liability_detail_gap: tuple[float | None, ...]
+    equity_gap: tuple[float | None, ...]
+```
+
+Public behavior should be exposed through functions equivalent to:
+
+```python
+def classify_balance_sheet_line(
+    item: LineItem,
     *,
-    required: bool = False,
-) -> ResolvedLine:
+    override: str | None = None,
+) -> ClassificationDecision:
+    ...
+
+
+def reformulate_balance_sheet(
+    fin: StandardizedFinancials,
+    periods: list[date],
+    *,
+    overrides: dict[str, str] | None = None,
+) -> BalanceSheetReformulation:
     ...
 ```
 
-The initial canonical concepts are:
+Add explicit exception types for an unclassifiable line and an invalid override. Never silently drop an unrecognized non-subtotal line.
 
-```text
-revenue
-net_income
-pretax_income
-tax_expense
-interest_expense
-interest_income
-total_equity
+### 2. Implement the Stage-3 classification defaults, with ambiguity as metadata rather than a fake accounting category
+
+The classifier should use safe normalized-label rules and always return one of the eight real categories.
+
+At minimum implement these deterministic defaults:
+
+- cash / cash equivalents / marketable securities / generic investments → `Financial Asset`;
+- debt / borrowings / notes payable / commercial paper → `Financial Liability`;
+- trade/accounts receivables, inventory, prepaid items, and clearly labelled other **current assets** → `Operating Working Capital Asset`;
+- trade/accounts payables, accrued operating liabilities, deferred revenue, and clearly labelled other **current liabilities** → `Operating Working Capital Liability`;
+- PP&E, goodwill, intangibles, and clearly labelled other **non-current assets** → `Operating Long-Term Asset`;
+- clearly labelled other **non-current liabilities** → `Operating Long-Term Liability`;
+- share capital, paid-in capital, reserves, AOCI, retained earnings, treasury-stock/equity lines → `Equity`.
+
+Items that BAVGEM explicitly treats as judgment calls should receive a valid default **plus** `ambiguous=True` and a concise reason, rather than `Ambiguous — Operating` / `Ambiguous — Financial`. At minimum cover:
+
+- operating lease ROU assets / lease liabilities;
+- deferred-tax assets / liabilities;
+- pension obligations;
+- short-term investments;
+- equity-method investments.
+
+Keep the default conservative and documented; the exact default matters less than making the uncertainty visible and overridable.
+
+A non-subtotal line that cannot be safely classified must raise an `UnclassifiedBalanceSheetLineError` naming the line. Do not default unknown items to operating and do not default them to `Exclude`.
+
+### 3. Support explicit classification overrides without creating a second registry
+
+Add an optional top-level assumptions mapping:
+
+```json
+{
+  "classificationOverrides": {
+    "Operating lease liabilities": "Financial Liability"
+  }
+}
 ```
 
-Resolution order must be:
+Requirements:
 
-1. exact normalized `LineItem.concept` match when an explicit concept is supplied in standardized data;
-2. exact normalized label aliases;
-3. narrowly defined safe label-pattern aliases where exact labels are insufficient;
-4. return `(None, None)` for an optional concept that is not present;
-5. raise a clear error for a required concept that is absent;
-6. raise a clear ambiguity error when two lines match at the same priority rather than silently taking the first row.
+- keys are matched by normalized exact balance-sheet label;
+- values must be one of `BALANCE_SHEET_CATEGORIES`;
+- overrides are applied before default classification;
+- the resulting `ClassificationDecision` sets `overridden=True`;
+- the same override map drives both `compute_anchor()` and the Excel classification table;
+- do not store workbook coordinates in the override map.
 
-Do **not** use unrestricted generic aliases such as `"tax"` for `tax_expense` or `"sales"` for revenue when they can match `Profit before tax` or `Cost of sales`.
+`_default_assumptions()` should include an empty `classificationOverrides` object. Custom assumptions files that omit it remain valid.
 
-At minimum support these label families:
+### 4. Make Python `compute_anchor()` consume the shared reformulation
 
-- revenue: `Revenue`, `Turnover`, safe revenue/sales variants that do not match `Cost of sales`;
-- net income: `Profit for the year`, `Net income`, `Net profit`;
-- pretax income: `Profit before tax`, `Profit before taxation`, `Pretax income`;
-- tax expense: `Income tax expense`, `Tax expense`, `Taxation`;
-- interest expense: `Finance cost`, `Finance costs`, `Interest expense`;
-- interest income: `Finance income`, `Interest income`;
-- total equity: `Total equity`, `Shareholders' equity`, `Shareholders' funds`, `Equity attributable to owners of the Company` and equivalent normalized punctuation/case variants.
+Remove `CLASSIFICATIONS`, `CAT_NAMES`, and `guess_classification()` from `core/model/financial_math.py` once the new module replaces them.
 
-Keep the resolver small and deterministic; do not turn this step into a general accounting ontology.
+Change `compute_anchor()` so it calls `reformulate_balance_sheet()` exactly once and uses that result for:
 
-### 2. Make `financial_math.compute_anchor()` use only the canonical resolver
+- NOWC;
+- NOLA;
+- NOA;
+- Net Debt;
+- Equity used in DuPont / leverage.
 
-Modify `core/model/financial_math.py` so `compute_anchor()` no longer uses `_find_line()` for the concepts listed above.
+`AnchorMetrics.equity` must be the **implied reformulated equity** (`NOA - Net Debt`), not a separate reported-equity series. When reported equity exists and the reformulation reconciles, the values are equal; when it does not reconcile, the build should fail rather than silently switching definitions.
 
-Required behavior:
+Expose the reformulation diagnostics on `AnchorMetrics` (for example `reformulation: BalanceSheetReformulation`) so `ReferenceModelBuilder` can reuse the same classification decisions rather than classifying the lines a second time.
 
-- `revenue`, `net_income`, and `pretax_income` should use the shared resolver.
-- `tax_expense` must never resolve `Profit before tax` merely because it contains the word `tax`.
-- `interest_expense` and `interest_income` remain optional and individually default to zero when absent.
-- ETR stays `-tax_expense / pretax_income` when pretax income is nonzero; otherwise `0.0`, matching the current sign convention.
-- Net interest stays `-(interest_expense + interest_income)` with a missing optional line treated as zero.
-- NOPAT remains `Net Income + Net Interest After Tax`.
-- `total_equity` should use the shared resolver when present; when absent, retain the existing `NOA - Net Debt` fallback.
+Extend `core/model/line_resolver.py` with canonical `total_assets` and `total_liabilities` concepts using narrow exact aliases. Do not reintroduce fuzzy substring matching.
 
-Remove or stop using `_find_line()` for these model concepts so there are not two competing resolution systems.
+Also change `_default_assumptions()` in `ReferenceModelBuilder` so `meta.anchorRevenue` is obtained through `resolve_line(..., "revenue", required=True)` rather than `income_statement[0]`.
 
-### 3. Make `ReferenceModelBuilder` use the same resolved lines and the same fallbacks
+### 5. Add the BAVGEM detail-completeness checks
 
-Modify `core/engine/reference_model.py` so it no longer independently guesses these source rows with `_source_row()` fragments.
-
-For source-sheet formulas, derive the source row from the index returned by `resolve_line()` and the known source-sheet start row (`7` in the current builder), or create one focused helper that converts `ResolvedLine.index` to the workbook row. The important requirement is that Python and Excel resolve the **same `LineItem`** before any formula is built.
-
-#### Historical income statement behavior
-
-- Build Net Income, Pretax Income, Tax Expense, Interest Expense, and Interest Income from the canonical resolutions.
-- Interest Expense and Interest Income are optional independently.
-- Build `Net Interest` for all supported input shapes:
-  - both present: `=-(Interest Expense + Interest Income)`;
-  - expense only: `=-Interest Expense`;
-  - income only: `=-Interest Income`;
-  - neither: `=0`.
-- Build ETR as a populated formula/value consistent with Python:
-  - when tax and pretax are available, use a zero-safe formula such as `=IF(Pretax=0,0,-Tax/Pretax)`;
-  - when one is unavailable, use `=0` rather than leaving a required dependency blank.
-- Net Interest After Tax and NOPAT must therefore remain populated even when one optional interest line is absent.
-
-#### Equity behavior
-
-Add/retain a clearly labelled historical `Equity` row in `Condensed Financials` for every period:
-
-- if canonical `total_equity` is resolved, link the corresponding Balance Sheet values;
-- otherwise calculate `Equity = NOA - Net Debt`, matching `compute_anchor()`.
-
-Make DuPont FLEV and Actual ROE reference this condensed Equity row. Remove `_equity_bs_row()` and direct dependence on a specially named raw Balance Sheet equity row.
-
-This produces one identical equity definition for Python and workbook logic and allows valid inputs without a literal `Total equity` line.
-
-### 4. Add independent source-resolution fixtures that would fail the current commit
-
-Extend `core/tests/test_reference_integrity.py` (or split source-resolution tests into `core/tests/test_line_resolver.py` if that keeps responsibilities clearer).
-
-Add tests for all of these cases:
-
-1. **Demo tax regression.** Independently select the exact demo labels `Profit before tax` and `Income tax expense`, compute the latest-year ETR / NIAT / NOPAT directly from their numeric fixture values, and assert `compute_anchor(...).nopat` matches that result. This test must fail on commit `56b03a8` because the current Python resolver selects `Profit before tax` as the tax line.
-2. **Misleading labels and row order.** Build a synthetic income statement where `Profit before tax` appears before `Income tax expense`, and where `Cost of sales` appears before `Revenue`. Resolve `tax_expense` and `revenue` correctly regardless of ordering.
-3. **Explicit concept wins.** A `LineItem` with `concept="tax_expense"` must outrank a label-only candidate.
-4. **Missing interest income.** Build a valid `StandardizedFinancials` fixture with finance costs but no finance-income line. `compute_anchor()` and the generated Answer Key must both produce populated Net Interest, NIAT, and NOPAT rather than a blank dependency.
-5. **Missing interest expense / income-only case.** Verify the inverse optional case as well.
-6. **Equity alias.** A Balance Sheet line named `Equity attributable to owners of the Company` must build successfully and drive the same equity values in Python and `Condensed Financials`.
-7. **Equity absent fallback.** Remove any explicit total-equity line from a synthetic fixture. The build must still succeed and both Python and workbook must use `NOA - Net Debt`.
-8. **Ambiguity.** Two same-priority candidates for a required canonical concept must raise a deterministic ambiguity error rather than silently using whichever row happens to come first.
-
-Tests must construct synthetic `LineItem` / `StandardizedFinancials` objects directly where possible. Do not create many permanent fixture files just to vary one label.
-
-### 5. Strengthen formula-dependency integrity checks
-
-The current `test_semantic_formulas_have_no_blank_required_refs` is too weak for its name. Replace or strengthen it so it actually examines the generated Answer Key dependency slice.
-
-At minimum it must directly verify:
-
-- the 13 semantic cells contain the registered formulas;
-- historical NOPAT references populated Net Income and NIAT cells;
-- DuPont RNOA / CoD / Spread / FLEV / ROE cells reference populated historical cells;
-- Base Y1 Sales / NOPAT / AE reference populated inputs;
-- year-10 AE and discount factor are populated before terminal value;
-- terminal value, PV terminal value, intrinsic value, IVPS, and scenario-weighted IVPS reference populated cells/ranges.
-
-A small test-only A1-reference extractor is acceptable. Do not implement a general Excel formula engine. The purpose is to detect required blank precedents, not to evaluate arbitrary Excel syntax.
-
-### 6. Preserve the improvements already made in Step 2
-
-Do not regress:
-
-- CLI `--assumptions` propagation;
-- colocated condensed balance-sheet classification/value table;
-- corrected DuPont mathematical definitions;
-- the single after-tax CoD convention;
-- ten-year Bear/Base/Bull forecast population;
-- paired Trainer / Answer Key generation;
-- blank yellow/no-Note Trainer practice cells;
-- yellow/formula/legacy-Note Answer Key cells;
-- semantic component catalog membership/order and coordinate-free design.
-
-### 7. Make the test handoff visible to ChatGPT
-
-Before reporting completion, overwrite `RESULT.md` with the current step result. It must contain:
+`reformulate_balance_sheet()` must calculate three independent diagnostics when the corresponding reported totals are available:
 
 ```text
-Status: Step 2B complete | blocked
+classified asset detail
+  = OWCA + OLTA + Financial Assets
+
+classified liability detail
+  = OWCL + OLTL + Financial Liabilities
+
+implied equity
+  = NOA - Net Debt
+```
+
+Compare against:
+
+```text
+reported Total Assets
+reported Total Liabilities
+reported Total Equity
+```
+
+Use a small absolute tolerance appropriate for the workbook units (default `1.0`, configurable only if an existing tolerance convention requires it).
+
+This is deliberately stronger than checking only `Assets = Liabilities + Equity`: if both asset and liability detail omit the same amount, the accounting equation can still balance while the model is incomplete.
+
+If a reported total is unavailable, return `None` for that gap and mark it unverified; do not fabricate a total.
+
+Before the reference workbook is finalized, fail with a clear `ReformulationIntegrityError` when any available asset-detail, liability-detail, or implied-equity gap exceeds tolerance. The error must report period + gap + which check failed.
+
+### 6. Enforce existing source-statement reconciliation before building the Answer Key
+
+The build path itself must honor the ingestion checks.
+
+In `core/trainer/workbook.py` (or one focused build-readiness helper called from it), call the existing reconciliation layer before `ReferenceModelBuilder.build()`.
+
+If an evaluatable checksum is `False`, refuse to create the Trainer / Answer Key and report which statement failed. Do not make users run `python -m core ingest` separately to discover that the same input is invalid.
+
+Do not broaden this step into a full new filing parser. Reuse the current `reconcile_financials()` / validator stack and improve only what is required for deterministic build blocking.
+
+Where validators currently resolve concepts independently, migrate the overlapping concepts to `line_resolver.py` rather than adding new fuzzy rules.
+
+### 7. Rebuild the Condensed Financials balance-sheet block around the Stage-3 contract
+
+`ReferenceModelBuilder` must use `self.anchor.reformulation.decisions` (or the equivalent shared result) to populate the classification table. It must not call a separate workbook-only classifier.
+
+#### Classification table
+
+- keep every non-subtotal balance-sheet line exactly once;
+- dropdown choices are the eight `BALANCE_SHEET_CATEGORIES`, no `Ambiguous — ...` values;
+- set `allow_blank=False`;
+- use the shared decision's category as the default;
+- add a visible `Notes` column (after the period values is acceptable) that shows concise `⚠ Review: ...` text for `ambiguous=True` decisions and an override note for overridden decisions;
+- preserve the current formula-driven SUMIF behavior when the user changes a dropdown.
+
+#### Compact aggregates / reconciliation block
+
+Add these labelled rows with formula-driven period columns:
+
+```text
+Operating Working Capital Assets
+Operating Working Capital Liabilities
+NOWC
+Operating Long-Term Assets
+Operating Long-Term Liabilities
+NOLA
+NOA
+Financial Assets
+Financial Liabilities
+Net Debt
+Equity (NOA - Net Debt)
+Reported Equity
+Total Capital
+CHECK
+```
+
+Definitions:
+
+```text
+NOWC = OWCA - OWCL
+NOLA = OLTA - OLTL
+NOA = NOWC + NOLA
+Net Debt = Financial Liabilities - Financial Assets
+Equity = NOA - Net Debt
+Total Capital = Net Debt + Equity
+```
+
+`Reported Equity` links to the canonical raw balance-sheet total when present. If absent, leave it visibly unverified rather than inventing a value.
+
+`CHECK` must be a live formula that returns `OK` when implied and reported equity tie within tolerance, `CHECK` when they do not, and `UNVERIFIED` when no reported-equity total exists.
+
+Keep the existing semantic registrations for `nowc_agg`, `noa_agg`, and `net_debt`, but resolve them to the new rows at build time. Do not put coordinates into `COMPONENT_CATALOG`.
+
+DuPont FLEV / Actual ROE must continue using the reformulated `Equity (NOA - Net Debt)` row.
+
+### 8. Repair the illustrative demo instead of weakening the integrity checks
+
+`example/DEMO_HK_Standardized.json` is synthetic and currently incomplete. Make it internally coherent so it remains a valid demo for the stricter build.
+
+Add these non-subtotal balance-sheet lines:
+
+```text
+Other non-current assets
+FY2021 1670
+FY2022 1894
+FY2023 2282
+FY2024 2804
+FY2025 3500
+
+Other non-current liabilities
+FY2021 1305
+FY2022 1456
+FY2023 1593
+FY2024 1716
+FY2025 1825
+```
+
+These values make the supplied detailed assets/liabilities reconcile to the existing reported totals without changing Total Assets, Total Liabilities, or Total Equity.
+
+Also correct `Net cash from operating activities` so the existing three cash-flow sections add to the existing `Net change in cash and cash equivalents`:
+
+```text
+FY2021 1450
+FY2022 1600
+FY2023 1750
+FY2024 1930
+FY2025 2070
+```
+
+Do not change the reported net-change row or balance-sheet cash series; FY2022–FY2025 net changes already match the year-over-year cash movement.
+
+The new classifier must classify the two added lines as Operating Long-Term Asset / Liability.
+
+### 9. Add tests that fail on the current commit for the actual remaining defects
+
+Create `core/tests/test_classification.py` for pure classification/reformulation tests and extend `core/tests/test_reference_integrity.py` for workbook/build behavior.
+
+At minimum add these tests:
+
+1. `test_bav_categories_are_exact_eight` — exact category strings, including Equity / Exclude and no `Ambiguous — ...` category.
+2. `test_equity_components_classify_as_equity` — `Share capital and reserves` resolves to `Equity`.
+3. `test_other_noncurrent_defaults` — the two new demo labels resolve to OLTA / OLTL.
+4. `test_ambiguous_item_has_real_default_and_flag` — e.g. an operating-lease liability receives a real category with `ambiguous=True`.
+5. `test_unknown_line_requires_override` — an unrecognized non-subtotal line raises and then succeeds with an exact valid override.
+6. `test_invalid_override_rejected` — fake category string raises clearly.
+7. `test_reformulation_detects_equal_asset_liability_omissions` — synthetic BS totals satisfy `A=L+E` but classified asset/liability detail each omit the same amount; the asset/liability detail gaps must still fail. This proves the new check is stronger than the old balance-sheet checksum.
+8. `test_demo_reformulation_reconciles_all_years` — after repairing the fixture, asset-detail, liability-detail, and equity gaps are zero (within tolerance) for every fiscal year.
+9. `test_demo_reconciliation_report_passes` — the repaired demo's currently evaluatable IS / BS / CF checks all pass.
+10. `test_build_rejects_failed_source_checksum` — a synthetic input with an evaluatable broken cash-flow roll-up cannot produce an Answer Key.
+11. `test_build_rejects_reformulation_gap` — balanced reported totals plus incomplete classified detail cannot produce an Answer Key.
+12. `test_condensed_has_live_reconciliation_rows` — Answer Key contains the required aggregate, implied Equity, Reported Equity, Total Capital, and CHECK rows; CHECK is a formula.
+13. `test_classification_table_uses_shared_decisions` — workbook defaults match `anchor.reformulation.decisions`, the dropdown contains only the eight categories, and ambiguous/override notes are visible.
+14. `test_duPont_uses_implied_equity` — FLEV / Actual ROE reference the `Equity (NOA - Net Debt)` row, not a raw reported-equity row.
+15. Existing line-resolver, reference-integrity, paired-workbook, and ten-year forecast tests remain unchanged and passing unless a row lookup in a test needs to become label-driven because of the expanded Condensed block.
+
+Do not weaken a current assertion merely because row numbers move. Tests should locate semantic/labelled rows rather than pinning the old layout.
+
+### 10. Synchronize the `bav-trainer` skill with the actual product
+
+Update `skills/bav-trainer/SKILL.md` after the runtime work passes.
+
+It must describe:
+
+- paired `*_Trainer.xlsx` / `*_Answer_Key.xlsx` outputs, not a user-facing `*_reference.xlsx`;
+- blank yellow/no-Note Trainer practice cells;
+- yellow formula/input cells with legacy Notes in the Answer Key;
+- static Answer Key as the primary feedback loop, with Check/Hint/Reveal optional;
+- no adjacent visible hint-cell behavior as the normal generated UX;
+- Stage 2 / Stage 3 / Stage 4 BAVGEM references as the canonical domain rubrics, while HK ingestion and trainer generation remain `core/` responsibilities;
+- the selective-integration boundary: do not run the full BAVGEM coverage pipeline merely to create a trainer workbook.
+
+Do not rewrite unrelated BAVGEM skills.
+
+### 11. Update the handoff report
+
+Before completion, overwrite `RESULT.md` with:
+
+```text
+Status: Step 3 complete | blocked
 Files changed: ...
 Tests run:
 - <exact command> -> <exact pass/fail count>
 - ...
+Reconciliation:
+- source statement checks: ...
+- demo reformulation gaps: ...
 Unresolved: ...
 ```
 
-Do not leave the Step 1 report in place after implementing Step 2B. Cursor still must not commit or push; the user will checkpoint the working tree.
+Cursor must not commit or push; the user checkpoints the working tree.
 
 ## Files expected to change
 
-- Create: `core/model/line_resolver.py`
+- Create: `core/model/classification.py`
 - Modify: `core/model/financial_math.py`
+- Modify: `core/model/line_resolver.py`
 - Modify: `core/engine/reference_model.py`
+- Modify: `core/trainer/workbook.py`
+- Modify: `core/data/validators.py` only where needed to reuse canonical concept resolution / expose reliable blocking failures
+- Modify: `example/DEMO_HK_Standardized.json`
+- Create: `core/tests/test_classification.py`
 - Modify: `core/tests/test_reference_integrity.py`
-- Create or modify: `core/tests/test_line_resolver.py` only if tests are cleaner separated
+- Modify: `skills/bav-trainer/SKILL.md`
 - Modify: `RESULT.md`
 
-Only modify `core/model/ri_engine.py` if the new independent parity tests expose a concrete remaining mismatch.
+Only modify other files when a concrete dependency requires it.
 
 ## Do not change
 
 - `TARGET.md`.
-- `COMPONENT_CATALOG` membership or ordering.
-- The Trainer / Answer Key product contract.
-- The Hint/Reveal UX or adjacent-cell hint behavior in this step.
-- Workbook aesthetics except where the new condensed Equity row needs the existing shared style.
-- HK automatic scraping or unrelated ingestion features.
+- `COMPONENT_CATALOG` membership/order in this step.
+- the paired Trainer / Answer Key contract.
+- HK automatic scraping / SEC sourcing.
+- BAVGEM's coverage-vault layout, agent orchestration, gates, quarterly model, Core Earnings Bridge, Earnings Quality, Price Rationalization, ICC, sensitivity, or DCF feature chain.
+- the learner-facing Hint/Reveal commands except where a moved semantic row requires a compatibility fix.
 - Git history. Do not commit, push, reset, rebase, merge, or delete branches.
 
 ## Acceptance criteria
 
-- The supplied demo resolves `Income tax expense` as tax expense; `Profit before tax` is never selected as the tax-expense line.
-- Python latest-year demo NOPAT equals an independently calculated fixture value using the actual tax-expense row, not merely a value produced by the same resolver under test.
-- Python and workbook source selection use the same canonical resolver for revenue, net income, pretax income, tax expense, interest expense, interest income, and total equity.
-- A company with only interest expense, only interest income, both, or neither produces a populated Net Interest → NIAT → NOPAT chain consistent with Python.
-- A company with an equity alias or no explicit equity line builds successfully; Python and workbook use the same equity values/fallback.
-- Reordering source statement rows does not change which canonical financial facts are selected.
-- Ambiguous same-priority source lines fail loudly instead of silently changing the model.
-- No required direct precedent in the current 13-component Answer Key dependency slice is blank.
-- All Step 1 paired-workbook tests and Step 2 ten-year/model-integrity tests remain green according to Cursor's committed `RESULT.md` report.
-- No new coordinate registry or duplicated financial-line resolver is introduced.
+- The Python model and workbook classification table use one shared classification/reformulation result.
+- No non-subtotal balance-sheet line can silently disappear from the model because of an `Ambiguous — ...` pseudo-category or an unknown label.
+- The only dropdown choices are the eight BAVGEM Stage-3 categories.
+- Ambiguous judgment items remain visibly flagged while carrying a real default category; exact classification overrides are supported without coordinates.
+- When reported totals exist, classified asset detail ties Total Assets, classified liability detail ties Total Liabilities, and `NOA - Net Debt` ties Reported Equity within tolerance for every modeled year.
+- Equal asset/liability omissions are detected even when `Assets = Liabilities + Equity` still holds.
+- `Condensed Financials` exposes live implied Equity, Reported Equity, Total Capital, and CHECK rows.
+- DuPont uses reformulated implied equity.
+- A build refuses an input with an evaluatable failed source checksum or a failed reformulation integrity check.
+- The repaired demo passes its source checks and reformulation checks and still generates the matched pair.
+- `_default_assumptions().meta.anchorRevenue` uses the canonical revenue resolver.
+- `skills/bav-trainer/SKILL.md` matches the current paired-workbook product and documents the selective BAVGEM integration boundary.
+- All existing Step 1 / Step 2 / Step 2B tests remain passing according to the committed `RESULT.md`, plus the new Step-3 tests.
 
 ## Testing
 
-Use red/green TDD. The first new test should reproduce the current demo tax-selection bug before production code changes.
+Use red/green TDD. Start with a failing test that demonstrates the current model can accept a balance sheet whose reported totals balance but whose classified detail is incomplete.
 
-Run the focused resolver tests first, then reference-integrity tests, then the existing trainer module, then the full current core suite. At minimum report:
+Run focused tests first:
+
+```bash
+python -m pytest core/tests/test_classification.py -v --tb=short
+python -m pytest core/tests/test_reference_integrity.py -v --tb=short
+```
+
+Then run the existing regression modules:
 
 ```bash
 python -m pytest core/tests/test_line_resolver.py -v --tb=short
-```
-
-If you keep all resolver tests in `test_reference_integrity.py`, replace that first command with the exact focused node/test selection used.
-
-Then run:
-
-```bash
-python -m pytest core/tests/test_reference_integrity.py -v --tb=short
 python -m pytest core/tests/test_trainer.py -v --tb=short
 python -m pytest core/tests/ -q --tb=line
 ```
 
-Do not weaken existing tests to make them pass. Do not use `check_component()` success as proof that the reference formula is financially correct.
+Also run the CLI demo build after the JSON fixture is repaired:
+
+```bash
+python -m core build example/DEMO_HK_Standardized.json -o /tmp/DEMO_HK_Trainer.xlsx
+```
+
+Expected: exit code `0`, both `/tmp/DEMO_HK_Trainer.xlsx` and `/tmp/DEMO_HK_Answer_Key.xlsx` created.
+
+Do not use formula presence alone as evidence of accounting correctness. Do not weaken the new reconciliation checks to keep the old incomplete demo passing.
 
 ## Git boundary
 
@@ -268,35 +471,31 @@ Do not commit, push, reset, rebase, merge, or otherwise change Git history.
 
 ## Cursor execution rules
 
-1. Read the active step before editing.
-2. Inspect the existing implementation first.
-3. Write the failing regression test for the demo tax-resolution defect before changing production code.
-4. Make the smallest coherent change that fixes the root cause rather than patching individual labels in two places.
-5. Preserve existing architecture and conventions unless the step explicitly changes them.
-6. Do not add unrelated cleanup, refactors, abstractions, or features.
-7. If the instruction conflicts with the repository, report the conflict instead of silently redesigning the solution.
-8. Run the relevant tests/checks after implementation.
-9. Fix failures caused by the change.
-10. Update `RESULT.md` with exact test evidence and unresolved items.
-11. At completion report files changed, behavior implemented, tests/checks run, and anything unresolved.
+1. Read this active step completely before editing.
+2. Read `skills/bav-pipeline/references/stage2_assembler.md` sections **Assembly rules / Checksums** and `stage3_analyst.md` sections **Classification table / Condensed Balance Sheet / ALT DuPont** before implementing. Treat those domain definitions as authoritative unless this step explicitly narrows them.
+3. Write the failing detail-completeness regression test before production code.
+4. Implement the shared classification/reformulation domain logic before changing workbook layout.
+5. Make Python and Excel consume the same reformulation decisions; do not duplicate classifier rules in `ReferenceModelBuilder`.
+6. Repair the demo data to satisfy the integrity contract; do not bypass or lower the checks.
+7. Preserve semantic component mapping and paired-workbook behavior.
+8. Run focused tests after each coherent change, then the full core suite and CLI demo build.
+9. Update `skills/bav-trainer/SKILL.md` only after runtime/tests are correct.
+10. Update `RESULT.md` with exact commands/results and reconciliation outcomes.
+11. At completion report files changed, what was implemented, tests/checks run, and anything unresolved.
 12. Do not propose the next product step.
-13. Do not commit, push, reset, rebase, merge, or delete branches.
 
 ## ChatGPT verification protocol
 
-After the user checkpoints/pushes the implementation, ChatGPT should inspect the latest commit against this step and `RESULT.md`.
+After the user pushes the checkpoint, ChatGPT should inspect the commit against this step and verify:
 
-Verification asks:
+- classification/reformulation is genuinely single-source between Python and Excel;
+- no balance-sheet detail can disappear silently;
+- the eight BAVGEM categories and ambiguity/override behavior are implemented as specified;
+- demo/source reconciliation is mathematically real, not merely a formula-string check;
+- the repaired demo values actually foot to the stated totals and cash-flow net changes;
+- implied and reported equity reconcile before DuPont / valuation use them;
+- build blocking occurs on failed checks;
+- the BAVGEM integration remained selective rather than pulling unrelated parent-pipeline machinery into the trainer;
+- `RESULT.md` contains current test evidence.
 
-- Is there now exactly one canonical financial-line resolver used by both Python and workbook construction?
-- Does the demo tax regression genuinely prove that `Profit before tax` cannot become tax expense?
-- Do missing optional interest-line tests cover both one-sided cases?
-- Does equity alias/fallback behavior match between Python and Excel?
-- Are ambiguity and row-order independence tested?
-- Are the 13 semantic formula dependency chains checked for populated direct precedents?
-- Did Cursor preserve all Step 1/Step 2 behavior?
-- Does `RESULT.md` contain current, exact test commands/results rather than a stale previous-step report?
-
-ChatGPT should not rerun the test suite. Cursor owns test execution; ChatGPT owns independent code inspection.
-
-A verified step may then be replaced with the next ChatGPT-authored product step.
+ChatGPT should not rerun the test suite. Cursor owns test execution; ChatGPT owns independent inspection of the committed implementation.
