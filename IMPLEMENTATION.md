@@ -1,391 +1,644 @@
-# Step 4 Final Identity Safety Implementation Plan
+# Step 5 — Enforce Trainer / Answer Key Separation
 
-> **For Cursor:** Implement only the active correction step below. Use red/green TDD, run the exact verification commands, update `RESULT.md`, and stop. Do not commit or push; the user owns the checkpoint commit.
+> **For Cursor:** Read `TARGET.md` first. Implement only this active step using red/green TDD. Run the exact verification commands, update `RESULT.md`, and stop. Do not commit or push; the user owns the implementation checkpoint commit.
 
-**Goal:** Close the remaining Step 4 identity/classification defects found in commit `ccd7d10` before expanding the trainer practice surface.
+**Goal:** Make the built artifacts obey the strict product contract: **Trainer = blank yellow practice cells with no hints or answers anywhere; Answer Key = the corresponding formula/input plus one concise legacy Excel Note hint in the same yellow cell.** Close the remaining classification and standardized-export defects found during review before expanding the practice surface.
 
-**Architecture:** Keep the existing `LineIdentity`, reconciliation, classification, semantic-map, and paired-workbook architecture. Make displayed-label identity case-insensitive while keeping concept identifiers exact, and remove one remaining unsafe concept shortcut that can force redeemable preferred stock into Equity. Do not redesign ingestion or valuation logic.
+**Architecture:** Keep the existing reference-model-first, semantic-map, concept-aware identity, and paired-workbook architecture. The Answer Key remains the complete reference model and may carry full semantic answer metadata. The Trainer receives only the visible model structure plus locator/status metadata needed for navigation/checking; answer formulas, expected values, and hint text must be stripped from all Trainer workbook metadata and Trainer-associated sidecars. Remove the legacy Hint/Reveal product surfaces instead of preserving two competing feedback systems.
 
 **Tech Stack:** Python, pytest, openpyxl, existing BAV Trainer modules.
 
-**Spec:** `TARGET.md` plus the accepted Step 3/Step 4 behavior already implemented on `chatgpt/reference-model-integrity`.
-
-## Global constraints
-
-- `TARGET.md` is read-only.
-- Do not expand `COMPONENT_CATALOG`; it remains at 13 representative exercises.
-- Do not add HKEX/SEC/edgartools automation.
-- Do not add quarterly, Core Earnings, Earnings Quality, Price Rationalization, ICC, DCF, or other later BAVGEM feature chains.
-- Preserve the Trainer / Answer Key product contract, styling, semantic mapping, Hint/Reveal behavior, and residual-income mathematics.
-- Preserve original `LineItem.label` text for worksheet display. Canonicalization is for comparison/metadata identity only.
-- Keep concept identifiers exact apart from the existing whitespace/NBSP normalization. Do **not** case-fold concept IDs in this pass.
-- Do not weaken existing tests.
-- Do not introduce a second statement-identity algorithm.
-- Cursor must not commit, push, reset, rebase, merge, or delete branches.
-
----
+**Spec:** `TARGET.md` as updated in planning commit `f88f94f`.
 
 ## Current checkpoint
 
-Latest implementation commit: `ccd7d10` (`chat identity corrected 4`).
+Base implementation commit: `5c3242f` (`chat identity corrected 4C`) on `chatgpt/reference-model-integrity`.
 
-The first Step 4 correction pass successfully addressed the previous review findings:
+Step 4's concept-aware identity work is substantially correct. `RESULT.md` reports 68 passing core tests and a successful 13-component Trainer / Answer Key build. Review of that checkpoint found five concrete issues to resolve now:
 
-- source lists are validated before identity-keyed merge;
-- broad `debt` / `equity` / `cash` concept matching was narrowed;
-- legacy bare-label and `label:` overrides are case-insensitive;
-- `RESULT.md` reports 64 passing core tests and a successful 13-component Trainer / Answer Key demo build.
+1. `commonstock` remains an unsafe high-priority concept substring and can force redeemable/common-stock obligations into Equity.
+2. The Trainer is copied from the Answer Key with answer-bearing hidden metadata: `_RefFormulas`, `_RefValues`, `_TrainerMeta`, full `_ComponentMap`, and full semantic sidecars can expose formulas, expected values, and hints even though the visible yellow cell is blank.
+3. Python/VBA Hint and Reveal still write hints or answers into the Trainer and are still advertised in UI/docs, directly contradicting `TARGET.md`.
+4. `python -m core ingest ... -o ...` drops `LineItem.concept`, breaking concept-aware identity on standardized JSON round trips.
+5. `example/` still contains stale `*_reference.xlsx` artifacts and does not represent the current two-workbook product.
 
-Those fixes should be preserved. Step 4 is still not accepted because the latest review found two remaining defects.
+Do not expand `COMPONENT_CATALOG` until this step is accepted.
 
-## Review findings from `ccd7d10`
+## Global constraints
 
-### Finding 1 — statement label identity is still case-sensitive
-
-`core/data/line_identity.py::line_identity()` currently applies `normalize_label()` but does not case-fold the displayed label. `validate_statement_identities()` therefore also groups labels case-sensitively.
-
-This creates an end-to-end inconsistency: classification override labels are now correctly case-insensitive, but statement identity is not.
-
-Concrete failure modes:
-
-```text
-existing document:  concept=Goodwill | label=Goodwill
-incoming document:  concept=Goodwill | label=GOODWILL
-```
-
-These represent the same statement line but currently receive different `LineIdentity` values, so cross-document reconciliation can preserve both rows instead of merging them.
-
-Likewise, a single source containing two conceptless rows named `Goodwill` and `GOODWILL` can evade duplicate-label rejection and be double-counted.
-
-The correct rule for this project is:
-
-- displayed labels: whitespace/NBSP normalized **and case-insensitive** for identity;
-- concept IDs: whitespace/NBSP normalized but otherwise exact/case-sensitive;
-- original labels remain untouched for workbook display.
-
-### Finding 2 — `preferredstock` is not an unmistakable Equity signal
-
-The corrected `_classify_by_concept()` still treats any concept containing `preferredstock` as Equity before label classification runs.
-
-That is unsafe because redeemable / mandatorily redeemable preferred stock may be liability-like and cannot be classified as Equity from the generic token alone. A self-describing concept such as `PreferredStockSubjectToMandatoryRedemption` can therefore override a label such as `Long-term debt` and force the wrong category.
-
-For this bounded correction, generic `preferredstock` must not be a high-priority Equity trigger. If no other clearly decisive concept signal applies, return `None` and let the existing label classifier or an explicit classification override decide.
-
-Do not turn this into a general XBRL ontology project.
+- `TARGET.md` is read-only during implementation.
+- Keep the current 13 semantic components and their order.
+- Preserve all accepted Step 3 accounting integrity and Step 4 identity behavior.
+- Do not redesign forecasting, residual-income mathematics, or scenario logic.
+- Do not add automatic HKEX/SEC/edgartools ingestion.
+- Do not add quarterly/Core Earnings/Earnings Quality/Price Rationalization/ICC/DCF feature chains.
+- Preserve original source/display labels in worksheets.
+- Do not introduce fixed workbook coordinates into the static component catalog.
+- Do not weaken tests to make this step pass.
+- Do not commit, push, reset, rebase, merge, or delete branches.
 
 ---
 
-### Task 1: Make canonical displayed-label identity case-insensitive
-
-**Files:**
-- Modify: `core/data/line_identity.py`
-- Modify only if required by resulting canonical keys: `core/engine/reference_model.py`
-- Test: `core/tests/test_line_identity.py`
-
-**Interfaces:**
-- Consumes: `normalize_label(text: str) -> str`, `LineItem`, existing `LineIdentity`.
-- Produces: `line_identity(item: LineItem) -> LineIdentity` whose `label` field is canonical case-insensitive comparison text while `concept` remains exact normalized identifier text.
-
-- [ ] **Step 1: Add failing normalization tests**
-
-Add focused tests equivalent to:
-
-```python
-def test_line_identity_label_is_case_insensitive_but_concept_is_exact():
-    a = _li("Goodwill", 10, 12, "Goodwill")
-    b = _li("  GOODWILL  ", 10, 12, "Goodwill")
-    assert line_identity(a) == line_identity(b)
-
-    # Concept IDs remain exact identifiers; case-only concept changes are not
-    # silently assumed to be the same taxonomy concept.
-    c = _li("Goodwill", 10, 12, "goodwill")
-    assert line_identity(a) != line_identity(c)
-
-
-def test_conceptless_duplicate_labels_differing_only_by_case_fail():
-    items = [
-        _li("Goodwill", 10, 12),
-        _li("GOODWILL", 11, 13),
-    ]
-    with pytest.raises(AmbiguousStatementIdentityError):
-        validate_statement_identities(items, "balance_sheet")
-```
-
-Also cover NBSP/extra-whitespace plus case in at least one assertion so the identity contract is tested as one canonicalization rule rather than separate accidents.
-
-- [ ] **Step 2: Run the focused tests and confirm the intended failure**
-
-Run:
-
-```bash
-pytest core/tests/test_line_identity.py -k "case_insensitive or differing_only_by_case" -v
-```
-
-Expected before implementation: FAIL because `line_identity()` currently preserves label case.
-
-- [ ] **Step 3: Implement the minimum canonical-label change**
-
-Use one focused normalization path inside `core/data/line_identity.py`, equivalent in behavior to:
-
-```python
-def _canonical_label(label: str) -> str:
-    return normalize_label(label or "").casefold()
-
-
-def line_identity(item: LineItem) -> LineIdentity:
-    raw_concept = (item.concept or "").strip()
-    concept = normalize_label(raw_concept) if raw_concept else ""
-    return LineIdentity(
-        concept=concept,
-        label=_canonical_label(item.label or ""),
-    )
-```
-
-Do not mutate `item.label`. Do not lower/case-fold `concept`.
-
-Because `LineIdentity.key()` is the canonical key used by reconciliation and source-row metadata, its label portion may become case-folded. That is expected. If tests currently hard-code mixed-case rowmap keys, update them to assert the canonical identity contract rather than restoring case-sensitive identity merely to preserve the old string.
-
-- [ ] **Step 4: Add and run cross-document reconciliation regression**
-
-Add a regression equivalent to:
-
-```python
-def test_same_concept_and_case_variant_label_merge_as_one_identity():
-    existing = [_li("Goodwill", 10, 12, "Goodwill")]
-    incoming = [_li("GOODWILL", 10.1, 12.1, "Goodwill")]
-
-    merged, _ = _merge_line_items(existing, incoming, "restatement")
-
-    assert len(merged) == 1
-    assert merged[0].label == "Goodwill"  # original display label preserved
-```
-
-Use values that exercise the existing non-blocking restatement path rather than introducing an unrelated large-conflict assertion.
-
-Run:
-
-```bash
-pytest core/tests/test_line_identity.py -k "case_variant_label or case_insensitive or differing_only_by_case" -v
-```
-
-Expected after implementation: PASS.
-
-- [ ] **Step 5: Verify rowmap identity and workbook display do not regress**
-
-Update/extend `test_rowmap_preserves_both_duplicate_labels` so:
-
-- two genuinely different concepts with the same displayed label still receive two distinct canonical rowmap keys;
-- the visible Balance Sheet still shows the original source labels exactly as supplied;
-- rowmap assertions derive the identity portion from `line_identity(...).key()` or otherwise explicitly expect canonical case-folded label identity.
-
-Do not modify worksheet display labels to satisfy metadata tests.
-
----
-
-### Task 2: Remove unsafe generic preferred-stock concept classification
+## Task 1 — Remove the remaining unsafe `commonstock` concept shortcut
 
 **Files:**
 - Modify: `core/model/classification.py`
 - Test: `core/tests/test_classification.py`
 
-**Interfaces:**
-- Consumes: `_classify_by_concept(item)` and existing label fallback in `classify_balance_sheet_line()`.
-- Produces: preferred-stock concepts fall through unless another independently decisive concept signal applies.
+### Required behavior
 
-- [ ] **Step 1: Add the failing preferred-stock regression**
+Concept metadata remains a high-priority signal only when the concept itself clearly determines economic side/category. Generic `commonstock` is not sufficiently decisive because redeemable or mandatorily redeemable stock can be liability-like.
 
-Add a test equivalent to:
+Remove `commonstock` as a generic automatic Equity trigger. Do not replace it with another broad substring heuristic. Ordinary common/share capital must still classify through explicit safe concept signals or existing label rules.
+
+### TDD regression
+
+Add first:
 
 ```python
-def test_redeemable_preferred_stock_concept_does_not_force_equity():
+def test_redeemable_common_stock_concept_does_not_force_equity():
     item = LineItem(
         label="Long-term debt",
-        concept="PreferredStockSubjectToMandatoryRedemption",
+        concept="CommonStockSubjectToRedemption",
         values={P1: 10, P2: 12},
     )
-
     assert classify_balance_sheet_line(item).category == "Financial Liability"
 ```
 
-This test is deliberately structured so the existing label classifier has an unambiguous safe fallback. The failure should therefore prove that the concept shortcut, not the label rules, is wrong.
+Also retain the existing preferred-stock, debt-security, equity-method, cash-flow-hedge, and deferred-tax concept regressions.
 
-- [ ] **Step 2: Run the focused test and confirm the intended failure**
-
-Run:
+### Verify
 
 ```bash
-pytest core/tests/test_classification.py -k "preferred_stock" -v
+pytest core/tests/test_classification.py -k "common_stock or preferred_stock or debt_security or equity_method or cash_flow_hedge" -v
 ```
 
-Expected before implementation: FAIL with category `Equity`.
-
-- [ ] **Step 3: Make the concept classifier conservative**
-
-Remove generic `preferredstock` from the set of unconditional Equity concept signals. Do not replace it with another broad preferred-stock rule.
-
-The intended behavior is:
-
-```text
-clear retained-earnings/share-capital/AOCI/etc. concept
-    -> concept may classify Equity
-
-generic preferred-stock concept
-    -> concept classifier returns None
-    -> existing label classifier or explicit override decides
-```
-
-Do not disturb the positive concept tests for deferred taxes, lease/ROU, clear borrowing liabilities, clear cash/marketable-security assets, retained earnings, share capital, treasury stock, or AOCI.
-
-- [ ] **Step 4: Run classification regressions**
-
-Run:
-
-```bash
-pytest core/tests/test_classification.py -v
-```
-
-Expected: all classification tests pass, including the three regressions added in the previous correction pass.
+The new common-stock regression must fail for the intended reason before the implementation change and pass afterward.
 
 ---
 
-### Task 3: Full Step 4 verification and handoff
+## Task 2 — Make the Trainer artifact non-answer-bearing
 
 **Files:**
-- Modify: `RESULT.md`
-- Modify `skills/bav-trainer/SKILL.md` only if canonical rowmap/identity behavior is user-facing and the existing wording becomes false.
+- Modify: `core/trainer/workbook.py`
+- Modify: `core/engine/semantic_map.py` only if a focused locator-only copy helper is cleaner
+- Modify: `core/engine/map_embed.py` only as needed to embed the sanitized Trainer map
+- Modify: `core/trainer/semantic_io.py` only if needed to keep locator loading clean
+- Test: `core/tests/test_trainer.py`
 
-**Interfaces:**
-- Consumes: corrected identity + classification behavior.
-- Produces: exact verification evidence for ChatGPT review.
+### Required artifact contract
 
-- [ ] **Step 1: Run the full required suite**
+#### Answer Key
 
-Run exactly:
+The Answer Key remains the complete reference workbook:
+
+- every practice cell contains its working formula/input;
+- every practice cell is bright yellow;
+- every practice cell has a non-empty legacy Excel Note with the concise hint;
+- its embedded `_ComponentMap` and Answer-Key sidecar may contain full formulas, expected values, and hint metadata.
+
+#### Trainer
+
+The Trainer must contain:
+
+- the same visible workbook structure and formatting;
+- blank bright-yellow practice cells;
+- no Note/comment on practice cells;
+- semantic locator information sufficient to identify component ID/order/title/category/tab/cell/dependencies as needed.
+
+The Trainer must **not** contain withheld answers or hints in any of these places:
+
+- practice cells;
+- adjacent visible cells;
+- cell Notes/comments;
+- hidden worksheets;
+- embedded semantic metadata;
+- Trainer-associated JSON sidecars.
+
+### Remove obsolete hidden answer stores
+
+The current `_RefFormulas`, `_RefValues`, and `_TrainerMeta` sheets exist to support the old Hint/Reveal/macro system. They are redundant once the Answer Key is the answer/hint surface.
+
+Remove their generation entirely unless a failing test proves one is still required for a non-disclosing feature. Do not keep hidden answer copies merely for backwards compatibility.
+
+### Define one sanitized Trainer semantic map
+
+Add one focused transformation, for example:
+
+```python
+def trainer_locator_map(full_map: SemanticMap) -> SemanticMap:
+    ...
+```
+
+or an equivalent method on `SemanticMap`.
+
+For each Trainer component preserve only non-answer fields required for navigation/runtime identity, such as:
+
+```text
+id
+order
+title
+semantic_key
+category
+tab
+cell
+depends_on
+related_cells
+status
+```
+
+Strip or blank all answer/hint fields:
+
+```text
+short_hint = ""
+formula = ""
+expected_value = None
+hints = []
+```
+
+Use this same sanitized map for both:
+
+1. the Trainer's embedded `_ComponentMap`; and
+2. the Trainer's `.component_map.json` sidecar, if that sidecar continues to be emitted.
+
+Do not copy the full Answer-Key component-map sidecar to the Trainer and then rely on workbook visibility to hide it.
+
+### Remove the obsolete `.trainer.json`
+
+`TrainingWorkbookGenerator.generate()` currently writes `*.trainer.json` containing the full resolved component dictionaries, including answer/hint fields. This is not used by `load_semantic_map()` and violates the strict Trainer contract.
+
+Stop generating `*.trainer.json`. Add a regression asserting that a normal build does not create it.
+
+### Trainer index copy
+
+Keep the visible `Trainer`/practice-index sheet if useful, but change its instructions so they describe only the intended workflow:
+
+```text
+Complete yellow practice cells in dependency order. Open the matching Answer Key to inspect the formula/input and hover over its Note for the hint. Optional Check reports only whether your entry is correct.
+```
+
+The sheet must contain no `Hint`, `Reveal`, `HintActive`, `RevealActive`, macro-import, or progressive-hint instructions.
+
+### TDD regressions
+
+Extend `core/tests/test_trainer.py` with focused assertions equivalent to:
+
+```python
+def test_trainer_has_no_answer_bearing_hidden_sheets(tmp_path):
+    ...
+    assert "_RefFormulas" not in wb_t.sheetnames
+    assert "_RefValues" not in wb_t.sheetnames
+    assert "_TrainerMeta" not in wb_t.sheetnames
+
+
+def test_trainer_component_map_is_locator_only(tmp_path):
+    ...
+    for comp in load_semantic_map(trainer_path).all_ordered():
+        assert comp.formula in ("", None)
+        assert comp.expected_value is None
+        assert not comp.short_hint
+        assert comp.hints == []
+        assert comp.tab and comp.cell and comp.semantic_key
+
+
+def test_answer_key_component_map_retains_answers(tmp_path):
+    ...
+    for comp in load_semantic_map(answer_key_path).all_ordered():
+        assert isinstance(comp.formula, str) and comp.formula.startswith("=")
+        assert comp.expected_value is not None
+        assert comp.short_hint or comp.hints
+
+
+def test_no_trainer_json_answer_sidecar(tmp_path):
+    ...
+    assert not (tmp_path / "DEMO_HK_Trainer.trainer.json").exists()
+```
+
+Also strengthen the existing practice-cell tests so every semantic practice component satisfies:
+
+```text
+Trainer:    value is None; fill == FFFF00; comment is None
+Answer Key: formula/input present; fill == FFFF00; non-empty legacy Note
+```
+
+Scan Trainer worksheet cell values/comments for every known `short_hint` and detailed hint string from the full Answer-Key map and assert those hint strings are absent.
+
+Do not scan ordinary non-practice model formulas as if they were leaks; the contract forbids withheld answer metadata, not legitimate populated non-practice calculations.
+
+### Verify
+
+```bash
+pytest core/tests/test_trainer.py -v
+```
+
+---
+
+## Task 3 — Remove Hint/Reveal; keep Check binary and non-disclosing
+
+**Files:**
+- Delete: `core/trainer/hints.py`
+- Modify: `core/trainer/__init__.py`
+- Modify: `core/__main__.py`
+- Modify: `core/trainer/checker.py`
+- Delete: `core/templates/TrainerMacros.bas`
+- Test: `core/tests/test_trainer.py`
+
+### Remove Hint and Reveal product surfaces
+
+Delete the progressive Hint and Reveal Answer implementations rather than leaving dead product paths that mutate the Trainer.
+
+Remove:
+
+- `show_hint` / `HintResult`;
+- `reveal_answer`;
+- `hint` CLI subcommand;
+- `reveal` CLI subcommand;
+- Hint/Reveal exports from `core.trainer`;
+- Hint/Reveal references from the Trainer index sheet;
+- `TrainerMacros.bas`, because its Hint/Reveal paths violate the contract and its local Check depends on answer-bearing Trainer metadata that is being removed.
+
+Do not replace them with a different hidden reveal mechanism. Opening the Answer Key is the reveal/hint action.
+
+### Redesign optional Check around the paired Answer Key
+
+`check_component(trainer_path, component_id)` must obtain the full reference component from the matching `*_Answer_Key.xlsx`, not from answer-bearing Trainer metadata.
+
+Use the current naming contract (`answer_key_path_for(trainer_path)`) and fail clearly if the matching Answer Key does not exist.
+
+Check may internally use:
+
+- the Answer Key formula;
+- the Answer Key expected value;
+- dependency coordinates from the Answer Key semantic map.
+
+But it must not expose those answers in its returned/public result.
+
+Refactor `CheckResult` so it does **not** carry `expected_value` as user-facing state. Keep only non-answer result data such as:
+
+```python
+@dataclass
+class CheckResult:
+    component_id: str
+    passed: bool
+    message: str
+    user_value: float | str | None = None
+    formula_present: bool = False
+```
+
+Mismatch messages must be non-disclosing, e.g.:
+
+```text
+Incorrect: the result does not match the Answer Key.
+```
+
+Do not print the expected numeric value or expected formula.
+
+`check_dependencies()` may report missing expected dependency references by component/address, but must not return the answer formula or hint text.
+
+Check must not modify the Trainer workbook.
+
+### TDD regressions
+
+Replace the old Reveal test with tests equivalent to:
+
+```python
+def test_check_uses_paired_answer_key_without_trainer_answers(tmp_path):
+    ...
+    full = load_semantic_map(answer_key_path).get("nopat_fy")
+    wb = load_workbook(trainer_path)
+    row, col = parse_cell_ref(full.cell)
+    wb[full.tab].cell(row=row, column=col, value=full.formula)
+    wb.save(trainer_path)
+    wb.close()
+
+    result = check_component(trainer_path, "nopat_fy")
+    assert result.passed
+
+
+def test_check_mismatch_does_not_disclose_expected_answer(tmp_path):
+    ...
+    result = check_component(trainer_path, "nopat_fy")
+    full = load_semantic_map(answer_key_path).get("nopat_fy")
+    assert not result.passed
+    assert full.formula not in result.message
+    assert str(full.expected_value) not in result.message
+    assert "expected" not in result.message.lower()
+
+
+def test_check_requires_matching_answer_key(tmp_path):
+    ...
+    answer_key_path.unlink()
+    with pytest.raises(FileNotFoundError, match="Answer Key"):
+        check_component(trainer_path, "nopat_fy")
+```
+
+Add a CLI/help regression proving `hint` and `reveal` are no longer public subcommands and that `check` remains.
+
+### Verify
+
+```bash
+pytest core/tests/test_trainer.py -v
+python -m core --help
+```
+
+The help output must include `check` and must not include `hint` or `reveal`.
+
+---
+
+## Task 4 — Preserve `LineItem.concept` in standardized JSON export/reload
+
+**Files:**
+- Modify: `core/__main__.py`
+- Test: `core/tests/test_line_identity.py` or a focused ingestion test module if cleaner
+
+### Problem
+
+The current `cmd_ingest(... -o ...)` serializer writes statement rows with `label` and `values` but omits `concept`. An Excel workbook can therefore ingest concept-aware rows correctly and then lose their identity metadata when exported to standardized JSON.
+
+### Required behavior
+
+Every exported statement row must include:
+
+```json
+{
+  "label": "Deferred income taxes",
+  "concept": "DeferredIncomeTaxAssetsNet",
+  "values": {...}
+}
+```
+
+Use `"concept": ""` for conceptless rows so the schema is explicit and stable.
+
+Do not change the current date/value representation in this task.
+
+### TDD regression
+
+Build a temporary Excel source using:
+
+```text
+Concept | Line Item | 2024-12-31 | 2025-12-31
+```
+
+Run the CLI ingest path to JSON, then reload that JSON through `HKManualDocumentAdapter`. Assert that both deferred-tax concepts survive exactly and remain separately identifiable.
+
+### Verify
 
 ```bash
 pytest core/tests/test_line_identity.py -v
+```
+
+---
+
+## Task 5 — Align docs and committed examples with the contract
+
+**Files:**
+- Modify: `README-HK-TRAINER.md`
+- Modify: `skills/bav-trainer/SKILL.md`
+- Modify: `.gitignore` only for narrowly scoped generated demo sidecars if needed
+- Delete: `example/DEMO_HK_Trainer_reference.xlsx`
+- Delete: `example/DEMO_HK_Trainer_reference.assumptions.json`
+- Delete: `example/DEMO_HK_Trainer.trainer.json`
+- Regenerate/update: `example/DEMO_HK_Trainer.xlsx`
+- Add/regenerate: `example/DEMO_HK_Answer_Key.xlsx`
+- Delete `example/rowmap.json` if it is merely generated demo metadata and no test/runtime consumer requires the committed copy
+
+### Documentation contract
+
+Rewrite all user-facing trainer documentation so the workflow is unambiguous:
+
+```text
+Trainer = blank yellow practice cells, no answers, no hints.
+Answer Key = same yellow cells with formula/input + legacy Note hint.
+Optional Check = correct/incorrect only.
+```
+
+Remove all instructions to import macros or run `hint` / `reveal` commands.
+
+Do not describe removed functionality as "optional legacy" behavior.
+
+### Example contract
+
+The committed example should demonstrate the current product, not historical intermediate output.
+
+After regeneration, `example/` must contain the current matched pair:
+
+```text
+DEMO_HK_Trainer.xlsx
+DEMO_HK_Answer_Key.xlsx
+```
+
+and must not contain any `*_reference.xlsx`.
+
+Internal generated JSON sidecars do not need to be committed as examples. If building in `example/` creates untracked implementation sidecars, either delete them after verification or add **narrowly scoped** ignore rules for those generated demo files. Do not add a broad ignore rule that would hide legitimate assumptions JSON elsewhere in the repository.
+
+Inspect both generated workbooks with openpyxl before handoff; do not infer correctness only from file names.
+
+---
+
+## Task 6 — Full regression and leakage audit
+
+**Files:**
+- Modify: `RESULT.md`
+
+Run at minimum:
+
+```bash
 pytest core/tests/test_classification.py -v
+pytest core/tests/test_line_identity.py -v
 pytest core/tests/test_reference_integrity.py -v
 pytest core/tests/test_line_resolver.py -v
 pytest core/tests/test_trainer.py -v
 pytest core/tests/ -q
 python -m core build example/DEMO_HK_Standardized.json -o /tmp/DEMO_HK_Trainer.xlsx
+python -m core --help
 ```
 
-The Excel optional-Concept-column coverage is currently inside `test_line_identity.py`; verify it remains collected and passing.
+Then run one explicit artifact audit with Python/openpyxl against the `/tmp` pair that verifies all of the following:
 
-- [ ] **Step 2: Inspect the generated pair structurally**
+### Trainer
 
-Using the existing openpyxl-based tests or one focused temporary inspection, verify:
+- every semantic practice cell is blank;
+- every semantic practice cell is bright yellow;
+- every semantic practice cell has no Note/comment;
+- `_RefFormulas`, `_RefValues`, and `_TrainerMeta` do not exist;
+- Trainer `_ComponentMap` contains coordinates/identity but no formulas, expected values, `short_hint`, or detailed hints;
+- Trainer `.component_map.json`, if emitted, is equally sanitized;
+- no `*.trainer.json` is emitted;
+- no worksheet value/comment contains any known hint string from the Answer Key map;
+- visible Trainer instructions contain no Hint/Reveal/macro workflow.
 
-- both `/tmp/DEMO_HK_Trainer.xlsx` and `/tmp/DEMO_HK_Answer_Key.xlsx` exist;
-- the CLI still reports 13 semantic components;
-- no third user-facing reference workbook is generated;
-- Trainer practice cells remain blank yellow without Notes;
-- Answer Key practice cells retain formulas/inputs, yellow fill, and Notes.
+### Answer Key
 
-Do not add a new permanent output file to the repository.
+- every semantic practice cell contains its working formula/input;
+- every semantic practice cell is bright yellow;
+- every semantic practice cell has a non-empty legacy Note authored consistently;
+- full semantic formulas/expected values remain available to internal Check logic.
 
-- [ ] **Step 3: Overwrite `RESULT.md` with exact evidence**
+### Pair/repository
 
-Use this format:
+- visible sheet structure and formatting parity still pass the existing tests;
+- exactly 13 semantic components remain;
+- no `*_reference.xlsx` is produced by the new build;
+- committed `example/` contains the Trainer + Answer Key pair and no stale reference workbook;
+- standardized JSON round-trip retains `LineItem.concept`.
+
+Do not report complete if any leakage test fails even if the general test suite is green.
+
+---
+
+## Preserve accepted accounting / identity behavior
+
+Do not regress:
+
+- eight BAVGEM balance-sheet categories;
+- explicit ambiguity notes rather than fake categories;
+- source checksum blocking;
+- asset-detail / liability-detail / implied-equity reconciliation;
+- live Condensed Financials CHECK formulas;
+- classification SUMIF reactivity;
+- DuPont using implied reformulated equity;
+- shared line resolver for revenue / NI / tax / interest / totals;
+- ten-year Bear/Base/Bull residual-income chain;
+- canonical concept+label statement identity;
+- case-insensitive displayed-label identity with exact concept IDs;
+- same-label/different-concept preservation;
+- conceptless ambiguity rejection;
+- same-identity cross-document restatement handling;
+- optional Excel Concept column;
+- case-insensitive unique-label overrides and concept-specific overrides;
+- concept-qualified source row maps;
+- semantic component registration at build time;
+- current 13-component catalog.
+
+## Expected implementation files
+
+Primary expected changes:
 
 ```text
-Status: Step 4 final correction pass complete | blocked
+core/model/classification.py
+core/trainer/workbook.py
+core/engine/semantic_map.py          (only if used for sanitized locator copy)
+core/engine/map_embed.py             (only if needed)
+core/trainer/semantic_io.py          (only if needed)
+core/trainer/checker.py
+core/trainer/__init__.py
+core/__main__.py
+core/tests/test_classification.py
+core/tests/test_line_identity.py
+core/tests/test_trainer.py
+README-HK-TRAINER.md
+skills/bav-trainer/SKILL.md
+RESULT.md
+```
+
+Expected deletions:
+
+```text
+core/trainer/hints.py
+core/templates/TrainerMacros.bas
+example/DEMO_HK_Trainer_reference.xlsx
+example/DEMO_HK_Trainer_reference.assumptions.json
+example/DEMO_HK_Trainer.trainer.json
+```
+
+Expected example output:
+
+```text
+example/DEMO_HK_Trainer.xlsx
+example/DEMO_HK_Answer_Key.xlsx
+```
+
+Only touch other files when a failing regression demonstrates they are required.
+
+## Do not change
+
+- `TARGET.md`.
+- `COMPONENT_CATALOG` membership/order.
+- forecast/residual-income/scenario mathematics.
+- manual-HK-v1 sourcing boundary.
+- Git history.
+
+---
+
+## Acceptance criteria
+
+This step is ready for ChatGPT review only when all are true:
+
+1. `CommonStockSubjectToRedemption` no longer gets forced into Equity by generic concept matching.
+2. Trainer practice cells are blank yellow with no Notes/comments.
+3. Answer Key practice cells contain the correct formula/input, stay yellow, and carry one non-empty legacy Note hint.
+4. Trainer contains no `_RefFormulas`, `_RefValues`, or `_TrainerMeta` answer stores.
+5. Trainer embedded/sidecar semantic metadata contains no practice formulas, expected values, `short_hint`, or detailed hint text.
+6. No `.trainer.json` full-answer sidecar is produced.
+7. No progressive Hint or Reveal Answer command/API/macro/user instruction remains in the target trainer product.
+8. Optional Check uses the paired Answer Key internally, returns only non-disclosing validation, and does not modify the Trainer.
+9. CLI help exposes `check` but not `hint` or `reveal`.
+10. `cmd_ingest -o` preserves `LineItem.concept`, demonstrated by an Excel → JSON → reload regression.
+11. Committed examples contain the current Trainer + Answer Key and no `*_reference.xlsx`.
+12. Visual parity, semantic mapping, Step 3 integrity, Step 4 identity, and the 13-component catalog remain intact.
+13. Full core test suite passes and the demo build succeeds.
+
+## RESULT.md handoff format
+
+Before stopping, overwrite `RESULT.md` with:
+
+```text
+Status: Step 5 complete | blocked
 
 Files changed:
+- ...
+
+Files deleted:
 - ...
 
 Tests run:
 - <exact command> -> <exact result>
 ...
 
-Final identity checks:
-- case-insensitive displayed-label identity: ...
-- concept identifiers remain exact: ...
-- case-only conceptless duplicate rejection: ...
-- case-variant cross-document label merge: ...
-- rowmap canonical identity + original worksheet display: ...
+Artifact contract checks:
+- Trainer blank/yellow/no Notes: ...
+- Trainer hidden answer stores absent: ...
+- Trainer semantic metadata sanitized: ...
+- Answer Key formula/yellow/legacy Note: ...
+- Hint/Reveal public surfaces removed: ...
+- Check binary/non-disclosing: ...
+- no *.trainer.json: ...
 
-Final classification checks:
-- redeemable preferred stock no longer forced to Equity: ...
-- previous debt-security / equity-method / cash-flow-hedge regressions: ...
-- deferred-tax asset/liability concept behavior: ...
+Identity/export checks:
+- concept round-trip: ...
+- common-stock classification regression: ...
 
-Preserved checks:
-- Step 3 integrity: ...
-- paired Trainer / Answer Key: ...
-- semantic components: 13
+Example checks:
+- Trainer + Answer Key committed: ...
+- no *_reference.xlsx: ...
 
-Unresolved: none | <specific blocker>
+Unresolved: ...
 ```
-
-Do not write `Unresolved: none` unless every command above passed.
-
----
-
-## Preserve all already-correct behavior
-
-Do not regress any of the following:
-
-- distinct same-label rows with genuinely different non-empty concepts remain separate;
-- concepted + conceptless same-label ambiguity fails;
-- duplicate conceptless same-label ambiguity fails;
-- duplicate same-identity rows within either source fail before dictionary merge;
-- one same identity in each of two documents follows existing restatement/conflict behavior;
-- optional Excel `Concept | Line Item | dates` and legacy `Line Item | dates` formats both ingest;
-- `concept:` overrides remain exact concept selectors;
-- unique bare-label and `label:` overrides remain case-insensitive;
-- ambiguous label selectors still fail and require `concept:` selectors;
-- concept-qualified source-row metadata remains coordinate-free;
-- worksheet display labels remain original source text;
-- Step 3 eight-category reformulation and reconciliation checks remain enforced;
-- live Condensed Financials classification/SUMIF behavior remains intact;
-- DuPont uses implied reformulated equity;
-- Bear/Base/Bull ten-year residual-income chain remains intact;
-- Trainer / Answer Key visual parity and Notes contract remain intact;
-- existing 13 semantic components remain unchanged.
-
-## Do not change
-
-- `TARGET.md`.
-- `COMPONENT_CATALOG` membership/order.
-- forecast or residual-income mathematics.
-- workbook product naming or output count.
-- Hint / Reveal behavior.
-- automatic sourcing architecture.
-- Git history.
-
-## Acceptance criteria
-
-Step 4 is accepted only when all of the following are true:
-
-1. `Goodwill` and `GOODWILL` with the same exact concept resolve to the same canonical line identity.
-2. Concept identifiers remain exact/case-sensitive after whitespace/NBSP normalization.
-3. Two conceptless same-label rows differing only by case fail with `AmbiguousStatementIdentityError`.
-4. Cross-document rows with the same exact concept and case-only label differences reconcile as one identity rather than becoming duplicate economic rows.
-5. Source-row metadata uses the same canonical identity as reconciliation while visible worksheet labels retain original display text.
-6. A preferred-stock concept that is not itself safely decisive cannot force an otherwise clear liability line into Equity.
-7. The previous `DebtSecuritiesAvailableForSale`, `EquityMethodInvestments`, and `CashFlowHedgeReserve` regressions continue to pass.
-8. Explicit deferred-tax asset/liability concepts still classify correctly.
-9. Label override compatibility and ambiguity protection remain intact.
-10. All Step 3 integrity tests pass.
-11. Full core test suite passes.
-12. Demo still builds exactly the matched 13-component Trainer / Answer Key pair.
 
 ## Cursor execution rules
 
-1. Read this entire active step before editing.
-2. Write the new regression test for each task before implementation and verify that it fails for the intended reason.
-3. Make the smallest code change that satisfies the stated contract.
-4. Run the focused test immediately after each fix.
-5. Run the full suite only after both focused corrections pass.
-6. Update `RESULT.md` with exact commands/results.
-7. Report files changed and unresolved issues.
-8. Do not start the next product step.
-9. Do not modify this `IMPLEMENTATION.md` during execution.
-10. Do not commit or push.
+1. Read `TARGET.md` and this file before editing.
+2. Write each new regression before the code change it protects and verify the intended failure.
+3. Make the minimum coherent implementation change for that regression.
+4. Do not preserve legacy Hint/Reveal behavior; it is explicitly outside the target contract now.
+5. Do not solve Trainer leakage by merely hiding answer-bearing sheets more deeply. Remove or sanitize the answer data.
+6. Keep full answer/hint metadata only with the Answer Key/reference side of the pair.
+7. Run focused tests after each task, then the complete suite and artifact audit.
+8. Update `RESULT.md` with exact evidence.
+9. Report unresolved issues rather than weakening the contract.
+10. Do not propose or start component-catalog expansion.
+11. Do not commit or push; the user owns the checkpoint commit.
 
 ## ChatGPT verification protocol
 
-After the user checkpoints and pushes Cursor's implementation, ChatGPT should verify the new commit against every acceptance criterion above. If all criteria are satisfied, Step 4 can be closed and the next implementation plan should expand the semantic practice surface beyond the current 13 representative components rather than add more identity architecture without a concrete failing case.
+After the user pushes the implementation checkpoint, ChatGPT should verify by code inspection:
+
+- all 13 acceptance criteria above;
+- that Trainer leakage is removed from hidden worksheets **and** sidecars, not only visible cells;
+- that Hint/Reveal are actually absent from runtime/docs/macros;
+- that Check cannot disclose expected values/formulas/hints;
+- that concept metadata survives standardized JSON export/reload;
+- that the example pair matches the current product contract;
+- the exact test/audit evidence recorded in `RESULT.md`.
+
+Only after this step is accepted should planning move to expanding the semantic practice surface beyond the current 13 representative components.
