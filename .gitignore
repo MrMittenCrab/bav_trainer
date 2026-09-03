@@ -8,3 +8,10 @@ venv/
 *.egg-info/
 .coverage
 htmlcov/
+
+# Generated BAV trainer demo/build metadata
+example/rowmap.json
+example/*_Answer_Key.component_map.json
+example/*_Answer_Key.assumptions.json
+example/*_Trainer.component_map.json
+example/*_Trainer.trainer.json
