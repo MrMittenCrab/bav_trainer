@@ -2,113 +2,160 @@
 
 ## Product target
 
-Build **BAV Excel Trainer — Hong Kong Edition**: a training system that takes manually supplied Hong Kong company financial materials, builds the full BAV model, and produces two matching professional Excel workbooks:
+Build **BAV Excel Trainer — Hong Kong Edition v1** as a **historical financial-analysis trainer**.
 
-1. a **Trainer** workbook in which the learner reconstructs the model's important Excel formulas, links, ratios, bridges, and valuation calculations in blank bright-yellow practice cells; and
-2. an **Answer Key** workbook in which those same yellow cells contain the correct working Excel formulas and each answer cell has one concise hint in an Excel legacy Note (the yellow sticky note shown on hover).
+The system takes manually supplied Hong Kong company historical financial materials, builds a correct historical BAV analysis, and produces two matching professional Excel workbooks:
 
-The trainer is for learning **financial-model construction and dependency logic**, not for transcription of numbers from filings and not for artificial quiz questions.
+1. a **Trainer** workbook in which the learner reconstructs important historical Excel formulas, links, ratios, bridges, and analytical calculations in blank bright-yellow practice cells; and
+2. an **Answer Key** workbook in which those same yellow cells contain the correct working Excel formulas and each answer cell has one concise hint in an Excel legacy Note.
+
+The trainer is for learning **historical model construction and dependency logic**, not for transcription of numbers from filings, not for guessing judgment inputs, and not yet for forecasting or valuation.
+
+## v1 boundary
+
+v1 ends at a complete historical analytical model.
+
+The learner should be able to trace supplied historical statements through reformulation and historical ratio analysis:
+
+```text
+provided historical source statements
+    -> supplied classification / setup judgments
+    -> historical statement links and derived lines
+    -> NOPAT / NOWC / NOLA / NOA / Net Debt / Equity
+    -> growth / margins / tax / financing metrics
+    -> RNOA / after-tax CoD / Spread / FLEV / ROE / DuPont
+    -> historical EPS / per-share metrics when the required historical share-count data is supplied
+    -> coherent historical analysis complete
+```
+
+Forecasting, residual-income valuation, DCF/cross-check valuation, terminal value, Bear/Base/Bull scenarios, and forward valuation multiples are **deferred from v1**.
+
+The existing forecasting/valuation code may remain in the repository as dormant scaffolding for later integration, but v1 must not present it as trusted product output.
+
+## Visible workbook scope
+
+The normal v1 Trainer / Answer Key experience should expose the historical-analysis sheets, including the source statements, `Condensed Financials`, `ALT DuPont`, and the Trainer index.
+
+Forecast/valuation sheets such as:
+
+```text
+Model_Bear
+Model_Base
+Model_Bull
+Scenario_Summary
+```
+
+must be hidden in both generated v1 workbooks and excluded from the Trainer index, semantic practice surface, and workbook-wide Check.
+
+Their hidden existence must not affect historical formulas or historical expected values. A user who never opens or unhides them must have a complete v1 product.
 
 ## Learner experience
 
-1. Supply company financial data/documents manually.
-2. Build a complete reference BAV model from those inputs.
-3. Generate a matched `*_Trainer.xlsx` / `*_Answer_Key.xlsx` pair from that one model.
-4. In the Trainer, source financial data, classifications, market data, and scenario assumptions are already populated. The learner fills only the yellow **model-construction formula cells**.
-5. Run **Check** when desired. Check scans **every practice cell in the Trainer in one pass** and recolors it without changing its contents:
-   - blank / unentered → remains yellow;
-   - correct → green;
-   - incorrect → red.
-6. When the learner wants the actual formula or a hint, open the matching Answer Key: inspect the real formula in the corresponding yellow cell and hover over that same cell's Note for the hint.
+1. Supply historical company financial data/documents manually.
+2. Build the historical reference analysis from those supplied facts and setup judgments.
+3. Generate a matched `*_Trainer.xlsx` / `*_Answer_Key.xlsx` pair.
+4. In the Trainer, historical source data, classification decisions, and other supplied facts are already populated. The learner fills only selected yellow **historical model-construction formula cells**.
+5. Run **Check** when desired. Check scans every active historical practice cell in one pass and recolors it without changing its contents:
+   - blank / unentered -> remains yellow;
+   - correct -> green;
+   - incorrect -> red.
+6. When the learner wants the actual formula or a hint, open the matching Answer Key and inspect the formula / legacy Note in the corresponding yellow cell.
 
 The **Answer Key is the sole answer-and-hint mechanism**. Check is validation only. There is no progressive Hint or Reveal Answer workflow.
 
 ## What counts as practice
 
-A practice cell should teach how the model is constructed from already-supplied information. High-value practice includes:
+A v1 practice cell should teach how historical analysis is constructed from already-supplied information. High-value practice includes:
 
-- cross-sheet formula links that connect source statements to model schedules;
-- accounting reformulation formulas and operating/financing aggregates;
-- growth, margin, return, leverage, spread, and other analytical ratios;
-- forecast formulas that transform assumptions into projected financials;
-- residual-income, DCF/cross-check, terminal-value, and per-share valuation formulas;
-- scenario weighting, valuation multiples, and reconciliation/check formulas when they teach model logic.
+- cross-sheet links connecting historical source statements to analytical schedules;
+- effective tax, net-interest, and NOPAT calculations;
+- operating/financing reformulation and category aggregates;
+- NOWC, NOLA, NOA, Net Debt, and reformulated Equity identities;
+- historical revenue growth and profitability margins;
+- RNOA, after-tax cost of debt, Spread, FLEV, ROE decomposition, Actual ROE, and related historical ratios;
+- historical EPS or per-share calculations when actual historical share-count data is present;
+- historical reconciliation/check formulas that teach model logic.
 
-The practice surface should follow the model's dependency graph: upstream construction cells should appear before downstream ratios and valuation outputs.
+The practice surface should follow the historical dependency graph: upstream links and reformulation before downstream ratios.
 
 ## What stays populated
 
-The Trainer should not make the learner manually re-enter literal data that the system already knows. Unless a later product decision explicitly changes this, keep these populated in both workbooks:
+The Trainer should not make the learner re-enter literal data that the system already knows. Keep populated:
 
 - historical source-statement numbers transcribed or imported from filings;
-- market-data inputs such as price, shares, rates, and other supplied external facts;
-- scenario assumptions such as growth, margins, probabilities, beta, terminal growth, and similar hard-coded drivers;
+- historical share-count data and market facts when supplied;
 - balance-sheet classification choices and other setup/judgment inputs used by the reference model;
 - labels, dates, units, formatting, and workbook setup;
-- non-practice formulas that are intentionally outside the current training surface.
+- non-practice formulas intentionally outside the current historical training surface.
 
-A literal number or category should not become a practice cell merely because it is editable. The default test is: **does reconstructing this cell teach model logic or only data entry?**
+A literal number or category should not become a practice cell merely because it is editable. The default test is: **does reconstructing this cell teach historical model logic or only data entry?**
 
 ## Hard requirements
 
-- **Reference-model first.** The system must derive trainer formulas from a complete working model, not from hand-authored answer keys.
-- **Formula-construction focus.** The v1 practice surface consists of formula-bearing model construction cells. Do not add literal-number transcription or classification quizzes merely to increase exercise count.
-- **Exactly two user-facing workbooks.** One build must produce a clearly named Trainer workbook and its matching Answer Key. Internal build metadata may exist while constructing the pair, but the learner-facing product must not require a third reference workbook.
-- **Trainer contains no answers or hints.** Every practice cell starts blank bright yellow with no Note/comment. No adjacent visible hint cells are allowed. Hidden Trainer worksheets and Trainer-associated sidecars must not contain withheld practice formulas, expected answer values, `short_hint` text, detailed hints, or any other answer-bearing copy of the Answer Key.
-- **Answer Key contains formula + Note.** Every corresponding yellow practice cell in the Answer Key contains the correct working formula and a non-empty Excel legacy Note with one concise hint. Formula answers remain inspectable formulas rather than hard-coded displayed results.
-- **Answers and hints are co-located.** The formula is in the Answer Key practice cell and the hint is the legacy Note attached to that same cell. Do not place hints in adjacent cells or use modern threaded comments as a substitute.
-- **Workbook-wide Check.** One Check action scans every semantic practice cell in the Trainer. It does not require the learner to select a component or check cells one at a time.
-- **Check colors only.** Check must preserve the learner's cell contents and apply exactly three practice states: blank/unentered stays yellow, correct becomes green, incorrect becomes red. Re-running Check must recompute all states from current cell contents, so corrected answers can turn green and cleared answers return to yellow.
-- **Check is non-disclosing.** Check must not insert, print, return, display, or store in the Trainer any expected formula, expected value, hint, or answer explanation. Its user-facing output may report aggregate counts such as correct / incorrect / blank, but not reference answers.
-- **No Hint / Reveal product surface.** Do not expose progressive Hint or Reveal Answer commands, buttons, macros, or workflow instructions. Opening the Answer Key is how the learner gets either the hint or the answer.
-- **Visual parity.** At build time the two workbooks must have identical visible sheet structure, cell locations, fonts, borders, alignments, number formats, row heights, and column widths except for the intentionally blank versus completed practice-cell contents and Answer Key Notes. Practice fills initially match yellow; after Check, only Trainer practice-cell fills may differ by becoming green/red/yellow according to validation state.
-- **Reference aesthetic.** Match the supplied Oshkosh workbook's restrained financial-model style: Aptos Narrow, 20-point bold worksheet titles, 11-point body text, black text on a white base, bright-yellow practice/answer cells, and thin borders used for headers, sections, and totals. Preserve appropriate financial number formats.
-- **Short feedback loop.** The learner can validate the entire workbook with one Check action and can get the formula/hint immediately by opening the Answer Key. Check must not require revealing answers inside the Trainer.
-- **Semantic component mapping.** Trainer generation and Check must resolve practice formulas by semantic identity rather than depending on fragile hard-coded workbook coordinates. The Trainer itself does not retain answer-bearing semantic metadata; Check reads the matching Answer Key/reference metadata externally.
-- **Professional workbook preserved.** Training mode removes only the formula cells selected for practice; source data, classifications, assumptions, labels, worksheet setup, formatting, and non-practice calculations remain populated.
-- **HK input is manual in v1.** Automatic HKEX scraping is not required for the first usable version. Manual filings or Excel/Bloomberg/Wind-style exports can feed a standardized interface.
-- **Standardized identity survives round trips.** If ingestion produces standardized JSON, identity-bearing fields such as `LineItem.concept` must survive export/reload rather than being silently discarded.
-- **Full BAV logic is the source of truth.** Accounting reformulation, DuPont analysis, forecasting, residual-income valuation, DCF/cross-check logic, and scenario analysis should remain aligned with the underlying BAV model rather than becoming a simplified toy model.
+- **Historical reference-model first.** Trainer formulas must come from a complete working historical model, not hand-authored answer keys.
+- **No invented historical inputs.** Historical ratios and per-share metrics must use supplied historical data. Do not use forecast defaults or fabricated assumptions to fill missing historical facts.
+- **Formula-construction focus.** v1 practice consists of formula-bearing historical model-construction cells. Do not add literal-number transcription or classification quizzes merely to increase exercise count.
+- **Forecast/valuation deferred.** v1 does not claim to build or teach a trustworthy forward forecast or valuation model. Existing forecast/valuation sheets are hidden and outside the active semantic practice surface.
+- **Future forecast integration.** When forecasting is reintroduced, prefer integration with the trusted BAVGEM forecasting/assumption architecture rather than inventing a new assumption-free forecasting system.
+- **Exactly two user-facing workbooks.** One build produces a clearly named Trainer and matching Answer Key; no third reference workbook is required.
+- **Trainer contains no answers or hints.** Every active practice cell starts blank bright yellow with no Note/comment. Hidden Trainer sheets and Trainer-associated sidecars must not contain withheld active-practice formulas, expected values, or hints.
+- **Answer Key contains formula + Note.** Every corresponding active practice cell contains the correct working formula and a non-empty legacy Excel Note.
+- **Workbook-wide Check.** One Check scans every active historical practice cell; hidden deferred forecast/valuation cells are not checked.
+- **Check colors only.** Blank stays yellow, correct becomes green, incorrect becomes red; re-running Check recomputes current state without changing learner contents.
+- **Check is non-disclosing.** Aggregate counts are allowed; formulas, expected values, hints, and answers are not printed or inserted.
+- **No Hint / Reveal product surface.** Opening the Answer Key is how the learner gets the formula or hint.
+- **Visual parity.** Trainer and Answer Key share the same visible historical workbook structure and formatting except blank/completed practice contents and Answer Key Notes. Deferred forecast/valuation sheets have the same hidden state in both.
+- **Reference aesthetic.** Match the supplied professional-model style: Aptos Narrow, 20-point bold worksheet titles, 11-point body text, black text on white, bright-yellow practice cells, restrained thin borders, and appropriate financial number formats.
+- **Semantic component mapping.** Historical practice formulas resolve by semantic identity at build time rather than fragile static coordinates.
+- **Professional workbook preserved.** Training mode removes only selected historical calculation formulas; source data, classifications, labels, setup, formatting, and non-practice calculations remain populated.
+- **HK input is manual in v1.** Automatic HKEX scraping is not required when manual source documents/exports are sufficient.
+- **Standardized identity survives round trips.** Identity-bearing fields such as `LineItem.concept` must survive supported standardized-data export/reload.
+- **Historical accounting logic is authoritative.** Reformulation and historical DuPont math must remain aligned with the underlying BAV methodology rather than becoming a simplified toy model.
 
-## Practice-surface expansion strategy
+## Historical practice-surface expansion strategy
 
-Expand the trainer by coherent dependency chains rather than by maximizing cell count.
+Expand by coherent historical dependency chains rather than maximizing cell count:
 
-1. **Historical reformulation + DuPont:** source data and classifications supplied; learner constructs operating/financing aggregates, NOPAT, NOA/net debt/equity, RNOA, cost of debt, spread, leverage, ROE decomposition, and related ratios.
-2. **Forecast construction:** assumptions supplied; learner constructs forecast sales, margins, operating assets, financing, NOPAT/net income, and related forecast schedules.
-3. **Valuation construction:** learner constructs residual income, discounting, terminal value, intrinsic value, per-share value, scenario weighting, multiples/cross-checks, and reconciliations.
+1. **Historical reformulation core:** effective tax, financing result, NOPAT, operating/financial aggregates, NOWC/NOLA/NOA/Net Debt/Equity.
+2. **Historical DuPont core:** RNOA, after-tax CoD, Spread, FLEV, decomposed ROE, Actual ROE, growth/margins and related historical ratios.
+3. **Multi-period historical completion:** extend meaningful historical formulas across all applicable fiscal periods rather than only one sample period.
+4. **Historical per-share analysis:** add EPS/per-share formulas only when actual historical diluted-share data is supplied through the standardized input path.
 
-Do not move to the next chain until the preceding chain is coherent and verified.
+Forecasting and valuation are separate future product phases, not prerequisites for declaring historical v1 complete.
 
 ## Non-goals for v1
 
+- Forward revenue, margin, balance-sheet, or earnings forecasts.
+- Bear/Base/Bull scenario construction.
+- Residual-income, DCF, terminal-value, or forward valuation exercises.
+- Treating default growth/margin/leverage assumptions as company-specific forecasts.
 - Manually copying historical numbers from filings into yellow practice cells.
 - Literal-number-entry exercises whose main skill is transcription.
 - Balance-sheet classification as a quiz surface unless explicitly reintroduced later.
-- Asking the learner to guess supplied scenario assumptions or market inputs.
-- Automatically inventing practice questions or exercises.
-- Requiring the learner to reproduce decorative Excel formatting.
-- Automatic HKEX ingestion when manual document input is sufficient.
-- Per-cell or selected-component Check as the normal workflow.
-- Check output that reveals the expected value/formula.
-- Progressive hint levels inside the Trainer.
-- Reveal-answer buttons or commands that write the solution into the Trainer.
-- Hiding answers or hints in Trainer metadata and calling them inaccessible.
-- Giving the implementation agent freedom to redesign the product while implementing a bounded step.
+- Asking the learner to guess setup/judgment inputs.
+- Automatically inventing practice questions.
+- Requiring decorative Excel formatting reproduction.
+- Automatic HKEX ingestion when manual input is sufficient.
+- Per-cell/selected-component Check as the normal workflow.
+- Check output revealing expected values/formulas.
+- Progressive hints or Reveal-answer commands.
+- Hiding active answers/hints in Trainer metadata and calling them inaccessible.
 
-## Definition of done
+## Definition of done for historical v1
 
-A real Hong Kong company can be supplied through the supported manual input path and the system produces a matched `*_Trainer.xlsx` and `*_Answer_Key.xlsx` pair from one complete BAV model.
+Given supported historical Hong Kong company data, the system produces a matched `*_Trainer.xlsx` and `*_Answer_Key.xlsx` pair whose visible product is a coherent historical BAV analysis.
 
-For every selected formula-practice component before Check:
+For every selected historical formula-practice component before Check:
 
 - the Trainer cell is blank bright yellow and contains no Note/comment;
-- the Trainer workbook and its associated files contain no withheld formula, expected answer value, or hint text for that component;
-- the corresponding Answer Key cell is bright yellow, contains the correct working formula, and carries a non-empty concise legacy Excel Note.
+- the Trainer and its associated active metadata contain no withheld answer/hint for that component;
+- the corresponding Answer Key cell is bright yellow, contains the correct working formula, and carries a concise non-empty legacy Note.
 
-All source data, classifications, market data, scenario assumptions, and other non-practice inputs remain populated in the Trainer. A single Check action scans all practice cells without changing their contents: blank cells are yellow, correct cells are green, and incorrect cells are red. Re-running Check fully refreshes those states. Check does not disclose reference answers or hints.
+Historical source data and classification/setup judgments remain populated. Forecast/valuation sheets are hidden and excluded from practice/Check. A single Check action validates all active historical practice cells without disclosing answers.
 
-The pair shares the same professional Oshkosh-derived visible structure and working BAV logic. No user-facing `*_reference.xlsx` exists. The Answer Key is the only hint/answer surface. Hint and Reveal commands/macros/APIs do not exist in the trainer product. Semantic mapping remains coordinate-free at design time, and supported standardized-data round trips preserve concept-aware line identity.
+Historical reformulation and ratio analysis are internally coherent and preserve concept-aware line identity. Historical EPS/per-share analysis is included only where required historical share data is supplied; missing share history is not filled with invented forecast assumptions.
+
+A trustworthy forecast/valuation trainer is explicitly deferred until its assumption/judgment architecture is integrated and separately verified.
 
 ## Planning ownership
 
