@@ -180,7 +180,6 @@ def _classify_by_concept(item: LineItem) -> ClassificationDecision | None:
             "sharecapital",
             "additionalpaid",
             "commonstock",
-            "preferredstock",
             "treasurystock",
             "treasuryshare",
             "accumulatedothercomprehensive",

@@ -43,6 +43,40 @@ def _periods() -> list[FinancialPeriod]:
     ]
 
 
+def test_line_identity_label_is_case_insensitive_but_concept_is_exact():
+    a = _li("Goodwill", 10, 12, "Goodwill")
+    b = _li("  GOODWILL  ", 10, 12, "Goodwill")
+    assert line_identity(a) == line_identity(b)
+
+    nbsp = _li("Goodwill\u00a0", 10, 12, "Goodwill")
+    assert line_identity(a) == line_identity(nbsp)
+
+    # Concept IDs remain exact identifiers; case-only concept changes are not
+    # silently assumed to be the same taxonomy concept.
+    c = _li("Goodwill", 10, 12, "goodwill")
+    assert line_identity(a) != line_identity(c)
+
+
+def test_conceptless_duplicate_labels_differing_only_by_case_fail():
+    items = [
+        _li("Goodwill", 10, 12),
+        _li("GOODWILL", 11, 13),
+    ]
+    with pytest.raises(AmbiguousStatementIdentityError):
+        validate_statement_identities(items, "balance_sheet")
+
+
+def test_same_concept_and_case_variant_label_merge_as_one_identity():
+    existing = [_li("Goodwill", 10, 12, "Goodwill")]
+    incoming = [_li("GOODWILL", 10.1, 12.1, "Goodwill")]
+
+    merged, _ = _merge_line_items(existing, incoming, "restatement")
+
+    assert len(merged) == 1
+    assert merged[0].label == "Goodwill"  # original display label preserved
+    assert merged[0].values[P2] == 12.1
+
+
 def _deferred_pair() -> list[LineItem]:
     return [
         _li("Deferred income taxes", 40, 45, "DeferredIncomeTaxAssetsNet"),
@@ -327,15 +361,19 @@ def test_rowmap_preserves_both_duplicate_labels(tmp_path):
     import json
 
     rowmap = json.loads((tmp_path / "rowmap.json").read_text(encoding="utf-8"))
-    asset_key = (
-        "Balance Sheet!concept=DeferredIncomeTaxAssetsNet|label=Deferred income taxes"
+    asset_item = next(
+        i for i in fin.balance_sheet if i.concept == "DeferredIncomeTaxAssetsNet"
     )
-    liab_key = (
-        "Balance Sheet!concept=DeferredIncomeTaxLiabilitiesNet|label=Deferred income taxes"
+    liab_item = next(
+        i for i in fin.balance_sheet if i.concept == "DeferredIncomeTaxLiabilitiesNet"
     )
+    asset_key = f"Balance Sheet!{line_identity(asset_item).key()}"
+    liab_key = f"Balance Sheet!{line_identity(liab_item).key()}"
     assert asset_key in rowmap
     assert liab_key in rowmap
     assert rowmap[asset_key] != rowmap[liab_key]
+    assert "label=deferred income taxes" in asset_key
+    assert "label=deferred income taxes" in liab_key
 
     from openpyxl import load_workbook
 

@@ -25,12 +25,23 @@ class LineIdentity:
         return self.key()
 
 
+def _canonical_label(label: str) -> str:
+    """Whitespace/NBSP-normalized, case-insensitive comparison text for labels."""
+    return normalize_label(label or "").casefold()
+
+
 def line_identity(item: LineItem) -> LineIdentity:
-    """Stable identity for a statement row. Does not infer concepts from labels."""
-    label = normalize_label(item.label or "")
+    """Stable identity for a statement row. Does not infer concepts from labels.
+
+    Displayed labels are case-insensitive for identity; concept IDs stay exact
+    after whitespace/NBSP normalization. ``item.label`` is never mutated.
+    """
     raw_concept = (item.concept or "").strip()
     concept = normalize_label(raw_concept) if raw_concept else ""
-    return LineIdentity(concept=concept, label=label)
+    return LineIdentity(
+        concept=concept,
+        label=_canonical_label(item.label or ""),
+    )
 
 
 def validate_statement_identities(items: list[LineItem], statement_name: str) -> None:
