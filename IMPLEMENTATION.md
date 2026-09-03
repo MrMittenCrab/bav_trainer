@@ -4,293 +4,288 @@
 
 This file is the handoff boundary between **ChatGPT (planner/reviewer)** and **Cursor (implementer/test runner)**.
 
-- ChatGPT decides architecture, sequencing, acceptance criteria, and whether a committed step matches the plan.
+- ChatGPT decides architecture, sequencing, acceptance criteria, and whether a pushed checkpoint matches the plan.
 - Cursor implements only the active step and runs the relevant tests/checks.
-- The user reviews the local result and creates/pushes the Git commit.
-- ChatGPT verifies the pushed commit by code inspection. ChatGPT does not rerun the tests.
-- Cursor must update `RESULT.md` before handoff so the exact test commands/results are visible in the committed checkpoint.
+- The user reviews the local result and creates/pushes implementation commits.
+- ChatGPT verifies pushed implementation commits by code inspection. ChatGPT does not treat Cursor's reported tests as independently rerun evidence.
+- Cursor must update `RESULT.md` before handoff so the exact commands/results are visible in the checkpoint.
+- Cursor must not commit, push, reset, rebase, merge, or delete branches.
 
-Cursor should treat `TARGET.md` and this file as read-only unless the active step explicitly requires documentation changes.
+Cursor should treat `TARGET.md` and this file as read-only during implementation unless the active step explicitly requires documentation changes.
+
+---
 
 ## Current architecture checkpoint
 
-Commit `dbcaf27` (`chat balancesheet 3`) substantially implements Step 3. The annual build now uses the BAVGEM eight-category balance-sheet contract, shared Python/Excel reformulation, explicit asset/liability/equity reconciliation gaps, a live Condensed Financials CHECK, build-time source checksum blocking, and corrected synthetic demo data. `RESULT.md` reports 48 passing core tests plus a successful demo Trainer / Answer Key build.
+Commit `138b26d` (`chat identity 4`) implements most of Step 4 on branch `chatgpt/reference-model-integrity`.
 
-The next blocker is narrower but important for real-company use: **statement rows still do not have a stable concept-aware identity end-to-end**.
+The implementation now has:
 
-### Review findings from commit `dbcaf27`
+- a canonical `LineIdentity` / `line_identity()` helper;
+- concept-aware cross-document reconciliation;
+- preservation of same-label rows with distinct concepts;
+- build-time rejection of conceptless duplicate labels;
+- optional Excel `Concept | Line Item | dates` ingestion;
+- concept-aware balance-sheet classification;
+- `concept:` / `label:` classification override selectors;
+- concept-qualified source-row keys in `rowmap.json`;
+- the existing paired Trainer / Answer Key output and 13 semantic components.
 
-1. **Cross-document reconciliation is still label-keyed.** `core/ingestion/reconciler.py::_merge_line_items()` builds `by_label = {i.label: i ...}`. Two economically different lines with the same displayed label are therefore collapsed. BAVGEM Stage 2 explicitly identifies this as a real failure mode: the same label can legitimately occur on both sides of the balance sheet and must be keyed by `(concept, label)` when concepts are available.
-2. **`LineItem.concept` exists but is underused after ingestion.** The canonical line resolver uses it for a handful of major concepts, but classification and merge identity still mostly operate on label text. The project therefore has the information needed to disambiguate many rows but does not consistently use it.
-3. **Classification overrides are label-only.** `reformulate_balance_sheet()` normalizes `classificationOverrides` into a `label -> category` map. If two detail rows share a label, one override necessarily applies to both even when their concepts differ.
-4. **Concept can determine asset/liability side when the label cannot.** A common example is two rows both displayed as `Deferred income taxes`, one with an asset concept and one with a liability concept. The current classifier sees the same label twice and can classify both the same way because it does not use concept metadata as a higher-priority signal.
-5. **Duplicate labels also collide in the build row map.** `ReferenceModelBuilder._fill_statement()` writes source rows under `sheet!normalized_label`; the later duplicate overwrites the earlier one in `rowmap.json`, even though the physical workbook still contains both rows.
-6. **Unconcepted duplicate labels are inherently unsafe.** When an Excel/manual source supplies two same-label rows without concept metadata, silently picking or merging one is worse than failing. The build should demand disambiguation instead of guessing.
-7. **This is the last Stage-2 identity issue worth fixing before expanding the training surface.** The current `COMPONENT_CATALOG` still contains only 13 representative exercises. Expanding it now would multiply semantic mappings on top of an input identity contract that can still collapse real rows.
+`RESULT.md` for `138b26d` reports 58 passing core tests and a successful demo Trainer / Answer Key build.
 
-## BAVGEM integration decision for this step
+**Step 4 is not accepted yet.** ChatGPT review found three remaining defects in the implementation. Cursor should make a narrow correction pass against the existing Step 4 code. Do not rerun or redesign Step 4 from scratch.
 
-Continue **selective integration** of the parent BAVGEM Stage-2 contract.
+## Review findings from commit `138b26d`
 
-Reuse now:
+### Finding 1 — concept classification is too permissive
 
-- `(concept, label)` line identity where concept metadata exists;
-- preserve duplicate displayed labels when they are distinct concepts;
-- fail loudly on unresolved same-label ambiguity;
-- keep newest-source-wins/restatement handling only within the same stable line identity.
+`core/model/classification.py::_classify_by_concept()` currently uses broad substring checks such as `debt`, `equity`, and `cash` as high-priority category signals.
 
-Do not add SEC/edgartools sourcing, coverage-vault orchestration, quarterly extraction, or the Stage-4 analytics feature chain in this step.
+That can override a correct label classification with the wrong accounting side. Examples:
+
+- `DebtSecuritiesAvailableForSale` is an asset concept but contains `debt`;
+- `EquityMethodInvestments` is an investment asset concept but contains `equity`;
+- `CashFlowHedgeReserve` can represent an equity/OCI reserve but contains `cash`.
+
+The Step 4 contract was intentionally narrower: concept metadata may override label logic only when the concept **clearly determines** asset/liability/equity nature. It must not become a fuzzy XBRL ontology.
+
+### Finding 2 — duplicate identities can still be erased before validation
+
+`core/ingestion/reconciler.py::_merge_line_items()` builds an identity-keyed dictionary before validating the individual source lists.
+
+Therefore:
+
+- two duplicate identities already present in `existing` can be collapsed by dictionary construction;
+- two duplicate identities inside `incoming` can be treated as versions of the same row;
+- validating only the merged result is too late because the duplicate may already have disappeared.
+
+Same-identity rows from **different documents** should still reconcile/restatement-merge. Duplicate identities **within one source statement** must fail before the dictionary merge starts.
+
+### Finding 3 — legacy label overrides lost case-insensitive compatibility
+
+Before Step 4, bare-label overrides were normalized through `_norm()`, which made matching case-insensitive. The new selector path uses `normalize_label()` directly, which preserves case.
+
+As a result, a legacy unique override such as:
+
+```json
+{
+  "classificationOverrides": {
+    "goodwill": "Operating Long-Term Asset"
+  }
+}
+```
+
+can silently fail to match a source row displayed as `Goodwill`.
+
+Unique `label:` selectors and legacy bare-label selectors must remain case-insensitive while retaining the new ambiguity protections.
 
 ---
 
 ## Active implementation step
 
-### Step 4 — Make statement identity concept-aware before expanding trainer exercises
+# Step 4 correction pass — close review findings before acceptance
 
-**Goal**
+**Goal:** Fix the three review defects above without changing the Step 4 architecture, expanding the trainer exercise surface, or modifying valuation/reformulation behavior unrelated to the defects.
 
-Preserve distinct financial statement rows across ingestion, reconciliation, source-row mapping, and balance-sheet classification by giving every `LineItem` a deterministic stable identity. Use explicit concepts when available, retain safe backwards compatibility for unique label-only inputs, and reject ambiguous duplicate label-only rows rather than silently merging or classifying them together.
+**Architecture:** Keep the existing canonical line-identity, reconciliation, classification, and override structures. Tighten the concept classifier to an explicit safe set of signals, validate each source statement before identity-keyed merging, and restore case-insensitive unique-label override matching. Add regression tests first, then make the minimum implementation changes required for them to pass.
 
-Do **not** expand `COMPONENT_CATALOG` in this step. The next product step after this one can expand the learner practice surface.
+**Tech stack:** Python, pytest, openpyxl, existing BAV Trainer modules.
 
-## Required changes
+**Spec:** `TARGET.md` plus the accepted portions of Step 4 already present in commit `138b26d`.
 
-### 1. Create one canonical statement-line identity helper
+## Global constraints
 
-Create `core/data/line_identity.py` (or an equivalently focused module under `core/data/`).
+- Do not expand `COMPONENT_CATALOG`; it remains at the current 13 representative exercises.
+- Do not redesign ingestion or add automatic HKEX/SEC/edgartools sourcing.
+- Do not add BAVGEM quarterly, Core Earnings, Earnings Quality, Price Rationalization, ICC, or DCF feature chains.
+- Preserve Step 3 accounting integrity and all already-correct Step 4 identity behavior.
+- Do not weaken an existing test to make a regression pass.
+- Do not add workbook coordinates to domain logic or overrides.
+- Do not introduce a second line-identity algorithm.
+- Do not commit or push. The user owns the implementation checkpoint commit.
 
-Provide a small immutable identity type or tuple-based helper equivalent to:
+---
 
-```python
-@dataclass(frozen=True)
-class LineIdentity:
-    concept: str
-    label: str
+## Task 1 — Make concept classification conservative
 
+**Files:**
 
-def line_identity(item: LineItem) -> LineIdentity:
-    ...
-```
+- Modify: `core/model/classification.py`
+- Test: `core/tests/test_classification.py` and/or `core/tests/test_line_identity.py`
 
-Rules:
+### Required behavior
 
-- normalize whitespace / NBSP and case consistently with existing schema helpers;
-- preserve the original `LineItem.label` for display; normalization is only for identity comparison;
-- when `LineItem.concept` is non-empty, identity is `(normalized concept, normalized label)`;
-- when concept is empty, identity is `("", normalized label)`;
-- do not infer a fake concept from label text inside this helper;
-- expose a readable string form for logs / rowmap keys, for example `concept=<...>|label=<...>`.
+`_classify_by_concept()` should return a classification only when the concept itself gives a sufficiently clear accounting-side/category signal.
 
-Add an explicit `AmbiguousStatementIdentityError` for cases where a statement contains multiple same-normalized-label rows without enough concept information to distinguish them safely.
-
-### 2. Validate statement identities before model construction
-
-Add a helper equivalent to:
-
-```python
-def validate_statement_identities(items: list[LineItem], statement_name: str) -> None:
-    ...
-```
-
-Required behavior:
-
-- two rows with different non-empty concepts and the same displayed label are valid and remain distinct;
-- two rows with the same normalized concept + same normalized label are duplicate identities and must fail unless they are being reconciled as versions of the same row from different documents;
-- two rows with the same normalized label and **both lacking concept metadata** must fail as ambiguous;
-- one concepted row plus one conceptless same-label row must fail as ambiguous rather than guessing they are the same;
-- error messages identify statement + label + concepts involved.
-
-Run this validation on the final `StandardizedFinancials` consumed by `build_training_workbook()` before reconciliation/model construction.
-
-Do not forbid ordinary unique label-only inputs; the existing demo and simple manual Excel flow must remain supported.
-
-### 3. Make cross-document reconciliation identity-aware
-
-Refactor `core/ingestion/reconciler.py::_merge_line_items()` so it no longer merges by raw label.
-
-Required semantics:
-
-- merge overlapping periods only when `line_identity(existing) == line_identity(incoming)`;
-- preserve two rows that share a display label but have different concepts;
-- keep the existing conflict/restatement logging behavior for true same-identity overlaps;
-- conflict records must include both `label` and `concept` so later review can distinguish rows;
-- normalize labels/concepts through the shared identity helper rather than inventing a second normalization rule;
-- after merging each statement, validate the resulting identities.
-
-Do not change newest-source-wins policy beyond fixing row identity.
-
-### 4. Preserve concept metadata through supported ingestion paths
-
-#### Structured JSON
-
-`HKManualDocumentAdapter` already reads `row.get("concept", "")`; retain and test that behavior.
-
-#### Excel exports
-
-Extend `ExcelExportAdapter` only enough to support an **optional concept column** without breaking the existing simple format.
-
-Support both shapes:
-
-```text
-Line Item | 2024-12-31 | 2025-12-31 | ...
-```
-
-and
-
-```text
-Concept | Line Item | 2024-12-31 | 2025-12-31 | ...
-```
-
-Accept case-insensitive header aliases `Concept` and `Line Item` / `Label`. If no Concept column exists, preserve current behavior with `concept=""`.
-
-Do not redesign the Excel ingestion format beyond this compatibility addition.
-
-### 5. Make classification use concept as a high-priority disambiguation signal
-
-Update `core/model/classification.py` so `classify_balance_sheet_line()` considers normalized `item.concept` before ambiguous label-only rules where the concept clearly communicates asset/liability/equity nature.
-
-Keep this deliberately narrow. At minimum support concept signals for:
+Retain narrow support for the Step 4 cases already required:
 
 - deferred-tax asset vs deferred-tax liability;
-- lease / ROU asset vs lease liability where the concept clearly indicates side;
-- debt / borrowing liability concepts;
-- cash / marketable-security asset concepts;
-- equity component concepts.
+- lease / ROU asset vs lease liability when side is explicit;
+- unmistakable borrowing/debt **liability** concepts;
+- unmistakable cash / marketable-security **asset** concepts;
+- unmistakable equity-component concepts.
 
-Do not create a general XBRL ontology. Concept metadata should resolve side/category only when it is clear; otherwise continue to the existing safe label rules or raise `UnclassifiedBalanceSheetLineError`.
+Do not use a generic token merely because it appears somewhere in the concept name. In particular, generic occurrences of `debt`, `equity`, or `cash` are insufficient by themselves.
 
-A concept must never cause a line labelled as a subtotal (`Total Assets`, etc.) to enter the detail classification table.
+When a concept is not safely decisive, `_classify_by_concept()` must return `None` so the existing label classifier gets the next opportunity. If the label rules also cannot classify safely, retain the existing `UnclassifiedBalanceSheetLineError` behavior.
 
-### 6. Make classification overrides target stable identities
+Do not create a broad external-XBRL mapping table in this correction pass.
 
-Replace the current implicit label-only lookup with an explicit selector parser while preserving backwards compatibility for unique labels.
+### Regression tests — write these first
 
-Support these override keys:
+Add tests equivalent in intent to:
 
-```json
-{
-  "classificationOverrides": {
-    "label:Operating lease liabilities": "Financial Liability",
-    "concept:DeferredIncomeTaxAssetsNet": "Operating Long-Term Asset",
-    "concept:DeferredIncomeTaxLiabilitiesNet": "Operating Long-Term Liability"
-  }
-}
+```python
+def test_debt_security_concept_does_not_become_financial_liability():
+    item = LineItem(
+        label="Marketable securities",
+        concept="DebtSecuritiesAvailableForSale",
+        values={P1: 10, P2: 12},
+    )
+    assert classify_balance_sheet_line(item).category == "Financial Asset"
+
+
+def test_equity_method_concept_does_not_become_equity():
+    item = LineItem(
+        label="Investment in associate",
+        concept="EquityMethodInvestments",
+        values={P1: 10, P2: 12},
+    )
+    assert classify_balance_sheet_line(item).category == "Operating Long-Term Asset"
+
+
+def test_cash_flow_hedge_reserve_concept_does_not_become_financial_asset():
+    item = LineItem(
+        label="Other comprehensive income reserve",
+        concept="CashFlowHedgeReserve",
+        values={P1: 10, P2: 12},
+    )
+    assert classify_balance_sheet_line(item).category == "Equity"
 ```
 
-Rules:
+If the existing label classifier does not currently recognize one of those exact labels, use the closest existing safely classified label while preserving the misleading concept. The test must demonstrate that the concept no longer overrides a correct economic category merely because it contains a generic token.
 
-- `concept:<value>` matches exact normalized `LineItem.concept`;
-- `label:<value>` matches exact normalized label only when that label is unique in the detail statement;
-- legacy bare-label keys remain accepted only when the normalized label is unique;
-- if a label selector matches multiple rows, raise a clear ambiguity error instructing the user to use `concept:` selectors;
-- if a concept selector matches multiple rows, fail rather than applying it indiscriminately;
-- invalid categories still raise `InvalidClassificationOverrideError`;
-- the same resolved override decisions drive Python expected values and workbook defaults.
+Also retain positive tests showing that genuinely explicit concepts still work, including the deferred-tax asset/liability pair already covered by Step 4.
 
-Do not put workbook coordinates into overrides.
+### Verification
 
-### 7. Make source row maps preserve duplicate display labels
+Run the new focused tests and verify they fail on the current `138b26d` implementation for the intended reason before editing classification logic. Then implement the minimum safe change and rerun them.
 
-Update `ReferenceModelBuilder._fill_statement()` so source-row metadata no longer uses only `sheet!normalized_label` as its key.
+---
 
-Use the canonical stable identity string, e.g.:
+## Task 2 — Validate each source statement before identity-keyed merge
+
+**Files:**
+
+- Modify: `core/ingestion/reconciler.py`
+- Test: `core/tests/test_line_identity.py`
+
+### Required behavior
+
+Before `_merge_line_items()` constructs `by_id` or otherwise deduplicates by canonical identity:
+
+1. validate the `existing` list as one source statement;
+2. validate the `incoming` list as one source statement;
+3. only then reconcile rows across the two sources by canonical identity;
+4. validate the merged result afterward as a final invariant check.
+
+The critical distinction is:
 
 ```text
-Balance Sheet!concept=DeferredIncomeTaxAssetsNet|label=Deferred income taxes
-Balance Sheet!concept=DeferredIncomeTaxLiabilitiesNet|label=Deferred income taxes
+same identity twice within one source statement
+    -> AmbiguousStatementIdentityError
+
+same identity once in old document + once in new document
+    -> legitimate cross-document reconciliation/restatement path
 ```
 
-For unique conceptless rows, use the same identity format with an empty concept.
+If useful for clear error messages, extend `_merge_line_items()` with a focused optional statement-name/context argument. Do not introduce a second validation implementation.
 
-The actual worksheet layout remains unchanged: duplicate labels may appear in column A exactly as supplied.
+### Regression tests — write these first
 
-Do not change semantic component keys (`condensed.nopat.latest_fy`, etc.); this step only fixes source-line identity metadata.
+Add both cases:
 
-### 8. Strengthen tests with the exact BAVGEM duplicate-label failure mode
+```python
+def test_duplicate_identity_inside_existing_fails_before_merge():
+    existing = [
+        _li("Deferred income taxes", 40, 45, "DeferredIncomeTaxAssetsNet"),
+        _li("Deferred income taxes", 41, 46, "DeferredIncomeTaxAssetsNet"),
+    ]
+    incoming = []
+    with pytest.raises(AmbiguousStatementIdentityError):
+        _merge_line_items(existing, incoming, "source")
 
-Create `core/tests/test_line_identity.py` and extend classification / ingestion tests as needed.
 
-Add focused tests for all of these cases:
+def test_duplicate_identity_inside_incoming_fails_before_merge():
+    existing = []
+    incoming = [
+        _li("Deferred income taxes", 40, 45, "DeferredIncomeTaxAssetsNet"),
+        _li("Deferred income taxes", 41, 46, "DeferredIncomeTaxAssetsNet"),
+    ]
+    with pytest.raises(AmbiguousStatementIdentityError):
+        _merge_line_items(existing, incoming, "source")
+```
 
-1. **Distinct concepts, same label survive merge.** Two Balance Sheet rows both named `Deferred income taxes`, one concept `DeferredIncomeTaxAssetsNet`, one `DeferredIncomeTaxLiabilitiesNet`, remain two rows after reconciliation.
-2. **Correct classification by concept.** The asset concept classifies to an asset category and the liability concept to a liability category even though labels are identical.
-3. **Concept-specific overrides.** `concept:` selectors can override those two rows independently.
-4. **Ambiguous label override rejected.** `label:Deferred income taxes` must fail when both rows exist.
-5. **Legacy unique-label override still works.** Existing assumptions such as bare `Goodwill` remain accepted when unique.
-6. **Unconcepted duplicate labels fail.** Two same-label rows with no concepts cause `AmbiguousStatementIdentityError` before the model is built.
-7. **Concepted + conceptless duplicate label fails.** Do not silently merge them.
-8. **Same identity across documents still merges/restates.** A newer document with the same concept+label updates overlapping periods and records conflicts under that identity.
-9. **Rowmap preserves both duplicate labels.** A generated Answer Key / `rowmap.json` contains distinct source-row entries for both concept-qualified identities.
-10. **Optional Excel Concept column.** A small temporary workbook using `Concept | Line Item | dates` ingests concepts correctly; the old `Line Item | dates` shape still works.
+Keep the existing regression proving that one matching identity in each of two different documents still merges/restates correctly and retains conflict logging.
 
-Use synthetic in-memory `LineItem` / temporary workbook fixtures. Do not add a large permanent company fixture merely to test duplicate labels.
+### Verification
 
-### 9. Preserve all Step 3 accounting integrity behavior
+The two new duplicate-within-source tests must fail on the current implementation before the fix and pass afterward. Re-run the existing cross-document restatement test to prove the correction did not accidentally forbid legitimate merging.
 
-Do not regress:
+---
 
-- eight BAVGEM balance-sheet categories;
-- explicit ambiguity notes rather than fake categories;
-- source checksum blocking;
-- asset-detail / liability-detail / implied-equity reconciliation;
-- live Condensed Financials CHECK;
-- classification SUMIF reactivity;
-- DuPont using implied reformulated equity;
-- shared line resolver for revenue / NI / tax / interest / totals;
-- ten-year Bear/Base/Bull residual-income chain;
-- paired Trainer / Answer Key output and styling;
-- existing 13 semantic components.
+## Task 3 — Restore case-insensitive legacy label overrides
 
-### 10. Update docs and handoff narrowly
+**Files:**
 
-Update `skills/bav-trainer/SKILL.md` only as needed to state that real-company standardized rows use concept-aware identity when available and duplicate label-only rows must be disambiguated.
-
-Before handoff, overwrite `RESULT.md` with Step 4 status and exact commands/results.
-
-## Files expected to change
-
-- Create: `core/data/line_identity.py`
-- Modify: `core/ingestion/reconciler.py`
-- Modify: `core/ingestion/excel_import.py`
-- Modify: `core/trainer/workbook.py` or one focused build-readiness helper
 - Modify: `core/model/classification.py`
-- Modify: `core/engine/reference_model.py`
-- Create: `core/tests/test_line_identity.py`
-- Modify: `core/tests/test_classification.py`
-- Modify: ingestion/reference-integrity tests only where needed
-- Modify: `skills/bav-trainer/SKILL.md`
+- Test: `core/tests/test_classification.py` and/or `core/tests/test_line_identity.py`
+
+### Required behavior
+
+For classification override selector resolution:
+
+- `label:<value>` matching is case-insensitive and whitespace/NBSP normalized;
+- legacy bare-label matching is case-insensitive and whitespace/NBSP normalized;
+- both remain valid only when the normalized label is unique among detail rows;
+- ambiguous duplicate-label matches still raise `AmbiguousClassificationOverrideError` and instruct the user to use `concept:` selectors;
+- `concept:<value>` retains the Step 4 concept-specific behavior and ambiguity protection;
+- invalid categories still raise `InvalidClassificationOverrideError`;
+- zero-match behavior should remain consistent with the current implementation unless a test/spec already requires an error.
+
+Use one shared normalization path for selector-label comparison. Do not reintroduce the old global `label -> category` map.
+
+### Regression test — write this first
+
+Add a case equivalent to:
+
+```python
+def test_legacy_unique_label_override_is_case_insensitive():
+    item = _li("Goodwill", 10, 12)
+    fin = _minimal_financials_with_balance_sheet([item])
+
+    reform = reformulate_balance_sheet(
+        fin,
+        [P1, P2],
+        overrides={"goodwill": "Operating Long-Term Asset"},
+    )
+
+    assert reform.decisions[0].category == "Operating Long-Term Asset"
+    assert reform.decisions[0].overridden is True
+```
+
+Also add or retain an explicit `label:` version with different case, e.g. `label:GOODWILL`, if it can be done without duplicating test setup unnecessarily.
+
+Re-run the existing ambiguous `label:Deferred income taxes` regression to prove case-insensitive matching does not weaken ambiguity detection.
+
+---
+
+## Task 4 — Run the Step 4 regression suite and update handoff evidence
+
+**Files:**
+
 - Modify: `RESULT.md`
-
-Only modify `core/data/interface.py` if a small helper/property is clearly cleaner than keeping identity logic in `line_identity.py`. Do not add new fields solely to satisfy this step; `LineItem.concept` already exists.
-
-## Do not change
-
-- `TARGET.md`.
-- `COMPONENT_CATALOG` membership or order.
-- Trainer / Answer Key product contract.
-- forecast / residual-income mathematics.
-- Hint / Reveal behavior.
-- automatic HKEX/SEC ingestion.
-- BAVGEM quarterly / Core Earnings / Earnings Quality / Price Rationalization / ICC / DCF feature chain.
-- Git history. Cursor must not commit, push, reset, rebase, merge, or delete branches.
-
-## Acceptance criteria
-
-- Distinct same-label statement rows with different concepts survive ingestion/reconciliation and remain separately addressable.
-- Same-identity rows across documents still merge with existing restatement/conflict semantics.
-- Duplicate same-label rows without sufficient concept metadata fail clearly rather than being silently merged.
-- Balance-sheet classification can use concept metadata to distinguish asset vs liability rows whose displayed labels are identical.
-- Classification overrides can target duplicate-label rows independently with `concept:` selectors; ambiguous label selectors fail.
-- Existing unique bare-label overrides remain backwards compatible.
-- Source row metadata preserves both concept-qualified duplicate rows.
-- Both supported Excel shapes (with and without a Concept column) ingest successfully.
-- Step 3 source/reformulation integrity checks remain enforced.
-- Existing demo still builds the matched 13-component Trainer / Answer Key pair.
-- No coordinate registry, duplicate line-identity algorithm, or runtime markdown dependency is introduced.
-
-## Testing
-
-Use red/green TDD. The first failing regression should demonstrate that the current label-keyed reconciler collapses two `Deferred income taxes` rows with distinct concepts.
+- Modify `skills/bav-trainer/SKILL.md` only if the correction materially changes user-facing identity/override instructions. Do not edit it merely to record implementation details.
 
 Run at minimum:
 
@@ -304,51 +299,156 @@ pytest core/tests/ -q
 python -m core build example/DEMO_HK_Standardized.json -o /tmp/DEMO_HK_Trainer.xlsx
 ```
 
-Also run the focused Excel-import test module/node that covers both supported header shapes.
+If the Excel Concept-column test is not included by one of those commands, also run the exact focused Excel-import test node/module that covers both supported shapes:
 
-Do not weaken existing tests to make them pass. Do not count two physical rows as preserved merely because both labels can be reconstructed from separate fixtures; inspect the merged `StandardizedFinancials` and generated source sheet directly.
+```text
+Line Item | dates
+Concept | Line Item | dates
+```
+
+Do not report Step 4 complete if any focused regression, existing Step 3 integrity test, full core suite, or demo build fails.
+
+---
+
+## Preserve all already-correct Step 4 behavior
+
+The correction pass must not regress:
+
+- canonical concept+label line identity;
+- preservation of same-label rows with distinct non-empty concepts;
+- rejection of concepted + conceptless same-label ambiguity;
+- rejection of duplicate conceptless same-label rows;
+- same-identity cross-document restatement/conflict handling;
+- optional Excel Concept column plus legacy Excel shape;
+- concept-specific classification overrides;
+- ambiguous label-selector rejection;
+- concept-qualified `rowmap.json` source-row keys;
+- original worksheet display labels;
+- paired Trainer / Answer Key generation;
+- existing 13 semantic components.
+
+## Preserve all Step 3 accounting integrity behavior
+
+Do not regress:
+
+- eight BAVGEM balance-sheet categories;
+- explicit ambiguity notes rather than fake categories;
+- source checksum blocking;
+- asset-detail / liability-detail / implied-equity reconciliation;
+- live Condensed Financials CHECK;
+- classification SUMIF reactivity;
+- DuPont using implied reformulated equity;
+- shared line resolver for revenue / NI / tax / interest / totals;
+- ten-year Bear/Base/Bull residual-income chain;
+- paired Trainer / Answer Key styling.
+
+---
+
+## Expected files to change in this correction pass
+
+Primary:
+
+- `core/model/classification.py`
+- `core/ingestion/reconciler.py`
+- `core/tests/test_line_identity.py`
+- `core/tests/test_classification.py` if that is the cleaner home for concept/override regressions
+- `RESULT.md`
+
+Only modify other files when a failing test demonstrates they are actually required. In particular, do not rewrite `core/data/line_identity.py`, `core/engine/reference_model.py`, `core/trainer/workbook.py`, or Excel ingestion merely because they were part of the original Step 4 implementation.
+
+## Do not change
+
+- `TARGET.md`.
+- `COMPONENT_CATALOG` membership or order.
+- Trainer / Answer Key product contract.
+- forecast / residual-income mathematics.
+- Hint / Reveal behavior.
+- automatic HKEX/SEC ingestion.
+- BAVGEM quarterly / Core Earnings / Earnings Quality / Price Rationalization / ICC / DCF feature chain.
+- Git history.
+
+---
+
+## Acceptance criteria for Step 4 correction pass
+
+Step 4 is ready for ChatGPT re-review only when all of the following are true:
+
+1. Misleading concept names such as debt-security assets, equity-method investments, and cash-flow-hedge reserves do not get misclassified merely because they contain `debt`, `equity`, or `cash`.
+2. Explicit deferred-tax asset/liability concepts still classify correctly.
+3. Duplicate canonical identities inside the `existing` source list fail before dictionary construction.
+4. Duplicate canonical identities inside the `incoming` source list fail before dictionary construction.
+5. A matching identity appearing once in each of two separate documents still follows the existing restatement/conflict path.
+6. Legacy bare-label overrides are case-insensitive for unique labels.
+7. Explicit `label:` overrides are case-insensitive for unique labels.
+8. Ambiguous duplicate-label selectors still fail and require `concept:` selectors.
+9. Concept-specific overrides still work independently on duplicate displayed labels.
+10. All Step 3 accounting integrity behavior remains enforced.
+11. Existing demo still builds the matched 13-component Trainer / Answer Key pair.
+12. Full core test suite passes.
+
+---
 
 ## RESULT.md handoff format
 
-Before completion, write:
+Before stopping, overwrite `RESULT.md` with evidence in this form:
 
 ```text
-Status: Step 4 complete | blocked
+Status: Step 4 correction pass complete | blocked
+
 Files changed:
 - ...
+
 Tests run:
 - <exact command> -> <exact result>
 ...
-Identity checks:
-- duplicate concept-qualified label preservation: ...
-- ambiguous conceptless duplicate rejection: ...
-- concept-specific override: ...
-Unresolved: ...
+
+Correction checks:
+- conservative concept classification: <what was tested/result>
+- duplicate identity inside existing source: <result>
+- duplicate identity inside incoming source: <result>
+- cross-document same-identity restatement: <result>
+- case-insensitive bare-label override: <result>
+- case-insensitive label: override: <result>
+- ambiguous duplicate-label override rejection: <result>
+
+Preserved checks:
+- Step 3 accounting integrity: ...
+- paired Trainer / Answer Key build: ...
+- 13 semantic components: ...
+
+Unresolved: none | <specific blocker>
 ```
+
+Do not write `Status: Step 4 complete` unless every acceptance criterion above is satisfied.
+
+---
 
 ## Cursor execution rules
 
-1. Read this active step before editing.
-2. Inspect current ingestion/reconciliation/classification code before changing it.
-3. Write the duplicate-label merge regression test first and verify it fails for the intended reason.
-4. Implement one canonical identity helper and route all new identity comparisons through it.
-5. Do not solve ambiguity by adding more fuzzy label matching.
-6. Preserve Step 3 accounting/reformulation behavior.
-7. Run focused tests after each coherent change, then the full suite.
-8. Update `RESULT.md` with exact evidence.
-9. Report files changed, tests run, and unresolved issues.
-10. Do not propose the next product step.
-11. Do not commit or push; the user owns the checkpoint commit.
+1. Read this correction pass before editing.
+2. Inspect the current `138b26d` implementations of `classification.py`, `reconciler.py`, and the relevant tests.
+3. Do not redo already-working Step 4 architecture.
+4. For each of the three findings, write the regression test first and run it to demonstrate the current failure.
+5. Fix one finding at a time with the smallest coherent implementation change.
+6. Run the focused test immediately after each fix.
+7. After all three fixes, run the complete testing block above.
+8. Update `RESULT.md` with exact commands/results and the correction checks.
+9. Report files changed and unresolved issues.
+10. Do not propose or begin Step 5.
+11. Do not commit or push; the user owns the implementation checkpoint commit.
+
+---
 
 ## ChatGPT verification protocol
 
-After the user pushes the next checkpoint, ChatGPT should verify:
+After the user reviews, commits, and pushes Cursor's correction pass, ChatGPT should inspect the newest commit and verify:
 
-- the latest commit against every Step 4 acceptance criterion;
-- that same-label/different-concept rows truly remain distinct through merge and workbook output;
-- that conceptless ambiguity fails rather than being silently resolved;
-- that classification and overrides use the same canonical identity rules;
-- that Step 3 reconciliation and paired-workbook behavior did not regress;
-- the exact test evidence recorded in `RESULT.md`.
+- all three review findings are actually fixed in code rather than only covered by superficial tests;
+- the concept classifier uses conservative, accounting-safe signals rather than a renamed broad substring heuristic;
+- duplicate identities cannot disappear before per-source validation;
+- case-insensitive label override compatibility is restored without weakening ambiguity detection;
+- previously accepted Step 4 identity behavior is preserved;
+- Step 3 accounting/reformulation behavior is unchanged;
+- `RESULT.md` records the exact focused and full-suite evidence.
 
-If verified, the next planned product step should be **expanding the semantic practice surface beyond the current 13 representative components**, rather than adding more ingestion architecture unless the real-company identity tests expose another concrete blocker.
+Only after that verification should Step 4 be considered accepted. The next planned product step can then expand the semantic practice surface beyond the current 13 representative components.
