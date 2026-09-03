@@ -1,14 +1,14 @@
-# Step 5 — Enforce Trainer / Answer Key Separation
+# Step 5 — Enforce a Two-Workbook-Only Training Loop
 
 > **For Cursor:** Read `TARGET.md` first. Implement only this active step using red/green TDD. Run the exact verification commands, update `RESULT.md`, and stop. Do not commit or push; the user owns the implementation checkpoint commit.
 
-**Goal:** Make the built artifacts obey the strict product contract: **Trainer = blank yellow practice cells with no hints or answers anywhere; Answer Key = the corresponding formula/input plus one concise legacy Excel Note hint in the same yellow cell.** Close the remaining classification and standardized-export defects found during review before expanding the practice surface.
+**Goal:** Enforce the final product contract: **Trainer = blank yellow practice cells with no hints, answers, validation, or hidden answer-bearing metadata; Answer Key = the corresponding formula/input plus one concise legacy Excel Note hint in the same yellow cell.** Remove Check, Hint, and Reveal entirely before expanding the practice surface.
 
-**Architecture:** Keep the existing reference-model-first, semantic-map, concept-aware identity, and paired-workbook architecture. The Answer Key remains the complete reference model and may carry full semantic answer metadata. The Trainer receives only the visible model structure plus locator/status metadata needed for navigation/checking; answer formulas, expected values, and hint text must be stripped from all Trainer workbook metadata and Trainer-associated sidecars. Remove the legacy Hint/Reveal product surfaces instead of preserving two competing feedback systems.
+**Architecture:** Keep the existing reference-model-first, semantic-map, concept-aware identity, and paired-workbook architecture. Use the full semantic map only while constructing the model and Answer Key and while deriving the Trainer. After the Trainer practice cells are blanked, strip answer-bearing internal sheets and sidecars from the Trainer. The Answer Key is the sole feedback mechanism. No runtime Trainer checking/reveal subsystem remains.
 
 **Tech Stack:** Python, pytest, openpyxl, existing BAV Trainer modules.
 
-**Spec:** `TARGET.md` as updated in planning commit `f88f94f`.
+**Spec:** `TARGET.md` as updated in planning commit `6a1fb46`.
 
 ## Current checkpoint
 
@@ -17,10 +17,10 @@ Base implementation commit: `5c3242f` (`chat identity corrected 4C`) on `chatgpt
 Step 4's concept-aware identity work is substantially correct. `RESULT.md` reports 68 passing core tests and a successful 13-component Trainer / Answer Key build. Review of that checkpoint found five concrete issues to resolve now:
 
 1. `commonstock` remains an unsafe high-priority concept substring and can force redeemable/common-stock obligations into Equity.
-2. The Trainer is copied from the Answer Key with answer-bearing hidden metadata: `_RefFormulas`, `_RefValues`, `_TrainerMeta`, full `_ComponentMap`, and full semantic sidecars can expose formulas, expected values, and hints even though the visible yellow cell is blank.
-3. Python/VBA Hint and Reveal still write hints or answers into the Trainer and are still advertised in UI/docs, directly contradicting `TARGET.md`.
+2. The Trainer is currently derived by copying the Answer Key and retains answer-bearing hidden metadata and sidecars even though visible practice cells are blank.
+3. Check, Hint, and Reveal Python/CLI/VBA surfaces still exist and conflict with the final two-workbook-only learning loop.
 4. `python -m core ingest ... -o ...` drops `LineItem.concept`, breaking concept-aware identity on standardized JSON round trips.
-5. `example/` still contains stale `*_reference.xlsx` artifacts and does not represent the current two-workbook product.
+5. `example/` still contains stale `*_reference.xlsx` artifacts and does not represent the current product.
 
 Do not expand `COMPONENT_CATALOG` until this step is accepted.
 
@@ -34,7 +34,9 @@ Do not expand `COMPONENT_CATALOG` until this step is accepted.
 - Do not add quarterly/Core Earnings/Earnings Quality/Price Rationalization/ICC/DCF feature chains.
 - Preserve original source/display labels in worksheets.
 - Do not introduce fixed workbook coordinates into the static component catalog.
-- Do not weaken tests to make this step pass.
+- Do not weaken existing accounting/identity tests.
+- The Answer Key is the only feedback, hint, and answer surface.
+- Do not preserve Check, Hint, or Reveal as compatibility APIs.
 - Do not commit, push, reset, rebase, merge, or delete branches.
 
 ---
@@ -73,157 +75,135 @@ Also retain the existing preferred-stock, debt-security, equity-method, cash-flo
 pytest core/tests/test_classification.py -k "common_stock or preferred_stock or debt_security or equity_method or cash_flow_hedge" -v
 ```
 
-The new common-stock regression must fail for the intended reason before the implementation change and pass afterward.
+The new regression must fail for the intended reason before the implementation change and pass afterward.
 
 ---
 
-## Task 2 — Make the Trainer artifact non-answer-bearing
+## Task 2 — Make the Trainer a sanitized workbook, not a hidden Answer Key
 
 **Files:**
 - Modify: `core/trainer/workbook.py`
-- Modify: `core/engine/semantic_map.py` only if a focused locator-only copy helper is cleaner
-- Modify: `core/engine/map_embed.py` only as needed to embed the sanitized Trainer map
-- Modify: `core/trainer/semantic_io.py` only if needed to keep locator loading clean
+- Modify: `core/engine/map_embed.py` only if needed for Answer-Key-only metadata
+- Modify: `core/trainer/semantic_io.py` only if cleanup leaves obsolete Trainer-runtime helpers
 - Test: `core/tests/test_trainer.py`
 
-### Required artifact contract
+### Final artifact contract
 
 #### Answer Key
 
 The Answer Key remains the complete reference workbook:
 
-- every practice cell contains its working formula/input;
+- every practice cell contains its correct working formula/input;
 - every practice cell is bright yellow;
-- every practice cell has a non-empty legacy Excel Note with the concise hint;
-- its embedded `_ComponentMap` and Answer-Key sidecar may contain full formulas, expected values, and hint metadata.
+- every practice cell has one non-empty legacy Excel Note with the concise hint;
+- Answer-Key semantic metadata may retain formulas, expected values, and hint fields for build/test purposes.
 
 #### Trainer
 
-The Trainer must contain:
+The Trainer contains only the learner-facing workbook:
 
-- the same visible workbook structure and formatting;
-- blank bright-yellow practice cells;
+- same visible model sheets, structure, formatting, source data, labels, and non-practice calculations as the Answer Key;
+- every practice cell blank and bright yellow;
 - no Note/comment on practice cells;
-- semantic locator information sufficient to identify component ID/order/title/category/tab/cell/dependencies as needed.
+- no adjacent hint cells;
+- a visible practice-index sheet may list non-answer information such as order, component title, tab, cell, and dependencies.
 
-The Trainer must **not** contain withheld answers or hints in any of these places:
+The Trainer must not contain withheld answers or hints in:
 
 - practice cells;
-- adjacent visible cells;
-- cell Notes/comments;
+- visible adjacent cells;
+- Notes/comments;
 - hidden worksheets;
-- embedded semantic metadata;
-- Trainer-associated JSON sidecars.
+- embedded component metadata;
+- JSON sidecars associated with the Trainer.
 
-### Remove obsolete hidden answer stores
+### Remove obsolete hidden runtime stores
 
-The current `_RefFormulas`, `_RefValues`, and `_TrainerMeta` sheets exist to support the old Hint/Reveal/macro system. They are redundant once the Answer Key is the answer/hint surface.
+The current `_RefFormulas`, `_RefValues`, and `_TrainerMeta` sheets existed to support Check/Hint/Reveal and macros. Remove their generation entirely from the product. They are no longer needed in either workbook.
 
-Remove their generation entirely unless a failing test proves one is still required for a non-disclosing feature. Do not keep hidden answer copies merely for backwards compatibility.
+The full `_ComponentMap` is useful for the Answer Key/build pipeline but is answer-bearing. Do **not** leave it in the Trainer. After the Trainer is derived and practice cells are blanked, remove `_ComponentMap` from the Trainer.
 
-### Define one sanitized Trainer semantic map
+Do not replace these sheets with a differently named hidden answer store.
 
-Add one focused transformation, for example:
+### Remove Trainer sidecars that expose answers
 
-```python
-def trainer_locator_map(full_map: SemanticMap) -> SemanticMap:
-    ...
-```
+Do not copy the Answer Key's `.component_map.json` to the Trainer.
 
-or an equivalent method on `SemanticMap`.
+Stop generating `*.trainer.json`.
 
-For each Trainer component preserve only non-answer fields required for navigation/runtime identity, such as:
+A normal build must not leave any Trainer-associated JSON file that contains formulas, expected values, `short_hint`, or detailed hints.
 
-```text
-id
-order
-title
-semantic_key
-category
-tab
-cell
-depends_on
-related_cells
-status
-```
+If a non-answer locator sidecar is not required by any remaining product feature after Check/Hint/Reveal are deleted, do not create one. Prefer no Trainer sidecar at all.
 
-Strip or blank all answer/hint fields:
+### Simplify the visible Trainer index
+
+Keep the visible `Trainer` index sheet if it helps the learner follow dependency order, but remove dead interactive/status concepts.
+
+Recommended columns:
 
 ```text
-short_hint = ""
-formula = ""
-expected_value = None
-hints = []
+Order | Component | Tab | Cell | Depends on
 ```
 
-Use this same sanitized map for both:
-
-1. the Trainer's embedded `_ComponentMap`; and
-2. the Trainer's `.component_map.json` sidecar, if that sidecar continues to be emitted.
-
-Do not copy the full Answer-Key component-map sidecar to the Trainer and then rely on workbook visibility to hide it.
-
-### Remove the obsolete `.trainer.json`
-
-`TrainingWorkbookGenerator.generate()` currently writes `*.trainer.json` containing the full resolved component dictionaries, including answer/hint fields. This is not used by `load_semantic_map()` and violates the strict Trainer contract.
-
-Stop generating `*.trainer.json`. Add a regression asserting that a normal build does not create it.
-
-### Trainer index copy
-
-Keep the visible `Trainer`/practice-index sheet if useful, but change its instructions so they describe only the intended workflow:
+Recommended instruction:
 
 ```text
-Complete yellow practice cells in dependency order. Open the matching Answer Key to inspect the formula/input and hover over its Note for the hint. Optional Check reports only whether your entry is correct.
+Complete yellow practice cells in dependency order. Open the matching Answer Key to inspect the formula/input and hover over its Note for the hint.
 ```
 
-The sheet must contain no `Hint`, `Reveal`, `HintActive`, `RevealActive`, macro-import, or progressive-hint instructions.
+Remove:
+
+- `Status` if nothing updates it;
+- Check/Hint/Reveal references;
+- macro-import instructions;
+- `CheckActive`, `HintActive`, `RevealActive` references;
+- progressive-hint language.
 
 ### TDD regressions
 
-Extend `core/tests/test_trainer.py` with focused assertions equivalent to:
+Update `core/tests/test_trainer.py` so tests do not rely on loading a full semantic map from the Trainer. Use the Answer Key semantic map to locate corresponding Trainer cells.
+
+Add/strengthen tests equivalent to:
 
 ```python
 def test_trainer_has_no_answer_bearing_hidden_sheets(tmp_path):
-    ...
+    trainer_path, answer_key_path = ...
+    wb_t = load_workbook(trainer_path, data_only=False)
     assert "_RefFormulas" not in wb_t.sheetnames
     assert "_RefValues" not in wb_t.sheetnames
     assert "_TrainerMeta" not in wb_t.sheetnames
+    assert "_ComponentMap" not in wb_t.sheetnames
+    wb_t.close()
 
 
-def test_trainer_component_map_is_locator_only(tmp_path):
+def test_trainer_has_no_answer_sidecars(tmp_path):
     ...
-    for comp in load_semantic_map(trainer_path).all_ordered():
-        assert comp.formula in ("", None)
-        assert comp.expected_value is None
-        assert not comp.short_hint
-        assert comp.hints == []
-        assert comp.tab and comp.cell and comp.semantic_key
+    assert not trainer_path.with_suffix(".component_map.json").exists()
+    assert not trainer_path.with_suffix(".trainer.json").exists()
 
 
-def test_answer_key_component_map_retains_answers(tmp_path):
-    ...
-    for comp in load_semantic_map(answer_key_path).all_ordered():
-        assert isinstance(comp.formula, str) and comp.formula.startswith("=")
-        assert comp.expected_value is not None
-        assert comp.short_hint or comp.hints
-
-
-def test_no_trainer_json_answer_sidecar(tmp_path):
-    ...
-    assert not (tmp_path / "DEMO_HK_Trainer.trainer.json").exists()
+def test_trainer_and_answer_key_practice_contract(tmp_path):
+    trainer_path, answer_key_path = ...
+    smap = load_semantic_map(answer_key_path)
+    wb_t = load_workbook(trainer_path, data_only=False)
+    wb_a = load_workbook(answer_key_path, data_only=False)
+    for comp in smap.all_ordered():
+        row, col = parse_cell_ref(comp.cell)
+        trainer_cell = wb_t[comp.tab].cell(row=row, column=col)
+        answer_cell = wb_a[comp.tab].cell(row=row, column=col)
+        assert trainer_cell.value is None
+        assert trainer_cell.comment is None
+        assert _fill_rgb(trainer_cell) == "FFFF00"
+        assert isinstance(answer_cell.value, str) and answer_cell.value.startswith("=")
+        assert answer_cell.value == comp.formula
+        assert answer_cell.comment is not None
+        assert answer_cell.comment.text.strip()
+        assert _fill_rgb(answer_cell) == "FFFF00"
+    wb_t.close()
+    wb_a.close()
 ```
 
-Also strengthen the existing practice-cell tests so every semantic practice component satisfies:
-
-```text
-Trainer:    value is None; fill == FFFF00; comment is None
-Answer Key: formula/input present; fill == FFFF00; non-empty legacy Note
-```
-
-Scan Trainer worksheet cell values/comments for every known `short_hint` and detailed hint string from the full Answer-Key map and assert those hint strings are absent.
-
-Do not scan ordinary non-practice model formulas as if they were leaks; the contract forbids withheld answer metadata, not legitimate populated non-practice calculations.
+Add a leakage scan that loads the full Answer Key map, collects every non-empty `short_hint`, detailed hint, practice formula, and stringified expected value, and verifies none are present in Trainer hidden sheets/sidecars. For worksheet formulas, distinguish withheld practice formulas from legitimate populated non-practice formulas: test the exact practice-component formulas/locations rather than banning all formulas from the Trainer.
 
 ### Verify
 
@@ -233,106 +213,61 @@ pytest core/tests/test_trainer.py -v
 
 ---
 
-## Task 3 — Remove Hint/Reveal; keep Check binary and non-disclosing
+## Task 3 — Delete Check, Hint, Reveal, and macro feedback infrastructure
 
 **Files:**
+- Delete: `core/trainer/checker.py`
 - Delete: `core/trainer/hints.py`
+- Delete: `core/templates/TrainerMacros.bas`
 - Modify: `core/trainer/__init__.py`
 - Modify: `core/__main__.py`
-- Modify: `core/trainer/checker.py`
-- Delete: `core/templates/TrainerMacros.bas`
+- Modify: `core/trainer/workbook.py`
 - Test: `core/tests/test_trainer.py`
 
-### Remove Hint and Reveal product surfaces
+### Required behavior
 
-Delete the progressive Hint and Reveal Answer implementations rather than leaving dead product paths that mutate the Trainer.
+The trainer product has no runtime feedback commands. Do not keep the old APIs as deprecated or optional compatibility paths.
 
-Remove:
+Remove all of the following:
 
-- `show_hint` / `HintResult`;
-- `reveal_answer`;
-- `hint` CLI subcommand;
-- `reveal` CLI subcommand;
-- Hint/Reveal exports from `core.trainer`;
-- Hint/Reveal references from the Trainer index sheet;
-- `TrainerMacros.bas`, because its Hint/Reveal paths violate the contract and its local Check depends on answer-bearing Trainer metadata that is being removed.
+- `CheckResult`;
+- `check_component()`;
+- `check_dependencies()`;
+- `HintResult`;
+- `show_hint()`;
+- `reveal_answer()`;
+- CLI `check` subcommand;
+- CLI `hint` subcommand;
+- CLI `reveal` subcommand;
+- exports of those APIs from `core.trainer`;
+- `TrainerMacros.bas` and all macro instructions;
+- Trainer-sheet status syncing or reveal colors/constants used only by those features.
 
-Do not replace them with a different hidden reveal mechanism. Opening the Answer Key is the reveal/hint action.
+Do not replace Check with a new validation command. Do not replace Hint/Reveal with alternative buttons or hidden workbook mechanisms.
 
-### Redesign optional Check around the paired Answer Key
-
-`check_component(trainer_path, component_id)` must obtain the full reference component from the matching `*_Answer_Key.xlsx`, not from answer-bearing Trainer metadata.
-
-Use the current naming contract (`answer_key_path_for(trainer_path)`) and fail clearly if the matching Answer Key does not exist.
-
-Check may internally use:
-
-- the Answer Key formula;
-- the Answer Key expected value;
-- dependency coordinates from the Answer Key semantic map.
-
-But it must not expose those answers in its returned/public result.
-
-Refactor `CheckResult` so it does **not** carry `expected_value` as user-facing state. Keep only non-answer result data such as:
-
-```python
-@dataclass
-class CheckResult:
-    component_id: str
-    passed: bool
-    message: str
-    user_value: float | str | None = None
-    formula_present: bool = False
-```
-
-Mismatch messages must be non-disclosing, e.g.:
-
-```text
-Incorrect: the result does not match the Answer Key.
-```
-
-Do not print the expected numeric value or expected formula.
-
-`check_dependencies()` may report missing expected dependency references by component/address, but must not return the answer formula or hint text.
-
-Check must not modify the Trainer workbook.
+The only normal CLI commands relevant to the trainer remain build/ingest/list or other non-feedback project utilities that are independently useful.
 
 ### TDD regressions
 
-Replace the old Reveal test with tests equivalent to:
+Update tests so no test imports `checker` or `hints`.
+
+Add a CLI surface regression:
 
 ```python
-def test_check_uses_paired_answer_key_without_trainer_answers(tmp_path):
-    ...
-    full = load_semantic_map(answer_key_path).get("nopat_fy")
-    wb = load_workbook(trainer_path)
-    row, col = parse_cell_ref(full.cell)
-    wb[full.tab].cell(row=row, column=col, value=full.formula)
-    wb.save(trainer_path)
-    wb.close()
-
-    result = check_component(trainer_path, "nopat_fy")
-    assert result.passed
-
-
-def test_check_mismatch_does_not_disclose_expected_answer(tmp_path):
-    ...
-    result = check_component(trainer_path, "nopat_fy")
-    full = load_semantic_map(answer_key_path).get("nopat_fy")
-    assert not result.passed
-    assert full.formula not in result.message
-    assert str(full.expected_value) not in result.message
-    assert "expected" not in result.message.lower()
-
-
-def test_check_requires_matching_answer_key(tmp_path):
-    ...
-    answer_key_path.unlink()
-    with pytest.raises(FileNotFoundError, match="Answer Key"):
-        check_component(trainer_path, "nopat_fy")
+def test_cli_has_no_check_hint_or_reveal_commands(capsys):
+    from core.__main__ import main
+    with pytest.raises(SystemExit) as exc:
+        main(["--help"])
+    assert exc.value.code == 0
+    out = capsys.readouterr().out.lower()
+    assert "check" not in out
+    assert "hint" not in out
+    assert "reveal" not in out
 ```
 
-Add a CLI/help regression proving `hint` and `reveal` are no longer public subcommands and that `check` remains.
+If argparse formatting or unrelated prose makes a bare-word assertion brittle, inspect the registered subcommand names directly or assert that invoking each removed command fails as an invalid choice.
+
+Also add repository-level/import regressions as appropriate so deleted modules are not accidentally reintroduced through `core.trainer.__init__`.
 
 ### Verify
 
@@ -341,7 +276,7 @@ pytest core/tests/test_trainer.py -v
 python -m core --help
 ```
 
-The help output must include `check` and must not include `hint` or `reveal`.
+The public CLI must not offer `check`, `hint`, or `reveal`.
 
 ---
 
@@ -389,56 +324,76 @@ pytest core/tests/test_line_identity.py -v
 
 ---
 
-## Task 5 — Align docs and committed examples with the contract
+## Task 5 — Align docs and committed examples with the final contract
 
 **Files:**
 - Modify: `README-HK-TRAINER.md`
 - Modify: `skills/bav-trainer/SKILL.md`
-- Modify: `.gitignore` only for narrowly scoped generated demo sidecars if needed
+- Modify other live trainer documentation only where repository search finds Check/Hint/Reveal instructions
 - Delete: `example/DEMO_HK_Trainer_reference.xlsx`
 - Delete: `example/DEMO_HK_Trainer_reference.assumptions.json`
 - Delete: `example/DEMO_HK_Trainer.trainer.json`
 - Regenerate/update: `example/DEMO_HK_Trainer.xlsx`
 - Add/regenerate: `example/DEMO_HK_Answer_Key.xlsx`
-- Delete `example/rowmap.json` if it is merely generated demo metadata and no test/runtime consumer requires the committed copy
+- Delete `example/rowmap.json` if it is merely generated demo metadata and no runtime/test consumer requires the committed copy
 
 ### Documentation contract
 
-Rewrite all user-facing trainer documentation so the workflow is unambiguous:
+All live trainer documentation must state the same simple loop:
 
 ```text
-Trainer = blank yellow practice cells, no answers, no hints.
-Answer Key = same yellow cells with formula/input + legacy Note hint.
-Optional Check = correct/incorrect only.
+Trainer = blank yellow practice cells, no answers, no hints, no Check/Hint/Reveal tools.
+Answer Key = same yellow cells with formula/input + one legacy Note hint.
 ```
 
-Remove all instructions to import macros or run `hint` / `reveal` commands.
+Remove all instructions to:
 
-Do not describe removed functionality as "optional legacy" behavior.
+- run `python -m core check`;
+- run `python -m core hint`;
+- run `python -m core reveal`;
+- import `TrainerMacros.bas`;
+- use `CheckActive`, `HintActive`, or `RevealActive`;
+- expect progressive hints or reveal states.
+
+Do not describe removed functionality as optional legacy behavior.
+
+Run a local repository search and update live trainer-facing references:
+
+```bash
+rg -n "Check|Hint|Reveal|check_component|show_hint|reveal_answer|TrainerMacros|CheckActive|HintActive|RevealActive" \
+  core README-HK-TRAINER.md skills/bav-trainer
+```
+
+After cleanup, remaining matches should be only legitimate statements such as tests asserting absence or the Answer Key's Excel Note **hint** wording. Review every remaining match rather than mechanically requiring zero uses of the English word `hint`, because the Answer Key still intentionally has hints.
 
 ### Example contract
 
-The committed example should demonstrate the current product, not historical intermediate output.
-
-After regeneration, `example/` must contain the current matched pair:
+The committed example must demonstrate the current product:
 
 ```text
-DEMO_HK_Trainer.xlsx
-DEMO_HK_Answer_Key.xlsx
+example/DEMO_HK_Trainer.xlsx
+example/DEMO_HK_Answer_Key.xlsx
 ```
 
-and must not contain any `*_reference.xlsx`.
+It must not contain:
 
-Internal generated JSON sidecars do not need to be committed as examples. If building in `example/` creates untracked implementation sidecars, either delete them after verification or add **narrowly scoped** ignore rules for those generated demo files. Do not add a broad ignore rule that would hide legitimate assumptions JSON elsewhere in the repository.
+```text
+*_reference.xlsx
+*_Trainer.trainer.json
+```
 
-Inspect both generated workbooks with openpyxl before handoff; do not infer correctness only from file names.
+Do not commit Trainer-side answer metadata. If the Answer Key build emits implementation sidecars, they need not be committed as examples unless a runtime path actually requires them.
+
+Inspect both generated workbooks with openpyxl before handoff; do not infer correctness from filenames alone.
 
 ---
 
-## Task 6 — Full regression and leakage audit
+## Task 6 — Full leakage audit, regression suite, and handoff evidence
 
 **Files:**
 - Modify: `RESULT.md`
+
+### Required verification
 
 Run at minimum:
 
@@ -453,134 +408,24 @@ python -m core build example/DEMO_HK_Standardized.json -o /tmp/DEMO_HK_Trainer.x
 python -m core --help
 ```
 
-Then run one explicit artifact audit with Python/openpyxl against the `/tmp` pair that verifies all of the following:
+Then perform a focused generated-artifact audit in Python/openpyxl or a test:
 
-### Trainer
+1. exactly two `.xlsx` outputs are produced for the `/tmp` demo pair;
+2. no `*_reference.xlsx` is produced;
+3. no Trainer `.trainer.json` or `.component_map.json` is produced;
+4. Trainer has no `_ComponentMap`, `_RefFormulas`, `_RefValues`, or `_TrainerMeta` sheet;
+5. every Trainer practice cell is blank yellow with no Note;
+6. every Answer Key practice cell contains the correct formula/input, is yellow, and has a non-empty legacy Note;
+7. every known Answer-Key practice formula/hint/expected-value token is absent from Trainer answer-bearing metadata locations;
+8. visible structure/style parity still holds;
+9. `python -m core --help` exposes no `check`, `hint`, or `reveal` subcommand;
+10. the build still resolves all 13 current semantic components.
 
-- every semantic practice cell is blank;
-- every semantic practice cell is bright yellow;
-- every semantic practice cell has no Note/comment;
-- `_RefFormulas`, `_RefValues`, and `_TrainerMeta` do not exist;
-- Trainer `_ComponentMap` contains coordinates/identity but no formulas, expected values, `short_hint`, or detailed hints;
-- Trainer `.component_map.json`, if emitted, is equally sanitized;
-- no `*.trainer.json` is emitted;
-- no worksheet value/comment contains any known hint string from the Answer Key map;
-- visible Trainer instructions contain no Hint/Reveal/macro workflow.
+Do not claim a leakage check based only on visible worksheet cells. Inspect hidden sheets and generated sidecars as well.
 
-### Answer Key
+### RESULT.md handoff format
 
-- every semantic practice cell contains its working formula/input;
-- every semantic practice cell is bright yellow;
-- every semantic practice cell has a non-empty legacy Note authored consistently;
-- full semantic formulas/expected values remain available to internal Check logic.
-
-### Pair/repository
-
-- visible sheet structure and formatting parity still pass the existing tests;
-- exactly 13 semantic components remain;
-- no `*_reference.xlsx` is produced by the new build;
-- committed `example/` contains the Trainer + Answer Key pair and no stale reference workbook;
-- standardized JSON round-trip retains `LineItem.concept`.
-
-Do not report complete if any leakage test fails even if the general test suite is green.
-
----
-
-## Preserve accepted accounting / identity behavior
-
-Do not regress:
-
-- eight BAVGEM balance-sheet categories;
-- explicit ambiguity notes rather than fake categories;
-- source checksum blocking;
-- asset-detail / liability-detail / implied-equity reconciliation;
-- live Condensed Financials CHECK formulas;
-- classification SUMIF reactivity;
-- DuPont using implied reformulated equity;
-- shared line resolver for revenue / NI / tax / interest / totals;
-- ten-year Bear/Base/Bull residual-income chain;
-- canonical concept+label statement identity;
-- case-insensitive displayed-label identity with exact concept IDs;
-- same-label/different-concept preservation;
-- conceptless ambiguity rejection;
-- same-identity cross-document restatement handling;
-- optional Excel Concept column;
-- case-insensitive unique-label overrides and concept-specific overrides;
-- concept-qualified source row maps;
-- semantic component registration at build time;
-- current 13-component catalog.
-
-## Expected implementation files
-
-Primary expected changes:
-
-```text
-core/model/classification.py
-core/trainer/workbook.py
-core/engine/semantic_map.py          (only if used for sanitized locator copy)
-core/engine/map_embed.py             (only if needed)
-core/trainer/semantic_io.py          (only if needed)
-core/trainer/checker.py
-core/trainer/__init__.py
-core/__main__.py
-core/tests/test_classification.py
-core/tests/test_line_identity.py
-core/tests/test_trainer.py
-README-HK-TRAINER.md
-skills/bav-trainer/SKILL.md
-RESULT.md
-```
-
-Expected deletions:
-
-```text
-core/trainer/hints.py
-core/templates/TrainerMacros.bas
-example/DEMO_HK_Trainer_reference.xlsx
-example/DEMO_HK_Trainer_reference.assumptions.json
-example/DEMO_HK_Trainer.trainer.json
-```
-
-Expected example output:
-
-```text
-example/DEMO_HK_Trainer.xlsx
-example/DEMO_HK_Answer_Key.xlsx
-```
-
-Only touch other files when a failing regression demonstrates they are required.
-
-## Do not change
-
-- `TARGET.md`.
-- `COMPONENT_CATALOG` membership/order.
-- forecast/residual-income/scenario mathematics.
-- manual-HK-v1 sourcing boundary.
-- Git history.
-
----
-
-## Acceptance criteria
-
-This step is ready for ChatGPT review only when all are true:
-
-1. `CommonStockSubjectToRedemption` no longer gets forced into Equity by generic concept matching.
-2. Trainer practice cells are blank yellow with no Notes/comments.
-3. Answer Key practice cells contain the correct formula/input, stay yellow, and carry one non-empty legacy Note hint.
-4. Trainer contains no `_RefFormulas`, `_RefValues`, or `_TrainerMeta` answer stores.
-5. Trainer embedded/sidecar semantic metadata contains no practice formulas, expected values, `short_hint`, or detailed hint text.
-6. No `.trainer.json` full-answer sidecar is produced.
-7. No progressive Hint or Reveal Answer command/API/macro/user instruction remains in the target trainer product.
-8. Optional Check uses the paired Answer Key internally, returns only non-disclosing validation, and does not modify the Trainer.
-9. CLI help exposes `check` but not `hint` or `reveal`.
-10. `cmd_ingest -o` preserves `LineItem.concept`, demonstrated by an Excel → JSON → reload regression.
-11. Committed examples contain the current Trainer + Answer Key and no `*_reference.xlsx`.
-12. Visual parity, semantic mapping, Step 3 integrity, Step 4 identity, and the 13-component catalog remain intact.
-13. Full core test suite passes and the demo build succeeds.
-
-## RESULT.md handoff format
-
-Before stopping, overwrite `RESULT.md` with:
+Overwrite `RESULT.md` before stopping:
 
 ```text
 Status: Step 5 complete | blocked
@@ -595,50 +440,141 @@ Tests run:
 - <exact command> -> <exact result>
 ...
 
-Artifact contract checks:
-- Trainer blank/yellow/no Notes: ...
-- Trainer hidden answer stores absent: ...
-- Trainer semantic metadata sanitized: ...
-- Answer Key formula/yellow/legacy Note: ...
-- Hint/Reveal public surfaces removed: ...
-- Check binary/non-disclosing: ...
-- no *.trainer.json: ...
+Trainer contract:
+- blank yellow practice cells/no Notes: ...
+- answer-bearing hidden sheets absent: ...
+- Trainer answer sidecars absent: ...
+- Check/Hint/Reveal product surfaces absent: ...
+
+Answer Key contract:
+- formula/input in yellow practice cells: ...
+- concise legacy Notes present: ...
 
 Identity/export checks:
-- concept round-trip: ...
-- common-stock classification regression: ...
+- concept round trip: ...
+- common-stock concept regression: ...
 
-Example checks:
-- Trainer + Answer Key committed: ...
-- no *_reference.xlsx: ...
+Example cleanup:
+- Trainer + Answer Key committed pair: ...
+- stale reference artifacts removed: ...
 
 Unresolved: ...
 ```
 
+If any required condition is not met, write `Status: Step 5 blocked` and describe the exact blocker.
+
+---
+
+## Files expected to change
+
+Primary implementation:
+
+- `core/model/classification.py`
+- `core/trainer/workbook.py`
+- `core/__main__.py`
+- `core/trainer/__init__.py`
+- `core/tests/test_classification.py`
+- `core/tests/test_line_identity.py`
+- `core/tests/test_trainer.py`
+
+Expected deletions:
+
+- `core/trainer/checker.py`
+- `core/trainer/hints.py`
+- `core/templates/TrainerMacros.bas`
+- stale `example/*_reference.xlsx` / old trainer sidecars
+
+Documentation/example updates:
+
+- `README-HK-TRAINER.md`
+- `skills/bav-trainer/SKILL.md`
+- `example/DEMO_HK_Trainer.xlsx`
+- `example/DEMO_HK_Answer_Key.xlsx`
+- `RESULT.md`
+
+Only modify other files when a failing test or repository search demonstrates they are required.
+
+## Preserve from Steps 3 and 4
+
+Do not regress:
+
+- eight BAVGEM balance-sheet categories;
+- explicit ambiguity notes/defaults where already designed;
+- source checksum blocking;
+- asset-detail / liability-detail / implied-equity reconciliation;
+- live Condensed Financials CHECK **worksheet formula** (this is an accounting-model reconciliation cell, not the removed trainer Check feature);
+- classification SUMIF reactivity;
+- DuPont using implied reformulated equity;
+- shared line resolver for revenue / NI / tax / interest / totals;
+- ten-year Bear/Base/Bull residual-income chain;
+- concept-aware statement identity;
+- case-insensitive displayed-label identity with exact concept IDs;
+- same-label/different-concept preservation;
+- duplicate/ambiguous identity rejection;
+- concept-specific classification overrides;
+- optional Excel Concept column;
+- concept-qualified source row maps during model construction;
+- paired Trainer / Answer Key styling and visible parity;
+- current 13 semantic components.
+
+The phrase `CHECK` inside the financial model may remain when it refers to accounting reconciliation. The removed feature is the trainer's runtime `check` command/API, not accounting control formulas inside the BAV workbook.
+
+## Do not change
+
+- `TARGET.md`.
+- `COMPONENT_CATALOG` membership or order.
+- Trainer / Answer Key visible product structure beyond removing dead interactive/status UI.
+- forecast / residual-income mathematics.
+- automatic HKEX/SEC ingestion.
+- later BAVGEM feature chains.
+- Git history.
+
+## Acceptance criteria
+
+Step 5 is ready for ChatGPT review only when all are true:
+
+1. Trainer practice cells are blank bright yellow with no Notes/comments.
+2. Answer Key practice cells contain correct formulas/inputs, are bright yellow, and each has one non-empty concise legacy Excel Note.
+3. Trainer contains no withheld practice formulas, expected answer values, or hint text in hidden worksheets or Trainer-associated sidecars.
+4. Trainer has no `_ComponentMap`, `_RefFormulas`, `_RefValues`, or `_TrainerMeta` answer-bearing hidden sheet.
+5. No Trainer `.component_map.json` or `.trainer.json` answer sidecar is generated.
+6. Check, Hint, and Reveal trainer APIs/CLI commands/macros are removed, not merely hidden or deprecated.
+7. Trainer UI/documentation contains no Check/Hint/Reveal workflow.
+8. The Answer Key is the sole feedback mechanism.
+9. `LineItem.concept` survives standardized JSON export/reload.
+10. Generic redeemable common-stock concepts no longer force Equity.
+11. The example directory represents the current Trainer + Answer Key pair and contains no stale reference workbook.
+12. Step 3 accounting integrity and Step 4 identity behavior remain intact.
+13. Full core test suite passes.
+14. Demo build still resolves all 13 current semantic components.
+15. No fixed-coordinate registry or second identity algorithm is introduced.
+
 ## Cursor execution rules
 
 1. Read `TARGET.md` and this file before editing.
-2. Write each new regression before the code change it protects and verify the intended failure.
-3. Make the minimum coherent implementation change for that regression.
-4. Do not preserve legacy Hint/Reveal behavior; it is explicitly outside the target contract now.
-5. Do not solve Trainer leakage by merely hiding answer-bearing sheets more deeply. Remove or sanitize the answer data.
-6. Keep full answer/hint metadata only with the Answer Key/reference side of the pair.
-7. Run focused tests after each task, then the complete suite and artifact audit.
-8. Update `RESULT.md` with exact evidence.
-9. Report unresolved issues rather than weakening the contract.
-10. Do not propose or start component-catalog expansion.
-11. Do not commit or push; the user owns the checkpoint commit.
+2. Do not reinterpret the feedback loop: there is only Trainer + Answer Key.
+3. Write focused failing regressions before each behavioral change.
+4. Delete obsolete Check/Hint/Reveal code rather than preserving compatibility shims.
+5. Sanitize the Trainer after blanking practice cells and before saving/final handoff.
+6. Use the Answer Key semantic map when tests need component coordinates.
+7. Preserve accepted accounting/identity behavior.
+8. Run focused tests after each coherent change, then the full suite and artifact audit.
+9. Update `RESULT.md` with exact commands/results.
+10. Do not propose or begin practice-surface expansion.
+11. Do not commit or push; the user owns the checkpoint.
 
 ## ChatGPT verification protocol
 
 After the user pushes the implementation checkpoint, ChatGPT should verify by code inspection:
 
-- all 13 acceptance criteria above;
-- that Trainer leakage is removed from hidden worksheets **and** sidecars, not only visible cells;
-- that Hint/Reveal are actually absent from runtime/docs/macros;
-- that Check cannot disclose expected values/formulas/hints;
-- that concept metadata survives standardized JSON export/reload;
-- that the example pair matches the current product contract;
-- the exact test/audit evidence recorded in `RESULT.md`.
+- all Step 5 acceptance criteria;
+- removal of Check/Hint/Reveal code and public surfaces;
+- absence of answer-bearing Trainer hidden sheets/sidecars;
+- Trainer vs Answer Key cell contract;
+- concept-preserving standardized export;
+- common-stock classification regression;
+- example cleanup;
+- preservation of Step 3/4 accounting and identity behavior;
+- exact test evidence in `RESULT.md`.
 
-Only after this step is accepted should planning move to expanding the semantic practice surface beyond the current 13 representative components.
+If verified, the next product step may expand the semantic practice surface beyond the current 13 representative components.
