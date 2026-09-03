@@ -14,488 +14,341 @@ Cursor should treat `TARGET.md` and this file as read-only unless the active ste
 
 ## Current architecture checkpoint
 
-Commit `d327347` (`chat reference 2B`) substantially completes Step 2B. The trainer now has one canonical `resolve_line()` used by both Python expected-value math and Excel source-row construction; the supplied demo tax line resolves correctly; optional interest-income / interest-expense cases remain populated; the workbook and Python share the same equity alias/fallback behavior; and `RESULT.md` reports 34 passing core tests.
+Commit `dbcaf27` (`chat balancesheet 3`) substantially implements Step 3. The annual build now uses the BAVGEM eight-category balance-sheet contract, shared Python/Excel reformulation, explicit asset/liability/equity reconciliation gaps, a live Condensed Financials CHECK, build-time source checksum blocking, and corrected synthetic demo data. `RESULT.md` reports 48 passing core tests plus a successful demo Trainer / Answer Key build.
 
-The next blocker is no longer source-line lookup. It is **balance-sheet classification and source-data integrity**.
+The next blocker is narrower but important for real-company use: **statement rows still do not have a stable concept-aware identity end-to-end**.
 
-### Review findings from commit `d327347`
+### Review findings from commit `dbcaf27`
 
-1. **The model can still be internally consistent while economically wrong because classification is not reconciled.** `financial_math.guess_classification()` recognizes only a small keyword set and returns `Ambiguous — Operating` for everything else. `compute_anchor()` then ignores that ambiguous category entirely because it only sums the six operating/financial categories. A balance-sheet line can therefore disappear from NOA / Net Debt without any error.
-2. **The classification contract has drifted from the parent BAVGEM model.** The trainer dropdown currently offers six operating/financial categories plus `Ambiguous — Operating` and `Ambiguous — Financial`. The BAVGEM Stage-3 contract instead uses eight real accounting destinations: the six operating/financial categories plus `Equity` and `Exclude`; genuinely ambiguous items receive a review flag while still carrying a real default category.
-3. **The supplied demo exposes the problem.** For FY2025, the currently classified detail produces implied equity of approximately `7,025` while reported Total Equity is `8,700`, a gap of `1,675`. Earlier years also have gaps. The source totals balance, but the detail supplied to the reformulation is incomplete, so current tests can pass while the BAV reformulation does not tie.
-4. **The workbook currently hides that gap.** Its `Equity` row links reported equity when a total-equity line exists. It does not show `Equity = NOA - Net Debt`, `Reported Equity`, and a reconciliation `CHECK` as separate rows. DuPont can therefore consume reported equity even when the classified NOA / Net Debt system does not reconcile to it.
-5. **`build` does not enforce the existing ingestion reconciliation report.** `cmd_ingest()` reports checksum failures, but `build_training_workbook()` proceeds directly to model construction. The current demo cash-flow data is arithmetically inconsistent (`CFO + CFI + CFF != Net change in cash`) yet a Trainer / Answer Key can still be generated.
-6. **Existing validators are too weak to detect detail completeness.** `validate_balance_sheet()` checks only `Total Assets = Total Liabilities + Total Equity`; it does not prove that the non-subtotal detail being classified sums to those totals. Equal omissions on the asset and liability sides could therefore evade even an implied-equity check.
-7. **The parent BAVGEM already contains the right domain contract.** `skills/bav-pipeline/references/stage2_assembler.md` makes source checksums blocking, and `stage3_analyst.md` requires complete classification, the eight-category dropdown, implied Equity = NOA − Net Debt, Reported Equity, and an explicit reconciliation CHECK. Reimplementing a different trainer-specific accounting convention creates avoidable drift.
-8. **The trainer skill itself is stale.** `skills/bav-trainer/SKILL.md` still describes a hidden `*_reference.xlsx`, visible adjacent hints, and the older workflow even though `TARGET.md` and runtime now use a paired Trainer / Answer Key with Notes.
-9. **One small resolver drift remains.** `_default_assumptions()` still derives its metadata `anchorRevenue` from `income_statement[0]` instead of the canonical revenue resolver. It does not drive the current scenario engine, but it should not be allowed to become a second revenue-selection rule.
+1. **Cross-document reconciliation is still label-keyed.** `core/ingestion/reconciler.py::_merge_line_items()` builds `by_label = {i.label: i ...}`. Two economically different lines with the same displayed label are therefore collapsed. BAVGEM Stage 2 explicitly identifies this as a real failure mode: the same label can legitimately occur on both sides of the balance sheet and must be keyed by `(concept, label)` when concepts are available.
+2. **`LineItem.concept` exists but is underused after ingestion.** The canonical line resolver uses it for a handful of major concepts, but classification and merge identity still mostly operate on label text. The project therefore has the information needed to disambiguate many rows but does not consistently use it.
+3. **Classification overrides are label-only.** `reformulate_balance_sheet()` normalizes `classificationOverrides` into a `label -> category` map. If two detail rows share a label, one override necessarily applies to both even when their concepts differ.
+4. **Concept can determine asset/liability side when the label cannot.** A common example is two rows both displayed as `Deferred income taxes`, one with an asset concept and one with a liability concept. The current classifier sees the same label twice and can classify both the same way because it does not use concept metadata as a higher-priority signal.
+5. **Duplicate labels also collide in the build row map.** `ReferenceModelBuilder._fill_statement()` writes source rows under `sheet!normalized_label`; the later duplicate overwrites the earlier one in `rowmap.json`, even though the physical workbook still contains both rows.
+6. **Unconcepted duplicate labels are inherently unsafe.** When an Excel/manual source supplies two same-label rows without concept metadata, silently picking or merging one is worse than failing. The build should demand disambiguation instead of guessing.
+7. **This is the last Stage-2 identity issue worth fixing before expanding the training surface.** The current `COMPONENT_CATALOG` still contains only 13 representative exercises. Expanding it now would multiply semantic mappings on top of an input identity contract that can still collapse real rows.
 
-## BAVGEM integration decision
+## BAVGEM integration decision for this step
 
-Use **selective integration**, not full runtime coupling.
+Continue **selective integration** of the parent BAVGEM Stage-2 contract.
 
-### Reuse now
+Reuse now:
 
-Treat these existing BAVGEM documents as the canonical domain contracts for the corresponding trainer logic:
+- `(concept, label)` line identity where concept metadata exists;
+- preserve duplicate displayed labels when they are distinct concepts;
+- fail loudly on unresolved same-label ambiguity;
+- keep newest-source-wins/restatement handling only within the same stable line identity.
 
-- `skills/bav-pipeline/references/stage2_assembler.md` — source-statement sign conventions and blocking arithmetic checks;
-- `skills/bav-pipeline/references/stage3_analyst.md` — balance-sheet classification categories, reformulation identities, and DuPont accounting definitions;
-- `skills/bav-pipeline/references/stage4_modeler.md` — later, when the trainer expands the valuation / DCF layer.
-
-The implementation should extract reusable **pure Python domain logic into `core/`** and have the Trainer / Answer Key build use it. Do **not** import markdown skill files at runtime.
-
-### Do not integrate yet
-
-Do not wire the trainer to BAVGEM's SEC/edgartools sourcing, coverage-vault orchestration, subagent gates, quarterly sections, Core Earnings Bridge, earnings-quality screens, Price Rationalization, ICC, sensitivity grids, or DCF feature chain in this step. Those are useful parent capabilities, but they would obscure the immediate problem: the trainer's annual accounting base must first reconcile.
-
-The intended long-run direction is one shared accounting/valuation engine with different front ends. This step only moves the Stage-2/3 accounting core in that direction.
+Do not add SEC/edgartools sourcing, coverage-vault orchestration, quarterly extraction, or the Stage-4 analytics feature chain in this step.
 
 ---
 
 ## Active implementation step
 
-### Step 3 — Adopt the BAVGEM Stage-2/3 accounting integrity contract
+### Step 4 — Make statement identity concept-aware before expanding trainer exercises
 
 **Goal**
 
-Make the annual source data and balance-sheet reformulation trustworthy before expanding the trainer exercise catalog: every non-subtotal balance-sheet line must receive a real BAVGEM classification, the classified detail must reconcile to reported totals when those totals are available, `Equity = NOA - Net Debt` must tie Reported Equity, and a build must refuse source data whose evaluatable statement checks fail.
+Preserve distinct financial statement rows across ingestion, reconciliation, source-row mapping, and balance-sheet classification by giving every `LineItem` a deterministic stable identity. Use explicit concepts when available, retain safe backwards compatibility for unique label-only inputs, and reject ambiguous duplicate label-only rows rather than silently merging or classifying them together.
 
-Do **not** add new trainer practice components in this step.
+Do **not** expand `COMPONENT_CATALOG` in this step. The next product step after this one can expand the learner practice surface.
 
 ## Required changes
 
-### 1. Create a canonical balance-sheet classification / reformulation module
+### 1. Create one canonical statement-line identity helper
 
-Create `core/model/classification.py`. This becomes the sole authority for balance-sheet classification used by both Python expected-value math and the workbook builder.
+Create `core/data/line_identity.py` (or an equivalently focused module under `core/data/`).
 
-Use these category strings exactly:
-
-```python
-BALANCE_SHEET_CATEGORIES = (
-    "Operating Working Capital Asset",
-    "Operating Working Capital Liability",
-    "Operating Long-Term Asset",
-    "Operating Long-Term Liability",
-    "Financial Asset",
-    "Financial Liability",
-    "Equity",
-    "Exclude",
-)
-```
-
-Use focused types equivalent to:
+Provide a small immutable identity type or tuple-based helper equivalent to:
 
 ```python
 @dataclass(frozen=True)
-class ClassificationDecision:
-    category: str
-    ambiguous: bool = False
-    reason: str = ""
-    overridden: bool = False
+class LineIdentity:
+    concept: str
+    label: str
 
 
-@dataclass(frozen=True)
-class BalanceSheetReformulation:
-    decisions: dict[int, ClassificationDecision]
-    category_totals: dict[str, tuple[float, ...]]
-    nowc: tuple[float, ...]
-    nola: tuple[float, ...]
-    noa: tuple[float, ...]
-    net_debt: tuple[float, ...]
-    implied_equity: tuple[float, ...]
-    reported_equity: tuple[float | None, ...]
-    total_assets: tuple[float | None, ...]
-    total_liabilities: tuple[float | None, ...]
-    asset_detail_gap: tuple[float | None, ...]
-    liability_detail_gap: tuple[float | None, ...]
-    equity_gap: tuple[float | None, ...]
+def line_identity(item: LineItem) -> LineIdentity:
+    ...
 ```
 
-Public behavior should be exposed through functions equivalent to:
+Rules:
+
+- normalize whitespace / NBSP and case consistently with existing schema helpers;
+- preserve the original `LineItem.label` for display; normalization is only for identity comparison;
+- when `LineItem.concept` is non-empty, identity is `(normalized concept, normalized label)`;
+- when concept is empty, identity is `("", normalized label)`;
+- do not infer a fake concept from label text inside this helper;
+- expose a readable string form for logs / rowmap keys, for example `concept=<...>|label=<...>`.
+
+Add an explicit `AmbiguousStatementIdentityError` for cases where a statement contains multiple same-normalized-label rows without enough concept information to distinguish them safely.
+
+### 2. Validate statement identities before model construction
+
+Add a helper equivalent to:
 
 ```python
-def classify_balance_sheet_line(
-    item: LineItem,
-    *,
-    override: str | None = None,
-) -> ClassificationDecision:
-    ...
-
-
-def reformulate_balance_sheet(
-    fin: StandardizedFinancials,
-    periods: list[date],
-    *,
-    overrides: dict[str, str] | None = None,
-) -> BalanceSheetReformulation:
+def validate_statement_identities(items: list[LineItem], statement_name: str) -> None:
     ...
 ```
 
-Add explicit exception types for an unclassifiable line and an invalid override. Never silently drop an unrecognized non-subtotal line.
+Required behavior:
 
-### 2. Implement the Stage-3 classification defaults, with ambiguity as metadata rather than a fake accounting category
+- two rows with different non-empty concepts and the same displayed label are valid and remain distinct;
+- two rows with the same normalized concept + same normalized label are duplicate identities and must fail unless they are being reconciled as versions of the same row from different documents;
+- two rows with the same normalized label and **both lacking concept metadata** must fail as ambiguous;
+- one concepted row plus one conceptless same-label row must fail as ambiguous rather than guessing they are the same;
+- error messages identify statement + label + concepts involved.
 
-The classifier should use safe normalized-label rules and always return one of the eight real categories.
+Run this validation on the final `StandardizedFinancials` consumed by `build_training_workbook()` before reconciliation/model construction.
 
-At minimum implement these deterministic defaults:
+Do not forbid ordinary unique label-only inputs; the existing demo and simple manual Excel flow must remain supported.
 
-- cash / cash equivalents / marketable securities / generic investments → `Financial Asset`;
-- debt / borrowings / notes payable / commercial paper → `Financial Liability`;
-- trade/accounts receivables, inventory, prepaid items, and clearly labelled other **current assets** → `Operating Working Capital Asset`;
-- trade/accounts payables, accrued operating liabilities, deferred revenue, and clearly labelled other **current liabilities** → `Operating Working Capital Liability`;
-- PP&E, goodwill, intangibles, and clearly labelled other **non-current assets** → `Operating Long-Term Asset`;
-- clearly labelled other **non-current liabilities** → `Operating Long-Term Liability`;
-- share capital, paid-in capital, reserves, AOCI, retained earnings, treasury-stock/equity lines → `Equity`.
+### 3. Make cross-document reconciliation identity-aware
 
-Items that BAVGEM explicitly treats as judgment calls should receive a valid default **plus** `ambiguous=True` and a concise reason, rather than `Ambiguous — Operating` / `Ambiguous — Financial`. At minimum cover:
+Refactor `core/ingestion/reconciler.py::_merge_line_items()` so it no longer merges by raw label.
 
-- operating lease ROU assets / lease liabilities;
-- deferred-tax assets / liabilities;
-- pension obligations;
-- short-term investments;
-- equity-method investments.
+Required semantics:
 
-Keep the default conservative and documented; the exact default matters less than making the uncertainty visible and overridable.
+- merge overlapping periods only when `line_identity(existing) == line_identity(incoming)`;
+- preserve two rows that share a display label but have different concepts;
+- keep the existing conflict/restatement logging behavior for true same-identity overlaps;
+- conflict records must include both `label` and `concept` so later review can distinguish rows;
+- normalize labels/concepts through the shared identity helper rather than inventing a second normalization rule;
+- after merging each statement, validate the resulting identities.
 
-A non-subtotal line that cannot be safely classified must raise an `UnclassifiedBalanceSheetLineError` naming the line. Do not default unknown items to operating and do not default them to `Exclude`.
+Do not change newest-source-wins policy beyond fixing row identity.
 
-### 3. Support explicit classification overrides without creating a second registry
+### 4. Preserve concept metadata through supported ingestion paths
 
-Add an optional top-level assumptions mapping:
+#### Structured JSON
+
+`HKManualDocumentAdapter` already reads `row.get("concept", "")`; retain and test that behavior.
+
+#### Excel exports
+
+Extend `ExcelExportAdapter` only enough to support an **optional concept column** without breaking the existing simple format.
+
+Support both shapes:
+
+```text
+Line Item | 2024-12-31 | 2025-12-31 | ...
+```
+
+and
+
+```text
+Concept | Line Item | 2024-12-31 | 2025-12-31 | ...
+```
+
+Accept case-insensitive header aliases `Concept` and `Line Item` / `Label`. If no Concept column exists, preserve current behavior with `concept=""`.
+
+Do not redesign the Excel ingestion format beyond this compatibility addition.
+
+### 5. Make classification use concept as a high-priority disambiguation signal
+
+Update `core/model/classification.py` so `classify_balance_sheet_line()` considers normalized `item.concept` before ambiguous label-only rules where the concept clearly communicates asset/liability/equity nature.
+
+Keep this deliberately narrow. At minimum support concept signals for:
+
+- deferred-tax asset vs deferred-tax liability;
+- lease / ROU asset vs lease liability where the concept clearly indicates side;
+- debt / borrowing liability concepts;
+- cash / marketable-security asset concepts;
+- equity component concepts.
+
+Do not create a general XBRL ontology. Concept metadata should resolve side/category only when it is clear; otherwise continue to the existing safe label rules or raise `UnclassifiedBalanceSheetLineError`.
+
+A concept must never cause a line labelled as a subtotal (`Total Assets`, etc.) to enter the detail classification table.
+
+### 6. Make classification overrides target stable identities
+
+Replace the current implicit label-only lookup with an explicit selector parser while preserving backwards compatibility for unique labels.
+
+Support these override keys:
 
 ```json
 {
   "classificationOverrides": {
-    "Operating lease liabilities": "Financial Liability"
+    "label:Operating lease liabilities": "Financial Liability",
+    "concept:DeferredIncomeTaxAssetsNet": "Operating Long-Term Asset",
+    "concept:DeferredIncomeTaxLiabilitiesNet": "Operating Long-Term Liability"
   }
 }
 ```
 
-Requirements:
+Rules:
 
-- keys are matched by normalized exact balance-sheet label;
-- values must be one of `BALANCE_SHEET_CATEGORIES`;
-- overrides are applied before default classification;
-- the resulting `ClassificationDecision` sets `overridden=True`;
-- the same override map drives both `compute_anchor()` and the Excel classification table;
-- do not store workbook coordinates in the override map.
+- `concept:<value>` matches exact normalized `LineItem.concept`;
+- `label:<value>` matches exact normalized label only when that label is unique in the detail statement;
+- legacy bare-label keys remain accepted only when the normalized label is unique;
+- if a label selector matches multiple rows, raise a clear ambiguity error instructing the user to use `concept:` selectors;
+- if a concept selector matches multiple rows, fail rather than applying it indiscriminately;
+- invalid categories still raise `InvalidClassificationOverrideError`;
+- the same resolved override decisions drive Python expected values and workbook defaults.
 
-`_default_assumptions()` should include an empty `classificationOverrides` object. Custom assumptions files that omit it remain valid.
+Do not put workbook coordinates into overrides.
 
-### 4. Make Python `compute_anchor()` consume the shared reformulation
+### 7. Make source row maps preserve duplicate display labels
 
-Remove `CLASSIFICATIONS`, `CAT_NAMES`, and `guess_classification()` from `core/model/financial_math.py` once the new module replaces them.
+Update `ReferenceModelBuilder._fill_statement()` so source-row metadata no longer uses only `sheet!normalized_label` as its key.
 
-Change `compute_anchor()` so it calls `reformulate_balance_sheet()` exactly once and uses that result for:
-
-- NOWC;
-- NOLA;
-- NOA;
-- Net Debt;
-- Equity used in DuPont / leverage.
-
-`AnchorMetrics.equity` must be the **implied reformulated equity** (`NOA - Net Debt`), not a separate reported-equity series. When reported equity exists and the reformulation reconciles, the values are equal; when it does not reconcile, the build should fail rather than silently switching definitions.
-
-Expose the reformulation diagnostics on `AnchorMetrics` (for example `reformulation: BalanceSheetReformulation`) so `ReferenceModelBuilder` can reuse the same classification decisions rather than classifying the lines a second time.
-
-Extend `core/model/line_resolver.py` with canonical `total_assets` and `total_liabilities` concepts using narrow exact aliases. Do not reintroduce fuzzy substring matching.
-
-Also change `_default_assumptions()` in `ReferenceModelBuilder` so `meta.anchorRevenue` is obtained through `resolve_line(..., "revenue", required=True)` rather than `income_statement[0]`.
-
-### 5. Add the BAVGEM detail-completeness checks
-
-`reformulate_balance_sheet()` must calculate three independent diagnostics when the corresponding reported totals are available:
+Use the canonical stable identity string, e.g.:
 
 ```text
-classified asset detail
-  = OWCA + OLTA + Financial Assets
-
-classified liability detail
-  = OWCL + OLTL + Financial Liabilities
-
-implied equity
-  = NOA - Net Debt
+Balance Sheet!concept=DeferredIncomeTaxAssetsNet|label=Deferred income taxes
+Balance Sheet!concept=DeferredIncomeTaxLiabilitiesNet|label=Deferred income taxes
 ```
 
-Compare against:
+For unique conceptless rows, use the same identity format with an empty concept.
 
-```text
-reported Total Assets
-reported Total Liabilities
-reported Total Equity
-```
+The actual worksheet layout remains unchanged: duplicate labels may appear in column A exactly as supplied.
 
-Use a small absolute tolerance appropriate for the workbook units (default `1.0`, configurable only if an existing tolerance convention requires it).
+Do not change semantic component keys (`condensed.nopat.latest_fy`, etc.); this step only fixes source-line identity metadata.
 
-This is deliberately stronger than checking only `Assets = Liabilities + Equity`: if both asset and liability detail omit the same amount, the accounting equation can still balance while the model is incomplete.
+### 8. Strengthen tests with the exact BAVGEM duplicate-label failure mode
 
-If a reported total is unavailable, return `None` for that gap and mark it unverified; do not fabricate a total.
+Create `core/tests/test_line_identity.py` and extend classification / ingestion tests as needed.
 
-Before the reference workbook is finalized, fail with a clear `ReformulationIntegrityError` when any available asset-detail, liability-detail, or implied-equity gap exceeds tolerance. The error must report period + gap + which check failed.
+Add focused tests for all of these cases:
 
-### 6. Enforce existing source-statement reconciliation before building the Answer Key
+1. **Distinct concepts, same label survive merge.** Two Balance Sheet rows both named `Deferred income taxes`, one concept `DeferredIncomeTaxAssetsNet`, one `DeferredIncomeTaxLiabilitiesNet`, remain two rows after reconciliation.
+2. **Correct classification by concept.** The asset concept classifies to an asset category and the liability concept to a liability category even though labels are identical.
+3. **Concept-specific overrides.** `concept:` selectors can override those two rows independently.
+4. **Ambiguous label override rejected.** `label:Deferred income taxes` must fail when both rows exist.
+5. **Legacy unique-label override still works.** Existing assumptions such as bare `Goodwill` remain accepted when unique.
+6. **Unconcepted duplicate labels fail.** Two same-label rows with no concepts cause `AmbiguousStatementIdentityError` before the model is built.
+7. **Concepted + conceptless duplicate label fails.** Do not silently merge them.
+8. **Same identity across documents still merges/restates.** A newer document with the same concept+label updates overlapping periods and records conflicts under that identity.
+9. **Rowmap preserves both duplicate labels.** A generated Answer Key / `rowmap.json` contains distinct source-row entries for both concept-qualified identities.
+10. **Optional Excel Concept column.** A small temporary workbook using `Concept | Line Item | dates` ingests concepts correctly; the old `Line Item | dates` shape still works.
 
-The build path itself must honor the ingestion checks.
+Use synthetic in-memory `LineItem` / temporary workbook fixtures. Do not add a large permanent company fixture merely to test duplicate labels.
 
-In `core/trainer/workbook.py` (or one focused build-readiness helper called from it), call the existing reconciliation layer before `ReferenceModelBuilder.build()`.
+### 9. Preserve all Step 3 accounting integrity behavior
 
-If an evaluatable checksum is `False`, refuse to create the Trainer / Answer Key and report which statement failed. Do not make users run `python -m core ingest` separately to discover that the same input is invalid.
+Do not regress:
 
-Do not broaden this step into a full new filing parser. Reuse the current `reconcile_financials()` / validator stack and improve only what is required for deterministic build blocking.
+- eight BAVGEM balance-sheet categories;
+- explicit ambiguity notes rather than fake categories;
+- source checksum blocking;
+- asset-detail / liability-detail / implied-equity reconciliation;
+- live Condensed Financials CHECK;
+- classification SUMIF reactivity;
+- DuPont using implied reformulated equity;
+- shared line resolver for revenue / NI / tax / interest / totals;
+- ten-year Bear/Base/Bull residual-income chain;
+- paired Trainer / Answer Key output and styling;
+- existing 13 semantic components.
 
-Where validators currently resolve concepts independently, migrate the overlapping concepts to `line_resolver.py` rather than adding new fuzzy rules.
+### 10. Update docs and handoff narrowly
 
-### 7. Rebuild the Condensed Financials balance-sheet block around the Stage-3 contract
+Update `skills/bav-trainer/SKILL.md` only as needed to state that real-company standardized rows use concept-aware identity when available and duplicate label-only rows must be disambiguated.
 
-`ReferenceModelBuilder` must use `self.anchor.reformulation.decisions` (or the equivalent shared result) to populate the classification table. It must not call a separate workbook-only classifier.
-
-#### Classification table
-
-- keep every non-subtotal balance-sheet line exactly once;
-- dropdown choices are the eight `BALANCE_SHEET_CATEGORIES`, no `Ambiguous — ...` values;
-- set `allow_blank=False`;
-- use the shared decision's category as the default;
-- add a visible `Notes` column (after the period values is acceptable) that shows concise `⚠ Review: ...` text for `ambiguous=True` decisions and an override note for overridden decisions;
-- preserve the current formula-driven SUMIF behavior when the user changes a dropdown.
-
-#### Compact aggregates / reconciliation block
-
-Add these labelled rows with formula-driven period columns:
-
-```text
-Operating Working Capital Assets
-Operating Working Capital Liabilities
-NOWC
-Operating Long-Term Assets
-Operating Long-Term Liabilities
-NOLA
-NOA
-Financial Assets
-Financial Liabilities
-Net Debt
-Equity (NOA - Net Debt)
-Reported Equity
-Total Capital
-CHECK
-```
-
-Definitions:
-
-```text
-NOWC = OWCA - OWCL
-NOLA = OLTA - OLTL
-NOA = NOWC + NOLA
-Net Debt = Financial Liabilities - Financial Assets
-Equity = NOA - Net Debt
-Total Capital = Net Debt + Equity
-```
-
-`Reported Equity` links to the canonical raw balance-sheet total when present. If absent, leave it visibly unverified rather than inventing a value.
-
-`CHECK` must be a live formula that returns `OK` when implied and reported equity tie within tolerance, `CHECK` when they do not, and `UNVERIFIED` when no reported-equity total exists.
-
-Keep the existing semantic registrations for `nowc_agg`, `noa_agg`, and `net_debt`, but resolve them to the new rows at build time. Do not put coordinates into `COMPONENT_CATALOG`.
-
-DuPont FLEV / Actual ROE must continue using the reformulated `Equity (NOA - Net Debt)` row.
-
-### 8. Repair the illustrative demo instead of weakening the integrity checks
-
-`example/DEMO_HK_Standardized.json` is synthetic and currently incomplete. Make it internally coherent so it remains a valid demo for the stricter build.
-
-Add these non-subtotal balance-sheet lines:
-
-```text
-Other non-current assets
-FY2021 1670
-FY2022 1894
-FY2023 2282
-FY2024 2804
-FY2025 3500
-
-Other non-current liabilities
-FY2021 1305
-FY2022 1456
-FY2023 1593
-FY2024 1716
-FY2025 1825
-```
-
-These values make the supplied detailed assets/liabilities reconcile to the existing reported totals without changing Total Assets, Total Liabilities, or Total Equity.
-
-Also correct `Net cash from operating activities` so the existing three cash-flow sections add to the existing `Net change in cash and cash equivalents`:
-
-```text
-FY2021 1450
-FY2022 1600
-FY2023 1750
-FY2024 1930
-FY2025 2070
-```
-
-Do not change the reported net-change row or balance-sheet cash series; FY2022–FY2025 net changes already match the year-over-year cash movement.
-
-The new classifier must classify the two added lines as Operating Long-Term Asset / Liability.
-
-### 9. Add tests that fail on the current commit for the actual remaining defects
-
-Create `core/tests/test_classification.py` for pure classification/reformulation tests and extend `core/tests/test_reference_integrity.py` for workbook/build behavior.
-
-At minimum add these tests:
-
-1. `test_bav_categories_are_exact_eight` — exact category strings, including Equity / Exclude and no `Ambiguous — ...` category.
-2. `test_equity_components_classify_as_equity` — `Share capital and reserves` resolves to `Equity`.
-3. `test_other_noncurrent_defaults` — the two new demo labels resolve to OLTA / OLTL.
-4. `test_ambiguous_item_has_real_default_and_flag` — e.g. an operating-lease liability receives a real category with `ambiguous=True`.
-5. `test_unknown_line_requires_override` — an unrecognized non-subtotal line raises and then succeeds with an exact valid override.
-6. `test_invalid_override_rejected` — fake category string raises clearly.
-7. `test_reformulation_detects_equal_asset_liability_omissions` — synthetic BS totals satisfy `A=L+E` but classified asset/liability detail each omit the same amount; the asset/liability detail gaps must still fail. This proves the new check is stronger than the old balance-sheet checksum.
-8. `test_demo_reformulation_reconciles_all_years` — after repairing the fixture, asset-detail, liability-detail, and equity gaps are zero (within tolerance) for every fiscal year.
-9. `test_demo_reconciliation_report_passes` — the repaired demo's currently evaluatable IS / BS / CF checks all pass.
-10. `test_build_rejects_failed_source_checksum` — a synthetic input with an evaluatable broken cash-flow roll-up cannot produce an Answer Key.
-11. `test_build_rejects_reformulation_gap` — balanced reported totals plus incomplete classified detail cannot produce an Answer Key.
-12. `test_condensed_has_live_reconciliation_rows` — Answer Key contains the required aggregate, implied Equity, Reported Equity, Total Capital, and CHECK rows; CHECK is a formula.
-13. `test_classification_table_uses_shared_decisions` — workbook defaults match `anchor.reformulation.decisions`, the dropdown contains only the eight categories, and ambiguous/override notes are visible.
-14. `test_duPont_uses_implied_equity` — FLEV / Actual ROE reference the `Equity (NOA - Net Debt)` row, not a raw reported-equity row.
-15. Existing line-resolver, reference-integrity, paired-workbook, and ten-year forecast tests remain unchanged and passing unless a row lookup in a test needs to become label-driven because of the expanded Condensed block.
-
-Do not weaken a current assertion merely because row numbers move. Tests should locate semantic/labelled rows rather than pinning the old layout.
-
-### 10. Synchronize the `bav-trainer` skill with the actual product
-
-Update `skills/bav-trainer/SKILL.md` after the runtime work passes.
-
-It must describe:
-
-- paired `*_Trainer.xlsx` / `*_Answer_Key.xlsx` outputs, not a user-facing `*_reference.xlsx`;
-- blank yellow/no-Note Trainer practice cells;
-- yellow formula/input cells with legacy Notes in the Answer Key;
-- static Answer Key as the primary feedback loop, with Check/Hint/Reveal optional;
-- no adjacent visible hint-cell behavior as the normal generated UX;
-- Stage 2 / Stage 3 / Stage 4 BAVGEM references as the canonical domain rubrics, while HK ingestion and trainer generation remain `core/` responsibilities;
-- the selective-integration boundary: do not run the full BAVGEM coverage pipeline merely to create a trainer workbook.
-
-Do not rewrite unrelated BAVGEM skills.
-
-### 11. Update the handoff report
-
-Before completion, overwrite `RESULT.md` with:
-
-```text
-Status: Step 3 complete | blocked
-Files changed: ...
-Tests run:
-- <exact command> -> <exact pass/fail count>
-- ...
-Reconciliation:
-- source statement checks: ...
-- demo reformulation gaps: ...
-Unresolved: ...
-```
-
-Cursor must not commit or push; the user checkpoints the working tree.
+Before handoff, overwrite `RESULT.md` with Step 4 status and exact commands/results.
 
 ## Files expected to change
 
-- Create: `core/model/classification.py`
-- Modify: `core/model/financial_math.py`
-- Modify: `core/model/line_resolver.py`
+- Create: `core/data/line_identity.py`
+- Modify: `core/ingestion/reconciler.py`
+- Modify: `core/ingestion/excel_import.py`
+- Modify: `core/trainer/workbook.py` or one focused build-readiness helper
+- Modify: `core/model/classification.py`
 - Modify: `core/engine/reference_model.py`
-- Modify: `core/trainer/workbook.py`
-- Modify: `core/data/validators.py` only where needed to reuse canonical concept resolution / expose reliable blocking failures
-- Modify: `example/DEMO_HK_Standardized.json`
-- Create: `core/tests/test_classification.py`
-- Modify: `core/tests/test_reference_integrity.py`
+- Create: `core/tests/test_line_identity.py`
+- Modify: `core/tests/test_classification.py`
+- Modify: ingestion/reference-integrity tests only where needed
 - Modify: `skills/bav-trainer/SKILL.md`
 - Modify: `RESULT.md`
 
-Only modify other files when a concrete dependency requires it.
+Only modify `core/data/interface.py` if a small helper/property is clearly cleaner than keeping identity logic in `line_identity.py`. Do not add new fields solely to satisfy this step; `LineItem.concept` already exists.
 
 ## Do not change
 
 - `TARGET.md`.
-- `COMPONENT_CATALOG` membership/order in this step.
-- the paired Trainer / Answer Key contract.
-- HK automatic scraping / SEC sourcing.
-- BAVGEM's coverage-vault layout, agent orchestration, gates, quarterly model, Core Earnings Bridge, Earnings Quality, Price Rationalization, ICC, sensitivity, or DCF feature chain.
-- the learner-facing Hint/Reveal commands except where a moved semantic row requires a compatibility fix.
-- Git history. Do not commit, push, reset, rebase, merge, or delete branches.
+- `COMPONENT_CATALOG` membership or order.
+- Trainer / Answer Key product contract.
+- forecast / residual-income mathematics.
+- Hint / Reveal behavior.
+- automatic HKEX/SEC ingestion.
+- BAVGEM quarterly / Core Earnings / Earnings Quality / Price Rationalization / ICC / DCF feature chain.
+- Git history. Cursor must not commit, push, reset, rebase, merge, or delete branches.
 
 ## Acceptance criteria
 
-- The Python model and workbook classification table use one shared classification/reformulation result.
-- No non-subtotal balance-sheet line can silently disappear from the model because of an `Ambiguous — ...` pseudo-category or an unknown label.
-- The only dropdown choices are the eight BAVGEM Stage-3 categories.
-- Ambiguous judgment items remain visibly flagged while carrying a real default category; exact classification overrides are supported without coordinates.
-- When reported totals exist, classified asset detail ties Total Assets, classified liability detail ties Total Liabilities, and `NOA - Net Debt` ties Reported Equity within tolerance for every modeled year.
-- Equal asset/liability omissions are detected even when `Assets = Liabilities + Equity` still holds.
-- `Condensed Financials` exposes live implied Equity, Reported Equity, Total Capital, and CHECK rows.
-- DuPont uses reformulated implied equity.
-- A build refuses an input with an evaluatable failed source checksum or a failed reformulation integrity check.
-- The repaired demo passes its source checks and reformulation checks and still generates the matched pair.
-- `_default_assumptions().meta.anchorRevenue` uses the canonical revenue resolver.
-- `skills/bav-trainer/SKILL.md` matches the current paired-workbook product and documents the selective BAVGEM integration boundary.
-- All existing Step 1 / Step 2 / Step 2B tests remain passing according to the committed `RESULT.md`, plus the new Step-3 tests.
+- Distinct same-label statement rows with different concepts survive ingestion/reconciliation and remain separately addressable.
+- Same-identity rows across documents still merge with existing restatement/conflict semantics.
+- Duplicate same-label rows without sufficient concept metadata fail clearly rather than being silently merged.
+- Balance-sheet classification can use concept metadata to distinguish asset vs liability rows whose displayed labels are identical.
+- Classification overrides can target duplicate-label rows independently with `concept:` selectors; ambiguous label selectors fail.
+- Existing unique bare-label overrides remain backwards compatible.
+- Source row metadata preserves both concept-qualified duplicate rows.
+- Both supported Excel shapes (with and without a Concept column) ingest successfully.
+- Step 3 source/reformulation integrity checks remain enforced.
+- Existing demo still builds the matched 13-component Trainer / Answer Key pair.
+- No coordinate registry, duplicate line-identity algorithm, or runtime markdown dependency is introduced.
 
 ## Testing
 
-Use red/green TDD. Start with a failing test that demonstrates the current model can accept a balance sheet whose reported totals balance but whose classified detail is incomplete.
+Use red/green TDD. The first failing regression should demonstrate that the current label-keyed reconciler collapses two `Deferred income taxes` rows with distinct concepts.
 
-Run focused tests first:
-
-```bash
-python -m pytest core/tests/test_classification.py -v --tb=short
-python -m pytest core/tests/test_reference_integrity.py -v --tb=short
-```
-
-Then run the existing regression modules:
+Run at minimum:
 
 ```bash
-python -m pytest core/tests/test_line_resolver.py -v --tb=short
-python -m pytest core/tests/test_trainer.py -v --tb=short
-python -m pytest core/tests/ -q --tb=line
-```
-
-Also run the CLI demo build after the JSON fixture is repaired:
-
-```bash
+pytest core/tests/test_line_identity.py -v
+pytest core/tests/test_classification.py -v
+pytest core/tests/test_reference_integrity.py -v
+pytest core/tests/test_line_resolver.py -v
+pytest core/tests/test_trainer.py -v
+pytest core/tests/ -q
 python -m core build example/DEMO_HK_Standardized.json -o /tmp/DEMO_HK_Trainer.xlsx
 ```
 
-Expected: exit code `0`, both `/tmp/DEMO_HK_Trainer.xlsx` and `/tmp/DEMO_HK_Answer_Key.xlsx` created.
+Also run the focused Excel-import test module/node that covers both supported header shapes.
 
-Do not use formula presence alone as evidence of accounting correctness. Do not weaken the new reconciliation checks to keep the old incomplete demo passing.
+Do not weaken existing tests to make them pass. Do not count two physical rows as preserved merely because both labels can be reconstructed from separate fixtures; inspect the merged `StandardizedFinancials` and generated source sheet directly.
 
-## Git boundary
+## RESULT.md handoff format
 
-Do not commit, push, reset, rebase, merge, or otherwise change Git history.
+Before completion, write:
+
+```text
+Status: Step 4 complete | blocked
+Files changed:
+- ...
+Tests run:
+- <exact command> -> <exact result>
+...
+Identity checks:
+- duplicate concept-qualified label preservation: ...
+- ambiguous conceptless duplicate rejection: ...
+- concept-specific override: ...
+Unresolved: ...
+```
 
 ## Cursor execution rules
 
-1. Read this active step completely before editing.
-2. Read `skills/bav-pipeline/references/stage2_assembler.md` sections **Assembly rules / Checksums** and `stage3_analyst.md` sections **Classification table / Condensed Balance Sheet / ALT DuPont** before implementing. Treat those domain definitions as authoritative unless this step explicitly narrows them.
-3. Write the failing detail-completeness regression test before production code.
-4. Implement the shared classification/reformulation domain logic before changing workbook layout.
-5. Make Python and Excel consume the same reformulation decisions; do not duplicate classifier rules in `ReferenceModelBuilder`.
-6. Repair the demo data to satisfy the integrity contract; do not bypass or lower the checks.
-7. Preserve semantic component mapping and paired-workbook behavior.
-8. Run focused tests after each coherent change, then the full core suite and CLI demo build.
-9. Update `skills/bav-trainer/SKILL.md` only after runtime/tests are correct.
-10. Update `RESULT.md` with exact commands/results and reconciliation outcomes.
-11. At completion report files changed, what was implemented, tests/checks run, and anything unresolved.
-12. Do not propose the next product step.
+1. Read this active step before editing.
+2. Inspect current ingestion/reconciliation/classification code before changing it.
+3. Write the duplicate-label merge regression test first and verify it fails for the intended reason.
+4. Implement one canonical identity helper and route all new identity comparisons through it.
+5. Do not solve ambiguity by adding more fuzzy label matching.
+6. Preserve Step 3 accounting/reformulation behavior.
+7. Run focused tests after each coherent change, then the full suite.
+8. Update `RESULT.md` with exact evidence.
+9. Report files changed, tests run, and unresolved issues.
+10. Do not propose the next product step.
+11. Do not commit or push; the user owns the checkpoint commit.
 
 ## ChatGPT verification protocol
 
-After the user pushes the checkpoint, ChatGPT should inspect the commit against this step and verify:
+After the user pushes the next checkpoint, ChatGPT should verify:
 
-- classification/reformulation is genuinely single-source between Python and Excel;
-- no balance-sheet detail can disappear silently;
-- the eight BAVGEM categories and ambiguity/override behavior are implemented as specified;
-- demo/source reconciliation is mathematically real, not merely a formula-string check;
-- the repaired demo values actually foot to the stated totals and cash-flow net changes;
-- implied and reported equity reconcile before DuPont / valuation use them;
-- build blocking occurs on failed checks;
-- the BAVGEM integration remained selective rather than pulling unrelated parent-pipeline machinery into the trainer;
-- `RESULT.md` contains current test evidence.
+- the latest commit against every Step 4 acceptance criterion;
+- that same-label/different-concept rows truly remain distinct through merge and workbook output;
+- that conceptless ambiguity fails rather than being silently resolved;
+- that classification and overrides use the same canonical identity rules;
+- that Step 3 reconciliation and paired-workbook behavior did not regress;
+- the exact test evidence recorded in `RESULT.md`.
 
-ChatGPT should not rerun the test suite. Cursor owns test execution; ChatGPT owns independent inspection of the committed implementation.
+If verified, the next planned product step should be **expanding the semantic practice surface beyond the current 13 representative components**, rather than adding more ingestion architecture unless the real-company identity tests expose another concrete blocker.
