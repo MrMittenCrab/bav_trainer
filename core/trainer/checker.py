@@ -6,17 +6,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from openpyxl import load_workbook
-from openpyxl.styles import PatternFill
 
 from .semantic_io import answer_key_path_for, load_semantic_map, parse_cell_ref
+from .xlsx_fill_patch import CellFillUpdate, apply_fill_updates
 
 BLANK_RGB = "FFFF00"
 CORRECT_RGB = "C8E6C9"
 INCORRECT_RGB = "FFC7CE"
-
-BLANK_FILL = PatternFill("solid", start_color=BLANK_RGB)
-CORRECT_FILL = PatternFill("solid", start_color=CORRECT_RGB)
-INCORRECT_FILL = PatternFill("solid", start_color=INCORRECT_RGB)
 
 
 @dataclass(frozen=True)
@@ -55,7 +51,8 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
     """Scan every practice cell in the Trainer; recolor yellow/green/red only.
 
     Reference semantics come from the matching Answer Key. Never writes answers,
-    formulas, expected values, or hints into the Trainer.
+    formulas, expected values, or hints into the Trainer. Fill updates are applied
+    via OOXML so formula cached results survive repeated Checks.
     """
     trainer_path = Path(trainer_path)
     answer_key_path = answer_key_path_for(trainer_path)
@@ -71,6 +68,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
     wb = load_workbook(trainer_path, data_only=False)
     wb_cached = load_workbook(trainer_path, data_only=True)
 
+    updates: list[CellFillUpdate] = []
     correct = incorrect = blank = 0
     for comp in comps:
         if comp.tab not in wb.sheetnames:
@@ -81,7 +79,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
         formula_val = cell.value
 
         if _is_blank(formula_val):
-            cell.fill = BLANK_FILL
+            updates.append(CellFillUpdate(comp.tab, comp.cell, BLANK_RGB))
             blank += 1
             continue
 
@@ -90,7 +88,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
             and formula_val.startswith("=")
             and _normalize_formula(formula_val) == _normalize_formula(comp.formula)
         ):
-            cell.fill = CORRECT_FILL
+            updates.append(CellFillUpdate(comp.tab, comp.cell, CORRECT_RGB))
             correct += 1
             continue
 
@@ -99,15 +97,15 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
             cached = wb_cached[comp.tab].cell(row=row, column=col).value
 
         if cached is not None and _values_match(cached, comp.expected_value, comp.tolerance):
-            cell.fill = CORRECT_FILL
+            updates.append(CellFillUpdate(comp.tab, comp.cell, CORRECT_RGB))
             correct += 1
         else:
-            cell.fill = INCORRECT_FILL
+            updates.append(CellFillUpdate(comp.tab, comp.cell, INCORRECT_RGB))
             incorrect += 1
 
-    wb.save(trainer_path)
     wb.close()
     wb_cached.close()
+    apply_fill_updates(trainer_path, updates)
 
     return CheckSummary(
         total=len(comps),

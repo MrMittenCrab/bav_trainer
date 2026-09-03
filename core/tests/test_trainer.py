@@ -485,3 +485,138 @@ def test_cli_build_reports_both_paths(tmp_path, capsys):
 def test_hint_reveal_modules_removed():
     assert importlib.util.find_spec("core.trainer.hints") is None
     assert not (ROOT / "core" / "templates" / "TrainerMacros.bas").exists()
+
+
+_SSML = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+_RELS = "http://schemas.openxmlformats.org/package/2006/relationships"
+_OD_RELS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+
+
+def _xlsx_sheet_path(zf, sheet_name: str) -> str:
+    import xml.etree.ElementTree as ET
+
+    wb = ET.fromstring(zf.read("xl/workbook.xml"))
+    rels = ET.fromstring(zf.read("xl/_rels/workbook.xml.rels"))
+    sheets = wb.find(f"{{{_SSML}}}sheets")
+    if sheets is None:
+        raise FileNotFoundError("workbook.xml missing sheets")
+    rid = None
+    for sheet in sheets:
+        if sheet.attrib.get("name") == sheet_name:
+            rid = sheet.attrib.get(f"{{{_OD_RELS}}}id")
+            break
+    if not rid:
+        raise FileNotFoundError(f"Sheet not found: {sheet_name}")
+    target = None
+    for rel in rels:
+        if rel.attrib.get("Id") == rid:
+            target = rel.attrib.get("Target", "")
+            break
+    if not target:
+        raise FileNotFoundError(f"Relationship missing for sheet {sheet_name}")
+    target = target.lstrip("/")
+    if not target.startswith("xl/"):
+        target = f"xl/{target}"
+    return target
+
+
+def _inject_formula_and_cached_value(
+    workbook_path: Path,
+    sheet: str,
+    cell: str,
+    *,
+    formula: str,
+    cached_value: float,
+) -> None:
+    """Patch one cell's OOXML <f> and cached <v> without openpyxl rewrite."""
+    import os
+    import tempfile
+    import zipfile
+    import xml.etree.ElementTree as ET
+
+    formula_body = formula[1:] if formula.startswith("=") else formula
+    workbook_path = Path(workbook_path)
+
+    with zipfile.ZipFile(workbook_path, "r") as zf_in:
+        sheet_path = _xlsx_sheet_path(zf_in, sheet)
+        sheet_xml = zf_in.read(sheet_path)
+        other_members = {
+            info.filename: zf_in.read(info.filename)
+            for info in zf_in.infolist()
+            if info.filename != sheet_path
+        }
+
+    root = ET.fromstring(sheet_xml)
+    cell_el = None
+    for c_el in root.iter(f"{{{_SSML}}}c"):
+        if c_el.attrib.get("r") == cell:
+            cell_el = c_el
+            break
+    if cell_el is None:
+        raise FileNotFoundError(f"Cell {cell} not found on sheet {sheet}")
+
+    # Replace formula / cached value children; keep style and address.
+    for child in list(cell_el):
+        if child.tag in {f"{{{_SSML}}}f", f"{{{_SSML}}}v", f"{{{_SSML}}}is"}:
+            cell_el.remove(child)
+    f_el = ET.SubElement(cell_el, f"{{{_SSML}}}f")
+    f_el.text = formula_body
+    v_el = ET.SubElement(cell_el, f"{{{_SSML}}}v")
+    v_el.text = f"{float(cached_value)}"
+
+    ET.register_namespace("", _SSML)
+    new_sheet_xml = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
+    fd, tmp_name = tempfile.mkstemp(
+        suffix=".xlsx", prefix=workbook_path.stem + "_inj_", dir=str(workbook_path.parent)
+    )
+    os.close(fd)
+    tmp_path = Path(tmp_name)
+    try:
+        with zipfile.ZipFile(tmp_path, "w") as zf_out:
+            for name, data in other_members.items():
+                zf_out.writestr(name, data)
+            zf_out.writestr(sheet_path, new_sheet_xml)
+        tmp_path.replace(workbook_path)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+
+def test_equivalent_cached_formula_stays_correct_across_repeated_checks(tmp_path):
+    trainer_path, answer_key_path = _build_pair(tmp_path)
+    smap = load_semantic_map(answer_key_path)
+    comp = next(
+        c for c in smap.all_ordered() if isinstance(c.expected_value, (int, float))
+    )
+
+    _inject_formula_and_cached_value(
+        trainer_path,
+        comp.tab,
+        comp.cell,
+        formula=f"={float(comp.expected_value)}",
+        cached_value=float(comp.expected_value),
+    )
+
+    wb_formula = load_workbook(trainer_path, data_only=False)
+    row, col = parse_cell_ref(comp.cell)
+    entered_formula = wb_formula[comp.tab].cell(row, col).value
+    wb_formula.close()
+    assert entered_formula != comp.formula
+
+    first = check_workbook(trainer_path)
+    assert first.correct >= 1
+
+    # Check itself must not destroy the cached Excel result.
+    wb_cached = load_workbook(trainer_path, data_only=True)
+    cached_after_first_check = wb_cached[comp.tab].cell(row, col).value
+    wb_cached.close()
+    assert cached_after_first_check == pytest.approx(float(comp.expected_value))
+
+    second = check_workbook(trainer_path)
+    assert second.correct >= 1
+
+    wb = load_workbook(trainer_path, data_only=False)
+    assert _fill_rgb(wb[comp.tab].cell(row, col)) == "C8E6C9"
+    assert wb[comp.tab].cell(row, col).value == entered_formula
+    wb.close()

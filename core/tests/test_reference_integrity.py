@@ -36,9 +36,9 @@ def test_cli_assumptions_propagate(tmp_path):
     _, answer_default = build_training_workbook(data, tmp_path / "Default_Trainer.xlsx")
     smap_default = load_semantic_map(answer_default)
 
-    assumptions = json.loads(
-        (ROOT / "example" / "DEMO_HK_Answer_Key.assumptions.json").read_text(encoding="utf-8")
-    )
+    # Builder generated assumptions next to the temporary Answer Key.
+    default_assumptions_path = answer_default.with_suffix(".assumptions.json")
+    assumptions = json.loads(default_assumptions_path.read_text(encoding="utf-8"))
     assumptions["marketData"]["dilutedShares"] = 2500.0
     assumptions["scenarios"]["Base"]["growthVector"] = [0.25] + [0.10] * 9
 
