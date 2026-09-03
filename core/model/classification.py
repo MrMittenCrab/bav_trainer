@@ -104,7 +104,11 @@ def _concept_token(concept: str) -> str:
 
 
 def _classify_by_concept(item: LineItem) -> ClassificationDecision | None:
-    """High-priority concept signals when metadata clearly encodes side/nature."""
+    """High-priority concept signals only when the concept clearly encodes side/nature.
+
+    Generic substrings such as ``debt``, ``equity``, or ``cash`` alone are not
+    decisive — they appear in asset, liability, and equity-component concepts.
+    """
     if not (item.concept or "").strip():
         return None
     c = _concept_token(item.concept)
@@ -137,30 +141,64 @@ def _classify_by_concept(item: LineItem) -> ClassificationDecision | None:
             reason="Lease liability concept — operating vs financial judgment",
         )
 
-    if _match_any(
-        c,
-        ("debt", "borrow", "loanpayable", "notespayable", "bondpayable", "bonds"),
-    ):
-        return ClassificationDecision("Financial Liability")
-
-    if _match_any(c, ("cash", "marketablesecurit", "tradingsecurit", "moneymarket")):
-        return ClassificationDecision("Financial Asset")
-
+    # Unmistakable borrowing / debt *liability* concepts (not debt securities).
     if _match_any(
         c,
         (
-            "equity",
+            "bankborrow",
+            "borrowings",
+            "longtermdebt",
+            "shorttermdebt",
+            "notespayable",
+            "bondspayable",
+            "loanpayable",
+            "loanspayable",
+            "commercialpaper",
+        ),
+    ):
+        return ClassificationDecision("Financial Liability")
+
+    # Unmistakable cash / marketable-security *asset* holdings (not cash-flow hedges).
+    if _match_any(
+        c,
+        (
+            "cashandcashequivalent",
+            "cashequivalent",
+            "cashonhand",
+            "marketablesecurit",
+            "tradingsecurit",
+            "moneymarket",
+        ),
+    ) or c in {"cash", "cashandcashequivalents"}:
+        return ClassificationDecision("Financial Asset")
+
+    # Unmistakable equity-component concepts (not equity-method investments).
+    if _match_any(
+        c,
+        (
             "retainedearnings",
             "sharecapital",
             "additionalpaid",
-            "treasury",
+            "commonstock",
+            "preferredstock",
+            "treasurystock",
+            "treasuryshare",
+            "accumulatedothercomprehensive",
             "aoci",
-            "othercomprehensive",
         ),
+    ) or (
+        "othercomprehensive" in c
+        and "method" not in c
+        and "investment" not in c
     ):
         return ClassificationDecision("Equity")
 
     return None
+
+
+def _label_match_key(label: str) -> str:
+    """Case-insensitive label key for unique label: / bare override selectors."""
+    return _norm(label)
 
 
 def _parse_override_selector(key: str) -> tuple[str, str]:
@@ -170,8 +208,8 @@ def _parse_override_selector(key: str) -> tuple[str, str]:
     if low.startswith("concept:"):
         return "concept", normalize_label(raw.split(":", 1)[1])
     if low.startswith("label:"):
-        return "label", normalize_label(raw.split(":", 1)[1])
-    return "label", normalize_label(raw)
+        return "label", _label_match_key(raw.split(":", 1)[1])
+    return "label", _label_match_key(raw)
 
 
 def resolve_classification_overrides(
@@ -202,8 +240,10 @@ def resolve_classification_overrides(
             resolved[line_identity(matches[0])] = category
             continue
 
-        # label: or bare legacy label — only when unique among detail rows
-        matches = [i for i in detail_items if line_identity(i).label == value]
+        # label: or bare legacy label — case-insensitive, unique among detail rows
+        matches = [
+            i for i in detail_items if _label_match_key(line_identity(i).label) == value
+        ]
         if len(matches) == 0:
             continue
         if len(matches) > 1:

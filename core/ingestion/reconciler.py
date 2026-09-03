@@ -15,8 +15,17 @@ def _merge_line_items(
     existing: list[LineItem],
     incoming: list[LineItem],
     source: str,
+    *,
+    statement_name: str = "statement",
 ) -> tuple[list[LineItem], list[dict]]:
-    """Newest-wins merge keyed by canonical line identity (concept + label)."""
+    """Newest-wins merge keyed by canonical line identity (concept + label).
+
+    Duplicate identities within either source list fail before dictionary merge.
+    Same identity across ``existing`` and ``incoming`` follows restatement rules.
+    """
+    validate_statement_identities(existing, f"{statement_name}.existing")
+    validate_statement_identities(incoming, f"{statement_name}.incoming")
+
     by_id: dict[str, LineItem] = {}
     for item in existing:
         by_id[line_identity(item).key()] = item
@@ -47,7 +56,10 @@ def _merge_line_items(
         else:
             item.source_doc = source
             by_id[key] = item
-    return list(by_id.values()), conflicts
+
+    merged = list(by_id.values())
+    validate_statement_identities(merged, statement_name)
+    return merged, conflicts
 
 
 def reconcile_financials(data: StandardizedFinancials) -> ReconciliationReport:
@@ -74,8 +86,8 @@ def merge_documents(
             getattr(base, stmt),
             getattr(supplement, stmt),
             source_label,
+            statement_name=stmt,
         )
-        validate_statement_identities(merged, stmt)
         setattr(base, stmt, merged)
         report.conflicts.extend(conflicts)
     for pd in supplement.period_dates():

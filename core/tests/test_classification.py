@@ -72,6 +72,33 @@ def test_other_noncurrent_defaults():
     assert l.category == "Operating Long-Term Liability"
 
 
+def test_debt_security_concept_does_not_become_financial_liability():
+    item = LineItem(
+        label="Marketable securities",
+        concept="DebtSecuritiesAvailableForSale",
+        values={P1: 10, P2: 12},
+    )
+    assert classify_balance_sheet_line(item).category == "Financial Asset"
+
+
+def test_equity_method_concept_does_not_become_equity():
+    item = LineItem(
+        label="Investment in associate",
+        concept="EquityMethodInvestments",
+        values={P1: 10, P2: 12},
+    )
+    assert classify_balance_sheet_line(item).category == "Operating Long-Term Asset"
+
+
+def test_cash_flow_hedge_reserve_concept_does_not_become_financial_asset():
+    item = LineItem(
+        label="Other comprehensive income reserve",
+        concept="CashFlowHedgeReserve",
+        values={P1: 10, P2: 12},
+    )
+    assert classify_balance_sheet_line(item).category == "Equity"
+
+
 def test_ambiguous_item_has_real_default_and_flag():
     d = classify_balance_sheet_line(_li("Operating lease liabilities", 50, 60))
     assert d.category in BALANCE_SHEET_CATEGORIES

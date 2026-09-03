@@ -166,6 +166,48 @@ def test_legacy_unique_label_override_still_works():
     assert reform.decisions[0].overridden is True
 
 
+def test_legacy_unique_label_override_is_case_insensitive():
+    item = _li("Goodwill", 10, 12)
+    fin = StandardizedFinancials(
+        ticker="GW",
+        company_name="GW Co",
+        currency="HKD",
+        units="mn",
+        jurisdiction="HK",
+        periods=_periods(),
+        balance_sheet=[item],
+    )
+    reform = reformulate_balance_sheet(
+        fin, [P1, P2], overrides={"goodwill": "Operating Long-Term Asset"}
+    )
+    assert reform.decisions[0].category == "Operating Long-Term Asset"
+    assert reform.decisions[0].overridden is True
+
+    reform2 = reformulate_balance_sheet(
+        fin, [P1, P2], overrides={"label:GOODWILL": "Exclude"}
+    )
+    assert reform2.decisions[0].category == "Exclude"
+    assert reform2.decisions[0].overridden is True
+
+
+def test_duplicate_identity_inside_existing_fails_before_merge():
+    existing = [
+        _li("Deferred income taxes", 40, 45, "DeferredIncomeTaxAssetsNet"),
+        _li("Deferred income taxes", 41, 46, "DeferredIncomeTaxAssetsNet"),
+    ]
+    with pytest.raises(AmbiguousStatementIdentityError):
+        _merge_line_items(existing, [], "source")
+
+
+def test_duplicate_identity_inside_incoming_fails_before_merge():
+    incoming = [
+        _li("Deferred income taxes", 40, 45, "DeferredIncomeTaxAssetsNet"),
+        _li("Deferred income taxes", 41, 46, "DeferredIncomeTaxAssetsNet"),
+    ]
+    with pytest.raises(AmbiguousStatementIdentityError):
+        _merge_line_items([], incoming, "source")
+
+
 def test_unconcepted_duplicate_labels_fail(tmp_path):
     fin = StandardizedFinancials(
         ticker="AMB",
