@@ -32,6 +32,9 @@ class AnchorMetrics:
     noa: float
     leverage: float
     hist_avg_after_tax_cod: float  # already after-tax; do not multiply by (1 − tax) again
+    effective_tax_rate: float
+    net_interest: float
+    net_interest_after_tax: float
     dupont: dict[str, list[float | str | None]]
     reformulation: BalanceSheetReformulation
 
@@ -133,6 +136,9 @@ def compute_anchor(
         noa=noa[last],
         leverage=leverage,
         hist_avg_after_tax_cod=hist_avg_cod,
+        effective_tax_rate=etr[last],
+        net_interest=net_int[last],
+        net_interest_after_tax=niat[last],
         dupont=dupont,
         reformulation=reform,
     )
