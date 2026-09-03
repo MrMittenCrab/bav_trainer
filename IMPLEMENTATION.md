@@ -1,45 +1,134 @@
-# Step 6 — Historical-Only v1: Hide Forecasting and Complete the Historical Formula Core
+# Step 6 — Historical-Only v1: Quarantine Forecasting and Complete the Historical Formula Core
 
-> **For Cursor:** Read `TARGET.md` first. Step 5 is accepted at implementation commit `1db2b333100e1f81115286f26b381c8a795a7f0c` (`chat 5 corrected`). The previous Step 6 plan is superseded by the historical-only v1 decision. Implement only this active step using red/green TDD. Run the exact verification commands, update `RESULT.md`, and stop. Do not commit or push; the user owns the checkpoint commit.
+> **For Cursor:** Read `TARGET.md` first. Step 5 is accepted at implementation commit `1db2b333100e1f81115286f26b381c8a795a7f0c` (`chat 5 corrected`). Implement only this active step using red/green TDD. Run the exact verification commands, update `RESULT.md`, and stop. Do not commit or push; the user owns the implementation checkpoint commit.
 
-**Goal:** Make the generated v1 Trainer / Answer Key a trustworthy **historical-analysis product**. Hide forecast/valuation tabs and remove them from the active practice/check surface, while expanding the historical reformulation + DuPont formula chain to a coherent 21-cell core.
+**Goal:** Turn the current mixed historical/forecast builder into a trustworthy **historical-only v1**. A normal build must not execute the forecast/scenario engine or fabricate forecast assumptions. It should produce a coherent 21-component historical reformulation + DuPont practice surface, while retaining hidden deferred tab names for future integration.
 
-**Architecture:** Keep the existing historical reference-model construction, formula-only `ComponentSpec` / `SemanticMap`, sanitized Trainer, Answer Key Notes, and cache-safe workbook-wide Check. Forecast/valuation code may remain in `ReferenceModelBuilder` as dormant scaffolding, but v1 must not register those formulas as practice components or expose their sheets as normal workbook tabs. Do not redesign forecasting in this step.
+**Architecture:** Preserve the existing historical accounting engine, formula-only semantic component map, sanitized Trainer, Answer Key Notes, and cache-safe workbook-wide Check. Add an explicit internal boundary between the historical build path and the dormant forecast/valuation scaffolding. The normal Trainer build uses the historical path only; forecast code can remain testable behind an internal opt-in but is not exposed through the v1 CLI or active workbooks.
 
-**Tech Stack:** Python, pytest, openpyxl, existing OOXML cache-preserving Check fill patch.
+**Tech Stack:** Python, pytest, openpyxl, existing OOXML cache-preserving fill patch.
 
-**Spec:** `TARGET.md` as updated in planning commit `ae7591b` (`Define historical-only v1 product boundary`).
+**Spec:** `TARGET.md` as updated in planning commit `bafc3c4` (`Quarantine forecast engine from historical v1`).
+
+## Current checkpoint review
+
+Latest accepted implementation commit: `1db2b333100e1f81115286f26b381c8a795a7f0c` (`chat 5 corrected`). It reports 81 passing core tests and correctly implements the Step 5 Trainer / Answer Key / Check contract.
+
+One architecture problem remains important for the new v1 boundary: `ReferenceModelBuilder.__init__` currently synthesizes default forecast assumptions and eagerly calls `run_scenario()` for Bear/Base/Bull before any workbook is built. Therefore merely hiding forecast tabs would still make the historical product depend on untrusted forecast logic. Step 6 must remove that dependency from the normal v1 path.
+
+## Global constraints
+
+- `TARGET.md` is read-only during implementation.
+- Preserve accepted Step 3 accounting integrity, Step 4 concept-aware identity, and Step 5 Trainer / Answer Key / Check behavior.
+- Normal v1 build must not call `run_scenario()` or synthesize forecast vectors/terminal-growth assumptions.
+- Do not use `marketData.dilutedShares` or any forecast default to invent historical EPS/share data.
+- Historical source values and balance-sheet classification choices stay populated in Trainer.
+- Practice cells are formula-bearing historical model-construction cells only.
+- Deferred forecast/valuation tabs must be hidden in both workbooks and absent from active semantic practice, Trainer index, CLI list, and Check.
+- No public v1 CLI flag may enable deferred forecasting.
+- Do not delete the forecast/valuation source code; quarantine it for later BAVGEM integration.
+- Do not add literal-input components, dynamic classification exercises, Hint, Reveal, VBA macros, or Trainer answer metadata.
+- Keep component definitions coordinate-free; coordinates resolve at build time.
+- Do not weaken existing identity/accounting/Check regressions.
+- Cursor must not commit, push, reset, rebase, merge, or delete branches.
 
 ---
 
-## Current checkpoint and product decision
+## Task 1 — Separate the normal historical build path from deferred forecasting
 
-Latest accepted implementation commit: `1db2b333100e1f81115286f26b381c8a795a7f0c` (`chat 5 corrected`).
+**Files:**
+- Modify: `core/engine/reference_model.py`
+- Test: `core/tests/test_reference_integrity.py`
+- Test: `core/tests/test_trainer.py`
 
-Step 5 already provides:
+### Required interface
 
-- matched Trainer / Answer Key workbooks;
-- blank yellow formula-practice cells in Trainer;
-- formula + legacy Note in Answer Key;
-- workbook-wide Check: blank yellow / correct green / incorrect red;
-- cache-safe OOXML recoloring;
-- no Hint / Reveal surface;
-- no answer-bearing Trainer metadata or Trainer answer sidecars;
-- 81 reported passing core tests.
+Add an internal builder switch:
 
-The v1 boundary is now:
-
-```text
-historical source data + supplied setup/classification judgments
-    -> historical formula construction
-    -> historical reformulation
-    -> historical ratios / DuPont / EPS where supported
-    -> historical analysis complete
+```python
+class ReferenceModelBuilder:
+    def __init__(
+        self,
+        financials: StandardizedFinancials,
+        assumptions: dict[str, Any] | None = None,
+        *,
+        include_deferred_forecast: bool = False,
+    ):
+        ...
 ```
 
-Forecasting and valuation are **not part of v1 completion**.
+`build_training_workbook()` must use the default `False`. Do not add a CLI flag for it.
 
-The current builder still creates:
+### Normal historical initialization
+
+When `include_deferred_forecast=False`:
+
+- do not call `_default_assumptions()`;
+- do not call `run_scenario()`;
+- do not populate `_scenario_results` / `_base_result` from forecast math;
+- preserve only configuration needed by historical work, especially `classificationOverrides` when supplied;
+- do not require `marketData`, `scenarios`, growth vectors, margin vectors, beta, terminal growth, or diluted shares.
+
+A minimal historical config is sufficient:
+
+```python
+self.assumptions = dict(assumptions or {})
+self.assumptions.setdefault("classificationOverrides", {})
+```
+
+When `include_deferred_forecast=True`, preserve the old forecast scaffolding behavior so its source code remains available for later work. This flag is internal/deferred only.
+
+### TDD — prove v1 cannot accidentally execute forecasting
+
+Write first:
+
+```python
+def test_normal_v1_build_does_not_call_run_scenario(tmp_path, monkeypatch):
+    import core.engine.reference_model as rm
+
+    def fail(*args, **kwargs):
+        raise AssertionError("forecast engine executed in historical-only v1")
+
+    monkeypatch.setattr(rm, "run_scenario", fail)
+    data = _ingest_demo()
+    trainer, answer = build_training_workbook(
+        data, tmp_path / "DEMO_HK_Trainer.xlsx"
+    )
+    assert trainer.exists()
+    assert answer.exists()
+```
+
+Also add:
+
+```python
+def test_normal_v1_build_requires_no_forecast_assumptions(tmp_path):
+    data = _ingest_demo()
+    trainer, answer = build_training_workbook(
+        data, tmp_path / "DEMO_HK_Trainer.xlsx", assumptions={"classificationOverrides": {}}
+    )
+    assert trainer.exists() and answer.exists()
+```
+
+If an Answer-Key assumptions sidecar is still emitted, assert it contains no synthesized `scenarios`, growth/margin vectors, beta, terminal growth, or default diluted-shares block unless the caller explicitly supplied them.
+
+### Verify
+
+```bash
+PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "historical or forecast or scenario or assumptions" -v
+PYTHONPATH=. pytest core/tests/test_trainer.py -k "forecast or historical" -v
+```
+
+---
+
+## Task 2 — Replace live forecast output in v1 with hidden deferred placeholders
+
+**Files:**
+- Modify: `core/engine/reference_model.py`
+- Test: `core/tests/test_trainer.py`
+
+### Normal v1 workbook shape
+
+When `include_deferred_forecast=False`, build the historical sheets normally, then create these hidden placeholders:
 
 ```text
 Model_Bear
@@ -48,63 +137,58 @@ Model_Bull
 Scenario_Summary
 ```
 
-and currently registers six forecasting/valuation semantic components. Those must become dormant/hidden for v1.
-
-Do not delete the forecast/valuation engine in this step. Do not claim it is correct for arbitrary companies. Leave it available for a later BAVGEM-architecture integration phase.
-
----
-
-## Global constraints
-
-- `TARGET.md` is read-only during implementation.
-- Preserve accepted Step 3 accounting integrity, Step 4 concept-aware identity, and Step 5 Trainer / Answer Key / Check behavior.
-- v1 practice cells must be historical formula-bearing model-construction cells.
-- Historical source statement values remain populated in Trainer.
-- Balance-sheet classification choices remain populated in Trainer.
-- Do not use forecast defaults or `marketData.dilutedShares` to invent historical EPS/share data.
-- Forecast/valuation sheets must be hidden in both Trainer and Answer Key.
-- Forecast/valuation components must not appear in the Trainer index, `python -m core list`, semantic active practice map, or workbook-wide Check.
-- Do not add literal-input components, dynamic classification exercises, or an exercise DSL.
-- Keep component definitions coordinate-free; coordinates resolve at build time.
-- Do not reintroduce Hint, Reveal, VBA macros, Trainer answer metadata, or Trainer answer sidecars.
-- Do not add HKEX/SEC automation.
-- Do not redesign forecast or residual-income mathematics in this step.
-- Do not weaken existing tests.
-- Cursor must not commit, push, reset, rebase, merge, or delete branches.
-
----
-
-## Target active practice surface after this step
-
-The active v1 semantic catalog must contain exactly **21 historical components**:
+Each placeholder should contain only a small non-financial marker such as:
 
 ```text
- 1 effective_tax_rate_fy
- 2 net_interest_fy
- 3 net_interest_after_tax_fy
- 4 nopat_fy
-
- 5 owca_agg
- 6 owcl_agg
- 7 nowc_agg
- 8 olta_agg
- 9 oltl_agg
-10 nola_agg
-11 noa_agg
-12 financial_assets_agg
-13 financial_liabilities_agg
-14 net_debt
-15 equity_reformulated_fy
-
-16 rnoa
-17 after_tax_cod
-18 spread
-19 flev
-20 roe_decomp
-21 actual_roe
+A1 = "Deferred from historical-only v1"
 ```
 
-Remove these six deferred components from the active `COMPONENT_CATALOG` and stop registering them in v1:
+Do not populate company forecasts, valuations, scenario probabilities, terminal values, or per-share outputs on these v1 placeholder sheets.
+
+Set:
+
+```python
+ws.sheet_state = "hidden"
+```
+
+in the Answer Key before the Trainer is copied, so both workbooks inherit identical hidden state.
+
+When `include_deferred_forecast=True`, the existing `_build_model_tab()` / `_build_scenario_summary()` code may still build the experimental forecast workbook for direct internal tests; that mode is not part of the v1 product.
+
+### TDD
+
+```python
+def test_v1_deferred_tabs_are_hidden_placeholders(tmp_path):
+    trainer_path, answer_key_path = _build_pair(tmp_path)
+    deferred = {"Model_Bear", "Model_Base", "Model_Bull", "Scenario_Summary"}
+    for path in (trainer_path, answer_key_path):
+        wb = load_workbook(path, data_only=False)
+        for name in deferred:
+            ws = wb[name]
+            assert ws.sheet_state == "hidden"
+            assert ws["A1"].value == "Deferred from historical-only v1"
+            assert ws.max_row == 1
+        wb.close()
+```
+
+Add a regression proving every active historical semantic formula is independent of those four sheet names.
+
+### Verify
+
+```bash
+PYTHONPATH=. pytest core/tests/test_trainer.py -k "deferred or hidden or parity" -v
+```
+
+---
+
+## Task 3 — Make the active semantic catalog historical-only
+
+**Files:**
+- Modify: `core/engine/component_catalog.py`
+- Modify: `core/engine/reference_model.py`
+- Test: `core/tests/test_trainer.py`
+
+Remove these deferred IDs from active `COMPONENT_CATALOG`:
 
 ```text
 model_sales_y1
@@ -115,120 +199,14 @@ model_ivps
 scenario_weighted
 ```
 
-The underlying forecast/valuation workbook formulas may remain on hidden sheets, but they are not v1 exercises and not part of Check.
+The normal v1 historical build must not register them.
 
----
+`python -m core list`, the Trainer index, the Answer Key semantic map, and workbook-wide Check must therefore contain historical components only.
 
-## Task 1 — Enforce the historical-only visible workbook boundary
-
-**Files:**
-- Modify: `core/engine/reference_model.py`
-- Modify: `core/trainer/workbook.py` only if visibility parity is cleaner there
-- Test: `core/tests/test_trainer.py`
-
-### Required hidden sheets
-
-After build, both Trainer and Answer Key must have these sheet states:
-
-```text
-Model_Bear        -> hidden
-Model_Base        -> hidden
-Model_Bull        -> hidden
-Scenario_Summary  -> hidden
-```
-
-Use ordinary Excel hidden state unless an existing workbook constraint requires `veryHidden`. Do not delete the sheets in this step.
-
-Historical/source sheets and the Trainer index remain visible.
-
-### Required isolation
-
-Historical formulas must not reference the hidden forecast/valuation sheets.
-
-Add a regression that scans the active historical semantic formulas and asserts none contains:
-
-```text
-Model_Bear
-Model_Base
-Model_Bull
-Scenario_Summary
-```
-
-### TDD
-
-Write first:
+Add:
 
 ```python
-def test_forecast_and_valuation_sheets_are_hidden_in_v1_pair(tmp_path):
-    trainer_path, answer_key_path = _build_pair(tmp_path)
-    deferred = {"Model_Bear", "Model_Base", "Model_Bull", "Scenario_Summary"}
-    for path in (trainer_path, answer_key_path):
-        wb = load_workbook(path, data_only=False)
-        for name in deferred:
-            assert name in wb.sheetnames
-            assert wb[name].sheet_state == "hidden"
-        assert wb["Condensed Financials"].sheet_state == "visible"
-        assert wb["ALT DuPont"].sheet_state == "visible"
-        wb.close()
-```
-
-Also assert visible sheet-name parity between Trainer and Answer Key remains intact.
-
-### Verify
-
-```bash
-PYTHONPATH=. pytest core/tests/test_trainer.py -k "hidden or visible or parity" -v
-```
-
----
-
-## Task 2 — Remove deferred forecast/valuation components from active v1 practice
-
-**Files:**
-- Modify: `core/engine/component_catalog.py`
-- Modify: `core/engine/reference_model.py`
-- Test: `core/tests/test_trainer.py`
-- Test: `core/tests/test_reference_integrity.py`
-
-### Catalog rule
-
-`COMPONENT_CATALOG` is the **active v1 practice catalog**. It must contain historical formulas only.
-
-Remove the six deferred forecast/valuation `ComponentSpec`s listed above from the active catalog.
-
-Do not replace them with dummy/disabled entries. The forecast/valuation source code itself remains available elsewhere in the repository for future work.
-
-### Registration rule
-
-Remove/disable the corresponding `_register(...)` calls inside:
-
-```text
-_build_model_tab()
-_build_scenario_summary()
-```
-
-Do not remove the underlying workbook formulas or scenario calculations in this step.
-
-### Public surfaces
-
-After this task:
-
-```bash
-python -m core list
-```
-
-must list historical components only.
-
-The generated Trainer index must list historical components only.
-
-`check_workbook()` must scan only historical components because the matching Answer Key semantic map contains only historical active components.
-
-### TDD
-
-Add assertions equivalent to:
-
-```python
-DEFERRED = {
+DEFERRED_IDS = {
     "model_sales_y1",
     "model_nopat_y1",
     "model_ae_y1",
@@ -236,12 +214,11 @@ DEFERRED = {
     "model_ivps",
     "scenario_weighted",
 }
-assert DEFERRED.isdisjoint({c.id for c in COMPONENT_CATALOG})
+
+assert DEFERRED_IDS.isdisjoint({c.id for c in COMPONENT_CATALOG})
 ```
 
-Build the pair and assert the semantic Answer Key map also excludes all six.
-
-Capture CLI `list` output and assert none of the deferred IDs/titles appears.
+Build the pair and assert the same against `load_semantic_map(answer_key_path)` and captured CLI `list` output.
 
 ### Verify
 
@@ -251,13 +228,11 @@ PYTHONPATH=. pytest core/tests/test_trainer.py -k "catalog or list or deferred" 
 
 ---
 
-## Task 3 — Expose authoritative historical expected values for the missing income-reformulation formulas
+## Task 4 — Expose authoritative historical expected values needed by the expanded practice surface
 
 **Files:**
 - Modify: `core/model/financial_math.py`
 - Test: `core/tests/test_reference_integrity.py`
-
-### Required anchor fields
 
 Extend `AnchorMetrics` with:
 
@@ -267,21 +242,9 @@ net_interest: float
 net_interest_after_tax: float
 ```
 
-Populate them from the existing authoritative historical series already computed inside `compute_anchor()`:
+Populate from the existing historical `etr`, `net_int`, and `niat` series at the latest fiscal period. Do not recompute them in the workbook builder.
 
-```python
-etr
-net_int
-niat
-```
-
-using the latest historical period.
-
-Do not duplicate/recompute the accounting math in `ReferenceModelBuilder`.
-
-### TDD regression
-
-Assert for demo financials:
+Regression:
 
 ```python
 anchor.net_interest_after_tax == pytest.approx(
@@ -290,7 +253,7 @@ anchor.net_interest_after_tax == pytest.approx(
 anchor.nopat == pytest.approx(latest_net_income + anchor.net_interest_after_tax)
 ```
 
-Use production line-resolution semantics rather than fixed row positions.
+Resolve historical source rows with production line-resolution logic, never fixed row positions.
 
 ### Verify
 
@@ -300,15 +263,15 @@ PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "tax or interest o
 
 ---
 
-## Task 4 — Expand the active coordinate-free catalog to the 21-cell historical core
+## Task 5 — Expand the active catalog to the 21-cell historical reformulation + DuPont core
 
 **Files:**
 - Modify: `core/engine/component_catalog.py`
+- Modify: `core/engine/reference_model.py`
+- Test: `core/tests/test_reference_integrity.py`
 - Test: `core/tests/test_trainer.py`
 
-### Required dependency order
-
-Use this active catalog sequence:
+Use exactly this active dependency order:
 
 ```text
  1 effective_tax_rate_fy
@@ -336,13 +299,18 @@ Use this active catalog sequence:
 21 actual_roe                      <- equity_reformulated_fy
 ```
 
-Retain existing IDs for the seven already-active historical components.
+Keep the existing seven historical IDs and add the fourteen missing IDs. Hints should describe the financial relationship without dumping the exact formula.
 
-Add concise conceptual hints for the 14 new historical formulas. Hints explain relationships but do not simply reveal the cell formula.
+Register the exact formulas already present in `Condensed Financials` and `ALT DuPont`; do not create duplicate calculation cells just to make exercises.
 
-### TDD
+Authoritative expected values:
 
-Assert:
+- tax/net interest/after-tax interest -> new `AnchorMetrics` fields;
+- classified aggregate rows -> `self.anchor.reformulation.category_totals[category][last]`;
+- NOPAT/NOWC/NOLA/NOA/Net Debt/Equity -> existing `AnchorMetrics` values;
+- DuPont rows -> `self.anchor.dupont[...]` latest comparable period.
+
+Catalog regressions:
 
 ```python
 assert len(COMPONENT_CATALOG) == 21
@@ -351,213 +319,88 @@ assert len({c.id for c in COMPONENT_CATALOG}) == 21
 assert len({c.semantic_key for c in COMPONENT_CATALOG}) == 21
 ```
 
-For every dependency, assert dependency order is lower than child order.
+For every component, assert each dependency has a lower order.
 
-### Verify
+Reference-map regression: every registered formula must exactly equal the corresponding Answer Key cell formula and have a non-`None` expected value.
 
-```bash
-PYTHONPATH=. pytest core/tests/test_trainer.py -k "catalog" -v
-```
+### Preserve supplied inputs
 
----
-
-## Task 5 — Register the complete historical reformulation core from existing workbook formulas
-
-**Files:**
-- Modify: `core/engine/reference_model.py`
-- Test: `core/tests/test_reference_integrity.py`
-- Test: `core/tests/test_trainer.py`
-
-### General rule
-
-Do not create duplicate workbook calculations merely to create exercises. Register the formulas already used to construct the reference workbook.
-
-Use the latest fiscal-year cell for this first coherent historical-core step.
-
-### Register these existing Condensed Financials formulas
-
-```text
-effective_tax_rate_fy
-net_interest_fy
-net_interest_after_tax_fy
-nopat_fy
-owca_agg
-owcl_agg
-nowc_agg
-olta_agg
-oltl_agg
-nola_agg
-noa_agg
-financial_assets_agg
-financial_liabilities_agg
-net_debt
-equity_reformulated_fy
-```
-
-Expected values must come from authoritative Python-side historical math:
-
-- tax / net interest / after-tax net interest -> `AnchorMetrics` fields from Task 3;
-- category aggregate rows -> `self.anchor.reformulation.category_totals[category][last]`;
-- NOPAT/NOWC/NOLA/NOA/Net Debt/Equity -> existing `AnchorMetrics` values.
-
-Each semantic map formula must equal the exact formula already stored in the corresponding Answer Key cell.
-
-### Keep setup inputs populated
-
-Balance-sheet classification cells stay populated in Trainer and Answer Key.
-
-Add a regression comparing every classification row between the pair and asserting Trainer still contains the same valid category as Answer Key.
-
-Historical source statement values must likewise remain populated and identical between the pair.
+Add assertions that every historical source statement cell and every balance-sheet classification cell is identical between Trainer and Answer Key. These cells must not become blank practice inputs.
 
 ### Verify
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
-PYTHONPATH=. pytest core/tests/test_trainer.py -k "historical or classification or source" -v
+PYTHONPATH=. pytest core/tests/test_trainer.py -k "catalog or historical or classification or source" -v
 ```
 
 ---
 
-## Task 6 — Register the full latest-comparable historical DuPont chain
-
-**Files:**
-- Modify: `core/engine/reference_model.py`
-- Test: `core/tests/test_reference_integrity.py`
-
-### Required active DuPont formulas
-
-`ALT DuPont` already computes:
-
-```text
-RNOA
-After-tax CoD
-Spread
-FLEV
-ROE (decomposed)
-Actual ROE
-```
-
-Keep existing registrations for:
-
-```text
-rnoa
-spread
-roe_decomp
-```
-
-Add:
-
-```text
-after_tax_cod
-flev
-actual_roe
-```
-
-Use the exact existing workbook formulas and expected values from `self.anchor.dupont` for the latest comparable historical period.
-
-Do not alter the accepted equations:
-
-```text
-RNOA            = NOPAT / average NOA
-After-tax CoD   = Net Interest After Tax / average Net Debt
-Spread          = RNOA - After-tax CoD
-FLEV            = average Net Debt / average reformulated Equity
-ROE decomposed  = RNOA + FLEV * Spread
-Actual ROE      = Net Income / average reformulated Equity
-```
-
-### Verify
-
-```bash
-PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "dupont or cod or flev or roe" -v
-```
-
----
-
-## Task 7 — Prove workbook-wide Check is historical-only
+## Task 6 — Make Check and public surfaces historical-only
 
 **Files:**
 - Modify: `core/tests/test_trainer.py`
+- Modify: `core/__main__.py` only if help/list text needs correction
 
-### Required behavior
-
-A fresh v1 Trainer build must report:
+A fresh v1 Trainer must produce:
 
 ```text
-21 total historical practice cells
-0 correct
-0 incorrect
-21 blank
+Checked 21 practice cells: 0 correct, 0 incorrect, 21 blank.
 ```
 
-when checked before learner input.
+The Answer Key semantic map must contain 21 components and every component must point to a visible historical sheet (`Condensed Financials` or `ALT DuPont` for this step). No component may point to a deferred placeholder.
 
-The existing yellow/green/red and repeated-cache behavior must remain intact for historical formula cells.
+Preserve Step 5 behavior:
 
-Add a regression that reads the Answer Key semantic map and proves every active component tab is one of the historical visible model sheets; no active component may point to a hidden deferred forecast/valuation sheet.
+- exact correct formula -> green;
+- wrong formula -> red;
+- blank -> yellow;
+- corrected/re-cleared cells refresh on subsequent Check;
+- cached equivalent formula remains correct across repeated Checks;
+- Check never prints formulas, expected values, or hints.
 
-Check output must not mention hidden forecast/valuation components.
-
-### Hardening regression
-
-Retain/add the Step 5 OOXML regression proving Check changes only fill/style references needed for validation while preserving formula text and cached values.
+`python -m core --help` still exposes `{ingest,build,check,list}` only. Do not add a forecast option.
 
 ### Verify
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_trainer.py -v
-PYTHONPATH=. python -m core check --workbook /tmp/DEMO_HK_Trainer.xlsx
+PYTHONPATH=. python -m core --help
 ```
 
 ---
 
-## Task 8 — Align docs and examples with historical-only v1
+## Task 7 — Align docs, examples, and handoff evidence
 
 **Files:**
 - Modify: `README-HK-TRAINER.md`
 - Modify: `skills/bav-trainer/SKILL.md`
+- Modify: `RESULT.md`
 - Regenerate/update: `example/DEMO_HK_Trainer.xlsx`
 - Regenerate/update: `example/DEMO_HK_Answer_Key.xlsx`
-- Modify: `RESULT.md`
 
-### Documentation contract
-
-Docs must describe v1 as historical analysis only.
-
-State explicitly:
+Docs must say:
 
 ```text
 provided: historical source values + setup/classification judgments
-practice: historical formulas, links, reformulation, ratios, DuPont
-hidden/deferred: forecasting and valuation
+practice: historical links, reformulation formulas, ratios, DuPont
+hidden placeholders: forecasting and valuation
+normal v1 build: does not execute forecast/scenario engine
+future: forecasting returns only after trusted BAVGEM assumptions/judgment integration
 ```
 
-Do not advertise Bear/Base/Bull, residual-income valuation, DCF, terminal value, or forward scenario practice as current v1 functionality.
+Do not advertise Bear/Base/Bull forecasts, residual-income valuation, DCF, terminal value, or forward valuation as current v1 functionality.
 
-You may state that forecast/valuation code remains experimental/deferred and will be revisited through the trusted BAVGEM forecasting architecture.
+Regenerated demo pair must show:
 
-### Example audit
+- 21 active historical practice components;
+- deferred tabs hidden and placeholder-only;
+- no active forecast/valuation formulas or Notes;
+- Trainer 21 blank yellow practice cells with no Notes;
+- Answer Key 21 formula + legacy Note practice cells;
+- source data and classification judgments populated in Trainer.
 
-Regenerate the example pair and inspect with openpyxl:
-
-- historical sheets visible;
-- `Model_Bear`, `Model_Base`, `Model_Bull`, `Scenario_Summary` hidden in both;
-- Trainer index contains exactly 21 active historical components;
-- Trainer practice cells blank/yellow/no Note;
-- Answer Key practice cells formula/yellow/legacy Note;
-- source and classification cells remain populated;
-- no Trainer answer-bearing sidecars;
-- generated metadata stays ignored per `.gitignore`.
-
-Do not add historical EPS in this step by using the forecast `dilutedShares` assumption. The current standardized interface does not yet define authoritative historical diluted-share history. Record this as the next historical-v1 expansion item rather than inventing data.
-
----
-
-## Task 9 — Full regression and handoff evidence
-
-**Files:**
-- Modify: `RESULT.md`
+## Full verification
 
 Run at minimum:
 
@@ -574,51 +417,68 @@ PYTHONPATH=. python -m core list
 PYTHONPATH=. python -m core --help
 ```
 
-Expected high-level artifact result:
+Then audit `/tmp/DEMO_HK_Trainer.xlsx` and its matching Answer Key with openpyxl:
 
-```text
-Trainer / Answer Key pair exists
-21 active historical semantic components
-forecast/valuation tabs hidden in both
-forecast/valuation components absent from active map/index/Check
-fresh Trainer Check = 21 blank
-historical source data/classifications populated
-Trainer active practice cells blank/yellow/no Note
-Answer Key active practice cells formula/yellow/Note
-Hint/Reveal absent
-```
-
-`RESULT.md` must record exact test counts and artifact checks.
-
-Do not commit or push.
-
----
+1. 21 active semantic components only;
+2. Trainer 21 blank/yellow/no-Note practice cells;
+3. Answer Key 21 formula/yellow/non-empty legacy-Note cells;
+4. source statement cells populated and pair-identical;
+5. classification cells populated and pair-identical;
+6. four deferred tabs hidden in both files and contain only the v1 deferred marker;
+7. no active formula references a deferred tab;
+8. Check reports `0 correct, 0 incorrect, 21 blank` on fresh build;
+9. no `hint`, `reveal`, or forecast CLI surface;
+10. no Trainer answer-bearing hidden sheets/sidecars;
+11. generated demo metadata remains ignored as specified by `.gitignore`.
 
 ## Acceptance criteria
 
-Step 6 is accepted only if all are true:
+Step 6 is accepted only when all are true:
 
-1. v1 active catalog/map contains exactly 21 historical formula components.
-2. The six previous forecast/valuation components are absent from active catalog, semantic map, Trainer index, CLI list, and Check.
-3. `Model_Bear`, `Model_Base`, `Model_Bull`, and `Scenario_Summary` are hidden in both Trainer and Answer Key.
-4. Historical/source sheets remain visible and visually matched between the pair.
-5. Historical source numbers remain populated in Trainer.
-6. Balance-sheet classification/setup judgments remain populated in Trainer.
-7. The 15 historical reformulation formulas and six DuPont formulas are registered from the actual Answer Key cells.
-8. Every active historical Trainer practice cell is blank yellow/no Note immediately after build.
-9. Every active historical Answer Key practice cell contains the working formula, yellow fill, and non-empty legacy Note.
-10. Workbook-wide Check scans only the 21 historical cells and preserves Step 5 cache-safe color behavior.
-11. No historical EPS is fabricated from the forecast/default diluted-share assumption.
-12. Docs/examples present v1 as historical-only and forecast/valuation as deferred.
-13. Full core regression suite passes and demo build/audit succeeds.
+1. Normal v1 build succeeds when `run_scenario()` is patched to fail.
+2. Normal v1 build requires no forecast/scenario assumptions.
+3. Deferred tabs exist only as hidden placeholders in the generated v1 pair.
+4. Active catalog/map/index/Check contain exactly 21 historical components.
+5. Forecast/valuation IDs are absent from active product surfaces.
+6. Historical reformulation formulas use authoritative expected values and exact Answer Key formulas.
+7. Historical DuPont formulas preserve the accepted accounting equations.
+8. Historical source values and classification judgments remain populated in Trainer.
+9. Trainer / Answer Key / Check / leakage contracts from Step 5 remain intact.
+10. Full core suite and demo build succeed.
 
-## Next step after acceptance
+## RESULT.md handoff
 
-Do **not** proceed automatically.
+Record:
 
-After Step 6 is accepted, ChatGPT should review the historical workbook as a product. The likely next historical-v1 work is:
+```text
+Status: Step 6 complete
 
-1. extend meaningful historical formulas across all applicable fiscal periods rather than only latest-FY/latest-comparable cells; and
-2. add historical EPS/per-share practice only after the standardized input path carries authoritative historical diluted-share data.
+Implementation checkpoint:
+- based on 1db2b333
 
-Forecasting/valuation remains deferred until a separate design explicitly integrates a trusted assumptions/judgment architecture, preferably the existing BAVGEM forecasting architecture.
+Historical-only boundary:
+- normal build calls run_scenario: no
+- forecast assumptions required: no
+- deferred tabs: four hidden placeholders
+- public forecast CLI: none
+
+Active practice:
+- component count: 21
+- Trainer blank/yellow/no Note: 21/21
+- Answer Key formula/yellow/Note: 21/21
+- Check fresh result: 0 correct / 0 incorrect / 21 blank
+
+Preservation:
+- source values populated: yes
+- classifications populated: yes
+- Trainer answer leakage: none
+- repeated cached Check: preserved
+
+Tests:
+- list every command and exact pass count/result
+
+Unresolved:
+- none OR exact blockers
+```
+
+Do not commit or push after updating `RESULT.md`.
