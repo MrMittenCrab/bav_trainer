@@ -10,6 +10,7 @@ from datetime import date
 from typing import Iterable
 
 from ..data.interface import LineItem, StandardizedFinancials
+from ..data.line_identity import LineIdentity, line_identity
 from ..data.schema import normalize_label
 from .line_resolver import resolve_line
 
@@ -41,6 +42,10 @@ class InvalidClassificationOverrideError(ClassificationError):
 
 class ReformulationIntegrityError(ClassificationError):
     """Classified detail does not reconcile to reported totals."""
+
+
+class AmbiguousClassificationOverrideError(ClassificationError):
+    """Override selector matches zero or multiple detail rows unsafely."""
 
 
 @dataclass(frozen=True)
@@ -93,6 +98,124 @@ def _match_any(low: str, needles: Iterable[str]) -> bool:
     return any(n in low for n in needles)
 
 
+def _concept_token(concept: str) -> str:
+    """Lowercase concept with separators removed for coarse side/category signals."""
+    return "".join(ch for ch in normalize_label(concept).lower() if ch.isalnum())
+
+
+def _classify_by_concept(item: LineItem) -> ClassificationDecision | None:
+    """High-priority concept signals when metadata clearly encodes side/nature."""
+    if not (item.concept or "").strip():
+        return None
+    c = _concept_token(item.concept)
+
+    if "deferred" in c and "tax" in c:
+        if "asset" in c:
+            return ClassificationDecision(
+                "Operating Long-Term Asset",
+                ambiguous=True,
+                reason="Deferred tax asset concept — operating vs exclude judgment",
+            )
+        if "liab" in c:
+            return ClassificationDecision(
+                "Operating Long-Term Liability",
+                ambiguous=True,
+                reason="Deferred tax liability concept — operating vs exclude judgment",
+            )
+
+    if ("lease" in c or "rightofuse" in c or c.startswith("rou")) and "liab" not in c:
+        if "asset" in c or "rightofuse" in c or "rou" in c:
+            return ClassificationDecision(
+                "Operating Long-Term Asset",
+                ambiguous=True,
+                reason="Lease/ROU asset concept — operating vs financial judgment",
+            )
+    if "lease" in c and "liab" in c:
+        return ClassificationDecision(
+            "Operating Long-Term Liability",
+            ambiguous=True,
+            reason="Lease liability concept — operating vs financial judgment",
+        )
+
+    if _match_any(
+        c,
+        ("debt", "borrow", "loanpayable", "notespayable", "bondpayable", "bonds"),
+    ):
+        return ClassificationDecision("Financial Liability")
+
+    if _match_any(c, ("cash", "marketablesecurit", "tradingsecurit", "moneymarket")):
+        return ClassificationDecision("Financial Asset")
+
+    if _match_any(
+        c,
+        (
+            "equity",
+            "retainedearnings",
+            "sharecapital",
+            "additionalpaid",
+            "treasury",
+            "aoci",
+            "othercomprehensive",
+        ),
+    ):
+        return ClassificationDecision("Equity")
+
+    return None
+
+
+def _parse_override_selector(key: str) -> tuple[str, str]:
+    """Return (kind, value) where kind is concept|label."""
+    raw = key.strip()
+    low = raw.lower()
+    if low.startswith("concept:"):
+        return "concept", normalize_label(raw.split(":", 1)[1])
+    if low.startswith("label:"):
+        return "label", normalize_label(raw.split(":", 1)[1])
+    return "label", normalize_label(raw)
+
+
+def resolve_classification_overrides(
+    detail_items: list[LineItem],
+    overrides: dict[str, str],
+) -> dict[LineIdentity, str]:
+    """Map detail-line identities to override categories; reject ambiguous selectors."""
+    resolved: dict[LineIdentity, str] = {}
+    for key, category in overrides.items():
+        if category not in BALANCE_SHEET_CATEGORIES:
+            raise InvalidClassificationOverrideError(
+                f"Invalid classification override {category!r} for selector {key!r}"
+            )
+        kind, value = _parse_override_selector(key)
+        if kind == "concept":
+            matches = [
+                i
+                for i in detail_items
+                if line_identity(i).concept == value
+            ]
+            if len(matches) == 0:
+                continue
+            if len(matches) > 1:
+                raise AmbiguousClassificationOverrideError(
+                    f"concept:{value!r} matches {len(matches)} detail rows; "
+                    f"use a more specific concept or disambiguate source rows"
+                )
+            resolved[line_identity(matches[0])] = category
+            continue
+
+        # label: or bare legacy label — only when unique among detail rows
+        matches = [i for i in detail_items if line_identity(i).label == value]
+        if len(matches) == 0:
+            continue
+        if len(matches) > 1:
+            concepts = [line_identity(i).concept or "(none)" for i in matches]
+            raise AmbiguousClassificationOverrideError(
+                f"label:{value!r} matches {len(matches)} detail rows with concepts "
+                f"{concepts}; use concept:<id> selectors instead"
+            )
+        resolved[line_identity(matches[0])] = category
+    return resolved
+
+
 def classify_balance_sheet_line(
     item: LineItem,
     *,
@@ -110,6 +233,10 @@ def classify_balance_sheet_line(
             reason="User override",
             overridden=True,
         )
+
+    by_concept = _classify_by_concept(item)
+    if by_concept is not None:
+        return by_concept
 
     low = _norm(item.label)
 
@@ -293,7 +420,9 @@ def reformulate_balance_sheet(
 ) -> BalanceSheetReformulation:
     """Classify every non-subtotal BS line and compute reformulation aggregates."""
     overrides = overrides or {}
-    override_by_norm = {_norm(k): v for k, v in overrides.items()}
+
+    detail_items = [item for item in fin.balance_sheet if not is_balance_sheet_subtotal(item)]
+    override_by_identity = resolve_classification_overrides(detail_items, overrides)
 
     n = len(periods)
     decisions: dict[int, ClassificationDecision] = {}
@@ -304,7 +433,7 @@ def reformulate_balance_sheet(
         if is_balance_sheet_subtotal(item):
             continue
         detail_indices.append(idx)
-        ov = override_by_norm.get(_norm(item.label))
+        ov = override_by_identity.get(line_identity(item))
         decision = classify_balance_sheet_line(item, override=ov)
         decisions[idx] = decision
         for j, pd in enumerate(periods):

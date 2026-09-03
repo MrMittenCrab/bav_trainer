@@ -47,6 +47,19 @@ def _parse_header(cell_value) -> date | None:
     return None
 
 
+def _header_layout(header: tuple) -> tuple[int | None, int, int]:
+    """Return (concept_col, label_col, first_date_col)."""
+    if not header:
+        return None, 0, 1
+    h0 = str(header[0] or "").strip().lower()
+    h1 = str(header[1] or "").strip().lower() if len(header) > 1 else ""
+    label_aliases = {"line item", "label", "line_item", "lineitem"}
+    if h0 == "concept" and h1 in label_aliases:
+        return 0, 1, 2
+    # Legacy: optional "Line Item" header in col 0, dates from col 1
+    return None, 0, 1
+
+
 class ExcelExportAdapter(BaseIngestionAdapter):
     """Import IS/BS/CF from Excel exports (Bloomberg, Wind, manual transcription)."""
 
@@ -79,8 +92,9 @@ class ExcelExportAdapter(BaseIngestionAdapter):
             if len(rows) < 2:
                 continue
             header = rows[0]
+            concept_col, label_col, date_start = _header_layout(header)
             col_dates: list[tuple[int, date]] = []
-            for ci, hv in enumerate(header[1:], start=1):
+            for ci, hv in enumerate(header[date_start:], start=date_start):
                 pd = _parse_header(hv)
                 if pd:
                     col_dates.append((ci, pd))
@@ -88,9 +102,12 @@ class ExcelExportAdapter(BaseIngestionAdapter):
                 periods = [FinancialPeriod(end_date=d) for _, d in col_dates]
             items: list[LineItem] = []
             for row in rows[1:]:
-                if not row or not row[0]:
+                if not row or label_col >= len(row) or not row[label_col]:
                     continue
-                label = normalize_label(str(row[0]))
+                label = normalize_label(str(row[label_col]))
+                concept = ""
+                if concept_col is not None and concept_col < len(row) and row[concept_col]:
+                    concept = normalize_label(str(row[concept_col]))
                 values = {}
                 for ci, pd in col_dates:
                     val = row[ci] if ci < len(row) else None
@@ -102,6 +119,7 @@ class ExcelExportAdapter(BaseIngestionAdapter):
                     LineItem(
                         label=label,
                         values=values,
+                        concept=concept,
                         source_doc=str(path),
                     )
                 )

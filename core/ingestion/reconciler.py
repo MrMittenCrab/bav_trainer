@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import date
-
 from ..data.interface import LineItem, ReconciliationReport, StandardizedFinancials
+from ..data.line_identity import line_identity, validate_statement_identities
 from ..data.validators import (
     validate_balance_sheet,
     validate_cash_flow,
@@ -17,19 +16,24 @@ def _merge_line_items(
     incoming: list[LineItem],
     source: str,
 ) -> tuple[list[LineItem], list[dict]]:
-    """Newest-wins merge keyed by normalized label."""
-    by_label: dict[str, LineItem] = {i.label: i for i in existing}
+    """Newest-wins merge keyed by canonical line identity (concept + label)."""
+    by_id: dict[str, LineItem] = {}
+    for item in existing:
+        by_id[line_identity(item).key()] = item
+
     conflicts: list[dict] = []
     for item in incoming:
-        key = item.label
-        if key in by_label:
+        ident = line_identity(item)
+        key = ident.key()
+        if key in by_id:
             for pd, val in item.values.items():
-                old = by_label[key].values.get(pd)
+                old = by_id[key].values.get(pd)
                 if old is not None and val is not None and abs(old - val) > 0.01:
                     if abs(old - val) / max(abs(old), 1) > 0.02:
                         conflicts.append(
                             {
-                                "label": key,
+                                "label": ident.label,
+                                "concept": ident.concept,
                                 "period": pd.isoformat(),
                                 "kept": old,
                                 "discarded": val,
@@ -37,13 +41,13 @@ def _merge_line_items(
                             }
                         )
                         continue
-                by_label[key].values[pd] = val
+                by_id[key].values[pd] = val
                 if source:
-                    by_label[key].source_doc = source
+                    by_id[key].source_doc = source
         else:
             item.source_doc = source
-            by_label[key] = item
-    return list(by_label.values()), conflicts
+            by_id[key] = item
+    return list(by_id.values()), conflicts
 
 
 def reconcile_financials(data: StandardizedFinancials) -> ReconciliationReport:
@@ -71,6 +75,7 @@ def merge_documents(
             getattr(supplement, stmt),
             source_label,
         )
+        validate_statement_identities(merged, stmt)
         setattr(base, stmt, merged)
         report.conflicts.extend(conflicts)
     for pd in supplement.period_dates():

@@ -12,6 +12,7 @@ from openpyxl.styles import Border, Font, PatternFill, Side
 
 from ..engine.reference_model import ReferenceModelBuilder
 from ..engine.semantic_map import SemanticMap
+from ..data.line_identity import validate_financials_identities
 from ..ingestion.reconciler import reconcile_financials
 from .semantic_io import (
     component_map_path_for,
@@ -274,6 +275,8 @@ def build_training_workbook(
 
     Returns ``(trainer_path, answer_key_path)``.
     """
+    validate_financials_identities(financials)
+
     report = reconcile_financials(financials)
     failed = [name for name, ok in report.checksums.items() if ok is False]
     if failed:

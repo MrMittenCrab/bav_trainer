@@ -26,6 +26,8 @@ ReferenceModelBuilder → *_Answer_Key.xlsx
 
 HK ingestion and trainer generation stay in `core/`. Domain rubrics for statement checksums, balance-sheet classification, and DuPont definitions come from BAVGEM Stage 2 / 3 / 4 references — selectively integrated as pure Python in `core/model/`, not by running the full BAVGEM coverage pipeline.
 
+Real-company standardized rows use **concept-aware line identity** when `LineItem.concept` is present: same displayed labels with different concepts stay distinct through merge, classification, and source row maps. Duplicate label-only rows without concepts are rejected rather than silently merged; disambiguate them with concepts (or Excel `Concept | Line Item | dates` columns). Classification overrides accept `concept:<id>` / `label:<text>` selectors (bare unique labels remain backwards compatible).
+
 The ingestion layer implements `DataSourceAdapter`. v1 accepts manual documents only; future HKEX/SEC/SGX adapters plug in without changing the BAV engine or trainer.
 
 ## Workflow

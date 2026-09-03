@@ -13,7 +13,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from ..data.interface import LineItem, StandardizedFinancials
-from ..data.schema import normalize_label
+from ..data.line_identity import line_identity
 from ..model.classification import BALANCE_SHEET_CATEGORIES
 from ..model.financial_math import compute_anchor
 from ..model.line_resolver import resolve_line, workbook_row_for
@@ -187,7 +187,7 @@ class ReferenceModelBuilder:
                 val = item.values.get(pd)
                 c = ws.cell(row=r, column=2 + j, value=val)
                 c.number_format = NUM_FMT
-            self.rowmap[f"{sheet}!{normalize_label(item.label)}"] = r
+            self.rowmap[f"{sheet}!{line_identity(item).key()}"] = r
             r += 1
         return r
 
