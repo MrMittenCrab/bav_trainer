@@ -14,10 +14,36 @@ from pathlib import Path
 from .data.interface import DocumentManifest, DocumentType
 from .engine.component_catalog import COMPONENT_CATALOG
 from .ingestion.manual_hk import HKManualDocumentAdapter
-from .trainer.checker import check_component, check_dependencies
-from .trainer.hints import reveal_answer, show_hint
-from .trainer.semantic_io import load_semantic_map
+from .trainer.checker import check_workbook
+from .trainer.semantic_io import answer_key_path_for, load_semantic_map
 from .trainer.workbook import build_training_workbook
+
+
+def _serialize_line_items(items) -> list[dict]:
+    return [
+        {
+            "label": i.label,
+            "concept": i.concept or "",
+            "values": {_date_key(k): v for k, v in i.values.items()},
+        }
+        for i in items
+    ]
+
+
+def _date_key(d) -> str:
+    """Serialize period keys as YYYY-MM-DD (Excel may yield datetime)."""
+    if hasattr(d, "date") and callable(d.date) and not isinstance(d, type):
+        try:
+            # datetime → date; plain date has date() method that returns self-like attrs
+            from datetime import date, datetime
+
+            if isinstance(d, datetime):
+                return d.date().isoformat()
+            if isinstance(d, date):
+                return d.isoformat()
+        except Exception:
+            pass
+    return d.isoformat() if hasattr(d, "isoformat") else str(d)
 
 
 def cmd_ingest(args: argparse.Namespace) -> int:
@@ -49,21 +75,16 @@ def cmd_ingest(args: argparse.Namespace) -> int:
             "units": data.units,
             "stock_code": data.stock_code,
             "periods": [
-                {"end_date": p.end_date.isoformat(), "label": p.label, "is_interim": p.is_interim}
+                {
+                    "end_date": _date_key(p.end_date),
+                    "label": p.label,
+                    "is_interim": p.is_interim,
+                }
                 for p in data.periods
             ],
-            "income_statement": [
-                {"label": i.label, "values": {k.isoformat(): v for k, v in i.values.items()}}
-                for i in data.income_statement
-            ],
-            "balance_sheet": [
-                {"label": i.label, "values": {k.isoformat(): v for k, v in i.values.items()}}
-                for i in data.balance_sheet
-            ],
-            "cash_flow": [
-                {"label": i.label, "values": {k.isoformat(): v for k, v in i.values.items()}}
-                for i in data.cash_flow
-            ],
+            "income_statement": _serialize_line_items(data.income_statement),
+            "balance_sheet": _serialize_line_items(data.balance_sheet),
+            "cash_flow": _serialize_line_items(data.cash_flow),
         }
         out.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
         print(f"Wrote standardized data: {out}")
@@ -100,36 +121,24 @@ def cmd_build(args: argparse.Namespace) -> int:
 
 
 def cmd_check(args: argparse.Namespace) -> int:
-    result = check_component(Path(args.workbook), args.component)
-    print(result.message)
-    if result.user_value is not None:
-        print(f"  user value: {result.user_value}")
-    if result.expected_value is not None:
-        print(f"  expected:   {result.expected_value}")
-    deps = check_dependencies(Path(args.workbook), args.component)
-    for d in deps:
-        print(f"  dependency: {d}")
-    return 0 if result.passed else 1
-
-
-def cmd_hint(args: argparse.Namespace) -> int:
-    result = show_hint(Path(args.workbook), args.component)
-    print(f"[{result.level}/{result.max_level}] {result.hint_text}")
-    if result.related_cells:
-        print("Related cells:", ", ".join(result.related_cells))
-    return 0
-
-
-def cmd_reveal(args: argparse.Namespace) -> int:
-    formula = reveal_answer(Path(args.workbook), args.component)
-    print(f"Revealed formula: {formula}")
-    return 0
+    summary = check_workbook(Path(args.workbook))
+    print(
+        f"Checked {summary.total} practice cells: "
+        f"{summary.correct} correct, {summary.incorrect} incorrect, {summary.blank} blank."
+    )
+    return 0 if summary.incorrect == 0 else 1
 
 
 def cmd_list(args: argparse.Namespace) -> int:
     wb = Path(args.workbook) if args.workbook else None
     if wb and wb.exists():
-        smap = load_semantic_map(wb)
+        try:
+            smap = load_semantic_map(wb)
+        except FileNotFoundError:
+            ak = answer_key_path_for(wb)
+            if not ak.exists():
+                raise
+            smap = load_semantic_map(ak)
         for comp in smap.all_ordered():
             print(
                 f"{comp.order:2d}. [{comp.id}] {comp.title} — "
@@ -137,7 +146,11 @@ def cmd_list(args: argparse.Namespace) -> int:
             )
     else:
         for spec in COMPONENT_CATALOG:
-            tab = spec.tab_template.replace("{scenario}", spec.scenario) if spec.scenario else spec.tab_template
+            tab = (
+                spec.tab_template.replace("{scenario}", spec.scenario)
+                if spec.scenario
+                else spec.tab_template
+            )
             print(
                 f"{spec.order:2d}. [{spec.id}] {spec.title} — "
                 f"{tab} (semantic: {spec.semantic_key}, {spec.category})"
@@ -163,28 +176,26 @@ def main(argv: list[str] | None = None) -> int:
         "-o",
         "--output",
         required=True,
-        help="Output path (stem ending in _Trainer, or a company stem to which _Trainer/_Answer_Key are appended)",
+        help=(
+            "Output path (stem ending in _Trainer, or a company stem to which "
+            "_Trainer/_Answer_Key are appended)"
+        ),
     )
     p_build.add_argument("-a", "--assumptions", help="assumptions.json for scenarios")
     p_build.set_defaults(func=cmd_build)
 
-    p_check = sub.add_parser("check", help="Validate a practice cell formula")
+    p_check = sub.add_parser(
+        "check",
+        help="Validate every practice cell in a Trainer workbook (yellow/green/red)",
+    )
     p_check.add_argument("--workbook", required=True)
-    p_check.add_argument("--component", required=True)
     p_check.set_defaults(func=cmd_check)
 
-    p_hint = sub.add_parser("hint", help="Show next progressive hint")
-    p_hint.add_argument("--workbook", required=True)
-    p_hint.add_argument("--component", required=True)
-    p_hint.set_defaults(func=cmd_hint)
-
-    p_reveal = sub.add_parser("reveal", help="Insert reference formula (Build/Reveal Answer)")
-    p_reveal.add_argument("--workbook", required=True)
-    p_reveal.add_argument("--component", required=True)
-    p_reveal.set_defaults(func=cmd_reveal)
-
     p_list = sub.add_parser("list", help="List trainer components")
-    p_list.add_argument("--workbook", help="Show resolved coordinates from a built workbook")
+    p_list.add_argument(
+        "--workbook",
+        help="Show resolved coordinates from a built Answer Key (or matching Trainer)",
+    )
     p_list.set_defaults(func=cmd_list)
 
     args = parser.parse_args(argv)

@@ -1,11 +1,19 @@
 ---
 name: bav-trainer
-description: Build matched BAV Excel Trainer / Answer Key workbooks for Hong Kong-listed companies from manually supplied annual reports, interim reports, results materials, or Excel/Bloomberg/Wind exports. Uses shared Stage-2/3 accounting integrity and optional Check / Hint / Reveal support.
+description: Build matched BAV Excel Trainer / Answer Key workbooks for Hong Kong-listed companies from manually supplied annual reports, interim reports, results materials, or Excel/Bloomberg/Wind exports. Uses shared Stage-2/3 accounting integrity and workbook-wide Check with Answer Key Notes as the only hint/answer surface.
 ---
 
 # BAV Excel Trainer — Hong Kong Edition
 
 Build a **matched Trainer / Answer Key pair** where the analyst reconstructs a BAV model (classification, DuPont, forecasting, residual-income valuation) in natural dependency order — while the system handles data extraction, reconciliation, layout, formatting, and answer generation.
+
+## Product loop
+
+```text
+Trainer = blank yellow practice cells, no answers, no hints.
+Check = scans every practice cell; blank yellow, correct green, incorrect red; no answers disclosed.
+Answer Key = same practice cells with formula/input + one legacy Note hint.
+```
 
 ## When to use
 
@@ -20,13 +28,15 @@ Manual HK documents / Excel exports
         ↓  HKManualDocumentAdapter (StandardizedFinancials)
         ↓  reconcile + reformulation integrity (blocking)
 ReferenceModelBuilder → *_Answer_Key.xlsx
-        ↓  TrainingWorkbookGenerator
-*_Trainer.xlsx (blank yellow practice cells) + optional Check / Hint / Reveal
+        ↓  TrainingWorkbookGenerator (sanitize Trainer)
+*_Trainer.xlsx (blank yellow; no answer metadata)
+        ↓  python -m core check --workbook ...
+Workbook-wide yellow / green / red validation (no answers disclosed)
 ```
 
 HK ingestion and trainer generation stay in `core/`. Domain rubrics for statement checksums, balance-sheet classification, and DuPont definitions come from BAVGEM Stage 2 / 3 / 4 references — selectively integrated as pure Python in `core/model/`, not by running the full BAVGEM coverage pipeline.
 
-Real-company standardized rows use **concept-aware line identity** when `LineItem.concept` is present: same displayed labels with different concepts stay distinct through merge, classification, and source row maps. Duplicate label-only rows without concepts are rejected rather than silently merged; disambiguate them with concepts (or Excel `Concept | Line Item | dates` columns). Classification overrides accept `concept:<id>` / `label:<text>` selectors (bare unique labels remain backwards compatible).
+Real-company standardized rows use **concept-aware line identity** when `LineItem.concept` is present: same displayed labels with different concepts stay distinct through merge, classification, and source row maps. Duplicate label-only rows without concepts are rejected rather than silently merged; disambiguate them with concepts (or Excel `Concept | Line Item | dates` columns). Classification overrides accept `concept:<id>` / `label:<text>` selectors (bare unique labels remain backwards compatible). Standardized JSON export preserves `concept` on every statement row.
 
 The ingestion layer implements `DataSourceAdapter`. v1 accepts manual documents only; future HKEX/SEC/SGX adapters plug in without changing the BAV engine or trainer.
 
@@ -54,17 +64,25 @@ python -m core build example/DEMO_HK_Standardized.json \
 ```
 
 Outputs (matched pair from one semantic model):
-- `DEMO_HK_Trainer.xlsx` — practice workbook: source/layout filled; practice cells blank `#FFFF00` with **no** Notes and no adjacent hint cells as the normal UX
-- `DEMO_HK_Answer_Key.xlsx` — complete model with formulas; yellow practice/input cells carry legacy Excel Notes (`BAV Trainer`)
-- `DEMO_HK_Trainer.trainer.json` — component metadata sidecar
+- `DEMO_HK_Trainer.xlsx` — practice workbook: source/layout filled; practice cells blank `#FFFF00` with **no** Notes, no adjacent hint cells, and no answer-bearing hidden sheets or sidecars
+- `DEMO_HK_Answer_Key.xlsx` — complete model with formulas; yellow practice/input cells carry legacy Excel Notes (`BAV Trainer`); semantic map lives here
 
-There is **no** user-facing `*_reference.xlsx`. Build refuses inputs with failed evaluatable source checksums or failed balance-sheet reformulation integrity.
+There is **no** user-facing `*_reference.xlsx` and no Trainer `.trainer.json`. Build refuses inputs with failed evaluatable source checksums or failed balance-sheet reformulation integrity.
 
 ### 3. Practice loop
 
-**Primary feedback:** compare the Trainer against the static Answer Key.
+1. Complete any number of blank yellow practice cells in the Trainer.
+2. Run **one** workbook-wide Check when ready:
 
-**Optional CLI / macros** (dependency-ordered components via `python -m core list`):
+```bash
+python -m core check --workbook training/DEMO_HK_Trainer.xlsx
+```
+
+Check recolors every practice cell from current contents: blank → yellow, correct → green, incorrect → red. It does not change cell values and does not disclose formulas, expected values, or hints.
+
+3. When you want the answer or a hint, open the matching Answer Key: inspect the yellow cell's formula/input and hover its Note.
+
+Practice components (dependency order via `python -m core list`):
 
 1. NOPAT reformulation
 2. NOWC / NOA / Net Debt aggregates
@@ -73,14 +91,6 @@ There is **no** user-facing `*_reference.xlsx`. Build refuses inputs with failed
 5. Abnormal earnings / terminal value / IVPS
 6. Scenario weighting
 
-```bash
-python -m core check --workbook training/DEMO_HK_Trainer.xlsx --component nopat_fy
-python -m core hint  --workbook training/DEMO_HK_Trainer.xlsx --component nopat_fy
-python -m core reveal --workbook training/DEMO_HK_Trainer.xlsx --component nopat_fy
-```
-
-Import `core/templates/TrainerMacros.bas` into Excel for button macros (Reveal works in-VBA; Check/Hint delegate to CLI or show local value).
-
 ## Design principles
 
 | Automated | User practices |
@@ -88,7 +98,7 @@ Import `core/templates/TrainerMacros.bas` into Excel for button macros (Reveal w
 | Document ingestion & reconciliation | Balance-sheet classification judgment |
 | Workbook structure & formatting | Excel formula construction |
 | Answer Key & semantic map | Forecasting & scenario judgment |
-| Optional Check / Hint / Reveal | Valuation mechanics & calibration |
+| Workbook-wide Check (colors only) | Valuation mechanics & calibration |
 
 ## Selective BAVGEM integration
 

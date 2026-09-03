@@ -37,7 +37,7 @@ def test_cli_assumptions_propagate(tmp_path):
     smap_default = load_semantic_map(answer_default)
 
     assumptions = json.loads(
-        (ROOT / "example" / "DEMO_HK_Trainer_reference.assumptions.json").read_text(encoding="utf-8")
+        (ROOT / "example" / "DEMO_HK_Answer_Key.assumptions.json").read_text(encoding="utf-8")
     )
     assumptions["marketData"]["dilutedShares"] = 2500.0
     assumptions["scenarios"]["Base"]["growthVector"] = [0.25] + [0.10] * 9
@@ -329,7 +329,7 @@ def test_python_expected_values_use_corrected_cod(tmp_path):
 def test_pair_behavior_still_holds(tmp_path):
     trainer, answer = _build_pair(tmp_path)
     assert trainer.exists() and answer.exists()
-    smap = load_semantic_map(trainer)
+    smap = load_semantic_map(answer)
     wb_t = load_workbook(trainer, data_only=False)
     wb_a = load_workbook(answer, data_only=False)
     for comp in smap.all_ordered():

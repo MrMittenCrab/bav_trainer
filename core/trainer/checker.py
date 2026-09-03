@@ -1,132 +1,117 @@
-"""Validate user formulas by output and dependencies using SemanticMap."""
+"""Workbook-wide practice-cell validation using the matching Answer Key map."""
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
 from openpyxl import load_workbook
+from openpyxl.styles import PatternFill
 
-from .semantic_io import get_component, load_semantic_map, parse_cell_ref
+from .semantic_io import answer_key_path_for, load_semantic_map, parse_cell_ref
+
+BLANK_RGB = "FFFF00"
+CORRECT_RGB = "C8E6C9"
+INCORRECT_RGB = "FFC7CE"
+
+BLANK_FILL = PatternFill("solid", start_color=BLANK_RGB)
+CORRECT_FILL = PatternFill("solid", start_color=CORRECT_RGB)
+INCORRECT_FILL = PatternFill("solid", start_color=INCORRECT_RGB)
 
 
-@dataclass
-class CheckResult:
-    component_id: str
-    passed: bool
-    message: str
-    user_value: float | str | None = None
-    expected_value: float | str | None = None
-    formula_present: bool = False
+@dataclass(frozen=True)
+class CheckSummary:
+    """Non-disclosing aggregate Check result — no formulas, values, or hints."""
+
+    total: int
+    correct: int
+    incorrect: int
+    blank: int
 
 
 def _normalize_formula(formula: str) -> str:
     return formula.replace(" ", "").replace("'", "").upper()
 
 
-def check_component(workbook_path: Path, component_id: str) -> CheckResult:
-    """Check user formula against build-time expected value from SemanticMap."""
-    smap = load_semantic_map(workbook_path)
-    comp = smap.get(component_id)
+def _is_blank(value) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str) and not value.strip():
+        return True
+    return False
 
-    wb_user = load_workbook(workbook_path, data_only=True)
-    if comp.tab not in wb_user.sheetnames:
-        wb_user.close()
-        return CheckResult(component_id, False, f"Tab missing: {comp.tab}")
 
-    row, col = parse_cell_ref(comp.cell)
-    user_val = wb_user[comp.tab].cell(row=row, column=col).value
-    wb_user.close()
-
-    wb_formula = load_workbook(workbook_path, data_only=False)
-    formula = wb_formula[comp.tab].cell(row=row, column=col).value
-    formula_present = isinstance(formula, str) and formula.startswith("=")
-    wb_formula.close()
-
-    if not formula_present and user_val is None:
-        return CheckResult(
-            component_id,
-            False,
-            "Enter a formula in the practice cell before checking.",
-            formula_present=False,
-        )
-
-    expected = comp.expected_value
-    if expected is None:
-        return CheckResult(
-            component_id,
-            False,
-            "No expected value in component map — rebuild the reference workbook.",
-            user_value=user_val,
-            formula_present=formula_present,
-        )
-
-    if user_val is None:
-        if formula_present and _normalize_formula(str(formula)) == _normalize_formula(comp.formula):
-            user_val = expected
-        else:
-            return CheckResult(
-                component_id,
-                False,
-                "Cell has no computed value. Save the workbook after entering your formula so Excel recalculates.",
-                expected_value=expected,
-                formula_present=formula_present,
-            )
-
+def _values_match(user_val, expected, tolerance: float) -> bool:
     try:
         u, e = float(user_val), float(expected)
-        tol = comp.tolerance
-        if e == 0:
-            passed = abs(u - e) <= tol
-        else:
-            passed = abs(u - e) / abs(e) <= tol or abs(u - e) <= tol
-        msg = "Correct!" if passed else f"Value mismatch: got {u:.4g}, expected {e:.4g} (±{tol:.0%})"
-        return CheckResult(
-            component_id,
-            passed,
-            msg,
-            user_value=u,
-            expected_value=e,
-            formula_present=formula_present,
-        )
     except (TypeError, ValueError):
-        passed = str(user_val).strip().upper() == str(expected).strip().upper()
-        return CheckResult(
-            component_id,
-            passed,
-            "Match" if passed else f"Expected {expected!r}, got {user_val!r}",
-            user_value=user_val,
-            expected_value=expected,
-            formula_present=formula_present,
+        return str(user_val).strip().upper() == str(expected).strip().upper()
+    if e == 0:
+        return abs(u - e) <= tolerance
+    return abs(u - e) / abs(e) <= tolerance or abs(u - e) <= tolerance
+
+
+def check_workbook(trainer_path: Path) -> CheckSummary:
+    """Scan every practice cell in the Trainer; recolor yellow/green/red only.
+
+    Reference semantics come from the matching Answer Key. Never writes answers,
+    formulas, expected values, or hints into the Trainer.
+    """
+    trainer_path = Path(trainer_path)
+    answer_key_path = answer_key_path_for(trainer_path)
+    if not answer_key_path.exists():
+        raise FileNotFoundError(
+            f"Answer Key not found for Trainer {trainer_path.name}: "
+            f"expected {answer_key_path}"
         )
 
+    smap = load_semantic_map(answer_key_path)
+    comps = smap.all_ordered()
 
-def check_dependencies(workbook_path: Path, component_id: str) -> list[str]:
-    """Behavioral check: verify formula references expected precedent cells."""
-    comp = get_component(workbook_path, component_id)
-    wb = load_workbook(workbook_path, data_only=False)
-    if comp.tab not in wb.sheetnames:
-        wb.close()
-        return ["Tab missing"]
-    row, col = parse_cell_ref(comp.cell)
-    formula = wb[comp.tab].cell(row=row, column=col).value
+    wb = load_workbook(trainer_path, data_only=False)
+    wb_cached = load_workbook(trainer_path, data_only=True)
+
+    correct = incorrect = blank = 0
+    for comp in comps:
+        if comp.tab not in wb.sheetnames:
+            incorrect += 1
+            continue
+        row, col = parse_cell_ref(comp.cell)
+        cell = wb[comp.tab].cell(row=row, column=col)
+        formula_val = cell.value
+
+        if _is_blank(formula_val):
+            cell.fill = BLANK_FILL
+            blank += 1
+            continue
+
+        if (
+            isinstance(formula_val, str)
+            and formula_val.startswith("=")
+            and _normalize_formula(formula_val) == _normalize_formula(comp.formula)
+        ):
+            cell.fill = CORRECT_FILL
+            correct += 1
+            continue
+
+        cached = None
+        if comp.tab in wb_cached.sheetnames:
+            cached = wb_cached[comp.tab].cell(row=row, column=col).value
+
+        if cached is not None and _values_match(cached, comp.expected_value, comp.tolerance):
+            cell.fill = CORRECT_FILL
+            correct += 1
+        else:
+            cell.fill = INCORRECT_FILL
+            incorrect += 1
+
+    wb.save(trainer_path)
     wb.close()
-    if not isinstance(formula, str) or not formula.startswith("="):
-        return ["No formula entered"]
+    wb_cached.close()
 
-    warnings: list[str] = []
-    smap = load_semantic_map(workbook_path)
-    for dep_id in comp.depends_on:
-        dep = smap.get(dep_id)
-        dep_ref = f"{dep.tab}!{dep.cell}".replace("'", "")
-        if dep_ref not in formula.replace("'", ""):
-            warnings.append(f"Expected reference to dependency {dep_id} ({dep.tab}!{dep.cell})")
-
-    for related in comp.related_cells:
-        parts = re.findall(r"'?[\w ]+'?![A-Z]+\d+", related)
-        for part in parts:
-            if part.replace("'", "") not in formula.replace("'", ""):
-                if related not in formula:
-                    warnings.append(f"Expected reference to {related} not found in formula")
-    return warnings
+    return CheckSummary(
+        total=len(comps),
+        correct=correct,
+        incorrect=incorrect,
+        blank=blank,
+    )

@@ -426,3 +426,65 @@ def test_excel_optional_concept_column(tmp_path):
         "DeferredIncomeTaxLiabilitiesNet",
     }
     assert all(i.label == "Deferred income taxes" for i in data2.balance_sheet)
+
+
+def test_cli_ingest_preserves_concept_through_json_round_trip(tmp_path):
+    """cmd_ingest -o must export concept so reload keeps deferred-tax identity."""
+    from core.__main__ import main
+
+    src = tmp_path / "concept_source.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Balance Sheet"
+    ws.append(["Concept", "Line Item", P1, P2])
+    ws.append(["DeferredIncomeTaxAssetsNet", "Deferred income taxes", 40, 45])
+    ws.append(["DeferredIncomeTaxLiabilitiesNet", "Deferred income taxes", 25, 28])
+    # Minimal companion statements so ingest can succeed structurally
+    for title in ("Income Statement", "Cash Flow"):
+        w = wb.create_sheet(title)
+        w.append(["Line Item", P1, P2])
+        w.append(["Revenue" if title == "Income Statement" else "Net change in cash", 1, 2])
+    wb.save(src)
+    wb.close()
+
+    out_json = tmp_path / "roundtrip.json"
+    rc = main(["ingest", str(src), "-o", str(out_json)])
+    assert rc in (0, 1)  # checksum may fail on minimal fixture; concept must still export
+    assert out_json.exists()
+
+    payload = __import__("json").loads(out_json.read_text(encoding="utf-8"))
+    bs_rows = payload["balance_sheet"]
+    by_label = [r for r in bs_rows if r["label"] == "Deferred income taxes"]
+    assert len(by_label) == 2
+    concepts = {r["concept"] for r in by_label}
+    assert concepts == {
+        "DeferredIncomeTaxAssetsNet",
+        "DeferredIncomeTaxLiabilitiesNet",
+    }
+    # Explicit empty concept for conceptless rows
+    for row in payload["income_statement"] + payload["cash_flow"]:
+        assert "concept" in row
+        assert isinstance(row["concept"], str)
+
+    from core.ingestion.manual_hk import HKManualDocumentAdapter
+
+    adapter = HKManualDocumentAdapter()
+    reloaded = adapter.ingest(
+        [DocumentManifest(path=str(out_json), doc_type=DocumentType.OTHER)]
+    )
+    assert len(reloaded.balance_sheet) >= 2
+    reloaded_concepts = {
+        i.concept for i in reloaded.balance_sheet if i.label == "Deferred income taxes"
+    }
+    assert reloaded_concepts == {
+        "DeferredIncomeTaxAssetsNet",
+        "DeferredIncomeTaxLiabilitiesNet",
+    }
+    # Still separately identifiable
+    ids = {
+        line_identity(i)
+        for i in reloaded.balance_sheet
+        if i.label == "Deferred income taxes"
+    }
+    assert len(ids) == 2
+

@@ -173,13 +173,14 @@ def _classify_by_concept(item: LineItem) -> ClassificationDecision | None:
         return ClassificationDecision("Financial Asset")
 
     # Unmistakable equity-component concepts (not equity-method investments).
+    # Do not use a generic "commonstock" substring: redeemable / mandatorily
+    # redeemable common stock can be liability-like and must follow label rules.
     if _match_any(
         c,
         (
             "retainedearnings",
             "sharecapital",
             "additionalpaid",
-            "commonstock",
             "treasurystock",
             "treasuryshare",
             "accumulatedothercomprehensive",

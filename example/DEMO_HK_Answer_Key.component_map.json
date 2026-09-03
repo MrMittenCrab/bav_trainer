@@ -1,0 +1,373 @@
+{
+  "version": 1,
+  "components": [
+    {
+      "id": "nopat_fy",
+      "order": 1,
+      "title": "NOPAT (latest fiscal year)",
+      "short_hint": "Reformulate net income to operating profit after tax.",
+      "semantic_key": "condensed.nopat.latest_fy",
+      "category": "accounting",
+      "tab": "Condensed Financials",
+      "cell": "F26",
+      "formula": "=F18+F25",
+      "expected_value": 4150.866462793068,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Start from Net Income on the Income Statement.",
+        "Add back after-tax net interest: Net Interest \u00d7 (1 \u2212 Tax Rate).",
+        "NOPAT = Net Income + Net Interest After Tax."
+      ],
+      "related_cells": [],
+      "status": "pending"
+    },
+    {
+      "id": "nowc_agg",
+      "order": 2,
+      "title": "Net Operating Working Capital (NOWC)",
+      "short_hint": "Sum operating WC assets minus operating WC liabilities.",
+      "semantic_key": "condensed.nowc.latest_fy",
+      "category": "accounting",
+      "tab": "Condensed Financials",
+      "cell": "F31",
+      "formula": "=F29-F30",
+      "expected_value": 1375.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "nopat_fy"
+      ],
+      "hints": [
+        "Use SUMIF over the classification column for 'Operating Working Capital Asset'.",
+        "Subtract SUMIF for 'Operating Working Capital Liability'.",
+        "NOWC = Op. WC Assets \u2212 Op. WC Liabilities."
+      ],
+      "related_cells": [],
+      "status": "pending"
+    },
+    {
+      "id": "noa_agg",
+      "order": 3,
+      "title": "Net Operating Assets (NOA)",
+      "short_hint": "NOWC plus net operating long-term assets.",
+      "semantic_key": "condensed.noa.latest_fy",
+      "category": "accounting",
+      "tab": "Condensed Financials",
+      "cell": "F35",
+      "formula": "=F31+F34",
+      "expected_value": 7950.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "nowc_agg"
+      ],
+      "hints": [
+        "Net Operating LT Assets = Op. LT Assets \u2212 Op. LT Liabilities (SUMIF).",
+        "NOA = NOWC + Net Operating LT Assets."
+      ],
+      "related_cells": [],
+      "status": "pending"
+    },
+    {
+      "id": "net_debt",
+      "order": 4,
+      "title": "Net Debt",
+      "short_hint": "Financial liabilities minus financial assets.",
+      "semantic_key": "condensed.net_debt.latest_fy",
+      "category": "accounting",
+      "tab": "Condensed Financials",
+      "cell": "F38",
+      "formula": "=F37-F36",
+      "expected_value": -750.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "noa_agg"
+      ],
+      "hints": [
+        "Net Debt = SUMIF(Financial Liability) \u2212 SUMIF(Financial Asset).",
+        "Positive net debt means the firm carries net financial obligations."
+      ],
+      "related_cells": [],
+      "status": "pending"
+    },
+    {
+      "id": "rnoa",
+      "order": 5,
+      "title": "Return on Net Operating Assets (RNOA)",
+      "short_hint": "NOPAT divided by average NOA.",
+      "semantic_key": "dupont.rnoa.latest_comparable",
+      "category": "dupont",
+      "tab": "ALT DuPont",
+      "cell": "E5",
+      "formula": "='Condensed Financials'!F26/(('Condensed Financials'!F35+'Condensed Financials'!E35)/2)",
+      "expected_value": 0.5545579776610646,
+      "tolerance": 0.01,
+      "depends_on": [
+        "nopat_fy",
+        "noa_agg"
+      ],
+      "hints": [
+        "RNOA = NOPAT / Average NOA.",
+        "Average NOA = (Beginning NOA + Ending NOA) / 2."
+      ],
+      "related_cells": [],
+      "status": "pending"
+    },
+    {
+      "id": "spread",
+      "order": 6,
+      "title": "Operating Spread (RNOA \u2212 After-tax CoD)",
+      "short_hint": "Operating return minus after-tax cost of debt.",
+      "semantic_key": "dupont.spread.latest_comparable",
+      "category": "dupont",
+      "tab": "ALT DuPont",
+      "cell": "E7",
+      "formula": "=E5-E6",
+      "expected_value": 0.6827961285441025,
+      "tolerance": 0.01,
+      "depends_on": [
+        "rnoa"
+      ],
+      "hints": [
+        "After-tax CoD = Net Interest After Tax / Average Net Debt.",
+        "Spread = RNOA \u2212 After-tax CoD."
+      ],
+      "related_cells": [],
+      "status": "pending"
+    },
+    {
+      "id": "roe_decomp",
+      "order": 7,
+      "title": "ROE decomposition",
+      "short_hint": "ROE = RNOA + FLEV \u00d7 Spread.",
+      "semantic_key": "dupont.roe_decomposed.latest_comparable",
+      "category": "dupont",
+      "tab": "ALT DuPont",
+      "cell": "E9",
+      "formula": "=E5+E8*(E7)",
+      "expected_value": 0.5027160493827161,
+      "tolerance": 0.01,
+      "depends_on": [
+        "rnoa",
+        "spread"
+      ],
+      "hints": [
+        "Financial leverage (FLEV) = Average Net Debt / Average Equity.",
+        "ROE (decomposed) = RNOA + FLEV \u00d7 (RNOA \u2212 After-tax CoD)."
+      ],
+      "related_cells": [],
+      "status": "pending"
+    },
+    {
+      "id": "model_sales_y1",
+      "order": 8,
+      "title": "Base case Y1 revenue forecast",
+      "short_hint": "Anchor revenue \u00d7 (1 + Y1 growth).",
+      "semantic_key": "model.sales.y1",
+      "category": "forecasting",
+      "tab": "Model_Base",
+      "cell": "G21",
+      "formula": "='Income Statement'!F7*(1+0.1)",
+      "expected_value": 13750.000000000002,
+      "tolerance": 0.01,
+      "depends_on": [
+        "nopat_fy"
+      ],
+      "hints": [
+        "Y1 beginning sales = prior fiscal year revenue from Income Statement.",
+        "Y1 Sales = Anchor Revenue \u00d7 (1 + growthVector[0])."
+      ],
+      "related_cells": [],
+      "status": "pending"
+    },
+    {
+      "id": "model_nopat_y1",
+      "order": 9,
+      "title": "Base case Y1 NOPAT",
+      "short_hint": "Forecast sales \u00d7 NOPAT margin.",
+      "semantic_key": "model.nopat.y1",
+      "category": "forecasting",
+      "tab": "Model_Base",
+      "cell": "G27",
+      "formula": "=G21*G22",
+      "expected_value": 2062.5,
+      "tolerance": 0.01,
+      "depends_on": [
+        "model_sales_y1"
+      ],
+      "hints": [
+        "NOPAT = Sales \u00d7 marginVector[t].",
+        "Margin vector is a blue forecast input."
+      ],
+      "related_cells": [],
+      "status": "pending"
+    },
+    {
+      "id": "model_ae_y1",
+      "order": 10,
+      "title": "Year 1 abnormal earnings",
+      "short_hint": "Residual income: NI \u2212 Ke \u00d7 Equity.",
+      "semantic_key": "model.abnormal_earnings.y1",
+      "category": "valuation",
+      "tab": "Model_Base",
+      "cell": "G29",
+      "formula": "=G28-$B$5*G26",
+      "expected_value": 1043.7561538688292,
+      "tolerance": 0.01,
+      "depends_on": [
+        "model_nopat_y1"
+      ],
+      "hints": [
+        "Net Income = NOPAT \u2212 Net Debt \u00d7 after-tax cost of debt.",
+        "Abnormal Earnings = Net Income \u2212 Cost of Equity \u00d7 Book Equity."
+      ],
+      "related_cells": [],
+      "status": "pending"
+    },
+    {
+      "id": "model_tv",
+      "order": 11,
+      "title": "Terminal value (PV of abnormal earnings)",
+      "short_hint": "Gordon growth on terminal-year abnormal earnings, discounted.",
+      "semantic_key": "model.terminal_value.pv",
+      "category": "valuation",
+      "tab": "Model_Base",
+      "cell": "G37",
+      "formula": "=P36*P30",
+      "expected_value": 15516.941694334673,
+      "tolerance": 0.01,
+      "depends_on": [
+        "model_ae_y1"
+      ],
+      "hints": [
+        "TV = AE\u2081\u2080 \u00d7 (1 + g) / (Ke \u2212 g).",
+        "Discount TV back 10 years at Ke."
+      ],
+      "related_cells": [],
+      "status": "pending"
+    },
+    {
+      "id": "model_ivps",
+      "order": 12,
+      "title": "Intrinsic value per share",
+      "short_hint": "Book equity + PV(abnormal earnings) + PV(terminal value).",
+      "semantic_key": "model.ivps",
+      "category": "valuation",
+      "tab": "Model_Base",
+      "cell": "G40",
+      "formula": "=G38/G39",
+      "expected_value": 34.2372,
+      "tolerance": 0.01,
+      "depends_on": [
+        "model_tv"
+      ],
+      "hints": [
+        "IV = Beginning Book Equity + \u03a3 PV(AE) + PV(TV).",
+        "IVPS = IV / Diluted Shares Outstanding."
+      ],
+      "related_cells": [],
+      "status": "pending"
+    },
+    {
+      "id": "scenario_weighted",
+      "order": 13,
+      "title": "Probability-weighted IVPS",
+      "short_hint": "SUMPRODUCT of scenario IVPS and probabilities.",
+      "semantic_key": "scenario.weighted_ivps",
+      "category": "valuation",
+      "tab": "Scenario_Summary",
+      "cell": "E8",
+      "formula": "=SUMPRODUCT(B4:B6,C4:C6)",
+      "expected_value": 34.0383,
+      "tolerance": 0.01,
+      "depends_on": [
+        "model_ivps"
+      ],
+      "hints": [
+        "Weighted IVPS = \u03a3(probability \u00d7 IVPS) across Bear, Base, Bull.",
+        "Probabilities are blue input cells and must sum to 100%."
+      ],
+      "related_cells": [],
+      "status": "pending"
+    }
+  ],
+  "rowmap": {
+    "condensed.nopat.latest_fy": {
+      "tab": "Condensed Financials",
+      "cell": "F26",
+      "row": 26,
+      "col": 6
+    },
+    "condensed.nowc.latest_fy": {
+      "tab": "Condensed Financials",
+      "cell": "F31",
+      "row": 31,
+      "col": 6
+    },
+    "condensed.noa.latest_fy": {
+      "tab": "Condensed Financials",
+      "cell": "F35",
+      "row": 35,
+      "col": 6
+    },
+    "condensed.net_debt.latest_fy": {
+      "tab": "Condensed Financials",
+      "cell": "F38",
+      "row": 38,
+      "col": 6
+    },
+    "dupont.rnoa.latest_comparable": {
+      "tab": "ALT DuPont",
+      "cell": "E5",
+      "row": 5,
+      "col": 5
+    },
+    "dupont.spread.latest_comparable": {
+      "tab": "ALT DuPont",
+      "cell": "E7",
+      "row": 7,
+      "col": 5
+    },
+    "dupont.roe_decomposed.latest_comparable": {
+      "tab": "ALT DuPont",
+      "cell": "E9",
+      "row": 9,
+      "col": 5
+    },
+    "model.sales.y1": {
+      "tab": "Model_Base",
+      "cell": "G21",
+      "row": 21,
+      "col": 7
+    },
+    "model.nopat.y1": {
+      "tab": "Model_Base",
+      "cell": "G27",
+      "row": 27,
+      "col": 7
+    },
+    "model.abnormal_earnings.y1": {
+      "tab": "Model_Base",
+      "cell": "G29",
+      "row": 29,
+      "col": 7
+    },
+    "model.terminal_value.pv": {
+      "tab": "Model_Base",
+      "cell": "G37",
+      "row": 37,
+      "col": 7
+    },
+    "model.ivps": {
+      "tab": "Model_Base",
+      "cell": "G40",
+      "row": 40,
+      "col": 7
+    },
+    "scenario.weighted_ivps": {
+      "tab": "Scenario_Summary",
+      "cell": "E8",
+      "row": 8,
+      "col": 5
+    }
+  }
+}

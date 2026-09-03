@@ -2,6 +2,14 @@
 
 An extension of the BAVGems pipeline that turns manually supplied Hong Kong company filings into **interactive Excel training workbooks**. The full BAV accounting, DuPont, forecasting, residual-income, DCF, and scenario logic is preserved — but US/SEC EDGAR dependency is replaced with a **manual document-input adapter** behind a standardized data interface.
 
+## Product loop
+
+```text
+Trainer = blank yellow practice cells, no answers, no hints.
+Check = scans every practice cell; blank yellow, correct green, incorrect red; no answers disclosed.
+Answer Key = same practice cells with formula/input + one legacy Note hint.
+```
+
 ## Quick start
 
 ```bash
@@ -17,19 +25,19 @@ python -m core build example/DEMO_HK_Standardized.json \
 # List practice components in dependency order
 python -m core list
 
-# After entering a formula in Excel and saving:
-python -m core check --workbook example/DEMO_HK_Trainer.xlsx --component nopat_fy
-python -m core hint  --workbook example/DEMO_HK_Trainer.xlsx --component nopat_fy
-python -m core reveal --workbook example/DEMO_HK_Trainer.xlsx --component nopat_fy
+# After entering formulas in Excel and saving, validate the whole workbook:
+python -m core check --workbook example/DEMO_HK_Trainer.xlsx
 ```
+
+Open the matching Answer Key for the formula/input and hover the yellow cell's Note for the hint.
 
 ## What it does
 
 1. **Ingests** HK annual reports, interim reports, results materials, or Excel/Bloomberg/Wind exports via `HKManualDocumentAdapter`
 2. **Reconciles** into standardized Income Statement / Balance Sheet / Cash Flow structure (`StandardizedFinancials`)
 3. **Builds** a complete BAV model and writes it as the **Answer Key** (`*_Answer_Key.xlsx`) — yellow practice cells with working formulas and concise Excel Notes
-4. **Derives** the matching **Trainer** workbook (`*_Trainer.xlsx`) — same layout, blank yellow practice cells, no embedded answers or Notes
-5. **Provides** optional Check (output validation), Hint (progressive accounting guidance), and Reveal Answer tooling
+4. **Derives** the matching **Trainer** workbook (`*_Trainer.xlsx`) — same layout, blank yellow practice cells, no answers, Notes, or answer-bearing metadata
+5. **Checks** the entire Trainer in one pass: blank stays yellow, correct turns green, incorrect turns red — without disclosing answers
 
 ## Architecture
 
@@ -50,8 +58,8 @@ python -m core reveal --workbook example/DEMO_HK_Trainer.xlsx --component nopat_
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  TrainingWorkbookGenerator                                   │
-│  Answer Key (formulas + Notes) + Trainer (blank yellow)      │
-│  Optional Check / Hint / Reveal via CLI + TrainerMacros.bas  │
+│  Answer Key (formulas + Notes) + sanitized Trainer           │
+│  Workbook-wide Check via CLI (colors only; no answer dump)   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -69,13 +77,9 @@ v1 does **not** scrape HKEX automatically. Supply documents manually:
 | Excel export | Tabs: Income Statement, Balance Sheet, Cash Flow |
 | Bloomberg / Wind | Export to Excel; pass file to `ingest` |
 
-JSON schema matches `example/DEMO_HK_Standardized.json`. Sign conventions: revenue positive, expenses negative.
+JSON schema matches `example/DEMO_HK_Standardized.json`. Sign conventions: revenue positive, expenses negative. When exporting via `python -m core ingest ... -o ...`, each statement row includes `concept` (empty string when absent) so concept-aware identity survives reload.
 
 Use Claude with `/bav-trainer` to assist PDF transcription while you gate classifications and forecasts.
-
-## Excel macros
-
-Import `core/templates/TrainerMacros.bas` via Developer → Visual Basic → Import File. Assign buttons on the Trainer tab to `CheckActive`, `HintActive`, `RevealActive`.
 
 ## Relationship to BAV Pipeline
 

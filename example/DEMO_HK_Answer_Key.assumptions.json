@@ -4,7 +4,7 @@
   "company": "Demo Holdings Limited",
   "marketData": {
     "price": 50.0,
-    "priceDate": "2026-08-31",
+    "priceDate": "2026-09-03",
     "dilutedShares": 1000.0,
     "riskFreeRate": 0.04,
     "equityRiskPremium": 0.05
@@ -176,6 +176,7 @@
       ]
     }
   },
+  "classificationOverrides": {},
   "meta": {
     "anchorRevenue": 12500,
     "currency": "HKD in Millions"

@@ -108,6 +108,15 @@ def test_redeemable_preferred_stock_concept_does_not_force_equity():
     assert classify_balance_sheet_line(item).category == "Financial Liability"
 
 
+def test_redeemable_common_stock_concept_does_not_force_equity():
+    item = LineItem(
+        label="Long-term debt",
+        concept="CommonStockSubjectToRedemption",
+        values={P1: 10, P2: 12},
+    )
+    assert classify_balance_sheet_line(item).category == "Financial Liability"
+
+
 def test_ambiguous_item_has_real_default_and_flag():
     d = classify_balance_sheet_line(_li("Operating lease liabilities", 50, 60))
     assert d.category in BALANCE_SHEET_CATEGORIES
