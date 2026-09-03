@@ -106,11 +106,21 @@ def test_nopat_formula_adds_after_tax_net_interest(tmp_path):
 def test_condensed_aggregates_are_on_sheet_sumif(tmp_path):
     _, answer = _build_pair(tmp_path)
     smap = load_semantic_map(answer)
+    wb = load_workbook(answer, data_only=False)
+    ws = wb["Condensed Financials"]
+    labels = {ws.cell(row=r, column=1).value: r for r in range(1, ws.max_row + 1)}
     for cid in ("nowc_agg", "noa_agg", "net_debt"):
         formula = smap.get(cid).formula
         assert "Balance Sheet" not in formula
-        assert "SUMIF" in formula
-        assert "$B$" in formula
+    # Category SUMIFs live on the detail aggregate rows that feed NOWC / NOA / Net Debt.
+    for label in (
+        "Operating Working Capital Assets",
+        "Operating Long-Term Assets",
+        "Financial Liabilities",
+    ):
+        f = str(ws.cell(row=labels[label], column=2).value)
+        assert "SUMIF" in f and "$B$" in f
+    wb.close()
 
 
 def test_dupont_cod_uses_niat_not_nopat(tmp_path):
@@ -146,7 +156,7 @@ def test_dupont_uses_condensed_equity_not_bs_row_seven(tmp_path):
     condensed = wb["Condensed Financials"]
     eq_row = next(
         r for r in range(1, condensed.max_row + 1)
-        if condensed.cell(row=r, column=1).value == "Equity"
+        if condensed.cell(row=r, column=1).value == "Equity (NOA - Net Debt)"
     )
     flev_row = next(r for r in range(1, 20) if ws.cell(row=r, column=1).value == "FLEV")
     actual_row = next(r for r in range(1, 20) if ws.cell(row=r, column=1).value == "Actual ROE")
@@ -456,9 +466,12 @@ def test_equity_alias_builds_and_matches_python(tmp_path):
     _, answer = build_training_workbook(fin, tmp_path / "EqAlias_Trainer.xlsx")
     wb = load_workbook(answer, data_only=False)
     ws = wb["Condensed Financials"]
-    eq_row = next(r for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=1).value == "Equity")
-    formula = str(ws.cell(row=eq_row, column=3).value)  # latest period col for n=2 is C? periods use col 2+j → col 3 for j=1
-    assert "Balance Sheet" in formula
+    labels = {ws.cell(row=r, column=1).value: r for r in range(1, ws.max_row + 1)}
+    implied = str(ws.cell(row=labels["Equity (NOA - Net Debt)"], column=3).value)
+    reported = str(ws.cell(row=labels["Reported Equity"], column=3).value)
+    assert "Balance Sheet" not in implied
+    assert str(labels["NOA"]) in implied and str(labels["Net Debt"]) in implied
+    assert "Balance Sheet" in reported
     wb.close()
 
 
@@ -478,7 +491,226 @@ def test_equity_absent_fallback_noa_minus_net_debt(tmp_path):
     wb = load_workbook(answer, data_only=False)
     ws = wb["Condensed Financials"]
     labels = {ws.cell(row=r, column=1).value: r for r in range(1, ws.max_row + 1)}
-    f = str(ws.cell(row=labels["Equity"], column=2).value)
+    f = str(ws.cell(row=labels["Equity (NOA - Net Debt)"], column=2).value)
     assert "Balance Sheet" not in f
     assert str(labels["NOA"]) in f and str(labels["Net Debt"]) in f
+    check_f = str(ws.cell(row=labels["CHECK"], column=2).value)
+    assert "UNVERIFIED" in check_f
+    wb.close()
+
+
+def test_build_rejects_failed_source_checksum(tmp_path):
+    data = _ingest_demo()
+    # Break CF roll-up while leaving other statements intact.
+    for item in data.cash_flow:
+        if "operating activities" in item.label.lower():
+            for pd in list(item.values):
+                item.values[pd] = float(item.values[pd]) + 999.0
+    import pytest
+
+    with pytest.raises(ValueError, match="checksum"):
+        build_training_workbook(data, tmp_path / "BrokenCF_Trainer.xlsx")
+
+
+def test_build_rejects_reformulation_gap(tmp_path):
+    from datetime import date
+    from core.data.interface import FinancialPeriod, StandardizedFinancials
+    from core.model.classification import ReformulationIntegrityError
+    import pytest
+
+    p1, p2 = date(2024, 12, 31), date(2025, 12, 31)
+    fin = StandardizedFinancials(
+        ticker="GAP",
+        company_name="Gap Co",
+        currency="HKD",
+        units="mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=p1, label="FY2024"),
+            FinancialPeriod(end_date=p2, label="FY2025"),
+        ],
+        income_statement=[
+            _li("Revenue", 100, 110),
+            _li("Profit before tax", 20, 22),
+            _li("Income tax expense", -3, -3),
+            _li("Profit for the year", 17, 19),
+        ],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 40, 40),
+            _li("Trade receivables", 30, 30),
+            _li("Total assets", 100, 100),
+            _li("Trade payables", 20, 20),
+            _li("Bank borrowings", 30, 30),
+            _li("Total liabilities", 80, 80),
+            _li("Share capital and reserves", 20, 20),
+            _li("Total equity", 20, 20),
+        ],
+        cash_flow=[
+            _li("Net cash from operating activities", 10, 10),
+            _li("Net cash used in investing activities", -4, -4),
+            _li("Net cash from financing activities", -1, -1),
+            _li("Net change in cash and cash equivalents", 5, 5),
+        ],
+    )
+    with pytest.raises(ReformulationIntegrityError):
+        build_training_workbook(fin, tmp_path / "Gap_Trainer.xlsx")
+
+
+def test_condensed_has_live_reconciliation_rows(tmp_path):
+    _, answer = _build_pair(tmp_path)
+    wb = load_workbook(answer, data_only=False)
+    ws = wb["Condensed Financials"]
+    labels = {ws.cell(row=r, column=1).value: r for r in range(1, ws.max_row + 1)}
+    required = [
+        "Operating Working Capital Assets",
+        "Operating Working Capital Liabilities",
+        "NOWC",
+        "Operating Long-Term Assets",
+        "Operating Long-Term Liabilities",
+        "NOLA",
+        "NOA",
+        "Financial Assets",
+        "Financial Liabilities",
+        "Net Debt",
+        "Equity (NOA - Net Debt)",
+        "Reported Equity",
+        "Total Capital",
+        "CHECK",
+    ]
+    for name in required:
+        assert name in labels, name
+    check_f = str(ws.cell(row=labels["CHECK"], column=2).value)
+    assert check_f.startswith("=")
+    assert "OK" in check_f and "CHECK" in check_f
+    wb.close()
+
+
+def test_classification_table_uses_shared_decisions(tmp_path):
+    from core.model.classification import BALANCE_SHEET_CATEGORIES
+    from core.engine.reference_model import ReferenceModelBuilder
+    from core.model.financial_math import compute_anchor
+    from core.data.interface import FinancialPeriod, StandardizedFinancials
+    from datetime import date
+
+    data = _ingest_demo()
+    b = ReferenceModelBuilder(data)
+    assumptions = b.assumptions
+    assumptions["classificationOverrides"] = {
+        "Goodwill": "Operating Long-Term Asset",
+    }
+
+    _, answer = build_training_workbook(
+        data, tmp_path / "ClassDemo_Trainer.xlsx", assumptions
+    )
+
+    periods = data.fiscal_years() or data.period_dates()
+    anchor = compute_anchor(
+        data,
+        periods,
+        classification_overrides={"Goodwill": "Operating Long-Term Asset"},
+    )
+    wb = load_workbook(answer, data_only=False)
+    ws = wb["Condensed Financials"]
+    start = None
+    for r in range(1, ws.max_row + 1):
+        if ws.cell(row=r, column=1).value == "Line Item":
+            start = r + 1
+            break
+    assert start is not None
+    notes_col = 3 + len(periods)
+    by_label = {}
+    r = start
+    while ws.cell(row=r, column=1).value and ws.cell(row=r, column=2).value:
+        label = ws.cell(row=r, column=1).value
+        if label in ("CONDENSED INCOME STATEMENT", "CONDENSED BALANCE SHEET"):
+            break
+        by_label[label] = r
+        r += 1
+    for idx, decision in anchor.reformulation.decisions.items():
+        label = data.balance_sheet[idx].label
+        row = by_label[label]
+        assert ws.cell(row=row, column=2).value == decision.category
+        if decision.overridden:
+            note = str(ws.cell(row=row, column=notes_col).value or "")
+            assert "Override" in note
+    cats = set()
+    for dv in ws.data_validations.dataValidation:
+        if dv.formula1:
+            cats |= {c.strip() for c in dv.formula1.strip('"').split(",")}
+    assert cats == set(BALANCE_SHEET_CATEGORIES)
+    assert not any(c.startswith("Ambiguous") for c in cats)
+    wb.close()
+
+    p1, p2 = date(2024, 12, 31), date(2025, 12, 31)
+    fin = StandardizedFinancials(
+        ticker="AMB",
+        company_name="Amb Co",
+        currency="HKD",
+        units="mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=p1, label="FY2024"),
+            FinancialPeriod(end_date=p2, label="FY2025"),
+        ],
+        income_statement=[
+            _li("Revenue", 100, 110),
+            _li("Profit before tax", 20, 22),
+            _li("Income tax expense", -3, -3),
+            _li("Profit for the year", 17, 19),
+        ],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 40, 40),
+            _li("Trade receivables", 30, 30),
+            _li("Property, plant and equipment", 30, 30),
+            _li("Total assets", 100, 100),
+            _li("Trade payables", 20, 20),
+            _li("Operating lease liabilities", 30, 30),
+            _li("Bank borrowings", 30, 30),
+            _li("Total liabilities", 80, 80),
+            _li("Share capital and reserves", 20, 20),
+            _li("Total equity", 20, 20),
+        ],
+        cash_flow=[
+            _li("Net cash from operating activities", 10, 10),
+            _li("Net cash used in investing activities", -4, -4),
+            _li("Net cash from financing activities", -1, -1),
+            _li("Net change in cash and cash equivalents", 5, 5),
+        ],
+    )
+    _, answer2 = build_training_workbook(fin, tmp_path / "Amb_Trainer.xlsx")
+    wb2 = load_workbook(answer2, data_only=False)
+    ws2 = wb2["Condensed Financials"]
+    lease_row = next(
+        r
+        for r in range(1, ws2.max_row + 1)
+        if ws2.cell(row=r, column=1).value == "Operating lease liabilities"
+    )
+    note = str(ws2.cell(row=lease_row, column=5).value or "")
+    assert "⚠ Review" in note
+    wb2.close()
+
+
+def test_duPont_uses_implied_equity(tmp_path):
+    _, answer = _build_pair(tmp_path)
+    wb = load_workbook(answer, data_only=False)
+    condensed = wb["Condensed Financials"]
+    ws = wb["ALT DuPont"]
+    implied_row = next(
+        r
+        for r in range(1, condensed.max_row + 1)
+        if condensed.cell(row=r, column=1).value == "Equity (NOA - Net Debt)"
+    )
+    reported_row = next(
+        r
+        for r in range(1, condensed.max_row + 1)
+        if condensed.cell(row=r, column=1).value == "Reported Equity"
+    )
+    flev_row = next(r for r in range(1, 20) if ws.cell(row=r, column=1).value == "FLEV")
+    actual_row = next(r for r in range(1, 20) if ws.cell(row=r, column=1).value == "Actual ROE")
+    flev_f = str(ws.cell(row=flev_row, column=5).value)
+    actual_f = str(ws.cell(row=actual_row, column=5).value)
+    assert str(implied_row) in flev_f
+    assert str(implied_row) in actual_f
+    assert str(reported_row) not in flev_f
+    assert str(reported_row) not in actual_f
     wb.close()

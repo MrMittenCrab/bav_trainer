@@ -14,7 +14,8 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 from ..data.interface import LineItem, StandardizedFinancials
 from ..data.schema import normalize_label
-from ..model.financial_math import compute_anchor, guess_classification
+from ..model.classification import BALANCE_SHEET_CATEGORIES
+from ..model.financial_math import compute_anchor
 from ..model.line_resolver import resolve_line, workbook_row_for
 from ..model.ri_engine import run_scenario, weighted_ivps
 from .component_catalog import catalog_by_id
@@ -30,17 +31,6 @@ ORANGE = PatternFill("solid", start_color="FCE5CD")
 YELLOW = PatternFill("solid", start_color="FFF2CC")
 GREEN = PatternFill("solid", start_color="D9EAD3")
 
-CLASSIFICATIONS = [
-    "Operating Working Capital Asset",
-    "Operating Working Capital Liability",
-    "Operating Long-Term Asset",
-    "Operating Long-Term Liability",
-    "Financial Asset",
-    "Financial Liability",
-    "Ambiguous — Operating",
-    "Ambiguous — Financial",
-]
-
 
 class ReferenceModelBuilder:
     """Construct reference workbook and populate SemanticMap at build time."""
@@ -53,9 +43,16 @@ class ReferenceModelBuilder:
         self.fin = financials
         self.periods = financials.fiscal_years() or financials.period_dates()
         self.assumptions = assumptions or self._default_assumptions()
+        if "classificationOverrides" not in self.assumptions:
+            self.assumptions["classificationOverrides"] = {}
         self.rowmap: dict[str, Any] = {}
         self.semantic_map = SemanticMap()
-        self.anchor = compute_anchor(financials, self.periods)
+        overrides = self.assumptions.get("classificationOverrides") or {}
+        self.anchor = compute_anchor(
+            financials,
+            self.periods,
+            classification_overrides=overrides,
+        )
         self._n = len(self.periods)
         self._last_fy_col = 2 + self._n - 1
         self._first_fc_col = 2 + self._n
@@ -73,7 +70,10 @@ class ReferenceModelBuilder:
     def _default_assumptions(self) -> dict[str, Any]:
         anchor_rev = 1000.0
         if self.fin.income_statement and self.periods:
-            rev_item = self.fin.income_statement[0]
+            rev_item = resolve_line(
+                self.fin.income_statement, "revenue", required=True
+            ).item
+            assert rev_item is not None
             anchor_rev = rev_item.values.get(self.periods[-1]) or 1000.0
         growth = [0.10] * 10
         margin = [0.15] * 10
@@ -108,6 +108,7 @@ class ReferenceModelBuilder:
                     ("Bull", 0.25, 1.05),
                 )
             },
+            "classificationOverrides": {},
             "meta": {"anchorRevenue": anchor_rev, "currency": self.fin.units},
         }
 
@@ -220,25 +221,35 @@ class ReferenceModelBuilder:
             ws.column_dimensions[self._col(3 + j)].width = 14
         r += 1
 
+        notes_col = 3 + self._n
+        ws.cell(row=r - 1, column=notes_col, value="Notes").font = BOLD
+        ws.column_dimensions[self._col(notes_col)].width = 42
+
         class_start = r
         dv = DataValidation(
             type="list",
-            formula1=f'"{",".join(CLASSIFICATIONS)}"',
-            allow_blank=True,
+            formula1=f'"{",".join(BALANCE_SHEET_CATEGORIES)}"',
+            allow_blank=False,
         )
         ws.add_data_validation(dv)
-        # Keep label, classification, and period values together so SUMIF stays on-sheet.
-        for item in self.fin.balance_sheet:
-            if "total" in item.label.lower():
-                continue
+        # Shared decisions drive defaults; SUMIF stays on-sheet for live reclassification.
+        reform = self.anchor.reformulation
+        for idx in reform.detail_indices:
+            item = self.fin.balance_sheet[idx]
+            decision = reform.decisions[idx]
             ws.cell(row=r, column=1, value=item.label)
-            cat = guess_classification(item.label)
-            ws.cell(row=r, column=2, value=cat)
-            if cat:
-                dv.add(ws.cell(row=r, column=2))
+            cat_cell = ws.cell(row=r, column=2, value=decision.category)
+            dv.add(cat_cell)
             for j, pd in enumerate(self.periods):
                 c = ws.cell(row=r, column=3 + j, value=item.values.get(pd))
                 c.number_format = NUM_FMT
+            note_parts: list[str] = []
+            if decision.ambiguous:
+                note_parts.append(f"⚠ Review: {decision.reason or 'judgment required'}")
+            if decision.overridden:
+                note_parts.append(f"Override → {decision.category}")
+            if note_parts:
+                ws.cell(row=r, column=notes_col, value="; ".join(note_parts))
             r += 1
         class_end = r - 1
         self.rowmap["condensed_class_start"] = class_start
@@ -260,7 +271,6 @@ class ReferenceModelBuilder:
         int_inc_src = self._resolved_source_row(self.fin.income_statement, "interest_income")
         equity_src = self._resolved_source_row(self.fin.balance_sheet, "total_equity")
         row_nums: dict[str, int] = {}
-
         for label, src_row, bold in [
             ("Net Income", ni_src, False),
             ("Pretax Income", pretax_src, False),
@@ -344,7 +354,6 @@ class ReferenceModelBuilder:
             c.number_format = NUM_FMT
         r += 1
         self.rowmap["condensed_nopat_row"] = nopat_row
-        self._condensed_equity_src = equity_src
 
         lc = self._last_fy_col
         nopat_formula = ws.cell(row=nopat_row, column=lc).value
@@ -367,15 +376,30 @@ class ReferenceModelBuilder:
                 f"{value_col}${class_start}:{value_col}${class_end})"
             )
 
+        def _fill_sumif_row(label: str, category: str, *, bold: bool = False) -> int:
+            nonlocal r
+            row = r
+            ws.cell(row=r, column=1, value=label).font = Font(bold=bold)
+            for j in range(self._n):
+                vcol = self._col(3 + j)
+                c = ws.cell(row=r, column=2 + j, value=f"={_class_sumif(category, vcol)}")
+                c.number_format = NUM_FMT
+            r += 1
+            return row
+
+        owca_row = _fill_sumif_row(
+            "Operating Working Capital Assets", "Operating Working Capital Asset"
+        )
+        owcl_row = _fill_sumif_row(
+            "Operating Working Capital Liabilities",
+            "Operating Working Capital Liability",
+        )
+
         nowc_row = r
         ws.cell(row=r, column=1, value="NOWC").font = BOLD
         for j in range(self._n):
-            vcol = self._col(3 + j)
-            f = (
-                f"={_class_sumif('Operating Working Capital Asset', vcol)}"
-                f"-{_class_sumif('Operating Working Capital Liability', vcol)}"
-            )
-            c = ws.cell(row=r, column=2 + j, value=f)
+            col = self._col(2 + j)
+            c = ws.cell(row=r, column=2 + j, value=f"={col}{owca_row}-{col}{owcl_row}")
             c.number_format = NUM_FMT
         r += 1
         self._register(
@@ -387,17 +411,26 @@ class ReferenceModelBuilder:
             self.anchor.nowc,
         )
 
+        olta_row = _fill_sumif_row(
+            "Operating Long-Term Assets", "Operating Long-Term Asset"
+        )
+        oltl_row = _fill_sumif_row(
+            "Operating Long-Term Liabilities", "Operating Long-Term Liability"
+        )
+
+        nola_row = r
+        ws.cell(row=r, column=1, value="NOLA").font = BOLD
+        for j in range(self._n):
+            col = self._col(2 + j)
+            c = ws.cell(row=r, column=2 + j, value=f"={col}{olta_row}-{col}{oltl_row}")
+            c.number_format = NUM_FMT
+        r += 1
+
         noa_row = r
         ws.cell(row=r, column=1, value="NOA").font = BOLD
         for j in range(self._n):
             col = self._col(2 + j)
-            vcol = self._col(3 + j)
-            f = (
-                f"={col}{nowc_row}+"
-                f"{_class_sumif('Operating Long-Term Asset', vcol)}"
-                f"-{_class_sumif('Operating Long-Term Liability', vcol)}"
-            )
-            c = ws.cell(row=r, column=2 + j, value=f)
+            c = ws.cell(row=r, column=2 + j, value=f"={col}{nowc_row}+{col}{nola_row}")
             c.number_format = NUM_FMT
         r += 1
         self._register(
@@ -409,16 +442,16 @@ class ReferenceModelBuilder:
             self.anchor.noa,
         )
 
+        fa_row = _fill_sumif_row("Financial Assets", "Financial Asset")
+        fl_row = _fill_sumif_row("Financial Liabilities", "Financial Liability")
+
         nd_row = r
         ws.cell(row=r, column=1, value="Net Debt").font = BOLD
         for j in range(self._n):
-            vcol = self._col(3 + j)
-            f = (
-                f"={_class_sumif('Financial Liability', vcol)}"
-                f"-{_class_sumif('Financial Asset', vcol)}"
-            )
-            c = ws.cell(row=r, column=2 + j, value=f)
+            col = self._col(2 + j)
+            c = ws.cell(row=r, column=2 + j, value=f"={col}{fl_row}-{col}{fa_row}")
             c.number_format = NUM_FMT
+        r += 1
         self._register(
             "net_debt",
             "Condensed Financials",
@@ -427,23 +460,56 @@ class ReferenceModelBuilder:
             str(ws.cell(row=nd_row, column=lc).value),
             self.anchor.net_debt,
         )
-        r += 1
 
-        # Historical Equity — canonical BS line or NOA − Net Debt (matches Python).
         equity_row = r
-        ws.cell(row=r, column=1, value="Equity").font = BOLD
+        ws.cell(row=r, column=1, value="Equity (NOA - Net Debt)").font = BOLD
         for j in range(self._n):
             col = self._col(2 + j)
-            if getattr(self, "_condensed_equity_src", None):
-                f = f"='Balance Sheet'!{col}{self._condensed_equity_src}"
+            c = ws.cell(row=r, column=2 + j, value=f"={col}{noa_row}-{col}{nd_row}")
+            c.number_format = NUM_FMT
+        r += 1
+
+        reported_eq_row = r
+        ws.cell(row=r, column=1, value="Reported Equity").font = BOLD
+        for j in range(self._n):
+            col = self._col(2 + j)
+            if equity_src:
+                f: str | None = f"='Balance Sheet'!{col}{equity_src}"
             else:
-                f = f"={col}{noa_row}-{col}{nd_row}"
+                f = None
             c = ws.cell(row=r, column=2 + j, value=f)
             c.number_format = NUM_FMT
+        r += 1
+
+        total_cap_row = r
+        ws.cell(row=r, column=1, value="Total Capital").font = BOLD
+        for j in range(self._n):
+            col = self._col(2 + j)
+            c = ws.cell(row=r, column=2 + j, value=f"={col}{nd_row}+{col}{equity_row}")
+            c.number_format = NUM_FMT
+        r += 1
+
+        check_row = r
+        ws.cell(row=r, column=1, value="CHECK").font = BOLD
+        for j in range(self._n):
+            col = self._col(2 + j)
+            if equity_src:
+                f = (
+                    f'=IF(ABS({col}{equity_row}-{col}{reported_eq_row})<1,"OK","CHECK")'
+                )
+            else:
+                f = '="UNVERIFIED"'
+            ws.cell(row=r, column=2 + j, value=f)
+        r += 1
+
         self.rowmap["condensed_nowc_row"] = nowc_row
+        self.rowmap["condensed_nola_row"] = nola_row
         self.rowmap["condensed_noa_row"] = noa_row
         self.rowmap["condensed_nd_row"] = nd_row
         self.rowmap["condensed_equity_row"] = equity_row
+        self.rowmap["condensed_reported_equity_row"] = reported_eq_row
+        self.rowmap["condensed_total_capital_row"] = total_cap_row
+        self.rowmap["condensed_check_row"] = check_row
         self.rowmap["condensed_nola_via_noa"] = True
 
     def _build_dupont(self, wb: Workbook) -> None:

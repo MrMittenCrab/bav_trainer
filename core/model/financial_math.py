@@ -6,46 +6,12 @@ from dataclasses import dataclass
 from datetime import date
 
 from ..data.interface import LineItem, StandardizedFinancials
+from .classification import (
+    BalanceSheetReformulation,
+    check_reformulation_integrity,
+    reformulate_balance_sheet,
+)
 from .line_resolver import resolve_line
-
-CLASSIFICATIONS = {
-    "cash": "FA",
-    "short-term investment": "FA",
-    "accounts receivable": "OWCA",
-    "trade receivable": "OWCA",
-    "inventory": "OWCA",
-    "inventories": "OWCA",
-    "prepaid": "OWCA",
-    "property": "OLTA",
-    "goodwill": "OLTA",
-    "intangible": "OLTA",
-    "accounts payable": "OWCL",
-    "trade payable": "OWCL",
-    "accrued": "OWCL",
-    "deferred revenue": "OWCL",
-    "long-term debt": "FL",
-    "bank borrow": "FL",
-    "lease": "OLTL",
-}
-
-CAT_NAMES = {
-    "OWCA": "Operating Working Capital Asset",
-    "OWCL": "Operating Working Capital Liability",
-    "OLTA": "Operating Long-Term Asset",
-    "OLTL": "Operating Long-Term Liability",
-    "FA": "Financial Asset",
-    "FL": "Financial Liability",
-}
-
-
-def guess_classification(label: str) -> str:
-    low = label.lower()
-    if "total" in low:
-        return ""
-    for key, cat in CLASSIFICATIONS.items():
-        if key in low:
-            return CAT_NAMES[cat]
-    return "Ambiguous — Operating"
 
 
 def _val(item: LineItem | None, period: date) -> float:
@@ -67,15 +33,28 @@ class AnchorMetrics:
     leverage: float
     hist_avg_after_tax_cod: float  # already after-tax; do not multiply by (1 − tax) again
     dupont: dict[str, list[float | str | None]]
+    reformulation: BalanceSheetReformulation
 
 
-def compute_anchor(fin: StandardizedFinancials, periods: list[date]) -> AnchorMetrics:
+def compute_anchor(
+    fin: StandardizedFinancials,
+    periods: list[date],
+    *,
+    classification_overrides: dict[str, str] | None = None,
+    enforce_integrity: bool = True,
+    tolerance: float = 1.0,
+) -> AnchorMetrics:
     """Compute anchor and historical metrics from standardized financials."""
     is_items = fin.income_statement
-    bs_items = fin.balance_sheet
     n = len(periods)
     if n < 1:
         raise ValueError("At least one period required")
+
+    reform = reformulate_balance_sheet(
+        fin, periods, overrides=classification_overrides
+    )
+    if enforce_integrity:
+        check_reformulation_integrity(reform, periods, tolerance=tolerance)
 
     rev_item = resolve_line(is_items, "revenue", required=True).item
     ni_item = resolve_line(is_items, "net_income", required=True).item
@@ -91,55 +70,16 @@ def compute_anchor(fin: StandardizedFinancials, periods: list[date]) -> AnchorMe
     pretax = [_val(pretax_item, p) for p in periods]
     tax = [_val(tax_item, p) for p in periods]
 
-    # Sign conventions: expenses negative in source data; missing optional interest → 0
     net_int = [-(ie + ii) for ie, ii in zip(int_exp, int_inc)]
     etr = [(-tax[i] / pretax[i]) if pretax[i] else 0.0 for i in range(n)]
     niat = [net_int[i] * (1 - etr[i]) for i in range(n)]
     nopat = [ni[i] + niat[i] for i in range(n)]
 
-    # Classify balance sheet
-    owca, owcl, olta, oltl, fa, fl = [], [], [], [], [], []
-    for item in bs_items:
-        if "total" in item.label.lower():
-            continue
-        cat = guess_classification(item.label)
-        vals = [_val(item, p) for p in periods]
-        if cat == "Operating Working Capital Asset":
-            owca.append(vals)
-        elif cat == "Operating Working Capital Liability":
-            owcl.append(vals)
-        elif cat == "Operating Long-Term Asset":
-            olta.append(vals)
-        elif cat == "Operating Long-Term Liability":
-            oltl.append(vals)
-        elif cat == "Financial Asset":
-            fa.append(vals)
-        elif cat == "Financial Liability":
-            fl.append(vals)
-
-    def _sum_rows(rows: list[list[float]]) -> list[float]:
-        if not rows:
-            return [0.0] * n
-        return [sum(r[i] for r in rows) for i in range(n)]
-
-    owca_t = _sum_rows(owca)
-    owcl_t = _sum_rows(owcl)
-    olta_t = _sum_rows(olta)
-    oltl_t = _sum_rows(oltl)
-    fa_t = _sum_rows(fa)
-    fl_t = _sum_rows(fl)
-
-    nowc = [owca_t[i] - owcl_t[i] for i in range(n)]
-    nola = [olta_t[i] - oltl_t[i] for i in range(n)]
-    noa = [nowc[i] + nola[i] for i in range(n)]
-    net_debt = [fl_t[i] - fa_t[i] for i in range(n)]
-
-    te_item = resolve_line(bs_items, "total_equity", required=False).item
-    equity = (
-        [_val(te_item, p) for p in periods]
-        if te_item is not None
-        else [noa[i] - net_debt[i] for i in range(n)]
-    )
+    nowc = list(reform.nowc)
+    nola = list(reform.nola)
+    noa = list(reform.noa)
+    net_debt = list(reform.net_debt)
+    equity = list(reform.implied_equity)
 
     def avg(series: list[float], i: int) -> float:
         if i == 0:
@@ -194,4 +134,5 @@ def compute_anchor(fin: StandardizedFinancials, periods: list[date]) -> AnchorMe
         leverage=leverage,
         hist_avg_after_tax_cod=hist_avg_cod,
         dupont=dupont,
+        reformulation=reform,
     )

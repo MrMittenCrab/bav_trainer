@@ -12,6 +12,7 @@ from openpyxl.styles import Border, Font, PatternFill, Side
 
 from ..engine.reference_model import ReferenceModelBuilder
 from ..engine.semantic_map import SemanticMap
+from ..ingestion.reconciler import reconcile_financials
 from .semantic_io import (
     component_map_path_for,
     load_semantic_map,
@@ -273,6 +274,16 @@ def build_training_workbook(
 
     Returns ``(trainer_path, answer_key_path)``.
     """
+    report = reconcile_financials(financials)
+    failed = [name for name, ok in report.checksums.items() if ok is False]
+    if failed:
+        details = "; ".join(failed)
+        warnings = "; ".join(report.warnings) if report.warnings else details
+        raise ValueError(
+            f"Source statement checksum failed ({details}). "
+            f"Refuse Trainer / Answer Key build. {warnings}"
+        )
+
     trainer_path, answer_key_path = resolve_pair_paths(output_path)
     builder = ReferenceModelBuilder(financials, assumptions)
     semantic_map = builder.build(answer_key_path)

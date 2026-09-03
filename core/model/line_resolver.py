@@ -79,6 +79,8 @@ _EXACT_ALIASES: dict[str, frozenset[str]] = {
             "owners equity",
         }
     ),
+    "total_assets": frozenset({"total assets"}),
+    "total_liabilities": frozenset({"total liabilities"}),
 }
 
 
@@ -102,6 +104,10 @@ def _safe_pattern_match(concept: str, label_norm: str) -> bool:
         if label_norm.startswith("total equity"):
             return True
         return False
+    if concept == "total_assets":
+        return label_norm == "total assets"
+    if concept == "total_liabilities":
+        return label_norm == "total liabilities"
     return False
 
 

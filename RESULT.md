@@ -1,21 +1,28 @@
-# RESULT.md
+Status: Step 3 complete
 
-**Status:** Step 2B complete
+Files changed:
+- Create: `core/model/classification.py`
+- Modify: `core/model/financial_math.py`
+- Modify: `core/model/line_resolver.py`
+- Modify: `core/engine/reference_model.py`
+- Modify: `core/trainer/workbook.py`
+- Modify: `core/data/validators.py`
+- Modify: `example/DEMO_HK_Standardized.json`
+- Create: `core/tests/test_classification.py`
+- Modify: `core/tests/test_reference_integrity.py`
+- Modify: `skills/bav-trainer/SKILL.md`
+- Modify: `RESULT.md`
 
-**Files changed:**
-- `core/model/line_resolver.py` (new)
-- `core/model/financial_math.py`
-- `core/engine/reference_model.py`
-- `core/tests/test_line_resolver.py` (new)
-- `core/tests/test_reference_integrity.py`
-- `RESULT.md`
+Tests run:
+- `pytest core/tests/test_classification.py -v` -> 9 passed
+- `pytest core/tests/test_reference_integrity.py -v` -> 18 passed
+- `pytest core/tests/test_line_resolver.py -v` -> 6 passed
+- `pytest core/tests/test_trainer.py -v` -> 15 passed
+- `pytest core/tests/ -q` -> 48 passed
+- `python -m core build example/DEMO_HK_Standardized.json -o /tmp/DEMO_HK_Trainer.xlsx` -> exit 0; wrote `/tmp/DEMO_HK_Trainer.xlsx` + `/tmp/DEMO_HK_Answer_Key.xlsx` (13 components)
 
-**Summary:** Canonical `resolve_line()` now selects revenue / NI / pretax / tax / interest / equity for both Python `compute_anchor()` and the Excel reference model. Demo tax no longer resolves to `Profit before tax`. Optional interest lines and equity alias/fallback stay consistent; DuPont uses condensed Equity; dependency integrity checks were strengthened.
+Reconciliation:
+- source statement checks: income_statement=True, balance_sheet=True, cash_flow=True
+- demo reformulation gaps: asset/liability/equity gaps = (0,0,0,0,0) for all five fiscal years
 
-**Tests run:**
-- `python -m pytest core/tests/test_line_resolver.py -v --tb=short` → 6 passed
-- `python -m pytest core/tests/test_reference_integrity.py -v --tb=short` → 13 passed
-- `python -m pytest core/tests/test_trainer.py -v --tb=short` → 15 passed
-- `python -m pytest core/tests/ -q --tb=line` → 34 passed
-
-**Unresolved:** Not recalculated in desktop Excel (openpyxl formula/presence checks only).
+Unresolved: none
