@@ -15,8 +15,6 @@ The trainer is for learning **historical model construction and dependency logic
 
 v1 ends at a complete historical analytical model.
 
-The learner should be able to trace supplied historical statements through reformulation and historical ratio analysis:
-
 ```text
 provided historical source statements
     -> supplied classification / setup judgments
@@ -24,19 +22,19 @@ provided historical source statements
     -> NOPAT / NOWC / NOLA / NOA / Net Debt / Equity
     -> growth / margins / tax / financing metrics
     -> RNOA / after-tax CoD / Spread / FLEV / ROE / DuPont
-    -> historical EPS / per-share metrics when the required historical share-count data is supplied
+    -> historical EPS / per-share metrics when required historical share-count data is supplied
     -> coherent historical analysis complete
 ```
 
 Forecasting, residual-income valuation, DCF/cross-check valuation, terminal value, Bear/Base/Bull scenarios, and forward valuation multiples are **deferred from v1**.
 
-The existing forecasting/valuation code may remain in the repository as dormant scaffolding for later integration, but v1 must not present it as trusted product output.
+The existing forecasting/valuation source code may remain in the repository as dormant scaffolding for later integration, but the **normal v1 build path must not execute that forecasting/valuation engine, synthesize forecast assumptions, or depend on forecast outputs in order to produce the historical product**.
 
-## Visible workbook scope
+When forecasting is reintroduced, prefer integration with the trusted BAVGEM forecasting/assumption architecture and explicit analyst judgment rather than inventing an assumption-free forecasting system.
 
-The normal v1 Trainer / Answer Key experience should expose the historical-analysis sheets, including the source statements, `Condensed Financials`, `ALT DuPont`, and the Trainer index.
+## Deferred forecast/valuation tabs
 
-Forecast/valuation sheets such as:
+The v1 workbooks may retain these tab names so the workbook can evolve later:
 
 ```text
 Model_Bear
@@ -45,9 +43,11 @@ Model_Bull
 Scenario_Summary
 ```
 
-must be hidden in both generated v1 workbooks and excluded from the Trainer index, semantic practice surface, and workbook-wide Check.
+For v1 they are **hidden deferred placeholders**, not live company forecasts or valuation outputs. They must be hidden in both Trainer and Answer Key and excluded from the Trainer index, semantic practice surface, and workbook-wide Check.
 
-Their hidden existence must not affect historical formulas or historical expected values. A user who never opens or unhides them must have a complete v1 product.
+A normal v1 build must succeed even if the dormant forecast engine is unavailable or deliberately fails. Hidden deferred tabs must not affect historical formulas, historical expected values, historical build success, or Check.
+
+No public v1 CLI option should enable the deferred forecasting system.
 
 ## Learner experience
 
@@ -93,18 +93,18 @@ A literal number or category should not become a practice cell merely because it
 ## Hard requirements
 
 - **Historical reference-model first.** Trainer formulas must come from a complete working historical model, not hand-authored answer keys.
+- **Historical build independence.** Normal v1 generation must not call the deferred forecast/scenario engine or require scenario assumptions, forecast vectors, terminal growth, beta, or forward valuation inputs.
 - **No invented historical inputs.** Historical ratios and per-share metrics must use supplied historical data. Do not use forecast defaults or fabricated assumptions to fill missing historical facts.
 - **Formula-construction focus.** v1 practice consists of formula-bearing historical model-construction cells. Do not add literal-number transcription or classification quizzes merely to increase exercise count.
-- **Forecast/valuation deferred.** v1 does not claim to build or teach a trustworthy forward forecast or valuation model. Existing forecast/valuation sheets are hidden and outside the active semantic practice surface.
-- **Future forecast integration.** When forecasting is reintroduced, prefer integration with the trusted BAVGEM forecasting/assumption architecture rather than inventing a new assumption-free forecasting system.
+- **Forecast/valuation deferred.** v1 does not claim to build or teach a trustworthy forward forecast or valuation model. Deferred forecast/valuation tabs are hidden placeholders rather than trusted outputs.
 - **Exactly two user-facing workbooks.** One build produces a clearly named Trainer and matching Answer Key; no third reference workbook is required.
 - **Trainer contains no answers or hints.** Every active practice cell starts blank bright yellow with no Note/comment. Hidden Trainer sheets and Trainer-associated sidecars must not contain withheld active-practice formulas, expected values, or hints.
 - **Answer Key contains formula + Note.** Every corresponding active practice cell contains the correct working formula and a non-empty legacy Excel Note.
-- **Workbook-wide Check.** One Check scans every active historical practice cell; hidden deferred forecast/valuation cells are not checked.
+- **Workbook-wide Check.** One Check scans every active historical practice cell; deferred forecast/valuation cells are not checked.
 - **Check colors only.** Blank stays yellow, correct becomes green, incorrect becomes red; re-running Check recomputes current state without changing learner contents.
 - **Check is non-disclosing.** Aggregate counts are allowed; formulas, expected values, hints, and answers are not printed or inserted.
 - **No Hint / Reveal product surface.** Opening the Answer Key is how the learner gets the formula or hint.
-- **Visual parity.** Trainer and Answer Key share the same visible historical workbook structure and formatting except blank/completed practice contents and Answer Key Notes. Deferred forecast/valuation sheets have the same hidden state in both.
+- **Visual parity.** Trainer and Answer Key share the same visible historical workbook structure and formatting except blank/completed practice contents and Answer Key Notes. Deferred tabs have the same hidden state in both.
 - **Reference aesthetic.** Match the supplied professional-model style: Aptos Narrow, 20-point bold worksheet titles, 11-point body text, black text on white, bright-yellow practice cells, restrained thin borders, and appropriate financial number formats.
 - **Semantic component mapping.** Historical practice formulas resolve by semantic identity at build time rather than fragile static coordinates.
 - **Professional workbook preserved.** Training mode removes only selected historical calculation formulas; source data, classifications, labels, setup, formatting, and non-practice calculations remain populated.
@@ -125,6 +125,7 @@ Forecasting and valuation are separate future product phases, not prerequisites 
 
 ## Non-goals for v1
 
+- Executing automatic company forecasts as part of a normal historical build.
 - Forward revenue, margin, balance-sheet, or earnings forecasts.
 - Bear/Base/Bull scenario construction.
 - Residual-income, DCF, terminal-value, or forward valuation exercises.
@@ -151,7 +152,7 @@ For every selected historical formula-practice component before Check:
 - the Trainer and its associated active metadata contain no withheld answer/hint for that component;
 - the corresponding Answer Key cell is bright yellow, contains the correct working formula, and carries a concise non-empty legacy Note.
 
-Historical source data and classification/setup judgments remain populated. Forecast/valuation sheets are hidden and excluded from practice/Check. A single Check action validates all active historical practice cells without disclosing answers.
+Historical source data and classification/setup judgments remain populated. Deferred forecast/valuation tabs are hidden placeholders and excluded from practice/Check. Normal historical generation does not run the dormant forecast/scenario engine and does not fabricate forecast assumptions. A single Check action validates all active historical practice cells without disclosing answers.
 
 Historical reformulation and ratio analysis are internally coherent and preserve concept-aware line identity. Historical EPS/per-share analysis is included only where required historical share data is supplied; missing share history is not filled with invented forecast assumptions.
 
