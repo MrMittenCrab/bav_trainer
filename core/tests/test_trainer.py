@@ -65,16 +65,26 @@ def test_catalog_has_no_coordinates():
         assert "tab" not in d or spec.tab_template
 
 
-def test_catalog_has_27_components_in_dependency_order():
-    assert len(COMPONENT_CATALOG) == 27
-    assert [c.order for c in COMPONENT_CATALOG] == list(range(1, 28))
-    assert len({c.id for c in COMPONENT_CATALOG}) == 27
-    assert len({c.semantic_key for c in COMPONENT_CATALOG}) == 27
+def test_catalog_has_21_historical_components_in_dependency_order():
+    assert len(COMPONENT_CATALOG) == 21
+    assert [c.order for c in COMPONENT_CATALOG] == list(range(1, 22))
+    assert len({c.id for c in COMPONENT_CATALOG}) == 21
+    assert len({c.semantic_key for c in COMPONENT_CATALOG}) == 21
     by_id = {c.id: c for c in COMPONENT_CATALOG}
     for spec in COMPONENT_CATALOG:
         for dep in spec.depends_on:
             assert dep in by_id
             assert by_id[dep].order < spec.order
+
+    deferred_ids = {
+        "model_sales_y1",
+        "model_nopat_y1",
+        "model_ae_y1",
+        "model_tv",
+        "model_ivps",
+        "scenario_weighted",
+    }
+    assert deferred_ids.isdisjoint({c.id for c in COMPONENT_CATALOG})
 
 
 def test_ingest_demo_json():
@@ -539,27 +549,38 @@ def test_source_data_classifications_and_assumptions_remain_populated(tmp_path):
         assert ("Condensed Financials", f"B{r}") not in practice_coords
     assert class_count > 0
 
-    # 3) Scenario/model assumption inputs remain populated and identical.
-    assumption_checks = [
-        ("Model_Base", "B5"),   # Cost of Equity
-        ("Model_Base", "B6"),   # Tax rate
-        ("Model_Base", "B9"),   # Terminal growth
-        ("Model_Base", "G22"),  # NOPAT margin Y1
-        ("Model_Base", "G39"),  # Diluted Shares
-        ("Scenario_Summary", "B4"),
-        ("Scenario_Summary", "B5"),
-        ("Scenario_Summary", "B6"),
-    ]
-    for tab, cell_ref in assumption_checks:
-        row, col = parse_cell_ref(cell_ref)
-        av = wb_a[tab].cell(row=row, column=col).value
-        tv = wb_t[tab].cell(row=row, column=col).value
-        assert av is not None
-        assert tv == av
-        assert (tab, cell_ref) not in practice_coords
-
     wb_t.close()
     wb_a.close()
+
+
+def test_v1_deferred_tabs_are_hidden_placeholders(tmp_path):
+    trainer_path, answer_key_path = _build_pair(tmp_path)
+    deferred = {"Model_Bear", "Model_Base", "Model_Bull", "Scenario_Summary"}
+    smap = load_semantic_map(answer_key_path)
+
+    for path in (trainer_path, answer_key_path):
+        wb = load_workbook(path, data_only=False)
+        for name in deferred:
+            ws = wb[name]
+            assert ws.sheet_state == "hidden"
+            assert ws["A1"].value == "Deferred from historical-only v1"
+            assert ws.max_row == 1
+            assert ws.max_column == 1
+        wb.close()
+
+    for comp in smap.all_ordered():
+        for name in deferred:
+            assert name not in comp.formula
+    assert len(smap.all_ordered()) == 21
+    deferred_ids = {
+        "model_sales_y1",
+        "model_nopat_y1",
+        "model_ae_y1",
+        "model_tv",
+        "model_ivps",
+        "scenario_weighted",
+    }
+    assert deferred_ids.isdisjoint({c.id for c in smap.all_ordered()})
 
 
 def test_expanded_historical_chain_check_three_states(tmp_path):
@@ -568,7 +589,7 @@ def test_expanded_historical_chain_check_three_states(tmp_path):
     assert smap.get("effective_tax_rate_fy")
     assert smap.get("owca_agg")
     assert smap.get("after_tax_cod")
-    assert len(smap.all_ordered()) == 27
+    assert len(smap.all_ordered()) == 21
 
     etr = smap.get("effective_tax_rate_fy")
     owca = smap.get("owca_agg")
@@ -584,10 +605,10 @@ def test_expanded_historical_chain_check_three_states(tmp_path):
     wb.close()
 
     summary = check_workbook(trainer_path)
-    assert summary.total == 27
+    assert summary.total == 21
     assert summary.correct == 1
     assert summary.incorrect == 1
-    assert summary.blank == 25
+    assert summary.blank == 19
 
     wb = load_workbook(trainer_path, data_only=False)
     r, c = parse_cell_ref(etr.cell)

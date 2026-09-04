@@ -307,6 +307,11 @@ COMPONENT_CATALOG: tuple[ComponentSpec, ...] = (
             "Actual ROE = Net Income / Average Equity.",
         ),
     ),
+)
+
+
+# Dormant forecast/valuation specs — not part of public COMPONENT_CATALOG / list / Check.
+DEFERRED_COMPONENT_SPECS: tuple[ComponentSpec, ...] = (
     ComponentSpec(
         id="model_sales_y1",
         order=22,

@@ -181,7 +181,11 @@ def main(argv: list[str] | None = None) -> int:
             "_Trainer/_Answer_Key are appended)"
         ),
     )
-    p_build.add_argument("-a", "--assumptions", help="assumptions.json for scenarios")
+    p_build.add_argument(
+        "-a",
+        "--assumptions",
+        help="Optional historical configuration JSON (e.g. classificationOverrides)",
+    )
     p_build.set_defaults(func=cmd_build)
 
     p_check = sub.add_parser(

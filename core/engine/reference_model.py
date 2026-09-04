@@ -18,7 +18,7 @@ from ..model.classification import BALANCE_SHEET_CATEGORIES
 from ..model.financial_math import compute_anchor
 from ..model.line_resolver import resolve_line, workbook_row_for
 from ..model.ri_engine import run_scenario, weighted_ivps
-from .component_catalog import catalog_by_id
+from .component_catalog import DEFERRED_COMPONENT_SPECS, catalog_by_id
 from .map_embed import embed_component_map_sheet
 from .semantic_map import SemanticMap
 
@@ -31,6 +31,9 @@ ORANGE = PatternFill("solid", start_color="FCE5CD")
 YELLOW = PatternFill("solid", start_color="FFF2CC")
 GREEN = PatternFill("solid", start_color="D9EAD3")
 
+DEFERRED_TAB_NAMES = ("Model_Bear", "Model_Base", "Model_Bull", "Scenario_Summary")
+DEFERRED_PLACEHOLDER = "Deferred from historical-only v1"
+
 
 class ReferenceModelBuilder:
     """Construct reference workbook and populate SemanticMap at build time."""
@@ -39,12 +42,14 @@ class ReferenceModelBuilder:
         self,
         financials: StandardizedFinancials,
         assumptions: dict[str, Any] | None = None,
+        *,
+        include_deferred_forecast: bool = False,
     ):
         self.fin = financials
         self.periods = financials.fiscal_years() or financials.period_dates()
-        self.assumptions = assumptions or self._default_assumptions()
-        if "classificationOverrides" not in self.assumptions:
-            self.assumptions["classificationOverrides"] = {}
+        self.include_deferred_forecast = include_deferred_forecast
+        self.assumptions = dict(assumptions or {})
+        self.assumptions.setdefault("classificationOverrides", {})
         self.rowmap: dict[str, Any] = {}
         self.semantic_map = SemanticMap()
         overrides = self.assumptions.get("classificationOverrides") or {}
@@ -56,16 +61,25 @@ class ReferenceModelBuilder:
         self._n = len(self.periods)
         self._last_fy_col = 2 + self._n - 1
         self._first_fc_col = 2 + self._n
-        shares = self.assumptions["marketData"]["dilutedShares"]
-        self._scenario_results = {
-            name: run_scenario(
-                self.assumptions["scenarios"][name],
-                self.anchor,
-                shares,
-            )
-            for name in ("Bear", "Base", "Bull")
-        }
-        self._base_result = self._scenario_results["Base"]
+        self._scenario_results: dict[str, Any] = {}
+        self._base_result = None
+
+        if self.include_deferred_forecast:
+            # Internal/legacy path only — never enabled by normal v1 build.
+            if "scenarios" not in self.assumptions or "marketData" not in self.assumptions:
+                defaults = self._default_assumptions()
+                for key, value in defaults.items():
+                    self.assumptions.setdefault(key, value)
+            shares = self.assumptions["marketData"]["dilutedShares"]
+            self._scenario_results = {
+                name: run_scenario(
+                    self.assumptions["scenarios"][name],
+                    self.anchor,
+                    shares,
+                )
+                for name in ("Bear", "Base", "Bull")
+            }
+            self._base_result = self._scenario_results["Base"]
 
     def _default_assumptions(self) -> dict[str, Any]:
         anchor_rev = 1000.0
@@ -117,9 +131,15 @@ class ReferenceModelBuilder:
         self._build_source_tabs(wb)
         self._build_condensed(wb)
         self._build_dupont(wb)
-        for scenario in ("Bear", "Base", "Bull"):
-            self._build_model_tab(wb, scenario)
-        self._build_scenario_summary(wb)
+        if self.include_deferred_forecast:
+            for scenario in ("Bear", "Base", "Bull"):
+                self._build_model_tab(wb, scenario)
+            self._build_scenario_summary(wb)
+        else:
+            for name in DEFERRED_TAB_NAMES:
+                ws = wb.create_sheet(name)
+                ws["A1"] = DEFERRED_PLACEHOLDER
+                ws.sheet_state = "hidden"
 
         errors = self.semantic_map.validate_complete()
         if errors:
@@ -153,7 +173,12 @@ class ReferenceModelBuilder:
         expected: float | str,
         related: list[str] | None = None,
     ) -> None:
-        spec = catalog_by_id()[spec_id]
+        specs = catalog_by_id()
+        if spec_id not in specs:
+            specs = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
+        if spec_id not in specs:
+            raise KeyError(f"Unknown component spec: {spec_id}")
+        spec = specs[spec_id]
         self.semantic_map.register(spec, tab, row, col, formula, expected, related_cells=related)
 
     def _resolved_source_row(self, items: list[LineItem], concept: str, *, required: bool = False) -> int | None:

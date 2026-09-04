@@ -32,6 +32,45 @@ def _build_pair(tmp_path, assumptions=None):
     return build_training_workbook(data, tmp_path / "DEMO_HK_Trainer.xlsx", assumptions)
 
 
+def test_normal_v1_build_does_not_call_run_scenario(tmp_path, monkeypatch):
+    import core.engine.reference_model as rm
+
+    def fail(*args, **kwargs):
+        raise AssertionError("forecast engine executed in historical-only v1")
+
+    monkeypatch.setattr(rm, "run_scenario", fail)
+
+    data = _ingest_demo()
+    trainer, answer = build_training_workbook(
+        data,
+        tmp_path / "DEMO_HK_Trainer.xlsx",
+    )
+
+    assert trainer.exists()
+    assert answer.exists()
+
+
+def test_normal_v1_build_requires_no_forecast_assumptions(tmp_path):
+    data = _ingest_demo()
+    trainer, answer = build_training_workbook(
+        data,
+        tmp_path / "DEMO_HK_Trainer.xlsx",
+        assumptions={"classificationOverrides": {}},
+    )
+    assert trainer.exists()
+    assert answer.exists()
+    sidecar = answer.with_suffix(".assumptions.json")
+    if sidecar.exists():
+        payload = json.loads(sidecar.read_text(encoding="utf-8"))
+        assert "scenarios" not in payload
+        assert "growthVector" not in json.dumps(payload)
+        assert "marginVector" not in json.dumps(payload)
+        assert "terminalGrowth" not in json.dumps(payload)
+        assert "beta" not in json.dumps(payload)
+        market = payload.get("marketData") or {}
+        assert "dilutedShares" not in market
+
+
 def test_anchor_exposes_tax_and_interest_expected_values():
     data = _ingest_demo()
     periods = data.fiscal_years() or data.period_dates()
@@ -95,18 +134,17 @@ DUPONT_IDS = (
 
 
 def test_cli_assumptions_propagate(tmp_path):
-    """CLI-supplied assumptions must change a visible model input."""
+    """CLI-supplied historical classification overrides must affect reformulation."""
     data = _ingest_demo()
-    # Build default to capture baseline diluted shares / growth path
     _, answer_default = build_training_workbook(data, tmp_path / "Default_Trainer.xlsx")
     smap_default = load_semantic_map(answer_default)
 
-    # Builder generated assumptions next to the temporary Answer Key.
-    default_assumptions_path = answer_default.with_suffix(".assumptions.json")
-    assumptions = json.loads(default_assumptions_path.read_text(encoding="utf-8"))
-    assumptions["marketData"]["dilutedShares"] = 2500.0
-    assumptions["scenarios"]["Base"]["growthVector"] = [0.25] + [0.10] * 9
-
+    # Move Cash into operating WC so NOA changes without breaking BS integrity.
+    assumptions = {
+        "classificationOverrides": {
+            "label:Cash and cash equivalents": "Operating Working Capital Asset",
+        }
+    }
     from core.__main__ import main
 
     out = tmp_path / "Assumed_Trainer.xlsx"
@@ -116,22 +154,16 @@ def test_cli_assumptions_propagate(tmp_path):
 
     answer = tmp_path / "Assumed_Answer_Key.xlsx"
     wb = load_workbook(answer, data_only=False)
-    ws = wb["Model_Base"]
+    ws = wb["Condensed Financials"]
     smap = load_semantic_map(answer)
-    sales = smap.get("model_sales_y1")
-    row, col = parse_cell_ref(sales.cell)
-    formula = ws.cell(row=row, column=col).value
-    assert isinstance(formula, str)
-    assert "0.25" in formula.replace(" ", "")
-    # Shares cell on model sheet should reflect dilutedShares
-    found_shares = False
-    for r in range(1, 50):
-        if ws.cell(row=r, column=1).value == "Diluted Shares":
-            assert ws.cell(row=r, column=col).value == 2500.0
-            found_shares = True
+    found = False
+    for r in range(1, 40):
+        if ws.cell(row=r, column=1).value == "Cash and cash equivalents":
+            assert ws.cell(row=r, column=2).value == "Operating Working Capital Asset"
+            found = True
             break
-    assert found_shares
-    assert sales.expected_value != smap_default.get("model_sales_y1").expected_value
+    assert found
+    assert smap.get("nowc_agg").expected_value != smap_default.get("nowc_agg").expected_value
     wb.close()
 
 
@@ -235,7 +267,12 @@ def test_dupont_uses_condensed_equity_not_bs_row_seven(tmp_path):
 
 
 def test_ten_year_forecast_chain_populated(tmp_path):
-    _, answer = _build_pair(tmp_path)
+    """Internal deferred-forecast path still builds a full 10-year chain."""
+    data = _ingest_demo()
+    from core.engine.reference_model import ReferenceModelBuilder
+
+    answer = tmp_path / "Deferred_Answer_Key.xlsx"
+    ReferenceModelBuilder(data, include_deferred_forecast=True).build(answer)
     wb = load_workbook(answer, data_only=False)
     for scenario in ("Bear", "Base", "Bull"):
         ws = wb[f"Model_{scenario}"]
@@ -347,17 +384,11 @@ def test_semantic_formulas_have_no_blank_required_refs(tmp_path):
     assert spread_f.startswith("=")
     assert "-" in spread_f
 
-    ws = wb["Model_Base"]
-    ml = _labels(ws)
-    fc = next(c for c in range(2, 30) if ws.cell(row=20, column=c).value == "Y1")
-    for label in ("Sales", "NOPAT", "Abnormal Earnings", "Discount Factor"):
-        assert ws.cell(row=ml[label], column=fc).value not in (None, "")
-    assert ws.cell(row=ml["Abnormal Earnings"], column=fc + 9).value not in (None, "")
-    assert ws.cell(row=ml["Discount Factor"], column=fc + 9).value not in (None, "")
-    assert ws.cell(row=ml["Terminal Value"], column=fc + 9).value not in (None, "")
-    for label in ("PV Terminal Value", "Intrinsic Value", "Intrinsic Value per Share"):
-        assert ws.cell(row=ml[label], column=fc).value not in (None, "")
-    assert smap.get("scenario_weighted").formula.startswith("=")
+    # Deferred forecast tabs are placeholders, not live practice surfaces.
+    for name in ("Model_Bear", "Model_Base", "Model_Bull", "Scenario_Summary"):
+        ws = wb[name]
+        assert ws.sheet_state == "hidden"
+        assert ws["A1"].value == "Deferred from historical-only v1"
     wb.close()
 
 
@@ -379,7 +410,12 @@ def test_python_expected_values_use_corrected_cod(tmp_path):
     r_bug = run_scenario(sc, anchor, shares=1000.0, hist_avg_after_tax_cod=taxed_again)
     assert r_ok.abnormal_earnings_y1 != r_bug.abnormal_earnings_y1
 
-    _, answer = _build_pair(tmp_path)
+    # Internal deferred path still builds live model tabs for legacy isolation.
+    from core.engine.reference_model import ReferenceModelBuilder
+
+    answer = tmp_path / "Deferred_Answer_Key.xlsx"
+    builder = ReferenceModelBuilder(data, include_deferred_forecast=True)
+    builder.build(answer)
     smap = load_semantic_map(answer)
     wb = load_workbook(answer, data_only=False)
     ws = wb["Model_Base"]

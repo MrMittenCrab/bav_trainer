@@ -1,13 +1,29 @@
 # BAV Excel Trainer — Hong Kong Edition
 
-An extension of the BAVGems pipeline that turns manually supplied Hong Kong company filings into **interactive Excel training workbooks**. The full BAV accounting, DuPont, forecasting, residual-income, DCF, and scenario logic is preserved — but US/SEC EDGAR dependency is replaced with a **manual document-input adapter** behind a standardized data interface.
+Progressive training that takes an **accounting novice** toward junior accounting-based equity-research competence, with particular strength in Business Analysis and Valuation (BAV).
 
-## Product loop
+**Current v1** is the **historical model-construction foundation** for non-financial operating companies. Forecasting, valuation, accounting-judgment quizzes, and research conclusions are deferred curriculum stages — not active v1 exercises.
+
+## Product loop (v1)
 
 ```text
-The Trainer supplies source financials, classifications, market data, and assumptions.
-Yellow practice cells are model-construction formulas: links, reformulation, ratios,
-forecast calculations, and valuation logic.
+end-state goal:
+accounting novice -> junior accounting-based equity-research competence
+
+current v1:
+historical model-construction foundation for non-financial operating companies
+
+provided in v1:
+historical source values + classification/setup judgments
+
+active practice in v1:
+historical links + reformulation + ratios + DuPont
+
+deferred:
+accounting-judgment exercises + research diagnostics + forecasting + valuation + research conclusion
+
+normal v1 build:
+does not execute forecast/scenario engine
 
 Trainer = blank yellow practice cells, no answers, no hints.
 Check = scans every practice cell; blank yellow, correct green, incorrect red; no answers disclosed.
@@ -25,23 +41,26 @@ python -m core build example/DEMO_HK_Standardized.json \
   -o example/DEMO_HK_Trainer.xlsx
 # → example/DEMO_HK_Trainer.xlsx
 # → example/DEMO_HK_Answer_Key.xlsx
+# Components resolved: 21
 
-# List practice components in dependency order
+# List the 21 historical practice components
 python -m core list
 
 # After entering formulas in Excel and saving, validate the whole workbook:
 python -m core check --workbook example/DEMO_HK_Trainer.xlsx
 ```
 
-Open the matching Answer Key for the formula/input and hover the yellow cell's Note for the hint.
+Open the matching Answer Key for the formula and hover the yellow cell's Note for the hint.
 
 ## What it does
 
 1. **Ingests** HK annual reports, interim reports, results materials, or Excel/Bloomberg/Wind exports via `HKManualDocumentAdapter`
 2. **Reconciles** into standardized Income Statement / Balance Sheet / Cash Flow structure (`StandardizedFinancials`)
-3. **Builds** a complete BAV model and writes it as the **Answer Key** (`*_Answer_Key.xlsx`) — yellow practice cells with working formulas and concise Excel Notes
-4. **Derives** the matching **Trainer** workbook (`*_Trainer.xlsx`) — source data, classifications, and assumptions stay populated; yellow practice cells are blank model-construction formulas only
+3. **Builds** a complete historical BAV reformulation / DuPont model as the **Answer Key** (`*_Answer_Key.xlsx`)
+4. **Derives** the matching **Trainer** — source data and classifications stay populated; yellow cells are blank historical model-construction formulas only
 5. **Checks** the entire Trainer in one pass: blank stays yellow, correct turns green, incorrect turns red — without disclosing answers
+
+Banks, insurers, brokers, and other financial institutions are outside the initial competency scope.
 
 ## Architecture
 
@@ -55,8 +74,9 @@ Open the matching Answer Key for the formula/input and hover the yellow cell's N
                            │ StandardizedFinancials
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  ReferenceModelBuilder — full BAV workbook                   │
-│  IS/BS/CF → Condensed → DuPont → Model → Scenario Summary   │
+│  ReferenceModelBuilder — historical BAV workbook             │
+│  IS/BS/CF → Condensed reformulation → DuPont                 │
+│  (forecast/valuation tabs are hidden deferred placeholders)  │
 └──────────────────────────┬──────────────────────────────────┘
                            │
                            ▼
@@ -66,8 +86,6 @@ Open the matching Answer Key for the formula/input and hover the yellow cell's N
 │  Workbook-wide Check via CLI (colors only; no answer dump)   │
 └─────────────────────────────────────────────────────────────┘
 ```
-
-The BAV engine layer (`skills/bav-pipeline/references/lib/`, stage rubrics) is unchanged. Only the ingestion front-end differs from the US SEC pipeline.
 
 ## Preparing real HK company data
 
@@ -83,19 +101,20 @@ v1 does **not** scrape HKEX automatically. Supply documents manually:
 
 JSON schema matches `example/DEMO_HK_Standardized.json`. Sign conventions: revenue positive, expenses negative. When exporting via `python -m core ingest ... -o ...`, each statement row includes `concept` (empty string when absent) so concept-aware identity survives reload.
 
-Use Claude with `/bav-trainer` to assist PDF transcription while you gate classifications and forecasts.
+Optional historical configuration (e.g. `classificationOverrides`) can be passed with `-a/--assumptions`.
+
+Use Claude with `/bav-trainer` to assist PDF transcription while you gate classifications.
 
 ## Relationship to BAV Pipeline
 
-| BAV Pipeline (US) | BAV Trainer (HK) |
+| BAV Pipeline (US) | BAV Trainer (HK) v1 |
 |---|---|
 | SEC EDGAR via edgartools | Manual document adapter |
 | Persistent coverage vault | Per-session training workbook |
 | Sentinel daily updates | Manual rebuild |
-| Analyst edits register to assumptions.json | User practices formulas in Excel |
-| Full 13-tab professional model | Same model structure, training mode |
+| Full forecast + valuation model | Historical reformulation + DuPont foundation |
 
-Both share the same analytical DNA: reformulated statements, DuPont, calibrated residual income.
+Both share the same analytical DNA for reformulated statements and DuPont; forecast and valuation layers return in later curriculum steps.
 
 ## Claude Code skill
 
