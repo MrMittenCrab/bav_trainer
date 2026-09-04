@@ -9,7 +9,7 @@ from openpyxl import load_workbook
 import pytest
 
 from core.data.interface import DocumentManifest, DocumentType
-from core.engine.component_catalog import COMPONENT_CATALOG
+from core.engine.component_catalog import COMPONENT_CATALOG, concrete_component_id, expand_historical_specs
 from core.ingestion.manual_hk import HKManualDocumentAdapter
 from core.model.classification import BALANCE_SHEET_CATEGORIES
 from core.model.financial_math import _val, compute_anchor
@@ -30,6 +30,19 @@ def _ingest_demo():
 def _build_pair(tmp_path, assumptions=None):
     data = _ingest_demo()
     return build_training_workbook(data, tmp_path / "DEMO_HK_Trainer.xlsx", assumptions)
+
+
+def _latest(smap, family_id: str):
+    comps = [c for c in smap.all_ordered() if c.family_id == family_id]
+    assert comps, family_id
+    return max(comps, key=lambda c: c.period_index or 0)
+
+
+def _at_period(smap, family_id: str, period_index: int):
+    return next(
+        c for c in smap.all_ordered()
+        if c.family_id == family_id and c.period_index == period_index
+    )
 
 
 def test_normal_v1_build_does_not_call_run_scenario(tmp_path, monkeypatch):
@@ -94,6 +107,36 @@ def test_anchor_exposes_tax_and_interest_expected_values():
         anchor.net_interest * (1 - anchor.effective_tax_rate)
     )
     assert anchor.nopat == pytest.approx(_val(ni, last) + anchor.net_interest_after_tax)
+
+
+def test_anchor_exposes_full_historical_series():
+    data = _ingest_demo()
+    periods = data.fiscal_years() or data.period_dates()
+    anchor = compute_anchor(data, periods)
+
+    assert len(anchor.historical.revenue) == len(periods)
+    assert len(anchor.historical.nopat) == len(periods)
+    assert anchor.historical.revenue[-1] == pytest.approx(anchor.revenue)
+    assert anchor.historical.net_interest[-1] == pytest.approx(anchor.net_interest)
+    assert anchor.historical.effective_tax_rate[-1] == pytest.approx(anchor.effective_tax_rate)
+    assert anchor.historical.net_interest_after_tax[-1] == pytest.approx(
+        anchor.net_interest_after_tax
+    )
+    assert anchor.historical.nopat[-1] == pytest.approx(anchor.nopat)
+
+    for j in range(len(periods)):
+        assert anchor.historical.net_interest_after_tax[j] == pytest.approx(
+            anchor.historical.net_interest[j] * (1 - anchor.historical.effective_tax_rate[j])
+        )
+        assert anchor.historical.nopat[j] == pytest.approx(
+            anchor.historical.net_income[j] + anchor.historical.net_interest_after_tax[j]
+        )
+
+    rev_item = resolve_line(data.income_statement, "revenue", required=True).item
+    ni_item = resolve_line(data.income_statement, "net_income", required=True).item
+    for j, period in enumerate(periods):
+        assert anchor.historical.revenue[j] == pytest.approx(_val(rev_item, period))
+        assert anchor.historical.net_income[j] == pytest.approx(_val(ni_item, period))
 
 
 HISTORICAL_REFORMULATION_IDS = (
@@ -163,14 +206,16 @@ def test_cli_assumptions_propagate(tmp_path):
             found = True
             break
     assert found
-    assert smap.get("nowc_agg").expected_value != smap_default.get("nowc_agg").expected_value
+    assert _latest(smap, "nowc_agg").expected_value != _latest(
+        smap_default, "nowc_agg"
+    ).expected_value
     wb.close()
 
 
 def test_nopat_formula_adds_after_tax_net_interest(tmp_path):
     _, answer = _build_pair(tmp_path)
     smap = load_semantic_map(answer)
-    nopat = smap.get("nopat_fy")
+    nopat = _latest(smap, "nopat_fy")
     formula = nopat.formula.replace(" ", "")
     assert formula.startswith("=")
     assert "+" in formula
@@ -206,8 +251,8 @@ def test_condensed_aggregates_are_on_sheet_sumif(tmp_path):
     wb = load_workbook(answer, data_only=False)
     ws = wb["Condensed Financials"]
     labels = {ws.cell(row=r, column=1).value: r for r in range(1, ws.max_row + 1)}
-    for cid in ("nowc_agg", "noa_agg", "net_debt"):
-        formula = smap.get(cid).formula
+    for family_id in ("nowc_agg", "noa_agg", "net_debt"):
+        formula = _latest(smap, family_id).formula
         assert "Balance Sheet" not in formula
     # Category SUMIFs live on the detail aggregate rows that feed NOWC / NOA / Net Debt.
     for label in (
@@ -328,7 +373,9 @@ def test_semantic_formulas_have_no_blank_required_refs(tmp_path):
     _, answer = _build_pair(tmp_path)
     smap = load_semantic_map(answer)
     wb = load_workbook(answer, data_only=False)
-    assert len(smap.all_ordered()) == len(COMPONENT_CATALOG)
+    assert len(smap.all_ordered()) == len(expand_historical_specs(
+        (_ingest_demo().fiscal_years() or _ingest_demo().period_dates())
+    ))
 
     def _labels(ws):
         return {ws.cell(row=r, column=1).value: r for r in range(1, (ws.max_row or 1) + 1)}
@@ -371,16 +418,16 @@ def test_semantic_formulas_have_no_blank_required_refs(tmp_path):
 
     condensed = wb["Condensed Financials"]
     cl = _labels(condensed)
-    nopat = smap.get("nopat_fy")
+    nopat = _latest(smap, "nopat_fy")
     assert str(cl["Net Income"]) in nopat.formula
     assert str(cl["Net Interest After Tax"]) in nopat.formula
     assert condensed.cell(row=cl["Net Income"], column=2).value not in (None, "")
     assert condensed.cell(row=cl["Net Interest After Tax"], column=2).value not in (None, "")
 
-    assert "Condensed Financials" in smap.get("rnoa").formula
-    assert smap.get("roe_decomp").formula.startswith("=")
+    assert "Condensed Financials" in _latest(smap, "rnoa").formula
+    assert _latest(smap, "roe_decomp").formula.startswith("=")
     # Spread is local RNOA − CoD on the DuPont sheet
-    spread_f = smap.get("spread").formula
+    spread_f = _latest(smap, "spread").formula
     assert spread_f.startswith("=")
     assert "-" in spread_f
 
@@ -821,14 +868,16 @@ def test_historical_reformulation_formulas_match_answer_key_cells(tmp_path):
     trainer_path, answer = _build_pair(tmp_path)
     smap = load_semantic_map(answer)
     wb = load_workbook(answer, data_only=False)
-    for cid in HISTORICAL_REFORMULATION_IDS:
-        comp = smap.get(cid)
-        assert comp.formula.startswith("=")
-        assert comp.expected_value is not None
-        row, col = parse_cell_ref(comp.cell)
-        assert wb[comp.tab].cell(row=row, column=col).value == comp.formula
-        if cid in AGGREGATE_SUMIF_IDS:
-            assert "SUMIF" in comp.formula
+    for family_id in HISTORICAL_REFORMULATION_IDS:
+        comps = [c for c in smap.all_ordered() if c.family_id == family_id]
+        assert len(comps) == 5
+        for comp in comps:
+            assert comp.formula.startswith("=")
+            assert comp.expected_value is not None
+            row, col = parse_cell_ref(comp.cell)
+            assert wb[comp.tab].cell(row=row, column=col).value == comp.formula
+            if family_id in AGGREGATE_SUMIF_IDS:
+                assert "SUMIF" in comp.formula
     wb.close()
 
     # Classification choices remain populated identically in Trainer vs Answer Key.
@@ -873,15 +922,90 @@ def test_dupont_chain_registers_all_six_latest_comparable_formulas(tmp_path):
         "roe_decomp": anchor.dupont["ROE (decomposed)"][j_last],
         "actual_roe": anchor.dupont["Actual ROE"][j_last],
     }
-    for cid in DUPONT_IDS:
-        comp = smap.get(cid)
+    for family_id in DUPONT_IDS:
+        comps = [c for c in smap.all_ordered() if c.family_id == family_id]
+        assert len(comps) == 4
+        comp = _latest(smap, family_id)
         assert comp.formula.startswith("=")
         row, col = parse_cell_ref(comp.cell)
         assert wb[comp.tab].cell(row=row, column=col).value == comp.formula
-        assert comp.expected_value == pytest.approx(expected_map[cid])
+        assert comp.expected_value == pytest.approx(expected_map[family_id])
     wb.close()
 
     by_id = {c.id: c for c in COMPONENT_CATALOG}
-    for spec in COMPONENT_CATALOG:
-        for dep in spec.depends_on:
-            assert by_id[dep].order < spec.order
+    for family in COMPONENT_CATALOG:
+        for dep in family.depends_on_current + family.depends_on_previous:
+            assert by_id[dep].order < family.order
+
+
+def test_multi_period_practice_surface_for_five_year_demo(tmp_path):
+    _, answer = _build_pair(tmp_path)
+    smap = load_semantic_map(answer)
+    assert len(smap.all_ordered()) == 118
+
+    families = {c.family_id for c in smap.all_ordered()}
+    assert families == {f.id for f in COMPONENT_CATALOG}
+
+    for family in COMPONENT_CATALOG:
+        comps = [c for c in smap.all_ordered() if c.family_id == family.id]
+        expected = 5 if family.period_scope == "all" else 4
+        assert len(comps) == expected
+
+    for comp in smap.all_ordered():
+        assert comp.formula.startswith("=")
+        assert comp.expected_value is not None
+
+
+def test_multi_period_formula_dependencies_use_current_and_previous(tmp_path):
+    _, answer = _build_pair(tmp_path)
+    data = _ingest_demo()
+    periods = data.fiscal_years() or data.period_dates()
+    smap = load_semantic_map(answer)
+
+    # Find FY indices by year labels in period_end
+    by_year = {p.year: j for j, p in enumerate(periods)}
+    assert 2023 in by_year and 2024 in by_year and 2025 in by_year
+
+    j23, j24, j25 = by_year[2023], by_year[2024], by_year[2025]
+    rev23 = _at_period(smap, "revenue_link", j23)
+    rev22 = _at_period(smap, "revenue_link", j23 - 1)
+    growth23 = _at_period(smap, "sales_growth", j23)
+    assert rev23.cell in growth23.formula
+    assert rev22.cell in growth23.formula
+
+    nopat24 = _at_period(smap, "nopat_fy", j24)
+    noa24 = _at_period(smap, "noa_agg", j24)
+    noa23 = _at_period(smap, "noa_agg", j23)
+    rnoa24 = _at_period(smap, "rnoa", j24)
+    assert nopat24.cell in rnoa24.formula or str(parse_cell_ref(nopat24.cell)[0]) in rnoa24.formula
+    assert str(parse_cell_ref(noa24.cell)[0]) in rnoa24.formula
+    assert str(parse_cell_ref(noa23.cell)[0]) in rnoa24.formula
+
+    niat25 = _at_period(smap, "net_interest_after_tax_fy", j25)
+    nd25 = _at_period(smap, "net_debt", j25)
+    nd24 = _at_period(smap, "net_debt", j24)
+    cod25 = _at_period(smap, "after_tax_cod", j25)
+    assert str(parse_cell_ref(niat25.cell)[0]) in cod25.formula
+    assert str(parse_cell_ref(nd25.cell)[0]) in cod25.formula
+    assert str(parse_cell_ref(nd24.cell)[0]) in cod25.formula
+
+    eq25 = _at_period(smap, "equity_reformulated_fy", j25)
+    eq24 = _at_period(smap, "equity_reformulated_fy", j24)
+    flev25 = _at_period(smap, "flev", j25)
+    assert str(parse_cell_ref(nd25.cell)[0]) in flev25.formula
+    assert str(parse_cell_ref(nd24.cell)[0]) in flev25.formula
+    assert str(parse_cell_ref(eq25.cell)[0]) in flev25.formula
+    assert str(parse_cell_ref(eq24.cell)[0]) in flev25.formula
+
+    rnoa25 = _at_period(smap, "rnoa", j25)
+    spread25 = _at_period(smap, "spread", j25)
+    roe25 = _at_period(smap, "roe_decomp", j25)
+    assert rnoa25.cell in roe25.formula
+    assert spread25.cell in roe25.formula
+    assert flev25.cell in roe25.formula
+
+    ni25 = _at_period(smap, "net_income_link", j25)
+    actual25 = _at_period(smap, "actual_roe", j25)
+    assert str(parse_cell_ref(ni25.cell)[0]) in actual25.formula
+    assert str(parse_cell_ref(eq25.cell)[0]) in actual25.formula
+    assert str(parse_cell_ref(eq24.cell)[0]) in actual25.formula

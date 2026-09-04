@@ -2,27 +2,35 @@
 
 Progressive training that takes an **accounting novice** toward junior accounting-based equity-research competence, with particular strength in Business Analysis and Valuation (BAV).
 
-**Current v1** is the **historical model-construction foundation** for non-financial operating companies. Forecasting, valuation, accounting-judgment quizzes, and research conclusions are deferred curriculum stages — not active v1 exercises.
+**Current Step 7 capability** is a **multi-period historical model-construction foundation** for non-financial operating companies. Accounting-judgment quizzes, research diagnostics, forecasting, valuation, and research conclusions remain deferred curriculum stages.
 
-## Product loop (v1)
+## Product loop (v1 / Step 7)
 
 ```text
 end-state goal:
 accounting novice -> junior accounting-based equity-research competence
 
-current v1:
-historical model-construction foundation for non-financial operating companies
+current Step 7 capability:
+- historical schedules across all supplied fiscal years
+- cross-sheet Revenue / Net Income links
+- reformulation across periods
+- Sales Growth / NOPAT Margin
+- multi-period DuPont from the second comparable year onward
+- workbook-wide Check across every concrete period cell
 
-provided in v1:
-historical source values + classification/setup judgments
+learner view:
+- 25 conceptual schedule families
+- period-specific yellow cells inside each schedule
+  (five-year demo → 118 concrete practice cells = 25*n − 7)
 
-active practice in v1:
-historical links + reformulation + ratios + DuPont
+still deferred:
+- classification/normalization judgment exercises
+- earnings-quality diagnostics
+- forecasting
+- valuation
+- investment conclusion
 
-deferred:
-accounting-judgment exercises + research diagnostics + forecasting + valuation + research conclusion
-
-normal v1 build:
+normal build:
 does not execute forecast/scenario engine
 
 Trainer = blank yellow practice cells, no answers, no hints.
@@ -41,9 +49,9 @@ python -m core build example/DEMO_HK_Standardized.json \
   -o example/DEMO_HK_Trainer.xlsx
 # → example/DEMO_HK_Trainer.xlsx
 # → example/DEMO_HK_Answer_Key.xlsx
-# Components resolved: 21
+# Components resolved: 118
 
-# List the 21 historical practice components
+# List the 25 conceptual historical schedule families
 python -m core list
 
 # After entering formulas in Excel and saving, validate the whole workbook:
@@ -56,8 +64,8 @@ Open the matching Answer Key for the formula and hover the yellow cell's Note fo
 
 1. **Ingests** HK annual reports, interim reports, results materials, or Excel/Bloomberg/Wind exports via `HKManualDocumentAdapter`
 2. **Reconciles** into standardized Income Statement / Balance Sheet / Cash Flow structure (`StandardizedFinancials`)
-3. **Builds** a complete historical BAV reformulation / DuPont model as the **Answer Key** (`*_Answer_Key.xlsx`)
-4. **Derives** the matching **Trainer** — source data and classifications stay populated; yellow cells are blank historical model-construction formulas only
+3. **Builds** a complete multi-period historical BAV reformulation / DuPont model as the **Answer Key** (`*_Answer_Key.xlsx`)
+4. **Derives** the matching **Trainer** — source data and classifications stay populated; yellow cells are blank historical schedule formulas only
 5. **Checks** the entire Trainer in one pass: blank stays yellow, correct turns green, incorrect turns red — without disclosing answers
 
 Banks, insurers, brokers, and other financial institutions are outside the initial competency scope.
@@ -74,8 +82,8 @@ Banks, insurers, brokers, and other financial institutions are outside the initi
                            │ StandardizedFinancials
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  ReferenceModelBuilder — historical BAV workbook             │
-│  IS/BS/CF → Condensed reformulation → DuPont                 │
+│  ReferenceModelBuilder — multi-period historical BAV         │
+│  IS/BS/CF → Condensed reformulation → ALT DuPont schedules   │
 │  (forecast/valuation tabs are hidden deferred placeholders)  │
 └──────────────────────────┬──────────────────────────────────┘
                            │
@@ -83,7 +91,7 @@ Banks, insurers, brokers, and other financial institutions are outside the initi
 ┌─────────────────────────────────────────────────────────────┐
 │  TrainingWorkbookGenerator                                   │
 │  Answer Key (formulas + Notes) + sanitized Trainer           │
-│  Workbook-wide Check via CLI (colors only; no answer dump)   │
+│  Family-level Trainer index; cell-level Check                │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -107,12 +115,12 @@ Use Claude with `/bav-trainer` to assist PDF transcription while you gate classi
 
 ## Relationship to BAV Pipeline
 
-| BAV Pipeline (US) | BAV Trainer (HK) v1 |
+| BAV Pipeline (US) | BAV Trainer (HK) Step 7 |
 |---|---|
 | SEC EDGAR via edgartools | Manual document adapter |
 | Persistent coverage vault | Per-session training workbook |
 | Sentinel daily updates | Manual rebuild |
-| Full forecast + valuation model | Historical reformulation + DuPont foundation |
+| Full forecast + valuation model | Multi-period historical foundation |
 
 Both share the same analytical DNA for reformulated statements and DuPont; forecast and valuation layers return in later curriculum steps.
 

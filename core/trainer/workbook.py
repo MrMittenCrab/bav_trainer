@@ -9,8 +9,9 @@ from openpyxl import load_workbook
 from openpyxl.comments import Comment
 from openpyxl.styles import Border, Font, PatternFill, Side
 
+from ..engine.component_catalog import COMPONENT_CATALOG
 from ..engine.reference_model import ReferenceModelBuilder
-from ..engine.semantic_map import SemanticMap
+from ..engine.semantic_map import ResolvedComponent, SemanticMap
 from ..data.line_identity import validate_financials_identities
 from ..ingestion.reconciler import reconcile_financials
 from .semantic_io import load_semantic_map, resolve_pair_paths
@@ -35,10 +36,10 @@ THIN_BORDER = Border(
 _HIDDEN_PREFIX = "_"
 
 TRAINER_INDEX_INSTRUCTION = (
-    "Complete yellow practice cells in dependency order. Run Check to validate "
-    "the whole workbook: blank cells stay yellow, correct cells turn green, and "
-    "incorrect cells turn red. Open the matching Answer Key for the formula/input "
-    "and Note hint."
+    "Complete each historical schedule left-to-right in dependency order. "
+    "Each schedule is one modeling concept repeated across fiscal periods. "
+    "Run Check to validate every yellow cell in the workbook. "
+    "Open the matching Answer Key for the formula/input and Note hint."
 )
 
 
@@ -159,7 +160,7 @@ class TrainingWorkbookGenerator:
         ws["A1"].font = TITLE_FONT
         ws["A2"] = TRAINER_INDEX_INSTRUCTION
         ws["A2"].font = BODY_FONT
-        headers = ["Order", "Component", "Tab", "Cell", "Depends on"]
+        headers = ["Order", "Schedule", "Period scope", "Tab", "Practice cells", "Depends on"]
         for j, h in enumerate(headers, start=1):
             cell = ws.cell(row=4, column=j, value=h)
             cell.font = BODY_BOLD_FONT
@@ -167,17 +168,96 @@ class TrainingWorkbookGenerator:
         ws.column_dimensions["A"].width = 6
         ws.column_dimensions["B"].width = 36
         ws.column_dimensions["C"].width = 22
-        ws.column_dimensions["D"].width = 8
-        ws.column_dimensions["E"].width = 24
+        ws.column_dimensions["D"].width = 22
+        ws.column_dimensions["E"].width = 28
+        ws.column_dimensions["F"].width = 28
 
-        for i, comp in enumerate(self.semantic_map.all_ordered(), start=5):
-            ws.cell(row=i, column=1, value=comp.order).font = BODY_FONT
-            ws.cell(row=i, column=2, value=comp.title).font = BODY_FONT
-            ws.cell(row=i, column=3, value=comp.tab).font = BODY_FONT
-            ws.cell(row=i, column=4, value=comp.cell).font = BODY_FONT
-            deps = ", ".join(comp.depends_on) if comp.depends_on else "—"
-            ws.cell(row=i, column=5, value=deps).font = BODY_FONT
+        for i, group in enumerate(group_components_by_family(self.semantic_map), start=5):
+            ws.cell(row=i, column=1, value=group["family_order"]).font = BODY_FONT
+            ws.cell(row=i, column=2, value=group["title"]).font = BODY_FONT
+            ws.cell(row=i, column=3, value=group["period_scope"]).font = BODY_FONT
+            ws.cell(row=i, column=4, value=group["tab"]).font = BODY_FONT
+            ws.cell(row=i, column=5, value=group["practice_cells"]).font = BODY_FONT
+            ws.cell(row=i, column=6, value=group["depends_on"]).font = BODY_FONT
 
+
+def group_components_by_family(smap: SemanticMap) -> list[dict]:
+    """Group concrete ResolvedComponents into conceptual schedule rows."""
+    by_family: dict[str, list[ResolvedComponent]] = {}
+    for comp in smap.all_ordered():
+        by_family.setdefault(comp.family_id or comp.id, []).append(comp)
+
+    family_meta = {f.id: f for f in COMPONENT_CATALOG}
+    groups: list[dict] = []
+    for family_id, comps in by_family.items():
+        comps = sorted(comps, key=lambda c: (c.period_index is None, c.period_index or 0, c.order))
+        first = comps[0]
+        family = family_meta.get(family_id)
+        ends = [c.period_end for c in comps if c.period_end]
+        if ends:
+            year_span = _period_scope_label(ends, len(comps))
+        else:
+            year_span = f"{len(comps)} cells"
+        dep_ids: list[str] = []
+        if family is not None:
+            for dep in family.depends_on_current + family.depends_on_previous:
+                if dep not in dep_ids:
+                    dep_ids.append(dep)
+        else:
+            for dep in first.depends_on:
+                fam = dep.split("__", 1)[0]
+                if fam not in dep_ids:
+                    dep_ids.append(fam)
+        groups.append(
+            {
+                "family_id": family_id,
+                "family_order": first.family_order or first.order,
+                "title": first.title,
+                "period_scope": year_span,
+                "tab": first.tab,
+                "practice_cells": _format_practice_cells(comps),
+                "depends_on": ", ".join(dep_ids) if dep_ids else "—",
+                "count": len(comps),
+                "components": comps,
+            }
+        )
+    groups.sort(key=lambda g: g["family_order"])
+    return groups
+
+
+def _period_scope_label(period_ends: list[str], count: int) -> str:
+    years = []
+    for end in period_ends:
+        years.append(end[:4] if len(end) >= 4 else end)
+    if len(years) == 1:
+        return f"{years[0]} ({count} cells)"
+    return f"{years[0]}–{years[-1]} ({count} cells)"
+
+
+def _format_practice_cells(comps: list[ResolvedComponent]) -> str:
+    from openpyxl.utils import column_index_from_string, get_column_letter
+
+    if not comps:
+        return "—"
+    cells = [c.cell for c in comps]
+    if len(cells) == 1:
+        return cells[0]
+
+    parsed = []
+    for cell in cells:
+        col = "".join(ch for ch in cell if ch.isalpha())
+        row = int("".join(ch for ch in cell if ch.isdigit()))
+        parsed.append((row, column_index_from_string(col), cell))
+
+    rows = {p[0] for p in parsed}
+    if len(rows) == 1:
+        cols = sorted(p[1] for p in parsed)
+        if cols == list(range(cols[0], cols[0] + len(cols))):
+            row = next(iter(rows))
+            start = f"{get_column_letter(cols[0])}{row}"
+            end = f"{get_column_letter(cols[-1])}{row}"
+            return f"{start}:{end}"
+    return ", ".join(cells)
 
 def was_header_row(ws, row: int) -> bool:
     """Heuristic: row looks like a column-header band (dates / Metric / Scenario)."""

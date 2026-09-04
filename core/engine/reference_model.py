@@ -18,7 +18,7 @@ from ..model.classification import BALANCE_SHEET_CATEGORIES
 from ..model.financial_math import compute_anchor
 from ..model.line_resolver import resolve_line, workbook_row_for
 from ..model.ri_engine import run_scenario, weighted_ivps
-from .component_catalog import DEFERRED_COMPONENT_SPECS, catalog_by_id
+from .component_catalog import DEFERRED_COMPONENT_SPECS, expand_historical_specs
 from .map_embed import embed_component_map_sheet
 from .semantic_map import SemanticMap
 
@@ -51,7 +51,12 @@ class ReferenceModelBuilder:
         self.assumptions = dict(assumptions or {})
         self.assumptions.setdefault("classificationOverrides", {})
         self.rowmap: dict[str, Any] = {}
-        self.semantic_map = SemanticMap()
+        self.historical_specs = expand_historical_specs(self.periods)
+        self.semantic_map = SemanticMap(expected_specs=self.historical_specs)
+        self._historical_spec_index = {
+            (s.family_id, s.period_index): s for s in self.historical_specs
+        }
+        self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         overrides = self.assumptions.get("classificationOverrides") or {}
         self.anchor = compute_anchor(
             financials,
@@ -163,7 +168,23 @@ class ReferenceModelBuilder:
     def _col(self, idx: int) -> str:
         return get_column_letter(idx)
 
-    def _register(
+    def _register_historical(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._historical_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_deferred(
         self,
         spec_id: str,
         tab: str,
@@ -173,13 +194,12 @@ class ReferenceModelBuilder:
         expected: float | str,
         related: list[str] | None = None,
     ) -> None:
-        specs = catalog_by_id()
-        if spec_id not in specs:
-            specs = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
-        if spec_id not in specs:
-            raise KeyError(f"Unknown component spec: {spec_id}")
-        spec = specs[spec_id]
-        self.semantic_map.register(spec, tab, row, col, formula, expected, related_cells=related)
+        if spec_id not in self._deferred_spec_index:
+            raise KeyError(f"Unknown deferred component spec: {spec_id}")
+        spec = self._deferred_spec_index[spec_id]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
 
     def _resolved_source_row(self, items: list[LineItem], concept: str, *, required: bool = False) -> int | None:
         """Workbook row for a canonical concept — same LineItem as compute_anchor()."""
@@ -290,28 +310,44 @@ class ReferenceModelBuilder:
         r += 1
 
         ni_src = self._resolved_source_row(self.fin.income_statement, "net_income", required=True)
+        rev_src = self._resolved_source_row(self.fin.income_statement, "revenue", required=True)
         pretax_src = self._resolved_source_row(self.fin.income_statement, "pretax_income")
         tax_src = self._resolved_source_row(self.fin.income_statement, "tax_expense")
         int_exp_src = self._resolved_source_row(self.fin.income_statement, "interest_expense")
         int_inc_src = self._resolved_source_row(self.fin.income_statement, "interest_income")
         equity_src = self._resolved_source_row(self.fin.balance_sheet, "total_equity")
         row_nums: dict[str, int] = {}
-        for label, src_row, bold in [
-            ("Net Income", ni_src, False),
-            ("Pretax Income", pretax_src, False),
-            ("Tax Expense", tax_src, False),
-            ("Interest Expense", int_exp_src, False),
-            ("Interest Income", int_inc_src, False),
+        hist = self.anchor.historical
+        for label, src_row, bold, family_id, expected_series in [
+            ("Revenue", rev_src, False, "revenue_link", hist.revenue),
+            ("Net Income", ni_src, False, "net_income_link", hist.net_income),
+            ("Pretax Income", pretax_src, False, None, None),
+            ("Tax Expense", tax_src, False, None, None),
+            ("Interest Expense", int_exp_src, False, None, None),
+            ("Interest Income", int_inc_src, False, None, None),
         ]:
             if not src_row:
                 continue
             ws.cell(row=r, column=1, value=label).font = Font(bold=bold)
             for j in range(self._n):
                 col = self._col(2 + j)
-                ws.cell(row=r, column=2 + j, value=f"='Income Statement'!{col}{src_row}")
+                formula = f"='Income Statement'!{col}{src_row}"
+                ws.cell(row=r, column=2 + j, value=formula)
+                if family_id is not None and expected_series is not None:
+                    self._register_historical(
+                        family_id,
+                        j,
+                        "Condensed Financials",
+                        r,
+                        2 + j,
+                        formula,
+                        expected_series[j],
+                    )
             row_nums[label] = r
             if label == "Net Income":
                 self.rowmap["condensed_ni_row"] = r
+            if label == "Revenue":
+                self.rowmap["condensed_revenue_row"] = r
             r += 1
 
         etr_row = r
@@ -321,13 +357,19 @@ class ReferenceModelBuilder:
             if "Tax Expense" in row_nums and "Pretax Income" in row_nums:
                 pretax_r = row_nums["Pretax Income"]
                 tax_r = row_nums["Tax Expense"]
-                ws.cell(
-                    row=r,
-                    column=2 + j,
-                    value=f"=IF({col}{pretax_r}=0,0,-{col}{tax_r}/{col}{pretax_r})",
-                ).number_format = PCT_FMT
+                formula = f"=IF({col}{pretax_r}=0,0,-{col}{tax_r}/{col}{pretax_r})"
             else:
-                ws.cell(row=r, column=2 + j, value="=0").number_format = PCT_FMT
+                formula = "=0"
+            ws.cell(row=r, column=2 + j, value=formula).number_format = PCT_FMT
+            self._register_historical(
+                "effective_tax_rate_fy",
+                j,
+                "Condensed Financials",
+                r,
+                2 + j,
+                formula,
+                hist.effective_tax_rate[j],
+            )
         row_nums["Effective Tax Rate"] = etr_row
         r += 1
 
@@ -350,6 +392,15 @@ class ReferenceModelBuilder:
             else:
                 f = "=0"
             ws.cell(row=r, column=2 + j, value=f).number_format = NUM_FMT
+            self._register_historical(
+                "net_interest_fy",
+                j,
+                "Condensed Financials",
+                r,
+                2 + j,
+                f,
+                hist.net_interest[j],
+            )
         row_nums["Net Interest"] = net_int_row
         r += 1
 
@@ -357,11 +408,17 @@ class ReferenceModelBuilder:
         ws.cell(row=r, column=1, value="Net Interest After Tax")
         for j in range(self._n):
             col = self._col(2 + j)
-            ws.cell(
-                row=r,
-                column=2 + j,
-                value=f"={col}{net_int_row}*(1-{col}{etr_row})",
-            ).number_format = NUM_FMT
+            formula = f"={col}{net_int_row}*(1-{col}{etr_row})"
+            ws.cell(row=r, column=2 + j, value=formula).number_format = NUM_FMT
+            self._register_historical(
+                "net_interest_after_tax_fy",
+                j,
+                "Condensed Financials",
+                r,
+                2 + j,
+                formula,
+                hist.net_interest_after_tax[j],
+            )
         row_nums["Net Interest After Tax"] = niat_row
         self.rowmap["condensed_niat_row"] = niat_row
         r += 1
@@ -370,51 +427,21 @@ class ReferenceModelBuilder:
         ws.cell(row=r, column=1, value="NOPAT").font = BOLD
         for j in range(self._n):
             col = self._col(2 + j)
-            c = ws.cell(
-                row=r,
-                column=2 + j,
-                value=f"={col}{row_nums['Net Income']}+{col}{niat_row}",
-            )
+            formula = f"={col}{row_nums['Net Income']}+{col}{niat_row}"
+            c = ws.cell(row=r, column=2 + j, value=formula)
             c.fill = GREEN
             c.number_format = NUM_FMT
+            self._register_historical(
+                "nopat_fy",
+                j,
+                "Condensed Financials",
+                r,
+                2 + j,
+                formula,
+                hist.nopat[j],
+            )
         r += 1
         self.rowmap["condensed_nopat_row"] = nopat_row
-
-        lc = self._last_fy_col
-        last_i = self._n - 1
-        self._register(
-            "effective_tax_rate_fy",
-            "Condensed Financials",
-            etr_row,
-            lc,
-            str(ws.cell(row=etr_row, column=lc).value),
-            self.anchor.effective_tax_rate,
-        )
-        self._register(
-            "net_interest_fy",
-            "Condensed Financials",
-            net_int_row,
-            lc,
-            str(ws.cell(row=net_int_row, column=lc).value),
-            self.anchor.net_interest,
-        )
-        self._register(
-            "net_interest_after_tax_fy",
-            "Condensed Financials",
-            niat_row,
-            lc,
-            str(ws.cell(row=niat_row, column=lc).value),
-            self.anchor.net_interest_after_tax,
-        )
-        nopat_formula = ws.cell(row=nopat_row, column=lc).value
-        self._register(
-            "nopat_fy",
-            "Condensed Financials",
-            nopat_row,
-            lc,
-            str(nopat_formula),
-            self.anchor.nopat,
-        )
 
         r += 1
         ws.cell(row=r, column=1, value="CONDENSED BALANCE SHEET").font = BOLD
@@ -432,34 +459,41 @@ class ReferenceModelBuilder:
             ws.cell(row=r, column=1, value=label).font = Font(bold=bold)
             for j in range(self._n):
                 vcol = self._col(3 + j)
-                c = ws.cell(row=r, column=2 + j, value=f"={_class_sumif(category, vcol)}")
+                formula = f"={_class_sumif(category, vcol)}"
+                c = ws.cell(row=r, column=2 + j, value=formula)
                 c.number_format = NUM_FMT
             r += 1
             return row
 
         cat_totals = self.anchor.reformulation.category_totals
+        reform = self.anchor.reformulation
+
+        def _register_all_periods(
+            family_id: str, row: int, expected_series: list[float]
+        ) -> None:
+            for j in range(self._n):
+                self._register_historical(
+                    family_id,
+                    j,
+                    "Condensed Financials",
+                    row,
+                    2 + j,
+                    str(ws.cell(row=row, column=2 + j).value),
+                    expected_series[j],
+                )
+
         owca_row = _fill_sumif_row(
             "Operating Working Capital Assets", "Operating Working Capital Asset"
         )
-        self._register(
-            "owca_agg",
-            "Condensed Financials",
-            owca_row,
-            lc,
-            str(ws.cell(row=owca_row, column=lc).value),
-            cat_totals["Operating Working Capital Asset"][last_i],
+        _register_all_periods(
+            "owca_agg", owca_row, cat_totals["Operating Working Capital Asset"]
         )
         owcl_row = _fill_sumif_row(
             "Operating Working Capital Liabilities",
             "Operating Working Capital Liability",
         )
-        self._register(
-            "owcl_agg",
-            "Condensed Financials",
-            owcl_row,
-            lc,
-            str(ws.cell(row=owcl_row, column=lc).value),
-            cat_totals["Operating Working Capital Liability"][last_i],
+        _register_all_periods(
+            "owcl_agg", owcl_row, cat_totals["Operating Working Capital Liability"]
         )
 
         nowc_row = r
@@ -469,36 +503,19 @@ class ReferenceModelBuilder:
             c = ws.cell(row=r, column=2 + j, value=f"={col}{owca_row}-{col}{owcl_row}")
             c.number_format = NUM_FMT
         r += 1
-        self._register(
-            "nowc_agg",
-            "Condensed Financials",
-            nowc_row,
-            lc,
-            str(ws.cell(row=nowc_row, column=lc).value),
-            self.anchor.nowc,
-        )
+        _register_all_periods("nowc_agg", nowc_row, list(reform.nowc))
 
         olta_row = _fill_sumif_row(
             "Operating Long-Term Assets", "Operating Long-Term Asset"
         )
-        self._register(
-            "olta_agg",
-            "Condensed Financials",
-            olta_row,
-            lc,
-            str(ws.cell(row=olta_row, column=lc).value),
-            cat_totals["Operating Long-Term Asset"][last_i],
+        _register_all_periods(
+            "olta_agg", olta_row, cat_totals["Operating Long-Term Asset"]
         )
         oltl_row = _fill_sumif_row(
             "Operating Long-Term Liabilities", "Operating Long-Term Liability"
         )
-        self._register(
-            "oltl_agg",
-            "Condensed Financials",
-            oltl_row,
-            lc,
-            str(ws.cell(row=oltl_row, column=lc).value),
-            cat_totals["Operating Long-Term Liability"][last_i],
+        _register_all_periods(
+            "oltl_agg", oltl_row, cat_totals["Operating Long-Term Liability"]
         )
 
         nola_row = r
@@ -508,14 +525,7 @@ class ReferenceModelBuilder:
             c = ws.cell(row=r, column=2 + j, value=f"={col}{olta_row}-{col}{oltl_row}")
             c.number_format = NUM_FMT
         r += 1
-        self._register(
-            "nola_agg",
-            "Condensed Financials",
-            nola_row,
-            lc,
-            str(ws.cell(row=nola_row, column=lc).value),
-            self.anchor.nola,
-        )
+        _register_all_periods("nola_agg", nola_row, list(reform.nola))
 
         noa_row = r
         ws.cell(row=r, column=1, value="NOA").font = BOLD
@@ -524,32 +534,13 @@ class ReferenceModelBuilder:
             c = ws.cell(row=r, column=2 + j, value=f"={col}{nowc_row}+{col}{nola_row}")
             c.number_format = NUM_FMT
         r += 1
-        self._register(
-            "noa_agg",
-            "Condensed Financials",
-            noa_row,
-            lc,
-            str(ws.cell(row=noa_row, column=lc).value),
-            self.anchor.noa,
-        )
+        _register_all_periods("noa_agg", noa_row, list(reform.noa))
 
         fa_row = _fill_sumif_row("Financial Assets", "Financial Asset")
-        self._register(
-            "financial_assets_agg",
-            "Condensed Financials",
-            fa_row,
-            lc,
-            str(ws.cell(row=fa_row, column=lc).value),
-            cat_totals["Financial Asset"][last_i],
-        )
+        _register_all_periods("financial_assets_agg", fa_row, cat_totals["Financial Asset"])
         fl_row = _fill_sumif_row("Financial Liabilities", "Financial Liability")
-        self._register(
-            "financial_liabilities_agg",
-            "Condensed Financials",
-            fl_row,
-            lc,
-            str(ws.cell(row=fl_row, column=lc).value),
-            cat_totals["Financial Liability"][last_i],
+        _register_all_periods(
+            "financial_liabilities_agg", fl_row, cat_totals["Financial Liability"]
         )
 
         nd_row = r
@@ -559,14 +550,7 @@ class ReferenceModelBuilder:
             c = ws.cell(row=r, column=2 + j, value=f"={col}{fl_row}-{col}{fa_row}")
             c.number_format = NUM_FMT
         r += 1
-        self._register(
-            "net_debt",
-            "Condensed Financials",
-            nd_row,
-            lc,
-            str(ws.cell(row=nd_row, column=lc).value),
-            self.anchor.net_debt,
-        )
+        _register_all_periods("net_debt", nd_row, list(reform.net_debt))
 
         equity_row = r
         ws.cell(row=r, column=1, value="Equity (NOA - Net Debt)").font = BOLD
@@ -575,13 +559,8 @@ class ReferenceModelBuilder:
             c = ws.cell(row=r, column=2 + j, value=f"={col}{noa_row}-{col}{nd_row}")
             c.number_format = NUM_FMT
         r += 1
-        self._register(
-            "equity_reformulated_fy",
-            "Condensed Financials",
-            equity_row,
-            lc,
-            str(ws.cell(row=equity_row, column=lc).value),
-            self.anchor.equity,
+        _register_all_periods(
+            "equity_reformulated_fy", equity_row, list(reform.implied_equity)
         )
 
         reported_eq_row = r
@@ -635,11 +614,10 @@ class ReferenceModelBuilder:
         r_hdr = 4
         ws.cell(row=r_hdr, column=1, value="Metric").font = BOLD
         for j, pd in enumerate(self.periods):
-            if j == 0:
-                continue
-            c = ws.cell(row=r_hdr, column=1 + j, value=pd)
+            c = ws.cell(row=r_hdr, column=2 + j, value=pd)
             c.number_format = "mmm dd, yyyy"
             c.font = BOLD
+            ws.column_dimensions[self._col(2 + j)].width = 14
 
         nopat_r = self.rowmap["condensed_nopat_row"]
         niat_r = self.rowmap["condensed_niat_row"]
@@ -647,8 +625,18 @@ class ReferenceModelBuilder:
         nd_r = self.rowmap["condensed_nd_row"]
         eq_r = self.rowmap["condensed_equity_row"]
         ni_r = self.rowmap["condensed_ni_row"]
+        rev_r = self.rowmap["condensed_revenue_row"]
 
-        metrics = ["RNOA", "After-tax CoD", "Spread", "FLEV", "ROE (decomposed)", "Actual ROE"]
+        metrics = [
+            "Sales Growth",
+            "NOPAT Margin",
+            "RNOA",
+            "After-tax CoD",
+            "Spread",
+            "FLEV",
+            "ROE (decomposed)",
+            "Actual ROE",
+        ]
         metric_rows: dict[str, int] = {}
         r = r_hdr + 1
         for metric in metrics:
@@ -656,121 +644,168 @@ class ReferenceModelBuilder:
             metric_rows[metric] = r
             r += 1
 
-        j_last = self._n - 1
-        # Condensed period columns start at column 2.
-        src_col = self._col(2 + j_last)
-        src_prev = self._col(2 + j_last - 1)
-        out_col_idx = 1 + j_last
-
+        sales_row = metric_rows["Sales Growth"]
+        margin_row = metric_rows["NOPAT Margin"]
         rnoa_row = metric_rows["RNOA"]
-        ws.cell(
-            row=rnoa_row,
-            column=out_col_idx,
-            value=(
-                f"='Condensed Financials'!{src_col}{nopat_r}/"
-                f"(('Condensed Financials'!{src_col}{noa_r}+"
-                f"'Condensed Financials'!{src_prev}{noa_r})/2)"
-            ),
-        ).fill = YELLOW
-
         cod_row = metric_rows["After-tax CoD"]
-        ws.cell(
-            row=cod_row,
-            column=out_col_idx,
-            value=(
-                f"='Condensed Financials'!{src_col}{niat_r}/"
-                f"(('Condensed Financials'!{src_col}{nd_r}+"
-                f"'Condensed Financials'!{src_prev}{nd_r})/2)"
-            ),
-        ).number_format = PCT_FMT
-
         spread_row = metric_rows["Spread"]
-        out_col = self._col(out_col_idx)
-        ws.cell(
-            row=spread_row,
-            column=out_col_idx,
-            value=f"={out_col}{rnoa_row}-{out_col}{cod_row}",
-        ).number_format = PCT_FMT
-
         flev_row = metric_rows["FLEV"]
-        ws.cell(
-            row=flev_row,
-            column=out_col_idx,
-            value=(
-                f"=(('Condensed Financials'!{src_col}{nd_r}+"
-                f"'Condensed Financials'!{src_prev}{nd_r})/2)/"
-                f"(('Condensed Financials'!{src_col}{eq_r}+"
-                f"'Condensed Financials'!{src_prev}{eq_r})/2)"
-            ),
-        )
-
         roe_row = metric_rows["ROE (decomposed)"]
-        ws.cell(
-            row=roe_row,
-            column=out_col_idx,
-            value=f"={out_col}{rnoa_row}+{out_col}{flev_row}*({out_col}{spread_row})",
-        ).fill = YELLOW
-
         actual_row = metric_rows["Actual ROE"]
-        ws.cell(
-            row=actual_row,
-            column=out_col_idx,
-            value=(
-                f"='Condensed Financials'!{src_col}{ni_r}/"
-                f"(('Condensed Financials'!{src_col}{eq_r}+"
-                f"'Condensed Financials'!{src_prev}{eq_r})/2)"
-            ),
-        ).number_format = PCT_FMT
 
         dup = self.anchor.dupont
-        self._register(
-            "rnoa",
-            "ALT DuPont",
-            rnoa_row,
-            out_col_idx,
-            str(ws.cell(row=rnoa_row, column=out_col_idx).value),
-            dup["RNOA"][j_last],
-        )
-        self._register(
-            "after_tax_cod",
-            "ALT DuPont",
-            cod_row,
-            out_col_idx,
-            str(ws.cell(row=cod_row, column=out_col_idx).value),
-            dup["After-tax CoD"][j_last],
-        )
-        self._register(
-            "spread",
-            "ALT DuPont",
-            spread_row,
-            out_col_idx,
-            str(ws.cell(row=spread_row, column=out_col_idx).value),
-            dup["Spread"][j_last],
-        )
-        self._register(
-            "flev",
-            "ALT DuPont",
-            flev_row,
-            out_col_idx,
-            str(ws.cell(row=flev_row, column=out_col_idx).value),
-            dup["FLEV"][j_last],
-        )
-        self._register(
-            "roe_decomp",
-            "ALT DuPont",
-            roe_row,
-            out_col_idx,
-            str(ws.cell(row=roe_row, column=out_col_idx).value),
-            dup["ROE (decomposed)"][j_last],
-        )
-        self._register(
-            "actual_roe",
-            "ALT DuPont",
-            actual_row,
-            out_col_idx,
-            str(ws.cell(row=actual_row, column=out_col_idx).value),
-            dup["Actual ROE"][j_last],
-        )
+        na = "N/A"
+
+        for j in range(self._n):
+            out_col_idx = 2 + j
+            out_col = self._col(out_col_idx)
+            src_col = self._col(2 + j)
+            src_prev = self._col(2 + j - 1) if j > 0 else None
+
+            # NOPAT Margin — all periods
+            margin_f = (
+                f"=IF('Condensed Financials'!{src_col}{rev_r}=0,0,"
+                f"'Condensed Financials'!{src_col}{nopat_r}/"
+                f"'Condensed Financials'!{src_col}{rev_r})"
+            )
+            cell = ws.cell(row=margin_row, column=out_col_idx, value=margin_f)
+            cell.number_format = PCT_FMT
+            self._register_historical(
+                "nopat_margin",
+                j,
+                "ALT DuPont",
+                margin_row,
+                out_col_idx,
+                margin_f,
+                dup["NOPAT Margin"][j],
+            )
+
+            if j == 0:
+                for row in (
+                    sales_row,
+                    rnoa_row,
+                    cod_row,
+                    spread_row,
+                    flev_row,
+                    roe_row,
+                    actual_row,
+                ):
+                    ws.cell(row=row, column=out_col_idx, value=na)
+                continue
+
+            assert src_prev is not None
+            sales_f = (
+                f"=IF('Condensed Financials'!{src_prev}{rev_r}=0,0,"
+                f"'Condensed Financials'!{src_col}{rev_r}/"
+                f"'Condensed Financials'!{src_prev}{rev_r}-1)"
+            )
+            ws.cell(row=sales_row, column=out_col_idx, value=sales_f).number_format = PCT_FMT
+            self._register_historical(
+                "sales_growth",
+                j,
+                "ALT DuPont",
+                sales_row,
+                out_col_idx,
+                sales_f,
+                dup["Sales Growth"][j],
+            )
+
+            rnoa_f = (
+                f"=IF((('Condensed Financials'!{src_col}{noa_r}+"
+                f"'Condensed Financials'!{src_prev}{noa_r})/2)=0,0,"
+                f"'Condensed Financials'!{src_col}{nopat_r}/"
+                f"(('Condensed Financials'!{src_col}{noa_r}+"
+                f"'Condensed Financials'!{src_prev}{noa_r})/2))"
+            )
+            ws.cell(row=rnoa_row, column=out_col_idx, value=rnoa_f).number_format = PCT_FMT
+            self._register_historical(
+                "rnoa",
+                j,
+                "ALT DuPont",
+                rnoa_row,
+                out_col_idx,
+                rnoa_f,
+                dup["RNOA"][j],
+            )
+
+            cod_f = (
+                f"=IF((('Condensed Financials'!{src_col}{nd_r}+"
+                f"'Condensed Financials'!{src_prev}{nd_r})/2)=0,0,"
+                f"'Condensed Financials'!{src_col}{niat_r}/"
+                f"(('Condensed Financials'!{src_col}{nd_r}+"
+                f"'Condensed Financials'!{src_prev}{nd_r})/2))"
+            )
+            ws.cell(row=cod_row, column=out_col_idx, value=cod_f).number_format = PCT_FMT
+            self._register_historical(
+                "after_tax_cod",
+                j,
+                "ALT DuPont",
+                cod_row,
+                out_col_idx,
+                cod_f,
+                dup["After-tax CoD"][j],
+            )
+
+            spread_f = f"={out_col}{rnoa_row}-{out_col}{cod_row}"
+            ws.cell(row=spread_row, column=out_col_idx, value=spread_f).number_format = PCT_FMT
+            self._register_historical(
+                "spread",
+                j,
+                "ALT DuPont",
+                spread_row,
+                out_col_idx,
+                spread_f,
+                dup["Spread"][j],
+            )
+
+            flev_f = (
+                f"=IF((('Condensed Financials'!{src_col}{eq_r}+"
+                f"'Condensed Financials'!{src_prev}{eq_r})/2)=0,0,"
+                f"(('Condensed Financials'!{src_col}{nd_r}+"
+                f"'Condensed Financials'!{src_prev}{nd_r})/2)/"
+                f"(('Condensed Financials'!{src_col}{eq_r}+"
+                f"'Condensed Financials'!{src_prev}{eq_r})/2))"
+            )
+            ws.cell(row=flev_row, column=out_col_idx, value=flev_f)
+            self._register_historical(
+                "flev",
+                j,
+                "ALT DuPont",
+                flev_row,
+                out_col_idx,
+                flev_f,
+                dup["FLEV"][j],
+            )
+
+            roe_f = f"={out_col}{rnoa_row}+{out_col}{flev_row}*({out_col}{spread_row})"
+            ws.cell(row=roe_row, column=out_col_idx, value=roe_f).number_format = PCT_FMT
+            self._register_historical(
+                "roe_decomp",
+                j,
+                "ALT DuPont",
+                roe_row,
+                out_col_idx,
+                roe_f,
+                dup["ROE (decomposed)"][j],
+            )
+
+            actual_f = (
+                f"=IF((('Condensed Financials'!{src_col}{eq_r}+"
+                f"'Condensed Financials'!{src_prev}{eq_r})/2)=0,0,"
+                f"'Condensed Financials'!{src_col}{ni_r}/"
+                f"(('Condensed Financials'!{src_col}{eq_r}+"
+                f"'Condensed Financials'!{src_prev}{eq_r})/2))"
+            )
+            ws.cell(row=actual_row, column=out_col_idx, value=actual_f).number_format = PCT_FMT
+            self._register_historical(
+                "actual_roe",
+                j,
+                "ALT DuPont",
+                actual_row,
+                out_col_idx,
+                actual_f,
+                dup["Actual ROE"][j],
+            )
 
     def _build_model_tab(self, wb: Workbook, scenario: str) -> None:
         ws = wb.create_sheet(f"Model_{scenario}")
@@ -973,7 +1008,7 @@ class ReferenceModelBuilder:
             sales_y1 = str(ws.cell(row=sales_row, column=fc).value)
             nopat_y1 = str(ws.cell(row=nopat_row, column=fc).value)
             ae_y1 = str(ws.cell(row=ae_row, column=fc).value)
-            self._register(
+            self._register_deferred(
                 "model_sales_y1",
                 f"Model_{scenario}",
                 sales_row,
@@ -981,7 +1016,7 @@ class ReferenceModelBuilder:
                 sales_y1,
                 result.sales_y1,
             )
-            self._register(
+            self._register_deferred(
                 "model_nopat_y1",
                 f"Model_{scenario}",
                 nopat_row,
@@ -989,7 +1024,7 @@ class ReferenceModelBuilder:
                 nopat_y1,
                 result.nopat_y1,
             )
-            self._register(
+            self._register_deferred(
                 "model_ae_y1",
                 f"Model_{scenario}",
                 ae_row,
@@ -997,7 +1032,7 @@ class ReferenceModelBuilder:
                 ae_y1,
                 result.abnormal_earnings_y1,
             )
-            self._register(
+            self._register_deferred(
                 "model_tv",
                 f"Model_{scenario}",
                 tv_pv_row,
@@ -1005,7 +1040,7 @@ class ReferenceModelBuilder:
                 tv_pv_formula,
                 result.terminal_value_pv,
             )
-            self._register(
+            self._register_deferred(
                 "model_ivps",
                 f"Model_{scenario}",
                 ivps_row,
@@ -1035,7 +1070,7 @@ class ReferenceModelBuilder:
         ws.cell(row=weighted_row, column=weighted_col, value=weighted_formula)
         ws.cell(row=weighted_row, column=weighted_col).fill = GREEN
         w_ivps = weighted_ivps(self._scenario_results, self.assumptions["scenarios"])
-        self._register(
+        self._register_deferred(
             "scenario_weighted",
             "Scenario_Summary",
             weighted_row,

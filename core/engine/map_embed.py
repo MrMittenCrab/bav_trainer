@@ -19,6 +19,7 @@ def embed_component_map_sheet(wb: Workbook, smap: SemanticMap) -> None:
         "id", "order", "title", "short_hint", "semantic_key", "category",
         "tab", "cell", "formula", "expected_value", "tolerance",
         "depends_on", "hints", "related_cells", "status",
+        "family_id", "family_order", "period_index", "period_end",
     ]
     for j, h in enumerate(headers, start=1):
         ws.cell(row=1, column=j, value=h).font = Font(bold=True)
@@ -38,3 +39,7 @@ def embed_component_map_sheet(wb: Workbook, smap: SemanticMap) -> None:
         ws.cell(row=i, column=13, value="|".join(comp.hints))
         ws.cell(row=i, column=14, value=",".join(comp.related_cells))
         ws.cell(row=i, column=15, value=comp.status)
+        ws.cell(row=i, column=16, value=comp.family_id)
+        ws.cell(row=i, column=17, value=comp.family_order)
+        ws.cell(row=i, column=18, value=comp.period_index)
+        ws.cell(row=i, column=19, value=comp.period_end)

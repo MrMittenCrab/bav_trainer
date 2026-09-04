@@ -21,6 +21,20 @@ def _val(item: LineItem | None, period: date) -> float:
     return float(v) if v is not None else 0.0
 
 
+@dataclass(frozen=True)
+class HistoricalSeries:
+    """Full historical income-reformulation series (one value per fiscal period)."""
+
+    revenue: list[float]
+    net_income: list[float]
+    pretax_income: list[float]
+    tax_expense: list[float]
+    effective_tax_rate: list[float]
+    net_interest: list[float]
+    net_interest_after_tax: list[float]
+    nopat: list[float]
+
+
 @dataclass
 class AnchorMetrics:
     revenue: float
@@ -37,6 +51,7 @@ class AnchorMetrics:
     net_interest_after_tax: float
     dupont: dict[str, list[float | str | None]]
     reformulation: BalanceSheetReformulation
+    historical: HistoricalSeries
 
 
 def compute_anchor(
@@ -141,4 +156,14 @@ def compute_anchor(
         net_interest_after_tax=niat[last],
         dupont=dupont,
         reformulation=reform,
+        historical=HistoricalSeries(
+            revenue=list(revenues),
+            net_income=list(ni),
+            pretax_income=list(pretax),
+            tax_expense=list(tax),
+            effective_tax_rate=list(etr),
+            net_interest=list(net_int),
+            net_interest_after_tax=list(niat),
+            nopat=list(nopat),
+        ),
     )

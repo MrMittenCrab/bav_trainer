@@ -7,7 +7,11 @@ import pytest
 from openpyxl import load_workbook
 
 from core.data.interface import DocumentManifest, DocumentType
-from core.engine.component_catalog import COMPONENT_CATALOG
+from core.engine.component_catalog import (
+    COMPONENT_CATALOG,
+    DEFERRED_COMPONENT_SPECS,
+    expand_historical_specs,
+)
 from core.ingestion.manual_hk import HKManualDocumentAdapter
 from core.model.classification import BALANCE_SHEET_CATEGORIES
 from core.trainer.checker import check_workbook
@@ -17,7 +21,12 @@ from core.trainer.semantic_io import (
     parse_cell_ref,
     resolve_pair_paths,
 )
-from core.trainer.workbook import FONT_NAME, TRAINER_INDEX_INSTRUCTION, build_training_workbook
+from core.trainer.workbook import (
+    FONT_NAME,
+    TRAINER_INDEX_INSTRUCTION,
+    build_training_workbook,
+    group_components_by_family,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 DEMO_JSON = ROOT / "example" / "DEMO_HK_Standardized.json"
@@ -65,26 +74,37 @@ def test_catalog_has_no_coordinates():
         assert "tab" not in d or spec.tab_template
 
 
-def test_catalog_has_21_historical_components_in_dependency_order():
-    assert len(COMPONENT_CATALOG) == 21
-    assert [c.order for c in COMPONENT_CATALOG] == list(range(1, 22))
-    assert len({c.id for c in COMPONENT_CATALOG}) == 21
-    assert len({c.semantic_key for c in COMPONENT_CATALOG}) == 21
-    by_id = {c.id: c for c in COMPONENT_CATALOG}
-    for spec in COMPONENT_CATALOG:
+def test_period_aware_catalog_and_expand_historical_specs():
+    assert len(COMPONENT_CATALOG) == 25
+    assert [f.order for f in COMPONENT_CATALOG] == list(range(1, 26))
+    assert len({f.id for f in COMPONENT_CATALOG}) == 25
+    assert len({f.semantic_key for f in COMPONENT_CATALOG}) == 25
+
+    deferred_ids = {c.id for c in DEFERRED_COMPONENT_SPECS}
+    assert deferred_ids.isdisjoint({f.id for f in COMPONENT_CATALOG})
+
+    data = _ingest_demo()
+    periods = data.fiscal_years() or data.period_dates()
+    specs = expand_historical_specs(periods)
+    assert len(specs) == 118
+    assert [s.order for s in specs] == list(range(1, 119))
+    assert len({s.id for s in specs}) == 118
+    assert len({s.semantic_key for s in specs}) == 118
+    assert len(expand_historical_specs(periods[:3])) == 68  # 25*3 - 7
+    assert len(expand_historical_specs(periods[:2])) == 43  # 25*2 - 7
+
+    by_id = {s.id: s for s in specs}
+    for spec in specs:
         for dep in spec.depends_on:
             assert dep in by_id
             assert by_id[dep].order < spec.order
+        if COMPONENT_CATALOG[[f.id for f in COMPONENT_CATALOG].index(spec.family_id)].period_scope == "comparable":
+            assert spec.period_index != 0
 
-    deferred_ids = {
-        "model_sales_y1",
-        "model_nopat_y1",
-        "model_ae_y1",
-        "model_tv",
-        "model_ivps",
-        "scenario_weighted",
-    }
-    assert deferred_ids.isdisjoint({c.id for c in COMPONENT_CATALOG})
+
+def test_catalog_has_21_historical_components_in_dependency_order():
+    # Backward-compatible name kept; Step 7 uses 25 conceptual families.
+    test_period_aware_catalog_and_expand_historical_specs()
 
 
 def test_ingest_demo_json():
@@ -117,12 +137,17 @@ def test_build_paired_trainer_and_answer_key(tmp_path):
     assert not list(tmp_path.glob("*_reference.xlsx"))
 
     smap = load_semantic_map(answer_key_path)
-    assert len(smap.all_ordered()) == len(COMPONENT_CATALOG)
-    for spec in COMPONENT_CATALOG:
+    data = _ingest_demo()
+    periods = data.fiscal_years() or data.period_dates()
+    expected = expand_historical_specs(periods)
+    assert len(smap.all_ordered()) == len(expected) == 118
+    for spec in expected:
         comp = smap.get(spec.id)
         assert comp.formula.startswith("=")
         assert comp.expected_value is not None
         assert comp.tab and comp.cell
+        assert comp.family_id == spec.family_id
+        assert comp.period_index == spec.period_index
 
 
 def test_trainer_has_no_answer_bearing_hidden_sheets(tmp_path):
@@ -208,17 +233,43 @@ def test_trainer_index_instruction_and_columns(tmp_path):
     wb = load_workbook(trainer_path, data_only=False)
     ws = wb["Trainer"]
     assert ws["A2"].value == TRAINER_INDEX_INSTRUCTION
-    headers = [ws.cell(row=4, column=c).value for c in range(1, 6)]
-    assert headers == ["Order", "Component", "Tab", "Cell", "Depends on"]
+    headers = [ws.cell(row=4, column=c).value for c in range(1, 7)]
+    assert headers == [
+        "Order",
+        "Schedule",
+        "Period scope",
+        "Tab",
+        "Practice cells",
+        "Depends on",
+    ]
     assert "Status" not in headers
     text = " ".join(
         str(ws.cell(row=r, column=c).value or "")
         for r in range(1, (ws.max_row or 1) + 1)
-        for c in range(1, 6)
+        for c in range(1, 7)
     )
     assert "HintActive" not in text
     assert "RevealActive" not in text
     assert "TrainerMacros" not in text
+    wb.close()
+
+
+def test_trainer_index_groups_schedules_not_cells(tmp_path):
+    trainer_path, answer_key_path = _build_pair(tmp_path)
+    smap = load_semantic_map(answer_key_path)
+    groups = group_components_by_family(smap)
+    assert len(groups) == 25
+
+    wb = load_workbook(trainer_path, data_only=False)
+    ws = wb["Trainer"]
+    index_family_rows = (ws.max_row or 4) - 4
+    assert index_family_rows == 25
+
+    by_title = {g["title"]: g for g in groups}
+    assert by_title["Revenue historical source link"]["count"] == 5
+    assert by_title["NOPAT"]["count"] == 5
+    assert by_title["Sales Growth"]["count"] == 4
+    assert by_title["Return on Net Operating Assets (RNOA)"]["count"] == 4
     wb.close()
 
 
@@ -571,7 +622,7 @@ def test_v1_deferred_tabs_are_hidden_placeholders(tmp_path):
     for comp in smap.all_ordered():
         for name in deferred:
             assert name not in comp.formula
-    assert len(smap.all_ordered()) == 21
+    assert len(smap.all_ordered()) == 118
     deferred_ids = {
         "model_sales_y1",
         "model_nopat_y1",
@@ -586,14 +637,11 @@ def test_v1_deferred_tabs_are_hidden_placeholders(tmp_path):
 def test_expanded_historical_chain_check_three_states(tmp_path):
     trainer_path, answer_key_path = _build_pair(tmp_path)
     smap = load_semantic_map(answer_key_path)
-    assert smap.get("effective_tax_rate_fy")
-    assert smap.get("owca_agg")
-    assert smap.get("after_tax_cod")
-    assert len(smap.all_ordered()) == 21
+    assert len(smap.all_ordered()) == 118
 
-    etr = smap.get("effective_tax_rate_fy")
-    owca = smap.get("owca_agg")
-    cod = smap.get("after_tax_cod")
+    etr = next(c for c in smap.all_ordered() if c.family_id == "effective_tax_rate_fy")
+    owca = next(c for c in smap.all_ordered() if c.family_id == "owca_agg")
+    cod = next(c for c in smap.all_ordered() if c.family_id == "after_tax_cod")
 
     wb = load_workbook(trainer_path, data_only=False)
     r, c = parse_cell_ref(etr.cell)
@@ -605,10 +653,10 @@ def test_expanded_historical_chain_check_three_states(tmp_path):
     wb.close()
 
     summary = check_workbook(trainer_path)
-    assert summary.total == 21
+    assert summary.total == 118
     assert summary.correct == 1
     assert summary.incorrect == 1
-    assert summary.blank == 19
+    assert summary.blank == 116
 
     wb = load_workbook(trainer_path, data_only=False)
     r, c = parse_cell_ref(etr.cell)
@@ -768,4 +816,127 @@ def test_equivalent_cached_formula_stays_correct_across_repeated_checks(tmp_path
     wb = load_workbook(trainer_path, data_only=False)
     assert _fill_rgb(wb[comp.tab].cell(row, col)) == "C8E6C9"
     assert wb[comp.tab].cell(row, col).value == entered_formula
+    wb.close()
+
+
+def test_period_aware_semantic_map_round_trip(tmp_path):
+    from core.engine.component_catalog import ComponentSpec
+    from core.engine.map_embed import embed_component_map_sheet
+    from core.engine.semantic_map import SemanticMap
+    from openpyxl import Workbook
+
+    specs = (
+        ComponentSpec(
+            id="nopat_fy__20241231",
+            family_id="nopat_fy",
+            order=1,
+            family_order=6,
+            title="NOPAT",
+            short_hint="NOPAT hint",
+            semantic_key="condensed.nopat.2024-12-31",
+            category="accounting",
+            tab_template="Condensed Financials",
+            period_index=1,
+            period_end="2024-12-31",
+        ),
+        ComponentSpec(
+            id="rnoa__20241231",
+            family_id="rnoa",
+            order=2,
+            family_order=20,
+            title="RNOA",
+            short_hint="RNOA hint",
+            semantic_key="dupont.rnoa.2024-12-31",
+            category="dupont",
+            tab_template="ALT DuPont",
+            period_index=1,
+            period_end="2024-12-31",
+            depends_on=("nopat_fy__20241231",),
+        ),
+    )
+    smap = SemanticMap(expected_specs=specs)
+    smap.register(specs[0], "Condensed Financials", 10, 3, "=A1+A2", 100.0)
+    smap.register(specs[1], "ALT DuPont", 5, 4, "=B1/B2", 0.12)
+
+    json_path = tmp_path / "map.json"
+    smap.save_json(json_path)
+    loaded = SemanticMap.load_json(json_path)
+    for cid in ("nopat_fy__20241231", "rnoa__20241231"):
+        c = loaded.get(cid)
+        assert c.family_id in {"nopat_fy", "rnoa"}
+        assert c.family_order in {6, 20}
+        assert c.period_index == 1
+        assert c.period_end == "2024-12-31"
+
+    wb = Workbook()
+    embed_component_map_sheet(wb, smap)
+    xlsx = tmp_path / "Answer_Key.xlsx"
+    wb.save(xlsx)
+    wb.close()
+    # remove sidecar so from_workbook reads the sheet
+    sidecar = xlsx.with_suffix(".component_map.json")
+    if sidecar.exists():
+        sidecar.unlink()
+    from_wb = SemanticMap.from_workbook(xlsx)
+    c = from_wb.get("rnoa__20241231")
+    assert c.family_id == "rnoa"
+    assert c.family_order == 20
+    assert c.period_index == 1
+    assert c.period_end == "2024-12-31"
+
+
+def test_multi_period_correction_cycle(tmp_path):
+    trainer_path, answer_key_path = _build_pair(tmp_path)
+    smap = load_semantic_map(answer_key_path)
+    assert len(smap.all_ordered()) == 118
+
+    nopats = [c for c in smap.all_ordered() if c.family_id == "nopat_fy"]
+    assert len(nopats) == 5
+    growth = next(c for c in smap.all_ordered() if c.family_id == "sales_growth")
+
+    wb = load_workbook(trainer_path, data_only=False)
+    for comp in nopats:
+        r, c = parse_cell_ref(comp.cell)
+        wb[comp.tab].cell(r, c).value = comp.formula
+    r, c = parse_cell_ref(growth.cell)
+    wb[growth.tab].cell(r, c).value = "=1+1"
+    wb.save(trainer_path)
+    wb.close()
+
+    summary = check_workbook(trainer_path)
+    assert summary.total == 118
+    assert summary.correct == 5
+    assert summary.incorrect == 1
+    assert summary.blank == 112
+
+    wb = load_workbook(trainer_path, data_only=False)
+    r, c = parse_cell_ref(growth.cell)
+    wb[growth.tab].cell(r, c).value = growth.formula
+    wb.save(trainer_path)
+    wb.close()
+
+    summary = check_workbook(trainer_path)
+    assert summary.correct == 6
+    assert summary.incorrect == 0
+    assert summary.blank == 112
+
+    wb = load_workbook(trainer_path, data_only=False)
+    r, c = parse_cell_ref(nopats[0].cell)
+    wb[nopats[0].tab].cell(r, c).value = None
+    wb.save(trainer_path)
+    wb.close()
+
+    summary = check_workbook(trainer_path)
+    assert summary.correct == 5
+    assert summary.incorrect == 0
+    assert summary.blank == 113
+
+    wb = load_workbook(trainer_path, data_only=False)
+    for comp in nopats[1:]:
+        r, c = parse_cell_ref(comp.cell)
+        assert _fill_rgb(wb[comp.tab].cell(r, c)) == "C8E6C9"
+    r, c = parse_cell_ref(growth.cell)
+    assert _fill_rgb(wb[growth.tab].cell(r, c)) == "C8E6C9"
+    r, c = parse_cell_ref(nopats[0].cell)
+    assert _fill_rgb(wb[nopats[0].tab].cell(r, c)) == "FFFF00"
     wb.close()

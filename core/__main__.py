@@ -130,6 +130,8 @@ def cmd_check(args: argparse.Namespace) -> int:
 
 
 def cmd_list(args: argparse.Namespace) -> int:
+    from .trainer.workbook import group_components_by_family
+
     wb = Path(args.workbook) if args.workbook else None
     if wb and wb.exists():
         try:
@@ -139,21 +141,23 @@ def cmd_list(args: argparse.Namespace) -> int:
             if not ak.exists():
                 raise
             smap = load_semantic_map(ak)
-        for comp in smap.all_ordered():
+        for group in group_components_by_family(smap):
             print(
-                f"{comp.order:2d}. [{comp.id}] {comp.title} — "
-                f"{comp.tab}!{comp.cell} ({comp.category})"
+                f"{group['family_order']:2d}. [{group['family_id']}] {group['title']} — "
+                f"{group['tab']}!{group['practice_cells']} "
+                f"({group['count']} cells, {group['period_scope']})"
             )
     else:
-        for spec in COMPONENT_CATALOG:
-            tab = (
-                spec.tab_template.replace("{scenario}", spec.scenario)
-                if spec.scenario
-                else spec.tab_template
+        for family in COMPONENT_CATALOG:
+            scope = (
+                "[second period onward]"
+                if family.period_scope == "comparable"
+                else "[all periods]"
             )
+            tab = family.tab_template
             print(
-                f"{spec.order:2d}. [{spec.id}] {spec.title} — "
-                f"{tab} (semantic: {spec.semantic_key}, {spec.category})"
+                f"{family.order:2d}. [{family.id}] {family.title} — "
+                f"{tab} {scope} (semantic: {family.semantic_key}, {family.category})"
             )
     return 0
 
