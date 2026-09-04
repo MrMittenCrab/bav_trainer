@@ -1,590 +1,752 @@
-# Step 7 Correction — Period-Axis Integrity and Trainer Metadata Hygiene
+# Step 8A — Guided Classification Judgment With Consequences
 
-> **Status:** Step 7 correction complete — period-axis integrity and metadata hygiene
+> **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `9ddc60abb685d8d689b9f2c99983ea719e858d13` (`chat 7 correction`). Implement only this scoped Step 8A using red/green TDD. Run the exact verification commands, update `RESULT.md`, regenerate the demo pair, and stop. Do not begin normalization, earnings-quality diagnostics, forecasting, or valuation. Do not commit or push; the user owns the implementation checkpoint commit.
 
-> **For Cursor:** Read `TARGET.md` first. The accepted Step 7 implementation is commit `598948d3f0ac8651c0be86cf660073c96cfca20a` (`chat 7 Multi-Period Historical Model Construction`). Implement only this correction using red/green TDD. Run the exact verification commands, update `RESULT.md`, and stop. Do not begin Step 8. Do not commit or push; the user owns the implementation checkpoint commit.
+**Goal:** Move the trainer from purely supplied classifications toward guided analyst judgment by turning selected genuinely ambiguous balance-sheet classifications into explicit compare-and-defend exercises, while preserving the trusted Step 7 historical model, formula Check behavior, and Answer Key separation.
 
-**Goal:** Make the Step 7 multi-period historical foundation trustworthy when source periods arrive out of order, and make repeated Trainer generation incapable of leaving stale answer-bearing Trainer metadata beside the workbook.
+**Architecture:** Keep the canonical historical model on the existing supplied/reference classification so Step 7 formulas and cached-value Check remain stable. Add explicit ambiguity metadata to `ClassificationDecision`, derive company-specific `JudgmentCase` objects only from real classifier-flagged lines, and render a visible `Accounting Judgment` worksheet. The learner compares the supplied model treatment with defensible alternative treatment(s), chooses the treatment they would defend, writes a short rationale, and explains the expected economic consequence. The Answer Key contains the model treatment/rationale/consequence; the Trainer blanks only learner-response cells. Step 8A does **not** yet let alternative learner choices drive the main historical model; that live-model integration is deferred until Check can remain correct under alternative accounting treatments.
 
-**Architecture:** Canonicalize fiscal periods exactly once at the model boundary, before historical series, component expansion, workbook construction, and DuPont dependency logic consume the axis. Lower-level period expansion should reject non-chronological input rather than silently repairing it. Trainer generation should explicitly delete stale Trainer-only sidecars while preserving the matching Answer Key metadata used by Check and `list --workbook`.
+**Tech Stack:** Python, dataclasses, pytest, openpyxl, existing `ClassificationDecision`, `BalanceSheetReformulation`, `LineIdentity`, Trainer/Answer Key generation, and workbook-wide formula Check.
 
-**Tech Stack:** Python, dataclasses, pytest, openpyxl, existing semantic map and cache-preserving Check implementation.
+**Spec:** `TARGET.md`, especially `Level 2 — Analyst judgment`, the requirement that ambiguous accounting treatments be taught as alternatives with consequences rather than one universal answer, the material/applicable-topic constraint, and the statement that free-form essays need not yet be automatically graded.
 
-**Spec:** `TARGET.md`, especially the requirements that historical accounting logic be authoritative, historical inputs not be invented, Trainer-associated answer stores not leak answers, and the historical practice surface preserve true dependency logic.
+## Current checkpoint review
 
-## Why this correction is required
+Accepted base: `9ddc60ab`.
 
-### Problem 1 — Period order is assumed rather than enforced
+The Step 7 correction resolves the two blocking defects identified in the previous review:
 
-`ReferenceModelBuilder` currently derives `self.periods` directly from `financials.fiscal_years()` / `period_dates()`. `StandardizedFinancials` preserves the incoming list order, while JSON, Excel, and document-merging paths do not guarantee oldest-to-newest ordering.
+- model-facing fiscal periods are canonicalized oldest -> newest before historical-series and DuPont construction;
+- direct component expansion rejects non-chronological/duplicate axes;
+- successful Trainer regeneration removes stale Trainer answer-bearing sidecars;
+- recorded core suite: 103 passed;
+- five-year demo remains 25 conceptual schedule families / 118 formula practice cells / fresh Check `0/0/118`.
 
-Step 7 comparative formulas use `j - 1` as the immediately preceding fiscal year. Therefore an input ordered:
+No blocking regression was found in the changed production paths.
+
+Two limitations remain but are **not Step 8A scope**:
+
+1. irregular/stub/interim period comparability is not modeled robustly; the current correction intentionally deferred CAGR/stub/interim logic;
+2. Step 7 `IMPLEMENTATION.md` remained a completed checklist rather than an active next-step handoff; this file replaces it.
+
+Do not broaden period-axis behavior in Step 8A. Record period-cadence hardening for later cross-company robustness.
+
+## Why Step 8 is split
+
+The locked roadmap names classification, recurring/non-recurring treatment, normalization, leases, SBC, goodwill/intangibles, deferred taxes, minority interests, acquisitions, and other material accounting topics. Those are not one subsystem.
+
+Step 8A implements one coherent first Level-2 capability:
 
 ```text
-2025 | 2024 | 2023
+supplied reference classification
+        ↓
+identify real ambiguous classification
+        ↓
+show defensible alternative(s)
+        ↓
+learner chooses + defends treatment
+        ↓
+learner explains economic consequence
+        ↓
+compare with Answer Key model reasoning
 ```
 
-can silently make 2024 Sales Growth compare 2024 against 2025 and can make RNOA/FLEV/ROE use the wrong beginning-period denominator. The Python expected-value engine consumes the same period order, so Answer Key and Check can agree with the same incorrect chronology. This is a model-integrity defect, not merely a display-order issue.
-
-### Problem 2 — Stale Trainer sidecars can survive regeneration
-
-The normal build does not create a new Trainer component-map sidecar, but an old `*_Trainer.component_map.json`, `*_Trainer.trainer.json`, or Trainer assumptions sidecar can remain in an existing output directory. `load_semantic_map()` prefers a sidecar when present, so stale Trainer metadata can both retain answer-bearing data and cause `python -m core list --workbook ...Trainer.xlsx` to read obsolete semantics.
-
-The current fresh-directory tests do not cover cleanup of pre-existing Trainer sidecars.
+Later Step 8 work can remove more scaffolding and add normalization/earnings-quality decisions after this interface is trustworthy.
 
 ## Global constraints
 
 - `TARGET.md` is read-only during implementation.
-- Preserve all accepted Step 7 behavior: 25 conceptual schedule families and 118 concrete practice cells for the five-year demo.
-- Preserve every Step 6/7 forecast-quarantine regression.
-- Normal historical build must not execute `run_scenario()` or require forecast assumptions.
-- Keep all four deferred forecast/valuation tabs hidden and placeholder-only.
-- Do not expose any public forecast switch.
-- Historical source values and classification/setup judgments remain populated.
-- `Reported Equity`, `Total Capital`, and `CHECK` remain populated non-practice guardrails.
-- Trainer practice cells remain blank/yellow/no-Note; Answer Key practice cells remain formula/yellow/Note.
-- Check remains workbook-wide, non-disclosing, and cache-safe.
-- No accounting-judgment exercises, research diagnostics, forecasting, valuation, Hint, Reveal, or VBA.
-- No fixed five-year assumption in production code.
-- Do not fabricate historical share-count/EPS data.
-- Do not silently infer CAGR or irregular-period behavior in this correction.
+- Preserve all Step 7 formula practice: 25 families and 118 formula cells for the revised five-year demo.
+- Formula Check remains unchanged: yellow/green/red, workbook-wide, non-disclosing, cache-safe.
+- Judgment response cells are **not** added to the formula `SemanticMap` or formula Check in Step 8A.
+- Do not make ambiguous accounting appear to have one universally correct answer.
+- Do not automatically invent questions from arbitrary labels. A Step 8A case must originate from an existing classifier decision explicitly marked `ambiguous=True` and must have explicitly encoded defensible options.
+- Do not expose every ambiguous flag automatically if the category taxonomy cannot express a defensible alternative safely.
+- Zero-valued lines across all modeled periods do not become judgment cases.
+- Existing explicit classification overrides suppress the guided case for that line; an override is treated as a supplied setup decision in this step.
+- Main `Condensed Financials` classifications remain populated and continue to drive the historical model. Step 8A is compare-and-defend, not live learner reclassification.
+- No normalization, recurring/non-recurring adjustments, leases accounting mechanics beyond classification discussion, SBC dilution, acquisition accounting, minority-interest modeling, forecasting, valuation, Hint/Reveal, VBA, or free-form automated grading.
+- Keep exactly two user-facing workbooks: Trainer and Answer Key.
+- Trainer must contain no Answer-Key rationale/consequence text in hidden sheets, comments, or Trainer sidecars.
 - Cursor must not commit, push, reset, rebase, merge, or delete branches.
 
 ---
 
-## Task 1 — Establish one authoritative fiscal-period axis
+## Task 1 — Encode defensible alternatives in the authoritative classifier
 
 **Files:**
-- Create: `core/model/period_axis.py`
-- Modify: `core/engine/reference_model.py`
-- Test: `core/tests/test_reference_integrity.py`
-- Test: `core/tests/test_trainer.py`
+- Modify: `core/model/classification.py`
+- Test: `core/tests/test_classification.py`
 
 **Interfaces:**
-- Produces: `canonical_fiscal_periods(financials) -> list[date]`.
-- Preserves: existing `StandardizedFinancials` input object and date-keyed `LineItem.values` mappings.
-- Guarantees: model-facing periods are unique, chronological, and contiguous for annual comparative calculations.
+- Extends: `ClassificationDecision`.
+- Produces: explicit guided options and consequence teaching metadata for supported ambiguous classifications.
+- Preserves: existing `category`, `ambiguous`, `reason`, and `overridden` behavior.
 
-- [ ] **Step 1: Write failing descending-period regression tests**
+- [ ] **Step 1: Write failing metadata tests**
 
-Construct a valid synthetic `StandardizedFinancials` whose `periods` are deliberately supplied newest-to-oldest:
-
-```text
-FY2025
-FY2024
-FY2023
-```
-
-Use distinct Revenue, Net Income, and balance-sheet values so wrong-period references are observable.
-
-Build the Trainer/Answer Key pair and assert:
-
-```text
-workbook historical columns: 2023, 2024, 2025
-SemanticMap period_index 0: 2023
-SemanticMap period_index 1: 2024
-SemanticMap period_index 2: 2025
-```
-
-Also assert:
-
-- 2024 Sales Growth references 2024 and 2023 Revenue;
-- 2025 Sales Growth references 2025 and 2024 Revenue;
-- 2024 RNOA references 2024 NOPAT and 2024/2023 NOA;
-- Python expected values match those chronological calculations.
-
-Do not hard-code workbook row numbers. Resolve components/rows through the SemanticMap and existing row-map interfaces.
-
-- [ ] **Step 2: Verify the regression fails against the current implementation**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "descending or chronological" -v
-```
-
-Expected before implementation: the model preserves descending input order and one or more chronology assertions fail.
-
-- [ ] **Step 3: Add the period-axis module**
-
-Create:
+Extend the expected interface to:
 
 ```python
-from __future__ import annotations
+@dataclass(frozen=True)
+class ClassificationDecision:
+    category: str
+    ambiguous: bool = False
+    reason: str = ""
+    overridden: bool = False
+    guided_options: tuple[str, ...] = ()
+    judgment_topic: str = ""
+    consequence_note: str = ""
+```
 
-from datetime import date
+Add focused tests for these supported guided cases:
 
-from ..data.interface import StandardizedFinancials
+```text
+Lease liability:
+  supplied/reference = Operating Long-Term Liability
+  guided options = Operating Long-Term Liability | Financial Liability
 
+Deferred tax asset:
+  supplied/reference = Operating Long-Term Asset
+  guided options = Operating Long-Term Asset | Exclude
 
-class PeriodAxisError(ValueError):
-    """Historical fiscal-period axis is not suitable for comparative modeling."""
+Deferred tax liability:
+  supplied/reference = Operating Long-Term Liability
+  guided options = Operating Long-Term Liability | Exclude
 
+Pension obligation:
+  supplied/reference = Operating Long-Term Liability
+  guided options = Operating Long-Term Liability | Financial Liability
 
-def canonical_fiscal_periods(
+Short-term investment:
+  supplied/reference = Financial Asset
+  guided options = Financial Asset | Operating Working Capital Asset
+
+Equity-method / associate / JV investment:
+  supplied/reference = Operating Long-Term Asset
+  guided options = Operating Long-Term Asset | Financial Asset
+```
+
+For each supported case assert:
+
+```python
+assert decision.ambiguous is True
+assert decision.category == decision.guided_options[0]
+assert len(decision.guided_options) >= 2
+assert all(option in BALANCE_SHEET_CATEGORIES for option in decision.guided_options)
+assert decision.judgment_topic
+assert decision.consequence_note
+```
+
+- [ ] **Step 2: Explicitly protect unsupported ambiguity from becoming fake alternatives**
+
+The current classifier flags a right-of-use / lease asset as ambiguous, but the current eight-category taxonomy does not contain an obviously defensible generic “financial asset” treatment for a ROU asset.
+
+Add a regression asserting that the ROU-asset decision may remain:
+
+```python
+assert decision.ambiguous is True
+assert decision.guided_options == ()
+```
+
+Do **not** invent `Financial Asset` or another category merely to create an exercise.
+
+- [ ] **Step 3: Verify tests fail before implementation**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_classification.py -k "guided or alternative or judgment" -v
+```
+
+- [ ] **Step 4: Implement the metadata at the classification source**
+
+Populate `guided_options`, `judgment_topic`, and `consequence_note` in the existing ambiguous branches.
+
+Use concise consequence language tied to BAV reformulation. Examples:
+
+```text
+Lease/pension liability:
+Operating treatment lowers NOLA/NOA; financing treatment raises Net Debt.
+The choice can shift RNOA versus FLEV/Spread interpretation while equity reconciliation should remain intact.
+
+Deferred tax asset:
+Including it as operating raises NOA; excluding it removes that balance from operating capital and can change RNOA.
+
+Deferred tax liability:
+Including it as operating lowers NOA; excluding it removes that balance from operating capital.
+
+Short-term investment:
+Financial-asset treatment reduces Net Debt; operating-WC treatment raises NOWC/NOA.
+
+Equity-method investment:
+Operating treatment raises NOA; financial-asset treatment reduces Net Debt.
+```
+
+Do not add company-specific claims that cannot be inferred from the supplied line.
+
+- [ ] **Step 5: Preserve override behavior**
+
+An explicit `classificationOverrides` choice must still return:
+
+```python
+overridden is True
+ambiguous is False
+```
+
+and must not retain guided options from the default classifier.
+
+- [ ] **Step 6: Run classification tests**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_classification.py -v
+```
+
+Record the exact pass count.
+
+---
+
+## Task 2 — Derive stable company-specific JudgmentCase objects
+
+**Files:**
+- Create: `core/model/judgment.py`
+- Modify: `core/engine/reference_model.py`
+- Test: `core/tests/test_reference_integrity.py`
+
+**Interfaces:**
+- Consumes: `StandardizedFinancials` + `BalanceSheetReformulation`.
+- Produces: `classification_judgment_cases(...) -> tuple[JudgmentCase, ...]`.
+- `ReferenceModelBuilder.judgment_cases` becomes the build-time source for workbook rendering.
+
+- [ ] **Step 1: Write failing case-construction tests**
+
+Use this dataclass:
+
+```python
+@dataclass(frozen=True)
+class JudgmentCase:
+    id: str
+    order: int
+    line_identity: str
+    label: str
+    topic: str
+    supplied_treatment: str
+    alternatives: tuple[str, ...]
+    model_rationale: str
+    consequence_prompt: str
+    model_consequence: str
+```
+
+And this constructor:
+
+```python
+def classification_judgment_cases(
     financials: StandardizedFinancials,
-) -> list[date]:
+    reformulation: BalanceSheetReformulation,
+) -> tuple[JudgmentCase, ...]:
     ...
 ```
 
-Required behavior:
+Case rules:
 
-1. Prefer non-interim fiscal periods:
-
-```python
-annual = [p.end_date for p in financials.periods if not p.is_interim]
-raw = annual or [p.end_date for p in financials.periods]
-```
-
-2. Reject an empty period set with `PeriodAxisError`.
-
-3. Reject duplicate period-end dates with a clear error containing `duplicate`.
-
-4. Return periods sorted oldest -> newest.
-
-5. When the annual path is used, reject missing fiscal years for now. For each adjacent pair:
+1. iterate `reformulation.detail_indices` in source order;
+2. use the authoritative `ClassificationDecision` for that exact index;
+3. require `decision.ambiguous is True`;
+4. require `len(decision.guided_options) >= 2`;
+5. skip a line whose values are all `None`/zero across modeled source periods;
+6. `supplied_treatment = decision.category`;
+7. `alternatives` contains the remaining guided options, preserving order;
+8. `line_identity` comes from `line_identity(item).key()`;
+9. stable ID format:
 
 ```python
-current.year == previous.year + 1
+f"classification::{line_identity(item).key()}"
 ```
 
-If not, raise `PeriodAxisError` explaining that contiguous annual fiscal periods are required for multi-period growth/DuPont calculations.
-
-6. Do not mutate `financials.periods`.
-
-7. Do not add CAGR, stub-period, 53-week-year, or irregular-period logic in this correction.
-
-- [ ] **Step 4: Make `ReferenceModelBuilder` consume only the canonical axis**
-
-Replace direct `financials.fiscal_years() or financials.period_dates()` use in `ReferenceModelBuilder.__init__` with:
-
-```python
-self.periods = canonical_fiscal_periods(financials)
-```
-
-This assignment must happen before:
-
-- `compute_anchor()`;
-- `expand_historical_specs()`;
-- historical source-sheet generation;
-- Condensed Financials construction;
-- ALT DuPont construction.
-
-The `LineItem.values` dictionaries are keyed by dates, so reordering the axis must only alter column/dependency order, not source values.
-
-- [ ] **Step 5: Add duplicate and gapped-history regressions**
-
-Duplicate periods:
-
-```python
-with pytest.raises(PeriodAxisError, match="duplicate"):
-    ReferenceModelBuilder(financials_with_duplicate_fy)
-```
-
-Gapped annual history:
+10. `model_rationale = decision.reason`;
+11. `model_consequence = decision.consequence_note`;
+12. `consequence_prompt` is a short non-answer prompt, e.g.:
 
 ```text
-FY2021
-FY2023
+Explain which reformulated balance(s) and profitability/leverage interpretation change under the alternative treatment.
 ```
 
-must fail with a message containing `contiguous` rather than silently treating the two-year movement as one-year Sales Growth.
+- [ ] **Step 2: Add suppression tests**
 
-- [ ] **Step 6: Run focused tests**
+Assert:
+
+- a supported ambiguous non-zero lease liability produces one case;
+- an ambiguous ROU asset with no guided options produces no case;
+- a zero-valued supported ambiguous line produces no case;
+- an explicit override suppresses the case.
+
+- [ ] **Step 3: Run and verify failure**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "period or chronological or descending or duplicate or contiguous" -v
+PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "judgment_case or guided_classification" -v
+```
+
+- [ ] **Step 4: Implement `core/model/judgment.py`**
+
+Keep this module coordinate-free. It owns accounting-learning case identity/content, not workbook cell locations.
+
+- [ ] **Step 5: Wire cases into `ReferenceModelBuilder`**
+
+After `self.anchor = compute_anchor(...)`, set:
+
+```python
+self.judgment_cases = classification_judgment_cases(
+    self.fin,
+    self.anchor.reformulation,
+)
+```
+
+Do not add these cases to `COMPONENT_CATALOG`, `ComponentSpec`, or `SemanticMap`.
+
+- [ ] **Step 6: Run focused reference tests**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "judgment or classification" -v
 ```
 
 ---
 
-## Task 2 — Prove the fix through a supported Excel ingestion path
+## Task 3 — Add one real guided judgment case to the committed demo without changing model economics
 
 **Files:**
-- Test: `core/tests/test_reference_integrity.py` or `core/tests/test_trainer.py`
-- Modify production ingestion code only if the model-boundary fix exposes a demonstrated ingestion defect.
+- Modify: `example/DEMO_HK_Standardized.json`
+- Test: `core/tests/test_reference_integrity.py`
 
 **Interfaces:**
-- Consumes: existing `ExcelExportAdapter` and normal `build_training_workbook()` path.
-- Produces: a regression proving supported newest-to-oldest Excel headers still build chronologically.
+- Revised demo still has five fiscal years and exactly the same reported total liabilities/equity.
+- Produces: exactly one Step 8A guided classification case.
 
-- [ ] **Step 1: Create a temporary supported Excel input**
+- [ ] **Step 1: Split the existing `Other non-current liabilities` line**
 
-Build a small workbook with supported tabs and date columns deliberately ordered newest to oldest, for example:
+Add a real ambiguous line:
+
+```json
+{
+  "label": "Operating lease liabilities",
+  "concept": "lease_liability",
+  "values": {
+    "2021-12-31": 300,
+    "2022-12-31": 320,
+    "2023-12-31": 340,
+    "2024-12-31": 360,
+    "2025-12-31": 380
+  }
+}
+```
+
+Reduce the existing `Other non-current liabilities` values from:
 
 ```text
-Line Item | 2025-12-31 | 2024-12-31 | 2023-12-31
+1305, 1456, 1593, 1716, 1825
 ```
 
-Include enough valid IS/BS/CF lines to pass current source and reformulation integrity checks.
+to:
 
-- [ ] **Step 2: Ingest through the normal Excel path**
-
-Use `ExcelExportAdapter` or `HKManualDocumentAdapter` exactly as the public build path would.
-
-Do not manually reorder the returned financials in the test.
-
-- [ ] **Step 3: Build and assert chronological model output**
-
-Assert the resulting Answer Key has historical headers oldest -> newest and that the 2024/2025 comparative formulas reference their true preceding fiscal year.
-
-This test protects the real supported input workflow, not only direct synthetic object construction.
-
-- [ ] **Step 4: Run the focused Excel regression**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "excel and descending" -v
+```text
+1005, 1136, 1253, 1356, 1445
 ```
+
+Do not change `Total liabilities` or any other reported totals.
+
+Because both lines use the current reference treatment `Operating Long-Term Liability`, the aggregate historical reference model should remain economically unchanged.
+
+- [ ] **Step 2: Add demo-case assertions**
+
+Assert:
+
+```python
+assert len(builder.judgment_cases) == 1
+case = builder.judgment_cases[0]
+assert case.label == "Operating lease liabilities"
+assert case.supplied_treatment == "Operating Long-Term Liability"
+assert case.alternatives == ("Financial Liability",)
+```
+
+Also assert the five-year build still resolves exactly 118 formula components.
+
+- [ ] **Step 3: Verify reformulation preservation**
+
+Build the revised demo and assert reported-equity/reformulation checks still pass for all periods.
+
+Do not hard-code workbook coordinates.
 
 ---
 
-## Task 3 — Defensively protect concrete component expansion
+## Task 4 — Render an `Accounting Judgment` worksheet in the Answer Key
 
 **Files:**
-- Modify: `core/engine/component_catalog.py`
+- Modify: `core/engine/reference_model.py`
 - Test: `core/tests/test_trainer.py`
 
 **Interfaces:**
-- `expand_historical_specs(periods)` continues to expand already-canonical dates.
-- It must reject invalid order rather than silently sorting.
+- Visible sheet name: `Accounting Judgment`.
+- One row per `JudgmentCase`.
+- Answer Key contains the model response; Trainer sanitization happens in Task 5.
 
-- [ ] **Step 1: Write failing direct-expansion tests**
+- [ ] **Step 1: Write a failing Answer-Key sheet test**
 
-Add:
+Required layout:
 
-```python
-with pytest.raises(ValueError, match="increasing|chronological"):
-    expand_historical_specs([fy2025, fy2024])
+```text
+A1  Accounting Judgment
+A2  instruction text
 
-with pytest.raises(ValueError, match="duplicate"):
-    expand_historical_specs([fy2024, fy2024])
-
-assert len(expand_historical_specs([fy2023, fy2024, fy2025])) == 68
+row 4 headers:
+Order
+Line item
+Topic
+Supplied model treatment
+Alternative(s) to evaluate
+Your treatment
+Your rationale
+Your consequence explanation
 ```
 
-- [ ] **Step 2: Verify the descending/duplicate tests fail before implementation**
+For each case, row `5 + case.order - 1` contains:
+
+```text
+Order                     case.order
+Line item                 case.label
+Topic                     case.topic
+Supplied model treatment  case.supplied_treatment
+Alternative(s)            comma-separated case.alternatives
+Your treatment            case.supplied_treatment
+Your rationale            case.model_rationale
+Your consequence          case.model_consequence
+```
+
+The instruction must explicitly say:
+
+```text
+The supplied treatment is the model's reference treatment, not a universal accounting truth. Compare it with the listed alternative(s), choose the treatment you would defend, and explain the economic consequence.
+```
+
+- [ ] **Step 2: Add treatment dropdown validation**
+
+The `Your treatment` cell must use an Excel list validation containing exactly:
+
+```text
+case.supplied_treatment + case.alternatives
+```
+
+Do not expose unrelated classification categories merely to make the question harder.
+
+- [ ] **Step 3: Handle zero-case companies cleanly**
+
+If `judgment_cases` is empty, still create the visible sheet with headers and a message:
+
+```text
+No supported guided classification judgments were identified from the supplied company data.
+```
+
+Do not invent a case.
+
+- [ ] **Step 4: Build the sheet after the historical model**
+
+Add `_build_accounting_judgment(wb)` to `ReferenceModelBuilder.build()` after historical sheets are complete and before deferred placeholders / final save as appropriate.
+
+The sheet must not participate in `SemanticMap.validate_complete()`.
+
+- [ ] **Step 5: Run focused workbook tests**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_trainer.py -k "expand_historical and period" -v
+PYTHONPATH=. pytest core/tests/test_trainer.py -k "accounting_judgment or judgment_sheet" -v
 ```
-
-- [ ] **Step 3: Add a small input-contract guard**
-
-At the beginning of `expand_historical_specs(periods)`, validate that:
-
-- dates are unique;
-- each date is strictly greater than the preceding date.
-
-Do not sort inside this function. Sorting belongs at the `StandardizedFinancials` -> model boundary. This lower-level helper should fail loudly if a caller violates the chronological-axis contract.
-
-Do not add a fixed five-year rule.
-
-- [ ] **Step 4: Run the full component-expansion tests**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_trainer.py -k "period_aware or expand_historical" -v
-```
-
-The existing five-year demo count must remain 118 and the three-period count 68.
 
 ---
 
-## Task 4 — Remove stale Trainer answer-bearing sidecars on every build
+## Task 5 — Derive a sanitized guided-judgment Trainer from the Answer Key
 
 **Files:**
 - Modify: `core/trainer/workbook.py`
 - Test: `core/tests/test_trainer.py`
 
 **Interfaces:**
-- Produces: idempotent Trainer-only sidecar cleanup.
-- Preserves: matching Answer Key `.component_map.json` and `.assumptions.json` sidecars.
+- `TrainingWorkbookGenerator` receives the build-time judgment cases.
+- Answer Key response cells remain populated/yellow.
+- Trainer response cells become blank/yellow/no-Note.
+- Prompt/context cells remain identical between pair.
 
-- [ ] **Step 1: Write the failing stale-sidecar regression**
+- [ ] **Step 1: Pass judgment cases through the normal build path**
 
-Before a normal build, create these files at the intended Trainer output path:
-
-```text
-DEMO_HK_Trainer.component_map.json
-DEMO_HK_Trainer.trainer.json
-DEMO_HK_Trainer.assumptions.json
-```
-
-Put obvious sentinel strings in them:
-
-```text
-SECRET_OLD_FORMULA
-SECRET_OLD_HINT
-```
-
-Run the normal build into the same output directory.
-
-Assert all three Trainer-side files no longer exist after generation.
-
-Also assert:
-
-```text
-DEMO_HK_Answer_Key.component_map.json exists
-DEMO_HK_Answer_Key.assumptions.json exists
-```
-
-- [ ] **Step 2: Verify the regression fails before implementation**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_trainer.py -k "stale and sidecar" -v
-```
-
-- [ ] **Step 3: Add one explicit cleanup helper**
-
-In `core/trainer/workbook.py`, add a small helper such as:
+Change the generator constructor to:
 
 ```python
-def remove_trainer_sidecars(trainer_path: Path) -> None:
-    for suffix in (
-        ".component_map.json",
-        ".trainer.json",
-        ".assumptions.json",
-    ):
-        trainer_path.with_suffix(suffix).unlink(missing_ok=True)
+def __init__(
+    self,
+    answer_key_path: Path,
+    semantic_map: SemanticMap | None = None,
+    judgment_cases: tuple[JudgmentCase, ...] = (),
+):
+    ...
 ```
 
-If `Path.with_suffix()` does not produce the current naming convention correctly for every suffix, use the existing sidecar path helpers or construct the paths explicitly from `trainer_path.stem`. Test the exact filenames rather than assuming.
-
-The helper must be idempotent.
-
-- [ ] **Step 4: Invoke cleanup in the normal Trainer generation path**
-
-Call the cleanup as part of normal generation so rebuilding into an existing directory always converges to the same safe result.
-
-Do not delete any Answer Key sidecar.
-
-- [ ] **Step 5: Verify Trainer-path `list` cannot read stale metadata**
-
-After the stale-sidecar build test, call:
+And in `build_training_workbook()`:
 
 ```python
-main(["list", "--workbook", str(trainer_path)])
+builder = ReferenceModelBuilder(financials, assumptions)
+semantic_map = builder.build(answer_key_path)
+TrainingWorkbookGenerator(
+    answer_key_path,
+    semantic_map,
+    judgment_cases=builder.judgment_cases,
+).generate(trainer_path)
 ```
 
-Capture stdout and assert:
+Do not persist `JudgmentCase.model_rationale` or `model_consequence` in a Trainer sidecar.
 
-- current output contains 25 schedule-family lines;
-- current five-year ranges/counts are represented;
-- `SECRET_OLD_FORMULA` is absent;
-- `SECRET_OLD_HINT` is absent.
+- [ ] **Step 2: Decorate Answer-Key response cells**
 
-Keep the existing fresh-directory test that proves a normal build does not create a Trainer semantic sidecar.
+For each judgment row, columns F/G/H are bright yellow and contain the model response.
 
-- [ ] **Step 6: Run focused Trainer metadata tests**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_trainer.py -k "sidecar or list or leak" -v
-```
-
----
-
-## Task 5 — Preserve all accepted Step 7 behavior
-
-**Files:**
-- Modify production files only when a demonstrated regression requires it.
-- Test: existing full test suite.
-
-- [ ] **Step 1: Re-run the Step 7 practice-surface checks**
-
-The five-year demo must still satisfy:
+Use existing workbook styling conventions:
 
 ```text
-25 conceptual families
-18 all-period families × 5 cells
-7 comparable families × 4 cells
-118 concrete practice cells
-25 Trainer index rows
+Aptos Narrow
+20-point sheet title
+11-point body
+bright-yellow response cells
+thin restrained headers/borders
 ```
 
-- [ ] **Step 2: Preserve Trainer / Answer Key contracts**
+- [ ] **Step 3: Blank Trainer response cells**
 
-Verify:
+After copying Answer Key -> Trainer, blank only columns F/G/H for each judgment row.
+
+Trainer contract:
 
 ```text
-Trainer:    118 blank + yellow + no Note
-Answer Key: 118 formula + yellow + non-empty Note
-fresh Check: 0 correct / 0 incorrect / 118 blank
+F/G/H value: blank
+F/G/H fill: bright yellow
+F/G/H comment: none
 ```
 
-- [ ] **Step 3: Preserve historical and audit scaffolding**
+Keep columns A-E identical to the Answer Key because they are intentional exercise context, not withheld answers.
 
-Historical source statements, classification decisions, `Reported Equity`, `Total Capital`, and `CHECK` must remain populated and pair-consistent.
+- [ ] **Step 4: Preserve the main model classification scaffold**
 
-- [ ] **Step 4: Preserve deferred forecast quarantine**
+The existing `Condensed Financials` classification column remains populated and pair-identical in Step 8A.
 
-At minimum rerun regressions proving:
+Do not make the learner judgment response drive SUMIF/reformulation formulas yet.
 
-- monkeypatched `run_scenario()` is never executed by normal build;
-- all four deferred tabs are hidden placeholders in both workbooks;
-- no active component points to a deferred tab;
-- no public Hint/Reveal/forecast path is introduced.
+Reason: alternative live treatments would change cached expected values and could make equivalent-but-correct formulas fail the existing Check. Step 8A teaches comparison/defense without regressing the trusted formula feedback loop.
 
-- [ ] **Step 5: Preserve cache-safe Check behavior**
+- [ ] **Step 5: Add leakage regression**
 
-Do not weaken or remove the existing equivalent-formula/cached-value repeated-Check regression.
+Build the revised demo. Collect:
 
----
-
-## Task 6 — Full verification, evidence, and stop
-
-**Files:**
-- Modify: `RESULT.md`
-- Modify: `IMPLEMENTATION.md` only to mark this correction complete after all verification succeeds.
-
-- [ ] **Step 1: Run focused new regressions**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "period or chronological or descending or duplicate or contiguous" -v
-PYTHONPATH=. pytest core/tests/test_trainer.py -k "period or sidecar or list" -v
+```text
+case.model_rationale
+case.model_consequence
 ```
 
-Record the actual focused results.
+Scan Trainer hidden sheets, comments, and Trainer-associated sidecars and assert those texts do not appear.
 
-- [ ] **Step 2: Run the full standalone test files**
+The visible `Supplied model treatment` and `Alternative(s) to evaluate` are allowed because they are the guided exercise prompt.
+
+- [ ] **Step 6: Add pair-contract assertions**
+
+For revised demo assert:
+
+```text
+judgment cases: 1
+Trainer judgment response cells: 3 blank/yellow/no-Note
+Answer Key judgment response cells: 3 populated/yellow
+formula SemanticMap: still 118
+formula Check fresh: still 0 correct / 0 incorrect / 118 blank
+```
+
+- [ ] **Step 7: Run full Trainer tests**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
 PYTHONPATH=. pytest core/tests/test_trainer.py -v
 ```
 
-Record exact pass counts.
+Record exact pass count.
 
-- [ ] **Step 3: Run the complete core suite**
+---
 
-```bash
-PYTHONPATH=. pytest core/tests/ -q
+## Task 6 — Preserve Step 7 behavior and document Step 8A accurately
+
+**Files:**
+- Modify: `README-HK-TRAINER.md`
+- Modify: `skills/bav-trainer/SKILL.md`
+- Modify: `RESULT.md`
+- Regenerate: `example/DEMO_HK_Trainer.xlsx`
+- Regenerate: `example/DEMO_HK_Answer_Key.xlsx`
+
+- [ ] **Step 1: Update product wording without overclaiming**
+
+Describe current capability as:
+
+```text
+Step 7 historical model construction:
+- 25 historical schedule families across supplied fiscal years
+- 118 formula practice cells in the five-year demo
+- workbook-wide formula Check
+
+Step 8A guided judgment:
+- company-specific classification cases only when the authoritative classifier flags a supported ambiguity
+- supplied reference treatment + explicit defensible alternative(s)
+- learner treatment choice + short rationale + consequence explanation
+- Answer Key shows model reasoning
+- judgment responses are not automatically graded yet
+- learner choices do not yet drive the main reformulated model
 ```
 
-Record the exact pass count.
+Explicitly state that this is a transition from supplied judgment to guided judgment, not independent analyst competence.
 
-- [ ] **Step 4: Verify the public demo workflow**
+Do not claim normalization, earnings-quality analysis, or live alternative model reconciliation has been implemented.
+
+- [ ] **Step 2: Regenerate the demo pair**
 
 ```bash
 PYTHONPATH=. python -m core build \
   example/DEMO_HK_Standardized.json \
-  -o /tmp/DEMO_HK_Trainer.xlsx
+  -o example/DEMO_HK_Trainer.xlsx
 ```
 
-Expected:
+Expected formula output remains:
 
 ```text
 Components resolved: 118
 ```
 
-Then:
+- [ ] **Step 3: Run full verification**
 
 ```bash
-PYTHONPATH=. python -m core check \
-  --workbook /tmp/DEMO_HK_Trainer.xlsx
-```
-
-Expected:
-
-```text
-Checked 118 practice cells: 0 correct, 0 incorrect, 118 blank.
-```
-
-Then:
-
-```bash
+PYTHONPATH=. pytest core/tests/test_classification.py -v
+PYTHONPATH=. pytest core/tests/test_line_identity.py -v
+PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
+PYTHONPATH=. pytest core/tests/test_line_resolver.py -v
+PYTHONPATH=. pytest core/tests/test_trainer.py -v
+PYTHONPATH=. pytest core/tests/ -q
+PYTHONPATH=. python -m core build example/DEMO_HK_Standardized.json -o /tmp/DEMO_HK_Trainer.xlsx
+PYTHONPATH=. python -m core check --workbook /tmp/DEMO_HK_Trainer.xlsx
 PYTHONPATH=. python -m core list --workbook /tmp/DEMO_HK_Trainer.xlsx
+PYTHONPATH=. python -m core --help
 ```
 
-Expected: 25 resolved schedule groups covering 118 concrete cells total.
-
-- [ ] **Step 5: Update `RESULT.md` with observed evidence**
-
-Use this structure with actual results rather than predicted numbers:
+Expected end-to-end outcomes:
 
 ```text
-Status: Step 7 correction complete — period-axis integrity and metadata hygiene
+Components resolved: 118
+Checked 118 practice cells: 0 correct, 0 incorrect, 118 blank.
+list --workbook: 25 historical schedule groups / 118 concrete formula cells
+CLI surface remains {ingest,build,check,list}
+Accounting Judgment sheet exists and contains exactly 1 guided case in the revised demo
+```
+
+- [ ] **Step 4: Perform final workbook audit**
+
+Verify:
+
+1. Trainer and Answer Key both contain `Accounting Judgment`.
+2. Revised demo produces exactly one judgment case for `Operating lease liabilities`.
+3. Supplied treatment is `Operating Long-Term Liability`.
+4. Alternative is `Financial Liability`.
+5. Trainer F/G/H response cells are blank/yellow/no-Note.
+6. Answer Key F/G/H response cells are populated/yellow.
+7. Answer Key rationale/consequence does not leak into Trainer hidden sheets/comments/sidecars.
+8. `Condensed Financials` classifications remain populated and pair-identical.
+9. Historical reformulation still reconciles for every period.
+10. Formula SemanticMap remains 118 cells grouped into 25 families.
+11. Fresh Check remains `0/0/118`.
+12. Deferred forecast/valuation tabs remain four hidden placeholders.
+13. Normal build still succeeds when `run_scenario()` is patched to fail.
+14. No new public Hint/Reveal or judgment-grading CLI is introduced.
+
+- [ ] **Step 5: Update `RESULT.md` with actual evidence**
+
+Use this structure with observed values:
+
+```text
+Status: Step 8A complete — guided classification judgment with consequences
 
 Implementation base:
-- 598948d3 Step 7 multi-period historical model
+- 9ddc60ab Step 7 correction
 
-Period-axis audit:
-- descending input canonicalized oldest -> newest: yes
-- supported descending Excel input canonicalized: yes
-- duplicate fiscal periods rejected: yes
-- gapped annual histories rejected: yes
-- comparative formulas use true previous fiscal year: yes
-
-Trainer metadata audit:
-- stale Trainer component-map sidecar removed: yes
-- stale Trainer trainer.json removed: yes
-- stale Trainer assumptions sidecar removed: yes
-- Answer Key semantic metadata preserved: yes
-- Trainer list resolves current 25 families: yes
-- Trainer answer leakage: none
-
-Demo preservation:
+Historical model preservation:
 - fiscal periods: 5
-- conceptual families: 25
-- concrete practice cells: 118
-- Trainer index rows: 25
-- fresh Check: 0 correct / 0 incorrect / 118 blank
+- conceptual formula families: 25
+- concrete formula practice cells: 118
+- fresh formula Check: 0 / 0 / 118
+
+Guided judgment:
+- demo judgment cases: 1
+- case: Operating lease liabilities
+- supplied treatment: Operating Long-Term Liability
+- alternative: Financial Liability
+- Trainer response cells blank/yellow/no Note: 3/3
+- Answer Key response cells populated/yellow: 3/3
+- judgment answer leakage: none
+- judgment responses auto-graded: no
+- learner judgment drives main model: no
+
+Preservation:
+- source values populated: yes
+- main classifications populated: yes
+- reformulation guardrails pass: yes
+- forecast engine called by normal build: no
+- deferred tabs: four hidden placeholders
+- repeated cached formula Check: preserved
 
 Tests:
-- record every required command and exact observed pass count/result
+- record every command above and exact pass count/result
+
+Known deferred limitation:
+- irregular/stub/interim period comparability still requires later robustness work
 
 Unresolved:
-- none OR list exact blockers
+- none OR exact blockers
 ```
 
-- [ ] **Step 6: Mark this plan complete and stop**
+- [ ] **Step 6: Stop**
 
-Only after all tests and audits pass, change the status at the top of this file to indicate the correction is complete and leave Step 8 as the next locked roadmap step.
+Do not implement live learner reclassification, normalization, diagnostics, forecasting, or valuation in this checkpoint.
 
-Do not start Step 8 in the same implementation session.
+## Step 8A acceptance criteria
 
-## Correction acceptance criteria
+Step 8A is accepted only when all are true:
 
-The Step 7 correction is accepted only when all are true:
-
-1. every normal historical build derives one chronological, unique fiscal-period axis before historical model math or component expansion;
-2. descending supported inputs build oldest -> newest without mutating source data;
-3. duplicate fiscal dates fail clearly;
-4. gapped annual histories fail rather than masquerading as one-period growth/comparatives;
-5. `expand_historical_specs()` rejects non-increasing direct input rather than silently sorting;
-6. comparative Sales Growth/RNOA/CoD/FLEV/ROE dependencies reference the true preceding fiscal year;
-7. stale Trainer `.component_map.json`, `.trainer.json`, and `.assumptions.json` files are removed during regeneration;
-8. Answer Key semantic/assumptions sidecars remain intact;
-9. `list --workbook Trainer.xlsx` resolves current Answer Key semantics rather than stale Trainer data;
-10. Step 7 remains 25 conceptual families / 118 concrete cells on the five-year demo;
-11. workbook-wide Check remains non-disclosing and cache-safe;
-12. normal historical build remains completely forecast-independent;
-13. full core tests pass;
-14. `RESULT.md` records actual verification evidence;
-15. Step 8 remains unimplemented.
+1. supported ambiguous classifier decisions encode explicit defensible category options and consequence teaching metadata;
+2. unsupported ambiguity is not forced into a fake multiple-choice case;
+3. guided cases are derived from actual company lines using stable `LineIdentity`, not hand-authored workbook coordinates;
+4. zero-valued and explicitly overridden lines do not become cases;
+5. revised demo exposes exactly one real lease-liability judgment case without changing aggregate historical economics;
+6. both workbooks contain a visible `Accounting Judgment` sheet;
+7. Trainer shows supplied treatment/alternatives but blanks learner-response cells;
+8. Answer Key shows the model treatment, rationale, and consequence while acknowledging the treatment is not universal;
+9. judgment answers/rationales do not leak into Trainer metadata/comments/sidecars;
+10. main historical classifications remain supplied and continue to drive Step 7 formulas;
+11. judgment responses are not falsely auto-graded as objectively correct/incorrect;
+12. 25 historical formula families / 118 formula cells / formula Check behavior remain unchanged;
+13. full suite, demo rebuild, leakage audit, forecast quarantine, and cached Check regressions pass;
+14. docs frame Step 8A as guided judgment only, not independent accounting analysis.
 
 ---
 
-# Locked Post-Correction Roadmap — Do Not Implement Yet
+# Locked follow-on roadmap — do not implement in Step 8A
 
-## Step 8 — Guided accounting judgment and normalization
+## Step 8B — Live classification and normalization decisions
 
-After this correction is independently reviewed and accepted, introduce selected accounting-treatment decisions while retaining a short feedback loop: operating versus financing classification, recurring versus non-recurring treatment, normalization, leases, stock-based compensation, goodwill/intangibles, deferred taxes, minority interests, acquisitions, and other topics only where material to the supplied company.
-
-The design goal is to teach **why treatment changes economic interpretation**, not to turn ambiguous accounting into arbitrary multiple-choice trivia.
+Design how learner-selected treatments can drive the reformulated model **without breaking equivalent-formula Check under alternative defensible inputs**. Add recurring/non-recurring treatment and earnings normalization only after that feedback-loop design is separately approved.
 
 ## Step 9 — Historical research diagnostics
 
-Teach the learner to explain what changed and why: margin versus turnover/capital-intensity drivers of RNOA, working-capital behavior, accrual/cash conversion, operating versus financing sources of ROE change, dilution, segment economics, and earnings-quality/accounting consistency signals.
+Teach margin versus capital-intensity drivers, working-capital behavior, cash conversion/accruals, operating versus financing sources of ROE change, dilution, segment economics, and earnings-quality signals.
 
-## Step 10 — Cross-company robustness
+## Step 10 — Cross-company and period-cadence robustness
 
-Validate the historical/judgment/diagnostic system on materially different non-financial companies, including at least one asset-light and one asset-heavy or working-capital-intensive business.
+Validate on materially different non-financial companies and harden annual/interim/stub-period handling before claiming broad input robustness.
 
 ## Step 11 — Driver-based forecasting
 
-Reintroduce forecasting only through explicit, traceable BAVGEM-style analyst assumptions and business drivers. Do not restore canned default vectors as company-specific forecasts.
+Reintroduce forecasting only through explicit traceable analyst assumptions and BAVGEM-style business drivers.
 
 ## Step 12 — BAV valuation and research conclusion
 
-Add residual-income/BAV valuation, appropriate cross-checks, sensitivities, and a concise evidence-based investment conclusion only after the forecast layer is separately trusted.
-
-## Historical note
-
-The detailed Step 7 multi-period implementation plan completed at commit `598948d3f0ac8651c0be86cf660073c96cfca20a` remains available in Git history. This file now intentionally contains only the active correction and the locked subsequent roadmap so Cursor has one unambiguous instruction surface.
+Add residual-income/BAV valuation, cross-checks, sensitivities, and concise investment interpretation only after the forecast layer is separately trusted.
