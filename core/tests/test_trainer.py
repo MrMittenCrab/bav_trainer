@@ -979,3 +979,90 @@ def test_stale_trainer_sidecars_removed_on_rebuild(tmp_path, capsys):
     assert any("4 cells" in ln for ln in lines)
     assert "SECRET_OLD_FORMULA" not in out
     assert "SECRET_OLD_HINT" not in out
+
+
+def test_accounting_judgment_sheet_answer_key_and_trainer_contract(tmp_path):
+    from core.engine.reference_model import (
+        JUDGMENT_INSTRUCTION,
+        JUDGMENT_SHEET,
+        ReferenceModelBuilder,
+    )
+
+    trainer_path, answer_key_path = _build_pair(tmp_path)
+    data = _ingest_demo()
+    builder = ReferenceModelBuilder(data)
+    assert len(builder.judgment_cases) == 1
+    case = builder.judgment_cases[0]
+
+    smap = load_semantic_map(answer_key_path)
+    assert len(smap.all_ordered()) == 118
+
+    wb_a = load_workbook(answer_key_path, data_only=False)
+    wb_t = load_workbook(trainer_path, data_only=False)
+    assert JUDGMENT_SHEET in wb_a.sheetnames and JUDGMENT_SHEET in wb_t.sheetnames
+    ws_a = wb_a[JUDGMENT_SHEET]
+    ws_t = wb_t[JUDGMENT_SHEET]
+    assert ws_a["A1"].value == "Accounting Judgment"
+    assert JUDGMENT_INSTRUCTION in str(ws_a["A2"].value)
+    headers = [ws_a.cell(4, c).value for c in range(1, 9)]
+    assert headers == [
+        "Order",
+        "Line item",
+        "Topic",
+        "Supplied model treatment",
+        "Alternative(s) to evaluate",
+        "Your treatment",
+        "Your rationale",
+        "Your consequence explanation",
+    ]
+    row = 5
+    assert ws_a.cell(row, 1).value == 1
+    assert ws_a.cell(row, 2).value == "Operating lease liabilities"
+    assert ws_a.cell(row, 4).value == "Operating Long-Term Liability"
+    assert ws_a.cell(row, 5).value == "Financial Liability"
+    assert ws_a.cell(row, 6).value == case.supplied_treatment
+    assert ws_a.cell(row, 7).value == case.model_rationale
+    assert ws_a.cell(row, 8).value == case.model_consequence
+    for col in (6, 7, 8):
+        assert _fill_rgb(ws_a.cell(row, col)) == "FFFF00"
+        assert ws_t.cell(row, col).value is None
+        assert ws_t.cell(row, col).comment is None
+        assert _fill_rgb(ws_t.cell(row, col)) == "FFFF00"
+    for col in range(1, 6):
+        assert ws_t.cell(row, col).value == ws_a.cell(row, col).value
+
+    formulas = [str(dv.formula1) for dv in ws_a.data_validations.dataValidation]
+    assert any(
+        "Operating Long-Term Liability" in f and "Financial Liability" in f
+        for f in formulas
+    )
+
+    summary = check_workbook(trainer_path)
+    assert summary.total == 118
+    assert summary.correct == 0
+    assert summary.incorrect == 0
+    assert summary.blank == 118
+
+    forbidden = [case.model_rationale, case.model_consequence]
+    for name in wb_t.sheetnames:
+        if not name.startswith("_") and name != "Trainer":
+            continue
+        ws = wb_t[name]
+        for r in ws.iter_rows(max_row=ws.max_row or 1, max_col=ws.max_column or 1):
+            for cell in r:
+                val = cell.value
+                if isinstance(val, str):
+                    for needle in forbidden:
+                        assert needle not in val
+                if cell.comment is not None:
+                    for needle in forbidden:
+                        assert needle not in (cell.comment.text or "")
+    for suffix in (".component_map.json", ".trainer.json", ".assumptions.json"):
+        side = trainer_path.with_suffix(suffix)
+        if side.exists():
+            text = side.read_text(encoding="utf-8")
+            for needle in forbidden:
+                assert needle not in text
+
+    wb_a.close()
+    wb_t.close()

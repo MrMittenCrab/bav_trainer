@@ -54,6 +54,29 @@ class ClassificationDecision:
     ambiguous: bool = False
     reason: str = ""
     overridden: bool = False
+    guided_options: tuple[str, ...] = ()
+    judgment_topic: str = ""
+    consequence_note: str = ""
+
+
+def _guided_decision(
+    category: str,
+    *,
+    reason: str,
+    guided_options: tuple[str, ...],
+    judgment_topic: str,
+    consequence_note: str,
+) -> ClassificationDecision:
+    if not guided_options or guided_options[0] != category:
+        raise ValueError("guided_options[0] must equal the supplied reference category")
+    return ClassificationDecision(
+        category=category,
+        ambiguous=True,
+        reason=reason,
+        guided_options=guided_options,
+        judgment_topic=judgment_topic,
+        consequence_note=consequence_note,
+    )
 
 
 @dataclass(frozen=True)
@@ -115,16 +138,26 @@ def _classify_by_concept(item: LineItem) -> ClassificationDecision | None:
 
     if "deferred" in c and "tax" in c:
         if "asset" in c:
-            return ClassificationDecision(
+            return _guided_decision(
                 "Operating Long-Term Asset",
-                ambiguous=True,
                 reason="Deferred tax asset concept — operating vs exclude judgment",
+                guided_options=("Operating Long-Term Asset", "Exclude"),
+                judgment_topic="Deferred tax asset classification",
+                consequence_note=(
+                    "Including it as operating raises NOA; excluding it removes that "
+                    "balance from operating capital and can change RNOA."
+                ),
             )
         if "liab" in c:
-            return ClassificationDecision(
+            return _guided_decision(
                 "Operating Long-Term Liability",
-                ambiguous=True,
                 reason="Deferred tax liability concept — operating vs exclude judgment",
+                guided_options=("Operating Long-Term Liability", "Exclude"),
+                judgment_topic="Deferred tax liability classification",
+                consequence_note=(
+                    "Including it as operating lowers NOA; excluding it removes that "
+                    "balance from operating capital."
+                ),
             )
 
     if ("lease" in c or "rightofuse" in c or c.startswith("rou")) and "liab" not in c:
@@ -135,10 +168,16 @@ def _classify_by_concept(item: LineItem) -> ClassificationDecision | None:
                 reason="Lease/ROU asset concept — operating vs financial judgment",
             )
     if "lease" in c and "liab" in c:
-        return ClassificationDecision(
+        return _guided_decision(
             "Operating Long-Term Liability",
-            ambiguous=True,
             reason="Lease liability concept — operating vs financial judgment",
+            guided_options=("Operating Long-Term Liability", "Financial Liability"),
+            judgment_topic="Lease liability operating vs financing",
+            consequence_note=(
+                "Operating treatment lowers NOLA/NOA; financing treatment raises Net Debt. "
+                "The choice can shift RNOA versus FLEV/Spread interpretation while equity "
+                "reconciliation should remain intact."
+            ),
         )
 
     # Unmistakable borrowing / debt *liability* concepts (not debt securities).
@@ -281,47 +320,90 @@ def classify_balance_sheet_line(
     low = _norm(item.label)
 
     # Ambiguous judgment calls — real default + flag
-    if _match_any(low, ("right of use", "rou asset", "operating lease")) and "liab" not in low:
+    if (
+        _match_any(
+            low,
+            (
+                "right of use",
+                "right-of-use",
+                "rou asset",
+                "operating lease asset",
+                "operating lease",
+            ),
+        )
+        and "liab" not in low
+    ):
         return ClassificationDecision(
             "Operating Long-Term Asset",
             ambiguous=True,
             reason="Operating lease ROU — operating vs financial judgment",
         )
     if _match_any(low, ("lease liability", "lease liabilities", "operating lease")):
-        return ClassificationDecision(
+        return _guided_decision(
             "Operating Long-Term Liability",
-            ambiguous=True,
             reason="Lease liability — operating vs financial judgment",
+            guided_options=("Operating Long-Term Liability", "Financial Liability"),
+            judgment_topic="Lease liability operating vs financing",
+            consequence_note=(
+                "Operating treatment lowers NOLA/NOA; financing treatment raises Net Debt. "
+                "The choice can shift RNOA versus FLEV/Spread interpretation while equity "
+                "reconciliation should remain intact."
+            ),
         )
     if "deferred tax" in low and ("asset" in low or low.endswith("assets")):
-        return ClassificationDecision(
+        return _guided_decision(
             "Operating Long-Term Asset",
-            ambiguous=True,
             reason="Deferred tax asset — operating vs exclude judgment",
+            guided_options=("Operating Long-Term Asset", "Exclude"),
+            judgment_topic="Deferred tax asset classification",
+            consequence_note=(
+                "Including it as operating raises NOA; excluding it removes that "
+                "balance from operating capital and can change RNOA."
+            ),
         )
     if "deferred tax" in low:
-        return ClassificationDecision(
+        return _guided_decision(
             "Operating Long-Term Liability",
-            ambiguous=True,
             reason="Deferred tax liability — operating vs exclude judgment",
+            guided_options=("Operating Long-Term Liability", "Exclude"),
+            judgment_topic="Deferred tax liability classification",
+            consequence_note=(
+                "Including it as operating lowers NOA; excluding it removes that "
+                "balance from operating capital."
+            ),
         )
     if _match_any(low, ("pension", "retirement benefit", "post-employment")):
-        return ClassificationDecision(
+        return _guided_decision(
             "Operating Long-Term Liability",
-            ambiguous=True,
             reason="Pension obligation — operating LT vs financial judgment",
+            guided_options=("Operating Long-Term Liability", "Financial Liability"),
+            judgment_topic="Pension obligation operating vs financing",
+            consequence_note=(
+                "Operating treatment lowers NOLA/NOA; financing treatment raises Net Debt. "
+                "The choice can shift RNOA versus FLEV/Spread interpretation while equity "
+                "reconciliation should remain intact."
+            ),
         )
     if "short-term investment" in low or "short term investment" in low:
-        return ClassificationDecision(
+        return _guided_decision(
             "Financial Asset",
-            ambiguous=True,
             reason="Short-term investments — financial vs operating by purpose",
+            guided_options=("Financial Asset", "Operating Working Capital Asset"),
+            judgment_topic="Short-term investment operating vs financing",
+            consequence_note=(
+                "Financial-asset treatment reduces Net Debt; operating-WC treatment "
+                "raises NOWC/NOA."
+            ),
         )
     if "equity method" in low or "associate" in low or "joint venture" in low:
-        return ClassificationDecision(
+        return _guided_decision(
             "Operating Long-Term Asset",
-            ambiguous=True,
             reason="Equity-method investment — operating vs financial judgment",
+            guided_options=("Operating Long-Term Asset", "Financial Asset"),
+            judgment_topic="Equity-method investment operating vs financing",
+            consequence_note=(
+                "Operating treatment raises NOA; financial-asset treatment reduces Net Debt."
+            ),
         )
 
     # Financial assets / liabilities

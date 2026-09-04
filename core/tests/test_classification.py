@@ -215,3 +215,66 @@ def test_demo_reconciliation_report_passes():
     assert report.checksums["income_statement"] is True
     assert report.checksums["balance_sheet"] is True
     assert report.checksums["cash_flow"] is True
+
+
+def test_guided_classification_alternatives_and_consequences():
+    cases = [
+        (
+            "Operating lease liabilities",
+            "Operating Long-Term Liability",
+            ("Operating Long-Term Liability", "Financial Liability"),
+        ),
+        (
+            "Deferred tax assets",
+            "Operating Long-Term Asset",
+            ("Operating Long-Term Asset", "Exclude"),
+        ),
+        (
+            "Deferred tax liabilities",
+            "Operating Long-Term Liability",
+            ("Operating Long-Term Liability", "Exclude"),
+        ),
+        (
+            "Pension obligations",
+            "Operating Long-Term Liability",
+            ("Operating Long-Term Liability", "Financial Liability"),
+        ),
+        (
+            "Short-term investments",
+            "Financial Asset",
+            ("Financial Asset", "Operating Working Capital Asset"),
+        ),
+        (
+            "Investment in associates",
+            "Operating Long-Term Asset",
+            ("Operating Long-Term Asset", "Financial Asset"),
+        ),
+    ]
+    for label, category, options in cases:
+        decision = classify_balance_sheet_line(_li(label, 50, 60))
+        assert decision.ambiguous is True
+        assert decision.category == category
+        assert decision.category == decision.guided_options[0]
+        assert decision.guided_options == options
+        assert len(decision.guided_options) >= 2
+        assert all(option in BALANCE_SHEET_CATEGORIES for option in decision.guided_options)
+        assert decision.judgment_topic
+        assert decision.consequence_note
+
+
+def test_rou_asset_ambiguous_without_fake_guided_options():
+    decision = classify_balance_sheet_line(_li("Right-of-use assets", 50, 60))
+    assert decision.ambiguous is True
+    assert decision.guided_options == ()
+
+
+def test_override_suppresses_guided_options():
+    decision = classify_balance_sheet_line(
+        _li("Operating lease liabilities", 50, 60),
+        override="Financial Liability",
+    )
+    assert decision.overridden is True
+    assert decision.ambiguous is False
+    assert decision.guided_options == ()
+    assert decision.judgment_topic == ""
+    assert decision.consequence_note == ""

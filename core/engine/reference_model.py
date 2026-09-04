@@ -16,6 +16,7 @@ from ..data.interface import LineItem, StandardizedFinancials
 from ..data.line_identity import line_identity
 from ..model.classification import BALANCE_SHEET_CATEGORIES
 from ..model.financial_math import compute_anchor
+from ..model.judgment import JudgmentCase, classification_judgment_cases
 from ..model.line_resolver import resolve_line, workbook_row_for
 from ..model.period_axis import canonical_fiscal_periods
 from ..model.ri_engine import run_scenario, weighted_ivps
@@ -31,9 +32,17 @@ BOLD = Font(bold=True)
 ORANGE = PatternFill("solid", start_color="FCE5CD")
 YELLOW = PatternFill("solid", start_color="FFF2CC")
 GREEN = PatternFill("solid", start_color="D9EAD3")
+PRACTICE_YELLOW = PatternFill("solid", start_color="FFFF00")
 
 DEFERRED_TAB_NAMES = ("Model_Bear", "Model_Base", "Model_Bull", "Scenario_Summary")
 DEFERRED_PLACEHOLDER = "Deferred from historical-only v1"
+
+JUDGMENT_SHEET = "Accounting Judgment"
+JUDGMENT_INSTRUCTION = (
+    "The supplied treatment is the model's reference treatment, not a universal "
+    "accounting truth. Compare it with the listed alternative(s), choose the "
+    "treatment you would defend, and explain the economic consequence."
+)
 
 
 class ReferenceModelBuilder:
@@ -63,6 +72,10 @@ class ReferenceModelBuilder:
             financials,
             self.periods,
             classification_overrides=overrides,
+        )
+        self.judgment_cases: tuple[JudgmentCase, ...] = classification_judgment_cases(
+            self.fin,
+            self.anchor.reformulation,
         )
         self._n = len(self.periods)
         self._last_fy_col = 2 + self._n - 1
@@ -137,6 +150,7 @@ class ReferenceModelBuilder:
         self._build_source_tabs(wb)
         self._build_condensed(wb)
         self._build_dupont(wb)
+        self._build_accounting_judgment(wb)
         if self.include_deferred_forecast:
             for scenario in ("Bear", "Base", "Bull"):
                 self._build_model_tab(wb, scenario)
@@ -807,6 +821,60 @@ class ReferenceModelBuilder:
                 actual_f,
                 dup["Actual ROE"][j],
             )
+
+    def _build_accounting_judgment(self, wb: Workbook) -> None:
+        ws = wb.create_sheet(JUDGMENT_SHEET)
+        ws["A1"] = "Accounting Judgment"
+        ws["A1"].font = BOLD
+        ws["A2"] = JUDGMENT_INSTRUCTION
+        headers = [
+            "Order",
+            "Line item",
+            "Topic",
+            "Supplied model treatment",
+            "Alternative(s) to evaluate",
+            "Your treatment",
+            "Your rationale",
+            "Your consequence explanation",
+        ]
+        for col, header in enumerate(headers, start=1):
+            cell = ws.cell(row=4, column=col, value=header)
+            cell.font = BOLD
+        widths = (8, 32, 36, 28, 32, 28, 40, 44)
+        for idx, width in enumerate(widths, start=1):
+            ws.column_dimensions[self._col(idx)].width = width
+
+        if not self.judgment_cases:
+            ws.cell(
+                row=5,
+                column=1,
+                value=(
+                    "No supported guided classification judgments were identified "
+                    "from the supplied company data."
+                ),
+            )
+            return
+
+        for case in self.judgment_cases:
+            row = 4 + case.order
+            options = (case.supplied_treatment,) + case.alternatives
+            ws.cell(row=row, column=1, value=case.order)
+            ws.cell(row=row, column=2, value=case.label)
+            ws.cell(row=row, column=3, value=case.topic)
+            ws.cell(row=row, column=4, value=case.supplied_treatment)
+            ws.cell(row=row, column=5, value=", ".join(case.alternatives))
+            treatment = ws.cell(row=row, column=6, value=case.supplied_treatment)
+            rationale = ws.cell(row=row, column=7, value=case.model_rationale)
+            consequence = ws.cell(row=row, column=8, value=case.model_consequence)
+            for cell in (treatment, rationale, consequence):
+                cell.fill = PRACTICE_YELLOW
+            dv = DataValidation(
+                type="list",
+                formula1='"' + ",".join(options) + '"',
+                allow_blank=True,
+            )
+            ws.add_data_validation(dv)
+            dv.add(treatment)
 
     def _build_model_tab(self, wb: Workbook, scenario: str) -> None:
         ws = wb.create_sheet(f"Model_{scenario}")

@@ -2,29 +2,32 @@
 
 Progressive training that takes an **accounting novice** toward junior accounting-based equity-research competence, with particular strength in Business Analysis and Valuation (BAV).
 
-**Current Step 7 capability** is a **multi-period historical model-construction foundation** for non-financial operating companies. Accounting-judgment quizzes, research diagnostics, forecasting, valuation, and research conclusions remain deferred curriculum stages.
+**Current capability** is a **multi-period historical model-construction foundation** plus **Step 8A guided classification judgment** for non-financial operating companies. Normalization, earnings-quality diagnostics, forecasting, valuation, and research conclusions remain deferred.
 
-## Product loop (v1 / Step 7)
+## Product loop (Step 7 + Step 8A)
 
 ```text
 end-state goal:
 accounting novice -> junior accounting-based equity-research competence
 
-current Step 7 capability:
-- historical schedules across all supplied fiscal years
-- cross-sheet Revenue / Net Income links
-- reformulation across periods
-- Sales Growth / NOPAT Margin
-- multi-period DuPont from the second comparable year onward
-- workbook-wide Check across every concrete period cell
+Step 7 historical model construction:
+- 25 historical schedule families across supplied fiscal years
+- 118 formula practice cells in the five-year demo
+- workbook-wide formula Check
 
-learner view:
-- 25 conceptual schedule families
-- period-specific yellow cells inside each schedule
-  (five-year demo → 118 concrete practice cells = 25*n − 7)
+Step 8A guided judgment:
+- company-specific classification cases only when the authoritative classifier flags a supported ambiguity
+- supplied reference treatment + explicit defensible alternative(s)
+- learner treatment choice + short rationale + consequence explanation
+- Answer Key shows model reasoning
+- judgment responses are not automatically graded yet
+- learner choices do not yet drive the main reformulated model
+
+This is a transition from supplied judgment to guided judgment, not independent analyst competence.
 
 still deferred:
-- classification/normalization judgment exercises
+- live alternative classification driving the main model
+- normalization / recurring vs non-recurring adjustments
 - earnings-quality diagnostics
 - forecasting
 - valuation
@@ -33,9 +36,9 @@ still deferred:
 normal build:
 does not execute forecast/scenario engine
 
-Trainer = blank yellow practice cells, no answers, no hints.
-Check = scans every practice cell; blank yellow, correct green, incorrect red; no answers disclosed.
-Answer Key = same practice cells with formula + one legacy Note hint.
+Trainer = blank yellow formula cells + blank yellow judgment-response cells; no answers/hints.
+Check = scans formula practice cells only; blank yellow, correct green, incorrect red; no answers disclosed.
+Answer Key = formula + Note on formula cells; model treatment/rationale/consequence on judgment responses.
 ```
 
 ## Quick start

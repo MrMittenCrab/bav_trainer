@@ -10,10 +10,11 @@ from openpyxl.comments import Comment
 from openpyxl.styles import Border, Font, PatternFill, Side
 
 from ..engine.component_catalog import COMPONENT_CATALOG
-from ..engine.reference_model import ReferenceModelBuilder
+from ..engine.reference_model import JUDGMENT_SHEET, ReferenceModelBuilder
 from ..engine.semantic_map import ResolvedComponent, SemanticMap
 from ..data.line_identity import validate_financials_identities
 from ..ingestion.reconciler import reconcile_financials
+from ..model.judgment import JudgmentCase
 from .semantic_io import load_semantic_map, resolve_pair_paths
 
 COMPONENT_MAP_SHEET = "_ComponentMap"
@@ -60,9 +61,15 @@ TRAINER_INDEX_INSTRUCTION = (
 class TrainingWorkbookGenerator:
     """Generate a matched Trainer / Answer Key pair from a completed model."""
 
-    def __init__(self, answer_key_path: Path, semantic_map: SemanticMap | None = None):
+    def __init__(
+        self,
+        answer_key_path: Path,
+        semantic_map: SemanticMap | None = None,
+        judgment_cases: tuple[JudgmentCase, ...] = (),
+    ):
         self.answer_key_path = answer_key_path
         self.semantic_map = semantic_map or load_semantic_map(answer_key_path)
+        self.judgment_cases = tuple(judgment_cases)
 
     def generate(self, trainer_path: Path) -> tuple[Path, Path]:
         """Finalize Answer Key in place, then derive a sanitized Trainer from it."""
@@ -70,6 +77,7 @@ class TrainingWorkbookGenerator:
         self._apply_oshkosh_style(wb)
         self._add_trainer_ui(wb)
         self._decorate_answer_key_practice_cells(wb)
+        self._decorate_answer_key_judgment_cells(wb)
         wb.save(self.answer_key_path)
         wb.close()
 
@@ -77,6 +85,7 @@ class TrainingWorkbookGenerator:
 
         wb = load_workbook(trainer_path)
         self._blank_trainer_practice_cells(wb)
+        self._blank_trainer_judgment_cells(wb)
         self._sanitize_trainer_answer_stores(wb)
         wb.save(trainer_path)
         wb.close()
@@ -154,6 +163,28 @@ class TrainingWorkbookGenerator:
             cell.value = None
             cell.fill = PRACTICE_FILL
             cell.comment = None
+
+    def _decorate_answer_key_judgment_cells(self, wb) -> None:
+        if JUDGMENT_SHEET not in wb.sheetnames or not self.judgment_cases:
+            return
+        ws = wb[JUDGMENT_SHEET]
+        for case in self.judgment_cases:
+            row = 4 + case.order
+            for col in (6, 7, 8):
+                cell = ws.cell(row=row, column=col)
+                cell.fill = PRACTICE_FILL
+
+    def _blank_trainer_judgment_cells(self, wb) -> None:
+        if JUDGMENT_SHEET not in wb.sheetnames or not self.judgment_cases:
+            return
+        ws = wb[JUDGMENT_SHEET]
+        for case in self.judgment_cases:
+            row = 4 + case.order
+            for col in (6, 7, 8):
+                cell = ws.cell(row=row, column=col)
+                cell.value = None
+                cell.fill = PRACTICE_FILL
+                cell.comment = None
 
     def _sanitize_trainer_answer_stores(self, wb) -> None:
         """Remove answer-bearing hidden sheets from the Trainer only."""
@@ -317,6 +348,10 @@ def build_training_workbook(
     remove_trainer_sidecars(trainer_path)
     builder = ReferenceModelBuilder(financials, assumptions)
     semantic_map = builder.build(answer_key_path)
-    TrainingWorkbookGenerator(answer_key_path, semantic_map).generate(trainer_path)
+    TrainingWorkbookGenerator(
+        answer_key_path,
+        semantic_map,
+        judgment_cases=builder.judgment_cases,
+    ).generate(trainer_path)
     remove_trainer_sidecars(trainer_path)
     return trainer_path, answer_key_path

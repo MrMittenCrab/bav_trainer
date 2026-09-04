@@ -1241,3 +1241,118 @@ def test_excel_descending_headers_build_chronological_model(tmp_path):
     growth25 = _at_period(smap, "sales_growth", 2)
     rev25 = _at_period(smap, "revenue_link", 2)
     assert rev24.cell in growth25.formula and rev25.cell in growth25.formula
+
+
+def test_guided_classification_judgment_cases_and_suppressions():
+    from datetime import date
+
+    from core.data.interface import FinancialPeriod, LineItem, StandardizedFinancials
+    from core.engine.reference_model import ReferenceModelBuilder
+    from core.model.classification import reformulate_balance_sheet
+    from core.model.judgment import classification_judgment_cases
+    from core.model.period_axis import canonical_fiscal_periods
+
+    d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
+
+    def li(label, v1, v2, concept=""):
+        return LineItem(label=label, concept=concept, values={d1: v1, d2: v2})
+
+    def make_fin(*, lease=50, rou=40, zero_lease=False, override=None):
+        periods = [
+            FinancialPeriod(end_date=d1, label="FY2024"),
+            FinancialPeriod(end_date=d2, label="FY2025"),
+        ]
+        lease_vals = (0, 0) if zero_lease else (lease, lease + 10)
+        fin = StandardizedFinancials(
+            ticker="JDG",
+            company_name="Judgment Co",
+            currency="HKD",
+            units="HKD mn",
+            jurisdiction="HK",
+            periods=periods,
+            income_statement=[
+                li("Revenue", 1000, 1100),
+                li("Profit before tax", 200, 220),
+                li("Income tax expense", -30, -33),
+                li("Profit for the year", 170, 187),
+            ],
+            balance_sheet=[
+                li("Cash and cash equivalents", 100, 110),
+                li("Trade receivables", 80, 90),
+                li("Right-of-use assets", rou, rou + 5),
+                li("Property, plant and equipment", 400, 420),
+                li("Trade payables", 50, 55),
+                li(
+                    "Operating lease liabilities",
+                    lease_vals[0],
+                    lease_vals[1],
+                    concept="lease_liability",
+                ),
+                li("Bank borrowings", 200, 210),
+                li("Total equity", 330, 355),
+            ],
+            cash_flow=[li("Net cash from operating activities", 50, 60)],
+        )
+        assumptions = {"classificationOverrides": override or {}}
+        return fin, assumptions
+
+    fin, _ = make_fin()
+    periods = canonical_fiscal_periods(fin)
+    reform = reformulate_balance_sheet(fin, periods)
+    cases = classification_judgment_cases(fin, reform)
+    assert len(cases) == 1
+    assert cases[0].label == "Operating lease liabilities"
+    assert cases[0].supplied_treatment == "Operating Long-Term Liability"
+    assert cases[0].alternatives == ("Financial Liability",)
+    assert cases[0].id.startswith("classification::")
+
+    rou_idx = next(
+        i
+        for i in reform.detail_indices
+        if fin.balance_sheet[i].label == "Right-of-use assets"
+    )
+    assert reform.decisions[rou_idx].ambiguous is True
+    assert reform.decisions[rou_idx].guided_options == ()
+
+    fin_zero, _ = make_fin(zero_lease=True)
+    reform_zero = reformulate_balance_sheet(fin_zero, canonical_fiscal_periods(fin_zero))
+    assert classification_judgment_cases(fin_zero, reform_zero) == ()
+
+    fin_ov, assumptions = make_fin(
+        override={"label:Operating lease liabilities": "Financial Liability"}
+    )
+    reform_ov = reformulate_balance_sheet(
+        fin_ov,
+        canonical_fiscal_periods(fin_ov),
+        overrides=assumptions["classificationOverrides"],
+    )
+    assert classification_judgment_cases(fin_ov, reform_ov) == ()
+    # Builder also suppresses when override is supplied (use balanced demo-scale path).
+    demo = _ingest_demo()
+    builder = ReferenceModelBuilder(
+        demo,
+        {
+            "classificationOverrides": {
+                "label:Operating lease liabilities": "Financial Liability",
+            }
+        },
+    )
+    assert builder.judgment_cases == ()
+
+
+def test_demo_has_one_lease_judgment_case_and_118_formula_components(tmp_path):
+    from core.engine.reference_model import ReferenceModelBuilder
+    from core.model.classification import check_reformulation_integrity
+
+    data = _ingest_demo()
+    builder = ReferenceModelBuilder(data)
+    assert len(builder.judgment_cases) == 1
+    case = builder.judgment_cases[0]
+    assert case.label == "Operating lease liabilities"
+    assert case.supplied_treatment == "Operating Long-Term Liability"
+    assert case.alternatives == ("Financial Liability",)
+
+    _, answer = _build_pair(tmp_path)
+    smap = load_semantic_map(answer)
+    assert len(smap.all_ordered()) == 118
+    check_reformulation_integrity(builder.anchor.reformulation, builder.periods)
