@@ -2,18 +2,126 @@
 
 ## Product target
 
-Build **BAV Excel Trainer — Hong Kong Edition v1** as a **historical financial-analysis trainer**.
+Build **BAV Excel Trainer — Hong Kong Edition** as a progressive training system that can take an **accounting novice** toward competence as a junior accounting-based equity-research analyst, with particular strength in **Business Analysis and Valuation (BAV)**.
 
-The system takes manually supplied Hong Kong company historical financial materials, builds a correct historical BAV analysis, and produces two matching professional Excel workbooks:
+The trainer should eventually prepare a learner to receive the historical financial materials of a non-financial listed company and independently:
 
-1. a **Trainer** workbook in which the learner reconstructs important historical Excel formulas, links, ratios, bridges, and analytical calculations in blank bright-yellow practice cells; and
+1. trace reported information into a research model;
+2. understand the three-statement relationships and accounting sign conventions;
+3. make and defend material accounting, classification, and normalization judgments;
+4. construct and audit historical analytical schedules;
+5. explain changes in profitability, capital intensity, financing, cash conversion, and per-share economics;
+6. convert historical analysis into explicit forecasts and valuation assumptions; and
+7. communicate the resulting investment implications clearly enough for junior equity-research work.
+
+**Formula correctness is necessary but not sufficient.** The end-state product must progressively teach accounting judgment, economic interpretation, model auditability, forecasting discipline, valuation, and research communication.
+
+## Employment competency target
+
+A learner who completes the full curriculum should be able to perform the core work expected of a postgraduate junior equity-research hire rather than merely reproduce spreadsheet syntax.
+
+The target standard is:
+
+> Given a company's financial statements, relevant notes, and market facts, the learner can build and audit a historical accounting model, identify material accounting distortions, reformulate reported results consistently, diagnose the economic drivers and quality of performance, construct explicit forecasts from those drivers, value the equity, and explain what matters for an investment decision.
+
+The trainer should therefore optimize for **analyst competencies**, not raw exercise count. Component counts are implementation acceptance tests, not the product definition of progress.
+
+## Scope boundary
+
+The initial curriculum is for **non-financial operating companies**. Banks, insurers, brokers, and other financial institutions require separate sector-specific accounting and valuation logic and are outside the initial competency scope.
+
+Hong Kong company input remains manual where appropriate. Automatic HKEX scraping is not required when supplied annual reports, interim reports, results materials, Excel exports, Bloomberg exports, or Wind exports are sufficient.
+
+## Curriculum progression
+
+The learner should progress through three levels of scaffolding.
+
+### Level 1 — Guided model construction
+
+The system supplies source financials, accounting classifications, market facts, and setup judgments. The learner reconstructs formulas, links, reformulation schedules, ratios, bridges, and analytical calculations.
+
+Purpose: learn statement linkage, dependency logic, model structure, and BAV mechanics without being blocked by unfamiliar accounting judgments.
+
+### Level 2 — Analyst judgment
+
+The system still supplies source facts, but selected classification, normalization, and accounting-treatment decisions become explicit exercises. The learner must choose and defend treatments and reconcile the resulting model.
+
+Purpose: move from mechanical spreadsheet construction to accounting analysis.
+
+### Level 3 — Research application
+
+The learner receives company filings/source extracts and must build the historical analytical model, identify accounting distortions, interpret performance drivers, forecast the business, value the company, and produce a concise investment-oriented conclusion.
+
+Purpose: approximate junior equity-research work on an unfamiliar company.
+
+Early stages may supply judgment inputs. Later stages must progressively remove that scaffolding. The intended progression is:
+
+```text
+supplied judgment
+    -> guided judgment
+    -> independent accounting analysis
+    -> driver-based forecasting
+    -> valuation
+    -> investment interpretation
+```
+
+Ambiguous accounting treatments should be taught as alternatives with consequences rather than falsely presented as one universally correct answer.
+
+## Accounting competence required for research
+
+The curriculum should eventually cover, where material and applicable:
+
+- three-statement linkage and accounting sign conventions;
+- operating versus financing classification;
+- recurring versus transitory / non-recurring items;
+- earnings normalization;
+- accruals, cash conversion, and quality of earnings;
+- working-capital behavior;
+- revenue growth and margin analysis;
+- capex, depreciation, asset intensity, and turnover;
+- leases;
+- stock-based compensation and dilution;
+- goodwill, acquired intangibles, and acquisitions;
+- deferred taxes and unusual tax rates;
+- minority / non-controlling interests;
+- historical share counts and per-share bridges;
+- segment economics where disclosed;
+- accounting consistency checks and detection of suspicious or internally inconsistent results;
+- operating/financing reformulation under the BAV framework;
+- RNOA, after-tax cost of debt, Spread, FLEV, ROE decomposition, and related profitability diagnostics.
+
+The trainer should not require every topic for every company. Exercises should follow materiality and the information actually supplied.
+
+## Interpretation is part of the product
+
+For major schedules, the learner should eventually answer not only **how the number is calculated**, but **what changed economically and why it matters**.
+
+Examples include:
+
+- Was a decline in RNOA caused by lower operating margins or greater NOA intensity?
+- Did earnings growth come from operating improvement, leverage, acquisitions, tax effects, or dilution?
+- Is cash conversion consistent with reported profitability?
+- Does a working-capital movement reflect growth, deterioration, seasonality, or accounting treatment?
+- Is an apparent improvement in ROE operating or financing-driven?
+
+The initial workbook need not grade free-form essays. Structured diagnostics and concise explanatory material are preferred until a reliable research-writing evaluation layer is designed.
+
+---
+
+## Historical v1 — model-construction foundation
+
+The current v1 is the **historical model-construction foundation**, not the complete equity-research curriculum.
+
+It takes manually supplied historical financial materials, builds a correct historical BAV analysis, and produces two matching professional Excel workbooks:
+
+1. a **Trainer** workbook in which the learner reconstructs selected historical Excel formulas, links, ratios, bridges, and analytical calculations in blank bright-yellow practice cells; and
 2. an **Answer Key** workbook in which those same yellow cells contain the correct working Excel formulas and each answer cell has one concise hint in an Excel legacy Note.
 
-The trainer is for learning **historical model construction and dependency logic**, not for transcription of numbers from filings, not for guessing judgment inputs, and not yet for forecasting or valuation.
+The v1 objective is to establish trustworthy historical model mechanics and dependency logic before judgment, forecasting, valuation, and investment interpretation are layered on top.
 
 ## v1 boundary
 
-v1 ends at a complete historical analytical model.
+v1 ends at a coherent **historical accounting-model foundation**:
 
 ```text
 provided historical source statements
@@ -23,7 +131,7 @@ provided historical source statements
     -> growth / margins / tax / financing metrics
     -> RNOA / after-tax CoD / Spread / FLEV / ROE / DuPont
     -> historical EPS / per-share metrics when required historical share-count data is supplied
-    -> coherent historical analysis complete
+    -> historical accounting-model foundation complete
 ```
 
 Forecasting, residual-income valuation, DCF/cross-check valuation, terminal value, Bear/Base/Bull scenarios, and forward valuation multiples are **deferred from v1**.
@@ -49,10 +157,10 @@ A normal v1 build must succeed even if the dormant forecast engine is unavailabl
 
 No public v1 CLI option should enable the deferred forecasting system.
 
-## Learner experience
+## v1 learner experience
 
 1. Supply historical company financial data/documents manually.
-2. Build the historical reference analysis from those supplied facts and setup judgments.
+2. Build the historical reference analysis from supplied facts and setup judgments.
 3. Generate a matched `*_Trainer.xlsx` / `*_Answer_Key.xlsx` pair.
 4. In the Trainer, historical source data, classification decisions, and other supplied facts are already populated. The learner fills only selected yellow **historical model-construction formula cells**.
 5. Run **Check** when desired. Check scans every active historical practice cell in one pass and recolors it without changing its contents:
@@ -63,7 +171,7 @@ No public v1 CLI option should enable the deferred forecasting system.
 
 The **Answer Key is the sole answer-and-hint mechanism**. Check is validation only. There is no progressive Hint or Reveal Answer workflow.
 
-## What counts as practice
+## What counts as v1 practice
 
 A v1 practice cell should teach how historical analysis is constructed from already-supplied information. High-value practice includes:
 
@@ -78,7 +186,7 @@ A v1 practice cell should teach how historical analysis is constructed from alre
 
 The practice surface should follow the historical dependency graph: upstream links and reformulation before downstream ratios.
 
-## What stays populated
+## What stays populated in v1
 
 The Trainer should not make the learner re-enter literal data that the system already knows. Keep populated:
 
@@ -90,7 +198,9 @@ The Trainer should not make the learner re-enter literal data that the system al
 
 A literal number or category should not become a practice cell merely because it is editable. The default test is: **does reconstructing this cell teach historical model logic or only data entry?**
 
-## Hard requirements
+Supplying classifications in v1 is a deliberate beginner scaffold, not the end-state design. Later analyst-level modules should progressively turn material classification and normalization decisions into guided judgment exercises.
+
+## Hard requirements for v1
 
 - **Historical reference-model first.** Trainer formulas must come from a complete working historical model, not hand-authored answer keys.
 - **Historical build independence.** Normal v1 generation must not call the deferred forecast/scenario engine or require scenario assumptions, forecast vectors, terminal growth, beta, or forward valuation inputs.
@@ -108,9 +218,9 @@ A literal number or category should not become a practice cell merely because it
 - **Reference aesthetic.** Match the supplied professional-model style: Aptos Narrow, 20-point bold worksheet titles, 11-point body text, black text on white, bright-yellow practice cells, restrained thin borders, and appropriate financial number formats.
 - **Semantic component mapping.** Historical practice formulas resolve by semantic identity at build time rather than fragile static coordinates.
 - **Professional workbook preserved.** Training mode removes only selected historical calculation formulas; source data, classifications, labels, setup, formatting, and non-practice calculations remain populated.
-- **HK input is manual in v1.** Automatic HKEX scraping is not required when manual source documents/exports are sufficient.
 - **Standardized identity survives round trips.** Identity-bearing fields such as `LineItem.concept` must survive supported standardized-data export/reload.
 - **Historical accounting logic is authoritative.** Reformulation and historical DuPont math must remain aligned with the underlying BAV methodology rather than becoming a simplified toy model.
+- **Non-financial-company scope.** Do not imply that the operating/financing reformulation is a universal template for banks, insurers, brokers, or other financial institutions.
 
 ## Historical practice-surface expansion strategy
 
@@ -120,8 +230,11 @@ Expand by coherent historical dependency chains rather than maximizing cell coun
 2. **Historical DuPont core:** RNOA, after-tax CoD, Spread, FLEV, decomposed ROE, Actual ROE, growth/margins and related historical ratios.
 3. **Multi-period historical completion:** extend meaningful historical formulas across all applicable fiscal periods rather than only one sample period.
 4. **Historical per-share analysis:** add EPS/per-share formulas only when actual historical diluted-share data is supplied through the standardized input path.
-
-Forecasting and valuation are separate future product phases, not prerequisites for declaring historical v1 complete.
+5. **Accounting-analysis layer:** introduce guided classification, normalization, earnings-quality, accrual/cash-conversion, and other material accounting judgments.
+6. **Research diagnostics:** teach the learner to explain historical changes through margins, turnover/capital intensity, financing, cash conversion, dilution, and other company-specific drivers.
+7. **Cross-company robustness:** prove the curriculum on multiple materially different non-financial companies rather than optimizing around one demo company.
+8. **Forecasting:** reintroduce explicit driver-based forecasts only after historical analysis is trustworthy and BAVGEM's assumption/judgment architecture is integrated.
+9. **Valuation and research conclusion:** add BAV/residual-income valuation, appropriate cross-checks, scenario reasoning, and concise investment interpretation only after the forecast layer is separately verified.
 
 ## Non-goals for v1
 
@@ -132,8 +245,8 @@ Forecasting and valuation are separate future product phases, not prerequisites 
 - Treating default growth/margin/leverage assumptions as company-specific forecasts.
 - Manually copying historical numbers from filings into yellow practice cells.
 - Literal-number-entry exercises whose main skill is transcription.
-- Balance-sheet classification as a quiz surface unless explicitly reintroduced later.
-- Asking the learner to guess setup/judgment inputs.
+- Balance-sheet classification as a quiz surface in the initial guided stage.
+- Asking the learner to guess setup/judgment inputs before the relevant judgment module exists.
 - Automatically inventing practice questions.
 - Requiring decorative Excel formatting reproduction.
 - Automatic HKEX ingestion when manual input is sufficient.
@@ -141,10 +254,11 @@ Forecasting and valuation are separate future product phases, not prerequisites 
 - Check output revealing expected values/formulas.
 - Progressive hints or Reveal-answer commands.
 - Hiding active answers/hints in Trainer metadata and calling them inaccessible.
+- Claiming v1 alone makes the learner job-ready for equity research.
 
 ## Definition of done for historical v1
 
-Given supported historical Hong Kong company data, the system produces a matched `*_Trainer.xlsx` and `*_Answer_Key.xlsx` pair whose visible product is a coherent historical BAV analysis.
+Given supported historical data for a non-financial Hong Kong listed company, the system produces a matched `*_Trainer.xlsx` and `*_Answer_Key.xlsx` pair whose visible product is a coherent historical BAV model-construction foundation.
 
 For every selected historical formula-practice component before Check:
 
@@ -156,7 +270,20 @@ Historical source data and classification/setup judgments remain populated. Defe
 
 Historical reformulation and ratio analysis are internally coherent and preserve concept-aware line identity. Historical EPS/per-share analysis is included only where required historical share data is supplied; missing share history is not filled with invented forecast assumptions.
 
-A trustworthy forecast/valuation trainer is explicitly deferred until its assumption/judgment architecture is integrated and separately verified.
+Completing v1 means the **historical model-construction foundation is trustworthy**. It does not yet establish independent accounting judgment, forecasting competence, valuation competence, or full research readiness.
+
+## End-state definition of done
+
+The broader BAV Trainer is successful only when an accounting novice can progress to solving an unseen non-financial-company research case with materially less scaffolding and can demonstrate all of the following:
+
+- construct and audit the historical accounting model;
+- make defensible material accounting/reformulation judgments;
+- identify and explain material earnings-quality and accounting issues;
+- diagnose historical economic drivers;
+- build explicit forecasts linked to those drivers;
+- value the equity using BAV-consistent methods and appropriate cross-checks;
+- explain key sensitivities, risks, and variant assumptions; and
+- communicate a concise, evidence-based investment conclusion.
 
 ## Planning ownership
 
