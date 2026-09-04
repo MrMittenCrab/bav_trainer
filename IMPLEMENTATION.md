@@ -1,402 +1,747 @@
-# Step 6 Correction — Historical-Only Foundation Before Competency Expansion
+# Step 7 — Multi-Period Historical Model Construction
 
-> **For Cursor:** Read `TARGET.md` first. The current implementation checkpoint is `6e06db13b917a8e01168c41acda8f8e2224ef60a` (`chat 6 corrected`). That checkpoint contains useful historical-formula expansion but does **not** satisfy Step 6 because forecasting/valuation is still active and the catalog incorrectly contains 27 components. Implement only this correction step using red/green TDD. Run the exact verification commands, update `RESULT.md`, and stop. Do not commit or push; the user owns the implementation checkpoint commit.
+> **For Cursor:** Read `TARGET.md` first. Step 6 is accepted at implementation commit `5b9f1eff72fab1139644b17312b31052ab9fff5e` (`chat 6: Historical-Only Foundation Before Competency Expansion (correction)`). Implement only this active step using red/green TDD. Run the exact verification commands, update `RESULT.md`, regenerate the demo pair, and stop. Do not commit or push; the user owns the implementation checkpoint commit.
 
-**Goal:** Make the normal BAV Trainer v1 a trustworthy **historical model-construction foundation**: exactly 21 active historical reformulation/DuPont practice components, no normal-path forecast execution or synthesized forecast assumptions, and four hidden deferred forecast/valuation placeholders.
+**Goal:** Turn the current latest-period historical exercise set into a coherent **multi-period historical modeling curriculum**. The learner should construct whole historical schedules left-to-right across every applicable fiscal period, including statement links, reformulation, growth/margins, and DuPont, while the normal build remains completely independent of forecasting/valuation.
 
-**Architecture:** Preserve the accepted historical accounting engine, semantic component map, sanitized Trainer, Answer Key Notes, and cache-safe workbook-wide Check. Separate the normal historical build path from dormant forecast/valuation scaffolding with an internal-only switch. Keep the historical work already added in `6e06db1`; remove the six forecast/valuation components from all active product surfaces.
+**Architecture:** Keep `COMPONENT_CATALOG` as the conceptual family catalog, but make the built SemanticMap period-aware. Expand each family into concrete period-specific practice cells at build time. This avoids hard-coding a fixed number of years and preserves semantic identity across companies with different historical depth. The Trainer index and `list` command should present **schedule families**, not pretend that 100+ period cells are 100+ separate concepts; Check still validates every concrete yellow cell.
 
-**Tech Stack:** Python, pytest, openpyxl, existing OOXML cache-preserving fill patch.
+**Tech Stack:** Python, dataclasses, pytest, openpyxl, existing semantic map + OOXML cache-preserving Check.
 
-**Spec:** `TARGET.md` at planning commit `a5948ce3472ceb1524ef4adab4e7e43c33854e95` (`Define equity research competency target`). The broader target now defines the eventual product as a progression from accounting novice to junior accounting-based equity-research competence. This step remains deliberately narrow: make the historical foundation correct before adding judgment, diagnostics, forecasting, valuation, or research communication.
+**Spec:** `TARGET.md`, especially `Curriculum progression`, `Historical practice-surface expansion strategy`, and the locked Step 7 roadmap. Step 7 is still **Level 1 — Guided model construction**: source facts and classifications remain supplied. Do not start accounting-judgment exercises, research diagnostics, forecasting, or valuation.
 
 ## Current checkpoint review
 
-`6e06db1` correctly added much of the intended 21-cell historical reformulation + DuPont work, including authoritative tax/interest fields and historical formulas. Preserve that work.
+Accepted Step 6 checkpoint: `5b9f1eff`.
 
-It also introduced or retained four Step 6 violations that must be corrected:
+The Step 6 correction now has the intended historical-only boundary:
 
-1. `ReferenceModelBuilder.__init__` still synthesizes default forecast assumptions and eagerly calls `run_scenario()` in the normal build path.
-2. `build()` still produces live Bear/Base/Bull and scenario-summary forecast/valuation output.
-3. `COMPONENT_CATALOG` contains six deferred forecast/valuation IDs, producing 27 active components instead of 21.
-4. tests/docs/`RESULT.md` were changed to validate the incorrect 27-component state.
+- public practice catalog contains 21 historical latest-period components;
+- normal build does not execute `run_scenario()`;
+- normal build requires no forecast assumptions;
+- four forecast/valuation tabs are hidden placeholders;
+- committed `RESULT.md` reports 90 passing core tests, 21 resolved components, and fresh Check `0/0/21`;
+- no GitHub Actions/commit-status checks are configured, so preserve the local verification discipline in this plan.
 
-Step 6 is not accepted until those violations are removed and independently regression-tested.
+Static review found no blocker that requires another Step 6 correction. One handoff-quality issue is minor: `RESULT.md` records the full-suite result rather than exact standalone pass counts for `test_reference_integrity.py` and `test_trainer.py`. Step 7 should again record exact standalone counts.
+
+## Learning design for Step 7
+
+Do **not** measure Step 7 as “increase from 21 to N exercises.” The unit of learning is a historical **schedule**.
+
+The learner should construct these 25 conceptual families in dependency order:
+
+```text
+ 1 revenue_link                  all periods
+ 2 net_income_link               all periods
+
+ 3 effective_tax_rate_fy         all periods
+ 4 net_interest_fy               all periods
+ 5 net_interest_after_tax_fy     all periods
+ 6 nopat_fy                      all periods
+
+ 7 owca_agg                      all periods
+ 8 owcl_agg                      all periods
+ 9 nowc_agg                      all periods
+10 olta_agg                      all periods
+11 oltl_agg                      all periods
+12 nola_agg                      all periods
+13 noa_agg                       all periods
+14 financial_assets_agg          all periods
+15 financial_liabilities_agg     all periods
+16 net_debt                      all periods
+17 equity_reformulated_fy        all periods
+
+18 sales_growth                  comparable periods only (second FY onward)
+19 nopat_margin                  all periods
+
+20 rnoa                          comparable periods only
+21 after_tax_cod                 comparable periods only
+22 spread                        comparable periods only
+23 flev                          comparable periods only
+24 roe_decomp                    comparable periods only
+25 actual_roe                    comparable periods only
+```
+
+For `n` fiscal periods, the concrete practice-cell count is therefore:
+
+```text
+18*n + 7*(n-1) = 25*n - 7
+```
+
+`example/DEMO_HK_Standardized.json` has five fiscal years, so its expected Step 7 count is:
+
+```text
+25*5 - 7 = 118 practice cells
+```
+
+This **118 is a demo integrity check, not the definition of learner progress**.
+
+### Period-specific dependency rules
+
+Current-period dependencies use the same fiscal year. Previous-period dependencies use the immediately preceding fiscal year.
+
+```text
+revenue_link:                 none
+net_income_link:              none
+
+effective_tax_rate_fy:       none (pretax/tax source links stay populated)
+net_interest_fy:              none (interest source links stay populated)
+net_interest_after_tax_fy:    current effective_tax_rate_fy + current net_interest_fy
+nopat_fy:                     current net_income_link + current net_interest_after_tax_fy
+
+owca_agg:                     none
+owcl_agg:                     none
+nowc_agg:                     current owca_agg + current owcl_agg
+olta_agg:                     none
+oltl_agg:                     none
+nola_agg:                     current olta_agg + current oltl_agg
+noa_agg:                      current nowc_agg + current nola_agg
+financial_assets_agg:         none
+financial_liabilities_agg:    none
+net_debt:                     current financial_assets_agg + current financial_liabilities_agg
+equity_reformulated_fy:       current noa_agg + current net_debt
+
+sales_growth:                 current revenue_link + previous revenue_link
+nopat_margin:                 current nopat_fy + current revenue_link
+
+rnoa:                         current nopat_fy + current noa_agg + previous noa_agg
+after_tax_cod:                current net_interest_after_tax_fy + current net_debt + previous net_debt
+spread:                       current rnoa + current after_tax_cod
+flev:                         current net_debt + previous net_debt + current equity_reformulated_fy + previous equity_reformulated_fy
+roe_decomp:                   current rnoa + current spread + current flev
+actual_roe:                   current net_income_link + current equity_reformulated_fy + previous equity_reformulated_fy
+```
+
+The first fiscal period has no `sales_growth`, `rnoa`, `after_tax_cod`, `spread`, `flev`, `roe_decomp`, or `actual_roe` practice component because there is no beginning-period denominator/comparison.
+
+Historical share-count / EPS practice remains conditional on **actual supplied historical share data**. The current standardized demo has no dedicated share-history series. Do not invent one, do not reuse forecast `dilutedShares`, and do not add fake EPS exercises merely to expand Step 7.
 
 ## Global constraints
 
 - `TARGET.md` is read-only during implementation.
-- Preserve accepted accounting integrity, concept-aware line identity, Trainer/Answer-Key sanitation, and cache-safe Check behavior.
-- Preserve the useful historical formula expansion already present in `6e06db1`.
-- Normal v1 build must not call `run_scenario()` or synthesize forecast vectors, terminal growth, beta, scenario probabilities, or default diluted shares.
-- Do not use forecast defaults to invent historical share-count or per-share data.
-- Historical source values and classification/setup judgments remain populated in Trainer.
-- Active v1 practice cells are formula-bearing historical model-construction cells only.
-- Deferred forecast/valuation tabs must be hidden in both workbooks and absent from semantic practice, Trainer index, CLI list, and Check.
-- No public v1 CLI flag may enable deferred forecasting.
-- Do not delete the dormant forecast/valuation source code; quarantine it for later BAVGEM integration.
-- Do not add classification quizzes, free-form research grading, Hint, Reveal, VBA macros, or Trainer answer metadata in this step.
-- Keep component definitions coordinate-free; coordinates resolve at build time.
-- Scope statements must not imply that this operating/financing model applies unchanged to banks, insurers, brokers, or other financial institutions.
+- Preserve every accepted Step 6 forecast-quarantine regression.
+- Normal v1 build must still succeed when `run_scenario()` is monkeypatched to fail.
+- Keep all four deferred forecast/valuation tabs hidden and placeholder-only.
+- Do not expose any public forecast switch.
+- Historical source numbers and classification/setup judgments remain populated.
+- Pretax-income, tax-expense, interest-expense, and interest-income link rows remain populated scaffolding in Step 7; only Revenue and Net Income become explicit cross-sheet link practice families.
+- `Reported Equity`, `Total Capital`, and `CHECK` rows remain populated non-practice audit guardrails. The learner should use them to audit the schedule rather than reconstruct those guardrails in this step.
+- No accounting-classification quizzes, normalization judgments, free-form research grading, forecasting, valuation, Hint, Reveal, or VBA.
+- No static workbook coordinates in the catalog.
+- No fixed five-year assumption in production code. Five years is only the demo fixture.
+- Do not add historical EPS/per-share exercises without actual supplied historical share-count data.
+- Preserve source checksum, line-identity, reformulation-integrity, and cache-safe Check behavior.
 - Cursor must not commit, push, reset, rebase, merge, or delete branches.
 
 ---
 
-## Task 1 — Write regressions that expose the forecast leak
+## Task 1 — Expose authoritative historical income-series values
 
 **Files:**
-- Modify: `core/tests/test_reference_integrity.py`
-- Modify: `core/tests/test_trainer.py`
+- Modify: `core/model/financial_math.py`
+- Test: `core/tests/test_reference_integrity.py`
 
 **Interfaces:**
-- Consumes: `build_training_workbook(financials, output_path, assumptions=None)`.
-- Proves: normal v1 generation is independent of `run_scenario()` and forecast-shaped configuration.
+- Produces: an explicit historical series object used by period-specific expected values.
+- Preserves: existing latest-period scalar fields on `AnchorMetrics` for backward compatibility and dormant forecast tests.
 
-- [ ] **Step 1: Add the failing normal-build forecast quarantine test**
+- [ ] **Step 1: Write a failing historical-series test**
 
-Add to `core/tests/test_reference_integrity.py` using the existing `_ingest_demo()` helper:
+Add a regression that ingests the five-year demo and checks full historical series rather than only latest scalars.
 
-```python
-def test_normal_v1_build_does_not_call_run_scenario(tmp_path, monkeypatch):
-    import core.engine.reference_model as rm
-
-    def fail(*args, **kwargs):
-        raise AssertionError("forecast engine executed in historical-only v1")
-
-    monkeypatch.setattr(rm, "run_scenario", fail)
-
-    data = _ingest_demo()
-    trainer, answer = build_training_workbook(
-        data,
-        tmp_path / "DEMO_HK_Trainer.xlsx",
-    )
-
-    assert trainer.exists()
-    assert answer.exists()
-```
-
-- [ ] **Step 2: Add a no-forecast-assumptions regression**
+Use this interface:
 
 ```python
-def test_normal_v1_build_requires_no_forecast_assumptions(tmp_path):
-    data = _ingest_demo()
-    trainer, answer = build_training_workbook(
-        data,
-        tmp_path / "DEMO_HK_Trainer.xlsx",
-        assumptions={"classificationOverrides": {}},
-    )
-    assert trainer.exists()
-    assert answer.exists()
+@dataclass(frozen=True)
+class HistoricalSeries:
+    revenue: list[float]
+    net_income: list[float]
+    pretax_income: list[float]
+    tax_expense: list[float]
+    effective_tax_rate: list[float]
+    net_interest: list[float]
+    net_interest_after_tax: list[float]
+    nopat: list[float]
 ```
 
-If the Answer-Key assumptions sidecar remains part of the build, load it and assert that normal v1 did not synthesize keys such as `scenarios`, `growthVector`, `marginVector`, `terminalGrowth`, `beta`, or a default `marketData.dilutedShares` block unless the caller explicitly supplied them.
+and add:
 
-- [ ] **Step 3: Run the focused tests and verify the first test fails on the current code**
+```python
+historical: HistoricalSeries
+```
+
+to `AnchorMetrics`.
+
+Test at minimum:
+
+```python
+assert len(anchor.historical.revenue) == len(periods)
+assert len(anchor.historical.nopat) == len(periods)
+assert anchor.historical.revenue[-1] == pytest.approx(anchor.revenue)
+assert anchor.historical.net_interest[-1] == pytest.approx(anchor.net_interest)
+assert anchor.historical.effective_tax_rate[-1] == pytest.approx(anchor.effective_tax_rate)
+assert anchor.historical.net_interest_after_tax[-1] == pytest.approx(anchor.net_interest_after_tax)
+assert anchor.historical.nopat[-1] == pytest.approx(anchor.nopat)
+
+for j in range(len(periods)):
+    assert anchor.historical.net_interest_after_tax[j] == pytest.approx(
+        anchor.historical.net_interest[j] * (1 - anchor.historical.effective_tax_rate[j])
+    )
+    assert anchor.historical.nopat[j] == pytest.approx(
+        anchor.historical.net_income[j] + anchor.historical.net_interest_after_tax[j]
+    )
+```
+
+Use production `resolve_line()` / `_val()` logic for expected source values; do not hard-code demo row numbers.
+
+- [ ] **Step 2: Run the test and verify it fails before implementation**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "normal_v1_build" -v
+PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "historical_series" -v
 ```
 
-Expected before implementation: the patched `run_scenario()` raises `AssertionError`.
+Expected before implementation: `AnchorMetrics` has no `historical` field.
+
+- [ ] **Step 3: Implement `HistoricalSeries` from the arrays already computed inside `compute_anchor()`**
+
+Do not recompute the formulas in `ReferenceModelBuilder`. Populate `HistoricalSeries` directly from the existing `revenues`, `ni`, `pretax`, `tax`, `etr`, `net_int`, `niat`, and `nopat` arrays.
+
+Keep existing scalar fields populated from the last element so dormant forecast code remains compatible.
+
+- [ ] **Step 4: Run focused and full financial-math/reference tests**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "historical_series or anchor_exposes_tax" -v
+PYTHONPATH=. pytest core/tests/test_reference_integrity.py -q
+```
+
+Record the exact pass count for the full file later in `RESULT.md`.
 
 ---
 
-## Task 2 — Quarantine forecast initialization behind an internal switch
+## Task 2 — Add period-aware component families and concrete spec expansion
+
+**Files:**
+- Modify: `core/engine/component_catalog.py`
+- Modify: `core/engine/semantic_map.py`
+- Modify: `core/engine/map_embed.py`
+- Test: `core/tests/test_trainer.py`
+
+**Interfaces:**
+- `COMPONENT_CATALOG`: 25 conceptual `ComponentFamily` objects.
+- `expand_historical_specs(periods) -> tuple[ComponentSpec, ...]`: concrete period-specific specs.
+- Concrete IDs are stable and period-qualified.
+- `SemanticMap` validates against builder-supplied concrete specs rather than a global fixed-count catalog.
+
+- [ ] **Step 1: Write failing expansion tests**
+
+Introduce two dataclasses with clear separation between curriculum concept and workbook cell:
+
+```python
+@dataclass(frozen=True)
+class ComponentFamily:
+    id: str
+    order: int
+    title: str
+    short_hint: str
+    semantic_key: str
+    category: str
+    tab_template: str
+    period_scope: str = "all"           # "all" | "comparable"
+    depends_on_current: tuple[str, ...] = ()
+    depends_on_previous: tuple[str, ...] = ()
+    hints: tuple[str, ...] = ()
+    tolerance: float = 0.01
+
+
+@dataclass(frozen=True)
+class ComponentSpec:
+    id: str
+    family_id: str
+    order: int
+    family_order: int
+    title: str
+    short_hint: str
+    semantic_key: str
+    category: str
+    tab_template: str
+    period_index: int | None = None
+    period_end: str = ""
+    depends_on: tuple[str, ...] = ()
+    hints: tuple[str, ...] = ()
+    tolerance: float = 0.01
+    scenario: str = ""
+```
+
+Keep `DEFERRED_COMPONENT_SPECS` as concrete dormant `ComponentSpec` objects with blank/default historical-period metadata.
+
+Use stable concrete IDs:
+
+```python
+def concrete_component_id(family_id: str, period: date) -> str:
+    return f"{family_id}__{period.strftime('%Y%m%d')}"
+```
+
+and concrete semantic keys:
+
+```text
+<family semantic key>.<YYYY-MM-DD>
+```
+
+Test the five demo periods directly:
+
+```python
+specs = expand_historical_specs(periods)
+assert len(COMPONENT_CATALOG) == 25
+assert [f.order for f in COMPONENT_CATALOG] == list(range(1, 26))
+assert len(specs) == 118
+assert [s.order for s in specs] == list(range(1, 119))
+assert len({s.id for s in specs}) == 118
+assert len({s.semantic_key for s in specs}) == 118
+```
+
+Also test a three-period synthetic date list:
+
+```python
+assert len(expand_historical_specs(periods[:3])) == 68  # 25*3 - 7
+```
+
+For every concrete dependency:
+
+```python
+by_id = {s.id: s for s in specs}
+for spec in specs:
+    for dep in spec.depends_on:
+        assert dep in by_id
+        assert by_id[dep].order < spec.order
+```
+
+Assert no comparable family is instantiated at `period_index == 0`.
+
+- [ ] **Step 2: Run the expansion tests and verify failure**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_trainer.py -k "period_aware or expand_historical" -v
+```
+
+Expected before implementation: period-aware family/spec interfaces do not exist.
+
+- [ ] **Step 3: Replace the current 21 latest-period family definitions with the 25-family catalog above**
+
+Preserve the accepted hints/financial definitions from Step 6 where applicable. Add `revenue_link`, `net_income_link`, `sales_growth`, and `nopat_margin`.
+
+Use the exact family dependency rules from the `Learning design for Step 7` section. `expand_historical_specs()` must translate family dependencies into concrete current/previous-period IDs.
+
+Do not put the dormant six forecast/valuation definitions back into `COMPONENT_CATALOG`.
+
+- [ ] **Step 4: Make `SemanticMap` independent of the global static catalog**
+
+Change construction to accept expected concrete specs:
+
+```python
+class SemanticMap:
+    def __init__(self, expected_specs: tuple[ComponentSpec, ...] = ()) -> None:
+        self._expected_specs = tuple(expected_specs)
+        ...
+```
+
+`validate_complete()` must iterate `self._expected_specs`, not `COMPONENT_CATALOG`.
+
+Extend `ResolvedComponent` and workbook embedding with:
+
+```text
+family_id
+family_order
+period_index
+period_end
+```
+
+`SemanticMap.from_workbook()` / JSON loading must round-trip those fields. For backward compatibility with an older map lacking them, use sensible defaults (`family_id=id`, `family_order=order`, `period_index=None`, `period_end=""`) rather than crashing.
+
+Update `_ComponentMap` headers in `core/engine/map_embed.py` accordingly.
+
+- [ ] **Step 5: Add a semantic-map round-trip test**
+
+Create/serialize/load a small period-aware map and assert the four new metadata fields survive JSON and embedded-workbook round trips.
+
+- [ ] **Step 6: Run focused tests**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_trainer.py -k "period_aware or expand_historical or semantic" -v
+```
+
+---
+
+## Task 3 — Build and register the complete multi-period historical schedules
 
 **Files:**
 - Modify: `core/engine/reference_model.py`
 - Test: `core/tests/test_reference_integrity.py`
+- Test: `core/tests/test_trainer.py`
 
 **Interfaces:**
-- Produces: `ReferenceModelBuilder(..., include_deferred_forecast: bool = False)`.
-- Normal caller: `build_training_workbook()` uses the default `False` and exposes no public forecast switch.
+- `ReferenceModelBuilder.historical_specs`: concrete specs from `expand_historical_specs(self.periods)`.
+- `_register_historical(family_id, period_index, ...)`: resolves the correct concrete spec.
+- `_register_deferred(...)`: keeps dormant forecast registration isolated from the active historical spec index.
 
-- [ ] **Step 1: Add the internal constructor boundary**
+- [ ] **Step 1: Write a failing five-year build regression**
 
-Use this signature:
-
-```python
-class ReferenceModelBuilder:
-    def __init__(
-        self,
-        financials: StandardizedFinancials,
-        assumptions: dict[str, Any] | None = None,
-        *,
-        include_deferred_forecast: bool = False,
-    ):
-        self.fin = financials
-        self.periods = financials.fiscal_years() or financials.period_dates()
-        self.include_deferred_forecast = include_deferred_forecast
-        self.assumptions = dict(assumptions or {})
-        self.assumptions.setdefault("classificationOverrides", {})
-        ...
-```
-
-Do not call `_default_assumptions()` in normal mode.
-
-- [ ] **Step 2: Keep historical initialization unconditional and forecast initialization conditional**
-
-Historical setup, including `compute_anchor(... classification_overrides=...)`, must run in both modes.
-
-Only inside:
+Build the normal demo pair and assert:
 
 ```python
-if self.include_deferred_forecast:
-    ...
+smap = load_semantic_map(answer_key_path)
+assert len(smap.all_ordered()) == 118
+
+families = {c.family_id for c in smap.all_ordered()}
+assert families == {f.id for f in COMPONENT_CATALOG}
+
+for family in COMPONENT_CATALOG:
+    comps = [c for c in smap.all_ordered() if c.family_id == family.id]
+    expected = 5 if family.period_scope == "all" else 4
+    assert len(comps) == expected
 ```
 
-may the builder synthesize the legacy forecast defaults, read `marketData.dilutedShares`, call `run_scenario()`, or populate `_scenario_results` / `_base_result`.
+For every component, assert the Answer Key cell formula exactly equals `comp.formula` and `expected_value is not None`.
 
-Do not silently enable deferred mode because scenario-shaped keys happen to be present in an assumptions JSON.
-
-- [ ] **Step 3: Run the quarantine regressions**
+- [ ] **Step 2: Run it and verify current Step 6 fails at 21 components**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "normal_v1_build" -v
+PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "multi_period_practice" -v
 ```
 
-Expected: both tests pass.
+- [ ] **Step 3: Wire the expanded specs into `ReferenceModelBuilder`**
 
----
-
-## Task 3 — Replace normal forecast output with four hidden placeholders
-
-**Files:**
-- Modify: `core/engine/reference_model.py`
-- Modify: `core/tests/test_trainer.py`
-
-**Interfaces:**
-- Normal v1 sheets: historical tabs plus hidden `Model_Bear`, `Model_Base`, `Model_Bull`, `Scenario_Summary` placeholders.
-- Deferred internal mode may continue to call the old forecast builders for isolated legacy tests.
-
-- [ ] **Step 1: Write the placeholder test first**
-
-Add:
+After resolving `self.periods`:
 
 ```python
-def test_v1_deferred_tabs_are_hidden_placeholders(tmp_path):
-    trainer_path, answer_key_path = _build_pair(tmp_path)
-    deferred = {"Model_Bear", "Model_Base", "Model_Bull", "Scenario_Summary"}
-
-    for path in (trainer_path, answer_key_path):
-        wb = load_workbook(path, data_only=False)
-        for name in deferred:
-            ws = wb[name]
-            assert ws.sheet_state == "hidden"
-            assert ws["A1"].value == "Deferred from historical-only v1"
-            assert ws.max_row == 1
-            assert ws.max_column == 1
-        wb.close()
-```
-
-Also iterate through all active semantic formulas and assert none contains any deferred sheet name.
-
-- [ ] **Step 2: Change normal `build()` behavior**
-
-When `include_deferred_forecast=False`, build only the historical model sheets normally, then create:
-
-```python
-for name in ("Model_Bear", "Model_Base", "Model_Bull", "Scenario_Summary"):
-    ws = wb.create_sheet(name)
-    ws["A1"] = "Deferred from historical-only v1"
-    ws.sheet_state = "hidden"
-```
-
-Do not call `_build_model_tab()` or `_build_scenario_summary()` in normal mode.
-
-When `include_deferred_forecast=True`, preserve the legacy experimental forecast builders for internal use only.
-
-- [ ] **Step 3: Run the placeholder regressions**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_trainer.py -k "deferred or hidden" -v
-```
-
-Expected: pass in both Trainer and Answer Key.
-
----
-
-## Task 4 — Restore the active catalog and public practice surface to exactly 21 historical components
-
-**Files:**
-- Modify: `core/engine/component_catalog.py`
-- Modify: `core/engine/reference_model.py`
-- Modify: `core/tests/test_reference_integrity.py`
-- Modify: `core/tests/test_trainer.py`
-
-**Interfaces:**
-- Public `COMPONENT_CATALOG`: exactly 21 historical components.
-- Public SemanticMap / Trainer index / `python -m core list` / Check: same 21 components.
-- Optional dormant forecast specs, if still needed internally, must live outside `COMPONENT_CATALOG`.
-
-- [ ] **Step 1: Replace the incorrect 27-component test**
-
-Delete/replace `test_catalog_has_27_components_in_dependency_order` with:
-
-```python
-def test_catalog_has_21_historical_components_in_dependency_order():
-    assert len(COMPONENT_CATALOG) == 21
-    assert [c.order for c in COMPONENT_CATALOG] == list(range(1, 22))
-    assert len({c.id for c in COMPONENT_CATALOG}) == 21
-    assert len({c.semantic_key for c in COMPONENT_CATALOG}) == 21
-
-    by_id = {c.id: c for c in COMPONENT_CATALOG}
-    for spec in COMPONENT_CATALOG:
-        for dep in spec.depends_on:
-            assert dep in by_id
-            assert by_id[dep].order < spec.order
-```
-
-Add:
-
-```python
-DEFERRED_IDS = {
-    "model_sales_y1",
-    "model_nopat_y1",
-    "model_ae_y1",
-    "model_tv",
-    "model_ivps",
-    "scenario_weighted",
+self.historical_specs = expand_historical_specs(self.periods)
+self.semantic_map = SemanticMap(expected_specs=self.historical_specs)
+self._historical_spec_index = {
+    (s.family_id, s.period_index): s
+    for s in self.historical_specs
 }
-
-assert DEFERRED_IDS.isdisjoint({c.id for c in COMPONENT_CATALOG})
 ```
 
-Build an Answer Key and assert the same six IDs are absent from its SemanticMap.
+Add:
 
-- [ ] **Step 2: Make `COMPONENT_CATALOG` exactly this dependency order**
+```python
+def _register_historical(
+    self,
+    family_id: str,
+    period_index: int,
+    tab: str,
+    row: int,
+    col: int,
+    formula: str,
+    expected: float | str,
+    related: list[str] | None = None,
+) -> None:
+    spec = self._historical_spec_index[(family_id, period_index)]
+    self.semantic_map.register(
+        spec, tab, row, col, formula, expected, related_cells=related
+    )
+```
+
+Keep dormant forecast registration separate:
+
+```python
+def _register_deferred(...):
+    ...  # resolve only from DEFERRED_COMPONENT_SPECS
+```
+
+Update the six legacy forecast registration sites to call `_register_deferred`. Do not let deferred IDs fall through the active historical lookup.
+
+- [ ] **Step 4: Add Revenue to the condensed historical source-link block**
+
+Resolve `revenue` with production line-resolution logic and add a `Revenue` row alongside the existing linked historical rows.
+
+For every fiscal period register:
 
 ```text
- 1 effective_tax_rate_fy
- 2 net_interest_fy
- 3 net_interest_after_tax_fy
- 4 nopat_fy
- 5 owca_agg
- 6 owcl_agg
- 7 nowc_agg
- 8 olta_agg
- 9 oltl_agg
-10 nola_agg
-11 noa_agg
-12 financial_assets_agg
-13 financial_liabilities_agg
-14 net_debt
-15 equity_reformulated_fy
-16 rnoa
-17 after_tax_cod
-18 spread
-19 flev
-20 roe_decomp
-21 actual_roe
+revenue_link
+net_income_link
 ```
 
-Preserve the historical specs already implemented in `6e06db1`.
+with the exact cross-sheet formulas and authoritative expected values from `anchor.historical`.
 
-Remove these IDs from active `COMPONENT_CATALOG`:
+Pretax Income, Tax Expense, Interest Expense, and Interest Income rows remain populated non-practice scaffolding in Step 7.
+
+- [ ] **Step 5: Register all 15 reformulation families for every fiscal period**
+
+Replace latest-only registrations with a loop over `j in range(self._n)` for:
 
 ```text
-model_sales_y1
-model_nopat_y1
-model_ae_y1
-model_tv
-model_ivps
-scenario_weighted
+effective_tax_rate_fy
+net_interest_fy
+net_interest_after_tax_fy
+nopat_fy
+owca_agg
+owcl_agg
+nowc_agg
+olta_agg
+oltl_agg
+nola_agg
+noa_agg
+financial_assets_agg
+financial_liabilities_agg
+net_debt
+equity_reformulated_fy
 ```
 
-If the internal deferred forecast path still requires `ComponentSpec` objects, keep them in a clearly separate internal `DEFERRED_COMPONENT_SPECS` collection. Do not merge that collection into public catalog/list/check behavior.
+Expected values must come from:
 
-- [ ] **Step 3: Keep the authoritative historical registration already added**
+```text
+anchor.historical.*                         income reformulation
+anchor.reformulation.category_totals       classified aggregates
+anchor.reformulation.nowc / nola / noa     operating identities
+anchor.reformulation.net_debt              net debt
+anchor.reformulation.implied_equity        reformulated equity
+```
 
-For all 21 components, ensure:
+Do not calculate expected values from Excel cell contents.
 
-- Answer Key cell contains the registered formula;
-- SemanticMap formula exactly equals that cell formula;
-- expected value is non-`None`;
-- historical tax/interest expected values come from `AnchorMetrics`;
-- classified aggregates come from `anchor.reformulation.category_totals`;
-- NOPAT/NOWC/NOLA/NOA/Net Debt/Equity come from the historical anchor;
-- DuPont expected values come from `anchor.dupont` latest comparable period.
+`Reported Equity`, `Total Capital`, and `CHECK` remain populated and outside the practice map.
 
-Do not duplicate calculation cells merely to create exercises.
+- [ ] **Step 6: Rebuild `ALT DuPont` as a true historical schedule**
 
-- [ ] **Step 4: Run catalog/reference tests**
+Use columns `B...` for **all** fiscal periods; do not skip the first date header.
+
+Rows must be:
+
+```text
+Sales Growth
+NOPAT Margin
+RNOA
+After-tax CoD
+Spread
+FLEV
+ROE (decomposed)
+Actual ROE
+```
+
+For every fiscal period:
+
+- `NOPAT Margin` has a formula and active practice component.
+- `Sales Growth` is active only from the second fiscal period onward.
+- the six DuPont ratio rows are active only from the second fiscal period onward.
+- first-period cells for non-applicable comparative metrics should display a clear non-practice marker such as `N/A`; they must not be yellow and must not enter the SemanticMap.
+
+Use robust zero guards where a denominator can be zero, consistent with Python expected-value behavior.
+
+Register `sales_growth`, `nopat_margin`, and all six DuPont families with `anchor.dupont[...]` expected values for the matching period index.
+
+- [ ] **Step 7: Verify formula dependencies, not just counts**
+
+Add tests that inspect a middle and final fiscal period. At minimum assert:
+
+- FY2023 Sales Growth references FY2023 and FY2022 Revenue link cells;
+- FY2024 RNOA references FY2024 NOPAT plus FY2024/FY2023 NOA;
+- FY2025 After-tax CoD references FY2025 NIAT plus FY2025/FY2024 Net Debt;
+- FY2025 FLEV references FY2025/FY2024 Net Debt and Equity;
+- FY2025 ROE decomposition references the same-period RNOA, Spread, and FLEV cells;
+- FY2025 Actual ROE references FY2025 Net Income and FY2025/FY2024 Equity.
+
+Do not assert fragile absolute coordinates; obtain resolved cells/rows from the SemanticMap and row map.
+
+- [ ] **Step 8: Run full reference integrity tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
-PYTHONPATH=. pytest core/tests/test_trainer.py -k "catalog or historical or deferred" -v
 ```
+
+Record the exact pass count.
 
 ---
 
-## Task 5 — Correct the Trainer/Check regressions that currently defend the wrong product
+## Task 4 — Present schedules as schedules in the Trainer index and CLI
+
+**Files:**
+- Modify: `core/trainer/workbook.py`
+- Modify: `core/__main__.py`
+- Test: `core/tests/test_trainer.py`
+
+**Interfaces:**
+- SemanticMap remains cell-level for Check.
+- Trainer index is family-level: 25 conceptual schedule rows for the five-year demo, not 118 rows.
+- `python -m core list` lists the 25 conceptual families.
+- `python -m core list --workbook ...` lists 25 resolved schedule groups with their actual cell ranges/counts.
+
+- [ ] **Step 1: Write a failing grouped-index test**
+
+Open a built Trainer and assert the Trainer index contains one row per conceptual family, ordered 1–25.
+
+Use these columns:
+
+```text
+Order
+Schedule
+Period scope
+Tab
+Practice cells
+Depends on
+```
+
+For the demo, assert:
+
+```python
+assert index_family_rows == 25
+```
+
+and check examples:
+
+```text
+Revenue historical source link     5 cells
+NOPAT                               5 cells
+Sales Growth                        4 cells
+RNOA                                4 cells
+```
+
+- [ ] **Step 2: Implement a small grouping helper**
+
+Group `ResolvedComponent`s by `family_id`, sort groups by `family_order`, and sort each group's cells by `period_index`.
+
+Render `Practice cells` as a compact horizontal range when cells are on one row and contiguous; otherwise use a comma-separated list. Do not assume fixed row numbers.
+
+`Period scope` should communicate the actual built coverage, for example:
+
+```text
+2021–2025 (5 cells)
+2022–2025 (4 cells)
+```
+
+Use `period_end` metadata; do not parse years from cell coordinates.
+
+`Depends on` should show **family IDs**, not the full period-qualified concrete dependency IDs.
+
+Update the Trainer instruction to make the learning model explicit:
+
+```text
+Complete each historical schedule left-to-right in dependency order.
+Each schedule is one modeling concept repeated across fiscal periods.
+Run Check to validate every yellow cell in the workbook.
+```
+
+- [ ] **Step 3: Update CLI list behavior**
+
+Without `--workbook`, list the 25 family definitions and show their scope:
+
+```text
+[all periods]
+[second period onward]
+```
+
+With `--workbook`, group the resolved SemanticMap by `family_id` and print one line per family with actual tab, cell range, and concrete cell count.
+
+Do not add a new `--expanded` mode in this step; YAGNI.
+
+- [ ] **Step 4: Run Trainer/CLI focused tests**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_trainer.py -k "index or list or family or schedule" -v
+PYTHONPATH=. python -m core list
+```
+
+Expected default list: 25 conceptual historical families only; no forecast/valuation families.
+
+---
+
+## Task 5 — Preserve short-feedback-loop Check behavior across the full multi-period surface
 
 **Files:**
 - Modify: `core/tests/test_trainer.py`
-- Modify: `core/__main__.py`
+- Modify: `core/trainer/checker.py` only if a demonstrated regression requires it
 
 **Interfaces:**
-- Fresh Trainer: 21 blank practice cells.
-- Check output: `Checked 21 practice cells: 0 correct, 0 incorrect, 21 blank.`
-- CLI: `{ingest,build,check,list}` only.
+- Five-year demo fresh Check total: 118.
+- Existing exact-formula, equivalent-cached-formula, color refresh, and non-disclosure contracts remain unchanged.
 
-- [ ] **Step 1: Remove live forecast-input expectations from the populated-input guardrail**
+- [ ] **Step 1: Update fresh-workbook assertions**
 
-Keep assertions that historical source-statement cells and balance-sheet classifications remain populated and pair-identical.
-
-Remove expectations that normal v1 contains live values such as `Model_Base!B5`, `Model_Base!B6`, `Model_Base!B9`, `Model_Base!G22`, `Model_Base!G39`, or `Scenario_Summary!B4:B6`. Those tabs are now deferred placeholders.
-
-- [ ] **Step 2: Correct three-state Check totals**
-
-In the expanded historical three-state regression, after one correct formula, one wrong formula, and the rest blank, assert:
+For the five-year demo:
 
 ```python
-assert summary.total == 21
-assert summary.correct == 1
-assert summary.incorrect == 1
-assert summary.blank == 19
+assert len(smap.all_ordered()) == 118
 ```
 
-Preserve all existing Step 5 regressions for:
-
-- exact correct formula -> green;
-- wrong formula -> red;
-- blank -> yellow;
-- corrected/re-cleared state refresh;
-- equivalent cached formula remaining correct across repeated Checks;
-- Check never printing formulas, expected values, or hints.
-
-- [ ] **Step 3: Correct CLI copy without adding a forecast switch**
-
-`python -m core list` must list only the 21 historical components.
-
-No public CLI option may enable `include_deferred_forecast=True`.
-
-The existing `-a/--assumptions` argument may remain because historical configuration such as classification overrides can be supplied, but change its help text from scenario-specific wording to:
+Fresh Check must report:
 
 ```text
-Optional historical configuration JSON (e.g. classificationOverrides)
+Checked 118 practice cells: 0 correct, 0 incorrect, 118 blank.
 ```
 
-`python -m core --help` must continue to expose only:
+Trainer audit:
 
 ```text
-ingest
-build
-check
-list
+118 blank yellow practice cells
+0 Notes/comments on those practice cells
 ```
 
-- [ ] **Step 4: Run the Trainer and CLI regressions**
+Answer Key audit:
+
+```text
+118 formula-bearing yellow practice cells
+118 non-empty legacy Notes
+```
+
+- [ ] **Step 2: Add a multi-period correction-cycle test**
+
+Use the SemanticMap rather than hard-coded coordinates.
+
+Fill all five `nopat_fy` components with their exact Answer Key formulas. Put a wrong formula into one `sales_growth` component. Leave the rest blank.
+
+Assert:
+
+```python
+summary.total == 118
+summary.correct == 5
+summary.incorrect == 1
+summary.blank == 112
+```
+
+Then replace the wrong Sales Growth formula with its correct formula and rerun Check:
+
+```python
+summary.correct == 6
+summary.incorrect == 0
+summary.blank == 112
+```
+
+Then clear one NOPAT cell and rerun:
+
+```python
+summary.correct == 5
+summary.incorrect == 0
+summary.blank == 113
+```
+
+Verify green/red/yellow fills at each stage.
+
+- [ ] **Step 3: Preserve cache-safe equivalent-formula behavior**
+
+Do not weaken or delete the existing OOXML cached-value regression. It must still pass with the larger SemanticMap.
+
+- [ ] **Step 4: Re-run Step 6 quarantine/leakage tests**
+
+At minimum rerun regressions proving:
+
+- patched `run_scenario()` is never executed by normal build;
+- deferred tabs are four hidden placeholders in Trainer and Answer Key;
+- no active component points to a deferred tab;
+- Trainer contains no `_ComponentMap`, `_Ref*`, answer-bearing sidecar, formulas, expected values, or Notes for active practice;
+- source values/classifications remain populated and pair-identical.
+
+- [ ] **Step 5: Run the full Trainer test file**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_trainer.py -v
-PYTHONPATH=. python -m core list
-PYTHONPATH=. python -m core --help
 ```
+
+Record the exact pass count.
 
 ---
 
-## Task 6 — Align docs and regenerate a clean historical demo pair
+## Task 6 — Align docs, regenerate demos, and verify Step 7 end-to-end
 
 **Files:**
 - Modify: `README-HK-TRAINER.md`
@@ -406,38 +751,37 @@ PYTHONPATH=. python -m core --help
 - Regenerate: `example/DEMO_HK_Answer_Key.xlsx`
 
 **Interfaces:**
-- Public documentation describes current v1 as a historical model-construction foundation, not a complete equity-research curriculum.
-- Future product direction may be mentioned, but forecasting/valuation must not be advertised as active v1 behavior.
+- Current v1 description becomes “multi-period historical model-construction foundation.”
+- Step 8 accounting judgment remains explicitly deferred.
 
-- [ ] **Step 1: Align documentation with `TARGET.md`**
+- [ ] **Step 1: Update documentation without overclaiming**
 
-Docs should communicate:
+Docs should say:
 
 ```text
-end-state goal:
-accounting novice -> junior accounting-based equity-research competence
+current Step 7 capability:
+- historical schedules across all supplied fiscal years
+- cross-sheet Revenue / Net Income links
+- reformulation across periods
+- Sales Growth / NOPAT Margin
+- multi-period DuPont from the second comparable year onward
+- workbook-wide Check across every concrete period cell
 
-current v1:
-historical model-construction foundation for non-financial operating companies
+learner view:
+- 25 conceptual schedule families
+- period-specific yellow cells inside each schedule
 
-provided in v1:
-historical source values + classification/setup judgments
-
-active practice in v1:
-historical links + reformulation + ratios + DuPont
-
-deferred:
-accounting-judgment exercises + research diagnostics + forecasting + valuation + research conclusion
-
-normal v1 build:
-does not execute forecast/scenario engine
+still deferred:
+- classification/normalization judgment exercises
+- earnings-quality diagnostics
+- forecasting
+- valuation
+- investment conclusion
 ```
 
-Do not describe Bear/Base/Bull forecasts, residual-income valuation, terminal value, IVPS, or scenario weighting as active v1 exercises.
+Do not describe 118 as 118 separate skills. Explain that it is 25 concepts instantiated across five demo fiscal years.
 
-Where current copy says `formula/input` for yellow practice cells, use `formula`.
-
-- [ ] **Step 2: Regenerate both demo workbooks through the normal v1 path**
+- [ ] **Step 2: Regenerate the committed demo pair**
 
 ```bash
 PYTHONPATH=. python -m core build \
@@ -445,47 +789,13 @@ PYTHONPATH=. python -m core build \
   -o example/DEMO_HK_Trainer.xlsx
 ```
 
-Expected CLI build result:
-
-```text
-Components resolved: 21
-```
-
-- [ ] **Step 3: Audit the regenerated pair with openpyxl/tests**
-
-Verify all of the following:
-
-1. Answer Key SemanticMap has exactly 21 active components.
-2. Trainer has 21 blank bright-yellow practice cells and zero Notes on those cells.
-3. Answer Key has 21 working-formula bright-yellow practice cells and one non-empty legacy Note on each.
-4. historical source values remain populated and pair-identical;
-5. classification/setup judgments remain populated and pair-identical;
-6. `Model_Bear`, `Model_Base`, `Model_Bull`, `Scenario_Summary` are hidden in both files;
-7. each deferred tab contains only `A1 = "Deferred from historical-only v1"`;
-8. no active semantic formula references a deferred tab;
-9. Trainer has no active answer-bearing hidden sheet or Trainer answer sidecar;
-10. generated Answer-Key metadata remains ignored according to the existing `.gitignore` policy.
-
-- [ ] **Step 4: Check the fresh demo**
-
-```bash
-PYTHONPATH=. python -m core check --workbook example/DEMO_HK_Trainer.xlsx
-```
-
 Expected:
 
 ```text
-Checked 21 practice cells: 0 correct, 0 incorrect, 21 blank.
+Components resolved: 118
 ```
 
----
-
-## Task 7 — Full verification and truthful handoff
-
-**Files:**
-- Modify: `RESULT.md`
-
-- [ ] **Step 1: Run the complete verification suite**
+- [ ] **Step 3: Run the full verification suite**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_classification.py -v
@@ -497,165 +807,127 @@ PYTHONPATH=. pytest core/tests/ -q
 PYTHONPATH=. python -m core build example/DEMO_HK_Standardized.json -o /tmp/DEMO_HK_Trainer.xlsx
 PYTHONPATH=. python -m core check --workbook /tmp/DEMO_HK_Trainer.xlsx
 PYTHONPATH=. python -m core list
+PYTHONPATH=. python -m core list --workbook /tmp/DEMO_HK_Trainer.xlsx
 PYTHONPATH=. python -m core --help
 ```
 
-- [ ] **Step 2: Record exact evidence in `RESULT.md`**
-
-Use this structure with actual observed pass counts/results:
+Expected build/check/list outcomes:
 
 ```text
-Status: Step 6 correction complete
+Components resolved: 118
+Checked 118 practice cells: 0 correct, 0 incorrect, 118 blank.
+python -m core list -> 25 conceptual historical families
+python -m core list --workbook ... -> 25 resolved schedule groups / 118 concrete cells total
+python -m core --help -> {ingest,build,check,list} only
+```
+
+- [ ] **Step 4: Perform final workbook audit**
+
+Verify with openpyxl/tests:
+
+1. SemanticMap has 118 concrete components for the five-year demo.
+2. Those components group into exactly 25 family IDs.
+3. 18 all-period families each have 5 cells.
+4. 7 comparable families each have 4 cells.
+5. Trainer index has 25 schedule rows, not 118 conceptual rows.
+6. Trainer has 118 blank/yellow/no-Note practice cells.
+7. Answer Key has 118 formula/yellow/non-empty-Note practice cells.
+8. Revenue and Net Income links are practice across all five years.
+9. historical source statements and classifications remain populated.
+10. `Reported Equity`, `Total Capital`, and `CHECK` remain populated audit guardrails.
+11. first-year comparative DuPont/growth cells are non-practice `N/A` markers.
+12. all four deferred forecast/valuation tabs remain hidden and placeholder-only.
+13. no active formula references a deferred tab.
+14. normal build still succeeds if `run_scenario()` raises.
+15. no Trainer answer leakage or Trainer answer-bearing sidecars.
+16. generated Answer-Key metadata remains ignored according to `.gitignore`.
+
+- [ ] **Step 5: Update `RESULT.md` with exact evidence**
+
+Use this structure with actual observed numbers:
+
+```text
+Status: Step 7 complete
 
 Implementation base:
-- 6e06db1 chat 6 corrected
+- 5b9f1eff Step 6 correction
 
-Historical-only boundary:
-- normal build calls run_scenario: no
-- forecast assumptions required: no
-- deferred tabs: four hidden placeholders
-- public forecast CLI: none
+Historical schedule model:
+- fiscal periods in demo: 5
+- conceptual families: 25
+- all-period families: 18
+- comparable-period families: 7
+- concrete practice cells: 118
+- Trainer index rows: 25
 
-Active practice:
-- component count: 21
-- Trainer blank/yellow/no Note: 21/21
-- Answer Key formula/yellow/Note: 21/21
-- Check fresh result: 0 correct / 0 incorrect / 21 blank
+Practice audit:
+- Trainer blank/yellow/no Note: 118/118
+- Answer Key formula/yellow/Note: 118/118
+- fresh Check: 0 correct / 0 incorrect / 118 blank
 
 Preservation:
-- historical source values populated: yes
+- source values populated: yes
 - classifications/setup judgments populated: yes
+- reported-equity/check guardrails populated: yes
+- forecast engine called by normal build: no
+- deferred tabs: four hidden placeholders
 - Trainer answer leakage: none
-- repeated cached Check behavior: preserved
+- repeated cached Check: preserved
 
 Tests:
-- record every verification command and exact pass count/result
+- record every command above and exact pass count/result, including standalone reference-integrity and trainer test-file counts
 
 Unresolved:
 - none OR list exact blockers
 ```
 
-Do not claim `Unresolved: none` unless every acceptance criterion below is verified.
+- [ ] **Step 6: Stop**
 
-- [ ] **Step 3: Stop**
+Do not begin Step 8. Do not add accounting-judgment exercises. Do not commit or push.
 
-Do not begin Step 7 curriculum expansion. Do not commit or push.
+## Step 7 acceptance criteria
 
-## Step 6 acceptance criteria
+Step 7 is accepted only when all are true:
 
-Step 6 is accepted only when all are true:
-
-1. normal v1 build succeeds when `run_scenario()` is patched to fail;
-2. normal v1 build requires no forecast/scenario assumptions;
-3. four deferred tabs are hidden placeholder-only sheets in both generated workbooks;
-4. active catalog/map/index/list/Check contain exactly 21 historical components;
-5. six forecast/valuation IDs are absent from active product surfaces;
-6. the 21 historical formulas preserve authoritative expected values and exact Answer Key formulas;
-7. historical source values and classification/setup judgments remain populated in Trainer;
-8. Trainer/Answer-Key/Check/leakage contracts from Step 5 remain intact;
-9. full core suite passes;
-10. fresh demo Check reports `0 correct / 0 incorrect / 21 blank`;
-11. docs describe v1 as a historical foundation and do not overclaim job-readiness;
-12. no public forecast-enabling CLI surface exists.
+1. component architecture expands dynamically from conceptual families to period-specific concrete specs without fixed-year coordinates;
+2. five-year demo resolves exactly 118 concrete practice cells grouped into 25 conceptual schedule families;
+3. two-, three-, and five-period expansion logic follows `25*n - 7` where applicable and does not assume five years in production code;
+4. Revenue and Net Income cross-sheet links are practiced across every supplied fiscal period;
+5. the 15 historical reformulation families are practiced across every supplied fiscal period;
+6. Sales Growth is practiced from the second period onward and NOPAT Margin across all periods;
+7. all six DuPont families are calculated and practiced for every comparable period, not only the latest year;
+8. period-specific dependencies correctly reference current and previous periods as defined above;
+9. first-period non-comparable cells are clear non-practice markers;
+10. Trainer index and CLI present schedules as 25 concepts rather than 118 unrelated tasks;
+11. workbook-wide Check correctly validates all 118 demo cells and preserves repeated/cached behavior;
+12. normal historical build remains forecast-independent and the four deferred tabs remain hidden placeholders;
+13. source facts/classifications and audit guardrails remain populated;
+14. no historical shares/EPS are fabricated from forecast assumptions;
+15. full test suite and regenerated demo pair pass the required audits;
+16. docs continue to frame Step 7 as a guided historical foundation, not job-readiness or independent accounting judgment.
 
 ---
 
-# Locked Post-Step-6 Competency Roadmap — Do Not Implement Yet
-
-The following sequence is part of the product direction in `TARGET.md`, but **Cursor must not implement it during the active Step 6 correction**. ChatGPT will rewrite `IMPLEMENTATION.md` one step at a time after each prior checkpoint is implemented and verified.
-
-## Step 7 — Multi-period historical model construction
-
-Move from isolated latest-period practice to coherent historical schedules across all applicable fiscal years.
-
-Competencies:
-
-- cross-sheet historical linking;
-- revenue growth and margin calculation;
-- effective tax and financing-result history;
-- NOPAT / NOWC / NOLA / NOA / Net Debt / Equity across periods;
-- RNOA / after-tax CoD / Spread / FLEV / ROE through time;
-- historical per-share bridges when actual share data is supplied;
-- schedule-level audit and reconciliation.
-
-Success criterion: learner reconstructs a connected multi-year historical model rather than memorizing individual cells.
+# Locked Post-Step-7 Roadmap — Do Not Implement Yet
 
 ## Step 8 — Guided accounting judgment and normalization
 
-Introduce selected judgment exercises while retaining short feedback loops.
+Next, introduce selected accounting-treatment decisions while retaining a short feedback loop: operating versus financing classification, recurring versus non-recurring treatment, normalization, leases, stock-based compensation, goodwill/intangibles, deferred taxes, minority interests, acquisitions, and other topics only where material to the supplied company.
 
-Competencies:
-
-- operating versus financing classification;
-- recurring versus non-recurring treatment;
-- earnings normalization;
-- leases, stock-based compensation, goodwill/intangibles, deferred taxes, minority interests, acquisitions, and other topics only where material to the supplied company;
-- reconciliation of alternative defensible treatments.
-
-Success criterion: learner begins to understand why accounting treatment changes economic interpretation, not merely how to write the downstream formula.
+The design goal will be to teach **why treatment changes economic interpretation**, not to turn ambiguous accounting into arbitrary multiple-choice trivia.
 
 ## Step 9 — Historical research diagnostics
 
-Teach the learner to explain what changed and why.
-
-Competencies:
-
-- margin versus turnover/capital-intensity drivers of RNOA;
-- working-capital behavior;
-- accruals and cash conversion;
-- financing versus operating sources of ROE change;
-- dilution and per-share economics;
-- segment economics where disclosed;
-- earnings-quality and accounting consistency diagnostics.
-
-Prefer structured diagnostic exercises over unreliable free-form essay grading.
-
-Success criterion: learner can turn historical calculations into an economic explanation.
+Teach the learner to explain what changed and why: margin versus turnover/capital-intensity drivers of RNOA, working-capital behavior, accrual/cash conversion, operating versus financing sources of ROE change, dilution, segment economics, and earnings-quality/accounting consistency signals.
 
 ## Step 10 — Cross-company robustness
 
-Prove the historical/judgment/diagnostic system on materially different non-financial operating companies rather than only `DEMO_HK`.
-
-At minimum include contrasting business models such as:
-
-- an asset-light company; and
-- an asset-heavy or working-capital-intensive company.
-
-Success criterion: semantic identity, accounting logic, exercises, and checks generalize without company-specific coordinate hacks or fabricated inputs.
+Validate the historical/judgment/diagnostic system on materially different non-financial companies, including at least one asset-light and one asset-heavy or working-capital-intensive business.
 
 ## Step 11 — Driver-based forecasting
 
-Only after Steps 7–10 are accepted, reintroduce forecasting through trusted BAVGEM assumption/judgment architecture.
-
-Competencies:
-
-- forecast revenue from explicit business drivers;
-- forecast margins from historical economics and stated assumptions;
-- forecast operating assets/liabilities consistently with activity;
-- model financing effects without double-counting;
-- separate historical fact from analyst judgment;
-- expose sensitivities and scenario logic explicitly.
-
-Do not restore canned default forecast vectors as company-specific forecasts.
-
-Success criterion: every material forecast assumption is explicit, traceable, and economically interpretable.
+Reintroduce forecasting only through explicit, traceable BAVGEM-style analyst assumptions and business drivers. Do not restore canned default vectors as company-specific forecasts.
 
 ## Step 12 — BAV valuation and research conclusion
 
-Add residual-income/BAV valuation and appropriate cross-checks only after the forecast layer is trustworthy.
-
-Competencies:
-
-- cost of equity / capital assumptions;
-- abnormal earnings / residual income;
-- continuing value / terminal assumptions;
-- intrinsic value per share;
-- scenario/sensitivity interpretation;
-- appropriate valuation cross-checks;
-- concise investment conclusion linking accounting analysis, drivers, forecast, valuation, risks, and variant assumptions.
-
-Success criterion: on an unseen non-financial company case, the learner can move from reported accounts to a defensible accounting-based equity-research conclusion with materially reduced scaffolding.
-
-## Roadmap design rule
-
-Do not measure progress primarily by the number of yellow cells. For every future step, define acceptance in terms of **analyst competency demonstrated on an unfamiliar company**, with component counts used only as implementation integrity checks.
+Add residual-income/BAV valuation, appropriate cross-checks, sensitivities, and a concise evidence-based investment conclusion only after the forecast layer is separately trusted.
