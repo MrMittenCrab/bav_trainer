@@ -6,11 +6,14 @@ import json
 from pathlib import Path
 
 from openpyxl import load_workbook
+import pytest
 
 from core.data.interface import DocumentManifest, DocumentType
 from core.engine.component_catalog import COMPONENT_CATALOG
 from core.ingestion.manual_hk import HKManualDocumentAdapter
-from core.model.financial_math import compute_anchor
+from core.model.classification import BALANCE_SHEET_CATEGORIES
+from core.model.financial_math import _val, compute_anchor
+from core.model.line_resolver import resolve_line
 from core.model.ri_engine import run_scenario
 from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
 from core.trainer.workbook import build_training_workbook
@@ -27,6 +30,68 @@ def _ingest_demo():
 def _build_pair(tmp_path, assumptions=None):
     data = _ingest_demo()
     return build_training_workbook(data, tmp_path / "DEMO_HK_Trainer.xlsx", assumptions)
+
+
+def test_anchor_exposes_tax_and_interest_expected_values():
+    data = _ingest_demo()
+    periods = data.fiscal_years() or data.period_dates()
+    anchor = compute_anchor(data, periods)
+    last = periods[-1]
+
+    pretax = resolve_line(data.income_statement, "pretax_income", required=True).item
+    tax = resolve_line(data.income_statement, "tax_expense", required=True).item
+    int_exp = resolve_line(data.income_statement, "interest_expense", required=False).item
+    int_inc = resolve_line(data.income_statement, "interest_income", required=False).item
+    ni = resolve_line(data.income_statement, "net_income", required=True).item
+
+    pretax_v = _val(pretax, last)
+    tax_v = _val(tax, last)
+    expected_etr = (-tax_v / pretax_v) if pretax_v else 0.0
+    expected_net_int = -(_val(int_exp, last) + _val(int_inc, last))
+
+    assert anchor.effective_tax_rate == pytest.approx(expected_etr)
+    assert anchor.net_interest == pytest.approx(expected_net_int)
+    assert anchor.net_interest_after_tax == pytest.approx(
+        anchor.net_interest * (1 - anchor.effective_tax_rate)
+    )
+    assert anchor.nopat == pytest.approx(_val(ni, last) + anchor.net_interest_after_tax)
+
+
+HISTORICAL_REFORMULATION_IDS = (
+    "effective_tax_rate_fy",
+    "net_interest_fy",
+    "net_interest_after_tax_fy",
+    "nopat_fy",
+    "owca_agg",
+    "owcl_agg",
+    "nowc_agg",
+    "olta_agg",
+    "oltl_agg",
+    "nola_agg",
+    "noa_agg",
+    "financial_assets_agg",
+    "financial_liabilities_agg",
+    "net_debt",
+    "equity_reformulated_fy",
+)
+
+AGGREGATE_SUMIF_IDS = (
+    "owca_agg",
+    "owcl_agg",
+    "olta_agg",
+    "oltl_agg",
+    "financial_assets_agg",
+    "financial_liabilities_agg",
+)
+
+DUPONT_IDS = (
+    "rnoa",
+    "after_tax_cod",
+    "spread",
+    "flev",
+    "roe_decomp",
+    "actual_roe",
+)
 
 
 def test_cli_assumptions_propagate(tmp_path):
@@ -714,3 +779,73 @@ def test_duPont_uses_implied_equity(tmp_path):
     assert str(reported_row) not in flev_f
     assert str(reported_row) not in actual_f
     wb.close()
+
+
+def test_historical_reformulation_formulas_match_answer_key_cells(tmp_path):
+    trainer_path, answer = _build_pair(tmp_path)
+    smap = load_semantic_map(answer)
+    wb = load_workbook(answer, data_only=False)
+    for cid in HISTORICAL_REFORMULATION_IDS:
+        comp = smap.get(cid)
+        assert comp.formula.startswith("=")
+        assert comp.expected_value is not None
+        row, col = parse_cell_ref(comp.cell)
+        assert wb[comp.tab].cell(row=row, column=col).value == comp.formula
+        if cid in AGGREGATE_SUMIF_IDS:
+            assert "SUMIF" in comp.formula
+    wb.close()
+
+    # Classification choices remain populated identically in Trainer vs Answer Key.
+    wb_t = load_workbook(trainer_path, data_only=False)
+    wb_a = load_workbook(answer, data_only=False)
+    class_start = None
+    for r in range(1, 40):
+        if wb_a["Condensed Financials"].cell(row=r, column=1).value == "Line Item":
+            class_start = r + 1
+            break
+    assert class_start is not None
+    for r in range(class_start, class_start + 50):
+        label = wb_a["Condensed Financials"].cell(row=r, column=1).value
+        cat = wb_a["Condensed Financials"].cell(row=r, column=2).value
+        if not isinstance(label, str) or not label.strip():
+            break
+        if cat is None:
+            continue
+        assert cat in BALANCE_SHEET_CATEGORIES
+        assert (
+            wb_t["Condensed Financials"].cell(row=r, column=2).value
+            == wb_a["Condensed Financials"].cell(row=r, column=2).value
+        )
+    wb_t.close()
+    wb_a.close()
+
+
+def test_dupont_chain_registers_all_six_latest_comparable_formulas(tmp_path):
+    _, answer = _build_pair(tmp_path)
+    data = _ingest_demo()
+    periods = data.fiscal_years() or data.period_dates()
+    anchor = compute_anchor(data, periods)
+    j_last = len(periods) - 1
+    smap = load_semantic_map(answer)
+    wb = load_workbook(answer, data_only=False)
+
+    expected_map = {
+        "rnoa": anchor.dupont["RNOA"][j_last],
+        "after_tax_cod": anchor.dupont["After-tax CoD"][j_last],
+        "spread": anchor.dupont["Spread"][j_last],
+        "flev": anchor.dupont["FLEV"][j_last],
+        "roe_decomp": anchor.dupont["ROE (decomposed)"][j_last],
+        "actual_roe": anchor.dupont["Actual ROE"][j_last],
+    }
+    for cid in DUPONT_IDS:
+        comp = smap.get(cid)
+        assert comp.formula.startswith("=")
+        row, col = parse_cell_ref(comp.cell)
+        assert wb[comp.tab].cell(row=row, column=col).value == comp.formula
+        assert comp.expected_value == pytest.approx(expected_map[cid])
+    wb.close()
+
+    by_id = {c.id: c for c in COMPONENT_CATALOG}
+    for spec in COMPONENT_CATALOG:
+        for dep in spec.depends_on:
+            assert by_id[dep].order < spec.order

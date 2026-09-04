@@ -10,9 +10,13 @@ Build a **matched Trainer / Answer Key pair** where the analyst reconstructs a B
 ## Product loop
 
 ```text
+The Trainer supplies source financials, classifications, market data, and assumptions.
+Yellow practice cells are model-construction formulas: links, reformulation, ratios,
+forecast calculations, and valuation logic.
+
 Trainer = blank yellow practice cells, no answers, no hints.
 Check = scans every practice cell; blank yellow, correct green, incorrect red; no answers disclosed.
-Answer Key = same practice cells with formula/input + one legacy Note hint.
+Answer Key = same practice cells with formula + one legacy Note hint.
 ```
 
 ## When to use
@@ -80,16 +84,17 @@ python -m core check --workbook training/DEMO_HK_Trainer.xlsx
 
 Check recolors every practice cell from current contents: blank → yellow, correct → green, incorrect → red. It does not change cell values and does not disclose formulas, expected values, or hints.
 
-3. When you want the answer or a hint, open the matching Answer Key: inspect the yellow cell's formula/input and hover its Note.
+3. When you want the answer or a hint, open the matching Answer Key: inspect the yellow cell's formula and hover its Note.
 
-Practice components (dependency order via `python -m core list`):
+Practice components follow the model dependency graph (via `python -m core list`):
 
-1. NOPAT reformulation
-2. NOWC / NOA / Net Debt aggregates
-3. DuPont decomposition
-4. Forecast vectors
-5. Abnormal earnings / terminal value / IVPS
-6. Scenario weighting
+1. Historical income reformulation (tax rate, net interest, NOPAT)
+2. Operating / financing aggregates (NOWC, NOLA, NOA, Net Debt, Equity)
+3. DuPont ratios (RNOA, After-tax CoD, Spread, FLEV, ROE)
+4. Forecast formulas (assumptions already supplied)
+5. Valuation formulas (residual income, TV, IVPS, scenario weighting)
+
+Source numbers, classifications, and scenario assumptions stay populated — they are not yellow practice cells.
 
 ## Design principles
 

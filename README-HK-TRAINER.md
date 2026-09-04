@@ -5,9 +5,13 @@ An extension of the BAVGems pipeline that turns manually supplied Hong Kong comp
 ## Product loop
 
 ```text
+The Trainer supplies source financials, classifications, market data, and assumptions.
+Yellow practice cells are model-construction formulas: links, reformulation, ratios,
+forecast calculations, and valuation logic.
+
 Trainer = blank yellow practice cells, no answers, no hints.
 Check = scans every practice cell; blank yellow, correct green, incorrect red; no answers disclosed.
-Answer Key = same practice cells with formula/input + one legacy Note hint.
+Answer Key = same practice cells with formula + one legacy Note hint.
 ```
 
 ## Quick start
@@ -36,7 +40,7 @@ Open the matching Answer Key for the formula/input and hover the yellow cell's N
 1. **Ingests** HK annual reports, interim reports, results materials, or Excel/Bloomberg/Wind exports via `HKManualDocumentAdapter`
 2. **Reconciles** into standardized Income Statement / Balance Sheet / Cash Flow structure (`StandardizedFinancials`)
 3. **Builds** a complete BAV model and writes it as the **Answer Key** (`*_Answer_Key.xlsx`) — yellow practice cells with working formulas and concise Excel Notes
-4. **Derives** the matching **Trainer** workbook (`*_Trainer.xlsx`) — same layout, blank yellow practice cells, no answers, Notes, or answer-bearing metadata
+4. **Derives** the matching **Trainer** workbook (`*_Trainer.xlsx`) — source data, classifications, and assumptions stay populated; yellow practice cells are blank model-construction formulas only
 5. **Checks** the entire Trainer in one pass: blank stays yellow, correct turns green, incorrect turns red — without disclosing answers
 
 ## Architecture

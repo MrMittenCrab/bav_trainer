@@ -9,6 +9,7 @@ from openpyxl import load_workbook
 from core.data.interface import DocumentManifest, DocumentType
 from core.engine.component_catalog import COMPONENT_CATALOG
 from core.ingestion.manual_hk import HKManualDocumentAdapter
+from core.model.classification import BALANCE_SHEET_CATEGORIES
 from core.trainer.checker import check_workbook
 from core.trainer.semantic_io import (
     answer_key_path_for,
@@ -62,6 +63,18 @@ def test_catalog_has_no_coordinates():
         d = spec.__dict__
         assert "cell" not in d
         assert "tab" not in d or spec.tab_template
+
+
+def test_catalog_has_27_components_in_dependency_order():
+    assert len(COMPONENT_CATALOG) == 27
+    assert [c.order for c in COMPONENT_CATALOG] == list(range(1, 28))
+    assert len({c.id for c in COMPONENT_CATALOG}) == 27
+    assert len({c.semantic_key for c in COMPONENT_CATALOG}) == 27
+    by_id = {c.id: c for c in COMPONENT_CATALOG}
+    for spec in COMPONENT_CATALOG:
+        for dep in spec.depends_on:
+            assert dep in by_id
+            assert by_id[dep].order < spec.order
 
 
 def test_ingest_demo_json():
@@ -480,6 +493,121 @@ def test_cli_build_reports_both_paths(tmp_path, capsys):
     assert "Answer Key workbook:" in captured.out
     assert (tmp_path / "DEMO_HK_Trainer.xlsx").exists()
     assert (tmp_path / "DEMO_HK_Answer_Key.xlsx").exists()
+
+
+def test_source_data_classifications_and_assumptions_remain_populated(tmp_path):
+    trainer_path, answer_key_path = _build_pair(tmp_path)
+    smap = load_semantic_map(answer_key_path)
+    practice_coords = {(c.tab, c.cell) for c in smap.all_ordered()}
+
+    wb_t = load_workbook(trainer_path, data_only=False)
+    wb_a = load_workbook(answer_key_path, data_only=False)
+
+    # 1) Source statement values remain identical and non-empty.
+    for sheet in ("Income Statement", "Balance Sheet", "Cash Flow Statement"):
+        matched = 0
+        for row in wb_a[sheet].iter_rows(min_row=7, max_row=40, min_col=2, max_col=6):
+            for cell in row:
+                if cell.value is None or isinstance(cell.value, str):
+                    continue
+                tc = wb_t[sheet].cell(row=cell.row, column=cell.column)
+                assert tc.value == cell.value
+                matched += 1
+        assert matched > 0
+
+    # 2) Classification choices remain populated and identical.
+    class_start = None
+    for r in range(1, 40):
+        if wb_a["Condensed Financials"].cell(row=r, column=1).value == "Line Item":
+            class_start = r + 1
+            break
+    assert class_start is not None
+    class_count = 0
+    for r in range(class_start, class_start + 50):
+        label = wb_a["Condensed Financials"].cell(row=r, column=1).value
+        cat = wb_a["Condensed Financials"].cell(row=r, column=2).value
+        if not isinstance(label, str) or not label.strip():
+            break
+        if cat is None:
+            continue
+        assert cat in BALANCE_SHEET_CATEGORIES
+        assert (
+            wb_t["Condensed Financials"].cell(row=r, column=2).value
+            == wb_a["Condensed Financials"].cell(row=r, column=2).value
+        )
+        class_count += 1
+        assert ("Condensed Financials", f"B{r}") not in practice_coords
+    assert class_count > 0
+
+    # 3) Scenario/model assumption inputs remain populated and identical.
+    assumption_checks = [
+        ("Model_Base", "B5"),   # Cost of Equity
+        ("Model_Base", "B6"),   # Tax rate
+        ("Model_Base", "B9"),   # Terminal growth
+        ("Model_Base", "G22"),  # NOPAT margin Y1
+        ("Model_Base", "G39"),  # Diluted Shares
+        ("Scenario_Summary", "B4"),
+        ("Scenario_Summary", "B5"),
+        ("Scenario_Summary", "B6"),
+    ]
+    for tab, cell_ref in assumption_checks:
+        row, col = parse_cell_ref(cell_ref)
+        av = wb_a[tab].cell(row=row, column=col).value
+        tv = wb_t[tab].cell(row=row, column=col).value
+        assert av is not None
+        assert tv == av
+        assert (tab, cell_ref) not in practice_coords
+
+    wb_t.close()
+    wb_a.close()
+
+
+def test_expanded_historical_chain_check_three_states(tmp_path):
+    trainer_path, answer_key_path = _build_pair(tmp_path)
+    smap = load_semantic_map(answer_key_path)
+    assert smap.get("effective_tax_rate_fy")
+    assert smap.get("owca_agg")
+    assert smap.get("after_tax_cod")
+    assert len(smap.all_ordered()) == 27
+
+    etr = smap.get("effective_tax_rate_fy")
+    owca = smap.get("owca_agg")
+    cod = smap.get("after_tax_cod")
+
+    wb = load_workbook(trainer_path, data_only=False)
+    r, c = parse_cell_ref(etr.cell)
+    wb[etr.tab].cell(r, c).value = etr.formula
+    r, c = parse_cell_ref(owca.cell)
+    wb[owca.tab].cell(r, c).value = "=1+1"
+    # after_tax_cod left blank
+    wb.save(trainer_path)
+    wb.close()
+
+    summary = check_workbook(trainer_path)
+    assert summary.total == 27
+    assert summary.correct == 1
+    assert summary.incorrect == 1
+    assert summary.blank == 25
+
+    wb = load_workbook(trainer_path, data_only=False)
+    r, c = parse_cell_ref(etr.cell)
+    assert _fill_rgb(wb[etr.tab].cell(r, c)) == "C8E6C9"
+    r, c = parse_cell_ref(owca.cell)
+    assert _fill_rgb(wb[owca.tab].cell(r, c)) == "FFC7CE"
+    r, c = parse_cell_ref(cod.cell)
+    assert _fill_rgb(wb[cod.tab].cell(r, c)) == "FFFF00"
+    wb.close()
+
+    from core.__main__ import main
+    import io
+    from contextlib import redirect_stdout
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        main(["check", "--workbook", str(trainer_path)])
+    out = buf.getvalue()
+    for needle in (etr.formula, owca.formula, str(etr.expected_value), etr.short_hint):
+        assert needle not in out
 
 
 def test_hint_reveal_modules_removed():
