@@ -1,5 +1,7 @@
 # Step 7 Correction — Period-Axis Integrity and Trainer Metadata Hygiene
 
+> **Status:** Step 7 correction complete — period-axis integrity and metadata hygiene
+
 > **For Cursor:** Read `TARGET.md` first. The accepted Step 7 implementation is commit `598948d3f0ac8651c0be86cf660073c96cfca20a` (`chat 7 Multi-Period Historical Model Construction`). Implement only this correction using red/green TDD. Run the exact verification commands, update `RESULT.md`, and stop. Do not begin Step 8. Do not commit or push; the user owns the implementation checkpoint commit.
 
 **Goal:** Make the Step 7 multi-period historical foundation trustworthy when source periods arrive out of order, and make repeated Trainer generation incapable of leaving stale answer-bearing Trainer metadata beside the workbook.

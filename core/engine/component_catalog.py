@@ -57,7 +57,20 @@ def concrete_component_id(family_id: str, period: date) -> str:
 
 
 def expand_historical_specs(periods: list[date]) -> tuple[ComponentSpec, ...]:
-    """Expand conceptual families into period-specific concrete specs."""
+    """Expand conceptual families into period-specific concrete specs.
+
+    Callers must supply an already-canonical chronological period axis.
+    This helper rejects non-increasing or duplicate dates rather than sorting.
+    """
+    if len(periods) != len(set(periods)):
+        raise ValueError("duplicate fiscal periods are not allowed in expand_historical_specs")
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_historical_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
     specs: list[ComponentSpec] = []
     order = 1
     for family in COMPONENT_CATALOG:

@@ -1,55 +1,47 @@
-Status: Step 7 complete
+Status: Step 7 correction complete — period-axis integrity and metadata hygiene
 
 Implementation base:
-- 5b9f1eff Step 6 correction
+- 598948d3 Step 7 multi-period historical model
 
-Historical schedule model:
-- fiscal periods in demo: 5
+Period-axis audit:
+- descending input canonicalized oldest -> newest: yes
+- supported descending Excel input canonicalized: yes
+- duplicate fiscal periods rejected: yes
+- gapped annual histories rejected: yes
+- comparative formulas use true previous fiscal year: yes
+
+Trainer metadata audit:
+- stale Trainer component-map sidecar removed: yes
+- stale Trainer trainer.json removed: yes
+- stale Trainer assumptions sidecar removed: yes
+- Answer Key semantic metadata preserved: yes
+- Trainer list resolves current 25 families: yes
+- Trainer answer leakage: none
+
+Demo preservation:
+- fiscal periods: 5
 - conceptual families: 25
-- all-period families: 18
-- comparable-period families: 7
 - concrete practice cells: 118
 - Trainer index rows: 25
-
-Practice audit:
-- Trainer blank/yellow/no Note: 118/118
-- Answer Key formula/yellow/Note: 118/118
 - fresh Check: 0 correct / 0 incorrect / 118 blank
 
-Preservation:
-- source values populated: yes
-- classifications/setup judgments populated: yes
-- reported-equity/check guardrails populated: yes
-- forecast engine called by normal build: no
-- deferred tabs: four hidden placeholders
-- Trainer answer leakage: none
-- repeated cached Check: preserved
-
 Files changed:
-- Modify: `core/model/financial_math.py` — `HistoricalSeries` on `AnchorMetrics`
-- Modify: `core/engine/component_catalog.py` — 25 `ComponentFamily` catalog + `expand_historical_specs()`; deferred specs remain dormant
-- Modify: `core/engine/semantic_map.py` / `map_embed.py` — period metadata + expected-spec validation
-- Modify: `core/engine/reference_model.py` — multi-period registration; Revenue links; full DuPont schedule; deferred registration isolated
-- Modify: `core/trainer/workbook.py` / `core/__main__.py` — family-level Trainer index and `list`
-- Modify: `core/tests/test_reference_integrity.py` / `test_trainer.py`
-- Modify: `README-HK-TRAINER.md` / `skills/bav-trainer/SKILL.md`
-- Regenerate: `example/DEMO_HK_Trainer.xlsx`, `example/DEMO_HK_Answer_Key.xlsx`
-- Modify: `RESULT.md`
+- Create: `core/model/period_axis.py` — `canonical_fiscal_periods()` / `PeriodAxisError`
+- Modify: `core/engine/reference_model.py` — consume canonical period axis before anchor/expansion/build
+- Modify: `core/engine/component_catalog.py` — `expand_historical_specs()` rejects non-increasing/duplicate dates
+- Modify: `core/trainer/workbook.py` — `remove_trainer_sidecars()` on every Trainer generation
+- Modify: `core/tests/test_reference_integrity.py` — descending / Excel / duplicate / contiguous regressions
+- Modify: `core/tests/test_trainer.py` — expansion contract + stale-sidecar cleanup
+- Modify: `IMPLEMENTATION.md`, `RESULT.md`
 
 Tests:
-- `PYTHONPATH=. pytest core/tests/test_classification.py -v` -> 14 passed
-- `PYTHONPATH=. pytest core/tests/test_line_identity.py -v` -> 17 passed
-- `PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v` -> 26 passed
-- `PYTHONPATH=. pytest core/tests/test_line_resolver.py -v` -> 6 passed
-- `PYTHONPATH=. pytest core/tests/test_trainer.py -v` -> 34 passed
-- `PYTHONPATH=. pytest core/tests/ -q` -> 97 passed
+- `PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "period or chronological or descending or duplicate or contiguous" -v` -> 6 passed
+- `PYTHONPATH=. pytest core/tests/test_trainer.py -k "period or sidecar or list" -v` -> 8 passed
+- `PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v` -> 30 passed
+- `PYTHONPATH=. pytest core/tests/test_trainer.py -v` -> 36 passed
+- `PYTHONPATH=. pytest core/tests/ -q` -> 103 passed
 - `PYTHONPATH=. python -m core build example/DEMO_HK_Standardized.json -o /tmp/DEMO_HK_Trainer.xlsx` -> Components resolved: 118
 - `PYTHONPATH=. python -m core check --workbook /tmp/DEMO_HK_Trainer.xlsx` -> `Checked 118 practice cells: 0 correct, 0 incorrect, 118 blank.`
-- `PYTHONPATH=. python -m core list` -> 25 conceptual historical families
-- `PYTHONPATH=. python -m core list --workbook /tmp/DEMO_HK_Trainer.xlsx` -> 25 resolved schedule groups / 118 concrete cells total
-- `PYTHONPATH=. python -m core --help` -> `{ingest,build,check,list}` only
-- demo rebuild: Components resolved: 118; fresh Check 0/0/118
-- final openpyxl audit: 118 cells / 25 families / N/A first-year comparables / deferred placeholders / no Trainer leakage
-- generated Answer-Key sidecars / `rowmap.json` remain gitignored
+- `PYTHONPATH=. python -m core list --workbook /tmp/DEMO_HK_Trainer.xlsx` -> 25 schedule groups / 118 concrete cells
 
 Unresolved: none

@@ -19,6 +19,20 @@ from .semantic_io import load_semantic_map, resolve_pair_paths
 COMPONENT_MAP_SHEET = "_ComponentMap"
 NOTE_AUTHOR = "BAV Trainer"
 
+_TRAINER_SIDECAR_SUFFIXES = (
+    ".component_map.json",
+    ".trainer.json",
+    ".assumptions.json",
+)
+
+
+def remove_trainer_sidecars(trainer_path: Path) -> None:
+    """Delete stale Trainer-only answer-bearing sidecars (idempotent)."""
+    trainer_path = Path(trainer_path)
+    for suffix in _TRAINER_SIDECAR_SUFFIXES:
+        trainer_path.with_suffix(suffix).unlink(missing_ok=True)
+
+
 PRACTICE_FILL = PatternFill("solid", start_color="FFFF00")
 
 FONT_NAME = "Aptos Narrow"
@@ -68,6 +82,7 @@ class TrainingWorkbookGenerator:
         wb.close()
 
         # Prefer no Trainer semantic sidecar; Check reads the matching Answer Key.
+        remove_trainer_sidecars(trainer_path)
         return trainer_path, self.answer_key_path
 
     def _visible_sheets(self, wb):
@@ -299,7 +314,9 @@ def build_training_workbook(
         )
 
     trainer_path, answer_key_path = resolve_pair_paths(output_path)
+    remove_trainer_sidecars(trainer_path)
     builder = ReferenceModelBuilder(financials, assumptions)
     semantic_map = builder.build(answer_key_path)
     TrainingWorkbookGenerator(answer_key_path, semantic_map).generate(trainer_path)
+    remove_trainer_sidecars(trainer_path)
     return trainer_path, answer_key_path

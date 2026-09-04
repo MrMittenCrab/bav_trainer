@@ -940,3 +940,42 @@ def test_multi_period_correction_cycle(tmp_path):
     r, c = parse_cell_ref(nopats[0].cell)
     assert _fill_rgb(wb[nopats[0].tab].cell(r, c)) == "FFFF00"
     wb.close()
+
+
+def test_expand_historical_specs_rejects_non_chronological_periods():
+    from datetime import date
+
+    fy2023, fy2024, fy2025 = date(2023, 12, 31), date(2024, 12, 31), date(2025, 12, 31)
+    with pytest.raises(ValueError, match="increasing|chronological"):
+        expand_historical_specs([fy2025, fy2024])
+    with pytest.raises(ValueError, match="duplicate"):
+        expand_historical_specs([fy2024, fy2024])
+    assert len(expand_historical_specs([fy2023, fy2024, fy2025])) == 68
+
+
+def test_stale_trainer_sidecars_removed_on_rebuild(tmp_path, capsys):
+    from core.__main__ import main
+
+    trainer_path = tmp_path / "DEMO_HK_Trainer.xlsx"
+    answer_key_path = tmp_path / "DEMO_HK_Answer_Key.xlsx"
+    secret = "SECRET_OLD_FORMULA\nSECRET_OLD_HINT"
+    for suffix in (".component_map.json", ".trainer.json", ".assumptions.json"):
+        trainer_path.with_suffix(suffix).write_text(secret, encoding="utf-8")
+        assert trainer_path.with_suffix(suffix).exists()
+
+    data = _ingest_demo()
+    build_training_workbook(data, trainer_path)
+
+    for suffix in (".component_map.json", ".trainer.json", ".assumptions.json"):
+        assert not trainer_path.with_suffix(suffix).exists()
+    assert answer_key_path.with_suffix(".component_map.json").exists()
+    assert answer_key_path.with_suffix(".assumptions.json").exists()
+
+    assert main(["list", "--workbook", str(trainer_path)]) == 0
+    out = capsys.readouterr().out
+    lines = [ln for ln in out.splitlines() if ln.strip()]
+    assert len(lines) == 25
+    assert any("5 cells" in ln for ln in lines)
+    assert any("4 cells" in ln for ln in lines)
+    assert "SECRET_OLD_FORMULA" not in out
+    assert "SECRET_OLD_HINT" not in out

@@ -17,6 +17,7 @@ from ..data.line_identity import line_identity
 from ..model.classification import BALANCE_SHEET_CATEGORIES
 from ..model.financial_math import compute_anchor
 from ..model.line_resolver import resolve_line, workbook_row_for
+from ..model.period_axis import canonical_fiscal_periods
 from ..model.ri_engine import run_scenario, weighted_ivps
 from .component_catalog import DEFERRED_COMPONENT_SPECS, expand_historical_specs
 from .map_embed import embed_component_map_sheet
@@ -46,7 +47,7 @@ class ReferenceModelBuilder:
         include_deferred_forecast: bool = False,
     ):
         self.fin = financials
-        self.periods = financials.fiscal_years() or financials.period_dates()
+        self.periods = canonical_fiscal_periods(financials)
         self.include_deferred_forecast = include_deferred_forecast
         self.assumptions = dict(assumptions or {})
         self.assumptions.setdefault("classificationOverrides", {})

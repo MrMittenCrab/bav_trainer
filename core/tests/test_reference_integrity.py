@@ -1009,3 +1009,235 @@ def test_multi_period_formula_dependencies_use_current_and_previous(tmp_path):
     assert str(parse_cell_ref(ni25.cell)[0]) in actual25.formula
     assert str(parse_cell_ref(eq25.cell)[0]) in actual25.formula
     assert str(parse_cell_ref(eq24.cell)[0]) in actual25.formula
+
+
+# --- Step 7 correction: period-axis integrity ---
+
+def _descending_three_year_fin():
+    from datetime import date
+    from core.data.interface import FinancialPeriod, LineItem, StandardizedFinancials
+
+    d25, d24, d23 = date(2025, 12, 31), date(2024, 12, 31), date(2023, 12, 31)
+
+    def li(label, v25, v24, v23, concept=""):
+        return LineItem(
+            label=label,
+            values={d25: v25, d24: v24, d23: v23},
+            concept=concept,
+        )
+
+    # Newest-to-oldest period list — the defect this correction targets.
+    periods = [
+        FinancialPeriod(end_date=d25, label="FY2025"),
+        FinancialPeriod(end_date=d24, label="FY2024"),
+        FinancialPeriod(end_date=d23, label="FY2023"),
+    ]
+    return StandardizedFinancials(
+        ticker="REV",
+        company_name="Reverse Chronology Co",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=periods,
+        income_statement=[
+            li("Revenue", 1300, 1200, 1000),
+            li("Finance costs", -60, -50, -40),
+            li("Finance income", 8, 6, 5),
+            li("Profit before tax", 260, 220, 200),
+            li("Income tax expense", -40, -33, -30),
+            li("Profit for the year", 220, 187, 170),
+        ],
+        balance_sheet=[
+            li("Cash and cash equivalents", 120, 110, 100),
+            li("Trade receivables", 100, 90, 80),
+            li("Property, plant and equipment", 440, 420, 400),
+            li("Trade payables", 60, 55, 50),
+            li("Bank borrowings", 220, 210, 200),
+            li("Total equity", 380, 355, 330),
+        ],
+        cash_flow=[li("Net cash from operating activities", 70, 60, 50)],
+    )
+
+
+def test_descending_periods_build_chronological_model(tmp_path):
+    from datetime import date
+    from core.engine.reference_model import ReferenceModelBuilder
+    from core.model.financial_math import compute_anchor
+    from core.model.period_axis import canonical_fiscal_periods
+
+    fin = _descending_three_year_fin()
+    assert [p.end_date.year for p in fin.periods] == [2025, 2024, 2023]
+    assert canonical_fiscal_periods(fin) == [
+        date(2023, 12, 31),
+        date(2024, 12, 31),
+        date(2025, 12, 31),
+    ]
+
+    trainer, answer = build_training_workbook(fin, tmp_path / "Rev_Trainer.xlsx")
+    smap = load_semantic_map(answer)
+    assert [c.period_end for c in smap.all_ordered() if c.family_id == "revenue_link"] == [
+        "2023-12-31",
+        "2024-12-31",
+        "2025-12-31",
+    ]
+    assert _at_period(smap, "revenue_link", 0).period_end == "2023-12-31"
+    assert _at_period(smap, "revenue_link", 1).period_end == "2024-12-31"
+    assert _at_period(smap, "revenue_link", 2).period_end == "2025-12-31"
+
+    wb = load_workbook(answer, data_only=False)
+    condensed = wb["Condensed Financials"]
+    # Income-statement block date headers sit on the CONDENSED INCOME STATEMENT row.
+    hdr = next(
+        r for r in range(1, condensed.max_row + 1)
+        if condensed.cell(row=r, column=1).value == "CONDENSED INCOME STATEMENT"
+    )
+    years = [condensed.cell(row=hdr, column=c).value.year for c in range(2, 5)]
+    assert years == [2023, 2024, 2025]
+
+    rev23 = _at_period(smap, "revenue_link", 0)
+    rev24 = _at_period(smap, "revenue_link", 1)
+    rev25 = _at_period(smap, "revenue_link", 2)
+    growth24 = _at_period(smap, "sales_growth", 1)
+    growth25 = _at_period(smap, "sales_growth", 2)
+    assert rev24.cell in growth24.formula and rev23.cell in growth24.formula
+    assert rev25.cell in growth25.formula and rev24.cell in growth25.formula
+
+    nopat24 = _at_period(smap, "nopat_fy", 1)
+    noa24 = _at_period(smap, "noa_agg", 1)
+    noa23 = _at_period(smap, "noa_agg", 0)
+    rnoa24 = _at_period(smap, "rnoa", 1)
+    assert str(parse_cell_ref(nopat24.cell)[0]) in rnoa24.formula
+    assert str(parse_cell_ref(noa24.cell)[0]) in rnoa24.formula
+    assert str(parse_cell_ref(noa23.cell)[0]) in rnoa24.formula
+
+    periods = canonical_fiscal_periods(fin)
+    anchor = compute_anchor(fin, periods)
+    assert growth24.expected_value == pytest.approx(anchor.dupont["Sales Growth"][1])
+    assert rnoa24.expected_value == pytest.approx(anchor.dupont["RNOA"][1])
+    assert growth24.expected_value == pytest.approx(1200 / 1000 - 1)
+    wb.close()
+
+
+def test_duplicate_fiscal_periods_rejected():
+    from datetime import date
+    from core.data.interface import FinancialPeriod
+    from core.engine.reference_model import ReferenceModelBuilder
+    from core.model.period_axis import PeriodAxisError
+
+    fin = _descending_three_year_fin()
+    d24 = date(2024, 12, 31)
+    fin.periods = [
+        FinancialPeriod(end_date=d24, label="FY2024a"),
+        FinancialPeriod(end_date=d24, label="FY2024b"),
+    ]
+    with pytest.raises(PeriodAxisError, match="duplicate"):
+        ReferenceModelBuilder(fin)
+
+
+def test_gapped_annual_history_requires_contiguous_periods():
+    from datetime import date
+    from core.data.interface import FinancialPeriod, LineItem, StandardizedFinancials
+    from core.engine.reference_model import ReferenceModelBuilder
+    from core.model.period_axis import PeriodAxisError
+
+    d21, d23 = date(2021, 12, 31), date(2023, 12, 31)
+
+    def li(label, v21, v23):
+        return LineItem(label=label, values={d21: v21, d23: v23})
+
+    fin = StandardizedFinancials(
+        ticker="GAP",
+        company_name="Gapped Co",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=d21, label="FY2021"),
+            FinancialPeriod(end_date=d23, label="FY2023"),
+        ],
+        income_statement=[
+            li("Revenue", 1000, 1200),
+            li("Profit before tax", 200, 220),
+            li("Income tax expense", -30, -33),
+            li("Profit for the year", 170, 187),
+        ],
+        balance_sheet=[
+            li("Cash and cash equivalents", 100, 110),
+            li("Trade receivables", 80, 90),
+            li("Property, plant and equipment", 400, 420),
+            li("Trade payables", 50, 55),
+            li("Bank borrowings", 200, 210),
+            li("Total equity", 330, 355),
+        ],
+        cash_flow=[li("Net cash from operating activities", 50, 60)],
+    )
+    with pytest.raises(PeriodAxisError, match="contiguous"):
+        ReferenceModelBuilder(fin)
+
+
+def test_excel_descending_headers_build_chronological_model(tmp_path):
+    from datetime import date
+    from openpyxl import Workbook
+    from core.data.interface import DocumentManifest, DocumentType
+    from core.ingestion.excel_import import ExcelExportAdapter
+
+    path = tmp_path / "REV_Descending.xlsx"
+    wb = Workbook()
+    # Newest-to-oldest columns
+    headers = ["Line Item", date(2025, 12, 31), date(2024, 12, 31), date(2023, 12, 31)]
+    sheets = {
+        "Income Statement": [
+            ("Revenue", 1300, 1200, 1000),
+            ("Finance costs", -60, -50, -40),
+            ("Finance income", 8, 6, 5),
+            ("Profit before tax", 260, 220, 200),
+            ("Income tax expense", -40, -33, -30),
+            ("Profit for the year", 220, 187, 170),
+        ],
+        "Balance Sheet": [
+            ("Cash and cash equivalents", 120, 110, 100),
+            ("Trade receivables", 100, 90, 80),
+            ("Property, plant and equipment", 440, 420, 400),
+            ("Trade payables", 60, 55, 50),
+            ("Bank borrowings", 220, 210, 200),
+            ("Total equity", 380, 355, 330),
+        ],
+        "Cash Flow Statement": [
+            ("Net cash from operating activities", 70, 60, 50),
+        ],
+    }
+    first = True
+    for name, rows in sheets.items():
+        ws = wb.active if first else wb.create_sheet(name)
+        if first:
+            ws.title = name
+            first = False
+        for c, h in enumerate(headers, start=1):
+            ws.cell(1, c, value=h)
+        for r, row in enumerate(rows, start=2):
+            for c, val in enumerate(row, start=1):
+                ws.cell(r, c, value=val)
+    wb.save(path)
+    wb.close()
+
+    adapter = ExcelExportAdapter()
+    fin = adapter.ingest(
+        [DocumentManifest(path=str(path), doc_type=DocumentType.EXCEL_EXPORT)]
+    )
+    # Do not manually reorder — ingest preserves workbook column order.
+    assert [p.end_date.year for p in fin.periods] == [2025, 2024, 2023]
+
+    _, answer = build_training_workbook(fin, tmp_path / "ExcelRev_Trainer.xlsx")
+    smap = load_semantic_map(answer)
+    assert [c.period_end[:4] for c in smap.all_ordered() if c.family_id == "revenue_link"] == [
+        "2023",
+        "2024",
+        "2025",
+    ]
+    growth24 = _at_period(smap, "sales_growth", 1)
+    rev23 = _at_period(smap, "revenue_link", 0)
+    rev24 = _at_period(smap, "revenue_link", 1)
+    assert rev23.cell in growth24.formula and rev24.cell in growth24.formula
+    growth25 = _at_period(smap, "sales_growth", 2)
+    rev25 = _at_period(smap, "revenue_link", 2)
+    assert rev24.cell in growth25.formula and rev25.cell in growth25.formula
