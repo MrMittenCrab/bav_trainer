@@ -1,91 +1,71 @@
-# Step 8A — Guided Classification Judgment With Consequences
+# Step 8A Correction — Guided Classification Judgment Without Answer Leakage
 
-> **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `9ddc60abb685d8d689b9f2c99983ea719e858d13` (`chat 7 correction`). Implement only this scoped Step 8A using red/green TDD. Run the exact verification commands, update `RESULT.md`, regenerate the demo pair, and stop. Do not begin normalization, earnings-quality diagnostics, forecasting, or valuation. Do not commit or push; the user owns the implementation checkpoint commit.
+> **For Cursor:** Read `TARGET.md` first. The current branch tip before this plan is `818558688c53e44ed7e50cce9952bc118fc73524`, but that commit changed only `IMPLEMENTATION.md`; the accepted production implementation remains `9ddc60abb685d8d689b9f2c99983ea719e858d13` (`chat 7 correction`). Implement only the corrected Step 8A below using red/green TDD. Run the exact verification commands, update `RESULT.md`, regenerate the demo pair, and stop. Do not commit or push; the user owns the implementation checkpoint commit.
 
-**Goal:** Move the trainer from purely supplied classifications toward guided analyst judgment by turning selected genuinely ambiguous balance-sheet classifications into explicit compare-and-defend exercises, while preserving the trusted Step 7 historical model, formula Check behavior, and Answer Key separation.
+**Goal:** Add the first Level-2 accounting-judgment exercise without weakening the trusted Step 7 historical model, formula Check, reformulation identity, or Trainer/Answer-Key separation.
 
-**Architecture:** Keep the canonical historical model on the existing supplied/reference classification so Step 7 formulas and cached-value Check remain stable. Add explicit ambiguity metadata to `ClassificationDecision`, derive company-specific `JudgmentCase` objects only from real classifier-flagged lines, and render a visible `Accounting Judgment` worksheet. The learner compares the supplied model treatment with defensible alternative treatment(s), chooses the treatment they would defend, writes a short rationale, and explains the expected economic consequence. The Answer Key contains the model treatment/rationale/consequence; the Trainer blanks only learner-response cells. Step 8A does **not** yet let alternative learner choices drive the main historical model; that live-model integration is deferred until Check can remain correct under alternative accounting treatments.
+**Architecture:** Keep the authoritative historical model on the supplied reference classification. Add only a stable `judgment_code` to supported ambiguous classifier decisions; keep pedagogical alternatives/rationale/consequence text in a separate judgment-template registry. Derive company-specific `JudgmentCase` objects from real supplied lines, render them on a visible `Accounting Judgment` worksheet, and sanitize Trainer response cells structurally from the worksheet itself so answer removal never depends on transient in-memory case objects. Step 8A records and teaches a learner judgment; it does not yet drive the main reformulated model or formula Check.
 
-**Tech Stack:** Python, dataclasses, pytest, openpyxl, existing `ClassificationDecision`, `BalanceSheetReformulation`, `LineIdentity`, Trainer/Answer Key generation, and workbook-wide formula Check.
+**Tech Stack:** Python, dataclasses, pytest, openpyxl, existing `ClassificationDecision`, `BalanceSheetReformulation`, `LineIdentity`, `ReferenceModelBuilder`, `TrainingWorkbookGenerator`, and workbook-wide formula Check.
 
-**Spec:** `TARGET.md`, especially `Level 2 — Analyst judgment`, the requirement that ambiguous accounting treatments be taught as alternatives with consequences rather than one universal answer, the material/applicable-topic constraint, and the statement that free-form essays need not yet be automatically graded.
+**Spec:** `TARGET.md`, especially `Level 2 — Analyst judgment`, the requirement to teach ambiguous treatments as alternatives with consequences, the material/applicable-topic constraint, and the requirement that resulting models remain auditable and reconcilable.
 
-## Current checkpoint review
+---
 
-Accepted base: `9ddc60ab`.
+## Latest-commit review and corrections
 
-The Step 7 correction resolves the two blocking defects identified in the previous review:
+Commit `81855868` is a planning-only commit: it modifies only `IMPLEMENTATION.md`. No production code or tests changed relative to `9ddc60ab`.
 
-- model-facing fiscal periods are canonicalized oldest -> newest before historical-series and DuPont construction;
-- direct component expansion rejects non-chronological/duplicate axes;
-- successful Trainer regeneration removes stale Trainer answer-bearing sidecars;
-- recorded core suite: 103 passed;
-- five-year demo remains 25 conceptual schedule families / 118 formula practice cells / fresh Check `0/0/118`.
+The prior Step 8A plan has six design problems that must be corrected before implementation:
 
-No blocking regression was found in the changed production paths.
+1. **Deferred-tax `Exclude` was incorrectly treated as a safe guided alternative.** Moving a deferred-tax asset/liability from an asset/liability category to `Exclude` removes one side of the reformulation and can break `NOA - Net Debt = Equity`. Step 8A must only expose category alternatives that preserve the balance-sheet side and reformulation identity. Deferred-tax lines may remain `ambiguous=True`, but they are not guided cases yet.
+2. **`ClassificationDecision.reason` is not an Answer-Key rationale.** Existing reasons such as `Lease liability — operating vs financial judgment` identify the ambiguity but do not explain why the reference model uses one treatment or what facts would justify the alternative.
+3. **Pedagogical copy was placed in the classifier.** Adding `guided_options`, `judgment_topic`, and `consequence_note` directly to every `ClassificationDecision` duplicates teaching logic across concept and label branches and mixes accounting classification with workbook pedagogy. Use one semantic `judgment_code` in the classifier and a separate registry for teaching content.
+4. **Trainer sanitization depended on a transient `judgment_cases` constructor argument.** Existing callers can instantiate `TrainingWorkbookGenerator(answer_key_path, semantic_map)` directly. If answer removal requires an extra in-memory argument, that path can copy Answer-Key judgment answers into the Trainer. Sanitization must derive response rows from the workbook structure itself.
+5. **Case ordering and learner navigation were under-specified.** `JudgmentCase.order` must be dense after filtering, and the Trainer index must explicitly tell the learner that `Accounting Judgment` is separate from formula Check.
+6. **The demo was described as containing a “real” case even though `DEMO_HK_Standardized.json` explicitly identifies itself as illustrative.** It is valid to add a representative synthetic lease line to the demo fixture, but production code must never synthesize a judgment line or claim that the demo is real company data.
 
-Two limitations remain but are **not Step 8A scope**:
+### Superseded instructions from commit `81855868`
 
-1. irregular/stub/interim period comparability is not modeled robustly; the current correction intentionally deferred CAGR/stub/interim logic;
-2. Step 7 `IMPLEMENTATION.md` remained a completed checklist rather than an active next-step handoff; this file replaces it.
+Do **not** implement any of the following from the previous plan:
 
-Do not broaden period-axis behavior in Step 8A. Record period-cadence hardening for later cross-company robustness.
+- `guided_options`, `judgment_topic`, or `consequence_note` fields on `ClassificationDecision`;
+- deferred-tax asset/liability `Operating ... | Exclude` guided exercises;
+- `model_rationale = decision.reason`;
+- a `judgment_cases` argument on `TrainingWorkbookGenerator` that is required for sanitization;
+- wording that calls the illustrative demo judgment case “real”.
 
-## Why Step 8 is split
-
-The locked roadmap names classification, recurring/non-recurring treatment, normalization, leases, SBC, goodwill/intangibles, deferred taxes, minority interests, acquisitions, and other material accounting topics. Those are not one subsystem.
-
-Step 8A implements one coherent first Level-2 capability:
-
-```text
-supplied reference classification
-        ↓
-identify real ambiguous classification
-        ↓
-show defensible alternative(s)
-        ↓
-learner chooses + defends treatment
-        ↓
-learner explains economic consequence
-        ↓
-compare with Answer Key model reasoning
-```
-
-Later Step 8 work can remove more scaffolding and add normalization/earnings-quality decisions after this interface is trustworthy.
+---
 
 ## Global constraints
 
 - `TARGET.md` is read-only during implementation.
-- Preserve all Step 7 formula practice: 25 families and 118 formula cells for the revised five-year demo.
-- Formula Check remains unchanged: yellow/green/red, workbook-wide, non-disclosing, cache-safe.
-- Judgment response cells are **not** added to the formula `SemanticMap` or formula Check in Step 8A.
-- Do not make ambiguous accounting appear to have one universally correct answer.
-- Do not automatically invent questions from arbitrary labels. A Step 8A case must originate from an existing classifier decision explicitly marked `ambiguous=True` and must have explicitly encoded defensible options.
-- Do not expose every ambiguous flag automatically if the category taxonomy cannot express a defensible alternative safely.
+- Preserve all accepted Step 7 behavior: five demo fiscal years, 25 conceptual historical formula families, and 118 concrete formula practice cells.
+- Formula Check remains workbook-wide, yellow/green/red, non-disclosing, and cache-safe.
+- Judgment response cells are not added to `ComponentSpec`, `COMPONENT_CATALOG`, `SemanticMap`, or formula Check.
+- Main `Condensed Financials` classifications remain populated and continue to drive the historical model.
+- Step 8A learner choices do not yet drive SUMIF/reformulation formulas.
+- The learner must be told not to edit the supplied `Condensed Financials` classification column as part of this Step 8A exercise, because formula expected values still use the supplied reference classification.
+- Only classifier decisions that are both `ambiguous=True` and carry a supported `judgment_code` may become guided cases.
+- Guided alternatives must remain on the same accounting side as the reference treatment so the balance-sheet identity is preserved when the live-model step is added later: asset ↔ asset or liability ↔ liability.
 - Zero-valued lines across all modeled periods do not become judgment cases.
-- Existing explicit classification overrides suppress the guided case for that line; an override is treated as a supplied setup decision in this step.
-- Main `Condensed Financials` classifications remain populated and continue to drive the historical model. Step 8A is compare-and-defend, not live learner reclassification.
-- No normalization, recurring/non-recurring adjustments, leases accounting mechanics beyond classification discussion, SBC dilution, acquisition accounting, minority-interest modeling, forecasting, valuation, Hint/Reveal, VBA, or free-form automated grading.
+- Explicit classification overrides suppress the guided case for that line in Step 8A.
+- Do not invent cases from arbitrary labels, missing facts, or unsupported ambiguities.
+- No normalization, recurring/non-recurring adjustments, earnings-quality diagnostics, lease accounting mechanics beyond classification discussion, SBC dilution, acquisition accounting, minority-interest modeling, forecasting, valuation, Hint/Reveal, VBA, or free-form automated grading.
 - Keep exactly two user-facing workbooks: Trainer and Answer Key.
-- Trainer must contain no Answer-Key rationale/consequence text in hidden sheets, comments, or Trainer sidecars.
+- Trainer must contain no Answer-Key rationale/consequence response text in visible response cells, hidden sheets, comments, or Trainer-associated sidecars.
 - Cursor must not commit, push, reset, rebase, merge, or delete branches.
 
 ---
 
-## Task 1 — Encode defensible alternatives in the authoritative classifier
+## Task 1 — Mark only supported classifier ambiguities with stable judgment codes
 
 **Files:**
 - Modify: `core/model/classification.py`
 - Test: `core/tests/test_classification.py`
 
 **Interfaces:**
-- Extends: `ClassificationDecision`.
-- Produces: explicit guided options and consequence teaching metadata for supported ambiguous classifications.
-- Preserves: existing `category`, `ambiguous`, `reason`, and `overridden` behavior.
-
-- [ ] **Step 1: Write failing metadata tests**
-
-Extend the expected interface to:
+- Extend `ClassificationDecision` with one field only:
 
 ```python
 @dataclass(frozen=True)
@@ -94,117 +74,98 @@ class ClassificationDecision:
     ambiguous: bool = False
     reason: str = ""
     overridden: bool = False
-    guided_options: tuple[str, ...] = ()
-    judgment_topic: str = ""
-    consequence_note: str = ""
+    judgment_code: str | None = None
 ```
 
-Add focused tests for these supported guided cases:
+- Existing `category`, `ambiguous`, `reason`, and `overridden` behavior remains unchanged.
+- `judgment_code is not None` means the ambiguity is intentionally supported by the Step 8A teaching registry.
+
+- [ ] **Step 1: Write failing supported-code tests**
+
+Add exact tests for the following supported ambiguous decisions:
 
 ```text
-Lease liability:
-  supplied/reference = Operating Long-Term Liability
-  guided options = Operating Long-Term Liability | Financial Liability
+Operating lease liability
+  category: Operating Long-Term Liability
+  judgment_code: lease_liability_operating_vs_financing
 
-Deferred tax asset:
-  supplied/reference = Operating Long-Term Asset
-  guided options = Operating Long-Term Asset | Exclude
+Pension / retirement-benefit obligation
+  category: Operating Long-Term Liability
+  judgment_code: pension_obligation_operating_vs_financing
 
-Deferred tax liability:
-  supplied/reference = Operating Long-Term Liability
-  guided options = Operating Long-Term Liability | Exclude
+Short-term investment
+  category: Financial Asset
+  judgment_code: short_term_investment_financial_vs_operating
 
-Pension obligation:
-  supplied/reference = Operating Long-Term Liability
-  guided options = Operating Long-Term Liability | Financial Liability
-
-Short-term investment:
-  supplied/reference = Financial Asset
-  guided options = Financial Asset | Operating Working Capital Asset
-
-Equity-method / associate / JV investment:
-  supplied/reference = Operating Long-Term Asset
-  guided options = Operating Long-Term Asset | Financial Asset
+Equity-method / associate / joint-venture investment
+  category: Operating Long-Term Asset
+  judgment_code: associate_investment_operating_vs_financial
 ```
 
-For each supported case assert:
+For lease liability, cover both the label path and a concept path such as:
+
+```python
+LineItem(
+    label="Operating lease liabilities",
+    concept="lease_liability",
+    values={P1: 50, P2: 60},
+)
+```
+
+Assert each decision remains `ambiguous is True`.
+
+- [ ] **Step 2: Write failing unsupported-ambiguity tests**
+
+These decisions remain visibly ambiguous but must not become Step 8A cases:
+
+```text
+ROU / right-of-use asset
+Deferred tax asset
+Deferred tax liability
+```
+
+Assert:
 
 ```python
 assert decision.ambiguous is True
-assert decision.category == decision.guided_options[0]
-assert len(decision.guided_options) >= 2
-assert all(option in BALANCE_SHEET_CATEGORIES for option in decision.guided_options)
-assert decision.judgment_topic
-assert decision.consequence_note
+assert decision.judgment_code is None
 ```
 
-- [ ] **Step 2: Explicitly protect unsupported ambiguity from becoming fake alternatives**
+Reason: the current category taxonomy does not provide a safe generic alternative for the ROU asset, and `Exclude` is not an identity-preserving deferred-tax reclassification.
 
-The current classifier flags a right-of-use / lease asset as ambiguous, but the current eight-category taxonomy does not contain an obviously defensible generic “financial asset” treatment for a ROU asset.
+- [ ] **Step 3: Preserve override behavior**
 
-Add a regression asserting that the ROU-asset decision may remain:
+An explicit `classificationOverrides` result must still satisfy:
 
 ```python
-assert decision.ambiguous is True
-assert decision.guided_options == ()
+assert decision.overridden is True
+assert decision.ambiguous is False
+assert decision.judgment_code is None
 ```
 
-Do **not** invent `Financial Asset` or another category merely to create an exercise.
-
-- [ ] **Step 3: Verify tests fail before implementation**
+- [ ] **Step 4: Run the failing tests**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_classification.py -k "guided or alternative or judgment" -v
+PYTHONPATH=. pytest core/tests/test_classification.py -k "judgment_code or supported_ambiguity or unsupported_ambiguity" -v
 ```
 
-- [ ] **Step 4: Implement the metadata at the classification source**
+Expected before implementation: FAIL because `judgment_code` does not exist.
 
-Populate `guided_options`, `judgment_topic`, and `consequence_note` in the existing ambiguous branches.
+- [ ] **Step 5: Implement the minimal classifier changes**
 
-Use concise consequence language tied to BAV reformulation. Examples:
+Set the four supported codes in both concept/label branches where applicable. Do not add pedagogical rationale/consequence text to `classification.py`.
 
-```text
-Lease/pension liability:
-Operating treatment lowers NOLA/NOA; financing treatment raises Net Debt.
-The choice can shift RNOA versus FLEV/Spread interpretation while equity reconciliation should remain intact.
-
-Deferred tax asset:
-Including it as operating raises NOA; excluding it removes that balance from operating capital and can change RNOA.
-
-Deferred tax liability:
-Including it as operating lowers NOA; excluding it removes that balance from operating capital.
-
-Short-term investment:
-Financial-asset treatment reduces Net Debt; operating-WC treatment raises NOWC/NOA.
-
-Equity-method investment:
-Operating treatment raises NOA; financial-asset treatment reduces Net Debt.
-```
-
-Do not add company-specific claims that cannot be inferred from the supplied line.
-
-- [ ] **Step 5: Preserve override behavior**
-
-An explicit `classificationOverrides` choice must still return:
-
-```python
-overridden is True
-ambiguous is False
-```
-
-and must not retain guided options from the default classifier.
-
-- [ ] **Step 6: Run classification tests**
+- [ ] **Step 6: Run all classification tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_classification.py -v
 ```
 
-Record the exact pass count.
+Record the exact pass count in `RESULT.md`.
 
 ---
 
-## Task 2 — Derive stable company-specific JudgmentCase objects
+## Task 2 — Centralize guided judgment teaching content and derive stable cases
 
 **Files:**
 - Create: `core/model/judgment.py`
@@ -212,15 +173,19 @@ Record the exact pass count.
 - Test: `core/tests/test_reference_integrity.py`
 
 **Interfaces:**
-- Consumes: `StandardizedFinancials` + `BalanceSheetReformulation`.
-- Produces: `classification_judgment_cases(...) -> tuple[JudgmentCase, ...]`.
-- `ReferenceModelBuilder.judgment_cases` becomes the build-time source for workbook rendering.
 
-- [ ] **Step 1: Write failing case-construction tests**
-
-Use this dataclass:
+Create:
 
 ```python
+@dataclass(frozen=True)
+class ClassificationJudgmentTemplate:
+    topic: str
+    options: tuple[str, ...]
+    model_rationale: str
+    consequence_prompt: str
+    model_consequence: str
+
+
 @dataclass(frozen=True)
 class JudgmentCase:
     id: str
@@ -235,73 +200,155 @@ class JudgmentCase:
     model_consequence: str
 ```
 
-And this constructor:
+Create one registry:
+
+```python
+CLASSIFICATION_JUDGMENT_TEMPLATES: dict[str, ClassificationJudgmentTemplate]
+```
+
+and one constructor:
 
 ```python
 def classification_judgment_cases(
     financials: StandardizedFinancials,
+    periods: list[date],
     reformulation: BalanceSheetReformulation,
 ) -> tuple[JudgmentCase, ...]:
     ...
 ```
 
-Case rules:
+- [ ] **Step 1: Write failing registry tests**
+
+The registry must contain exactly the four Step 8A codes from Task 1.
+
+Every template must satisfy:
+
+```python
+assert len(template.options) >= 2
+assert len(set(template.options)) == len(template.options)
+assert all(option in BALANCE_SHEET_CATEGORIES for option in template.options)
+```
+
+The first option is always the current model/reference category.
+
+Use these option pairs:
+
+```text
+lease_liability_operating_vs_financing
+  Operating Long-Term Liability | Financial Liability
+
+pension_obligation_operating_vs_financing
+  Operating Long-Term Liability | Financial Liability
+
+short_term_investment_financial_vs_operating
+  Financial Asset | Operating Working Capital Asset
+
+associate_investment_operating_vs_financial
+  Operating Long-Term Asset | Financial Asset
+```
+
+- [ ] **Step 2: Encode actual model rationale, not the classifier reason**
+
+Use concise, conditional language that explains the reference convention without presenting it as universal truth.
+
+Required substance:
+
+```text
+Lease liability:
+The reference model keeps the liability in operating long-term liabilities under its current lease convention. Treating it as a financial liability is also defensible when the lease obligation is viewed as debt-like financing.
+
+Pension obligation:
+The reference model keeps the obligation in operating long-term liabilities under its current employee-benefit convention. A financial-liability treatment is also defensible when the obligation is analyzed as debt-like funding.
+
+Short-term investment:
+The reference model treats a generic short-term investment as a financial asset absent evidence that it is required for operations. Operating-WC treatment requires company-specific evidence that the balance is necessary for normal operations.
+
+Associate/JV investment:
+The reference model treats the investment as an operating long-term asset when it is viewed as strategically tied to the operating business. Financial-asset treatment is defensible when the holding is primarily non-operating/investment in nature.
+```
+
+Do not state that one treatment is universally correct.
+
+- [ ] **Step 3: Encode directional economic consequences**
+
+The consequence text must explicitly say it is holding all other accounting treatment constant.
+
+Required substance:
+
+```text
+Lease / pension liability:
+Operating-liability treatment lowers NOLA/NOA; financial-liability treatment raises Net Debt by the same balance. Implied equity is unchanged from this classification switch alone, but RNOA versus FLEV/Spread interpretation changes.
+
+Short-term investment:
+Financial-asset treatment lowers Net Debt; operating-WC treatment raises NOWC/NOA by the same balance. Implied equity is unchanged from this classification switch alone, but operating-capital and leverage metrics change.
+
+Associate/JV investment:
+Operating-asset treatment raises NOLA/NOA; financial-asset treatment lowers Net Debt by the same balance. Implied equity is unchanged from this classification switch alone, but RNOA and leverage interpretation change.
+```
+
+Use one common non-answer learner prompt:
+
+```text
+Explain which reformulated balance(s) change under the alternative treatment and how that changes profitability/leverage interpretation.
+```
+
+- [ ] **Step 4: Write failing case-construction tests**
+
+Case construction rules:
 
 1. iterate `reformulation.detail_indices` in source order;
 2. use the authoritative `ClassificationDecision` for that exact index;
 3. require `decision.ambiguous is True`;
-4. require `len(decision.guided_options) >= 2`;
-5. skip a line whose values are all `None`/zero across modeled source periods;
-6. `supplied_treatment = decision.category`;
-7. `alternatives` contains the remaining guided options, preserving order;
-8. `line_identity` comes from `line_identity(item).key()`;
-9. stable ID format:
+4. require `decision.overridden is False`;
+5. require `decision.judgment_code is not None`;
+6. if a non-null code is missing from the registry, raise a clear programming error instead of silently dropping it;
+7. require at least one non-zero/non-`None` value across the supplied `periods`;
+8. require `template.options[0] == decision.category`; fail fast if the registry and classifier drift;
+9. `supplied_treatment = decision.category`;
+10. `alternatives = template.options[1:]`;
+11. `line_identity = line_identity(item).key()`;
+12. stable ID:
 
 ```python
 f"classification::{line_identity(item).key()}"
 ```
 
-10. `model_rationale = decision.reason`;
-11. `model_consequence = decision.consequence_note`;
-12. `consequence_prompt` is a short non-answer prompt, e.g.:
+13. assign `order` densely **after filtering**, starting at 1.
 
-```text
-Explain which reformulated balance(s) and profitability/leverage interpretation change under the alternative treatment.
-```
+Add tests proving:
 
-- [ ] **Step 2: Add suppression tests**
+- supported non-zero lease liability -> one case;
+- unsupported ROU asset -> no case;
+- unsupported deferred-tax line -> no case;
+- supported zero-valued line -> no case;
+- explicit override -> no case;
+- if an earlier candidate is filtered out, remaining cases are ordered `1, 2, ...` with no gaps.
 
-Assert:
-
-- a supported ambiguous non-zero lease liability produces one case;
-- an ambiguous ROU asset with no guided options produces no case;
-- a zero-valued supported ambiguous line produces no case;
-- an explicit override suppresses the case.
-
-- [ ] **Step 3: Run and verify failure**
+- [ ] **Step 5: Run the failing reference tests**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "judgment_case or guided_classification" -v
+PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "judgment_case or judgment_template or guided_classification" -v
 ```
 
-- [ ] **Step 4: Implement `core/model/judgment.py`**
+- [ ] **Step 6: Implement `core/model/judgment.py`**
 
-Keep this module coordinate-free. It owns accounting-learning case identity/content, not workbook cell locations.
+Keep it coordinate-free. It owns pedagogical judgment semantics, not workbook row/column locations.
 
-- [ ] **Step 5: Wire cases into `ReferenceModelBuilder`**
+- [ ] **Step 7: Wire cases into `ReferenceModelBuilder`**
 
-After `self.anchor = compute_anchor(...)`, set:
+Immediately after `self.anchor = compute_anchor(...)`, set:
 
 ```python
 self.judgment_cases = classification_judgment_cases(
     self.fin,
+    self.periods,
     self.anchor.reformulation,
 )
 ```
 
-Do not add these cases to `COMPONENT_CATALOG`, `ComponentSpec`, or `SemanticMap`.
+Do not add judgment cases to the formula component catalog or semantic map.
 
-- [ ] **Step 6: Run focused reference tests**
+- [ ] **Step 8: Run focused reference tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "judgment or classification" -v
@@ -309,19 +356,21 @@ PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "judgment or class
 
 ---
 
-## Task 3 — Add one real guided judgment case to the committed demo without changing model economics
+## Task 3 — Add one representative guided case to the illustrative demo fixture
 
 **Files:**
 - Modify: `example/DEMO_HK_Standardized.json`
 - Test: `core/tests/test_reference_integrity.py`
 
 **Interfaces:**
-- Revised demo still has five fiscal years and exactly the same reported total liabilities/equity.
-- Produces: exactly one Step 8A guided classification case.
+- The demo remains explicitly illustrative/synthetic.
+- Five fiscal years remain unchanged.
+- Reported total assets, total liabilities, and total equity remain unchanged.
+- The revised demo produces exactly one supported Step 8A case.
 
-- [ ] **Step 1: Split the existing `Other non-current liabilities` line**
+- [ ] **Step 1: Split the existing illustrative liability line**
 
-Add a real ambiguous line:
+Add:
 
 ```json
 {
@@ -337,7 +386,7 @@ Add a real ambiguous line:
 }
 ```
 
-Reduce the existing `Other non-current liabilities` values from:
+Reduce `Other non-current liabilities` from:
 
 ```text
 1305, 1456, 1593, 1716, 1825
@@ -349,17 +398,16 @@ to:
 1005, 1136, 1253, 1356, 1445
 ```
 
-Do not change `Total liabilities` or any other reported totals.
+Do not change reported totals or any other line.
 
-Because both lines use the current reference treatment `Operating Long-Term Liability`, the aggregate historical reference model should remain economically unchanged.
+Both lines use the current reference category `Operating Long-Term Liability`, so Step 7 aggregate reference economics remain unchanged.
 
-- [ ] **Step 2: Add demo-case assertions**
-
-Assert:
+- [ ] **Step 2: Add exact demo assertions**
 
 ```python
 assert len(builder.judgment_cases) == 1
 case = builder.judgment_cases[0]
+assert case.order == 1
 assert case.label == "Operating lease liabilities"
 assert case.supplied_treatment == "Operating Long-Term Liability"
 assert case.alternatives == ("Financial Liability",)
@@ -367,15 +415,15 @@ assert case.alternatives == ("Financial Liability",)
 
 Also assert the five-year build still resolves exactly 118 formula components.
 
-- [ ] **Step 3: Verify reformulation preservation**
+- [ ] **Step 3: Re-run reformulation integrity on every demo period**
 
-Build the revised demo and assert reported-equity/reformulation checks still pass for all periods.
+The same reported-equity, asset-detail, and liability-detail guardrails must pass for all five periods.
 
-Do not hard-code workbook coordinates.
+Production code must not contain logic that manufactures this lease line for companies whose supplied data do not contain it.
 
 ---
 
-## Task 4 — Render an `Accounting Judgment` worksheet in the Answer Key
+## Task 4 — Render one visible `Accounting Judgment` worksheet in the Answer Key
 
 **Files:**
 - Modify: `core/engine/reference_model.py`
@@ -384,73 +432,74 @@ Do not hard-code workbook coordinates.
 **Interfaces:**
 - Visible sheet name: `Accounting Judgment`.
 - One row per `JudgmentCase`.
-- Answer Key contains the model response; Trainer sanitization happens in Task 5.
+- The builder creates the complete Answer-Key version; Trainer sanitization is separate in Task 5.
 
-- [ ] **Step 1: Write a failing Answer-Key sheet test**
+- [ ] **Step 1: Write a failing sheet-layout test**
 
 Required layout:
 
 ```text
 A1  Accounting Judgment
-A2  instruction text
+A2  The supplied treatment is the model's reference treatment, not a universal accounting truth. Compare it with the listed alternative(s), choose the treatment you would defend, and explain the economic consequence.
+A3  Record the judgment on this sheet. Do not edit the supplied classification in Condensed Financials for this Step 8A exercise. Formula Check does not grade these judgment responses.
 
 row 4 headers:
 Order
 Line item
 Topic
-Supplied model treatment
+Supplied reference treatment
 Alternative(s) to evaluate
-Your treatment
-Your rationale
-Your consequence explanation
+Treatment to defend
+Rationale
+Economic consequence
 ```
 
 For each case, row `5 + case.order - 1` contains:
 
 ```text
-Order                     case.order
-Line item                 case.label
-Topic                     case.topic
-Supplied model treatment  case.supplied_treatment
-Alternative(s)            comma-separated case.alternatives
-Your treatment            case.supplied_treatment
-Your rationale            case.model_rationale
-Your consequence          case.model_consequence
+A  case.order
+B  case.label
+C  case.topic
+D  case.supplied_treatment
+E  comma-separated case.alternatives
+F  case.supplied_treatment
+G  case.model_rationale
+H  case.model_consequence
 ```
 
-The instruction must explicitly say:
-
-```text
-The supplied treatment is the model's reference treatment, not a universal accounting truth. Compare it with the listed alternative(s), choose the treatment you would defend, and explain the economic consequence.
-```
+The Answer Key contains the reference response in F:H but the A2 wording must make clear that it is not a universal truth.
 
 - [ ] **Step 2: Add treatment dropdown validation**
 
-The `Your treatment` cell must use an Excel list validation containing exactly:
+Cell F on every case row uses an Excel list validation containing exactly:
 
 ```text
-case.supplied_treatment + case.alternatives
+(case.supplied_treatment,) + case.alternatives
 ```
 
-Do not expose unrelated classification categories merely to make the question harder.
+Do not expose unrelated BAV categories.
 
-- [ ] **Step 3: Handle zero-case companies cleanly**
+- [ ] **Step 3: Handle zero-case companies without inventing work**
 
-If `judgment_cases` is empty, still create the visible sheet with headers and a message:
+Still create the visible sheet with title/instructions/headers and add this message below the header:
 
 ```text
 No supported guided classification judgments were identified from the supplied company data.
 ```
 
-Do not invent a case.
+The message row must not look like a numbered case row.
 
-- [ ] **Step 4: Build the sheet after the historical model**
+- [ ] **Step 4: Build the sheet in normal workbook order**
 
-Add `_build_accounting_judgment(wb)` to `ReferenceModelBuilder.build()` after historical sheets are complete and before deferred placeholders / final save as appropriate.
+Call `_build_accounting_judgment(wb)` after the historical model sheets and before the four deferred hidden placeholders are created.
 
 The sheet must not participate in `SemanticMap.validate_complete()`.
 
-- [ ] **Step 5: Run focused workbook tests**
+- [ ] **Step 5: Add readable column widths/wrapping**
+
+Use existing workbook style conventions; do not create a separate visual design system. Long rationale/consequence columns must be wide enough and use wrapped text.
+
+- [ ] **Step 6: Run focused sheet tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_trainer.py -k "accounting_judgment or judgment_sheet" -v
@@ -458,65 +507,52 @@ PYTHONPATH=. pytest core/tests/test_trainer.py -k "accounting_judgment or judgme
 
 ---
 
-## Task 5 — Derive a sanitized guided-judgment Trainer from the Answer Key
+## Task 5 — Sanitize judgment answers structurally, independent of in-memory cases
 
 **Files:**
 - Modify: `core/trainer/workbook.py`
 - Test: `core/tests/test_trainer.py`
 
 **Interfaces:**
-- `TrainingWorkbookGenerator` receives the build-time judgment cases.
-- Answer Key response cells remain populated/yellow.
-- Trainer response cells become blank/yellow/no-Note.
-- Prompt/context cells remain identical between pair.
-
-- [ ] **Step 1: Pass judgment cases through the normal build path**
-
-Change the generator constructor to:
+- Keep the existing constructor compatible:
 
 ```python
-def __init__(
-    self,
-    answer_key_path: Path,
-    semantic_map: SemanticMap | None = None,
-    judgment_cases: tuple[JudgmentCase, ...] = (),
-):
-    ...
+TrainingWorkbookGenerator(answer_key_path, semantic_map=None)
 ```
 
-And in `build_training_workbook()`:
+Do **not** require a `judgment_cases` argument.
+
+- [ ] **Step 1: Add a structural case-row helper**
+
+Use fixed worksheet semantics, not transient model objects:
 
 ```python
-builder = ReferenceModelBuilder(financials, assumptions)
-semantic_map = builder.build(answer_key_path)
-TrainingWorkbookGenerator(
-    answer_key_path,
-    semantic_map,
-    judgment_cases=builder.judgment_cases,
-).generate(trainer_path)
+JUDGMENT_SHEET = "Accounting Judgment"
+JUDGMENT_FIRST_DATA_ROW = 5
+JUDGMENT_RESPONSE_COLS = (6, 7, 8)
+
+
+def _judgment_case_rows(ws):
+    for row in range(JUDGMENT_FIRST_DATA_ROW, (ws.max_row or 0) + 1):
+        order = ws.cell(row=row, column=1).value
+        label = ws.cell(row=row, column=2).value
+        if isinstance(order, int) and order >= 1 and label not in (None, ""):
+            yield row
 ```
 
-Do not persist `JudgmentCase.model_rationale` or `model_consequence` in a Trainer sidecar.
+The zero-case message is therefore never treated as a response row.
 
-- [ ] **Step 2: Decorate Answer-Key response cells**
+- [ ] **Step 2: Decorate Answer-Key judgment responses after base styling**
 
-For each judgment row, columns F/G/H are bright yellow and contain the model response.
+In `generate()` call a new `_decorate_answer_key_judgment_cells(wb)` after `_apply_oshkosh_style(wb)`.
 
-Use existing workbook styling conventions:
+For each structural case row, F:G:H must be bright yellow and retain the populated reference response. Do not add formula-practice legacy Notes to these free-form judgment cells.
 
-```text
-Aptos Narrow
-20-point sheet title
-11-point body
-bright-yellow response cells
-thin restrained headers/borders
-```
+- [ ] **Step 3: Blank Trainer judgment responses after copying**
 
-- [ ] **Step 3: Blank Trainer response cells**
+Call `_blank_trainer_judgment_cells(wb)` on the Trainer copy.
 
-After copying Answer Key -> Trainer, blank only columns F/G/H for each judgment row.
-
-Trainer contract:
+For each structural case row:
 
 ```text
 F/G/H value: blank
@@ -524,52 +560,66 @@ F/G/H fill: bright yellow
 F/G/H comment: none
 ```
 
-Keep columns A-E identical to the Answer Key because they are intentional exercise context, not withheld answers.
+All prompt/context columns A:E remain pair-identical.
 
-- [ ] **Step 4: Preserve the main model classification scaffold**
+Excel data validation in F must survive the copy/sanitization.
 
-The existing `Condensed Financials` classification column remains populated and pair-identical in Step 8A.
+- [ ] **Step 4: Add the judgment workflow to the Trainer index**
 
-Do not make the learner judgment response drive SUMIF/reformulation formulas yet.
-
-Reason: alternative live treatments would change cached expected values and could make equivalent-but-correct formulas fail the existing Check. Step 8A teaches comparison/defense without regressing the trusted formula feedback loop.
-
-- [ ] **Step 5: Add leakage regression**
-
-Build the revised demo. Collect:
+Keep the existing formula schedule table unchanged. Add a concise instruction near the top of the `Trainer` sheet, separate from the 25 formula-family rows:
 
 ```text
-case.model_rationale
-case.model_consequence
+Also complete Accounting Judgment when cases are present. These responses are not graded by Check; compare your reasoning with the matching Answer Key. Do not change the supplied Condensed Financials classification for this exercise.
 ```
 
-Scan Trainer hidden sheets, comments, and Trainer-associated sidecars and assert those texts do not appear.
+Do not count the judgment sheet as a 26th formula schedule family.
 
-The visible `Supplied model treatment` and `Alternative(s) to evaluate` are allowed because they are the guided exercise prompt.
+- [ ] **Step 5: Write the regression that catches the previous leakage design**
 
-- [ ] **Step 6: Add pair-contract assertions**
+Build an Answer Key containing one judgment case, then instantiate the generator using the old-compatible call with no case object:
 
-For revised demo assert:
+```python
+TrainingWorkbookGenerator(answer_key_path, semantic_map).generate(trainer_path)
+```
+
+Assert Trainer F:G:H are blank/yellow/no-comment. This test proves sanitization cannot be skipped because a caller forgot to pass `JudgmentCase` objects.
+
+- [ ] **Step 6: Add leakage scanning**
+
+Collect the Answer-Key `model_rationale` and `model_consequence` strings for the demo case. Assert those exact texts do not appear in:
+
+- Trainer visible response cells;
+- Trainer hidden sheets;
+- Trainer comments/Notes;
+- Trainer-associated `.component_map.json`, `.trainer.json`, or `.assumptions.json` sidecars.
+
+The visible supplied treatment and alternative categories are intentional prompt content and are allowed.
+
+- [ ] **Step 7: Add pair-contract assertions**
+
+For the revised demo:
 
 ```text
 judgment cases: 1
-Trainer judgment response cells: 3 blank/yellow/no-Note
-Answer Key judgment response cells: 3 populated/yellow
-formula SemanticMap: still 118
-formula Check fresh: still 0 correct / 0 incorrect / 118 blank
+Trainer judgment response cells: 3 blank / yellow / no Note
+Answer Key judgment response cells: 3 populated / yellow
+Trainer treatment dropdown: present and contains exactly 2 allowed treatments
+formula SemanticMap: 118
+formula families: 25
+fresh formula Check: 0 correct / 0 incorrect / 118 blank
 ```
 
-- [ ] **Step 7: Run full Trainer tests**
+- [ ] **Step 8: Run full Trainer tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_trainer.py -v
 ```
 
-Record exact pass count.
+Record the exact pass count.
 
 ---
 
-## Task 6 — Preserve Step 7 behavior and document Step 8A accurately
+## Task 6 — Documentation, demo regeneration, and full verification
 
 **Files:**
 - Modify: `README-HK-TRAINER.md`
@@ -583,25 +633,25 @@ Record exact pass count.
 Describe current capability as:
 
 ```text
-Step 7 historical model construction:
+Step 7 historical model construction
 - 25 historical schedule families across supplied fiscal years
-- 118 formula practice cells in the five-year demo
+- 118 formula practice cells in the five-year illustrative demo
 - workbook-wide formula Check
 
-Step 8A guided judgment:
-- company-specific classification cases only when the authoritative classifier flags a supported ambiguity
-- supplied reference treatment + explicit defensible alternative(s)
-- learner treatment choice + short rationale + consequence explanation
-- Answer Key shows model reasoning
-- judgment responses are not automatically graded yet
-- learner choices do not yet drive the main reformulated model
+Step 8A guided classification judgment
+- cases only for supplied company lines that the classifier marks as both ambiguous and supported
+- supplied reference treatment plus a defensible same-side alternative
+- learner treatment choice, short rationale, and economic-consequence explanation
+- Answer Key shows the reference model's reasoning, explicitly not a universal truth
+- judgment responses are not automatically graded
+- learner judgment does not yet drive the main reformulated model
 ```
 
-Explicitly state that this is a transition from supplied judgment to guided judgment, not independent analyst competence.
+Explicitly say the committed demo is illustrative/synthetic.
 
-Do not claim normalization, earnings-quality analysis, or live alternative model reconciliation has been implemented.
+Do not claim deferred-tax judgment, normalization, earnings-quality analysis, live alternative-model reconciliation, forecasting, or valuation has been implemented.
 
-- [ ] **Step 2: Regenerate the demo pair**
+- [ ] **Step 2: Regenerate the committed demo pair**
 
 ```bash
 PYTHONPATH=. python -m core build \
@@ -637,34 +687,36 @@ Components resolved: 118
 Checked 118 practice cells: 0 correct, 0 incorrect, 118 blank.
 list --workbook: 25 historical schedule groups / 118 concrete formula cells
 CLI surface remains {ingest,build,check,list}
-Accounting Judgment sheet exists and contains exactly 1 guided case in the revised demo
+Accounting Judgment exists and contains exactly 1 guided demo case
 ```
 
-- [ ] **Step 4: Perform final workbook audit**
+- [ ] **Step 4: Perform the final workbook audit**
 
-Verify:
+Verify all of the following:
 
-1. Trainer and Answer Key both contain `Accounting Judgment`.
-2. Revised demo produces exactly one judgment case for `Operating lease liabilities`.
+1. Trainer and Answer Key both contain visible `Accounting Judgment`.
+2. The illustrative demo produces exactly one case for `Operating lease liabilities`.
 3. Supplied treatment is `Operating Long-Term Liability`.
 4. Alternative is `Financial Liability`.
-5. Trainer F/G/H response cells are blank/yellow/no-Note.
-6. Answer Key F/G/H response cells are populated/yellow.
-7. Answer Key rationale/consequence does not leak into Trainer hidden sheets/comments/sidecars.
-8. `Condensed Financials` classifications remain populated and pair-identical.
-9. Historical reformulation still reconciles for every period.
-10. Formula SemanticMap remains 118 cells grouped into 25 families.
-11. Fresh Check remains `0/0/118`.
-12. Deferred forecast/valuation tabs remain four hidden placeholders.
-13. Normal build still succeeds when `run_scenario()` is patched to fail.
-14. No new public Hint/Reveal or judgment-grading CLI is introduced.
+5. Trainer F:G:H are blank/yellow/no-Note.
+6. Answer Key F:G:H contain the reference response and are yellow.
+7. F treatment dropdown exists in both files and contains exactly the two allowed treatments.
+8. Answer-Key rationale/consequence text does not leak into Trainer hidden sheets/comments/sidecars.
+9. `Condensed Financials` classifications remain populated and pair-identical.
+10. Historical reformulation reconciles for every period.
+11. Formula SemanticMap remains 118 cells grouped into 25 families.
+12. Fresh formula Check remains `0/0/118`.
+13. `Accounting Judgment` is not counted as a formula schedule family and is not graded by Check.
+14. Deferred forecast/valuation tabs remain four hidden placeholders.
+15. Normal build still succeeds when `run_scenario()` is patched to fail.
+16. No public Hint/Reveal or judgment-grading CLI is introduced.
 
-- [ ] **Step 5: Update `RESULT.md` with actual evidence**
+- [ ] **Step 5: Update `RESULT.md` with observed evidence**
 
-Use this structure with observed values:
+Use this structure with actual values:
 
 ```text
-Status: Step 8A complete — guided classification judgment with consequences
+Status: Step 8A complete — guided classification judgment
 
 Implementation base:
 - 9ddc60ab Step 7 correction
@@ -676,8 +728,9 @@ Historical model preservation:
 - fresh formula Check: 0 / 0 / 118
 
 Guided judgment:
+- supported classifier templates: 4
 - demo judgment cases: 1
-- case: Operating lease liabilities
+- demo case: Operating lease liabilities
 - supplied treatment: Operating Long-Term Liability
 - alternative: Financial Liability
 - Trainer response cells blank/yellow/no Note: 3/3
@@ -685,6 +738,7 @@ Guided judgment:
 - judgment answer leakage: none
 - judgment responses auto-graded: no
 - learner judgment drives main model: no
+- deferred-tax lines exposed as Step 8A cases: no
 
 Preservation:
 - source values populated: yes
@@ -695,9 +749,10 @@ Preservation:
 - repeated cached formula Check: preserved
 
 Tests:
-- record every command above and exact pass count/result
+- record each verification command and exact pass count/result
 
-Known deferred limitation:
+Known deferred limitations:
+- deferred-tax/ROU alternatives require a later model design that preserves reconciliation
 - irregular/stub/interim period comparability still requires later robustness work
 
 Unresolved:
@@ -706,26 +761,32 @@ Unresolved:
 
 - [ ] **Step 6: Stop**
 
-Do not implement live learner reclassification, normalization, diagnostics, forecasting, or valuation in this checkpoint.
+Do not begin live learner reclassification, normalization, diagnostics, forecasting, or valuation in this checkpoint.
+
+---
 
 ## Step 8A acceptance criteria
 
 Step 8A is accepted only when all are true:
 
-1. supported ambiguous classifier decisions encode explicit defensible category options and consequence teaching metadata;
-2. unsupported ambiguity is not forced into a fake multiple-choice case;
-3. guided cases are derived from actual company lines using stable `LineIdentity`, not hand-authored workbook coordinates;
-4. zero-valued and explicitly overridden lines do not become cases;
-5. revised demo exposes exactly one real lease-liability judgment case without changing aggregate historical economics;
-6. both workbooks contain a visible `Accounting Judgment` sheet;
-7. Trainer shows supplied treatment/alternatives but blanks learner-response cells;
-8. Answer Key shows the model treatment, rationale, and consequence while acknowledging the treatment is not universal;
-9. judgment answers/rationales do not leak into Trainer metadata/comments/sidecars;
-10. main historical classifications remain supplied and continue to drive Step 7 formulas;
-11. judgment responses are not falsely auto-graded as objectively correct/incorrect;
-12. 25 historical formula families / 118 formula cells / formula Check behavior remain unchanged;
-13. full suite, demo rebuild, leakage audit, forecast quarantine, and cached Check regressions pass;
-14. docs frame Step 8A as guided judgment only, not independent accounting analysis.
+1. `ClassificationDecision` adds only a stable optional `judgment_code` for Step 8A support; teaching copy stays outside the classifier.
+2. Exactly four identity-preserving guided templates exist: lease liability, pension obligation, short-term investment, and associate/JV investment.
+3. ROU and deferred-tax ambiguities remain visible to the classifier but are not exposed as Step 8A guided cases.
+4. Case construction fails fast if classifier code and template registry drift.
+5. Guided cases come only from supplied non-zero company lines using stable `LineIdentity`; production never invents a line.
+6. Explicit overrides and unsupported ambiguities do not become cases.
+7. Case order is dense after filtering.
+8. Both workbooks contain a visible `Accounting Judgment` sheet.
+9. Trainer shows prompt/context and allowed alternatives but blanks F:G:H.
+10. Answer Key shows a reference treatment/rationale/consequence while stating that the treatment is not universal.
+11. Trainer answer removal works through the existing two-argument `TrainingWorkbookGenerator` path and does not depend on in-memory `JudgmentCase` objects.
+12. Judgment rationale/consequence text does not leak into Trainer metadata, hidden sheets, or comments.
+13. Learner is explicitly told that judgment responses are not graded by Check and should not be applied by editing `Condensed Financials` in Step 8A.
+14. The illustrative demo contains exactly one representative lease-liability case without changing aggregate historical economics.
+15. Main historical classifications remain supplied and continue to drive the Step 7 model.
+16. 25 historical formula families / 118 formula cells / fresh `0/0/118` Check behavior remain unchanged.
+17. Full suite, demo rebuild, reformulation integrity, cached Check, sidecar hygiene, and forecast-quarantine regressions pass.
+18. Documentation frames Step 8A as guided judgment only, not independent accounting competence.
 
 ---
 
@@ -733,7 +794,7 @@ Step 8A is accepted only when all are true:
 
 ## Step 8B — Live classification and normalization decisions
 
-Design how learner-selected treatments can drive the reformulated model **without breaking equivalent-formula Check under alternative defensible inputs**. Add recurring/non-recurring treatment and earnings normalization only after that feedback-loop design is separately approved.
+Design how learner-selected treatments can drive the reformulated model while preserving reconciliation and equivalent-formula Check. Revisit deferred taxes, ROU/lease treatment, recurring/non-recurring treatment, and earnings normalization only after that feedback-loop design is separately approved.
 
 ## Step 9 — Historical research diagnostics
 
