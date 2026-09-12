@@ -1,50 +1,48 @@
-# Step 9B.2 — Historical Working-Capital Driver Decomposition
+# Step 9C.1 — Historical RNOA Margin / Turnover Driver Decomposition
 
-> **Status:** Step 9B.2 complete. See `RESULT.md` for verification evidence (213 passed; base 41/188; normalization 45/208; OWCA/OWCL driver bridge + trusted DRIVER DECOMPOSITION CHECK). Do not commit or push from this checkpoint unless the user requests it.
+> **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `70f2af5de1d2b5938867529ae03a96b7015be9a8` (`Step 9B.2 complete`). Implement only Step 9C.1 below using red/green TDD. Preserve Step 8 classification/normalization judgment, the trusted-workbook boundary, Step 9A earnings-quality/source-completeness/`#N/A` semantics, and the complete Step 9B working-capital diagnostic surface. Do not add automatic good/bad profitability labels, company-specific causal inference, forecasting, valuation, ROU/deferred-tax alternative modeling, segment analysis, or later research-diagnostic work. Do not commit or push; the user owns the checkpoint commit.
 
-> **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `57bcda4af010a70f21bb7515d03486e83e5be936` (`StepB.1`, Step 9B.1 complete). Implement only Step 9B.2 below using red/green TDD. Preserve Step 8 classification/normalization judgment, the trusted-workbook boundary, Step 9A earnings-quality/source-completeness/`#N/A` semantics, and the complete Step 9B.1 Working Capital Analysis surface. Do not add automatic good/bad quality labels, line-item causal inference, seasonality claims, forecasting, valuation, ROU/deferred-tax alternative modeling, segment analysis, or later research-diagnostic work. Do not commit or push; the user owns the checkpoint commit.
+**Goal:** Add an auditable historical decomposition of RNOA into operating margin and net-operating-asset turnover/capital intensity so the learner can distinguish profitability changes caused by operating margin from those caused by the amount of operating assets required to support Revenue.
 
-**Goal:** Extend the Working Capital Analysis from one net `Change in NOWC` measure into an auditable driver bridge showing how changes in Operating Working Capital Assets and Operating Working Capital Liabilities combine into the net working-capital investment, and how each side moves relative to incremental Revenue.
+**Architecture:** Reuse the authoritative `AnchorMetrics` series and existing `ALT DuPont` schedule. Add one focused `ProfitabilityDriverSeries` plus four comparable-period semantic families: Average NOA, NOA Turnover, NOA Intensity, and RNOA from Margin × Turnover. Append a driver section to `ALT DuPont`; keep the existing direct RNOA formula untouched and add a generated non-practice reconciliation row. Dynamic Formula Check must recompute these diagnostics from the current live classification treatment.
 
-**Architecture:** Extend the existing `WorkingCapitalSeries`, `WORKING_CAPITAL_COMPONENT_CATALOG`, and `Working Capital Analysis` sheet rather than creating another subsystem. Use only the already treatment-conditioned OWCA / OWCL / NOWC / Revenue series. Add five comparable-period formula families and one generated non-practice reconciliation row. Formula Check must recompute these families from the learner's live classification treatment, while trusted-sheet validation protects the generated reconciliation formula automatically.
+**Tech Stack:** Python, dataclasses, pytest, openpyxl, existing `AnchorMetrics`, `ratio_or_na`, `ComponentFamily`, `SemanticMap`, `ReferenceModelBuilder`, `historical_expected`, `check_workbook`, and trusted-sheet validation for `ALT DuPont`.
 
-**Tech Stack:** Python, dataclasses, pytest, openpyxl, existing `AnchorMetrics`, `WorkingCapitalSeries`, `ratio_or_na`, `ComponentFamily`, `SemanticMap`, `ReferenceModelBuilder`, `historical_expected`, `check_workbook`, and trusted-workbook structural validation.
-
-**Spec:** `TARGET.md`, especially working-capital behavior, accounting consistency, research diagnostics, the historical dependency graph, and the requirement that interpretation distinguish mechanical drivers from unsupported causal or quality claims.
+**Spec:** `TARGET.md`, especially the interpretation requirement: “Was a decline in RNOA caused by lower operating margins or greater NOA intensity?”, historical capital-intensity diagnostics, operating/financing reformulation, and the requirement that formula correctness support economic interpretation without unsupported causal claims.
 
 ---
 
-## Review of commit `57bcda4a`
+## Review of commit `70f2af5d`
 
-Step 9B.1 is implemented coherently:
+Step 9B.2 is complete and coherent:
 
-- `Working Capital Analysis` is gated on nonzero classified OWCA / OWCL;
-- OWCA / Revenue, OWCL / Revenue, NOWC / Revenue, Change in Revenue, Change in NOWC, and Incremental NOWC / Change in Revenue are live formula families;
-- zero Revenue / zero Change in Revenue produce `#N/A` / Excel `NA()` rather than fabricated zero ratios;
-- first-period change metrics remain non-applicable;
-- live classification judgment changes dynamic expected values correctly;
-- trusted-sheet validation protects generated Working Capital Analysis cells;
-- the current five-year demo surfaces are 36 families / 168 cells without normalization and 40 families / 188 cells with normalization;
-- `RESULT.md` records 210 locally passing tests;
+- the five-year applicable working-capital module is 11 families / 47 practice cells;
+- Change in OWCA and Change in OWCL reconcile mechanically to direct Change in NOWC;
+- incremental OWCA / OWCL ratios preserve signed Revenue changes and `#N/A` denominator semantics;
+- the generated `DRIVER DECOMPOSITION CHECK` is trusted and tamper-detected;
+- live classification treatment changes working-capital dynamic expected values;
+- base demo is 41 families / 188 cells;
+- normalization demo is 45 families / 208 cells;
+- `RESULT.md` records 213 locally passing tests;
 - GitHub has no attached CI status.
 
-The current sheet answers **how much net working capital changed**, but it does not yet show **which side of the operating working-capital equation produced that change**.
+The next historical diagnostic should move from working-capital mechanics to profitability drivers. The existing `ALT DuPont` already contains NOPAT Margin and direct RNOA, but it does not expose the capital-efficiency term that connects them.
 
-Because:
-
-```text
-NOWC = OWCA - OWCL
-```
-
-then:
+The BAV identity for comparable periods is:
 
 ```text
-Change in NOWC = Change in OWCA - Change in OWCL
+RNOA = NOPAT / Average NOA
+     = (NOPAT / Revenue) × (Revenue / Average NOA)
+     = NOPAT Margin × NOA Turnover
 ```
 
-This decomposition is the next safe interpretation step. It remains mechanical and auditable: it does not infer whether receivables, inventory, payables, collection quality, purchasing power, or management behavior caused the aggregate movement.
+The reciprocal operating-capital-intensity view is:
 
-Step 9B.2 therefore adds an **asset-versus-liability driver bridge only**.
+```text
+NOA Intensity = Average NOA / Revenue
+```
+
+Step 9C.1 adds this mechanical decomposition only. It must not automatically conclude why margin or capital intensity changed.
 
 ---
 
@@ -53,21 +51,24 @@ Step 9B.2 therefore adds an **asset-versus-liability driver bridge only**.
 - `TARGET.md` is read-only.
 - Preserve non-financial-company scope.
 - Preserve all existing Step 8 judgment behavior and treatment-conditioned Check.
-- Preserve Step 9A earnings-quality, source-completeness, and `#N/A` semantics.
-- Preserve Step 9B.1 applicability gating exactly: all-zero OWCA and OWCL omit the Working Capital Analysis sheet.
-- Preserve the existing six Step 9B.1 working-capital families unchanged.
-- Use only the authoritative treatment-conditioned series from `AnchorMetrics` / `BalanceSheetReformulation`; do not independently reclassify raw balance-sheet labels.
-- `Change in OWCA` means current OWCA minus prior OWCA.
-- `Change in OWCL` means current OWCL minus prior OWCL.
-- `Change in NOWC from Components = Change in OWCA - Change in OWCL`.
-- Positive Change in OWCA is additional operating-current-asset investment / cash use; negative Change in OWCA is a release. Do not call either automatically good or bad.
-- Positive Change in OWCL is additional operating-liability financing that offsets NOWC investment; negative Change in OWCL reduces that financing and increases cash use. Do not call either automatically good or bad.
-- A zero Change in Revenue denominator makes each incremental-side ratio undefined (`#N/A`).
-- Retain signed changes and signed denominators. Do not take absolute values.
-- When Revenue declines, an incremental ratio may have an unintuitive sign. Preserve the arithmetic and explain that the sign requires interpretation rather than normalizing it away.
-- Annual historical data alone must not be described as proving seasonality.
-- Do not infer receivables collection problems, inventory obsolescence, channel stuffing, payment stretching, supplier stress, or other line-item causes from aggregate OWCA / OWCL movements.
-- Do not automatically rank or label working-capital quality.
+- Preserve Step 9A earnings-quality, source-completeness, tax, normalization, and `#N/A` semantics.
+- Preserve all 11 Step 9B working-capital families unchanged.
+- Preserve the existing direct `RNOA` and `NOPAT Margin` families and formulas unchanged.
+- Revenue must come from `AnchorMetrics.historical.revenue` / existing Condensed Revenue.
+- NOPAT must come from `AnchorMetrics.historical.nopat` / existing Condensed NOPAT.
+- NOA must come from `AnchorMetrics.reformulation.noa` / existing Condensed NOA.
+- Average NOA for fiscal period `i > 0` is `(NOA[i - 1] + NOA[i]) / 2`.
+- First-period Average NOA / turnover / intensity / driver RNOA are non-applicable because no prior NOA exists.
+- `NOA Turnover = Revenue / Average NOA`.
+- `NOA Intensity = Average NOA / Revenue`.
+- `RNOA from Margin × Turnover = NOPAT Margin × NOA Turnover` when both inputs are defined.
+- Zero Average NOA makes NOA Turnover undefined (`#N/A`).
+- Zero Revenue makes NOA Intensity and NOPAT Margin undefined (`#N/A`).
+- A zero numerator with a valid nonzero denominator remains a valid numeric zero.
+- If the margin/turnover decomposition is undefined, do not label that as a failed RNOA reconciliation merely because direct RNOA remains mathematically defined.
+- Do not use absolute values to hide negative Revenue, NOA, margin, or turnover signs.
+- Do not infer pricing power, cost inflation, asset quality, capacity utilization, acquisition effects, or business-model causes automatically from these ratios.
+- Do not add automatic good/bad profitability scoring.
 - Do not add free-form automatic grading.
 - Do not add forecasting, valuation, scenarios, Hint/Reveal, VBA, or new public CLI commands.
 - Do not modify dormant forecast/scenario behavior in this checkpoint.
@@ -75,569 +76,654 @@ Step 9B.2 therefore adds an **asset-versus-liability driver bridge only**.
 
 ---
 
-## Task 1 — Extend the authoritative working-capital series with side-driver changes
+## Task 1 — Define authoritative profitability-driver series
 
 **Files:**
-- Modify: `core/model/working_capital.py`
-- Test: `core/tests/test_working_capital.py`
+- Create: `core/model/profitability_drivers.py`
+- Create: `core/tests/test_profitability_drivers.py`
 
-Extend `WorkingCapitalSeries` to:
+Create:
 
 ```python
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from .financial_math import AnchorMetrics
+from .ratio_values import UNDEFINED_RATIO, ratio_or_na
+
+
 @dataclass(frozen=True)
-class WorkingCapitalSeries:
-    owca_to_revenue: tuple[float | str, ...]
-    owcl_to_revenue: tuple[float | str, ...]
-    nowc_to_revenue: tuple[float | str, ...]
-    revenue_change: tuple[float | None, ...]
-    nowc_change: tuple[float | None, ...]
-    incremental_nowc_to_revenue_change: tuple[float | str | None, ...]
-    owca_change: tuple[float | None, ...]
-    owcl_change: tuple[float | None, ...]
-    nowc_change_from_components: tuple[float | None, ...]
-    incremental_owca_to_revenue_change: tuple[float | str | None, ...]
-    incremental_owcl_to_revenue_change: tuple[float | str | None, ...]
+class ProfitabilityDriverSeries:
+    average_noa: tuple[float | None, ...]
+    noa_turnover: tuple[float | str | None, ...]
+    noa_intensity: tuple[float | str | None, ...]
+    rnoa_from_margin_turnover: tuple[float | str | None, ...]
 ```
 
-Preserve `_source_series()` and `working_capital_applicable()` unchanged unless a failing test demonstrates a real defect.
+Create:
+
+```python
+def compute_profitability_driver_series(
+    anchor: AnchorMetrics,
+) -> ProfitabilityDriverSeries:
+    ...
+```
+
+### Source series
+
+Use exactly:
+
+```python
+revenue = tuple(float(v) for v in anchor.historical.revenue)
+noa = tuple(float(v) for v in anchor.reformulation.noa)
+margin = tuple(anchor.dupont["NOPAT Margin"])
+direct_rnoa = tuple(anchor.dupont["RNOA"])
+```
+
+Require all four series to have the same nonzero length. Raise a clear `ValueError` showing each length if they do not.
 
 ### First period
 
-Initialize all five new comparable-period series as non-applicable:
+Initialize:
 
 ```python
-owca_change = [None]
-owcl_change = [None]
-nowc_change_from_components = [None]
-incremental_owca = [None]
-incremental_owcl = [None]
+average_noa = [None]
+noa_turnover = [None]
+noa_intensity = [None]
+rnoa_from_margin_turnover = [None]
 ```
 
 ### Comparable periods
 
-Inside the existing `for i in range(1, n)` loop compute:
+For every `i > 0`:
 
 ```python
-delta_revenue = revenue[i] - revenue[i - 1]
-delta_nowc = nowc[i] - nowc[i - 1]
-delta_owca = owca[i] - owca[i - 1]
-delta_owcl = owcl[i] - owcl[i - 1]
-bridge_nowc = delta_owca - delta_owcl
+average = (noa[i - 1] + noa[i]) / 2.0
+turnover = ratio_or_na(revenue[i], average)
+intensity = ratio_or_na(average, revenue[i])
+
+if margin[i] == UNDEFINED_RATIO or turnover == UNDEFINED_RATIO:
+    driver_rnoa: float | str = UNDEFINED_RATIO
+else:
+    driver_rnoa = float(margin[i]) * float(turnover)
 ```
 
-Require the bridge to reconcile to the direct Change in NOWC:
+Append those values.
+
+### Reconciliation semantics
+
+When `driver_rnoa` is numeric, direct RNOA must also be numeric and must reconcile:
 
 ```python
-if abs(bridge_nowc - delta_nowc) > 1e-9:
-    raise ValueError(
-        "working-capital change bridge does not reconcile: "
-        f"period_index={i} direct={delta_nowc} bridge={bridge_nowc}"
-    )
+if driver_rnoa != UNDEFINED_RATIO:
+    if direct_rnoa[i] == UNDEFINED_RATIO:
+        raise ValueError(
+            "RNOA driver bridge is numeric while direct RNOA is undefined: "
+            f"period_index={i} driver={driver_rnoa}"
+        )
+    if abs(float(driver_rnoa) - float(direct_rnoa[i])) > 1e-9:
+        raise ValueError(
+            "RNOA margin/turnover bridge does not reconcile: "
+            f"period_index={i} direct={direct_rnoa[i]} driver={driver_rnoa}"
+        )
 ```
 
-Append:
-
-```python
-owca_change.append(delta_owca)
-owcl_change.append(delta_owcl)
-nowc_change_from_components.append(bridge_nowc)
-incremental_owca.append(ratio_or_na(delta_owca, delta_revenue))
-incremental_owcl.append(ratio_or_na(delta_owcl, delta_revenue))
-```
-
-Continue using the existing direct:
-
-```python
-nowc_change.append(delta_nowc)
-incremental.append(ratio_or_na(delta_nowc, delta_revenue))
-```
-
-Do not derive the direct `nowc_change` from the bridge. Keeping both independently computed series is what makes the reconciliation useful.
+When `driver_rnoa == #N/A`, do **not** require direct RNOA to be `#N/A`. Example: Revenue can be zero while Average NOA is nonzero, making the margin/turnover decomposition undefined even though direct `NOPAT / Average NOA` may still be numerically defined.
 
 ### Required semantics
 
 ```text
-OWCA: 100 -> 130  => Change in OWCA = +30
-OWCL:  40 ->  50  => Change in OWCL = +10
-NOWC:  60 ->  80  => direct Change in NOWC = +20
-bridge             => +30 - +10 = +20
-```
-
-Interpret mechanically:
-
-```text
-+30 OWCA change = 30 additional operating-current-asset investment
-+10 OWCL change = 10 additional operating-liability financing
-net cash tied up  = 20 additional NOWC
+Revenue = 200
+NOPAT Margin = 10%
+Average NOA = 100
+NOA Turnover = 2.0x
+NOA Intensity = 0.5x
+RNOA from drivers = 20%
 ```
 
 Also preserve:
 
 ```text
-negative Change in OWCA -> release of operating-current-asset investment
-negative Change in OWCL -> reduction in operating-liability financing
-zero Change in Revenue  -> both incremental-side ratios are #N/A
-negative Change in Revenue -> signed denominator retained
+Average NOA = 0 -> NOA Turnover #N/A
+Revenue = 0     -> NOA Intensity #N/A and existing NOPAT Margin #N/A
+Revenue = 0, Average NOA != 0 -> NOA Turnover may be numeric 0.0
+zero Revenue does not force direct RNOA itself to #N/A
 ```
 
 ### TDD
 
-- [ ] Ordinary fixture returns all five new series correctly.
-- [ ] `nowc_change_from_components[i] == nowc_change[i]` for every comparable period.
-- [ ] Positive OWCA and positive OWCL changes produce the correct net bridge.
-- [ ] Negative OWCA change remains negative.
-- [ ] Negative OWCL change remains negative.
-- [ ] Zero Change in Revenue yields `#N/A` for both incremental-side ratios.
-- [ ] Negative Change in Revenue is retained as a signed denominator.
-- [ ] Zero side-driver numerator with nonzero Change in Revenue yields numeric `0.0`.
-- [ ] First-period values for all five new series are `None`.
-- [ ] A deliberately inconsistent synthetic `AnchorMetrics` / reformulation fixture triggers the reconciliation `ValueError` rather than silently accepting a broken NOWC identity.
+- [ ] ordinary multi-period fixture returns all four series correctly;
+- [ ] first-period values are all `None`;
+- [ ] zero Average NOA makes NOA Turnover `#N/A`;
+- [ ] zero Revenue makes NOA Intensity `#N/A`;
+- [ ] zero Revenue with nonzero Average NOA keeps NOA Turnover at numeric `0.0`;
+- [ ] numeric margin × turnover reconciles to direct RNOA;
+- [ ] undefined driver RNOA does not falsely raise when direct RNOA is numeric;
+- [ ] a deliberately inconsistent numeric RNOA fixture raises the reconciliation `ValueError`;
+- [ ] source-series length mismatch fails clearly.
 
 Run:
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_working_capital.py -v
+PYTHONPATH=. pytest core/tests/test_profitability_drivers.py -v
 ```
 
 ---
 
-## Task 2 — Add five semantic driver-decomposition formula families
+## Task 2 — Add four profitability-driver semantic families
 
 **Files:**
 - Modify: `core/engine/component_catalog.py`
 - Modify: `core/model/historical_expected.py`
-- Test: `core/tests/test_working_capital.py`
+- Test: `core/tests/test_profitability_drivers.py`
 - Test: `core/tests/test_reference_integrity.py`
 
-Extend the existing `WORKING_CAPITAL_COMPONENT_CATALOG` with exactly five new families. Keep the six Step 9B.1 family definitions unchanged.
-
-Use family orders `41` through `45`.
-
-### 1. `owca_change`
-
-```text
-order: 41
-title: Change in Operating Working Capital Assets
-sheet: Working Capital Analysis
-period scope: comparable
-formula concept: Current OWCA - Prior OWCA
-```
-
-Dependencies:
+Create a separate catalog so the original historical-construction core and existing diagnostic catalogs remain unchanged:
 
 ```python
-depends_on_current=("owca_agg",)
-depends_on_previous=("owca_agg",)
+PROFITABILITY_DRIVER_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (...)
 ```
-
-Hints:
-
-```text
-Change in OWCA = Current OWCA - Prior OWCA.
-A positive change is additional operating-current-asset investment; a negative change is a release.
-Do not infer the underlying receivables/inventory cause from this aggregate alone.
-```
-
-### 2. `owcl_change`
-
-```text
-order: 42
-title: Change in Operating Working Capital Liabilities
-sheet: Working Capital Analysis
-period scope: comparable
-formula concept: Current OWCL - Prior OWCL
-```
-
-Dependencies:
-
-```python
-depends_on_current=("owcl_agg",)
-depends_on_previous=("owcl_agg",)
-```
-
-Hints:
-
-```text
-Change in OWCL = Current OWCL - Prior OWCL.
-A positive change supplies additional operating-liability financing; a negative change reduces that financing.
-Do not infer payment quality or supplier pressure from this aggregate alone.
-```
-
-### 3. `nowc_change_from_components`
-
-```text
-order: 43
-title: Change in NOWC from OWCA / OWCL bridge
-sheet: Working Capital Analysis
-period scope: comparable
-formula concept: Change in OWCA - Change in OWCL
-```
-
-Dependencies:
-
-```python
-depends_on_current=("owca_change", "owcl_change")
-```
-
-Hints:
-
-```text
-Because NOWC = OWCA - OWCL, Change in NOWC = Change in OWCA - Change in OWCL.
-Use this bridge to separate asset investment from operating-liability financing.
-The bridge must reconcile to the direct Change in NOWC row.
-```
-
-### 4. `incremental_owca_to_revenue_change`
-
-```text
-order: 44
-title: Incremental OWCA / Change in Revenue
-sheet: Working Capital Analysis
-period scope: comparable
-formula concept: Change in OWCA / Change in Revenue
-```
-
-Dependencies:
-
-```python
-depends_on_current=("owca_change", "revenue_change")
-```
-
-Hints:
-
-```text
-This ratio measures incremental operating-current-asset investment per unit of incremental sales.
-A zero Change in Revenue denominator makes the ratio undefined (#N/A).
-Keep the signed denominator when Revenue falls; do not convert it to an absolute value.
-```
-
-### 5. `incremental_owcl_to_revenue_change`
-
-```text
-order: 45
-title: Incremental OWCL / Change in Revenue
-sheet: Working Capital Analysis
-period scope: comparable
-formula concept: Change in OWCL / Change in Revenue
-```
-
-Dependencies:
-
-```python
-depends_on_current=("owcl_change", "revenue_change")
-```
-
-Hints:
-
-```text
-This ratio measures incremental operating-liability financing per unit of incremental sales.
-A zero Change in Revenue denominator makes the ratio undefined (#N/A).
-A larger value is not automatically good; it only shows that more operating liabilities accompany the sales change.
-```
-
-### Expected values
-
-Extend `_WORKING_CAPITAL_FAMILY_SERIES` in `core/model/historical_expected.py` to include the five new family IDs.
-
-Extend `working_capital_expected_series()` with:
-
-```python
-"owca_change": wc.owca_change,
-"owcl_change": wc.owcl_change,
-"nowc_change_from_components": wc.nowc_change_from_components,
-"incremental_owca_to_revenue_change": wc.incremental_owca_to_revenue_change,
-"incremental_owcl_to_revenue_change": wc.incremental_owcl_to_revenue_change,
-```
-
-The existing exact catalog-key equality check must now cover all eleven working-capital families.
-
-### Expected expansion
-
-All five new families are comparable-period families.
-
-For five modeled fiscal periods:
-
-```text
-5 new families × 4 comparable periods = 20 new practice cells
-```
-
-The complete working-capital module therefore becomes:
-
-```text
-11 families
-47 practice cells
-```
-
-### TDD
-
-- [ ] Working-capital catalog now contains exactly 11 unique family IDs.
-- [ ] Existing first six family definitions remain unchanged.
-- [ ] Each new family expands across four comparable periods in the five-year demo.
-- [ ] Exactly 20 new concrete specs are added.
-- [ ] `working_capital_expected_series()` keys exactly equal the 11 catalog IDs.
-- [ ] `nowc_change_from_components` expected values equal direct `nowc_change` for all comparable periods.
-- [ ] Incremental OWCA / OWCL expected values preserve `#N/A` on zero Change in Revenue.
-
----
-
-## Task 3 — Add the driver-decomposition section to `Working Capital Analysis`
-
-**Files:**
-- Modify: `core/engine/reference_model.py`
-- Test: `core/tests/test_working_capital.py`
-- Test: `core/tests/test_reference_integrity.py`
-
-Do not create a new worksheet. Extend `_build_working_capital_analysis()` below the existing Step 9B.1 rows.
-
-Use this fixed layout:
-
-```text
-A18  WORKING-CAPITAL DRIVER DECOMPOSITION
-A19  Change in OWCA
-A20  Change in OWCL
-A21  Change in NOWC from Components
-A22  Incremental OWCA / Change in Revenue
-A23  Incremental OWCL / Change in Revenue
-A24  DRIVER DECOMPOSITION CHECK
-```
-
-Make row 18 bold as a section heading. Make row 24 bold.
-
-### First period
-
-For the first fiscal period, write visible literal text:
-
-```text
-N/A
-```
-
-into rows 19 through 24. Do not register first-period practice components for these comparable families.
-
-### Comparable-period formulas
-
-For each `j > 0`, use the existing source-link rows already present on this sheet:
-
-```python
-owca_change = f"={col}{owca_row}-{prev_col}{owca_row}"
-owcl_change = f"={col}{owcl_row}-{prev_col}{owcl_row}"
-nowc_bridge = f"={col}{owca_change_row}-{col}{owcl_change_row}"
-incremental_owca = (
-    f"=IF({col}{rev_chg_row}=0,NA(),"
-    f"{col}{owca_change_row}/{col}{rev_chg_row})"
-)
-incremental_owcl = (
-    f"=IF({col}{rev_chg_row}=0,NA(),"
-    f"{col}{owcl_change_row}/{col}{rev_chg_row})"
-)
-```
-
-Add a generated, non-practice reconciliation formula:
-
-```python
-driver_check = (
-    f'=IF(ABS({col}{nowc_bridge_row}-{col}{nowc_chg_row})<0.01,'
-    f'"OK","CHECK")'
-)
-```
-
-Required formats:
-
-```text
-Change in OWCA                    -> NUM_FMT
-Change in OWCL                    -> NUM_FMT
-Change in NOWC from Components    -> NUM_FMT
-Incremental OWCA / Change Revenue -> PCT_FMT
-Incremental OWCL / Change Revenue -> PCT_FMT
-DRIVER DECOMPOSITION CHECK        -> general/text result
-```
-
-Register only rows 19 through 23 as practice families. Row 24 is a generated trusted model-control formula.
-
-Use the corresponding values from `self.working_capital_series`.
-
-### Rowmap
 
 Add:
 
 ```python
-self.rowmap["wc_owca_change_row"] = owca_change_row
-self.rowmap["wc_owcl_change_row"] = owcl_change_row
-self.rowmap["wc_nowc_bridge_row"] = nowc_bridge_row
-self.rowmap["wc_incremental_owca_row"] = incremental_owca_row
-self.rowmap["wc_incremental_owcl_row"] = incremental_owcl_row
-self.rowmap["wc_driver_check_row"] = driver_check_row
+def expand_profitability_driver_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+) -> tuple[ComponentSpec, ...]:
+    ...
 ```
 
-Do not move or rename any existing Step 9B.1 rowmap keys.
+Use the same duplicate/chronological-period validation as the other expanders.
 
-### TDD
+All four families use `period_scope="comparable"` and tab `ALT DuPont`.
 
-- [ ] Existing Step 9B.1 rows/formulas remain at their current locations.
-- [ ] New rows 19–23 contain formulas only for comparable periods.
-- [ ] First-period rows 19–24 contain literal `N/A`.
-- [ ] Row 21 formula is Change in OWCA minus Change in OWCL.
-- [ ] Row 24 checks row 21 against the existing direct Change in NOWC row.
-- [ ] Zero Change in Revenue uses Excel `NA()` in both new incremental formulas.
-- [ ] No `ABS()` is used inside either incremental ratio formula.
-- [ ] The driver-check row is not a semantic practice component.
-
----
-
-## Task 4 — Prove live classification judgment drives the new decomposition
-
-**Files:**
-- Modify: `core/tests/test_working_capital.py`
-- Modify: `core/tests/test_reference_integrity.py`
-- Modify: `core/tests/test_normalization.py` only if an existing cached-value helper is intentionally reused
-
-The new formulas must remain treatment-conditioned through the same live classification architecture as Step 9B.1.
-
-### OWCA-side judgment regression
-
-Reuse the existing demo classification case that can move Short-term Investment between Financial Asset and Operating Working Capital Asset.
-
-For one comparable period:
-
-1. identify an `owca_change` or `incremental_owca_to_revenue_change` component;
-2. enter an exact or equivalent formula into its Trainer practice cell;
-3. run Check under the reference classification;
-4. change `Accounting Judgment!F` to the allowed alternative that changes OWCA;
-5. run Check again;
-6. prove dynamic expected values reflect the new classification treatment rather than the stale reference result.
-
-At least one regression must reject a cached numeric result that was correct under the old treatment but stale under the new treatment.
-
-### OWCL-side unit coverage
-
-Use a focused synthetic `AnchorMetrics` / reformulation fixture to prove that changing OWCL while holding OWCA constant changes:
+### 1. `average_noa`
 
 ```text
-owcl_change
-nowc_change_from_components
-incremental_owcl_to_revenue_change
+family order: 46
+title: Average Net Operating Assets
+formula concept: (Prior NOA + Current NOA) / 2
 ```
 
-with the correct signs.
+Dependencies:
 
-Do not create a new artificial judgment type solely to obtain an OWCL live-workbook test.
+```python
+depends_on_current=("noa_agg",)
+depends_on_previous=("noa_agg",)
+```
 
-### `#N/A` Check regression
+Hints:
 
-Construct a fixture with zero Change in Revenue and nonzero Change in OWCA or OWCL.
+```text
+Average NOA = (Beginning NOA + Ending NOA) / 2.
+Use the same Average NOA denominator as direct RNOA.
+```
 
-For at least one new incremental family prove:
+### 2. `noa_turnover`
 
-- [ ] exact Answer-Key formula passes;
-- [ ] structurally different formula with cached `#N/A` passes;
-- [ ] fabricated numeric `0.0` is rejected.
+```text
+family order: 47
+title: Net Operating Asset Turnover
+formula concept: Revenue / Average NOA
+```
 
-Use the existing cached-error injection test mechanism.
+Dependencies:
+
+```python
+depends_on_current=("revenue_link", "average_noa")
+```
+
+Hints:
+
+```text
+NOA Turnover = Revenue / Average NOA.
+Higher turnover means more Revenue is generated per unit of net operating assets, but the cause requires separate analysis.
+A zero Average NOA denominator makes the ratio undefined (#N/A).
+```
+
+### 3. `noa_intensity`
+
+```text
+family order: 48
+title: Net Operating Asset Intensity
+formula concept: Average NOA / Revenue
+```
+
+Dependencies:
+
+```python
+depends_on_current=("average_noa", "revenue_link")
+```
+
+Hints:
+
+```text
+NOA Intensity = Average NOA / Revenue.
+It expresses how much net operating asset investment supports each unit of Revenue.
+A zero Revenue denominator makes the ratio undefined (#N/A).
+```
+
+### 4. `rnoa_margin_turnover`
+
+```text
+family order: 49
+title: RNOA from Margin × Turnover
+formula concept: NOPAT Margin × NOA Turnover
+```
+
+Dependencies:
+
+```python
+depends_on_current=("nopat_margin", "noa_turnover")
+```
+
+Hints:
+
+```text
+RNOA = NOPAT Margin × NOA Turnover when both terms are defined.
+This separates operating profitability per sales dollar from operating-asset efficiency.
+If either required driver is undefined, the decomposition is also undefined (#N/A).
+```
+
+### Expected values
+
+In `core/model/historical_expected.py`, import the new catalog and:
+
+```python
+from .profitability_drivers import compute_profitability_driver_series
+```
+
+Add:
+
+```python
+_PROFITABILITY_DRIVER_FAMILY_SERIES = (
+    "average_noa",
+    "noa_turnover",
+    "noa_intensity",
+    "rnoa_margin_turnover",
+)
+```
+
+Create:
+
+```python
+def profitability_driver_expected_series(
+    anchor: AnchorMetrics,
+) -> dict[str, tuple[float | str | None, ...]]:
+    drivers = compute_profitability_driver_series(anchor)
+    series = {
+        "average_noa": drivers.average_noa,
+        "noa_turnover": drivers.noa_turnover,
+        "noa_intensity": drivers.noa_intensity,
+        "rnoa_margin_turnover": drivers.rnoa_from_margin_turnover,
+    }
+    expected_ids = {
+        family.id for family in PROFITABILITY_DRIVER_COMPONENT_CATALOG
+    }
+    if set(series) != expected_ids:
+        ...
+    return {
+        family_id: series[family_id]
+        for family_id in _PROFITABILITY_DRIVER_FAMILY_SERIES
+    }
+```
+
+Use the same explicit missing/extra `ValueError` pattern as the other expected-series helpers.
+
+Extend `expected_value_for_component()` with a profitability-driver branch before falling back to historical core families.
+
+### Expansion acceptance
+
+For five fiscal periods:
+
+```text
+4 families × 4 comparable periods = 16 practice cells
+```
+
+TDD:
+
+- [ ] new catalog contains exactly four unique IDs;
+- [ ] all four families are comparable-period families;
+- [ ] five demo periods expand to exactly 16 concrete specs;
+- [ ] expected-series keys exactly equal catalog IDs;
+- [ ] existing historical / normalization / quality / working-capital catalog definitions remain unchanged;
+- [ ] `rnoa_margin_turnover` expected values reconcile to direct RNOA whenever numeric.
 
 ---
 
-## Task 5 — Protect and audit the new generated decomposition cells
+## Task 3 — Wire profitability drivers into `ReferenceModelBuilder`
 
 **Files:**
-- Modify: `core/tests/test_working_capital.py`
+- Modify: `core/engine/reference_model.py`
+- Test: `core/tests/test_profitability_drivers.py`
+- Test: `core/tests/test_reference_integrity.py`
+
+Import:
+
+```python
+from ..model.profitability_drivers import compute_profitability_driver_series
+```
+
+and:
+
+```python
+from .component_catalog import expand_profitability_driver_specs
+```
+
+After existing historical / normalization / quality / working-capital specs are established, always compute:
+
+```python
+self.profitability_driver_series = compute_profitability_driver_series(self.anchor)
+self.profitability_driver_specs = expand_profitability_driver_specs(
+    self.periods,
+    start_order=(
+        len(self.historical_specs)
+        + len(self.normalization_specs)
+        + len(self.quality_specs)
+        + len(self.working_capital_specs)
+        + 1
+    ),
+)
+```
+
+Then append:
+
+```python
+self.expected_specs = (
+    self.historical_specs
+    + self.normalization_specs
+    + self.quality_specs
+    + self.working_capital_specs
+    + self.profitability_driver_specs
+)
+```
+
+Create:
+
+```python
+self._profitability_driver_spec_index = {
+    (s.family_id, s.period_index): s
+    for s in self.profitability_driver_specs
+}
+```
+
+Add a registration helper analogous to `_register_working_capital()`:
+
+```python
+def _register_profitability_driver(
+    self,
+    family_id: str,
+    period_index: int,
+    tab: str,
+    row: int,
+    col: int,
+    formula: str,
+    expected: float | str,
+    related: list[str] | None = None,
+) -> None:
+    spec = self._profitability_driver_spec_index[(family_id, period_index)]
+    self.semantic_map.register(
+        spec,
+        tab,
+        row,
+        col,
+        formula,
+        expected,
+        related_cells=related,
+    )
+```
+
+Do not create a new worksheet.
+
+---
+
+## Task 4 — Append the RNOA driver section to `ALT DuPont`
+
+**Files:**
+- Modify: `core/engine/reference_model.py`
+- Test: `core/tests/test_profitability_drivers.py`
+- Test: `core/tests/test_reference_integrity.py`
+
+Keep all existing `ALT DuPont` rows and formulas unchanged. Append the new section after the existing `Actual ROE` row.
+
+Derive rows dynamically:
+
+```python
+driver_section_row = actual_row + 2
+average_noa_row = driver_section_row + 1
+turnover_row = driver_section_row + 2
+intensity_row = driver_section_row + 3
+driver_rnoa_row = driver_section_row + 4
+driver_check_row = driver_section_row + 5
+```
+
+Labels:
+
+```text
+RNOA DRIVER DECOMPOSITION
+Average NOA
+NOA Turnover
+NOA Intensity
+RNOA from Margin × Turnover
+RNOA DRIVER CHECK
+```
+
+Make the section label and check label bold.
+
+### First fiscal period
+
+Write literal visible `N/A` in all five metric/check rows. Do not register first-period practice components.
+
+### Comparable-period formulas
+
+For every `j > 0`:
+
+```python
+average_noa = (
+    f"=('Condensed Financials'!{src_prev}{noa_r}+"
+    f"'Condensed Financials'!{src_col}{noa_r})/2"
+)
+turnover = (
+    f"=IF({out_col}{average_noa_row}=0,NA(),"
+    f"'Condensed Financials'!{src_col}{rev_r}/{out_col}{average_noa_row})"
+)
+intensity = (
+    f"=IF('Condensed Financials'!{src_col}{rev_r}=0,NA(),"
+    f"{out_col}{average_noa_row}/'Condensed Financials'!{src_col}{rev_r})"
+)
+driver_rnoa = f"={out_col}{margin_row}*{out_col}{turnover_row}"
+```
+
+Use number formats:
+
+```text
+Average NOA -> NUM_FMT
+NOA Turnover -> "0.00x"
+NOA Intensity -> "0.00x"
+RNOA from Margin × Turnover -> PCT_FMT
+```
+
+Register rows `average_noa_row`, `turnover_row`, `intensity_row`, and `driver_rnoa_row` as the four new formula families.
+
+### Reconciliation formula
+
+The check must distinguish an unavailable decomposition from a genuine inconsistency:
+
+```python
+driver_check = (
+    f'=IF(ISNA({out_col}{driver_rnoa_row}),"N/A",'
+    f'IF(ISNA({out_col}{rnoa_row}),"CHECK",'
+    f'IF(ABS({out_col}{driver_rnoa_row}-{out_col}{rnoa_row})<0.0000001,'
+    f'"OK","CHECK")))'
+)
+```
+
+This row is generated non-practice logic.
+
+Required behavior:
+
+```text
+numeric driver RNOA == direct RNOA -> OK
+driver decomposition #N/A          -> N/A
+driver numeric but direct #N/A     -> CHECK
+numeric mismatch                    -> CHECK
+```
+
+Do not use `IFERROR(...,"OK")` or convert undefined ratios to zero.
+
+Add rowmap entries:
+
+```python
+self.rowmap["dupont_average_noa_row"] = average_noa_row
+self.rowmap["dupont_noa_turnover_row"] = turnover_row
+self.rowmap["dupont_noa_intensity_row"] = intensity_row
+self.rowmap["dupont_driver_rnoa_row"] = driver_rnoa_row
+self.rowmap["dupont_driver_check_row"] = driver_check_row
+```
+
+TDD:
+
+- [ ] all existing ALT DuPont labels/formulas remain at their prior coordinates;
+- [ ] new section appears after Actual ROE;
+- [ ] first-period cells show literal `N/A`;
+- [ ] comparable Average NOA uses prior/current Condensed NOA;
+- [ ] turnover guards zero Average NOA with `NA()`;
+- [ ] intensity guards zero Revenue with `NA()`;
+- [ ] driver RNOA multiplies existing NOPAT Margin by new NOA Turnover;
+- [ ] reconciliation returns `OK` for ordinary demo periods;
+- [ ] reconciliation returns `N/A` when the decomposition itself is undefined;
+- [ ] reconciliation row is not a practice component;
+- [ ] Answer Key has formulas + Notes for the 16 new practice cells;
+- [ ] Trainer has those cells blank bright yellow with no comments.
+
+---
+
+## Task 5 — Prove classification-conditioned profitability drivers
+
+**Files:**
+- Modify: `core/tests/test_profitability_drivers.py`
 - Modify: `core/tests/test_reference_integrity.py`
-- Modify: `core/trainer/check_context.py` only if the generic existing trusted-sheet mechanism fails a regression
 
-The existing generic trusted validation for `Working Capital Analysis` should already treat all non-practice cells as system-controlled. Do not add a second special-case validator if the generic mechanism works.
+Use the existing live classification judgment machinery. Select an existing balance-sheet case whose alternative treatment changes NOA, such as a line moving between Financial Asset and Operating Working Capital Asset.
 
-Add a regression:
+Prove that changing `Accounting Judgment!F` changes current-state expected values for:
 
-1. build a Trainer / Answer-Key pair with Working Capital Analysis;
-2. enter one valid learner practice formula in a new driver family;
-3. overwrite one generated `DRIVER DECOMPOSITION CHECK` formula in the Trainer;
-4. run Check;
-5. require `ValueError` before any recoloring;
-6. reopen the workbook and prove the learner practice cell retained its prior yellow fill.
+```text
+Average NOA
+NOA Turnover
+NOA Intensity
+RNOA from Margin × Turnover
+direct RNOA
+```
 
-Also prove that learner edits to the new five semantic practice families are not structurally rejected merely because they differ from the Answer-Key formula text.
+Formula Check must:
 
-Do not compare formatting/styles as trusted state; preserve the existing contents-only integrity contract.
+- accept exact formulas under either allowed classification treatment;
+- accept equivalent formulas whose cached values match the current treatment;
+- reject a stale cached value generated under the previous treatment.
+
+Do not change `_CheckContext` schema. These diagnostics derive entirely from the classification-conditioned `AnchorMetrics` already recomputed by Check.
 
 ---
 
-## Task 6 — Preserve surface ordering and documentation
+## Task 6 — Protect generated reconciliation and preserve `#N/A` behavior
 
 **Files:**
+- Modify: `core/tests/test_profitability_drivers.py`
+- Modify: `core/tests/test_reference_integrity.py`
+- Production code: only if a failing test proves current generic trusted-sheet validation is insufficient
+
+`ALT DuPont` is already a trusted sheet outside semantic practice cells. The new `RNOA DRIVER CHECK` row must therefore be protected automatically.
+
+Add regressions covering:
+
+### Trusted-row tamper
+
+1. Build a Trainer/Answer-Key pair.
+2. Enter one valid new profitability-driver formula in a Trainer practice cell.
+3. Overwrite one comparable-period `RNOA DRIVER CHECK` formula.
+4. Run Check.
+5. Require structural `ValueError` before recoloring.
+6. Reopen Trainer and prove the learner practice cell remains yellow.
+
+### Undefined decomposition
+
+Create a fixture with zero Revenue but nonzero Average NOA:
+
+```text
+NOPAT Margin -> #N/A
+NOA Turnover -> numeric 0.0
+NOA Intensity -> #N/A
+RNOA from Margin × Turnover -> #N/A
+```
+
+The generated reconciliation must show `N/A`, not `CHECK` or `OK`.
+
+### Formula Check `#N/A`
+
+For one undefined new ratio:
+
+- exact formula -> green;
+- structurally different formula with cached `#N/A` -> green;
+- fabricated cached `0.0` when expected `#N/A` -> red.
+
+Reuse the existing cached-error test helper rather than creating production-only logic.
+
+---
+
+## Task 7 — Update trainer/index metadata and acceptance counts
+
+**Files:**
+- Modify: `core/trainer/workbook.py`
 - Modify: `skills/bav-trainer/SKILL.md`
+- Modify: count assertions in relevant tests
+
+Import `PROFITABILITY_DRIVER_COMPONENT_CATALOG` in `core/trainer/workbook.py` and include it in `family_meta` so `core list` and the Trainer index render the four new schedules correctly.
+
+Do not change grouping semantics for existing families.
+
+Five-year acceptance surfaces after Step 9C.1:
+
+```text
+base demo:          45 families / 204 practice cells
+normalization demo: 49 families / 224 practice cells
+```
+
+Profitability-driver contribution:
+
+```text
+4 families / 16 practice cells
+```
+
+Update `skills/bav-trainer/SKILL.md` to describe the new historical profitability-driver surface as:
+
+```text
+RNOA margin / NOA-turnover decomposition and NOA intensity
+```
+
+Do not claim that the trainer automatically explains the business cause of margin or turnover changes.
+
+---
+
+## Task 8 — Full verification and checkpoint evidence
+
+**Files:**
 - Modify: `RESULT.md`
-- Modify: `IMPLEMENTATION.md` status only after verification
-- Modify: `core/trainer/workbook.py` only if a failing list/index test proves the generic working-capital catalog grouping does not include the five appended families
+- Modify: `IMPLEMENTATION.md` status only after all verification passes
 - Do not modify: `TARGET.md`
 
-The existing generic Trainer grouping already reads `WORKING_CAPITAL_COMPONENT_CATALOG`. The five appended families should therefore appear automatically after the six Step 9B.1 families.
-
-Required family order on the Trainer index:
-
-```text
-35  Operating working capital assets / Revenue
-36  Operating working capital liabilities / Revenue
-37  NOWC / Revenue
-38  Change in Revenue
-39  Change in NOWC
-40  Incremental NOWC / Change in Revenue
-41  Change in Operating Working Capital Assets
-42  Change in Operating Working Capital Liabilities
-43  Change in NOWC from OWCA / OWCL bridge
-44  Incremental OWCA / Change in Revenue
-45  Incremental OWCL / Change in Revenue
-```
-
-Update the skill documentation so it no longer describes the working-capital module as only six families / 27 cells.
-
-For the five-year demo, the completed Step 9B.2 surface must be:
-
-```text
-base demo:
-41 families
-188 practice cells
-
-normalization demo:
-45 families
-208 practice cells
-```
-
-These are demo acceptance counts, not universal product constants.
-
-`RESULT.md` must record:
-
-- actual full-suite test count;
-- 11 working-capital families / 47 working-capital practice cells on the applicable five-year demo;
-- OWCA / OWCL change series;
-- NOWC component bridge reconciliation;
-- incremental OWCA / OWCL ratios;
-- zero Change in Revenue `#N/A` behavior;
-- signed declining-Revenue behavior preserved;
-- live classification-conditioned expected values preserved;
-- trusted driver-check tamper fails before recoloring;
-- no causal working-capital diagnosis or quality score introduced;
-- base 41 / 188 and normalization 45 / 208 demo surfaces;
-- no forecasting or valuation introduced.
-
----
-
-## Task 7 — Full verification
-
-Run the focused suite first:
+Run focused suites:
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_working_capital.py -v
-```
-
-Then run the main regression suites:
-
-```bash
+PYTHONPATH=. pytest core/tests/test_profitability_drivers.py -v
 PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
 PYTHONPATH=. pytest core/tests/test_trainer.py -v
+PYTHONPATH=. pytest core/tests/test_working_capital.py -v
 PYTHONPATH=. pytest core/tests/test_normalization.py -v
 PYTHONPATH=. pytest core/tests/test_earnings_quality.py -v
-PYTHONPATH=. pytest core/tests/test_classification.py -v
-PYTHONPATH=. pytest core/tests/test_line_identity.py -v
-PYTHONPATH=. pytest core/tests/test_line_resolver.py -v
-PYTHONPATH=. pytest core/tests/test_validators.py -v
 ```
 
 Then run the complete suite:
@@ -646,9 +732,9 @@ Then run the complete suite:
 PYTHONPATH=. pytest core/tests/ -q
 ```
 
-Do not state an expected total test count in advance. Record the actual passing count in `RESULT.md`.
+Record the actual pass count; do not predeclare it.
 
-### Base build
+Verify base build:
 
 ```bash
 PYTHONPATH=. python -m core build \
@@ -662,15 +748,15 @@ PYTHONPATH=. python -m core list \
   --workbook /tmp/DEMO_BASE_Trainer.xlsx
 ```
 
-Required current-demo result:
+Required:
 
 ```text
-188 practice cells
-0 correct / 0 incorrect / 188 blank
-41 schedule groups
+204 practice cells
+0 correct / 0 incorrect / 204 blank
+45 schedule groups
 ```
 
-### Normalization build
+Verify normalization build:
 
 ```bash
 PYTHONPATH=. python -m core build \
@@ -685,26 +771,15 @@ PYTHONPATH=. python -m core list \
   --workbook /tmp/DEMO_NORM_Trainer.xlsx
 ```
 
-Required current-demo result:
+Required:
 
 ```text
-208 practice cells
-0 correct / 0 incorrect / 208 blank
-45 schedule groups
+224 practice cells
+0 correct / 0 incorrect / 224 blank
+49 schedule groups
 ```
 
-### Applicability-gate preservation
-
-Build the existing all-zero OWCA / OWCL fixture and prove:
-
-```text
-Working Capital Analysis sheet: absent
-working-capital components: absent
-```
-
-Do not require 41 / 188 counts for a company where the module is inapplicable.
-
-### CLI
+Verify CLI remains unchanged:
 
 ```bash
 PYTHONPATH=. python -m core --help
@@ -719,29 +794,44 @@ check
 list
 ```
 
+`RESULT.md` must record:
+
+- actual full-suite pass count;
+- 4 profitability-driver families / 16 practice cells in the five-year demo;
+- Average NOA calculation;
+- NOA Turnover and NOA Intensity;
+- RNOA = NOPAT Margin × NOA Turnover reconciliation when defined;
+- undefined decomposition yields `N/A` rather than a false failure;
+- live-classification treatment changes NOA-based dynamic expected values;
+- generated RNOA driver-check tamper fails before recoloring;
+- exact/equivalent `#N/A` formulas pass and fabricated `0.0` fails;
+- base 45 / 204 surface;
+- normalization 49 / 224 surface;
+- no automatic causal diagnosis, forecasting, or valuation introduced;
+- `TARGET.md` unchanged.
+
 ---
 
 ## Definition of done
 
-Step 9B.2 is complete only when:
+Step 9C.1 is complete only when:
 
-1. `WorkingCapitalSeries` separately reports Change in OWCA and Change in OWCL.
-2. The independently computed component bridge reconciles to direct Change in NOWC.
-3. Incremental OWCA / Change in Revenue and Incremental OWCL / Change in Revenue preserve signed arithmetic.
-4. Zero Change in Revenue produces `#N/A`, not numeric zero.
-5. Five new comparable-period formula families are registered and checked.
-6. The existing six Step 9B.1 families remain unchanged.
-7. Working Capital Analysis contains a visible asset/liability driver-decomposition section.
-8. The generated decomposition check is trusted and tamper-detected before recoloring.
-9. Live classification judgment changes the new dynamic expected values where relevant.
-10. No automatic good/bad label, causal line-item diagnosis, or seasonality claim is introduced.
-11. All-zero OWCA / OWCL still omits the module entirely.
-12. Base demo is 41 families / 188 practice cells.
-13. Normalization demo is 45 families / 208 practice cells.
-14. Fresh Check is all blank on both generated Trainer workbooks.
-15. The full test suite passes.
-16. CLI remains `{ingest,build,check,list}`.
-17. `TARGET.md` is unchanged.
-18. Forecasting and valuation have not begun.
+1. Average NOA is an explicit comparable-period formula family.
+2. NOA Turnover is an explicit comparable-period formula family.
+3. NOA Intensity is an explicit comparable-period formula family.
+4. RNOA from NOPAT Margin × NOA Turnover is an explicit comparable-period formula family.
+5. Numeric driver RNOA reconciles to direct RNOA within tolerance.
+6. Undefined margin/turnover decomposition remains `#N/A` and does not create a false reconciliation failure.
+7. Zero Average NOA produces `#N/A` turnover.
+8. Zero Revenue produces `#N/A` intensity.
+9. Existing direct RNOA and NOPAT Margin formulas remain unchanged.
+10. Live classification treatment dynamically changes NOA-based driver expecteds.
+11. Generated `RNOA DRIVER CHECK` is trusted non-practice logic and tampering fails before recoloring.
+12. The five-year profitability-driver module is 4 families / 16 practice cells.
+13. Base demo is 45 families / 204 practice cells.
+14. Normalization demo is 49 families / 224 practice cells.
+15. Full test suite passes.
+16. `TARGET.md` is unchanged.
+17. No automatic profitability-quality judgment, company-specific causal inference, forecasting, or valuation has been introduced.
 
-After completing Step 9B.2, stop and report changed files, exact test output, demo build/check/list output, decomposition-reconciliation evidence, live-classification evidence, and any new active historical-model issue found during implementation. Do not proceed to line-item causal diagnosis, forecasting, or valuation, and do not commit or push.
+After completing Step 9C.1, stop and report changed files, exact test output, demo build/check/list output, RNOA reconciliation evidence, live-classification evidence, and any new active historical-model issue found during implementation. Do not proceed to forecasting or valuation, and do not commit or push.
