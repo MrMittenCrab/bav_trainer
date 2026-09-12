@@ -1,363 +1,135 @@
-# Step 8B2.1 — Normalization Integrity Hardening
+# Step 8B2.2 — Trusted Workbook State Hardening
 
-> **Status:** Complete (local verification recorded in `RESULT.md`). Do not commit/push from Cursor.
+> **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `77df6213ae042a1ece94ac20888336a4ea7b1e75` (`Step 8.2 Hardened`). Implement only Step 8B2.2 below using red/green TDD. Preserve all Step 8A, Step 8B1, Step 8B2, and Step 8B2.1 behavior except where this plan explicitly corrects treatment-whitespace semantics and strengthens trusted-workbook validation. Do not begin Step 9, earnings-quality diagnostics, accrual/cash-conversion analysis, forecasting, valuation, ROU/deferred-tax alternative modeling, or any new curriculum feature. Do not commit or push; the user owns the checkpoint commit.
 
-> **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `3c02649c7fc00272297c557fba9d88a007bf289d` (`Step 8.2`). Implement only the Step 8B2.1 hardening below using red/green TDD. Preserve the existing Step 8A/8B1 classification workflow and Step 8B2 normalization workflow. Do not begin Step 9, earnings-quality diagnostics, accrual/cash-conversion analysis, ROU/deferred-tax alternative modeling, forecasting, or valuation. Do not commit or push; the user owns the checkpoint commit.
+**Goal:** Guarantee that Formula Check and the visible workbook operate on the same trusted state. Invalid or padded judgment inputs must fail closed, and edits to system-supplied source/setup/model cells must be detected before learner formulas can receive green status.
 
-**Goal:** Make Step 8B2 trustworthy under workbook tampering and edge-case configuration: a green Check must not survive broken system-controlled normalization links, duplicate candidates must not double-count earnings adjustments, normalization source identity must remain stable, and invalid treatment input must fail closed.
+**Architecture:** Keep exact-formula acceptance. Do not add a formula evaluator. Instead, establish a clear workbook boundary: semantic practice cells and designated judgment response cells are learner-controlled; source facts, supplied classifications, generated links, labels, and other active model cells are system-controlled. Before grading, compare those trusted cells against the matching Answer Key.
 
-**Architecture:** Keep the existing normalization model and workbook surface. Harden the boundary around it rather than redesigning it. Formula practice cells remain learner-editable and may contain any equivalent formula; generated non-practice formulas in `Earnings Normalization` are system-controlled and must exactly match the Answer Key before grading. Normalization candidates resolve once to stable line identity, and later computation must use that identity rather than re-resolving through a potentially ambiguous selector.
+**Tech Stack:** Python, pytest, openpyxl, existing `SemanticMap`, `CheckContext`, `validate_live_model_structure`, `check_workbook`, and OOXML fill patching.
 
-**Tech Stack:** Python, pytest, openpyxl, existing `NormalizationCase`, `CheckContext`, `SemanticMap`, `ReferenceModelBuilder`, `check_workbook`, and OOXML-preserving fill patching.
-
-**Spec:** `TARGET.md`, especially Level 2 analyst judgment, earnings normalization, auditability/reconciliation, reported-source preservation, Trainer/Answer-Key separation, and non-disclosing workbook-wide Check.
+**Spec:** `TARGET.md`, especially supplied-source preservation, supplied setup judgments, semantic practice mapping, model auditability, professional-workbook preservation, Trainer/Answer-Key separation, and non-disclosing workbook-wide Check.
 
 ---
 
-## Review of commit `3c02649c`
+## Review of commit `77df6213`
 
-Step 8B2 is substantially implemented:
+Step 8B2.1 successfully added:
 
-- explicit normalization candidates;
-- `Recurring` / `Non-recurring` guided judgment;
-- separate `Normalization Judgment` and `Earnings Normalization` sheets;
-- four normalization formula families;
-- treatment-conditioned Formula Check;
-- schema-v2 `_CheckContext`;
-- no-assumptions build preserved at 25 families / 118 practice cells;
-- demo normalization build at 29 families / 138 practice cells;
-- Step 8B1 classification and Step 8B2 normalization compose in one Check.
+- duplicate normalization-candidate rejection;
+- stable `line_identity` normalization computation;
+- label-selector preservation;
+- typographic-apostrophe normalization;
+- protection of generated non-practice `Earnings Normalization` formulas;
+- whitespace-only treatment rejection;
+- no partial recoloring after structural failure.
 
-Before Step 9, harden these defects:
+Two integrity gaps remain.
 
-1. Exact learner formulas can currently be marked correct even if a generated non-practice dependency in `Earnings Normalization` has been overwritten.
-2. The same source line can be configured as a normalization candidate more than once, allowing duplicate adjustment rows and potential double-counting.
-3. A uniquely resolved label candidate may later be converted to a concept selector that is ambiguous across multiple differently labeled lines.
-4. Whitespace-only judgment values are treated as blank by Python Check but not by the generated Excel live-link formula.
-5. Typographic apostrophe normalization in label selectors contains an implementation typo.
+### Gap 1 — padded valid treatments produce two different model states
 
-This checkpoint fixes only those defects.
+Python currently strips:
+
+```python
+" Non-recurring " -> "Non-recurring"
+```
+
+while the workbook live formula returns the untrimmed value in F.
+
+This can make:
+
+```text
+Python Check state != Excel workbook state
+```
+
+Do not solve this by making Excel silently normalize arbitrary pasted input. Fail closed instead.
+
+### Gap 2 — supplied facts/setup remain outside the integrity boundary
+
+Exact formulas are accepted structurally. Therefore the inputs feeding those formulas must be trustworthy.
+
+Currently a learner can accidentally alter, among other things:
+
+- historical source-statement numbers;
+- supplied fixed balance-sheet classifications;
+- non-practice generated/model cells outside the normalization-specific gate.
+
+Check can still mark an exact formula green.
+
+Step 8B2.2 establishes the system-controlled/learner-controlled cell boundary explicitly.
 
 ---
 
 ## Global constraints
 
 - `TARGET.md` is read-only.
-- Preserve the current five-year demo.
-- Preserve the no-normalization surface: 25 families / 118 practice cells.
-- Preserve the normalization demo surface: 29 families / 138 practice cells.
-- Preserve all existing Step 8B1 classification behavior.
-- Preserve Step 8B2 economics and the `operating_pretax_effective_tax` convention.
-- Reported source statements and reported historical formulas remain unchanged by normalization choices.
-- Formula practice cells remain learner-editable and may use equivalent formulas.
-- Generated non-practice model links are not learner inputs.
-- Check must fail before applying any fill changes when structural validation fails.
+- Preserve five demo fiscal years.
+- Preserve base build at 25 families / 118 practice cells.
+- Preserve normalization build at 29 families / 138 practice cells.
+- Practice cells remain learner-controlled.
+- `Accounting Judgment` and `Normalization Judgment` F:G:H remain learner-controlled where case rows exist.
+- F is the only live treatment input.
+- G:H remain ungraded free-form responses.
+- Source statements are supplied system facts, not learner practice.
+- Fixed classifications are supplied system facts, not learner practice.
+- Generated links/formulas outside semantic practice cells are system-controlled.
+- Check must fail before any fill update when trusted workbook state has been modified.
 - Check remains non-disclosing.
-- `_CheckContext` remains Answer-Key-only.
-- No formula answers, expected values, hints, rationale answers, or consequence answers may leak into the Trainer.
+- Do not compare styles or comments as part of model-state integrity.
+- Do not add a formula evaluator.
+- Do not change economic formulas.
+- Do not regenerate committed demo XLSX files unless workbook generation itself must change.
 - No new public CLI command.
-- No forecasting, valuation, Step 9 diagnostics, Hint/Reveal, VBA, or free-form grading.
-- Cursor must not commit, push, reset, rebase, merge, or delete branches.
+- No Step 9 work.
+- Cursor must not commit, push, merge, reset, rebase, or delete branches.
 
 ---
 
-## Task 1 — Protect every generated formula feeding `Earnings Normalization`
+## Task 1 — Reject all padded treatment input
 
 **Files:**
 - Modify: `core/trainer/check_context.py`
-- Modify: `core/trainer/checker.py`
-- Test: `core/tests/test_normalization.py`
+- Modify: `core/tests/test_normalization.py`
+- Modify classification-related tests only if needed
 
-### Problem
+### Correct treatment semantics
 
-`check_workbook()` accepts an exact practice formula before evaluating its result.
+Replace the current trimming-and-accepting behavior.
 
-That is correct for learner formula grading only if all non-practice inputs to that formula are still trustworthy.
-
-Step 8B2 currently structurally protects the generated treatment link, but `Earnings Normalization` also contains generated formulas linking:
-
-- normalization treatment;
-- source income-statement amounts;
-- reported NOPAT;
-- reported Net Income;
-- effective tax rate;
-- `NORMALIZATION CHECK`.
-
-If one of these is overwritten, an untouched learner formula must not still receive green.
-
-### Interface
-
-Extend:
+Required contract:
 
 ```python
-def validate_live_model_structure(
-    trainer_wb,
-    answer_key_wb,
-    context: CheckContext,
-    *,
-    practice_cells: set[tuple[str, str]] | None = None,
-) -> None:
-    ...
-```
+None
+    -> reference treatment
 
-Existing three-argument callers must continue to work by treating `practice_cells=None` as an empty set.
+""
+    -> reference treatment
 
-In `check_workbook()` construct:
+"Recurring"
+    -> "Recurring"
 
-```python
-practice_cells = {
-    (comp.tab, comp.cell)
-    for comp in comps
-}
-```
+"Non-recurring"
+    -> "Non-recurring"
 
-and call:
+" Recurring "
+    -> ValueError
 
-```python
-validate_live_model_structure(
-    wb,
-    answer_wb,
-    context,
-    practice_cells=practice_cells,
-)
-```
+"Non-recurring "
+    -> ValueError
 
-### Structural rule
+" Financial Liability "
+    -> ValueError
 
-When `context.normalization_bindings` is non-empty:
+"   "
+    -> ValueError
 
-1. `Normalization Judgment` and `Earnings Normalization` must exist in both Trainer and Answer Key.
-2. Preserve the existing D/E prompt validation and generated treatment-link validation.
-3. Inspect the trusted Answer Key `Earnings Normalization` sheet.
-4. For every cell whose Answer-Key value is an Excel formula beginning with `=`:
-   - if `(EARNINGS_NORMALIZATION_SHEET, cell.coordinate)` is a semantic practice cell, ignore it;
-   - otherwise the Trainer cell at the same coordinate must contain the exact same formula.
-5. Any mismatch raises `ValueError` before treatment recomputation and before any fill updates.
-
-Do not compare learner practice formulas structurally. They must remain eligible for equivalent-formula grading.
-
-A focused helper is preferred:
-
-```python
-def _validate_generated_formula_cells(
-    trainer_ws,
-    answer_ws,
-    *,
-    sheet_name: str,
-    excluded_cells: set[str],
-) -> None:
-    ...
-```
-
-`excluded_cells` should contain the practice coordinates for that sheet only.
-
-### TDD
-
-- [ ] Build a normalization Trainer/Answer-Key pair.
-- [ ] Parameterize tampering cases covering at least:
-  - detail source-link formula;
-  - reported NOPAT link;
-  - reported Net Income link;
-  - effective-tax-rate link;
-  - `NORMALIZATION CHECK` formula.
-- [ ] For each case, overwrite the Trainer formula and assert `check_workbook()` raises `ValueError`.
-- [ ] Before calling Check, put a valid learner formula in one practice cell.
-- [ ] After the structural failure, reopen the workbook and prove that practice cell retained its previous yellow fill: no partial recoloring occurred.
-- [ ] Preserve the existing treatment-link tamper regression.
-- [ ] Add a regression proving a learner practice cell may differ from the Answer Key formula and still reach normal grading rather than structural rejection.
-
-Run:
-
-```bash
-PYTHONPATH=. pytest core/tests/test_normalization.py -k "tamper or generated or structural" -v
-```
-
-This command runs only the new setup-integrity regressions.
-
-Implement the minimal validation and rerun until green.
-
----
-
-## Task 2 — Make normalization candidates unique and source identity stable
-
-**Files:**
-- Modify: `core/model/normalization.py`
-- Test: `core/tests/test_normalization.py`
-
-### Part A — Reject duplicate configured candidates
-
-`normalization_cases()` must never produce two cases for the same resolved income-statement line.
-
-Track resolved:
-
-```python
-identity = line_identity(item).key()
-```
-
-while parsing configured candidates.
-
-If the same identity appears more than once, raise:
-
-```text
-duplicate normalization candidate for income-statement line ...
-```
-
-Reject duplicates after selector resolution but before case construction.
-
-Do not silently deduplicate. A duplicate assumptions file is a configuration error.
-
-### Tests
-
-- [ ] Configure the same `concept:` candidate twice -> `ValueError`.
-- [ ] Configure the same line once by concept and once by label -> `ValueError`.
-- [ ] Assert the error occurs rather than producing two cases.
-
-### Part B — Compute using `line_identity`, not a re-resolved selector
-
-Create:
-
-```python
-def resolve_income_statement_identity(
-    financials: StandardizedFinancials,
-    identity_key: str,
-) -> LineItem:
-    ...
-```
-
-Implementation contract:
-
-```python
-matches = [
-    item
-    for item in financials.income_statement
-    if line_identity(item).key() == identity_key
-]
-```
-
-Exactly one match is required.
-
-- zero matches -> `ValueError`;
-- more than one match -> `ValueError`.
-
-Change `compute_normalization_series()` so:
-
-```python
-items_by_case[case.id]
-```
-
-is resolved from:
-
-```python
-case.line_identity
-```
-
-rather than `case.override_selector`.
-
-The candidate selector is used to choose the line when creating the case. Once chosen, stable line identity is authoritative.
-
-### Part C — Preserve selector semantics
-
-Fix `_stable_override_selector()`.
-
-If the supplied selector is a concept selector:
-
-```text
-concept:<normalized concept>
-```
-
-may remain the stored selector.
-
-If the supplied selector is a label selector or bare label:
-
-```text
-label:<original resolved line label>
-```
-
-must remain label-based even when the selected row also has a concept.
-
-Do not silently convert a unique label selection into a possibly non-unique concept selection.
-
-### Regression test
-
-Construct two income-statement rows such as:
-
-```text
-concept = "special_item"
-label   = "Restructuring charge"
-
-concept = "special_item"
-label   = "Litigation charge"
-```
-
-Then:
-
-```python
-selector = "label:Restructuring charge"
-```
-
-must:
-
-1. resolve exactly one normalization case;
-2. retain a label-based stable selector;
-3. compute normalization using only `Restructuring charge`;
-4. not raise concept ambiguity;
-5. not include `Litigation charge` in the adjustment.
-
-Run:
-
-```bash
-PYTHONPATH=. pytest core/tests/test_normalization.py -k "duplicate or identity or selector" -v
-```
-
-Implement until green.
-
----
-
-## Task 3 — Make invalid judgment input fail closed
-
-**Files:**
-- Modify: `core/trainer/check_context.py`
-- Test: `core/tests/test_normalization.py`
-- Test existing classification tests if needed
-
-### Problem
-
-The generated workbook live link treats only a genuinely empty F cell as blank:
-
-```excel
-F5=""
-```
-
-Python currently strips whitespace and can interpret `"   "` as blank/reference treatment.
-
-That creates two different model states.
-
-Do not broaden Excel formula behavior in this checkpoint. Instead make Check reject whitespace-only and other non-option input.
-
-### Required behavior
-
-For both:
-
-```python
-classification_overrides_for_check(...)
-normalization_treatments_for_check(...)
-```
-
-use this semantic distinction:
-
-```python
-selected is None or selected == ""
-    -> use reference treatment
-
-selected contains non-empty text
-    -> strip surrounding whitespace
-    -> resulting treatment must be one of allowed_treatments
-
-selected contains only whitespace
+"Not A Treatment"
     -> ValueError
 ```
 
-A helper may be introduced to remove duplication:
+A nonblank treatment must exactly equal one of the allowed strings as stored in Excel.
+
+Implement the equivalent of:
 
 ```python
 def _validated_treatment_selection(
@@ -368,165 +140,360 @@ def _validated_treatment_selection(
     sheet_name: str,
     row: int,
 ) -> str:
+    if selected is None or selected == "":
+        return reference_treatment
+
+    if not isinstance(selected, str):
+        raise ValueError(
+            f"Invalid treatment value on {sheet_name} row {row}: "
+            f"expected one of {list(allowed_treatments)}"
+        )
+
+    if selected != selected.strip():
+        raise ValueError(
+            f"Treatment contains surrounding whitespace on "
+            f"{sheet_name} row {row}"
+        )
+
+    if selected not in allowed_treatments:
+        raise ValueError(
+            f"Invalid treatment {selected!r} on {sheet_name} row {row}; "
+            f"allowed: {list(allowed_treatments)}"
+        )
+
+    return selected
+```
+
+Do not change `live_classification_formula()` or `live_normalization_treatment_formula()` to use `TRIM()`.
+
+### TDD
+
+- [ ] Replace `test_padded_valid_treatments_are_accepted`.
+- [ ] Add a normalization regression where `" Non-recurring "` raises.
+- [ ] Add a normalization regression where `" Recurring "` raises.
+- [ ] Add a classification regression where `" Financial Liability "` raises.
+- [ ] Keep `None` and `""` reference-fallback tests.
+- [ ] Keep exact valid-treatment tests.
+- [ ] Prove failure leaves existing practice-cell fills unchanged.
+
+Run:
+
+```bash
+PYTHONPATH=. pytest core/tests/test_normalization.py \
+  -k "whitespace or padded or treatment" -v
+```
+
+---
+
+## Task 2 — Define the trusted workbook-cell boundary
+
+**Files:**
+- Modify: `core/trainer/check_context.py`
+- Modify: `core/trainer/checker.py`
+- Test: `core/tests/test_normalization.py`
+- Test: `core/tests/test_reference_integrity.py`
+- Test: `core/tests/test_trainer.py` if needed
+
+Create a generic content-integrity helper.
+
+Suggested interface:
+
+```python
+def _validate_trusted_sheet_cells(
+    trainer_ws,
+    answer_ws,
+    *,
+    sheet_name: str,
+    editable_cells: set[str],
+) -> None:
     ...
 ```
 
-Required cases:
+### Comparison rule
 
-```text
-None                  -> reference
-""                    -> reference
-"Recurring"           -> Recurring
-" Recurring "         -> Recurring
-"   "                 -> ValueError
-"Not A Treatment"     -> ValueError
-```
+Use `data_only=False`.
 
-### Tests
-
-- [ ] `Normalization Judgment!F = "   "` -> Check raises before recoloring.
-- [ ] `Accounting Judgment!F = "   "` -> Check raises before recoloring.
-- [ ] Leading/trailing spaces around a valid treatment are accepted after stripping.
-- [ ] Exact blank behavior remains unchanged.
-- [ ] Existing invalid-treatment tests remain green.
-
-Run the normalization test plus the relevant classification integrity tests.
-
----
-
-## Task 4 — Fix typographic-apostrophe label matching
-
-**Files:**
-- Modify: `core/model/normalization.py`
-- Test: `core/tests/test_normalization.py`
-
-Current `_label_match_key()` must normalize common typographic apostrophes deliberately.
-
-Use:
+Iterate through the union of the Trainer and Answer-Key used dimensions:
 
 ```python
-for ch in ("\u2018", "\u2019", "`"):
-    s = s.replace(ch, "'")
+max_row = max(trainer_ws.max_row or 0, answer_ws.max_row or 0)
+max_col = max(trainer_ws.max_column or 0, answer_ws.max_column or 0)
 ```
 
-Do not include ASCII `'` in the replacement tuple because replacing it with itself is meaningless.
+For every coordinate not present in `editable_cells`:
 
-Add a regression such as:
+```python
+trainer_value == answer_value
+```
+
+must hold.
+
+Compare contents only.
+
+Do not compare:
+
+- fill;
+- font;
+- border;
+- number format;
+- comment;
+- data validation;
+- worksheet view state.
+
+If values differ:
 
 ```text
-statement label: Director’s fee
-selector:        label:Director's fee
+Trusted workbook cell was modified: <sheet>!<cell>
 ```
 
-and prove it resolves the intended line.
+raise `ValueError`.
 
-Also test the reverse spelling direction if useful.
-
-Do not add broader fuzzy matching, keyword matching, punctuation stripping, or normalization heuristics.
+This must happen before grading or fill planning.
 
 ---
 
-## Task 5 — Full regression and checkpoint evidence
+## Task 3 — Apply trusted-state validation to supplied source/model sheets
+
+### A. Historical source sheets
+
+The following sheets have no semantic practice cells and no learner judgment cells:
+
+```text
+Income Statement
+Balance Sheet
+Cash Flow Statement
+```
+
+Every populated/model cell on these sheets is trusted.
+
+Validate their cell contents completely against the Answer Key.
+
+This must catch changes to:
+
+- historical numbers;
+- labels;
+- dates;
+- units/source setup;
+- concepts as represented in the workbook.
+
+### B. `Condensed Financials`
+
+All cells are trusted except semantic practice cells on that sheet.
+
+Construct:
+
+```python
+editable_condensed = {
+    cell
+    for tab, cell in practice_cells
+    if tab == "Condensed Financials"
+}
+```
+
+Validate every other cell against the Answer Key.
+
+This protects, among other things:
+
+- supplied fixed balance-sheet classifications;
+- generated live classification links;
+- non-practice reconciliation/model formulas;
+- labels and headers.
+
+The existing per-binding live-classification validator may remain as a more specific error check, but behavior must not conflict with the generic integrity gate.
+
+### C. `ALT DuPont`
+
+All cells are trusted except semantic practice cells on that sheet.
+
+Validate every other cell.
+
+### D. `Earnings Normalization`
+
+All cells are trusted except semantic practice cells.
+
+The new generic mechanism may replace `_validate_generated_formula_cells()` if doing so reduces duplication.
+
+Do not maintain two independent implementations of the same invariant unless the specific treatment-link check provides a clearer error message.
+
+### E. Judgment sheets
+
+For:
+
+```text
+Accounting Judgment
+Normalization Judgment
+```
+
+columns A:E are trusted context.
+
+On actual numbered case rows:
+
+```text
+F = learner treatment
+G = learner rationale
+H = learner consequence
+```
+
+are editable.
+
+Do not compare F:G:H with the Answer Key.
+
+Headers, instructions, row identity, scope/topic, reference treatment, and listed alternatives remain trusted.
+
+Prefer constructing explicit editable coordinate sets from `context.judgment_bindings` and `context.normalization_bindings`.
+
+Do not infer editable rows from worksheet labels.
+
+---
+
+## Task 4 — Close the exact-formula false-green regression
 
 **Files:**
-- Modify: `RESULT.md`
-- Modify: `IMPLEMENTATION.md` only to record completion/status after implementation
-- Modify: `README-HK-TRAINER.md` only if user-facing behavior requires clarification
-- Do not modify: `TARGET.md`
+- Test: `core/tests/test_normalization.py`
+- Test: `core/tests/test_reference_integrity.py`
 
-Run the focused normalization suite first:
+Add end-to-end regressions proving trusted-state validation happens before the exact-formula shortcut.
+
+### Source-value tamper
+
+1. Build a Trainer/Answer-Key pair.
+2. Put the exact correct formula into one historical practice cell.
+3. Change one source-statement number in the Trainer.
+4. Run Check.
+5. Require `ValueError`.
+6. Reopen Trainer.
+7. Prove the practice cell remains yellow.
+
+Use an upstream source value relevant to the selected practice formula.
+
+### Fixed-classification tamper
+
+1. Find one supplied, non-judgment balance-sheet classification in `Condensed Financials`.
+2. Change it to another otherwise valid category.
+3. Put an exact downstream formula into a practice cell.
+4. Run Check.
+5. Require structural failure before green recoloring.
+
+Do not use a live judgment-driven classification row for this test.
+
+### Non-practice formula tamper
+
+Retain the Step 8B2.1 generated-normalization tamper regression.
+
+### Learner edits still allowed
+
+Prove all of these remain valid:
+
+- alternate equivalent practice formula;
+- valid exact F treatment;
+- blank F reference fallback;
+- free-form G rationale;
+- free-form H consequence.
+
+Free-form G/H content must never cause trusted-state validation failure.
+
+---
+
+## Task 5 — Preserve legacy/no-normalization behavior
+
+The integrity gate must work with both:
+
+```text
+25-family / 118-cell base workbook
+29-family / 138-cell normalization workbook
+```
+
+For a base workbook:
+
+- no `Normalization Judgment` required;
+- no `Earnings Normalization` required;
+- source-sheet integrity still applies;
+- fixed classification integrity still applies;
+- `Accounting Judgment` F:G:H remain editable;
+- existing schema-v1 Check-context compatibility remains intact.
+
+Add at least one trusted-source-tamper regression using the no-normalization build.
+
+---
+
+## Task 6 — Verification
+
+Run focused tests first:
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_normalization.py -v
 ```
 
-Then the existing integrity suites:
+Then:
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
 PYTHONPATH=. pytest core/tests/test_trainer.py -v
+PYTHONPATH=. pytest core/tests/test_classification.py -v
+PYTHONPATH=. pytest core/tests/test_line_identity.py -v
 PYTHONPATH=. pytest core/tests/test_line_resolver.py -v
 ```
 
-Then the complete suite:
+Then:
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
 ```
 
-Rebuild the original no-normalization product:
+Do not state the expected total test number in advance. Record the actual passing count.
+
+Verify base build:
 
 ```bash
 PYTHONPATH=. python -m core build \
   example/DEMO_HK_Standardized.json \
   -o /tmp/DEMO_BASE_Trainer.xlsx
+
+PYTHONPATH=. python -m core check \
+  --workbook /tmp/DEMO_BASE_Trainer.xlsx
+
+PYTHONPATH=. python -m core list \
+  --workbook /tmp/DEMO_BASE_Trainer.xlsx
 ```
 
 Required:
 
 ```text
-Components resolved: 118
+118 practice cells
+0 correct / 0 incorrect / 118 blank
+25 schedule groups
 ```
 
-Check it:
-
-```bash
-PYTHONPATH=. python -m core check \
-  --workbook /tmp/DEMO_BASE_Trainer.xlsx
-```
-
-Required fresh result:
-
-```text
-0 correct
-0 incorrect
-118 blank
-```
-
-Build the Step 8B2 normalization product:
+Verify normalization build:
 
 ```bash
 PYTHONPATH=. python -m core build \
   example/DEMO_HK_Standardized.json \
   -a example/DEMO_HK_Assumptions.json \
   -o /tmp/DEMO_NORM_Trainer.xlsx
+
+PYTHONPATH=. python -m core check \
+  --workbook /tmp/DEMO_NORM_Trainer.xlsx
+
+PYTHONPATH=. python -m core list \
+  --workbook /tmp/DEMO_NORM_Trainer.xlsx
 ```
 
 Required:
 
 ```text
-Components resolved: 138
+138 practice cells
+0 correct / 0 incorrect / 138 blank
+29 schedule groups
 ```
 
-Check it:
-
-```bash
-PYTHONPATH=. python -m core check \
-  --workbook /tmp/DEMO_NORM_Trainer.xlsx
-```
-
-Required fresh result:
-
-```text
-0 correct
-0 incorrect
-138 blank
-```
-
-List both curriculum surfaces and confirm:
-
-```text
-base build:          25 schedule groups
-normalization build: 29 schedule groups
-```
-
-Also verify:
+Verify CLI:
 
 ```bash
 PYTHONPATH=. python -m core --help
 ```
 
-Public commands must remain:
+Public commands remain:
 
 ```text
 ingest
@@ -535,38 +502,51 @@ check
 list
 ```
 
-Do not regenerate committed demo XLSX files unless implementation changes their serialized workbook contents. This checkpoint should primarily alter validation/model-resolution code rather than workbook design.
+---
 
-Update `RESULT.md` with:
+## Task 7 — Update checkpoint documentation
 
-- final test count;
-- base 25 / 118 preservation;
-- normalization 29 / 138 preservation;
-- generated normalization dependencies structurally protected;
-- duplicate normalization candidates rejected;
-- normalization computation uses stable line identity;
-- label selector semantics preserved;
-- whitespace-only treatment rejected;
-- typographic apostrophe selector regression passing;
+**Files:**
+- Modify: `RESULT.md`
+- Modify: `IMPLEMENTATION.md` status only after all verification passes
+- Do not modify: `TARGET.md`
+
+`RESULT.md` must record:
+
+- actual full-suite pass count;
+- exact padded treatment rejected;
+- blank treatment fallback preserved;
+- source statements structurally protected;
+- fixed supplied classifications structurally protected;
+- non-practice model cells protected;
+- learner practice formulas still editable/equivalent-formula eligible;
+- F:G:H learner judgment surface preserved;
+- no partial recoloring on integrity failure;
+- base 25 / 118 preserved;
+- normalization 29 / 138 preserved;
 - no Step 9 functionality introduced.
+
+Do not write `Unresolved: none` unless all regressions above pass.
 
 ---
 
 ## Definition of done
 
-Step 8B2.1 is complete only when all of the following are true:
+Step 8B2.2 is complete only when:
 
-1. Overwriting any generated non-practice formula in `Earnings Normalization` makes Check fail before coloring learner cells.
-2. Learner practice formulas remain free to differ structurally from the Answer Key and can still pass by equivalent value.
-3. One income-statement line cannot appear as two normalization cases.
-4. Normalization calculation uses the case's stable `line_identity`.
-5. A label-selected row is not silently converted into an ambiguous concept-selected row.
-6. Whitespace-only judgment input fails closed instead of producing a Check/workbook state disagreement.
-7. Curly-versus-straight apostrophes work in explicit label selectors.
-8. Base build remains 25 families / 118 practice cells.
-9. Normalization build remains 29 families / 138 practice cells.
-10. All tests pass.
-11. `TARGET.md` is unchanged.
-12. No Step 9, diagnostics, forecasting, or valuation work has begun.
+1. Python Check and Excel use exactly the same judgment-treatment string.
+2. Any surrounding whitespace in nonblank treatment input fails closed.
+3. Historical source facts cannot be edited while still receiving green formula checks.
+4. Supplied fixed classifications cannot be edited while still receiving green formula checks.
+5. Generated non-practice model formulas remain protected.
+6. Practice cells remain learner-controlled.
+7. Judgment F:G:H remain learner-controlled on case rows.
+8. Equivalent formulas continue to pass based on current-state results.
+9. Integrity failure occurs before any fill update.
+10. Base surface remains 25 / 118.
+11. Normalization surface remains 29 / 138.
+12. Full test suite passes.
+13. `TARGET.md` remains unchanged.
+14. Step 9 has not begun.
 
-After completing this checkpoint, stop and report the changed files, test outputs, and any unresolved issue. Do not proceed to Step 9 and do not commit or push.
+After finishing, stop and report changed files and exact verification output. Do not commit or push.
