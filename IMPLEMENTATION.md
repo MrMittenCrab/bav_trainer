@@ -1,38 +1,48 @@
-# Step 9B.1 — Historical Working-Capital Diagnostics Foundation
+# Step 9B.2 — Historical Working-Capital Driver Decomposition
 
-> **Status:** Step 9B.1 complete. See `RESULT.md` for verification evidence (210 passed; base 36/168; normalization 40/188; Working Capital Analysis gated on nonzero OWCA/OWCL). Do not commit or push from this checkpoint unless the user requests it.
+> **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `57bcda4af010a70f21bb7515d03486e83e5be936` (`StepB.1`, Step 9B.1 complete). Implement only Step 9B.2 below using red/green TDD. Preserve Step 8 classification/normalization judgment, the trusted-workbook boundary, Step 9A earnings-quality/source-completeness/`#N/A` semantics, and the complete Step 9B.1 Working Capital Analysis surface. Do not add automatic good/bad quality labels, line-item causal inference, seasonality claims, forecasting, valuation, ROU/deferred-tax alternative modeling, segment analysis, or later research-diagnostic work. Do not commit or push; the user owns the checkpoint commit.
 
-> **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `67f273a7c588c98c875f7cc7a22be0c819d210e1` (`Step 9.5`, Step 9A.5 complete). Implement only Step 9B.1 below using red/green TDD. Preserve Step 8 classification/normalization judgment, the trusted-workbook boundary, Step 9A earnings-quality diagnostics, historical source completeness, and all established `#N/A` semantics. Do not add automatic good/bad quality labels, seasonality claims, forecasting, valuation, ROU/deferred-tax alternative modeling, segment analysis, or later research-diagnostic work. Do not commit or push; the user owns the checkpoint commit.
+**Goal:** Extend the Working Capital Analysis from one net `Change in NOWC` measure into an auditable driver bridge showing how changes in Operating Working Capital Assets and Operating Working Capital Liabilities combine into the net working-capital investment, and how each side moves relative to incremental Revenue.
 
-**Goal:** Add an auditable historical working-capital diagnostic schedule that teaches how operating working-capital intensity and incremental working-capital investment move relative to Revenue, while preserving live classification judgment and avoiding unsupported automatic interpretation.
+**Architecture:** Extend the existing `WorkingCapitalSeries`, `WORKING_CAPITAL_COMPONENT_CATALOG`, and `Working Capital Analysis` sheet rather than creating another subsystem. Use only the already treatment-conditioned OWCA / OWCL / NOWC / Revenue series. Add five comparable-period formula families and one generated non-practice reconciliation row. Formula Check must recompute these families from the learner's live classification treatment, while trusted-sheet validation protects the generated reconciliation formula automatically.
 
-**Architecture:** Reuse the existing authoritative reformulation instead of reclassifying raw balance-sheet labels. Compute one Python `WorkingCapitalSeries` from `AnchorMetrics` using Revenue plus the already classified Operating Working Capital Asset, Operating Working Capital Liability, and NOWC series. Add six semantic formula families and a visible `Working Capital Analysis` sheet only when operating working capital is actually present. Formula Check recomputes expected values from the current live classification treatment, and trusted-sheet validation protects all generated non-practice cells on the new sheet.
+**Tech Stack:** Python, dataclasses, pytest, openpyxl, existing `AnchorMetrics`, `WorkingCapitalSeries`, `ratio_or_na`, `ComponentFamily`, `SemanticMap`, `ReferenceModelBuilder`, `historical_expected`, `check_workbook`, and trusted-workbook structural validation.
 
-**Tech Stack:** Python, dataclasses, pytest, openpyxl, existing `AnchorMetrics`, `BalanceSheetReformulation`, `ratio_or_na`, `ComponentFamily`, `SemanticMap`, `ReferenceModelBuilder`, `historical_expected`, `check_workbook`, and trusted-workbook structural validation.
-
-**Spec:** `TARGET.md`, especially working-capital behavior, capital intensity, accounting consistency, research diagnostics, material/applicable-topic gating, the historical dependency graph, and the requirement that interpretation distinguish calculation from unsupported causal claims.
+**Spec:** `TARGET.md`, especially working-capital behavior, accounting consistency, research diagnostics, the historical dependency graph, and the requirement that interpretation distinguish mechanical drivers from unsupported causal or quality claims.
 
 ---
 
-## Review of commit `67f273a7`
+## Review of commit `57bcda4a`
 
-Step 9A.5 is implemented coherently:
+Step 9B.1 is implemented coherently:
 
-- zero Pretax Income now produces Effective Tax Rate `#N/A` / Excel `NA()`;
-- zero amounts that require no tax estimate remain determinately zero;
-- nonzero tax-effected amounts propagate undefined ETR rather than inventing a rate;
-- normalization source candidates are period-complete before use;
-- Step 9A.4 DuPont undefined-ratio behavior is preserved;
-- base workbook remains 30 families / 141 practice cells;
-- normalization workbook remains 34 families / 161 practice cells;
-- `RESULT.md` records 202 locally passing tests;
+- `Working Capital Analysis` is gated on nonzero classified OWCA / OWCL;
+- OWCA / Revenue, OWCL / Revenue, NOWC / Revenue, Change in Revenue, Change in NOWC, and Incremental NOWC / Change in Revenue are live formula families;
+- zero Revenue / zero Change in Revenue produce `#N/A` / Excel `NA()` rather than fabricated zero ratios;
+- first-period change metrics remain non-applicable;
+- live classification judgment changes dynamic expected values correctly;
+- trusted-sheet validation protects generated Working Capital Analysis cells;
+- the current five-year demo surfaces are 36 families / 168 cells without normalization and 40 families / 188 cells with normalization;
+- `RESULT.md` records 210 locally passing tests;
 - GitHub has no attached CI status.
 
-No blocking defect remains on the active historical tax / normalization surface addressed by Step 9A.5.
+The current sheet answers **how much net working capital changed**, but it does not yet show **which side of the operating working-capital equation produced that change**.
 
-The next dependency in `TARGET.md` is historical driver interpretation. Start with working capital because the current model already has authoritative, classification-sensitive OWCA / OWCL / NOWC series, but does not yet teach how to relate those balances to sales growth or incremental operating-capital investment.
+Because:
 
-Step 9B.1 builds the **mechanical diagnostic foundation only**. It does not claim that a ratio movement is automatically good, bad, seasonal, deteriorating, or sustainable.
+```text
+NOWC = OWCA - OWCL
+```
+
+then:
+
+```text
+Change in NOWC = Change in OWCA - Change in OWCL
+```
+
+This decomposition is the next safe interpretation step. It remains mechanical and auditable: it does not infer whether receivables, inventory, payables, collection quality, purchasing power, or management behavior caused the aggregate movement.
+
+Step 9B.2 therefore adds an **asset-versus-liability driver bridge only**.
 
 ---
 
@@ -41,19 +51,21 @@ Step 9B.1 builds the **mechanical diagnostic foundation only**. It does not clai
 - `TARGET.md` is read-only.
 - Preserve non-financial-company scope.
 - Preserve all existing Step 8 judgment behavior and treatment-conditioned Check.
-- Preserve Step 9A earnings-quality sheets/families and applicability gating.
-- Preserve historical source completeness and trusted-workbook validation.
-- Preserve all current `#N/A` conventions for undefined ratios.
-- Working-capital calculations must consume the authoritative classified reformulation; do not classify raw balance-sheet labels a second time.
-- Revenue must come from `AnchorMetrics.historical.revenue`; do not resolve a parallel Revenue series independently.
-- OWCA, OWCL, and NOWC must come from `AnchorMetrics.reformulation`.
-- A zero numerator with nonzero Revenue is a valid numeric zero ratio.
-- A zero Revenue denominator makes OWCA / Revenue, OWCL / Revenue, or NOWC / Revenue undefined (`#N/A`).
-- First-period changes are non-applicable (`None` in Python; visible `N/A` text in the workbook), not zero.
-- A zero change in Revenue makes Incremental NOWC / Change in Revenue undefined (`#N/A`).
-- Positive Change in NOWC means additional operating working capital is tied up; negative Change in NOWC means working capital is released. This is an accounting/cash-use interpretation only, not an automatic quality judgment.
+- Preserve Step 9A earnings-quality, source-completeness, and `#N/A` semantics.
+- Preserve Step 9B.1 applicability gating exactly: all-zero OWCA and OWCL omit the Working Capital Analysis sheet.
+- Preserve the existing six Step 9B.1 working-capital families unchanged.
+- Use only the authoritative treatment-conditioned series from `AnchorMetrics` / `BalanceSheetReformulation`; do not independently reclassify raw balance-sheet labels.
+- `Change in OWCA` means current OWCA minus prior OWCA.
+- `Change in OWCL` means current OWCL minus prior OWCL.
+- `Change in NOWC from Components = Change in OWCA - Change in OWCL`.
+- Positive Change in OWCA is additional operating-current-asset investment / cash use; negative Change in OWCA is a release. Do not call either automatically good or bad.
+- Positive Change in OWCL is additional operating-liability financing that offsets NOWC investment; negative Change in OWCL reduces that financing and increases cash use. Do not call either automatically good or bad.
+- A zero Change in Revenue denominator makes each incremental-side ratio undefined (`#N/A`).
+- Retain signed changes and signed denominators. Do not take absolute values.
+- When Revenue declines, an incremental ratio may have an unintuitive sign. Preserve the arithmetic and explain that the sign requires interpretation rather than normalizing it away.
 - Annual historical data alone must not be described as proving seasonality.
-- Do not infer deterioration, channel stuffing, supplier stress, collection quality, inventory obsolescence, or payment stretching automatically from these ratios.
+- Do not infer receivables collection problems, inventory obsolescence, channel stuffing, payment stretching, supplier stress, or other line-item causes from aggregate OWCA / OWCL movements.
+- Do not automatically rank or label working-capital quality.
 - Do not add free-form automatic grading.
 - Do not add forecasting, valuation, scenarios, Hint/Reveal, VBA, or new public CLI commands.
 - Do not modify dormant forecast/scenario behavior in this checkpoint.
@@ -61,23 +73,15 @@ Step 9B.1 builds the **mechanical diagnostic foundation only**. It does not clai
 
 ---
 
-## Task 1 — Define one authoritative working-capital diagnostic series
+## Task 1 — Extend the authoritative working-capital series with side-driver changes
 
 **Files:**
-- Create: `core/model/working_capital.py`
-- Test: create `core/tests/test_working_capital.py`
+- Modify: `core/model/working_capital.py`
+- Test: `core/tests/test_working_capital.py`
 
-Create:
+Extend `WorkingCapitalSeries` to:
 
 ```python
-from __future__ import annotations
-
-from dataclasses import dataclass
-
-from .financial_math import AnchorMetrics
-from .ratio_values import ratio_or_na
-
-
 @dataclass(frozen=True)
 class WorkingCapitalSeries:
     owca_to_revenue: tuple[float | str, ...]
@@ -86,119 +90,106 @@ class WorkingCapitalSeries:
     revenue_change: tuple[float | None, ...]
     nowc_change: tuple[float | None, ...]
     incremental_nowc_to_revenue_change: tuple[float | str | None, ...]
+    owca_change: tuple[float | None, ...]
+    owcl_change: tuple[float | None, ...]
+    nowc_change_from_components: tuple[float | None, ...]
+    incremental_owca_to_revenue_change: tuple[float | str | None, ...]
+    incremental_owcl_to_revenue_change: tuple[float | str | None, ...]
 ```
 
-Create:
+Preserve `_source_series()` and `working_capital_applicable()` unchanged unless a failing test demonstrates a real defect.
+
+### First period
+
+Initialize all five new comparable-period series as non-applicable:
 
 ```python
-def working_capital_applicable(anchor: AnchorMetrics) -> bool:
-    ...
-
-
-def compute_working_capital_series(anchor: AnchorMetrics) -> WorkingCapitalSeries:
-    ...
+owca_change = [None]
+owcl_change = [None]
+nowc_change_from_components = [None]
+incremental_owca = [None]
+incremental_owcl = [None]
 ```
 
-### Source series
+### Comparable periods
 
-Use exactly:
-
-```python
-revenue = tuple(float(v) for v in anchor.historical.revenue)
-owca = tuple(
-    float(v)
-    for v in anchor.reformulation.category_totals[
-        "Operating Working Capital Asset"
-    ]
-)
-owcl = tuple(
-    float(v)
-    for v in anchor.reformulation.category_totals[
-        "Operating Working Capital Liability"
-    ]
-)
-nowc = tuple(float(v) for v in anchor.reformulation.nowc)
-```
-
-Require all four series to have the same nonzero length. If not, raise a clear `ValueError` describing the length mismatch.
-
-### Applicability gate
-
-Working-capital diagnostics are applicable when at least one modeled-period OWCA or OWCL balance is nonzero:
-
-```python
-return any(v != 0.0 for v in owca) or any(v != 0.0 for v in owcl)
-```
-
-Do not gate on labels, keywords, or model guesses.
-
-A company with all-zero OWCA and OWCL is not given this diagnostic sheet in this checkpoint.
-
-### Ratios
-
-For every period `i`:
-
-```python
-owca_to_revenue[i] = ratio_or_na(owca[i], revenue[i])
-owcl_to_revenue[i] = ratio_or_na(owcl[i], revenue[i])
-nowc_to_revenue[i] = ratio_or_na(nowc[i], revenue[i])
-```
-
-Required semantics:
-
-```text
-OWCA = 0, Revenue = 100 -> 0.0
-OWCL = 0, Revenue = 100 -> 0.0
-NOWC = 0, Revenue = 100 -> 0.0
-Revenue = 0             -> #N/A for all three intensity ratios
-```
-
-### Changes
-
-For period zero:
-
-```python
-revenue_change[0] = None
-nowc_change[0] = None
-incremental_nowc_to_revenue_change[0] = None
-```
-
-For `i > 0`:
+Inside the existing `for i in range(1, n)` loop compute:
 
 ```python
 delta_revenue = revenue[i] - revenue[i - 1]
 delta_nowc = nowc[i] - nowc[i - 1]
-revenue_change[i] = delta_revenue
-nowc_change[i] = delta_nowc
-incremental_nowc_to_revenue_change[i] = ratio_or_na(
-    delta_nowc,
-    delta_revenue,
-)
+delta_owca = owca[i] - owca[i - 1]
+delta_owcl = owcl[i] - owcl[i - 1]
+bridge_nowc = delta_owca - delta_owcl
 ```
 
-Required semantics:
+Require the bridge to reconcile to the direct Change in NOWC:
+
+```python
+if abs(bridge_nowc - delta_nowc) > 1e-9:
+    raise ValueError(
+        "working-capital change bridge does not reconcile: "
+        f"period_index={i} direct={delta_nowc} bridge={bridge_nowc}"
+    )
+```
+
+Append:
+
+```python
+owca_change.append(delta_owca)
+owcl_change.append(delta_owcl)
+nowc_change_from_components.append(bridge_nowc)
+incremental_owca.append(ratio_or_na(delta_owca, delta_revenue))
+incremental_owcl.append(ratio_or_na(delta_owcl, delta_revenue))
+```
+
+Continue using the existing direct:
+
+```python
+nowc_change.append(delta_nowc)
+incremental.append(ratio_or_na(delta_nowc, delta_revenue))
+```
+
+Do not derive the direct `nowc_change` from the bridge. Keeping both independently computed series is what makes the reconciliation useful.
+
+### Required semantics
 
 ```text
-ΔNOWC = 0, ΔRevenue = 100 -> 0.0
-ΔRevenue = 0              -> #N/A
-ΔRevenue < 0              -> retain the mathematically signed ratio
-ΔNOWC < 0                 -> retain the negative working-capital release
+OWCA: 100 -> 130  => Change in OWCA = +30
+OWCL:  40 ->  50  => Change in OWCL = +10
+NOWC:  60 ->  80  => direct Change in NOWC = +20
+bridge             => +30 - +10 = +20
 ```
 
-Do not take absolute values.
+Interpret mechanically:
+
+```text
++30 OWCA change = 30 additional operating-current-asset investment
++10 OWCL change = 10 additional operating-liability financing
+net cash tied up  = 20 additional NOWC
+```
+
+Also preserve:
+
+```text
+negative Change in OWCA -> release of operating-current-asset investment
+negative Change in OWCL -> reduction in operating-liability financing
+zero Change in Revenue  -> both incremental-side ratios are #N/A
+negative Change in Revenue -> signed denominator retained
+```
 
 ### TDD
 
-- [ ] Ordinary multi-period fixture returns all six expected series.
-- [ ] Zero Revenue yields `#N/A` intensity ratios.
-- [ ] Zero numerator with nonzero Revenue yields numeric `0.0`.
-- [ ] First-period change values are `None`.
-- [ ] Zero ΔRevenue yields incremental ratio `#N/A`.
-- [ ] Negative ΔNOWC remains negative.
-- [ ] Negative ΔRevenue is not converted to an absolute denominator.
-- [ ] Series-length mismatch fails clearly.
-- [ ] All-zero OWCA/OWCL makes `working_capital_applicable(...)` false.
-- [ ] At least one nonzero OWCA or OWCL makes it true.
+- [ ] Ordinary fixture returns all five new series correctly.
+- [ ] `nowc_change_from_components[i] == nowc_change[i]` for every comparable period.
+- [ ] Positive OWCA and positive OWCL changes produce the correct net bridge.
+- [ ] Negative OWCA change remains negative.
+- [ ] Negative OWCL change remains negative.
+- [ ] Zero Change in Revenue yields `#N/A` for both incremental-side ratios.
+- [ ] Negative Change in Revenue is retained as a signed denominator.
+- [ ] Zero side-driver numerator with nonzero Change in Revenue yields numeric `0.0`.
+- [ ] First-period values for all five new series are `None`.
+- [ ] A deliberately inconsistent synthetic `AnchorMetrics` / reformulation fixture triggers the reconciliation `ValueError` rather than silently accepting a broken NOWC identity.
 
 Run:
 
@@ -208,7 +199,7 @@ PYTHONPATH=. pytest core/tests/test_working_capital.py -v
 
 ---
 
-## Task 2 — Add six semantic working-capital formula families
+## Task 2 — Add five semantic driver-decomposition formula families
 
 **Files:**
 - Modify: `core/engine/component_catalog.py`
@@ -216,602 +207,425 @@ PYTHONPATH=. pytest core/tests/test_working_capital.py -v
 - Test: `core/tests/test_working_capital.py`
 - Test: `core/tests/test_reference_integrity.py`
 
-### Component catalog
+Extend the existing `WORKING_CAPITAL_COMPONENT_CATALOG` with exactly five new families. Keep the six Step 9B.1 family definitions unchanged.
 
-Add a separate catalog rather than folding diagnostics into the original 25-family historical construction core:
+Use family orders `41` through `45`.
+
+### 1. `owca_change`
+
+```text
+order: 41
+title: Change in Operating Working Capital Assets
+sheet: Working Capital Analysis
+period scope: comparable
+formula concept: Current OWCA - Prior OWCA
+```
+
+Dependencies:
 
 ```python
-WORKING_CAPITAL_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (...)
+depends_on_current=("owca_agg",)
+depends_on_previous=("owca_agg",)
 ```
 
-Add:
+Hints:
+
+```text
+Change in OWCA = Current OWCA - Prior OWCA.
+A positive change is additional operating-current-asset investment; a negative change is a release.
+Do not infer the underlying receivables/inventory cause from this aggregate alone.
+```
+
+### 2. `owcl_change`
+
+```text
+order: 42
+title: Change in Operating Working Capital Liabilities
+sheet: Working Capital Analysis
+period scope: comparable
+formula concept: Current OWCL - Prior OWCL
+```
+
+Dependencies:
 
 ```python
-def expand_working_capital_specs(
-    periods: list[date],
-    *,
-    start_order: int,
-) -> tuple[ComponentSpec, ...]:
-    ...
-```
-
-Use the same chronological / duplicate-period validation as the other expanders.
-
-Define exactly these six families:
-
-### 1. `owca_to_revenue`
-
-```text
-title: Operating working capital assets / Revenue
-sheet: Working Capital Analysis
-period scope: all
-formula concept: OWCA / Revenue
+depends_on_current=("owcl_agg",)
+depends_on_previous=("owcl_agg",)
 ```
 
 Hints:
 
 ```text
-Operating Working Capital Assets / Revenue measures operating current assets tied up per sales dollar.
-A zero Revenue denominator makes the ratio undefined (#N/A).
-A higher ratio is not automatically deterioration; diagnose the underlying operating balances before drawing a conclusion.
+Change in OWCL = Current OWCL - Prior OWCL.
+A positive change supplies additional operating-liability financing; a negative change reduces that financing.
+Do not infer payment quality or supplier pressure from this aggregate alone.
 ```
 
-### 2. `owcl_to_revenue`
+### 3. `nowc_change_from_components`
 
 ```text
-title: Operating working capital liabilities / Revenue
-sheet: Working Capital Analysis
-period scope: all
-formula concept: OWCL / Revenue
-```
-
-Hints:
-
-```text
-Operating Working Capital Liabilities / Revenue measures operating current liabilities financing each sales dollar.
-A zero Revenue denominator makes the ratio undefined (#N/A).
-A higher ratio can finance growth but is not automatically positive; payment behavior and business model matter.
-```
-
-### 3. `nowc_to_revenue`
-
-```text
-title: NOWC / Revenue
-sheet: Working Capital Analysis
-period scope: all
-formula concept: NOWC / Revenue
-```
-
-Hints:
-
-```text
-NOWC / Revenue measures net operating working capital tied up per sales dollar.
-NOWC = OWCA - OWCL.
-Rising intensity means more net working capital is tied up per sales dollar, but the cause must be diagnosed rather than labeled automatically.
-```
-
-### 4. `revenue_change`
-
-```text
-title: Change in Revenue
+order: 43
+title: Change in NOWC from OWCA / OWCL bridge
 sheet: Working Capital Analysis
 period scope: comparable
-formula concept: Current Revenue - Prior Revenue
+formula concept: Change in OWCA - Change in OWCL
 ```
 
-Hint:
+Dependencies:
 
-```text
-Use the absolute year-on-year change in Revenue, not the percentage growth rate.
-```
-
-### 5. `nowc_change`
-
-```text
-title: Change in NOWC
-sheet: Working Capital Analysis
-period scope: comparable
-formula concept: Current NOWC - Prior NOWC
+```python
+depends_on_current=("owca_change", "owcl_change")
 ```
 
 Hints:
 
 ```text
-Positive Change in NOWC means additional operating working capital is tied up; negative Change in NOWC means a release.
-Do not call the movement good or bad without examining why it occurred.
+Because NOWC = OWCA - OWCL, Change in NOWC = Change in OWCA - Change in OWCL.
+Use this bridge to separate asset investment from operating-liability financing.
+The bridge must reconcile to the direct Change in NOWC row.
 ```
 
-### 6. `incremental_nowc_to_revenue_change`
+### 4. `incremental_owca_to_revenue_change`
 
 ```text
-title: Incremental NOWC / Change in Revenue
+order: 44
+title: Incremental OWCA / Change in Revenue
 sheet: Working Capital Analysis
 period scope: comparable
-formula concept: Change in NOWC / Change in Revenue
+formula concept: Change in OWCA / Change in Revenue
+```
+
+Dependencies:
+
+```python
+depends_on_current=("owca_change", "revenue_change")
 ```
 
 Hints:
 
 ```text
-This ratio measures incremental working-capital investment per unit of incremental sales.
+This ratio measures incremental operating-current-asset investment per unit of incremental sales.
 A zero Change in Revenue denominator makes the ratio undefined (#N/A).
-Negative or unusually large values are diagnostic signals, not automatic quality labels.
+Keep the signed denominator when Revenue falls; do not convert it to an absolute value.
+```
+
+### 5. `incremental_owcl_to_revenue_change`
+
+```text
+order: 45
+title: Incremental OWCL / Change in Revenue
+sheet: Working Capital Analysis
+period scope: comparable
+formula concept: Change in OWCL / Change in Revenue
+```
+
+Dependencies:
+
+```python
+depends_on_current=("owcl_change", "revenue_change")
+```
+
+Hints:
+
+```text
+This ratio measures incremental operating-liability financing per unit of incremental sales.
+A zero Change in Revenue denominator makes the ratio undefined (#N/A).
+A larger value is not automatically good; it only shows that more operating liabilities accompany the sales change.
 ```
 
 ### Expected values
 
-In `core/model/historical_expected.py`, import:
+Extend `_WORKING_CAPITAL_FAMILY_SERIES` in `core/model/historical_expected.py` to include the five new family IDs.
+
+Extend `working_capital_expected_series()` with:
 
 ```python
-from .working_capital import compute_working_capital_series
+"owca_change": wc.owca_change,
+"owcl_change": wc.owcl_change,
+"nowc_change_from_components": wc.nowc_change_from_components,
+"incremental_owca_to_revenue_change": wc.incremental_owca_to_revenue_change,
+"incremental_owcl_to_revenue_change": wc.incremental_owcl_to_revenue_change,
 ```
 
-Add a working-capital family-id tuple and:
+The existing exact catalog-key equality check must now cover all eleven working-capital families.
 
-```python
-def working_capital_expected_series(
-    anchor: AnchorMetrics,
-) -> dict[str, tuple[float | str | None, ...]]:
-    wc = compute_working_capital_series(anchor)
-    ...
+### Expected expansion
+
+All five new families are comparable-period families.
+
+For five modeled fiscal periods:
+
+```text
+5 new families × 4 comparable periods = 20 new practice cells
 ```
 
-Map exactly:
+The complete working-capital module therefore becomes:
 
-```python
-{
-    "owca_to_revenue": wc.owca_to_revenue,
-    "owcl_to_revenue": wc.owcl_to_revenue,
-    "nowc_to_revenue": wc.nowc_to_revenue,
-    "revenue_change": wc.revenue_change,
-    "nowc_change": wc.nowc_change,
-    "incremental_nowc_to_revenue_change": wc.incremental_nowc_to_revenue_change,
-}
+```text
+11 families
+47 practice cells
 ```
-
-Extend `expected_value_for_component()` so a component in this new catalog is resolved from `working_capital_expected_series(anchor)`.
-
-No new argument is required on `expected_value_for_component()` because all working-capital diagnostics are fully determined by the already treatment-conditioned `AnchorMetrics`.
 
 ### TDD
 
-- [ ] Working-capital catalog contains exactly six unique family IDs.
-- [ ] Three intensity families expand across all five demo periods.
-- [ ] Three change/incremental families expand only across comparable periods.
-- [ ] Five fiscal periods therefore produce exactly 27 working-capital practice cells.
-- [ ] `working_capital_expected_series()` keys exactly match the catalog family IDs.
-- [ ] Dynamic expected values change when a live classification treatment changes OWCA/OWCL/NOWC.
+- [ ] Working-capital catalog now contains exactly 11 unique family IDs.
+- [ ] Existing first six family definitions remain unchanged.
+- [ ] Each new family expands across four comparable periods in the five-year demo.
+- [ ] Exactly 20 new concrete specs are added.
+- [ ] `working_capital_expected_series()` keys exactly equal the 11 catalog IDs.
+- [ ] `nowc_change_from_components` expected values equal direct `nowc_change` for all comparable periods.
+- [ ] Incremental OWCA / OWCL expected values preserve `#N/A` on zero Change in Revenue.
 
 ---
 
-## Task 3 — Wire applicability and ordering into `ReferenceModelBuilder`
+## Task 3 — Add the driver-decomposition section to `Working Capital Analysis`
 
 **Files:**
 - Modify: `core/engine/reference_model.py`
-- Modify: `core/engine/component_catalog.py`
+- Test: `core/tests/test_working_capital.py`
 - Test: `core/tests/test_reference_integrity.py`
-- Test: `core/tests/test_working_capital.py`
 
-Import:
+Do not create a new worksheet. Extend `_build_working_capital_analysis()` below the existing Step 9B.1 rows.
 
-```python
-from ..model.working_capital import (
-    compute_working_capital_series,
-    working_capital_applicable,
-)
-```
-
-After the existing normalization and earnings-quality setup, compute:
-
-```python
-self.working_capital_series = (
-    compute_working_capital_series(self.anchor)
-    if working_capital_applicable(self.anchor)
-    else None
-)
-```
-
-If applicable, expand specs after all currently active historical / normalization / quality specs:
-
-```python
-self.working_capital_specs = expand_working_capital_specs(
-    self.periods,
-    start_order=(
-        len(self.historical_specs)
-        + len(self.normalization_specs)
-        + len(self.quality_specs)
-        + 1
-    ),
-)
-```
-
-Otherwise:
-
-```python
-self.working_capital_specs = ()
-```
-
-Build:
-
-```python
-self.expected_specs = (
-    self.historical_specs
-    + self.normalization_specs
-    + self.quality_specs
-    + self.working_capital_specs
-)
-```
-
-Create an index:
-
-```python
-self._working_capital_spec_index = {
-    (s.family_id, s.period_index): s
-    for s in self.working_capital_specs
-}
-```
-
-Add a focused registration helper analogous to `_register_quality()`:
-
-```python
-def _register_working_capital(...):
-    ...
-```
-
-Do not modify the meaning/order of existing families.
-
-### Demo acceptance counts
-
-The current five-year demo has operating working capital and earnings-quality inputs. Therefore Step 9B.1 adds:
+Use this fixed layout:
 
 ```text
-6 families
-27 practice cells
+A18  WORKING-CAPITAL DRIVER DECOMPOSITION
+A19  Change in OWCA
+A20  Change in OWCL
+A21  Change in NOWC from Components
+A22  Incremental OWCA / Change in Revenue
+A23  Incremental OWCL / Change in Revenue
+A24  DRIVER DECOMPOSITION CHECK
 ```
 
-Expected demo surfaces become:
+Make row 18 bold as a section heading. Make row 24 bold.
+
+### First period
+
+For the first fiscal period, write visible literal text:
 
 ```text
-base demo:          36 families / 168 practice cells
-normalization demo: 40 families / 188 practice cells
+N/A
 ```
 
-These are acceptance counts for the current demo, not universal counts for every company because working-capital applicability remains conditional.
+into rows 19 through 24. Do not register first-period practice components for these comparable families.
 
-### Applicability regression
+### Comparable-period formulas
 
-Create a synthetic otherwise-valid company whose classified OWCA and OWCL are zero in every modeled period.
+For each `j > 0`, use the existing source-link rows already present on this sheet:
 
-Require:
+```python
+owca_change = f"={col}{owca_row}-{prev_col}{owca_row}"
+owcl_change = f"={col}{owcl_row}-{prev_col}{owcl_row}"
+nowc_bridge = f"={col}{owca_change_row}-{col}{owcl_change_row}"
+incremental_owca = (
+    f"=IF({col}{rev_chg_row}=0,NA(),"
+    f"{col}{owca_change_row}/{col}{rev_chg_row})"
+)
+incremental_owcl = (
+    f"=IF({col}{rev_chg_row}=0,NA(),"
+    f"{col}{owcl_change_row}/{col}{rev_chg_row})"
+)
+```
+
+Add a generated, non-practice reconciliation formula:
+
+```python
+driver_check = (
+    f'=IF(ABS({col}{nowc_bridge_row}-{col}{nowc_chg_row})<0.01,'
+    f'"OK","CHECK")'
+)
+```
+
+Required formats:
 
 ```text
-working_capital_specs == ()
-Working Capital Analysis sheet absent
+Change in OWCA                    -> NUM_FMT
+Change in OWCL                    -> NUM_FMT
+Change in NOWC from Components    -> NUM_FMT
+Incremental OWCA / Change Revenue -> PCT_FMT
+Incremental OWCL / Change Revenue -> PCT_FMT
+DRIVER DECOMPOSITION CHECK        -> general/text result
 ```
 
-Do not suppress the existing historical, DuPont, or earnings-quality surface merely because working capital is not applicable.
+Register only rows 19 through 23 as practice families. Row 24 is a generated trusted model-control formula.
 
----
+Use the corresponding values from `self.working_capital_series`.
 
-## Task 4 — Render the visible `Working Capital Analysis` sheet
-
-**Files:**
-- Modify: `core/engine/reference_model.py`
-- Test: `core/tests/test_working_capital.py`
-- Test: `core/tests/test_trainer.py`
+### Rowmap
 
 Add:
 
 ```python
-WORKING_CAPITAL_SHEET = "Working Capital Analysis"
+self.rowmap["wc_owca_change_row"] = owca_change_row
+self.rowmap["wc_owcl_change_row"] = owcl_change_row
+self.rowmap["wc_nowc_bridge_row"] = nowc_bridge_row
+self.rowmap["wc_incremental_owca_row"] = incremental_owca_row
+self.rowmap["wc_incremental_owcl_row"] = incremental_owcl_row
+self.rowmap["wc_driver_check_row"] = driver_check_row
 ```
 
-Create the visible sheet only when `self.working_capital_series is not None`.
-
-Call `_build_working_capital_analysis(wb)` after `Earnings Quality` when applicable and before deferred placeholder tabs.
-
-### Header
-
-Use:
-
-```text
-A1  Working Capital Analysis
-A2  Relate classified operating working capital to Revenue and identify how much incremental NOWC accompanies changes in sales.
-A3  These are diagnostics, not automatic judgments. Positive Change in NOWC is an operating cash use; negative Change in NOWC is a release. Annual data alone does not prove seasonality or deterioration.
-```
-
-Use the existing workbook aesthetic; do not introduce a new design language.
-
-Row 5 headers:
-
-```text
-Metric | FY1 | FY2 | ...
-```
-
-### Trusted source-link block
-
-Add four populated, non-practice rows:
-
-```text
-Revenue
-Operating Working Capital Assets
-Operating Working Capital Liabilities
-NOWC
-```
-
-Link them to the authoritative rows on `Condensed Financials`, not directly to raw source statements.
-
-Required formulas are simple same-period links, for example:
-
-```excel
-='Condensed Financials'!B<revenue_row>
-='Condensed Financials'!B<owca_row>
-='Condensed Financials'!B<owcl_row>
-='Condensed Financials'!B<nowc_row>
-```
-
-Store the Condensed OWCA and OWCL row numbers in `self.rowmap` if they are not already retained by `_build_condensed()`:
-
-```python
-self.rowmap["condensed_owca_row"] = owca_row
-self.rowmap["condensed_owcl_row"] = owcl_row
-```
-
-Do not duplicate classification logic on the new sheet.
-
-### Practice block
-
-Below the source block create exactly six practice rows:
-
-```text
-OWCA / Revenue
-OWCL / Revenue
-NOWC / Revenue
-Change in Revenue
-Change in NOWC
-Incremental NOWC / Change in Revenue
-```
-
-### Intensity formulas
-
-For each fiscal period, use:
-
-```excel
-=IF(RevenueCell=0,NA(),OWCACell/RevenueCell)
-=IF(RevenueCell=0,NA(),OWCLCell/RevenueCell)
-=IF(RevenueCell=0,NA(),NOWCCell/RevenueCell)
-```
-
-Use `PCT_FMT`.
-
-Register all three families for all periods.
-
-### Change formulas
-
-For the first fiscal period, write literal:
-
-```text
-N/A
-```
-
-and do not register a semantic practice component.
-
-For every comparable period:
-
-```excel
-=CurrentRevenue-PriorRevenue
-=CurrentNOWC-PriorNOWC
-```
-
-Use `NUM_FMT`.
-
-### Incremental working-capital formula
-
-For the first fiscal period, write literal:
-
-```text
-N/A
-```
-
-For each comparable period:
-
-```excel
-=IF(ChangeInRevenueCell=0,NA(),ChangeInNOWCCell/ChangeInRevenueCell)
-```
-
-Use `PCT_FMT`.
-
-Do not use `IFERROR`.
-
-### Registration
-
-Register every applicable practice formula through `_register_working_capital()` with the Python expected value from `self.working_capital_series`.
-
-No source-link row is a practice cell.
+Do not move or rename any existing Step 9B.1 rowmap keys.
 
 ### TDD
 
-- [ ] Sheet is visible when applicable.
-- [ ] Sheet is absent when all OWCA/OWCL balances are zero.
-- [ ] Four source rows are populated in both Trainer and Answer Key.
-- [ ] Source rows link to `Condensed Financials`, not raw balance-sheet rows.
-- [ ] Trainer blanks exactly the 27 working-capital practice cells for the five-year demo.
-- [ ] Answer Key contains formulas plus legacy Notes for all 27 cells.
-- [ ] First-period change/incremental cells are populated `N/A`, not yellow practice cells.
-- [ ] Zero Revenue uses `NA()` in intensity formulas.
-- [ ] Zero ΔRevenue uses `NA()` in the incremental formula.
-- [ ] No `IFERROR(...,0)` or numeric-zero denominator fallback is introduced.
+- [ ] Existing Step 9B.1 rows/formulas remain at their current locations.
+- [ ] New rows 19–23 contain formulas only for comparable periods.
+- [ ] First-period rows 19–24 contain literal `N/A`.
+- [ ] Row 21 formula is Change in OWCA minus Change in OWCL.
+- [ ] Row 24 checks row 21 against the existing direct Change in NOWC row.
+- [ ] Zero Change in Revenue uses Excel `NA()` in both new incremental formulas.
+- [ ] No `ABS()` is used inside either incremental ratio formula.
+- [ ] The driver-check row is not a semantic practice component.
 
 ---
 
-## Task 5 — Protect generated working-capital cells under the trusted-workbook boundary
-
-**Files:**
-- Modify: `core/trainer/check_context.py`
-- Test: `core/tests/test_working_capital.py`
-- Test: `core/tests/test_trainer.py`
-
-Add:
-
-```python
-WORKING_CAPITAL_SHEET = "Working Capital Analysis"
-```
-
-inside the Check-context module or import a non-circular shared constant if an existing pattern supports it cleanly.
-
-During `validate_live_model_structure()`, derive:
-
-```python
-working_capital_practice = {
-    cell
-    for tab, cell in practice_cells
-    if tab == WORKING_CAPITAL_SHEET
-}
-```
-
-If this set is nonempty:
-
-1. require the sheet to exist in both Trainer and Answer Key;
-2. call `_validate_trusted_sheet_cells()` for the entire sheet;
-3. exclude only the semantic working-capital practice coordinates.
-
-Therefore the following remain trusted and immutable during Check:
-
-- sheet title/instructions;
-- period headers;
-- four source-link rows;
-- first-period `N/A` cells;
-- row labels;
-- all other non-practice contents.
-
-### Tamper regression
-
-- [ ] Build the demo Trainer/Answer-Key pair.
-- [ ] Put an exact correct formula in one working-capital practice cell.
-- [ ] Overwrite one generated Revenue/OWCA/OWCL/NOWC source link on the new sheet.
-- [ ] Run Check and require `ValueError` before any practice-cell recoloring.
-- [ ] Reopen the workbook and prove the practice cell remains yellow.
-
-Also prove a learner may use an equivalent formula in a semantic working-capital practice cell without structural rejection.
-
----
-
-## Task 6 — Prove live classification treatment flows into working-capital Check
+## Task 4 — Prove live classification judgment drives the new decomposition
 
 **Files:**
 - Modify: `core/tests/test_working_capital.py`
-- Modify: `core/tests/test_normalization.py` only if an existing workbook cached-value helper is intentionally reused
+- Modify: `core/tests/test_reference_integrity.py`
+- Modify: `core/tests/test_normalization.py` only if an existing cached-value helper is intentionally reused
 
-This is essential: the new diagnostics must not freeze the Answer-Key reference classification.
+The new formulas must remain treatment-conditioned through the same live classification architecture as Step 9B.1.
 
-Use a fixture containing at least one Step 8 classification judgment whose alternative changes whether a balance-sheet line belongs in OWCA or OWCL versus a financing category.
+### OWCA-side judgment regression
 
-Required regression:
+Reuse the existing demo classification case that can move Short-term Investment between Financial Asset and Operating Working Capital Asset.
 
-1. Build Trainer + Answer Key.
-2. Record a working-capital expected value under the reference treatment.
-3. Change `Accounting Judgment!F` to the allowed alternative.
-4. Recompute the authoritative Python anchor with that alternative and prove at least one of OWCA / OWCL / NOWC changes.
-5. Put a structurally different learner formula into the affected working-capital practice cell and inject the cached value for the **alternative** treatment.
-6. Run `check_workbook()`.
-7. Require green.
-8. Inject the stale cached reference-treatment result under the alternative treatment.
-9. Require red.
+For one comparable period:
 
-This proves working-capital diagnostics use the learner's live classification state rather than static Answer-Key expected values.
+1. identify an `owca_change` or `incremental_owca_to_revenue_change` component;
+2. enter an exact or equivalent formula into its Trainer practice cell;
+3. run Check under the reference classification;
+4. change `Accounting Judgment!F` to the allowed alternative that changes OWCA;
+5. run Check again;
+6. prove dynamic expected values reflect the new classification treatment rather than the stale reference result.
 
-Do not add new Check-context answer data for these metrics; the existing source payload + live classification binding is sufficient.
+At least one regression must reject a cached numeric result that was correct under the old treatment but stale under the new treatment.
+
+### OWCL-side unit coverage
+
+Use a focused synthetic `AnchorMetrics` / reformulation fixture to prove that changing OWCL while holding OWCA constant changes:
+
+```text
+owcl_change
+nowc_change_from_components
+incremental_owcl_to_revenue_change
+```
+
+with the correct signs.
+
+Do not create a new artificial judgment type solely to obtain an OWCL live-workbook test.
+
+### `#N/A` Check regression
+
+Construct a fixture with zero Change in Revenue and nonzero Change in OWCA or OWCL.
+
+For at least one new incremental family prove:
+
+- [ ] exact Answer-Key formula passes;
+- [ ] structurally different formula with cached `#N/A` passes;
+- [ ] fabricated numeric `0.0` is rejected.
+
+Use the existing cached-error injection test mechanism.
 
 ---
 
-## Task 7 — Formula Check regressions for ordinary and undefined working-capital ratios
+## Task 5 — Protect and audit the new generated decomposition cells
 
 **Files:**
 - Modify: `core/tests/test_working_capital.py`
+- Modify: `core/tests/test_reference_integrity.py`
+- Modify: `core/trainer/check_context.py` only if the generic existing trusted-sheet mechanism fails a regression
 
-Add end-to-end Check coverage for:
+The existing generic trusted validation for `Working Capital Analysis` should already treat all non-practice cells as system-controlled. Do not add a second special-case validator if the generic mechanism works.
 
-### Exact formula
+Add a regression:
 
-A correct exact working-capital formula becomes green.
+1. build a Trainer / Answer-Key pair with Working Capital Analysis;
+2. enter one valid learner practice formula in a new driver family;
+3. overwrite one generated `DRIVER DECOMPOSITION CHECK` formula in the Trainer;
+4. run Check;
+5. require `ValueError` before any recoloring;
+6. reopen the workbook and prove the learner practice cell retained its prior yellow fill.
 
-### Equivalent numeric formula
+Also prove that learner edits to the new five semantic practice families are not structurally rejected merely because they differ from the Answer-Key formula text.
 
-A structurally different formula with the correct cached numeric result becomes green.
-
-### Incorrect numeric result
-
-A cached numeric result outside tolerance becomes red.
-
-### Undefined intensity ratio
-
-When Revenue is zero:
-
-```text
-expected = #N/A
-```
-
-Prove:
-
-- exact `NA()`-guarded formula passes;
-- equivalent formula with cached `#N/A` passes;
-- fabricated cached `0.0` fails.
-
-### Undefined incremental ratio
-
-When ΔRevenue is zero, prove the same `#N/A` / fabricated-zero behavior for `incremental_nowc_to_revenue_change`.
-
-Check output must remain aggregate/non-disclosing.
+Do not compare formatting/styles as trusted state; preserve the existing contents-only integrity contract.
 
 ---
 
-## Task 8 — Update workbook instructions and learner framing
+## Task 6 — Preserve surface ordering and documentation
 
 **Files:**
-- Modify: `core/engine/reference_model.py`
-- Modify: `README-HK-TRAINER.md` only if it contains a current curriculum/sheet list that would otherwise become stale
-- Modify: `skills/bav-trainer/SKILL.md` only if its current user-facing description enumerates active sheets/families
-- Test: `core/tests/test_working_capital.py`
-
-The sheet must teach the limits of the diagnostic without supplying a company-specific answer.
-
-Required visible framing:
-
-```text
-Positive Change in NOWC = additional operating working capital tied up (cash use).
-Negative Change in NOWC = operating working capital released.
-NOWC / Revenue and Incremental NOWC / Change in Revenue are diagnostics, not automatic good/bad scores.
-Annual data alone does not prove seasonality.
-```
-
-Do not insert statements such as:
-
-```text
-higher NOWC / Revenue is bad
-lower OWCL / Revenue is good
-negative incremental NOWC is always good
-```
-
-Those claims are not generally valid.
-
-Do not add model-written company-specific causal explanations in this checkpoint.
-
----
-
-## Task 9 — Full regression and checkpoint evidence
-
-**Files:**
+- Modify: `skills/bav-trainer/SKILL.md`
 - Modify: `RESULT.md`
-- Modify: `IMPLEMENTATION.md` status only after verification passes
+- Modify: `IMPLEMENTATION.md` status only after verification
+- Modify: `core/trainer/workbook.py` only if a failing list/index test proves the generic working-capital catalog grouping does not include the five appended families
 - Do not modify: `TARGET.md`
 
-Run focused tests first:
+The existing generic Trainer grouping already reads `WORKING_CAPITAL_COMPONENT_CATALOG`. The five appended families should therefore appear automatically after the six Step 9B.1 families.
+
+Required family order on the Trainer index:
+
+```text
+35  Operating working capital assets / Revenue
+36  Operating working capital liabilities / Revenue
+37  NOWC / Revenue
+38  Change in Revenue
+39  Change in NOWC
+40  Incremental NOWC / Change in Revenue
+41  Change in Operating Working Capital Assets
+42  Change in Operating Working Capital Liabilities
+43  Change in NOWC from OWCA / OWCL bridge
+44  Incremental OWCA / Change in Revenue
+45  Incremental OWCL / Change in Revenue
+```
+
+Update the skill documentation so it no longer describes the working-capital module as only six families / 27 cells.
+
+For the five-year demo, the completed Step 9B.2 surface must be:
+
+```text
+base demo:
+41 families
+188 practice cells
+
+normalization demo:
+45 families
+208 practice cells
+```
+
+These are demo acceptance counts, not universal product constants.
+
+`RESULT.md` must record:
+
+- actual full-suite test count;
+- 11 working-capital families / 47 working-capital practice cells on the applicable five-year demo;
+- OWCA / OWCL change series;
+- NOWC component bridge reconciliation;
+- incremental OWCA / OWCL ratios;
+- zero Change in Revenue `#N/A` behavior;
+- signed declining-Revenue behavior preserved;
+- live classification-conditioned expected values preserved;
+- trusted driver-check tamper fails before recoloring;
+- no causal working-capital diagnosis or quality score introduced;
+- base 41 / 188 and normalization 45 / 208 demo surfaces;
+- no forecasting or valuation introduced.
+
+---
+
+## Task 7 — Full verification
+
+Run the focused suite first:
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_working_capital.py -v
 ```
 
-Then existing major suites:
+Then run the main regression suites:
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
@@ -830,11 +644,9 @@ Then run the complete suite:
 PYTHONPATH=. pytest core/tests/ -q
 ```
 
-Record the actual pass count; do not hard-code a predicted test total into `RESULT.md`.
+Do not state an expected total test count in advance. Record the actual passing count in `RESULT.md`.
 
-### Base demo
-
-Run:
+### Base build
 
 ```bash
 PYTHONPATH=. python -m core build \
@@ -848,17 +660,15 @@ PYTHONPATH=. python -m core list \
   --workbook /tmp/DEMO_BASE_Trainer.xlsx
 ```
 
-Required demo result:
+Required current-demo result:
 
 ```text
-168 practice cells
-0 correct / 0 incorrect / 168 blank
-36 schedule groups
+188 practice cells
+0 correct / 0 incorrect / 188 blank
+41 schedule groups
 ```
 
-### Normalization demo
-
-Run:
+### Normalization build
 
 ```bash
 PYTHONPATH=. python -m core build \
@@ -873,17 +683,26 @@ PYTHONPATH=. python -m core list \
   --workbook /tmp/DEMO_NORM_Trainer.xlsx
 ```
 
-Required demo result:
+Required current-demo result:
 
 ```text
-188 practice cells
-0 correct / 0 incorrect / 188 blank
-40 schedule groups
+208 practice cells
+0 correct / 0 incorrect / 208 blank
+45 schedule groups
 ```
 
-### CLI
+### Applicability-gate preservation
 
-Run:
+Build the existing all-zero OWCA / OWCL fixture and prove:
+
+```text
+Working Capital Analysis sheet: absent
+working-capital components: absent
+```
+
+Do not require 41 / 188 counts for a company where the module is inapplicable.
+
+### CLI
 
 ```bash
 PYTHONPATH=. python -m core --help
@@ -898,54 +717,29 @@ check
 list
 ```
 
-### RESULT.md
-
-Record:
-
-- actual full-suite pass count;
-- working-capital applicability gate;
-- six families / 27 cells on the five-year demo;
-- base demo 36 / 168;
-- normalization demo 40 / 188;
-- OWCA / Revenue, OWCL / Revenue, NOWC / Revenue diagnostics;
-- Change in Revenue and Change in NOWC;
-- incremental NOWC / Change in Revenue;
-- zero-denominator `#N/A` behavior;
-- live classification-conditioned Check regression;
-- trusted source-link tamper rejection;
-- no automatic good/bad quality labeling;
-- no seasonality inference;
-- `TARGET.md` unchanged;
-- forecasting / valuation not begun.
-
-Do not regenerate committed demo XLSX files unless serialized workbook fixtures are intentionally maintained by the repository's current test/release workflow.
-
 ---
 
 ## Definition of done
 
-Step 9B.1 is complete only when all of the following are true:
+Step 9B.2 is complete only when:
 
-1. One authoritative Python working-capital diagnostic series exists.
-2. Diagnostics consume the existing classified reformulation rather than reclassifying labels.
-3. Working-capital analysis is gated off when OWCA and OWCL are zero across all modeled periods.
-4. Applicable companies receive a visible `Working Capital Analysis` sheet.
-5. The sheet contains trusted Revenue / OWCA / OWCL / NOWC source links to `Condensed Financials`.
-6. OWCA / Revenue, OWCL / Revenue, and NOWC / Revenue are practiced across all modeled periods.
-7. Change in Revenue, Change in NOWC, and Incremental NOWC / Change in Revenue are practiced only for comparable periods.
-8. Five applicable fiscal periods add exactly six families / 27 practice cells.
-9. Zero Revenue or zero Change in Revenue yields `#N/A`, not fabricated zero.
-10. First-period change metrics remain non-applicable rather than zero.
-11. Positive/negative Change in NOWC retains its accounting sign.
-12. Dynamic Check recomputes working-capital expected values from the learner's current classification treatment.
-13. Stale reference-treatment working-capital results are rejected after a live classification change.
-14. Generated non-practice cells on `Working Capital Analysis` are protected by trusted-sheet validation.
-15. Exact and equivalent formulas remain Check-compatible.
-16. Base demo reaches 36 families / 168 cells.
-17. Normalization demo reaches 40 families / 188 cells.
-18. Full test suite passes.
-19. No automatic quality score, good/bad label, causal diagnosis, or seasonality conclusion is introduced.
-20. `TARGET.md` is unchanged.
-21. Forecasting and valuation have not begun.
+1. `WorkingCapitalSeries` separately reports Change in OWCA and Change in OWCL.
+2. The independently computed component bridge reconciles to direct Change in NOWC.
+3. Incremental OWCA / Change in Revenue and Incremental OWCL / Change in Revenue preserve signed arithmetic.
+4. Zero Change in Revenue produces `#N/A`, not numeric zero.
+5. Five new comparable-period formula families are registered and checked.
+6. The existing six Step 9B.1 families remain unchanged.
+7. Working Capital Analysis contains a visible asset/liability driver-decomposition section.
+8. The generated decomposition check is trusted and tamper-detected before recoloring.
+9. Live classification judgment changes the new dynamic expected values where relevant.
+10. No automatic good/bad label, causal line-item diagnosis, or seasonality claim is introduced.
+11. All-zero OWCA / OWCL still omits the module entirely.
+12. Base demo is 41 families / 188 practice cells.
+13. Normalization demo is 45 families / 208 practice cells.
+14. Fresh Check is all blank on both generated Trainer workbooks.
+15. The full test suite passes.
+16. CLI remains `{ingest,build,check,list}`.
+17. `TARGET.md` is unchanged.
+18. Forecasting and valuation have not begun.
 
-After completing Step 9B.1, stop and report changed files, exact test output, demo build/check/list output, applicability-gate evidence, and any new active historical-model issue found during implementation. Do not proceed to the next curriculum feature and do not commit or push.
+After completing Step 9B.2, stop and report changed files, exact test output, demo build/check/list output, decomposition-reconciliation evidence, live-classification evidence, and any new active historical-model issue found during implementation. Do not proceed to line-item causal diagnosis, forecasting, or valuation, and do not commit or push.
