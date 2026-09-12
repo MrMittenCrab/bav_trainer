@@ -1,5 +1,7 @@
 # Step 9B.1 — Historical Working-Capital Diagnostics Foundation
 
+> **Status:** Step 9B.1 complete. See `RESULT.md` for verification evidence (210 passed; base 36/168; normalization 40/188; Working Capital Analysis gated on nonzero OWCA/OWCL). Do not commit or push from this checkpoint unless the user requests it.
+
 > **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `67f273a7c588c98c875f7cc7a22be0c819d210e1` (`Step 9.5`, Step 9A.5 complete). Implement only Step 9B.1 below using red/green TDD. Preserve Step 8 classification/normalization judgment, the trusted-workbook boundary, Step 9A earnings-quality diagnostics, historical source completeness, and all established `#N/A` semantics. Do not add automatic good/bad quality labels, seasonality claims, forecasting, valuation, ROU/deferred-tax alternative modeling, segment analysis, or later research-diagnostic work. Do not commit or push; the user owns the checkpoint commit.
 
 **Goal:** Add an auditable historical working-capital diagnostic schedule that teaches how operating working-capital intensity and incremental working-capital investment move relative to Revenue, while preserving live classification judgment and avoiding unsupported automatic interpretation.

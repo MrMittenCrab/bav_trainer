@@ -26,6 +26,7 @@ JUDGMENT_SHEET = "Accounting Judgment"
 NORMALIZATION_JUDGMENT_SHEET = "Normalization Judgment"
 EARNINGS_NORMALIZATION_SHEET = "Earnings Normalization"
 EARNINGS_QUALITY_SHEET = "Earnings Quality"
+WORKING_CAPITAL_SHEET = "Working Capital Analysis"
 
 
 @dataclass(frozen=True)
@@ -591,6 +592,20 @@ def validate_live_model_structure(
             answer_key_wb[EARNINGS_QUALITY_SHEET],
             sheet_name=EARNINGS_QUALITY_SHEET,
             editable_cells=quality_practice,
+        )
+
+    working_capital_practice = {
+        cell for tab, cell in practice_cells if tab == WORKING_CAPITAL_SHEET
+    }
+    if working_capital_practice:
+        for wb, label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
+            if WORKING_CAPITAL_SHEET not in wb.sheetnames:
+                raise ValueError(f"{label} is missing Working Capital Analysis sheet")
+        _validate_trusted_sheet_cells(
+            trainer_wb[WORKING_CAPITAL_SHEET],
+            answer_key_wb[WORKING_CAPITAL_SHEET],
+            sheet_name=WORKING_CAPITAL_SHEET,
+            editable_cells=working_capital_practice,
         )
 
     _validate_trusted_sheet_cells(

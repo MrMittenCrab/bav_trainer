@@ -13,6 +13,7 @@ from ..engine.component_catalog import (
     COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
     QUALITY_COMPONENT_CATALOG,
+    WORKING_CAPITAL_COMPONENT_CATALOG,
 )
 from ..engine.reference_model import (
     JUDGMENT_SHEET,
@@ -281,6 +282,7 @@ def group_components_by_family(smap: SemanticMap) -> list[dict]:
     family_meta = {f.id: f for f in COMPONENT_CATALOG}
     family_meta.update({f.id: f for f in NORMALIZATION_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in QUALITY_COMPONENT_CATALOG})
+    family_meta.update({f.id: f for f in WORKING_CAPITAL_COMPONENT_CATALOG})
     groups: list[dict] = []
     for family_id, comps in by_family.items():
         comps = sorted(comps, key=lambda c: (c.period_index is None, c.period_index or 0, c.order))

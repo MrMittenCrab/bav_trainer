@@ -706,6 +706,151 @@ def expand_quality_specs(
     return tuple(specs)
 
 
+WORKING_CAPITAL_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="owca_to_revenue",
+        order=35,
+        title="Operating working capital assets / Revenue",
+        short_hint="OWCA divided by Revenue for the same fiscal period.",
+        semantic_key="working_capital.owca_to_revenue",
+        category="working_capital",
+        tab_template="Working Capital Analysis",
+        hints=(
+            "Operating Working Capital Assets / Revenue measures operating current assets tied up per sales dollar.",
+            "A zero Revenue denominator makes the ratio undefined (#N/A).",
+            "A higher ratio is not automatically deterioration; diagnose the underlying operating balances before drawing a conclusion.",
+        ),
+    ),
+    ComponentFamily(
+        id="owcl_to_revenue",
+        order=36,
+        title="Operating working capital liabilities / Revenue",
+        short_hint="OWCL divided by Revenue for the same fiscal period.",
+        semantic_key="working_capital.owcl_to_revenue",
+        category="working_capital",
+        tab_template="Working Capital Analysis",
+        hints=(
+            "Operating Working Capital Liabilities / Revenue measures operating current liabilities financing each sales dollar.",
+            "A zero Revenue denominator makes the ratio undefined (#N/A).",
+            "A higher ratio can finance growth but is not automatically positive; payment behavior and business model matter.",
+        ),
+    ),
+    ComponentFamily(
+        id="nowc_to_revenue",
+        order=37,
+        title="NOWC / Revenue",
+        short_hint="NOWC divided by Revenue for the same fiscal period.",
+        semantic_key="working_capital.nowc_to_revenue",
+        category="working_capital",
+        tab_template="Working Capital Analysis",
+        hints=(
+            "NOWC / Revenue measures net operating working capital tied up per sales dollar.",
+            "NOWC = OWCA - OWCL.",
+            "Rising intensity means more net working capital is tied up per sales dollar, but the cause must be diagnosed rather than labeled automatically.",
+        ),
+    ),
+    ComponentFamily(
+        id="revenue_change",
+        order=38,
+        title="Change in Revenue",
+        short_hint="Absolute year-on-year change in Revenue.",
+        semantic_key="working_capital.revenue_change",
+        category="working_capital",
+        tab_template="Working Capital Analysis",
+        period_scope="comparable",
+        hints=(
+            "Use the absolute year-on-year change in Revenue, not the percentage growth rate.",
+        ),
+    ),
+    ComponentFamily(
+        id="nowc_change",
+        order=39,
+        title="Change in NOWC",
+        short_hint="Absolute year-on-year change in NOWC.",
+        semantic_key="working_capital.nowc_change",
+        category="working_capital",
+        tab_template="Working Capital Analysis",
+        period_scope="comparable",
+        hints=(
+            "Positive Change in NOWC means additional operating working capital is tied up; negative Change in NOWC means a release.",
+            "Do not call the movement good or bad without examining why it occurred.",
+        ),
+    ),
+    ComponentFamily(
+        id="incremental_nowc_to_revenue_change",
+        order=40,
+        title="Incremental NOWC / Change in Revenue",
+        short_hint="Change in NOWC divided by Change in Revenue.",
+        semantic_key="working_capital.incremental_nowc_to_revenue_change",
+        category="working_capital",
+        tab_template="Working Capital Analysis",
+        period_scope="comparable",
+        depends_on_current=("nowc_change", "revenue_change"),
+        hints=(
+            "This ratio measures incremental working-capital investment per unit of incremental sales.",
+            "A zero Change in Revenue denominator makes the ratio undefined (#N/A).",
+            "Negative or unusually large values are diagnostic signals, not automatic quality labels.",
+        ),
+    ),
+)
+
+
+def expand_working_capital_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+) -> tuple[ComponentSpec, ...]:
+    """Expand working-capital diagnostic families into period-specific concrete specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_working_capital_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_working_capital_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in WORKING_CAPITAL_COMPONENT_CATALOG:
+        if family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        else:
+            indices = range(len(periods))
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            if j > 0:
+                prev = periods[j - 1]
+                for dep_fam in family.depends_on_previous:
+                    deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 def _deferred(
     *,
     id: str,

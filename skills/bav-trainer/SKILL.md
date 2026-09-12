@@ -105,8 +105,8 @@ python -m core build example/DEMO_HK_Standardized.json \
 Outputs:
 - `DEMO_HK_Trainer.xlsx` — source/classifications filled; yellow schedule cells blank
 - `DEMO_HK_Answer_Key.xlsx` — working formulas + legacy Notes on the same cells
-- With demo assumptions: 34 families / 161 cells (includes Earnings Normalization + Earnings Quality)
-- Without `-a`: 30 families / 141 cells (includes Earnings Quality; no normalization sheets)
+- With demo assumptions: 40 families / 188 cells (includes Earnings Normalization + Earnings Quality)
+- Without `-a`: 36 families / 168 cells (includes Earnings Quality; no normalization sheets)
 
 There is **no** user-facing `*_reference.xlsx` and no Trainer `.trainer.json`.
 
@@ -121,7 +121,7 @@ python -m core check --workbook training/DEMO_HK_Trainer.xlsx
 
 3. Open the Answer Key for the formula and Note hint.
 
-Active historical schedules: Revenue/NI links → tax/interest/NOPAT → OWCA/OWCL/NOWC → OLTA/OLTL/NOLA → NOA → FA/FL/Net Debt → Equity → Sales Growth / NOPAT Margin → RNOA / After-tax CoD / Spread / FLEV / ROE → (optional) Earnings Normalization → Earnings Quality (CFO / cash conversion / accruals).
+Active historical schedules: Revenue/NI links → tax/interest/NOPAT → OWCA/OWCL/NOWC → OLTA/OLTL/NOLA → NOA → FA/FL/Net Debt → Equity → Sales Growth / NOPAT Margin → RNOA / After-tax CoD / Spread / FLEV / ROE → (optional) Earnings Normalization → Earnings Quality (CFO / cash conversion / accruals) → Working Capital Analysis (when OWCA/OWCL present).
 
 ## Design principles
 

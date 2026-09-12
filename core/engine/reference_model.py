@@ -29,11 +29,16 @@ from ..model.normalization import (
 )
 from ..model.period_axis import canonical_fiscal_periods
 from ..model.ri_engine import run_scenario, weighted_ivps
+from ..model.working_capital import (
+    compute_working_capital_series,
+    working_capital_applicable,
+)
 from .component_catalog import (
     DEFERRED_COMPONENT_SPECS,
     expand_historical_specs,
     expand_normalization_specs,
     expand_quality_specs,
+    expand_working_capital_specs,
 )
 from .map_embed import embed_component_map_sheet
 from .semantic_map import SemanticMap
@@ -55,6 +60,7 @@ JUDGMENT_SHEET = "Accounting Judgment"
 NORMALIZATION_JUDGMENT_SHEET = "Normalization Judgment"
 EARNINGS_NORMALIZATION_SHEET = "Earnings Normalization"
 EARNINGS_QUALITY_SHEET = "Earnings Quality"
+WORKING_CAPITAL_SHEET = "Working Capital Analysis"
 JUDGMENT_INSTRUCTION = (
     "The supplied treatment is the model's reference treatment, not a universal "
     "accounting truth. Compare it with the listed alternative(s), choose the "
@@ -141,8 +147,25 @@ class ReferenceModelBuilder:
         else:
             self.quality_series = None
             self.quality_specs = ()
+        if working_capital_applicable(self.anchor):
+            self.working_capital_series = compute_working_capital_series(self.anchor)
+            self.working_capital_specs = expand_working_capital_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + 1
+                ),
+            )
+        else:
+            self.working_capital_series = None
+            self.working_capital_specs = ()
         self.expected_specs = (
-            self.historical_specs + self.normalization_specs + self.quality_specs
+            self.historical_specs
+            + self.normalization_specs
+            + self.quality_specs
+            + self.working_capital_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -153,6 +176,9 @@ class ReferenceModelBuilder:
         }
         self._quality_spec_index = {
             (s.family_id, s.period_index): s for s in self.quality_specs
+        }
+        self._working_capital_spec_index = {
+            (s.family_id, s.period_index): s for s in self.working_capital_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -251,6 +277,8 @@ class ReferenceModelBuilder:
             self._build_earnings_normalization(wb)
         if self.quality_series is not None:
             self._build_earnings_quality(wb)
+        if self.working_capital_series is not None:
+            self._build_working_capital_analysis(wb)
         if self.include_deferred_forecast:
             for scenario in ("Bear", "Base", "Bull"):
                 self._build_model_tab(wb, scenario)
@@ -337,6 +365,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._quality_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_working_capital(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._working_capital_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -764,6 +808,8 @@ class ReferenceModelBuilder:
             ws.cell(row=r, column=2 + j, value=f)
         r += 1
 
+        self.rowmap["condensed_owca_row"] = owca_row
+        self.rowmap["condensed_owcl_row"] = owcl_row
         self.rowmap["condensed_nowc_row"] = nowc_row
         self.rowmap["condensed_nola_row"] = nola_row
         self.rowmap["condensed_noa_row"] = noa_row
@@ -1391,6 +1437,172 @@ class ReferenceModelBuilder:
         self.rowmap["quality_assets_row"] = assets_row
         self.rowmap["quality_avg_assets_row"] = avg_assets_row
         self.rowmap["quality_accrual_ratio_row"] = accrual_ratio_row
+
+    def _build_working_capital_analysis(self, wb: Workbook) -> None:
+        if self.working_capital_series is None:
+            raise RuntimeError(
+                "working_capital_series required when building Working Capital Analysis"
+            )
+
+        ws = wb.create_sheet(WORKING_CAPITAL_SHEET)
+        ws["A1"] = "Working Capital Analysis"
+        ws["A1"].font = BOLD
+        ws["A2"] = (
+            "Relate classified operating working capital to Revenue and identify how "
+            "much incremental NOWC accompanies changes in sales."
+        )
+        ws["A3"] = (
+            "These are diagnostics, not automatic judgments. Positive Change in NOWC "
+            "is an operating cash use; negative Change in NOWC is a release. Annual "
+            "data alone does not prove seasonality or deterioration."
+        )
+        ws.column_dimensions["A"].width = 48
+
+        header_row = 5
+        ws.cell(row=header_row, column=1, value="Metric").font = BOLD
+        for j, pd in enumerate(self.periods):
+            cell = ws.cell(row=header_row, column=2 + j, value=pd)
+            cell.number_format = "mmm dd, yyyy"
+            cell.font = BOLD
+            ws.column_dimensions[self._col(2 + j)].width = 14
+
+        rev_r = self.rowmap["condensed_revenue_row"]
+        owca_r = self.rowmap["condensed_owca_row"]
+        owcl_r = self.rowmap["condensed_owcl_row"]
+        nowc_r = self.rowmap["condensed_nowc_row"]
+        series = self.working_capital_series
+
+        rev_row = 6
+        owca_row = 7
+        owcl_row = 8
+        nowc_row = 9
+        owca_ratio_row = 11
+        owcl_ratio_row = 12
+        nowc_ratio_row = 13
+        rev_chg_row = 14
+        nowc_chg_row = 15
+        incr_row = 16
+
+        ws.cell(row=rev_row, column=1, value="Revenue")
+        ws.cell(row=owca_row, column=1, value="Operating Working Capital Assets")
+        ws.cell(row=owcl_row, column=1, value="Operating Working Capital Liabilities")
+        ws.cell(row=nowc_row, column=1, value="NOWC")
+        ws.cell(row=owca_ratio_row, column=1, value="OWCA / Revenue")
+        ws.cell(row=owcl_ratio_row, column=1, value="OWCL / Revenue")
+        ws.cell(row=nowc_ratio_row, column=1, value="NOWC / Revenue")
+        ws.cell(row=rev_chg_row, column=1, value="Change in Revenue")
+        ws.cell(row=nowc_chg_row, column=1, value="Change in NOWC")
+        ws.cell(row=incr_row, column=1, value="Incremental NOWC / Change in Revenue")
+
+        for j in range(self._n):
+            col = self._col(2 + j)
+            for row, src in (
+                (rev_row, rev_r),
+                (owca_row, owca_r),
+                (owcl_row, owcl_r),
+                (nowc_row, nowc_r),
+            ):
+                formula = f"='Condensed Financials'!{col}{src}"
+                c = ws.cell(row=row, column=2 + j, value=formula)
+                c.number_format = NUM_FMT
+
+            owca_ratio = f"=IF({col}{rev_row}=0,NA(),{col}{owca_row}/{col}{rev_row})"
+            owcl_ratio = f"=IF({col}{rev_row}=0,NA(),{col}{owcl_row}/{col}{rev_row})"
+            nowc_ratio = f"=IF({col}{rev_row}=0,NA(),{col}{nowc_row}/{col}{rev_row})"
+            for row, formula in (
+                (owca_ratio_row, owca_ratio),
+                (owcl_ratio_row, owcl_ratio),
+                (nowc_ratio_row, nowc_ratio),
+            ):
+                c = ws.cell(row=row, column=2 + j, value=formula)
+                c.number_format = PCT_FMT
+
+            self._register_working_capital(
+                "owca_to_revenue",
+                j,
+                WORKING_CAPITAL_SHEET,
+                owca_ratio_row,
+                2 + j,
+                owca_ratio,
+                series.owca_to_revenue[j],
+            )
+            self._register_working_capital(
+                "owcl_to_revenue",
+                j,
+                WORKING_CAPITAL_SHEET,
+                owcl_ratio_row,
+                2 + j,
+                owcl_ratio,
+                series.owcl_to_revenue[j],
+            )
+            self._register_working_capital(
+                "nowc_to_revenue",
+                j,
+                WORKING_CAPITAL_SHEET,
+                nowc_ratio_row,
+                2 + j,
+                nowc_ratio,
+                series.nowc_to_revenue[j],
+            )
+
+            if j == 0:
+                ws.cell(row=rev_chg_row, column=2 + j, value="N/A")
+                ws.cell(row=nowc_chg_row, column=2 + j, value="N/A")
+                ws.cell(row=incr_row, column=2 + j, value="N/A")
+                continue
+
+            prev_col = self._col(2 + j - 1)
+            rev_chg = f"={col}{rev_row}-{prev_col}{rev_row}"
+            nowc_chg = f"={col}{nowc_row}-{prev_col}{nowc_row}"
+            incr = (
+                f"=IF({col}{rev_chg_row}=0,NA(),"
+                f"{col}{nowc_chg_row}/{col}{rev_chg_row})"
+            )
+            c = ws.cell(row=rev_chg_row, column=2 + j, value=rev_chg)
+            c.number_format = NUM_FMT
+            c = ws.cell(row=nowc_chg_row, column=2 + j, value=nowc_chg)
+            c.number_format = NUM_FMT
+            c = ws.cell(row=incr_row, column=2 + j, value=incr)
+            c.number_format = PCT_FMT
+
+            assert series.revenue_change[j] is not None
+            assert series.nowc_change[j] is not None
+            assert series.incremental_nowc_to_revenue_change[j] is not None
+            self._register_working_capital(
+                "revenue_change",
+                j,
+                WORKING_CAPITAL_SHEET,
+                rev_chg_row,
+                2 + j,
+                rev_chg,
+                float(series.revenue_change[j]),
+            )
+            self._register_working_capital(
+                "nowc_change",
+                j,
+                WORKING_CAPITAL_SHEET,
+                nowc_chg_row,
+                2 + j,
+                nowc_chg,
+                float(series.nowc_change[j]),
+            )
+            incr_expected = series.incremental_nowc_to_revenue_change[j]
+            self._register_working_capital(
+                "incremental_nowc_to_revenue_change",
+                j,
+                WORKING_CAPITAL_SHEET,
+                incr_row,
+                2 + j,
+                incr,
+                incr_expected
+                if isinstance(incr_expected, str)
+                else float(incr_expected),
+            )
+
+        self.rowmap["wc_revenue_row"] = rev_row
+        self.rowmap["wc_owca_row"] = owca_row
+        self.rowmap["wc_owcl_row"] = owcl_row
+        self.rowmap["wc_nowc_row"] = nowc_row
 
     def _build_model_tab(self, wb: Workbook, scenario: str) -> None:
         ws = wb.create_sheet(f"Model_{scenario}")

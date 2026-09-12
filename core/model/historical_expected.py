@@ -6,11 +6,13 @@ from ..engine.component_catalog import (
     COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
     QUALITY_COMPONENT_CATALOG,
+    WORKING_CAPITAL_COMPONENT_CATALOG,
 )
 from ..engine.semantic_map import ResolvedComponent
 from .earnings_quality import EarningsQualitySeries
 from .financial_math import AnchorMetrics
 from .normalization import NormalizationSeries
+from .working_capital import compute_working_capital_series
 
 _FAMILY_SERIES = (
     "revenue_link",
@@ -53,6 +55,15 @@ _QUALITY_FAMILY_SERIES = (
     "total_accruals",
     "average_total_assets",
     "accrual_ratio",
+)
+
+_WORKING_CAPITAL_FAMILY_SERIES = (
+    "owca_to_revenue",
+    "owcl_to_revenue",
+    "nowc_to_revenue",
+    "revenue_change",
+    "nowc_change",
+    "incremental_nowc_to_revenue_change",
 )
 
 
@@ -142,6 +153,30 @@ def earnings_quality_expected_series(
     return {family_id: series[family_id] for family_id in _QUALITY_FAMILY_SERIES}
 
 
+def working_capital_expected_series(
+    anchor: AnchorMetrics,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map working-capital formula families to diagnostics from ``anchor``."""
+    wc = compute_working_capital_series(anchor)
+    series = {
+        "owca_to_revenue": wc.owca_to_revenue,
+        "owcl_to_revenue": wc.owcl_to_revenue,
+        "nowc_to_revenue": wc.nowc_to_revenue,
+        "revenue_change": wc.revenue_change,
+        "nowc_change": wc.nowc_change,
+        "incremental_nowc_to_revenue_change": wc.incremental_nowc_to_revenue_change,
+    }
+    expected_ids = {family.id for family in WORKING_CAPITAL_COMPONENT_CATALOG}
+    if set(series) != expected_ids:
+        missing = sorted(expected_ids - set(series))
+        extra = sorted(set(series) - expected_ids)
+        raise ValueError(
+            f"working_capital_expected_series family mismatch; "
+            f"missing={missing} extra={extra}"
+        )
+    return {family_id: series[family_id] for family_id in _WORKING_CAPITAL_FAMILY_SERIES}
+
+
 def expected_value_for_component(
     anchor: AnchorMetrics,
     component: ResolvedComponent,
@@ -159,7 +194,9 @@ def expected_value_for_component(
             f"Component {component.id!r} (family {family_id}) has no period_index"
         )
 
-    if family_id in _QUALITY_FAMILY_SERIES:
+    if family_id in _WORKING_CAPITAL_FAMILY_SERIES:
+        series = working_capital_expected_series(anchor)
+    elif family_id in _QUALITY_FAMILY_SERIES:
         if earnings_quality is None:
             raise ValueError(
                 f"Earnings-quality family {family_id!r} requires an EarningsQualitySeries"
