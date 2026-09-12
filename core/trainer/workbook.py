@@ -14,11 +14,12 @@ from ..engine.reference_model import JUDGMENT_SHEET, ReferenceModelBuilder
 from ..engine.semantic_map import ResolvedComponent, SemanticMap
 from ..data.line_identity import validate_financials_identities
 from ..ingestion.reconciler import reconcile_financials
-from ..model.judgment import JudgmentCase
 from .semantic_io import load_semantic_map, resolve_pair_paths
 
 COMPONENT_MAP_SHEET = "_ComponentMap"
 NOTE_AUTHOR = "BAV Trainer"
+JUDGMENT_FIRST_DATA_ROW = 5
+JUDGMENT_RESPONSE_COLS = (6, 7, 8)
 
 _TRAINER_SIDECAR_SUFFIXES = (
     ".component_map.json",
@@ -51,11 +52,21 @@ THIN_BORDER = Border(
 _HIDDEN_PREFIX = "_"
 
 TRAINER_INDEX_INSTRUCTION = (
-    "Complete each historical schedule left-to-right in dependency order. "
-    "Each schedule is one modeling concept repeated across fiscal periods. "
-    "Run Check to validate every yellow cell in the workbook. "
-    "Open the matching Answer Key for the formula/input and Note hint."
+    "Complete each historical formula schedule left-to-right in dependency order. "
+    "Run Check to validate the yellow formula cells. Also complete Accounting Judgment "
+    "when cases are present; those responses are not graded by Check. Compare them with "
+    "the matching Answer Key. Do not edit the supplied Condensed Financials classification "
+    "for this Step 8A exercise."
 )
+
+
+def _judgment_case_rows(ws):
+    """Yield data rows that look like judgment cases (not the zero-case message)."""
+    for row in range(JUDGMENT_FIRST_DATA_ROW, (ws.max_row or 0) + 1):
+        order = ws.cell(row=row, column=1).value
+        label = ws.cell(row=row, column=2).value
+        if isinstance(order, int) and order >= 1 and label not in (None, ""):
+            yield row
 
 
 class TrainingWorkbookGenerator:
@@ -65,11 +76,9 @@ class TrainingWorkbookGenerator:
         self,
         answer_key_path: Path,
         semantic_map: SemanticMap | None = None,
-        judgment_cases: tuple[JudgmentCase, ...] = (),
     ):
         self.answer_key_path = answer_key_path
         self.semantic_map = semantic_map or load_semantic_map(answer_key_path)
-        self.judgment_cases = tuple(judgment_cases)
 
     def generate(self, trainer_path: Path) -> tuple[Path, Path]:
         """Finalize Answer Key in place, then derive a sanitized Trainer from it."""
@@ -165,22 +174,20 @@ class TrainingWorkbookGenerator:
             cell.comment = None
 
     def _decorate_answer_key_judgment_cells(self, wb) -> None:
-        if JUDGMENT_SHEET not in wb.sheetnames or not self.judgment_cases:
+        if JUDGMENT_SHEET not in wb.sheetnames:
             return
         ws = wb[JUDGMENT_SHEET]
-        for case in self.judgment_cases:
-            row = 4 + case.order
-            for col in (6, 7, 8):
+        for row in _judgment_case_rows(ws):
+            for col in JUDGMENT_RESPONSE_COLS:
                 cell = ws.cell(row=row, column=col)
                 cell.fill = PRACTICE_FILL
 
     def _blank_trainer_judgment_cells(self, wb) -> None:
-        if JUDGMENT_SHEET not in wb.sheetnames or not self.judgment_cases:
+        if JUDGMENT_SHEET not in wb.sheetnames:
             return
         ws = wb[JUDGMENT_SHEET]
-        for case in self.judgment_cases:
-            row = 4 + case.order
-            for col in (6, 7, 8):
+        for row in _judgment_case_rows(ws):
+            for col in JUDGMENT_RESPONSE_COLS:
                 cell = ws.cell(row=row, column=col)
                 cell.value = None
                 cell.fill = PRACTICE_FILL
@@ -351,7 +358,6 @@ def build_training_workbook(
     TrainingWorkbookGenerator(
         answer_key_path,
         semantic_map,
-        judgment_cases=builder.judgment_cases,
     ).generate(trainer_path)
     remove_trainer_sidecars(trainer_path)
     return trainer_path, answer_key_path

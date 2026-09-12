@@ -217,64 +217,86 @@ def test_demo_reconciliation_report_passes():
     assert report.checksums["cash_flow"] is True
 
 
-def test_guided_classification_alternatives_and_consequences():
-    cases = [
-        (
-            "Operating lease liabilities",
-            "Operating Long-Term Liability",
-            ("Operating Long-Term Liability", "Financial Liability"),
-        ),
-        (
-            "Deferred tax assets",
-            "Operating Long-Term Asset",
-            ("Operating Long-Term Asset", "Exclude"),
-        ),
-        (
-            "Deferred tax liabilities",
-            "Operating Long-Term Liability",
-            ("Operating Long-Term Liability", "Exclude"),
-        ),
-        (
-            "Pension obligations",
-            "Operating Long-Term Liability",
-            ("Operating Long-Term Liability", "Financial Liability"),
-        ),
-        (
-            "Short-term investments",
-            "Financial Asset",
-            ("Financial Asset", "Operating Working Capital Asset"),
-        ),
-        (
-            "Investment in associates",
-            "Operating Long-Term Asset",
-            ("Operating Long-Term Asset", "Financial Asset"),
-        ),
-    ]
-    for label, category, options in cases:
-        decision = classify_balance_sheet_line(_li(label, 50, 60))
-        assert decision.ambiguous is True
-        assert decision.category == category
-        assert decision.category == decision.guided_options[0]
-        assert decision.guided_options == options
-        assert len(decision.guided_options) >= 2
-        assert all(option in BALANCE_SHEET_CATEGORIES for option in decision.guided_options)
-        assert decision.judgment_topic
-        assert decision.consequence_note
+def test_lease_liability_judgment_code_label_and_concept():
+    by_label = classify_balance_sheet_line(_li("Operating lease liabilities", 50, 60))
+    assert by_label.ambiguous is True
+    assert by_label.category == "Operating Long-Term Liability"
+    assert by_label.judgment_code == "lease_liability_operating_vs_financing"
+
+    by_concept = classify_balance_sheet_line(
+        LineItem(
+            label="Lease liabilities",
+            concept="lease_liability",
+            values={P1: 50, P2: 60},
+        )
+    )
+    assert by_concept.ambiguous is True
+    assert by_concept.category == "Operating Long-Term Liability"
+    assert by_concept.judgment_code == "lease_liability_operating_vs_financing"
 
 
-def test_rou_asset_ambiguous_without_fake_guided_options():
-    decision = classify_balance_sheet_line(_li("Right-of-use assets", 50, 60))
-    assert decision.ambiguous is True
-    assert decision.guided_options == ()
+def test_associate_investment_judgment_code_label_and_concept():
+    by_label = classify_balance_sheet_line(_li("Investment in associates", 50, 60))
+    assert by_label.ambiguous is True
+    assert by_label.category == "Operating Long-Term Asset"
+    assert by_label.judgment_code == "associate_investment_operating_vs_financial"
+
+    by_jv_label = classify_balance_sheet_line(_li("Investment in joint venture", 50, 60))
+    assert by_jv_label.judgment_code == "associate_investment_operating_vs_financial"
+
+    by_concept = classify_balance_sheet_line(
+        LineItem(
+            label="Strategic holding",
+            concept="EquityMethodInvestments",
+            values={P1: 50, P2: 60},
+        )
+    )
+    assert by_concept.ambiguous is True
+    assert by_concept.category == "Operating Long-Term Asset"
+    assert by_concept.judgment_code == "associate_investment_operating_vs_financial"
 
 
-def test_override_suppresses_guided_options():
+def test_supported_judgment_codes_for_pension_and_short_term_investment():
+    pension = classify_balance_sheet_line(_li("Pension obligations", 50, 60))
+    assert pension.ambiguous is True
+    assert pension.category == "Operating Long-Term Liability"
+    assert pension.judgment_code == "pension_obligation_operating_vs_financing"
+
+    sti = classify_balance_sheet_line(_li("Short-term investments", 50, 60))
+    assert sti.ambiguous is True
+    assert sti.category == "Financial Asset"
+    assert sti.judgment_code == "short_term_investment_financial_vs_operating"
+
+
+def test_deferred_tax_and_rou_ambiguous_without_judgment_code():
+    dta = classify_balance_sheet_line(_li("Deferred tax assets", 50, 60))
+    assert dta.ambiguous is True
+    assert dta.judgment_code is None
+
+    dtl = classify_balance_sheet_line(_li("Deferred tax liabilities", 50, 60))
+    assert dtl.ambiguous is True
+    assert dtl.judgment_code is None
+
+    rou = classify_balance_sheet_line(_li("Right-of-use assets", 50, 60))
+    assert rou.ambiguous is True
+    assert rou.judgment_code is None
+
+    dta_concept = classify_balance_sheet_line(
+        LineItem(
+            label="Deferred tax",
+            concept="DeferredTaxAsset",
+            values={P1: 50, P2: 60},
+        )
+    )
+    assert dta_concept.ambiguous is True
+    assert dta_concept.judgment_code is None
+
+
+def test_override_suppresses_judgment_code():
     decision = classify_balance_sheet_line(
         _li("Operating lease liabilities", 50, 60),
         override="Financial Liability",
     )
     assert decision.overridden is True
     assert decision.ambiguous is False
-    assert decision.guided_options == ()
-    assert decision.judgment_topic == ""
-    assert decision.consequence_note == ""
+    assert decision.judgment_code is None

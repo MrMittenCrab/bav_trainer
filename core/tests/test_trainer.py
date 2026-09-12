@@ -985,6 +985,7 @@ def test_accounting_judgment_sheet_answer_key_and_trainer_contract(tmp_path):
     from core.engine.reference_model import (
         JUDGMENT_INSTRUCTION,
         JUDGMENT_SHEET,
+        JUDGMENT_STEP_NOTE,
         ReferenceModelBuilder,
     )
 
@@ -1004,16 +1005,19 @@ def test_accounting_judgment_sheet_answer_key_and_trainer_contract(tmp_path):
     ws_t = wb_t[JUDGMENT_SHEET]
     assert ws_a["A1"].value == "Accounting Judgment"
     assert JUDGMENT_INSTRUCTION in str(ws_a["A2"].value)
+    assert JUDGMENT_STEP_NOTE in str(ws_a["A3"].value)
+    assert "Condensed Financials" in str(ws_a["A3"].value)
+    assert "does not grade" in str(ws_a["A3"].value).lower()
     headers = [ws_a.cell(4, c).value for c in range(1, 9)]
     assert headers == [
         "Order",
         "Line item",
         "Topic",
-        "Supplied model treatment",
+        "Supplied reference treatment",
         "Alternative(s) to evaluate",
-        "Your treatment",
-        "Your rationale",
-        "Your consequence explanation",
+        "Treatment to defend",
+        "Rationale",
+        "Economic consequence",
     ]
     row = 5
     assert ws_a.cell(row, 1).value == 1
@@ -1036,6 +1040,11 @@ def test_accounting_judgment_sheet_answer_key_and_trainer_contract(tmp_path):
         "Operating Long-Term Liability" in f and "Financial Liability" in f
         for f in formulas
     )
+    trainer_formulas = [str(dv.formula1) for dv in ws_t.data_validations.dataValidation]
+    assert any(
+        "Operating Long-Term Liability" in f and "Financial Liability" in f
+        for f in trainer_formulas
+    )
 
     summary = check_workbook(trainer_path)
     assert summary.total == 118
@@ -1045,11 +1054,13 @@ def test_accounting_judgment_sheet_answer_key_and_trainer_contract(tmp_path):
 
     forbidden = [case.model_rationale, case.model_consequence]
     for name in wb_t.sheetnames:
-        if not name.startswith("_") and name != "Trainer":
-            continue
         ws = wb_t[name]
         for r in ws.iter_rows(max_row=ws.max_row or 1, max_col=ws.max_column or 1):
             for cell in r:
+                # Visible judgment response cells must be blank.
+                if name == JUDGMENT_SHEET and cell.row == row and cell.column in (6, 7, 8):
+                    assert cell.value is None
+                    continue
                 val = cell.value
                 if isinstance(val, str):
                     for needle in forbidden:
@@ -1064,5 +1075,87 @@ def test_accounting_judgment_sheet_answer_key_and_trainer_contract(tmp_path):
             for needle in forbidden:
                 assert needle not in text
 
+    wb_a.close()
+    wb_t.close()
+
+
+def test_trainer_instruction_mentions_judgment_not_graded_by_check(tmp_path):
+    trainer_path, _ = _build_pair(tmp_path)
+    wb = load_workbook(trainer_path, data_only=False)
+    instruction = str(wb["Trainer"]["A2"].value)
+    assert instruction == TRAINER_INDEX_INSTRUCTION
+    assert "not graded by Check" in instruction
+    assert "Condensed Financials" in instruction
+    assert "every yellow cell" not in instruction.lower()
+    # Accounting Judgment is not a 26th formula-family row.
+    assert (wb["Trainer"].max_row or 4) - 4 == 25
+    wb.close()
+
+
+def test_direct_constructor_sanitizes_judgment_without_case_objects(tmp_path):
+    """Trainer blanking must work from workbook structure alone."""
+    from core.engine.reference_model import JUDGMENT_SHEET, ReferenceModelBuilder
+    from core.trainer.workbook import TrainingWorkbookGenerator
+
+    data = _ingest_demo()
+    answer_key_path = tmp_path / "Direct_Answer_Key.xlsx"
+    trainer_path = tmp_path / "Direct_Trainer.xlsx"
+    builder = ReferenceModelBuilder(data)
+    assert len(builder.judgment_cases) == 1
+    case = builder.judgment_cases[0]
+    semantic_map = builder.build(answer_key_path)
+
+    # Two-argument constructor — no judgment_cases argument.
+    TrainingWorkbookGenerator(answer_key_path, semantic_map).generate(trainer_path)
+
+    wb_t = load_workbook(trainer_path, data_only=False)
+    ws = wb_t[JUDGMENT_SHEET]
+    for col in (6, 7, 8):
+        assert ws.cell(5, col).value is None
+        assert ws.cell(5, col).comment is None
+        assert _fill_rgb(ws.cell(5, col)) == "FFFF00"
+    for needle in (case.model_rationale, case.model_consequence):
+        for name in wb_t.sheetnames:
+            sheet = wb_t[name]
+            for row in sheet.iter_rows(
+                max_row=sheet.max_row or 1, max_col=sheet.max_column or 1
+            ):
+                for cell in row:
+                    if isinstance(cell.value, str):
+                        assert needle not in cell.value
+                    if cell.comment is not None:
+                        assert needle not in (cell.comment.text or "")
+    wb_t.close()
+
+
+def test_zero_case_judgment_sheet_is_not_treated_as_response_row(tmp_path):
+    from core.engine.reference_model import JUDGMENT_SHEET, ReferenceModelBuilder
+    from core.trainer.workbook import TrainingWorkbookGenerator, _judgment_case_rows
+
+    data = _ingest_demo()
+    answer_key_path = tmp_path / "Zero_Answer_Key.xlsx"
+    trainer_path = tmp_path / "Zero_Trainer.xlsx"
+    builder = ReferenceModelBuilder(
+        data,
+        {
+            "classificationOverrides": {
+                "label:Operating lease liabilities": "Financial Liability",
+            }
+        },
+    )
+    assert builder.judgment_cases == ()
+    semantic_map = builder.build(answer_key_path)
+    TrainingWorkbookGenerator(answer_key_path, semantic_map).generate(trainer_path)
+
+    wb_a = load_workbook(answer_key_path, data_only=False)
+    wb_t = load_workbook(trainer_path, data_only=False)
+    assert list(_judgment_case_rows(wb_a[JUDGMENT_SHEET])) == []
+    assert list(_judgment_case_rows(wb_t[JUDGMENT_SHEET])) == []
+    msg = wb_a[JUDGMENT_SHEET].cell(5, 1).value
+    assert isinstance(msg, str) and "No supported" in msg
+    assert wb_t[JUDGMENT_SHEET].cell(5, 1).value == msg
+    for col in (6, 7, 8):
+        # Zero-case message row is not a response row — leave as-is / no forced yellow.
+        assert wb_t[JUDGMENT_SHEET].cell(5, col).value is None
     wb_a.close()
     wb_t.close()

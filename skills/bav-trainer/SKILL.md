@@ -13,18 +13,19 @@ Build a **matched Trainer / Answer Key pair** where the learner reconstructs mul
 end-state goal:
 accounting novice -> junior accounting-based equity-research competence
 
-Step 7 historical model construction:
+Step 7 historical model construction
 - 25 historical schedule families across supplied fiscal years
-- 118 formula practice cells in the five-year demo
+- 118 formula practice cells in the five-year illustrative demo
 - workbook-wide formula Check
 
-Step 8A guided judgment:
-- company-specific classification cases only when the authoritative classifier flags a supported ambiguity
-- supplied reference treatment + explicit defensible alternative(s)
-- learner treatment choice + short rationale + consequence explanation
-- Answer Key shows model reasoning
-- judgment responses are not automatically graded yet
+Step 8A guided classification judgment
+- only supplied lines whose ambiguity has one of four supported judgment codes become cases
+- supplied reference treatment + one defensible same-side alternative
+- learner chooses a treatment, rationale, and consequence explanation
+- Answer Key presents the reference convention and reasoning, not a universal truth
+- judgment responses are not graded by Check
 - learner choices do not yet drive the main reformulated model
+- deferred-tax and ROU ambiguities are not Step 8A guided cases
 
 This is a transition from supplied judgment to guided judgment, not independent analyst competence.
 

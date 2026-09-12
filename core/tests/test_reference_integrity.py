@@ -1249,15 +1249,28 @@ def test_guided_classification_judgment_cases_and_suppressions():
     from core.data.interface import FinancialPeriod, LineItem, StandardizedFinancials
     from core.engine.reference_model import ReferenceModelBuilder
     from core.model.classification import reformulate_balance_sheet
-    from core.model.judgment import classification_judgment_cases
+    from core.model.judgment import (
+        CLASSIFICATION_JUDGMENT_TEMPLATES,
+        classification_judgment_cases,
+    )
     from core.model.period_axis import canonical_fiscal_periods
 
+    assert len(CLASSIFICATION_JUDGMENT_TEMPLATES) == 4
+    assert len(set(CLASSIFICATION_JUDGMENT_TEMPLATES)) == 4
+    for code, template in CLASSIFICATION_JUDGMENT_TEMPLATES.items():
+        assert len(template.options) >= 2
+        assert len(set(template.options)) == len(template.options)
+        assert all(option in BALANCE_SHEET_CATEGORIES for option in template.options)
+        assert template.options[0] in BALANCE_SHEET_CATEGORIES
+        assert template.model_rationale
+        assert template.model_consequence
+        assert template.consequence_prompt
     d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
 
     def li(label, v1, v2, concept=""):
         return LineItem(label=label, concept=concept, values={d1: v1, d2: v2})
 
-    def make_fin(*, lease=50, rou=40, zero_lease=False, override=None):
+    def make_fin(*, lease=50, rou=40, deferred=0, zero_lease=False, override=None):
         periods = [
             FinancialPeriod(end_date=d1, label="FY2024"),
             FinancialPeriod(end_date=d2, label="FY2025"),
@@ -1280,6 +1293,7 @@ def test_guided_classification_judgment_cases_and_suppressions():
                 li("Cash and cash equivalents", 100, 110),
                 li("Trade receivables", 80, 90),
                 li("Right-of-use assets", rou, rou + 5),
+                li("Deferred tax assets", deferred, deferred),
                 li("Property, plant and equipment", 400, 420),
                 li("Trade payables", 50, 55),
                 li(
@@ -1296,15 +1310,17 @@ def test_guided_classification_judgment_cases_and_suppressions():
         assumptions = {"classificationOverrides": override or {}}
         return fin, assumptions
 
-    fin, _ = make_fin()
+    fin, _ = make_fin(deferred=25)
     periods = canonical_fiscal_periods(fin)
     reform = reformulate_balance_sheet(fin, periods)
-    cases = classification_judgment_cases(fin, reform)
+    cases = classification_judgment_cases(fin, periods, reform)
     assert len(cases) == 1
     assert cases[0].label == "Operating lease liabilities"
     assert cases[0].supplied_treatment == "Operating Long-Term Liability"
     assert cases[0].alternatives == ("Financial Liability",)
     assert cases[0].id.startswith("classification::")
+    assert "reference model" in cases[0].model_rationale.lower()
+    assert cases[0].order == 1
 
     rou_idx = next(
         i
@@ -1312,11 +1328,21 @@ def test_guided_classification_judgment_cases_and_suppressions():
         if fin.balance_sheet[i].label == "Right-of-use assets"
     )
     assert reform.decisions[rou_idx].ambiguous is True
-    assert reform.decisions[rou_idx].guided_options == ()
+    assert reform.decisions[rou_idx].judgment_code is None
+
+    dta_idx = next(
+        i
+        for i in reform.detail_indices
+        if fin.balance_sheet[i].label == "Deferred tax assets"
+    )
+    assert reform.decisions[dta_idx].ambiguous is True
+    assert reform.decisions[dta_idx].judgment_code is None
 
     fin_zero, _ = make_fin(zero_lease=True)
     reform_zero = reformulate_balance_sheet(fin_zero, canonical_fiscal_periods(fin_zero))
-    assert classification_judgment_cases(fin_zero, reform_zero) == ()
+    assert classification_judgment_cases(
+        fin_zero, canonical_fiscal_periods(fin_zero), reform_zero
+    ) == ()
 
     fin_ov, assumptions = make_fin(
         override={"label:Operating lease liabilities": "Financial Liability"}
@@ -1326,7 +1352,9 @@ def test_guided_classification_judgment_cases_and_suppressions():
         canonical_fiscal_periods(fin_ov),
         overrides=assumptions["classificationOverrides"],
     )
-    assert classification_judgment_cases(fin_ov, reform_ov) == ()
+    assert classification_judgment_cases(
+        fin_ov, canonical_fiscal_periods(fin_ov), reform_ov
+    ) == ()
     # Builder also suppresses when override is supplied (use balanced demo-scale path).
     demo = _ingest_demo()
     builder = ReferenceModelBuilder(
@@ -1340,12 +1368,72 @@ def test_guided_classification_judgment_cases_and_suppressions():
     assert builder.judgment_cases == ()
 
 
+def test_judgment_cases_use_canonical_periods_not_interim_only_values():
+    from datetime import date
+
+    from core.data.interface import FinancialPeriod, LineItem, StandardizedFinancials
+    from core.engine.reference_model import ReferenceModelBuilder
+    from core.model.period_axis import canonical_fiscal_periods
+
+    annual = date(2024, 12, 31)
+    interim = date(2025, 6, 30)
+
+    def li(label, annual_v, interim_v, concept=""):
+        return LineItem(
+            label=label,
+            concept=concept,
+            values={annual: annual_v, interim: interim_v},
+        )
+
+    fin = StandardizedFinancials(
+        ticker="INT",
+        company_name="Interim Co",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=annual, label="FY2024"),
+            FinancialPeriod(end_date=interim, label="1H2025", is_interim=True),
+        ],
+        income_statement=[
+            li("Revenue", 1000, 500),
+            li("Profit before tax", 200, 100),
+            li("Income tax expense", -30, -15),
+            li("Profit for the year", 170, 85),
+        ],
+        balance_sheet=[
+            li("Cash and cash equivalents", 100, 110),
+            li("Trade receivables", 80, 90),
+            li("Property, plant and equipment", 400, 420),
+            li("Trade payables", 50, 55),
+            # Zero on the modeled annual axis; non-zero only on interim.
+            li(
+                "Operating lease liabilities",
+                0,
+                75,
+                concept="lease_liability",
+            ),
+            li("Bank borrowings", 200, 210),
+            li("Total equity", 330, 355),
+        ],
+        cash_flow=[li("Net cash from operating activities", 50, 60)],
+    )
+    modeled = canonical_fiscal_periods(fin)
+    assert interim not in modeled
+    assert annual in modeled
+    builder = ReferenceModelBuilder(fin)
+    assert builder.periods == modeled
+    assert builder.judgment_cases == ()
+
+
 def test_demo_has_one_lease_judgment_case_and_118_formula_components(tmp_path):
     from core.engine.reference_model import ReferenceModelBuilder
     from core.model.classification import check_reformulation_integrity
+    from core.model.judgment import CLASSIFICATION_JUDGMENT_TEMPLATES
 
     data = _ingest_demo()
     builder = ReferenceModelBuilder(data)
+    assert len(CLASSIFICATION_JUDGMENT_TEMPLATES) == 4
     assert len(builder.judgment_cases) == 1
     case = builder.judgment_cases[0]
     assert case.label == "Operating lease liabilities"

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill
+from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
@@ -43,6 +43,11 @@ JUDGMENT_INSTRUCTION = (
     "accounting truth. Compare it with the listed alternative(s), choose the "
     "treatment you would defend, and explain the economic consequence."
 )
+JUDGMENT_STEP_NOTE = (
+    "Record the judgment on this sheet. Do not edit the supplied classification "
+    "in Condensed Financials for this Step 8A exercise. Formula Check does not "
+    "grade these judgment responses."
+)
 
 
 class ReferenceModelBuilder:
@@ -75,6 +80,7 @@ class ReferenceModelBuilder:
         )
         self.judgment_cases: tuple[JudgmentCase, ...] = classification_judgment_cases(
             self.fin,
+            self.periods,
             self.anchor.reformulation,
         )
         self._n = len(self.periods)
@@ -827,15 +833,16 @@ class ReferenceModelBuilder:
         ws["A1"] = "Accounting Judgment"
         ws["A1"].font = BOLD
         ws["A2"] = JUDGMENT_INSTRUCTION
+        ws["A3"] = JUDGMENT_STEP_NOTE
         headers = [
             "Order",
             "Line item",
             "Topic",
-            "Supplied model treatment",
+            "Supplied reference treatment",
             "Alternative(s) to evaluate",
-            "Your treatment",
-            "Your rationale",
-            "Your consequence explanation",
+            "Treatment to defend",
+            "Rationale",
+            "Economic consequence",
         ]
         for col, header in enumerate(headers, start=1):
             cell = ws.cell(row=4, column=col, value=header)
@@ -866,8 +873,10 @@ class ReferenceModelBuilder:
             treatment = ws.cell(row=row, column=6, value=case.supplied_treatment)
             rationale = ws.cell(row=row, column=7, value=case.model_rationale)
             consequence = ws.cell(row=row, column=8, value=case.model_consequence)
+            wrap = Alignment(wrap_text=True, vertical="top")
             for cell in (treatment, rationale, consequence):
                 cell.fill = PRACTICE_YELLOW
+                cell.alignment = wrap
             dv = DataValidation(
                 type="list",
                 formula1='"' + ",".join(options) + '"',
