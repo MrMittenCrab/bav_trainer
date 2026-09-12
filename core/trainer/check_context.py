@@ -311,25 +311,28 @@ def _validated_treatment_selection(
     sheet_name: str,
     row: int,
 ) -> str:
-    """Map judgment column F to a treatment; whitespace-only input fails closed."""
+    """Map judgment column F to a treatment; exact allowed string or blank only."""
     if selected is None or selected == "":
         return reference_treatment
-    text = selected if isinstance(selected, str) else str(selected)
-    if text.strip() == "":
+
+    if not isinstance(selected, str):
         raise ValueError(
-            f"Whitespace-only treatment on {sheet_name} row {row}"
+            f"Invalid treatment value on {sheet_name} row {row}: "
+            f"expected one of {list(allowed_treatments)}"
         )
-    treatment = text.strip()
-    if treatment not in allowed_treatments:
+
+    if selected != selected.strip():
         raise ValueError(
-            f"Invalid treatment {treatment!r} on {sheet_name} row {row}"
-            + (
-                f"; allowed: {list(allowed_treatments)}"
-                if sheet_name == JUDGMENT_SHEET
-                else ""
-            )
+            f"Treatment contains surrounding whitespace on {sheet_name} row {row}"
         )
-    return treatment
+
+    if selected not in allowed_treatments:
+        raise ValueError(
+            f"Invalid treatment {selected!r} on {sheet_name} row {row}; "
+            f"allowed: {list(allowed_treatments)}"
+        )
+
+    return selected
 
 
 def classification_overrides_for_check(
@@ -387,29 +390,36 @@ def _find_column_b_matches(ws, expected_formula: str) -> list[tuple[int, int]]:
     return matches
 
 
-def _validate_generated_formula_cells(
+def _judgment_editable_cells(bindings) -> set[str]:
+    """F:G:H on numbered judgment case rows from Check bindings."""
+    cells: set[str] = set()
+    for binding in bindings:
+        row = binding.worksheet_row
+        for col in (6, 7, 8):
+            cells.add(f"{get_column_letter(col)}{row}")
+    return cells
+
+
+def _validate_trusted_sheet_cells(
     trainer_ws,
     answer_ws,
     *,
     sheet_name: str,
-    excluded_cells: set[str],
+    editable_cells: set[str],
 ) -> None:
-    """Require Trainer to keep Answer-Key generated formulas outside practice cells."""
-    max_row = answer_ws.max_row or 0
-    max_col = answer_ws.max_column or 0
+    """Require Trainer contents to match Answer Key outside learner-editable cells."""
+    max_row = max(trainer_ws.max_row or 0, answer_ws.max_row or 0)
+    max_col = max(trainer_ws.max_column or 0, answer_ws.max_column or 0)
     for row in range(1, max_row + 1):
         for col in range(1, max_col + 1):
-            ak_cell = answer_ws.cell(row=row, column=col)
-            value = ak_cell.value
-            if not (isinstance(value, str) and value.startswith("=")):
+            coord = f"{get_column_letter(col)}{row}"
+            if coord in editable_cells:
                 continue
-            coord = ak_cell.coordinate
-            if coord in excluded_cells:
-                continue
-            trainer_val = trainer_ws.cell(row=row, column=col).value
-            if trainer_val != value:
+            trainer_value = trainer_ws.cell(row=row, column=col).value
+            answer_value = answer_ws.cell(row=row, column=col).value
+            if trainer_value != answer_value:
                 raise ValueError(
-                    f"Generated {sheet_name} formula was modified at {coord}"
+                    f"Trusted workbook cell was modified: {sheet_name}!{coord}"
                 )
 
 
@@ -418,7 +428,10 @@ def validate_live_judgment_structure(
     answer_key_wb,
     context: CheckContext,
 ) -> None:
-    """Compatibility wrapper for classification-only structural validation."""
+    """Compatibility wrapper for classification live-link validation only.
+
+    Full trusted-sheet validation requires ``practice_cells`` from Check.
+    """
     validate_live_model_structure(trainer_wb, answer_key_wb, context)
 
 
@@ -429,7 +442,12 @@ def validate_live_model_structure(
     *,
     practice_cells: set[tuple[str, str]] | None = None,
 ) -> None:
-    """Fail fast if generated live classification/normalization links were modified."""
+    """Fail fast if trusted source/setup/model cells or live links were modified.
+
+    When ``practice_cells`` is None, only binding/live-link checks run (compatibility).
+    When provided (including empty), full trusted-sheet content validation runs.
+    """
+    run_trusted_sheets = practice_cells is not None
     practice_cells = practice_cells or set()
 
     for wb, label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
@@ -437,6 +455,12 @@ def validate_live_model_structure(
             raise ValueError(f"{label} is missing Accounting Judgment sheet")
         if "Condensed Financials" not in wb.sheetnames:
             raise ValueError(f"{label} is missing Condensed Financials sheet")
+        if run_trusted_sheets:
+            if "ALT DuPont" not in wb.sheetnames:
+                raise ValueError(f"{label} is missing ALT DuPont sheet")
+            for sheet in ("Income Statement", "Balance Sheet", "Cash Flow Statement"):
+                if sheet not in wb.sheetnames:
+                    raise ValueError(f"{label} is missing {sheet} sheet")
 
     for binding in context.judgment_bindings:
         row = binding.worksheet_row
@@ -469,60 +493,101 @@ def validate_live_model_structure(
                 f"Linked Condensed Financials classification was modified at {coord}"
             )
 
-    if not context.normalization_bindings:
+    if context.normalization_bindings:
+        for wb, label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
+            if NORMALIZATION_JUDGMENT_SHEET not in wb.sheetnames:
+                raise ValueError(f"{label} is missing Normalization Judgment sheet")
+            if EARNINGS_NORMALIZATION_SHEET not in wb.sheetnames:
+                raise ValueError(f"{label} is missing Earnings Normalization sheet")
+
+        for binding in context.normalization_bindings:
+            row = binding.worksheet_row
+            expected_alts = ", ".join(binding.allowed_treatments[1:])
+            for wb, _label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
+                if (
+                    wb[NORMALIZATION_JUDGMENT_SHEET].cell(row=row, column=4).value
+                    != binding.reference_treatment
+                ):
+                    raise ValueError(
+                        f"Normalization Judgment reference prompt was modified on row {row}"
+                    )
+                if (
+                    wb[NORMALIZATION_JUDGMENT_SHEET].cell(row=row, column=5).value
+                    != expected_alts
+                ):
+                    raise ValueError(
+                        f"Normalization Judgment alternatives prompt was modified on row {row}"
+                    )
+            expected_formula = live_normalization_treatment_formula(
+                binding.worksheet_row,
+                binding.reference_treatment,
+            )
+            ak_matches = _find_column_b_matches(
+                answer_key_wb[EARNINGS_NORMALIZATION_SHEET], expected_formula
+            )
+            if len(ak_matches) != 1:
+                raise ValueError(
+                    "Answer Key live-normalization binding is missing/ambiguous "
+                    f"for judgment row {row}"
+                )
+            link_row, link_col = ak_matches[0]
+            trainer_val = trainer_wb[EARNINGS_NORMALIZATION_SHEET].cell(
+                row=link_row, column=link_col
+            ).value
+            if trainer_val != expected_formula:
+                coord = f"{get_column_letter(link_col)}{link_row}"
+                raise ValueError(
+                    f"Linked Earnings Normalization treatment was modified at {coord}"
+                )
+
+    if not run_trusted_sheets:
         return
 
-    for wb, label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
-        if NORMALIZATION_JUDGMENT_SHEET not in wb.sheetnames:
-            raise ValueError(f"{label} is missing Normalization Judgment sheet")
-        if EARNINGS_NORMALIZATION_SHEET not in wb.sheetnames:
-            raise ValueError(f"{label} is missing Earnings Normalization sheet")
-
-    for binding in context.normalization_bindings:
-        row = binding.worksheet_row
-        expected_alts = ", ".join(binding.allowed_treatments[1:])
-        for wb, _label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
-            if (
-                wb[NORMALIZATION_JUDGMENT_SHEET].cell(row=row, column=4).value
-                != binding.reference_treatment
-            ):
-                raise ValueError(
-                    f"Normalization Judgment reference prompt was modified on row {row}"
-                )
-            if wb[NORMALIZATION_JUDGMENT_SHEET].cell(row=row, column=5).value != expected_alts:
-                raise ValueError(
-                    f"Normalization Judgment alternatives prompt was modified on row {row}"
-                )
-        expected_formula = live_normalization_treatment_formula(
-            binding.worksheet_row,
-            binding.reference_treatment,
+    for sheet_name in ("Income Statement", "Balance Sheet", "Cash Flow Statement"):
+        _validate_trusted_sheet_cells(
+            trainer_wb[sheet_name],
+            answer_key_wb[sheet_name],
+            sheet_name=sheet_name,
+            editable_cells=set(),
         )
-        ak_matches = _find_column_b_matches(
-            answer_key_wb[EARNINGS_NORMALIZATION_SHEET], expected_formula
-        )
-        if len(ak_matches) != 1:
-            raise ValueError(
-                "Answer Key live-normalization binding is missing/ambiguous "
-                f"for judgment row {row}"
-            )
-        link_row, link_col = ak_matches[0]
-        trainer_val = trainer_wb[EARNINGS_NORMALIZATION_SHEET].cell(
-            row=link_row, column=link_col
-        ).value
-        if trainer_val != expected_formula:
-            coord = f"{get_column_letter(link_col)}{link_row}"
-            raise ValueError(
-                f"Linked Earnings Normalization treatment was modified at {coord}"
-            )
 
-    excluded = {
-        cell
-        for tab, cell in practice_cells
-        if tab == EARNINGS_NORMALIZATION_SHEET
-    }
-    _validate_generated_formula_cells(
-        trainer_wb[EARNINGS_NORMALIZATION_SHEET],
-        answer_key_wb[EARNINGS_NORMALIZATION_SHEET],
-        sheet_name=EARNINGS_NORMALIZATION_SHEET,
-        excluded_cells=excluded,
+    _validate_trusted_sheet_cells(
+        trainer_wb["Condensed Financials"],
+        answer_key_wb["Condensed Financials"],
+        sheet_name="Condensed Financials",
+        editable_cells={
+            cell for tab, cell in practice_cells if tab == "Condensed Financials"
+        },
     )
+    _validate_trusted_sheet_cells(
+        trainer_wb["ALT DuPont"],
+        answer_key_wb["ALT DuPont"],
+        sheet_name="ALT DuPont",
+        editable_cells={cell for tab, cell in practice_cells if tab == "ALT DuPont"},
+    )
+
+    if context.normalization_bindings:
+        _validate_trusted_sheet_cells(
+            trainer_wb[EARNINGS_NORMALIZATION_SHEET],
+            answer_key_wb[EARNINGS_NORMALIZATION_SHEET],
+            sheet_name=EARNINGS_NORMALIZATION_SHEET,
+            editable_cells={
+                cell
+                for tab, cell in practice_cells
+                if tab == EARNINGS_NORMALIZATION_SHEET
+            },
+        )
+
+    _validate_trusted_sheet_cells(
+        trainer_wb[JUDGMENT_SHEET],
+        answer_key_wb[JUDGMENT_SHEET],
+        sheet_name=JUDGMENT_SHEET,
+        editable_cells=_judgment_editable_cells(context.judgment_bindings),
+    )
+    if context.normalization_bindings:
+        _validate_trusted_sheet_cells(
+            trainer_wb[NORMALIZATION_JUDGMENT_SHEET],
+            answer_key_wb[NORMALIZATION_JUDGMENT_SHEET],
+            sheet_name=NORMALIZATION_JUDGMENT_SHEET,
+            editable_cells=_judgment_editable_cells(context.normalization_bindings),
+        )

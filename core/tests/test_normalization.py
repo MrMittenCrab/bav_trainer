@@ -781,7 +781,7 @@ def test_generated_earnings_normalization_formula_tamper_fails_closed(
     wb.save(trainer_path)
     wb.close()
 
-    with pytest.raises(ValueError, match="Generated Earnings Normalization formula was modified"):
+    with pytest.raises(ValueError, match="Trusted workbook cell was modified"):
         check_workbook(trainer_path)
 
     wb = load_workbook(trainer_path, data_only=False)
@@ -917,7 +917,7 @@ def test_whitespace_only_normalization_treatment_fails_closed(tmp_path):
     wb.save(trainer_path)
     wb.close()
 
-    with pytest.raises(ValueError, match="Whitespace-only treatment"):
+    with pytest.raises(ValueError, match="surrounding whitespace"):
         check_workbook(trainer_path)
     wb = load_workbook(trainer_path, data_only=False)
     assert _fill_rgb(wb[comp.tab].cell(row=row, column=col)) == "FFFF00"
@@ -942,22 +942,47 @@ def test_whitespace_only_classification_treatment_fails_closed(tmp_path):
     wb["Accounting Judgment"].cell(5, 6).value = "   "
     wb.save(trainer_path)
     wb.close()
-    with pytest.raises(ValueError, match="Whitespace-only treatment"):
+    with pytest.raises(ValueError, match="surrounding whitespace"):
         check_workbook(trainer_path)
     wb = load_workbook(trainer_path, data_only=False)
     assert _fill_rgb(wb[comp.tab].cell(row=row, column=col)) == "FFFF00"
     wb.close()
 
 
-def test_padded_valid_treatments_are_accepted(tmp_path):
+@pytest.mark.parametrize(
+    "sheet,cell_value,match",
+    [
+        ("Normalization Judgment", " Non-recurring ", "surrounding whitespace"),
+        ("Normalization Judgment", " Recurring ", "surrounding whitespace"),
+        ("Accounting Judgment", " Financial Liability ", "surrounding whitespace"),
+    ],
+)
+def test_padded_treatments_are_rejected(tmp_path, sheet, cell_value, match):
     trainer_path, answer_key_path = _build_norm_pair(tmp_path)
     smap = load_semantic_map(answer_key_path)
     comp = _fy2023(smap, "pretax_normalization_adjustment")
     wb = load_workbook(trainer_path, data_only=False)
     row, col = parse_cell_ref(comp.cell)
     wb[comp.tab].cell(row=row, column=col).value = comp.formula
-    wb["Normalization Judgment"].cell(5, 6).value = " Recurring "
-    wb["Accounting Judgment"].cell(5, 6).value = " Financial Liability "
+    wb[sheet].cell(5, 6).value = cell_value
+    wb.save(trainer_path)
+    wb.close()
+    with pytest.raises(ValueError, match=match):
+        check_workbook(trainer_path)
+    wb = load_workbook(trainer_path, data_only=False)
+    assert _fill_rgb(wb[comp.tab].cell(row=row, column=col)) == "FFFF00"
+    wb.close()
+
+
+def test_exact_valid_treatments_still_accepted(tmp_path):
+    trainer_path, answer_key_path = _build_norm_pair(tmp_path)
+    smap = load_semantic_map(answer_key_path)
+    comp = _fy2023(smap, "pretax_normalization_adjustment")
+    wb = load_workbook(trainer_path, data_only=False)
+    row, col = parse_cell_ref(comp.cell)
+    wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    wb["Normalization Judgment"].cell(5, 6).value = "Recurring"
+    wb["Accounting Judgment"].cell(5, 6).value = "Financial Liability"
     wb.save(trainer_path)
     wb.close()
 
@@ -995,3 +1020,116 @@ def test_blank_normalization_treatment_still_uses_reference(tmp_path):
     wb.close()
     summary = check_workbook(trainer_path)
     assert summary.correct == 1
+
+
+def test_source_value_tamper_fails_before_exact_formula_green(tmp_path):
+    trainer_path, answer_key_path = _build_norm_pair(tmp_path)
+    smap = load_semantic_map(answer_key_path)
+    comp = max(
+        (c for c in smap.all_ordered() if c.family_id == "revenue_link"),
+        key=lambda c: c.period_index or 0,
+    )
+    wb = load_workbook(trainer_path, data_only=False)
+    row, col = parse_cell_ref(comp.cell)
+    wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    # Tamper an Income Statement source amount for the same period column.
+    src_col = col  # Condensed revenue uses IS columns starting at B
+    # Find revenue row on Income Statement and alter latest FY value.
+    is_ws = wb["Income Statement"]
+    rev_row = None
+    for r in range(7, (is_ws.max_row or 7) + 1):
+        if is_ws.cell(r, 1).value == "Revenue":
+            rev_row = r
+            break
+    assert rev_row is not None
+    # Period columns on IS are B..; match practice cell's relative period index.
+    period_col = 2 + (comp.period_index or 0)
+    is_ws.cell(rev_row, period_col).value = 999999
+    wb.save(trainer_path)
+    wb.close()
+
+    with pytest.raises(ValueError, match="Trusted workbook cell was modified: Income Statement"):
+        check_workbook(trainer_path)
+    wb = load_workbook(trainer_path, data_only=False)
+    assert _fill_rgb(wb[comp.tab].cell(row=row, column=col)) == "FFFF00"
+    wb.close()
+
+
+def test_fixed_classification_tamper_fails_before_green(tmp_path):
+    trainer_path, answer_key_path = _build_norm_pair(tmp_path)
+    smap = load_semantic_map(answer_key_path)
+    comp = max(
+        (c for c in smap.all_ordered() if c.family_id == "net_debt"),
+        key=lambda c: c.period_index or 0,
+    )
+    wb = load_workbook(trainer_path, data_only=False)
+    row, col = parse_cell_ref(comp.cell)
+    wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    # Change a non-judgment fixed classification (not Operating lease liabilities).
+    cf = wb["Condensed Financials"]
+    target_row = None
+    for r in range(1, (cf.max_row or 1) + 1):
+        label = cf.cell(r, 1).value
+        cat = cf.cell(r, 2).value
+        if label == "Trade receivables" and isinstance(cat, str) and not cat.startswith("="):
+            target_row = r
+            break
+    assert target_row is not None
+    cf.cell(target_row, 2).value = "Financial Asset"
+    wb.save(trainer_path)
+    wb.close()
+
+    with pytest.raises(ValueError, match="Trusted workbook cell was modified: Condensed Financials"):
+        check_workbook(trainer_path)
+    wb = load_workbook(trainer_path, data_only=False)
+    assert _fill_rgb(wb[comp.tab].cell(row=row, column=col)) == "FFFF00"
+    wb.close()
+
+
+def test_base_build_source_tamper_fails_closed(tmp_path):
+    from core.trainer.workbook import build_training_workbook
+
+    data = _ingest_demo()
+    trainer_path, answer_key_path = build_training_workbook(
+        data, tmp_path / "BASE_Trainer.xlsx"
+    )
+    smap = load_semantic_map(answer_key_path)
+    assert len(smap.all_ordered()) == 118
+    comp = max(
+        (c for c in smap.all_ordered() if c.family_id == "revenue_link"),
+        key=lambda c: c.period_index or 0,
+    )
+    wb = load_workbook(trainer_path, data_only=False)
+    row, col = parse_cell_ref(comp.cell)
+    wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    is_ws = wb["Income Statement"]
+    rev_row = next(
+        r for r in range(7, (is_ws.max_row or 7) + 1) if is_ws.cell(r, 1).value == "Revenue"
+    )
+    is_ws.cell(rev_row, 2 + (comp.period_index or 0)).value = 1
+    wb.save(trainer_path)
+    wb.close()
+    with pytest.raises(ValueError, match="Trusted workbook cell was modified: Income Statement"):
+        check_workbook(trainer_path)
+    wb = load_workbook(trainer_path, data_only=False)
+    assert _fill_rgb(wb[comp.tab].cell(row=row, column=col)) == "FFFF00"
+    wb.close()
+
+
+def test_judgment_gh_edits_do_not_fail_trusted_validation(tmp_path):
+    trainer_path, answer_key_path = _build_norm_pair(tmp_path)
+    smap = load_semantic_map(answer_key_path)
+    comp = _fy2023(smap, "pretax_normalization_adjustment")
+    wb = load_workbook(trainer_path, data_only=False)
+    row, col = parse_cell_ref(comp.cell)
+    wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    wb["Normalization Judgment"].cell(5, 6).value = "Non-recurring"
+    wb["Normalization Judgment"].cell(5, 7).value = "Learner rationale text"
+    wb["Normalization Judgment"].cell(5, 8).value = "Learner consequence text"
+    wb["Accounting Judgment"].cell(5, 7).value = "Lease rationale"
+    wb["Accounting Judgment"].cell(5, 8).value = "Lease consequence"
+    wb.save(trainer_path)
+    wb.close()
+    summary = check_workbook(trainer_path)
+    assert summary.correct == 1
+    assert summary.incorrect == 0

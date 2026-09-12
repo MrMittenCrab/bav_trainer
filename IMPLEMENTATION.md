@@ -1,5 +1,7 @@
 # Step 8B2.2 — Trusted Workbook State Hardening
 
+> **Status:** Complete (local verification recorded in `RESULT.md`). Do not commit/push from Cursor.
+
 > **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `77df6213ae042a1ece94ac20888336a4ea7b1e75` (`Step 8.2 Hardened`). Implement only Step 8B2.2 below using red/green TDD. Preserve all Step 8A, Step 8B1, Step 8B2, and Step 8B2.1 behavior except where this plan explicitly corrects treatment-whitespace semantics and strengthens trusted-workbook validation. Do not begin Step 9, earnings-quality diagnostics, accrual/cash-conversion analysis, forecasting, valuation, ROU/deferred-tax alternative modeling, or any new curriculum feature. Do not commit or push; the user owns the checkpoint commit.
 
 **Goal:** Guarantee that Formula Check and the visible workbook operate on the same trusted state. Invalid or padded judgment inputs must fail closed, and edits to system-supplied source/setup/model cells must be detected before learner formulas can receive green status.
