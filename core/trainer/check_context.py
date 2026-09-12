@@ -303,6 +303,35 @@ def load_check_context(answer_key_path: Path) -> CheckContext | None:
         wb.close()
 
 
+def _validated_treatment_selection(
+    selected,
+    *,
+    reference_treatment: str,
+    allowed_treatments: tuple[str, ...],
+    sheet_name: str,
+    row: int,
+) -> str:
+    """Map judgment column F to a treatment; whitespace-only input fails closed."""
+    if selected is None or selected == "":
+        return reference_treatment
+    text = selected if isinstance(selected, str) else str(selected)
+    if text.strip() == "":
+        raise ValueError(
+            f"Whitespace-only treatment on {sheet_name} row {row}"
+        )
+    treatment = text.strip()
+    if treatment not in allowed_treatments:
+        raise ValueError(
+            f"Invalid treatment {treatment!r} on {sheet_name} row {row}"
+            + (
+                f"; allowed: {list(allowed_treatments)}"
+                if sheet_name == JUDGMENT_SHEET
+                else ""
+            )
+        )
+    return treatment
+
+
 def classification_overrides_for_check(
     trainer_wb,
     context: CheckContext,
@@ -314,15 +343,13 @@ def classification_overrides_for_check(
     ws = trainer_wb[JUDGMENT_SHEET]
     for binding in context.judgment_bindings:
         selected = ws.cell(row=binding.worksheet_row, column=6).value
-        if selected is None or (isinstance(selected, str) and not selected.strip()):
-            treatment = binding.reference_treatment
-        else:
-            treatment = str(selected).strip()
-            if treatment not in binding.allowed_treatments:
-                raise ValueError(
-                    f"Invalid treatment {treatment!r} on Accounting Judgment row "
-                    f"{binding.worksheet_row}; allowed: {list(binding.allowed_treatments)}"
-                )
+        treatment = _validated_treatment_selection(
+            selected,
+            reference_treatment=binding.reference_treatment,
+            allowed_treatments=binding.allowed_treatments,
+            sheet_name=JUDGMENT_SHEET,
+            row=binding.worksheet_row,
+        )
         overrides[binding.override_selector] = treatment
     return overrides
 
@@ -342,16 +369,13 @@ def normalization_treatments_for_check(
     treatments: dict[str, str] = {}
     for binding in context.normalization_bindings:
         selected = ws.cell(row=binding.worksheet_row, column=6).value
-        if selected is None or (isinstance(selected, str) and not selected.strip()):
-            treatment = binding.reference_treatment
-        else:
-            treatment = str(selected).strip()
-            if treatment not in binding.allowed_treatments:
-                raise ValueError(
-                    f"Invalid treatment {treatment!r} on Normalization Judgment row "
-                    f"{binding.worksheet_row}"
-                )
-        treatments[binding.case_id] = treatment
+        treatments[binding.case_id] = _validated_treatment_selection(
+            selected,
+            reference_treatment=binding.reference_treatment,
+            allowed_treatments=binding.allowed_treatments,
+            sheet_name=NORMALIZATION_JUDGMENT_SHEET,
+            row=binding.worksheet_row,
+        )
     return treatments
 
 
@@ -361,6 +385,32 @@ def _find_column_b_matches(ws, expected_formula: str) -> list[tuple[int, int]]:
         if ws.cell(row=row, column=2).value == expected_formula:
             matches.append((row, 2))
     return matches
+
+
+def _validate_generated_formula_cells(
+    trainer_ws,
+    answer_ws,
+    *,
+    sheet_name: str,
+    excluded_cells: set[str],
+) -> None:
+    """Require Trainer to keep Answer-Key generated formulas outside practice cells."""
+    max_row = answer_ws.max_row or 0
+    max_col = answer_ws.max_column or 0
+    for row in range(1, max_row + 1):
+        for col in range(1, max_col + 1):
+            ak_cell = answer_ws.cell(row=row, column=col)
+            value = ak_cell.value
+            if not (isinstance(value, str) and value.startswith("=")):
+                continue
+            coord = ak_cell.coordinate
+            if coord in excluded_cells:
+                continue
+            trainer_val = trainer_ws.cell(row=row, column=col).value
+            if trainer_val != value:
+                raise ValueError(
+                    f"Generated {sheet_name} formula was modified at {coord}"
+                )
 
 
 def validate_live_judgment_structure(
@@ -376,8 +426,12 @@ def validate_live_model_structure(
     trainer_wb,
     answer_key_wb,
     context: CheckContext,
+    *,
+    practice_cells: set[tuple[str, str]] | None = None,
 ) -> None:
     """Fail fast if generated live classification/normalization links were modified."""
+    practice_cells = practice_cells or set()
+
     for wb, label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
         if JUDGMENT_SHEET not in wb.sheetnames:
             raise ValueError(f"{label} is missing Accounting Judgment sheet")
@@ -460,3 +514,15 @@ def validate_live_model_structure(
             raise ValueError(
                 f"Linked Earnings Normalization treatment was modified at {coord}"
             )
+
+    excluded = {
+        cell
+        for tab, cell in practice_cells
+        if tab == EARNINGS_NORMALIZATION_SHEET
+    }
+    _validate_generated_formula_cells(
+        trainer_wb[EARNINGS_NORMALIZATION_SHEET],
+        answer_key_wb[EARNINGS_NORMALIZATION_SHEET],
+        sheet_name=EARNINGS_NORMALIZATION_SHEET,
+        excluded_cells=excluded,
+    )

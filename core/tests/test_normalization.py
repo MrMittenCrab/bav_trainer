@@ -730,3 +730,268 @@ def test_legacy_schema_v1_check_context_still_loads(tmp_path):
     assert loaded.schema_version == 1
     assert loaded.normalization_bindings == ()
     assert len(loaded.judgment_bindings) == 1
+
+
+# --- Step 8B2.1 integrity hardening -------------------------------------------
+
+
+def _candidate(**overrides):
+    base = {
+        "selector": "concept:restructuring_expense",
+        "referenceTreatment": "Non-recurring",
+        "scope": SUPPORTED_NORMALIZATION_SCOPE,
+        "topic": "t",
+        "referenceRationale": "r",
+        "consequenceNote": "c",
+    }
+    base.update(overrides)
+    return base
+
+
+def _find_earnings_row(ws, label: str) -> int:
+    for row in range(1, (ws.max_row or 1) + 1):
+        if ws.cell(row=row, column=1).value == label:
+            return row
+    raise AssertionError(f"row not found: {label}")
+
+
+@pytest.mark.parametrize(
+    "label,column",
+    [
+        ("Restructuring expense", 3),  # detail source link (FY1)
+        ("Reported NOPAT", 3),
+        ("Reported Net Income", 3),
+        ("Effective Tax Rate", 3),
+        ("NORMALIZATION CHECK", 3),
+    ],
+)
+def test_generated_earnings_normalization_formula_tamper_fails_closed(
+    tmp_path, label, column
+):
+    trainer_path, answer_key_path = _build_norm_pair(tmp_path)
+    smap = load_semantic_map(answer_key_path)
+    practice = _fy2023(smap, "pretax_normalization_adjustment")
+    wb = load_workbook(trainer_path, data_only=False)
+    prow, pcol = parse_cell_ref(practice.cell)
+    wb[practice.tab].cell(row=prow, column=pcol).value = practice.formula
+    assert _fill_rgb(wb[practice.tab].cell(row=prow, column=pcol)) == "FFFF00"
+    sheet = "Earnings Normalization"
+    row = _find_earnings_row(wb[sheet], label)
+    wb[sheet].cell(row=row, column=column).value = "=1+1"
+    wb.save(trainer_path)
+    wb.close()
+
+    with pytest.raises(ValueError, match="Generated Earnings Normalization formula was modified"):
+        check_workbook(trainer_path)
+
+    wb = load_workbook(trainer_path, data_only=False)
+    assert _fill_rgb(wb[practice.tab].cell(row=prow, column=pcol)) == "FFFF00"
+    wb.close()
+
+
+def test_learner_practice_formula_not_structurally_rejected(tmp_path):
+    trainer_path, answer_key_path = _build_norm_pair(tmp_path)
+    smap = load_semantic_map(answer_key_path)
+    comp = _fy2023(smap, "after_tax_normalization_adjustment")
+    _inject_formula_and_cached_value(
+        trainer_path,
+        comp.tab,
+        comp.cell,
+        formula=f"={float(comp.expected_value)}",
+        cached_value=float(comp.expected_value),
+    )
+    summary = check_workbook(trainer_path)
+    assert summary.correct == 1
+    assert summary.incorrect == 0
+
+
+def test_duplicate_normalization_candidates_rejected():
+    fin = _tiny_fin(
+        _li("Revenue", 100, 110, concept="revenue"),
+        _li("Restructuring expense", -20, 0, concept="restructuring_expense"),
+    )
+    periods = canonical_fiscal_periods(fin)
+    with pytest.raises(ValueError, match="duplicate normalization candidate"):
+        normalization_cases(
+            fin,
+            periods,
+            {
+                "normalizationCandidates": [
+                    _candidate(selector="concept:restructuring_expense"),
+                    _candidate(selector="concept:restructuring_expense"),
+                ]
+            },
+        )
+    with pytest.raises(ValueError, match="duplicate normalization candidate"):
+        normalization_cases(
+            fin,
+            periods,
+            {
+                "normalizationCandidates": [
+                    _candidate(selector="concept:restructuring_expense"),
+                    _candidate(selector="label:Restructuring expense"),
+                ]
+            },
+        )
+
+
+def test_label_selector_preserves_identity_with_shared_concept():
+    from core.data.line_identity import line_identity
+    from core.model.normalization import resolve_income_statement_identity
+
+    fin = _tiny_fin(
+        _li("Revenue", 100, 110, concept="revenue"),
+        _li("Restructuring charge", -50, 0, concept="special_item"),
+        _li("Litigation charge", -10, 0, concept="special_item"),
+    )
+    periods = canonical_fiscal_periods(fin)
+    cases = normalization_cases(
+        fin,
+        periods,
+        {
+            "normalizationCandidates": [
+                _candidate(selector="label:Restructuring charge")
+            ]
+        },
+    )
+    assert len(cases) == 1
+    case = cases[0]
+    assert case.override_selector == "label:Restructuring charge"
+    assert case.line_identity == line_identity(
+        resolve_income_statement_selector(fin, "label:Restructuring charge")
+    ).key()
+    assert "restructuring charge" in case.line_identity
+    assert case.override_selector.startswith("label:")
+
+    # Concept selector would be ambiguous; identity resolution stays on the label row.
+    with pytest.raises(ValueError, match="matched 2"):
+        resolve_income_statement_selector(fin, "concept:special_item")
+    item = resolve_income_statement_identity(fin, case.line_identity)
+    assert item.label == "Restructuring charge"
+    assert float(item.values[periods[0]]) == pytest.approx(-50.0)
+    # Adjustment uses only this row's signed amount: -(-50) = +50.
+    assert -float(item.values[periods[0]]) == pytest.approx(50.0)
+
+
+def test_resolve_income_statement_identity_requires_exact_match():
+    from core.model.normalization import resolve_income_statement_identity
+
+    fin = _tiny_fin(
+        _li("Revenue", 100, 110, concept="revenue"),
+        _li("Restructuring expense", -20, 0, concept="restructuring_expense"),
+    )
+    with pytest.raises(ValueError, match="matched no income-statement line"):
+        resolve_income_statement_identity(fin, "concept:missing")
+
+
+def test_typographic_apostrophe_label_selector_resolves():
+    fin = _tiny_fin(
+        _li("Revenue", 100, 110, concept="revenue"),
+        _li("Director\u2019s fee", -8, -9),
+    )
+    periods = canonical_fiscal_periods(fin)
+    item = resolve_income_statement_selector(fin, "label:Director's fee")
+    assert item.label == "Director\u2019s fee"
+    reverse = resolve_income_statement_selector(fin, "label:Director\u2019s fee")
+    assert reverse.label == "Director\u2019s fee"
+    cases = normalization_cases(
+        fin,
+        periods,
+        {"normalizationCandidates": [_candidate(selector="label:Director's fee")]},
+    )
+    assert len(cases) == 1
+    assert cases[0].override_selector == "label:Director\u2019s fee"
+
+
+def test_whitespace_only_normalization_treatment_fails_closed(tmp_path):
+    from core.trainer.semantic_io import answer_key_path_for
+
+    trainer_path, _ = _build_norm_pair(tmp_path)
+    answer_key_path = answer_key_path_for(trainer_path)
+    smap = load_semantic_map(answer_key_path)
+    comp = _latest(smap, "normalized_nopat")
+    wb = load_workbook(trainer_path, data_only=False)
+    row, col = parse_cell_ref(comp.cell)
+    wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    wb["Normalization Judgment"].cell(5, 6).value = "   "
+    wb.save(trainer_path)
+    wb.close()
+
+    with pytest.raises(ValueError, match="Whitespace-only treatment"):
+        check_workbook(trainer_path)
+    wb = load_workbook(trainer_path, data_only=False)
+    assert _fill_rgb(wb[comp.tab].cell(row=row, column=col)) == "FFFF00"
+    wb.close()
+
+
+def test_whitespace_only_classification_treatment_fails_closed(tmp_path):
+    from core.trainer.workbook import build_training_workbook
+
+    data = _ingest_demo()
+    trainer_path, answer_key_path = build_training_workbook(
+        data, tmp_path / "CLS_Trainer.xlsx"
+    )
+    smap = load_semantic_map(answer_key_path)
+    comp = max(
+        (c for c in smap.all_ordered() if c.family_id == "net_debt"),
+        key=lambda c: c.period_index or 0,
+    )
+    wb = load_workbook(trainer_path, data_only=False)
+    row, col = parse_cell_ref(comp.cell)
+    wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    wb["Accounting Judgment"].cell(5, 6).value = "   "
+    wb.save(trainer_path)
+    wb.close()
+    with pytest.raises(ValueError, match="Whitespace-only treatment"):
+        check_workbook(trainer_path)
+    wb = load_workbook(trainer_path, data_only=False)
+    assert _fill_rgb(wb[comp.tab].cell(row=row, column=col)) == "FFFF00"
+    wb.close()
+
+
+def test_padded_valid_treatments_are_accepted(tmp_path):
+    trainer_path, answer_key_path = _build_norm_pair(tmp_path)
+    smap = load_semantic_map(answer_key_path)
+    comp = _fy2023(smap, "pretax_normalization_adjustment")
+    wb = load_workbook(trainer_path, data_only=False)
+    row, col = parse_cell_ref(comp.cell)
+    wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    wb["Normalization Judgment"].cell(5, 6).value = " Recurring "
+    wb["Accounting Judgment"].cell(5, 6).value = " Financial Liability "
+    wb.save(trainer_path)
+    wb.close()
+
+    ctx = load_check_context(answer_key_path)
+    wb = load_workbook(trainer_path, data_only=False)
+    treatments = normalization_treatments_for_check(wb, ctx)
+    from core.trainer.check_context import classification_overrides_for_check
+
+    overrides = classification_overrides_for_check(wb, ctx)
+    wb.close()
+    assert list(treatments.values()) == ["Recurring"]
+    assert overrides["concept:lease_liability"] == "Financial Liability"
+
+    summary = check_workbook(trainer_path)
+    assert summary.correct == 1
+    assert summary.incorrect == 0
+
+
+def test_blank_normalization_treatment_still_uses_reference(tmp_path):
+    trainer_path, answer_key_path = _build_norm_pair(tmp_path)
+    smap = load_semantic_map(answer_key_path)
+    comp = _fy2023(smap, "pretax_normalization_adjustment")
+    wb = load_workbook(trainer_path, data_only=False)
+    row, col = parse_cell_ref(comp.cell)
+    wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    wb["Normalization Judgment"].cell(5, 6).value = None
+    wb.save(trainer_path)
+    wb.close()
+    summary = check_workbook(trainer_path)
+    assert summary.correct == 1
+
+    wb = load_workbook(trainer_path, data_only=False)
+    wb["Normalization Judgment"].cell(5, 6).value = ""
+    wb.save(trainer_path)
+    wb.close()
+    summary = check_workbook(trainer_path)
+    assert summary.correct == 1

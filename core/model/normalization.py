@@ -55,7 +55,7 @@ class NormalizationSeries:
 
 def _label_match_key(label: str) -> str:
     s = normalize_label(label).lower()
-    for ch in ("'", "'", "`"):
+    for ch in ("\u2018", "\u2019", "`"):
         s = s.replace(ch, "'")
     return " ".join(s.split())
 
@@ -92,6 +92,29 @@ def resolve_income_statement_selector(
         raise ValueError(
             f"normalization candidate selector {selector!r} matched {len(matches)} "
             f"income-statement lines {labels}; use a unique concept:<id> selector"
+        )
+    return matches[0]
+
+
+def resolve_income_statement_identity(
+    financials: StandardizedFinancials,
+    identity_key: str,
+) -> LineItem:
+    """Resolve a stable line-identity key to exactly one income-statement line."""
+    matches = [
+        item
+        for item in financials.income_statement
+        if line_identity(item).key() == identity_key
+    ]
+    if len(matches) == 0:
+        raise ValueError(
+            f"normalization line identity {identity_key!r} matched no income-statement line"
+        )
+    if len(matches) > 1:
+        labels = [item.label for item in matches]
+        raise ValueError(
+            f"normalization line identity {identity_key!r} matched {len(matches)} "
+            f"income-statement lines {labels}"
         )
     return matches[0]
 
@@ -145,13 +168,12 @@ def _line_has_nonzero_value(item: LineItem, periods: list[date]) -> bool:
 
 
 def _stable_override_selector(item: LineItem, supplied_selector: str) -> str:
-    ident = line_identity(item)
-    if ident.concept:
-        return f"concept:{ident.concept}"
-    # Preserve a label: prefix when supplied; otherwise use original label.
     kind, _ = _parse_selector(supplied_selector)
-    if kind == "label" and supplied_selector.strip().lower().startswith("label:"):
-        return f"label:{item.label}"
+    if kind == "concept":
+        ident = line_identity(item)
+        concept = ident.concept or normalize_label(supplied_selector.split(":", 1)[1])
+        return f"concept:{concept}"
+    # Label / bare-label selections stay label-based even when the row has a concept.
     return f"label:{item.label}"
 
 
@@ -165,18 +187,23 @@ def normalization_cases(
     if not isinstance(raw_candidates, list):
         raise ValueError("normalizationCandidates must be a list")
 
-    staged: list[tuple[NormalizationCandidateSpec, LineItem]] = []
+    staged: list[tuple[NormalizationCandidateSpec, LineItem, str]] = []
+    seen_identities: set[str] = set()
     for index, raw in enumerate(raw_candidates):
         spec = _parse_candidate(raw, index)
         item = resolve_income_statement_selector(financials, spec.selector)
+        identity = line_identity(item).key()
+        if identity in seen_identities:
+            raise ValueError(
+                f"duplicate normalization candidate for income-statement line {identity}"
+            )
+        seen_identities.add(identity)
         if not _line_has_nonzero_value(item, periods):
             continue
-        staged.append((spec, item))
+        staged.append((spec, item, identity))
 
     cases: list[NormalizationCase] = []
-    for order, (spec, item) in enumerate(staged, start=1):
-        ident = line_identity(item)
-        identity = ident.key()
+    for order, (spec, item, identity) in enumerate(staged, start=1):
         alternatives = tuple(
             treatment
             for treatment in NORMALIZATION_TREATMENTS
@@ -240,11 +267,11 @@ def compute_normalization_series(
             "normalization period axis must match AnchorMetrics historical series length"
         )
 
-    # Resolve each case to its income-statement item once.
+    # Resolve each case from stable line identity (not a re-resolved selector).
     items_by_case: dict[str, LineItem] = {}
     for case in cases:
-        items_by_case[case.id] = resolve_income_statement_selector(
-            financials, case.override_selector
+        items_by_case[case.id] = resolve_income_statement_identity(
+            financials, case.line_identity
         )
 
     pretax: list[float] = []

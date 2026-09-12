@@ -1,5 +1,7 @@
 # Step 8B2.1 — Normalization Integrity Hardening
 
+> **Status:** Complete (local verification recorded in `RESULT.md`). Do not commit/push from Cursor.
+
 > **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `3c02649c7fc00272297c557fba9d88a007bf289d` (`Step 8.2`). Implement only the Step 8B2.1 hardening below using red/green TDD. Preserve the existing Step 8A/8B1 classification workflow and Step 8B2 normalization workflow. Do not begin Step 9, earnings-quality diagnostics, accrual/cash-conversion analysis, ROU/deferred-tax alternative modeling, forecasting, or valuation. Do not commit or push; the user owns the checkpoint commit.
 
 **Goal:** Make Step 8B2 trustworthy under workbook tampering and edge-case configuration: a green Check must not survive broken system-controlled normalization links, duplicate candidates must not double-count earnings adjustments, normalization source identity must remain stable, and invalid treatment input must fail closed.

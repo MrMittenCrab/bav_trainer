@@ -119,7 +119,13 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
         if context is not None:
             assert answer_wb is not None
             # Setup integrity before treatments or any fill planning.
-            validate_live_model_structure(wb, answer_wb, context)
+            practice_cells = {(comp.tab, comp.cell) for comp in comps}
+            validate_live_model_structure(
+                wb,
+                answer_wb,
+                context,
+                practice_cells=practice_cells,
+            )
             overrides = classification_overrides_for_check(wb, context)
             financials = standardized_from_payload(context.source_payload)
             modeled_periods = tuple(
