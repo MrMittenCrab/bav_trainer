@@ -2,9 +2,9 @@
 
 Progressive training that takes an **accounting novice** toward junior accounting-based equity-research competence, with particular strength in Business Analysis and Valuation (BAV).
 
-**Current capability** is a **multi-period historical model-construction foundation** plus **Step 8A guided classification reasoning** and **Step 8B1 live supported classification** for non-financial operating companies. Normalization, earnings-quality diagnostics, forecasting, valuation, and research conclusions remain deferred.
+**Current capability** is a **multi-period historical model-construction foundation** plus **Step 8A guided classification reasoning**, **Step 8B1 live supported classification**, and **Step 8B2 guided earnings normalization** for non-financial operating companies. Earnings-quality diagnostics, forecasting, valuation, and research conclusions remain deferred.
 
-## Product loop (Step 7 + Step 8A)
+## Product loop (Step 7 + Step 8A/B)
 
 ```text
 end-state goal:
@@ -25,13 +25,21 @@ Step 8B1 — live supported classification
 - Formula Check recomputes expected historical values for the selected supported treatment
 - rationale/consequence remain ungraded
 
-Normalization / recurring-vs-non-recurring treatment, ROU/deferred-tax alternatives, forecasting, and valuation remain deferred.
+Step 8B2 — guided earnings normalization
+- normalization candidates are explicitly supplied; they are not inferred from labels
+- learner chooses Recurring vs Non-recurring
+- reported statements and reported historical model remain unchanged
+- Earnings Normalization bridges reported to normalized NOPAT / Net Income
+- Step 8B2 supports operating pretax items using period effective tax rate as the supplied training convention
+- Check conditions normalization formulas on the current treatment
+- rationale/consequence are ungraded
+
+ROU/deferred-tax alternatives, earnings-quality diagnostics, forecasting, and valuation remain deferred.
 
 This is a transition from supplied judgment to guided judgment, not independent analyst competence.
 
 still deferred:
-- live alternative classification driving the main model
-- normalization / recurring vs non-recurring adjustments
+- ROU / deferred-tax alternative modeling
 - earnings-quality diagnostics
 - forecasting
 - valuation
@@ -41,11 +49,11 @@ normal build:
 does not execute forecast/scenario engine
 
 Trainer = blank yellow formula cells + blank yellow judgment-response cells; no answers/hints.
-Check = scans formula practice cells only against the current Accounting Judgment treatment; blank yellow, correct green, incorrect red; no answers disclosed.
+Check = scans formula practice cells against current Accounting Judgment and Normalization Judgment treatments; blank yellow, correct green, incorrect red; no answers disclosed.
 Answer Key = formula + Note on formula cells; model treatment/rationale/consequence on judgment responses; hidden Check context for dynamic expecteds.
 ```
 
-Open the matching Answer Key for formula Notes and for judgment reference responses. Formula Check does not grade Accounting Judgment cells.
+Open the matching Answer Key for formula Notes and for judgment reference responses. Formula Check does not grade Accounting Judgment or Normalization Judgment rationale/consequence cells.
 
 ## Quick start
 
@@ -54,14 +62,17 @@ cd bav_trainer
 pip install -r requirements-trainer.txt
 
 # Build matched Trainer + Answer Key pair from illustrative HK data
+# (with optional Step 8B2 normalization assumptions)
 python -m core build example/DEMO_HK_Standardized.json \
+  -a example/DEMO_HK_Assumptions.json \
   -o example/DEMO_HK_Trainer.xlsx
 # → example/DEMO_HK_Trainer.xlsx
 # → example/DEMO_HK_Answer_Key.xlsx
-# Components resolved: 118
+# Components resolved: 138 (29 families) with demo assumptions;
+# Components resolved: 118 (25 families) without -a
 
-# List the 25 conceptual historical schedule families
-python -m core list
+# List conceptual schedule families
+python -m core list --workbook example/DEMO_HK_Trainer.xlsx
 
 # After entering formulas in Excel and saving, validate the whole workbook:
 python -m core check --workbook example/DEMO_HK_Trainer.xlsx

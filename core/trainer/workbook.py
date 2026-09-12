@@ -9,8 +9,12 @@ from openpyxl import load_workbook
 from openpyxl.comments import Comment
 from openpyxl.styles import Border, Font, PatternFill, Side
 
-from ..engine.component_catalog import COMPONENT_CATALOG
-from ..engine.reference_model import JUDGMENT_SHEET, ReferenceModelBuilder
+from ..engine.component_catalog import COMPONENT_CATALOG, NORMALIZATION_COMPONENT_CATALOG
+from ..engine.reference_model import (
+    JUDGMENT_SHEET,
+    NORMALIZATION_JUDGMENT_SHEET,
+    ReferenceModelBuilder,
+)
 from ..engine.semantic_map import ResolvedComponent, SemanticMap
 from ..data.line_identity import validate_financials_identities
 from ..ingestion.reconciler import reconcile_financials
@@ -57,9 +61,12 @@ TRAINER_INDEX_INSTRUCTION = (
     "Run Check to validate the yellow formula cells against the treatment currently "
     "selected in Accounting Judgment column F (blank F uses the supplied reference "
     "treatment). Generated Condensed Financials classification links are system-"
-    "controlled and validated by Check—do not edit them or columns D:E. Also complete "
-    "Accounting Judgment rationale/consequence when cases are present; those responses "
-    "are not graded by Check. Compare them with the matching Answer Key."
+    "controlled and validated by Check—do not edit them or columns D:E. When "
+    "Normalization Judgment is present, choose Recurring vs Non-recurring in column F "
+    "(blank uses the supplied reference); Earnings Normalization formulas are checked "
+    "against that choice. Also complete Accounting Judgment and Normalization Judgment "
+    "rationale/consequence when cases are present; those responses are not graded by "
+    "Check. Compare them with the matching Answer Key."
 )
 
 
@@ -90,6 +97,7 @@ class TrainingWorkbookGenerator:
         self._add_trainer_ui(wb)
         self._decorate_answer_key_practice_cells(wb)
         self._decorate_answer_key_judgment_cells(wb)
+        self._decorate_answer_key_normalization_judgment_cells(wb)
         wb.save(self.answer_key_path)
         wb.close()
 
@@ -98,6 +106,7 @@ class TrainingWorkbookGenerator:
         wb = load_workbook(trainer_path)
         self._blank_trainer_practice_cells(wb)
         self._blank_trainer_judgment_cells(wb)
+        self._blank_trainer_normalization_judgment_cells(wb)
         self._sanitize_trainer_answer_stores(wb)
         wb.save(trainer_path)
         wb.close()
@@ -185,10 +194,30 @@ class TrainingWorkbookGenerator:
                 cell = ws.cell(row=row, column=col)
                 cell.fill = PRACTICE_FILL
 
+    def _decorate_answer_key_normalization_judgment_cells(self, wb) -> None:
+        if NORMALIZATION_JUDGMENT_SHEET not in wb.sheetnames:
+            return
+        ws = wb[NORMALIZATION_JUDGMENT_SHEET]
+        for row in _judgment_case_rows(ws):
+            for col in JUDGMENT_RESPONSE_COLS:
+                cell = ws.cell(row=row, column=col)
+                cell.fill = PRACTICE_FILL
+
     def _blank_trainer_judgment_cells(self, wb) -> None:
         if JUDGMENT_SHEET not in wb.sheetnames:
             return
         ws = wb[JUDGMENT_SHEET]
+        for row in _judgment_case_rows(ws):
+            for col in JUDGMENT_RESPONSE_COLS:
+                cell = ws.cell(row=row, column=col)
+                cell.value = None
+                cell.fill = PRACTICE_FILL
+                cell.comment = None
+
+    def _blank_trainer_normalization_judgment_cells(self, wb) -> None:
+        if NORMALIZATION_JUDGMENT_SHEET not in wb.sheetnames:
+            return
+        ws = wb[NORMALIZATION_JUDGMENT_SHEET]
         for row in _judgment_case_rows(ws):
             for col in JUDGMENT_RESPONSE_COLS:
                 cell = ws.cell(row=row, column=col)
@@ -245,6 +274,7 @@ def group_components_by_family(smap: SemanticMap) -> list[dict]:
         by_family.setdefault(comp.family_id or comp.id, []).append(comp)
 
     family_meta = {f.id: f for f in COMPONENT_CATALOG}
+    family_meta.update({f.id: f for f in NORMALIZATION_COMPONENT_CATALOG})
     groups: list[dict] = []
     for family_id, comps in by_family.items():
         comps = sorted(comps, key=lambda c: (c.period_index is None, c.period_index or 0, c.order))

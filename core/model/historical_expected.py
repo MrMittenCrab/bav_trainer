@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from ..engine.component_catalog import COMPONENT_CATALOG
+from ..engine.component_catalog import COMPONENT_CATALOG, NORMALIZATION_COMPONENT_CATALOG
 from ..engine.semantic_map import ResolvedComponent
 from .financial_math import AnchorMetrics
+from .normalization import NormalizationSeries
 
 _FAMILY_SERIES = (
     "revenue_link",
@@ -32,6 +33,13 @@ _FAMILY_SERIES = (
     "flev",
     "roe_decomp",
     "actual_roe",
+)
+
+_NORMALIZATION_FAMILY_SERIES = (
+    "pretax_normalization_adjustment",
+    "after_tax_normalization_adjustment",
+    "normalized_nopat",
+    "normalized_net_income",
 )
 
 
@@ -76,26 +84,56 @@ def historical_expected_series(
         raise ValueError(
             f"historical_expected_series family mismatch; missing={missing} extra={extra}"
         )
-    # Preserve catalog order for deterministic debugging.
     return {family_id: series[family_id] for family_id in _FAMILY_SERIES}
+
+
+def normalization_expected_series(
+    normalization: NormalizationSeries,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map the four normalization formula families to a NormalizationSeries."""
+    series = {
+        "pretax_normalization_adjustment": normalization.pretax_adjustment,
+        "after_tax_normalization_adjustment": normalization.after_tax_adjustment,
+        "normalized_nopat": normalization.normalized_nopat,
+        "normalized_net_income": normalization.normalized_net_income,
+    }
+    expected_ids = {family.id for family in NORMALIZATION_COMPONENT_CATALOG}
+    if set(series) != expected_ids:
+        missing = sorted(expected_ids - set(series))
+        extra = sorted(set(series) - expected_ids)
+        raise ValueError(
+            f"normalization_expected_series family mismatch; missing={missing} extra={extra}"
+        )
+    return {family_id: series[family_id] for family_id in _NORMALIZATION_FAMILY_SERIES}
 
 
 def expected_value_for_component(
     anchor: AnchorMetrics,
     component: ResolvedComponent,
+    *,
+    normalization: NormalizationSeries | None = None,
 ) -> float | str | None:
-    """Return the treatment-conditioned expected value for one historical component."""
+    """Return the treatment-conditioned expected value for one practice component."""
     family_id = component.family_id
     if not family_id:
         raise ValueError(f"Component {component.id!r} has no family_id")
-    series = historical_expected_series(anchor)
-    if family_id not in series:
-        raise ValueError(f"Unknown historical family {family_id!r}")
     period_index = component.period_index
     if period_index is None:
         raise ValueError(
             f"Component {component.id!r} (family {family_id}) has no period_index"
         )
+
+    if family_id in _NORMALIZATION_FAMILY_SERIES:
+        if normalization is None:
+            raise ValueError(
+                f"Normalization family {family_id!r} requires a NormalizationSeries"
+            )
+        series = normalization_expected_series(normalization)
+    else:
+        series = historical_expected_series(anchor)
+        if family_id not in series:
+            raise ValueError(f"Unknown historical family {family_id!r}")
+
     values = series[family_id]
     if period_index < 0 or period_index >= len(values):
         raise ValueError(

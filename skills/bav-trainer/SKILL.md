@@ -1,11 +1,11 @@
 ---
 name: bav-trainer
-description: Build matched BAV Excel Trainer / Answer Key workbooks for Hong Kong-listed non-financial companies from manually supplied filings or Excel/Bloomberg/Wind exports. Step 7 multi-period historical schedules, Step 8A guided classification reasoning, and Step 8B1 live supported classification with judgment-aware Formula Check.
+description: Build matched BAV Excel Trainer / Answer Key workbooks for Hong Kong-listed non-financial companies from manually supplied filings or Excel/Bloomberg/Wind exports. Step 7 multi-period historical schedules, Step 8A guided classification reasoning, Step 8B1 live supported classification, and Step 8B2 guided earnings normalization with judgment-aware Formula Check.
 ---
 
 # BAV Excel Trainer — Hong Kong Edition
 
-Build a **matched Trainer / Answer Key pair** where the learner reconstructs multi-period historical BAV schedules and compares selected ambiguous classifications with defensible alternatives.
+Build a **matched Trainer / Answer Key pair** where the learner reconstructs multi-period historical BAV schedules, compares selected ambiguous classifications with defensible alternatives, and practices explicit recurring/non-recurring earnings normalization.
 
 ## Product loop
 
@@ -28,13 +28,21 @@ Step 8B1 — live supported classification
 - Formula Check recomputes expected historical values for the selected supported treatment
 - rationale/consequence remain ungraded
 
-Normalization / recurring-vs-non-recurring treatment, ROU/deferred-tax alternatives, forecasting, and valuation remain deferred.
+Step 8B2 — guided earnings normalization
+- normalization candidates are explicitly supplied; they are not inferred from labels
+- learner chooses Recurring vs Non-recurring
+- reported statements and reported historical model remain unchanged
+- Earnings Normalization bridges reported to normalized NOPAT / Net Income
+- Step 8B2 supports operating pretax items using period effective tax rate as the supplied training convention
+- Check conditions normalization formulas on the current treatment
+- rationale/consequence are ungraded
+
+ROU/deferred-tax alternatives, earnings-quality diagnostics, forecasting, and valuation remain deferred.
 
 This is a transition from supplied judgment to guided judgment, not independent analyst competence.
 
 still deferred:
-- live alternative classification driving the main model
-- normalization / recurring vs non-recurring adjustments
+- ROU / deferred-tax alternative modeling
 - earnings-quality diagnostics
 - forecasting
 - valuation
@@ -44,7 +52,7 @@ normal build:
 does not execute forecast/scenario engine
 
 Trainer = blank yellow formula cells + blank yellow judgment-response cells; no answers/hints.
-Check = scans formula practice cells only against the current Accounting Judgment treatment; blank yellow, correct green, incorrect red; no answers disclosed.
+Check = scans formula practice cells against current Accounting Judgment and Normalization Judgment treatments; blank yellow, correct green, incorrect red; no answers disclosed.
 Answer Key = formula + Note on formula cells; model treatment/rationale/consequence on judgment responses; hidden Check context for dynamic expecteds.
 ```
 
@@ -82,18 +90,21 @@ python -m core ingest example/DEMO_HK_Standardized.json -o /tmp/demo_std.json
 
 ```bash
 python -m core build example/DEMO_HK_Standardized.json \
+  -a example/DEMO_HK_Assumptions.json \
   -o training/DEMO_HK_Trainer.xlsx
 ```
 
 Outputs:
 - `DEMO_HK_Trainer.xlsx` — source/classifications filled; yellow schedule cells blank
 - `DEMO_HK_Answer_Key.xlsx` — working formulas + legacy Notes on the same cells
+- With demo assumptions: 29 families / 138 cells (includes Earnings Normalization)
+- Without `-a`: 25 families / 118 cells (no normalization sheets)
 
 There is **no** user-facing `*_reference.xlsx` and no Trainer `.trainer.json`.
 
 ### 3. Practice loop
 
-1. Complete each historical schedule left-to-right (`python -m core list` shows 25 families).
+1. Complete each historical schedule left-to-right (`python -m core list --workbook ...` shows schedule families).
 2. Run one workbook-wide Check:
 
 ```bash

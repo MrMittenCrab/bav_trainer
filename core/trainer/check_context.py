@@ -3,21 +3,28 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import date
 from pathlib import Path
 from typing import Any
 
 from openpyxl import Workbook, load_workbook
+from openpyxl.utils import get_column_letter
 
 from ..data.interface import StandardizedFinancials
 from ..data.standardized_io import standardized_to_payload
 from ..model.judgment import JudgmentCase
+from ..model.normalization import NormalizationCase
 
 CHECK_CONTEXT_SHEET = "_CheckContext"
 CHECK_CONTEXT_MAGIC = "BAV_CHECK_CONTEXT_V1"
 CHECK_CONTEXT_CHUNK_SIZE = 30000
-CHECK_CONTEXT_SCHEMA_VERSION = 1
+CHECK_CONTEXT_SCHEMA_VERSION = 2
+CHECK_CONTEXT_LEGACY_SCHEMA_VERSION = 1
+
+JUDGMENT_SHEET = "Accounting Judgment"
+NORMALIZATION_JUDGMENT_SHEET = "Normalization Judgment"
+EARNINGS_NORMALIZATION_SHEET = "Earnings Normalization"
 
 
 @dataclass(frozen=True)
@@ -32,12 +39,59 @@ class JudgmentBinding:
 
 
 @dataclass(frozen=True)
+class NormalizationBinding:
+    order: int
+    worksheet_row: int
+    case_id: str
+    line_identity: str
+    source_selector: str
+    scope: str
+    reference_treatment: str
+    allowed_treatments: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class CheckContext:
     schema_version: int
     source_payload: dict
     modeled_periods: tuple[str, ...]
     base_classification_overrides: dict[str, str]
     judgment_bindings: tuple[JudgmentBinding, ...]
+    normalization_bindings: tuple[NormalizationBinding, ...] = ()
+
+
+def live_classification_formula(
+    judgment_row: int,
+    reference_treatment: str,
+) -> str:
+    """System-generated Condensed classification formula driven only by Judgment!F."""
+    if judgment_row < 1:
+        raise ValueError(f"judgment_row must be >= 1, got {judgment_row}")
+    if reference_treatment is None or not str(reference_treatment).strip():
+        raise ValueError("reference_treatment must be a non-empty category string")
+    escaped = str(reference_treatment).replace('"', '""')
+    return (
+        f"=IF('{JUDGMENT_SHEET}'!$F${judgment_row}=\"\","
+        f"\"{escaped}\","
+        f"'{JUDGMENT_SHEET}'!$F${judgment_row})"
+    )
+
+
+def live_normalization_treatment_formula(
+    judgment_row: int,
+    reference_treatment: str,
+) -> str:
+    """System-generated Earnings Normalization treatment formula driven only by F."""
+    if judgment_row < 1:
+        raise ValueError(f"judgment_row must be >= 1, got {judgment_row}")
+    if reference_treatment is None or not str(reference_treatment).strip():
+        raise ValueError("reference_treatment must be a non-empty treatment string")
+    escaped = str(reference_treatment).replace('"', '""')
+    return (
+        f"=IF('{NORMALIZATION_JUDGMENT_SHEET}'!$F${judgment_row}=\"\","
+        f"\"{escaped}\","
+        f"'{NORMALIZATION_JUDGMENT_SHEET}'!$F${judgment_row})"
+    )
 
 
 def build_check_context(
@@ -45,8 +99,9 @@ def build_check_context(
     periods: list[date],
     assumptions: dict,
     judgment_cases: tuple[JudgmentCase, ...],
+    normalization_cases: tuple[NormalizationCase, ...] = (),
 ) -> CheckContext:
-    """Build a non-answer-bearing context sufficient to recompute historical expecteds."""
+    """Build a non-answer-bearing context sufficient to recompute expecteds."""
     overrides = dict(assumptions.get("classificationOverrides") or {})
     bindings = tuple(
         JudgmentBinding(
@@ -60,12 +115,26 @@ def build_check_context(
         )
         for case in judgment_cases
     )
+    norm_bindings = tuple(
+        NormalizationBinding(
+            order=case.order,
+            worksheet_row=4 + case.order,
+            case_id=case.id,
+            line_identity=case.line_identity,
+            source_selector=case.override_selector,
+            scope=case.scope,
+            reference_treatment=case.reference_treatment,
+            allowed_treatments=(case.reference_treatment,) + case.alternatives,
+        )
+        for case in normalization_cases
+    )
     return CheckContext(
         schema_version=CHECK_CONTEXT_SCHEMA_VERSION,
         source_payload=standardized_to_payload(financials),
         modeled_periods=tuple(period.isoformat() for period in periods),
         base_classification_overrides=overrides,
         judgment_bindings=bindings,
+        normalization_bindings=norm_bindings,
     )
 
 
@@ -81,6 +150,13 @@ def _context_to_json(context: CheckContext) -> str:
                 "allowed_treatments": list(binding.allowed_treatments),
             }
             for binding in context.judgment_bindings
+        ],
+        "normalization_bindings": [
+            {
+                **asdict(binding),
+                "allowed_treatments": list(binding.allowed_treatments),
+            }
+            for binding in context.normalization_bindings
         ],
     }
     return json.dumps(payload, separators=(",", ":"), sort_keys=True)
@@ -102,18 +178,11 @@ def embed_check_context_sheet(wb: Workbook, context: CheckContext) -> None:
         row += 1
 
 
-def _parse_context_payload(payload: dict[str, Any]) -> CheckContext:
-    schema_version = int(payload.get("schema_version") or 0)
-    if schema_version != CHECK_CONTEXT_SCHEMA_VERSION:
-        raise ValueError(
-            f"Unsupported Check context schema_version {schema_version!r}; "
-            f"expected {CHECK_CONTEXT_SCHEMA_VERSION}"
-        )
-    bindings_raw = payload.get("judgment_bindings")
-    if not isinstance(bindings_raw, list):
+def _parse_judgment_bindings(raw: Any) -> tuple[JudgmentBinding, ...]:
+    if not isinstance(raw, list):
         raise ValueError("Check context judgment_bindings must be a list")
     bindings: list[JudgmentBinding] = []
-    for entry in bindings_raw:
+    for entry in raw:
         if not isinstance(entry, dict):
             raise ValueError("Check context judgment binding must be an object")
         allowed = entry.get("allowed_treatments")
@@ -130,6 +199,48 @@ def _parse_context_payload(payload: dict[str, Any]) -> CheckContext:
                 allowed_treatments=tuple(str(item) for item in allowed),
             )
         )
+    return tuple(bindings)
+
+
+def _parse_normalization_bindings(raw: Any) -> tuple[NormalizationBinding, ...]:
+    if raw is None:
+        return ()
+    if not isinstance(raw, list):
+        raise ValueError("Check context normalization_bindings must be a list")
+    bindings: list[NormalizationBinding] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            raise ValueError("Check context normalization binding must be an object")
+        allowed = entry.get("allowed_treatments")
+        if not isinstance(allowed, list) or not allowed:
+            raise ValueError(
+                "Check context normalization allowed_treatments must be a non-empty list"
+            )
+        bindings.append(
+            NormalizationBinding(
+                order=int(entry["order"]),
+                worksheet_row=int(entry["worksheet_row"]),
+                case_id=str(entry["case_id"]),
+                line_identity=str(entry["line_identity"]),
+                source_selector=str(entry["source_selector"]),
+                scope=str(entry["scope"]),
+                reference_treatment=str(entry["reference_treatment"]),
+                allowed_treatments=tuple(str(item) for item in allowed),
+            )
+        )
+    return tuple(bindings)
+
+
+def _parse_context_payload(payload: dict[str, Any]) -> CheckContext:
+    schema_version = int(payload.get("schema_version") or 0)
+    if schema_version not in {
+        CHECK_CONTEXT_LEGACY_SCHEMA_VERSION,
+        CHECK_CONTEXT_SCHEMA_VERSION,
+    }:
+        raise ValueError(
+            f"Unsupported Check context schema_version {schema_version!r}; "
+            f"expected {CHECK_CONTEXT_LEGACY_SCHEMA_VERSION} or {CHECK_CONTEXT_SCHEMA_VERSION}"
+        )
     source_payload = payload.get("source_payload")
     if not isinstance(source_payload, dict):
         raise ValueError("Check context source_payload must be an object")
@@ -139,12 +250,18 @@ def _parse_context_payload(payload: dict[str, Any]) -> CheckContext:
     overrides = payload.get("base_classification_overrides")
     if not isinstance(overrides, dict):
         raise ValueError("Check context base_classification_overrides must be an object")
+    norm_bindings = ()
+    if schema_version >= CHECK_CONTEXT_SCHEMA_VERSION:
+        norm_bindings = _parse_normalization_bindings(payload.get("normalization_bindings"))
+    elif "normalization_bindings" in payload and payload.get("normalization_bindings"):
+        raise ValueError("schema v1 Check context must not carry normalization_bindings")
     return CheckContext(
         schema_version=schema_version,
         source_payload=source_payload,
         modeled_periods=tuple(str(item) for item in modeled),
         base_classification_overrides={str(k): str(v) for k, v in overrides.items()},
-        judgment_bindings=tuple(bindings),
+        judgment_bindings=_parse_judgment_bindings(payload.get("judgment_bindings")),
+        normalization_bindings=norm_bindings,
     )
 
 
@@ -191,11 +308,10 @@ def classification_overrides_for_check(
     context: CheckContext,
 ) -> dict[str, str]:
     """Merge base overrides with current Accounting Judgment treatment selections."""
-    sheet_name = "Accounting Judgment"
-    if sheet_name not in trainer_wb.sheetnames:
+    if JUDGMENT_SHEET not in trainer_wb.sheetnames:
         raise ValueError("Trainer is missing Accounting Judgment sheet required for Check")
     overrides = dict(context.base_classification_overrides)
-    ws = trainer_wb[sheet_name]
+    ws = trainer_wb[JUDGMENT_SHEET]
     for binding in context.judgment_bindings:
         selected = ws.cell(row=binding.worksheet_row, column=6).value
         if selected is None or (isinstance(selected, str) and not selected.strip()):
@@ -211,29 +327,38 @@ def classification_overrides_for_check(
     return overrides
 
 
-def live_classification_formula(
-    judgment_row: int,
-    reference_treatment: str,
-) -> str:
-    """System-generated Condensed classification formula driven only by Judgment!F."""
-    if judgment_row < 1:
-        raise ValueError(f"judgment_row must be >= 1, got {judgment_row}")
-    if reference_treatment is None or not str(reference_treatment).strip():
-        raise ValueError("reference_treatment must be a non-empty category string")
-    treatment = str(reference_treatment)
-    escaped = treatment.replace('"', '""')
-    return (
-        f"=IF('Accounting Judgment'!$F${judgment_row}=\"\","
-        f"\"{escaped}\","
-        f"'Accounting Judgment'!$F${judgment_row})"
-    )
+def normalization_treatments_for_check(
+    trainer_wb,
+    context: CheckContext,
+) -> dict[str, str]:
+    """Read Normalization Judgment!F selections keyed by case id."""
+    if not context.normalization_bindings:
+        return {}
+    if NORMALIZATION_JUDGMENT_SHEET not in trainer_wb.sheetnames:
+        raise ValueError(
+            "Trainer is missing Normalization Judgment sheet required for Check"
+        )
+    ws = trainer_wb[NORMALIZATION_JUDGMENT_SHEET]
+    treatments: dict[str, str] = {}
+    for binding in context.normalization_bindings:
+        selected = ws.cell(row=binding.worksheet_row, column=6).value
+        if selected is None or (isinstance(selected, str) and not selected.strip()):
+            treatment = binding.reference_treatment
+        else:
+            treatment = str(selected).strip()
+            if treatment not in binding.allowed_treatments:
+                raise ValueError(
+                    f"Invalid treatment {treatment!r} on Normalization Judgment row "
+                    f"{binding.worksheet_row}"
+                )
+        treatments[binding.case_id] = treatment
+    return treatments
 
 
-def _find_condensed_cells_with_formula(ws, expected_formula: str) -> list[tuple[int, int]]:
+def _find_column_b_matches(ws, expected_formula: str) -> list[tuple[int, int]]:
     matches: list[tuple[int, int]] = []
     for row in range(1, (ws.max_row or 0) + 1):
-        value = ws.cell(row=row, column=2).value
-        if value == expected_formula:
+        if ws.cell(row=row, column=2).value == expected_formula:
             matches.append((row, 2))
     return matches
 
@@ -243,36 +368,40 @@ def validate_live_judgment_structure(
     answer_key_wb,
     context: CheckContext,
 ) -> None:
-    """Fail fast if generated judgment prompts or live Condensed links were modified."""
-    judgment = "Accounting Judgment"
-    condensed = "Condensed Financials"
+    """Compatibility wrapper for classification-only structural validation."""
+    validate_live_model_structure(trainer_wb, answer_key_wb, context)
+
+
+def validate_live_model_structure(
+    trainer_wb,
+    answer_key_wb,
+    context: CheckContext,
+) -> None:
+    """Fail fast if generated live classification/normalization links were modified."""
     for wb, label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
-        if judgment not in wb.sheetnames:
+        if JUDGMENT_SHEET not in wb.sheetnames:
             raise ValueError(f"{label} is missing Accounting Judgment sheet")
-        if condensed not in wb.sheetnames:
+        if "Condensed Financials" not in wb.sheetnames:
             raise ValueError(f"{label} is missing Condensed Financials sheet")
 
     for binding in context.judgment_bindings:
         row = binding.worksheet_row
         expected_alts = ", ".join(binding.allowed_treatments[1:])
-        for wb, label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
-            d_val = wb[judgment].cell(row=row, column=4).value
-            e_val = wb[judgment].cell(row=row, column=5).value
-            if d_val != binding.reference_treatment:
+        for wb, _label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
+            if wb[JUDGMENT_SHEET].cell(row=row, column=4).value != binding.reference_treatment:
                 raise ValueError(
                     f"Accounting Judgment reference prompt was modified on row {row}"
                 )
-            if e_val != expected_alts:
+            if wb[JUDGMENT_SHEET].cell(row=row, column=5).value != expected_alts:
                 raise ValueError(
                     f"Accounting Judgment alternatives prompt was modified on row {row}"
                 )
-
         expected_formula = live_classification_formula(
             binding.worksheet_row,
             binding.reference_treatment,
         )
-        ak_matches = _find_condensed_cells_with_formula(
-            answer_key_wb[condensed], expected_formula
+        ak_matches = _find_column_b_matches(
+            answer_key_wb["Condensed Financials"], expected_formula
         )
         if len(ak_matches) != 1:
             raise ValueError(
@@ -280,11 +409,54 @@ def validate_live_judgment_structure(
                 f"for judgment row {row}"
             )
         link_row, link_col = ak_matches[0]
-        trainer_val = trainer_wb[condensed].cell(row=link_row, column=link_col).value
-        if trainer_val != expected_formula:
-            from openpyxl.utils import get_column_letter
-
+        if trainer_wb["Condensed Financials"].cell(row=link_row, column=link_col).value != expected_formula:
             coord = f"{get_column_letter(link_col)}{link_row}"
             raise ValueError(
                 f"Linked Condensed Financials classification was modified at {coord}"
+            )
+
+    if not context.normalization_bindings:
+        return
+
+    for wb, label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
+        if NORMALIZATION_JUDGMENT_SHEET not in wb.sheetnames:
+            raise ValueError(f"{label} is missing Normalization Judgment sheet")
+        if EARNINGS_NORMALIZATION_SHEET not in wb.sheetnames:
+            raise ValueError(f"{label} is missing Earnings Normalization sheet")
+
+    for binding in context.normalization_bindings:
+        row = binding.worksheet_row
+        expected_alts = ", ".join(binding.allowed_treatments[1:])
+        for wb, _label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
+            if (
+                wb[NORMALIZATION_JUDGMENT_SHEET].cell(row=row, column=4).value
+                != binding.reference_treatment
+            ):
+                raise ValueError(
+                    f"Normalization Judgment reference prompt was modified on row {row}"
+                )
+            if wb[NORMALIZATION_JUDGMENT_SHEET].cell(row=row, column=5).value != expected_alts:
+                raise ValueError(
+                    f"Normalization Judgment alternatives prompt was modified on row {row}"
+                )
+        expected_formula = live_normalization_treatment_formula(
+            binding.worksheet_row,
+            binding.reference_treatment,
+        )
+        ak_matches = _find_column_b_matches(
+            answer_key_wb[EARNINGS_NORMALIZATION_SHEET], expected_formula
+        )
+        if len(ak_matches) != 1:
+            raise ValueError(
+                "Answer Key live-normalization binding is missing/ambiguous "
+                f"for judgment row {row}"
+            )
+        link_row, link_col = ak_matches[0]
+        trainer_val = trainer_wb[EARNINGS_NORMALIZATION_SHEET].cell(
+            row=link_row, column=link_col
+        ).value
+        if trainer_val != expected_formula:
+            coord = f"{get_column_letter(link_col)}{link_row}"
+            raise ValueError(
+                f"Linked Earnings Normalization treatment was modified at {coord}"
             )

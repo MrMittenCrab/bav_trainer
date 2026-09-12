@@ -18,9 +18,18 @@ from ..model.classification import BALANCE_SHEET_CATEGORIES
 from ..model.financial_math import compute_anchor
 from ..model.judgment import JudgmentCase, classification_judgment_cases
 from ..model.line_resolver import resolve_line, workbook_row_for
+from ..model.normalization import (
+    NormalizationCase,
+    compute_normalization_series,
+    normalization_cases,
+)
 from ..model.period_axis import canonical_fiscal_periods
 from ..model.ri_engine import run_scenario, weighted_ivps
-from .component_catalog import DEFERRED_COMPONENT_SPECS, expand_historical_specs
+from .component_catalog import (
+    DEFERRED_COMPONENT_SPECS,
+    expand_historical_specs,
+    expand_normalization_specs,
+)
 from .map_embed import embed_component_map_sheet
 from .semantic_map import SemanticMap
 
@@ -38,6 +47,8 @@ DEFERRED_TAB_NAMES = ("Model_Bear", "Model_Base", "Model_Bull", "Scenario_Summar
 DEFERRED_PLACEHOLDER = "Deferred from historical-only v1"
 
 JUDGMENT_SHEET = "Accounting Judgment"
+NORMALIZATION_JUDGMENT_SHEET = "Normalization Judgment"
+EARNINGS_NORMALIZATION_SHEET = "Earnings Normalization"
 JUDGMENT_INSTRUCTION = (
     "The supplied treatment is the model's reference treatment, not a universal "
     "accounting truth. Compare it with the listed alternative(s), choose the "
@@ -52,6 +63,16 @@ JUDGMENT_STEP_NOTE = (
     "that the generated classification links remain intact; it does not grade the "
     "judgment response itself. Do not edit the linked Condensed Financials "
     "classification cell directly."
+)
+NORMALIZATION_JUDGMENT_INSTRUCTION = (
+    "The supplied treatment is the model's reference convention, not a universal "
+    "truth. Decide whether each supplied candidate should remain in recurring "
+    "earnings or be normalized out."
+)
+NORMALIZATION_JUDGMENT_STEP_NOTE = (
+    "Choose the treatment in column F. Blank F uses the supplied reference treatment. "
+    "G:H are ungraded reasoning. Do not edit the generated Earnings Normalization "
+    "treatment link directly."
 )
 
 
@@ -70,13 +91,9 @@ class ReferenceModelBuilder:
         self.include_deferred_forecast = include_deferred_forecast
         self.assumptions = dict(assumptions or {})
         self.assumptions.setdefault("classificationOverrides", {})
+        self.assumptions.setdefault("normalizationCandidates", [])
         self.rowmap: dict[str, Any] = {}
         self.historical_specs = expand_historical_specs(self.periods)
-        self.semantic_map = SemanticMap(expected_specs=self.historical_specs)
-        self._historical_spec_index = {
-            (s.family_id, s.period_index): s for s in self.historical_specs
-        }
-        self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         overrides = self.assumptions.get("classificationOverrides") or {}
         self.anchor = compute_anchor(
             financials,
@@ -87,6 +104,38 @@ class ReferenceModelBuilder:
             self.fin,
             self.periods,
             self.anchor.reformulation,
+        )
+        self.normalization_cases: tuple[NormalizationCase, ...] = normalization_cases(
+            self.fin,
+            self.periods,
+            self.assumptions,
+        )
+        self.normalization_specs = (
+            expand_normalization_specs(
+                self.periods,
+                start_order=len(self.historical_specs) + 1,
+            )
+            if self.normalization_cases
+            else ()
+        )
+        self.expected_specs = self.historical_specs + self.normalization_specs
+        self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
+        self._historical_spec_index = {
+            (s.family_id, s.period_index): s for s in self.historical_specs
+        }
+        self._normalization_spec_index = {
+            (s.family_id, s.period_index): s for s in self.normalization_specs
+        }
+        self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
+        self.normalization_series = (
+            compute_normalization_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+                self.normalization_cases,
+            )
+            if self.normalization_cases
+            else None
         )
         self._judgment_row_by_identity = {
             case.line_identity: 4 + case.order
@@ -169,6 +218,9 @@ class ReferenceModelBuilder:
         self._build_condensed(wb)
         self._build_dupont(wb)
         self._build_accounting_judgment(wb)
+        if self.normalization_cases:
+            self._build_normalization_judgment(wb)
+            self._build_earnings_normalization(wb)
         if self.include_deferred_forecast:
             for scenario in ("Bear", "Base", "Bull"):
                 self._build_model_tab(wb, scenario)
@@ -191,6 +243,7 @@ class ReferenceModelBuilder:
             self.periods,
             self.assumptions,
             self.judgment_cases,
+            self.normalization_cases,
         )
         embed_check_context_sheet(wb, context)
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -222,6 +275,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._historical_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_normalization(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._normalization_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -425,6 +494,7 @@ class ReferenceModelBuilder:
                 hist.effective_tax_rate[j],
             )
         row_nums["Effective Tax Rate"] = etr_row
+        self.rowmap["condensed_etr_row"] = etr_row
         r += 1
 
         # Net interest: missing optional interest lines treated as zero (matches Python).
@@ -917,6 +987,209 @@ class ReferenceModelBuilder:
             )
             ws.add_data_validation(dv)
             dv.add(treatment)
+
+    def _build_normalization_judgment(self, wb: Workbook) -> None:
+        ws = wb.create_sheet(NORMALIZATION_JUDGMENT_SHEET)
+        ws["A1"] = "Normalization Judgment"
+        ws["A1"].font = BOLD
+        ws["A2"] = NORMALIZATION_JUDGMENT_INSTRUCTION
+        ws["A3"] = NORMALIZATION_JUDGMENT_STEP_NOTE
+        headers = [
+            "Order",
+            "Line item",
+            "Scope",
+            "Supplied reference treatment",
+            "Alternative to evaluate",
+            "Treatment to defend",
+            "Rationale",
+            "Economic consequence",
+        ]
+        for col, header in enumerate(headers, start=1):
+            cell = ws.cell(row=4, column=col, value=header)
+            cell.font = BOLD
+        widths = (8, 32, 36, 28, 32, 28, 40, 44)
+        for idx, width in enumerate(widths, start=1):
+            ws.column_dimensions[self._col(idx)].width = width
+
+        for case in self.normalization_cases:
+            row = 4 + case.order
+            options = (case.reference_treatment,) + case.alternatives
+            ws.cell(row=row, column=1, value=case.order)
+            ws.cell(row=row, column=2, value=case.label)
+            ws.cell(row=row, column=3, value=case.scope)
+            ws.cell(row=row, column=4, value=case.reference_treatment)
+            ws.cell(row=row, column=5, value=", ".join(case.alternatives))
+            treatment = ws.cell(row=row, column=6, value=case.reference_treatment)
+            rationale = ws.cell(row=row, column=7, value=case.model_rationale)
+            consequence = ws.cell(row=row, column=8, value=case.model_consequence)
+            wrap = Alignment(wrap_text=True, vertical="top")
+            for cell in (treatment, rationale, consequence):
+                cell.fill = PRACTICE_YELLOW
+                cell.alignment = wrap
+            dv = DataValidation(
+                type="list",
+                formula1='"' + ",".join(options) + '"',
+                allow_blank=True,
+            )
+            ws.add_data_validation(dv)
+            dv.add(treatment)
+
+    def _build_earnings_normalization(self, wb: Workbook) -> None:
+        from ..trainer.check_context import live_normalization_treatment_formula
+
+        if self.normalization_series is None:
+            raise RuntimeError("normalization_series required when building Earnings Normalization")
+
+        ws = wb.create_sheet(EARNINGS_NORMALIZATION_SHEET)
+        ws["A1"] = "Earnings Normalization"
+        ws["A1"].font = BOLD
+        ws["A2"] = (
+            "Reported statements stay unchanged. Bridge reported NOPAT / Net Income to "
+            "normalized earnings using the treatments chosen on Normalization Judgment."
+        )
+        ws.column_dimensions["A"].width = 40
+        ws.column_dimensions["B"].width = 18
+
+        header_row = 4
+        ws.cell(row=header_row, column=1, value="Line item").font = BOLD
+        ws.cell(row=header_row, column=2, value="Treatment").font = BOLD
+        for j, pd in enumerate(self.periods):
+            cell = ws.cell(row=header_row, column=3 + j, value=pd)
+            cell.number_format = "mmm dd, yyyy"
+            cell.font = BOLD
+            ws.column_dimensions[self._col(3 + j)].width = 14
+
+        detail_start = header_row + 1
+        for case in self.normalization_cases:
+            row = header_row + case.order
+            source_row = self.rowmap[f"Income Statement!{case.line_identity}"]
+            ws.cell(row=row, column=1, value=case.label)
+            formula = live_normalization_treatment_formula(
+                4 + case.order,
+                case.reference_treatment,
+            )
+            ws.cell(row=row, column=2, value=formula)
+            for j in range(self._n):
+                src_col = self._col(2 + j)
+                cell = ws.cell(
+                    row=row,
+                    column=3 + j,
+                    value=f"='Income Statement'!{src_col}{source_row}",
+                )
+                cell.number_format = NUM_FMT
+        detail_end = header_row + len(self.normalization_cases)
+
+        bridge_start = detail_end + 2
+        nopat_r = self.rowmap["condensed_nopat_row"]
+        ni_r = self.rowmap["condensed_ni_row"]
+        etr_r = self.rowmap["condensed_etr_row"]
+        series = self.normalization_series
+
+        reported_nopat_row = bridge_start
+        reported_ni_row = bridge_start + 1
+        pretax_row = bridge_start + 2
+        etr_row = bridge_start + 3
+        after_tax_row = bridge_start + 4
+        norm_nopat_row = bridge_start + 5
+        norm_ni_row = bridge_start + 6
+        check_row = bridge_start + 7
+
+        bridge_labels = (
+            (reported_nopat_row, "Reported NOPAT"),
+            (reported_ni_row, "Reported Net Income"),
+            (pretax_row, "Pretax Normalization Adjustment"),
+            (etr_row, "Effective Tax Rate"),
+            (after_tax_row, "After-tax Normalization Adjustment"),
+            (norm_nopat_row, "Normalized NOPAT"),
+            (norm_ni_row, "Normalized Net Income"),
+            (check_row, "NORMALIZATION CHECK"),
+        )
+        for row, label in bridge_labels:
+            font = BOLD if label in {"NORMALIZATION CHECK"} else None
+            cell = ws.cell(row=row, column=1, value=label)
+            if font is not None:
+                cell.font = font
+
+        treat_range = f"$B${detail_start}:$B${detail_end}"
+        for j in range(self._n):
+            period_col = self._col(3 + j)
+            condensed_col = self._col(2 + j)
+            value_range = f"{period_col}${detail_start}:{period_col}${detail_end}"
+
+            reported_nopat = (
+                f"='Condensed Financials'!{condensed_col}{nopat_r}"
+            )
+            reported_ni = f"='Condensed Financials'!{condensed_col}{ni_r}"
+            pretax = f'=-SUMIF({treat_range},"Non-recurring",{value_range})'
+            etr = f"='Condensed Financials'!{condensed_col}{etr_r}"
+            after_tax = f"={period_col}{pretax_row}*(1-{period_col}{etr_row})"
+            norm_nopat = f"={period_col}{reported_nopat_row}+{period_col}{after_tax_row}"
+            norm_ni = f"={period_col}{reported_ni_row}+{period_col}{after_tax_row}"
+            check = (
+                f'=IF(AND(ABS(({period_col}{norm_nopat_row}-{period_col}{reported_nopat_row})'
+                f"-{period_col}{after_tax_row})<0.01,"
+                f"ABS(({period_col}{norm_ni_row}-{period_col}{reported_ni_row})"
+                f"-{period_col}{after_tax_row})<0.01),\"OK\",\"CHECK\")"
+            )
+
+            for row, formula, fmt in (
+                (reported_nopat_row, reported_nopat, NUM_FMT),
+                (reported_ni_row, reported_ni, NUM_FMT),
+                (pretax_row, pretax, NUM_FMT),
+                (etr_row, etr, PCT_FMT),
+                (after_tax_row, after_tax, NUM_FMT),
+                (norm_nopat_row, norm_nopat, NUM_FMT),
+                (norm_ni_row, norm_ni, NUM_FMT),
+                (check_row, check, None),
+            ):
+                cell = ws.cell(row=row, column=3 + j, value=formula)
+                if fmt is not None:
+                    cell.number_format = fmt
+
+            self._register_normalization(
+                "pretax_normalization_adjustment",
+                j,
+                EARNINGS_NORMALIZATION_SHEET,
+                pretax_row,
+                3 + j,
+                pretax,
+                series.pretax_adjustment[j],
+            )
+            self._register_normalization(
+                "after_tax_normalization_adjustment",
+                j,
+                EARNINGS_NORMALIZATION_SHEET,
+                after_tax_row,
+                3 + j,
+                after_tax,
+                series.after_tax_adjustment[j],
+            )
+            self._register_normalization(
+                "normalized_nopat",
+                j,
+                EARNINGS_NORMALIZATION_SHEET,
+                norm_nopat_row,
+                3 + j,
+                norm_nopat,
+                series.normalized_nopat[j],
+            )
+            self._register_normalization(
+                "normalized_net_income",
+                j,
+                EARNINGS_NORMALIZATION_SHEET,
+                norm_ni_row,
+                3 + j,
+                norm_ni,
+                series.normalized_net_income[j],
+            )
+
+        self.rowmap["earnings_norm_detail_start"] = detail_start
+        self.rowmap["earnings_norm_detail_end"] = detail_end
+        self.rowmap["earnings_norm_pretax_row"] = pretax_row
+        self.rowmap["earnings_norm_after_tax_row"] = after_tax_row
+        self.rowmap["earnings_norm_nopat_row"] = norm_nopat_row
+        self.rowmap["earnings_norm_ni_row"] = norm_ni_row
+        self.rowmap["earnings_norm_check_row"] = check_row
 
     def _build_model_tab(self, wb: Workbook, scenario: str) -> None:
         ws = wb.create_sheet(f"Model_{scenario}")

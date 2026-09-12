@@ -1,0 +1,13 @@
+{
+  "classificationOverrides": {},
+  "normalizationCandidates": [
+    {
+      "selector": "concept:restructuring_expense",
+      "referenceTreatment": "Non-recurring",
+      "scope": "operating_pretax_effective_tax",
+      "topic": "Restructuring expense recurring vs non-recurring",
+      "referenceRationale": "The reference model treats the supplied restructuring charge as non-recurring because the illustrative case identifies it as a discrete restructuring event rather than normal ongoing operations.",
+      "consequenceNote": "Non-recurring treatment removes the signed after-tax effect from normalized earnings; recurring treatment leaves reported earnings unchanged."
+    }
+  ]
+}

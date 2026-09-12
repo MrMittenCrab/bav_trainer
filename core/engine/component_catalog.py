@@ -456,6 +456,109 @@ COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
 )
 
 
+NORMALIZATION_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="pretax_normalization_adjustment",
+        order=26,
+        title="Pretax normalization adjustment",
+        short_hint=(
+            "Sum the signed pretax add-back for items marked Non-recurring on the "
+            "Earnings Normalization detail block."
+        ),
+        semantic_key="normalization.pretax_adjustment",
+        category="normalization",
+        tab_template="Earnings Normalization",
+        hints=(
+            "Use SUMIF on the detail treatment column for Non-recurring items, "
+            "then negate the sum so expense add-backs are positive.",
+        ),
+    ),
+    ComponentFamily(
+        id="after_tax_normalization_adjustment",
+        order=27,
+        title="After-tax normalization adjustment",
+        short_hint="Apply the period effective tax rate to the pretax normalization adjustment.",
+        semantic_key="normalization.after_tax_adjustment",
+        category="normalization",
+        tab_template="Earnings Normalization",
+        depends_on_current=("pretax_normalization_adjustment",),
+        hints=(
+            "After-tax adjustment = pretax adjustment × (1 − effective tax rate).",
+        ),
+    ),
+    ComponentFamily(
+        id="normalized_nopat",
+        order=28,
+        title="Normalized NOPAT",
+        short_hint="Add the after-tax normalization adjustment to reported NOPAT.",
+        semantic_key="normalization.normalized_nopat",
+        category="normalization",
+        tab_template="Earnings Normalization",
+        depends_on_current=("after_tax_normalization_adjustment",),
+        hints=(
+            "Normalized NOPAT = Reported NOPAT + after-tax normalization adjustment.",
+        ),
+    ),
+    ComponentFamily(
+        id="normalized_net_income",
+        order=29,
+        title="Normalized Net Income",
+        short_hint="Add the after-tax normalization adjustment to reported Net Income.",
+        semantic_key="normalization.normalized_net_income",
+        category="normalization",
+        tab_template="Earnings Normalization",
+        depends_on_current=("after_tax_normalization_adjustment",),
+        hints=(
+            "Normalized Net Income = Reported Net Income + after-tax normalization adjustment.",
+        ),
+    ),
+)
+
+
+def expand_normalization_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+) -> tuple[ComponentSpec, ...]:
+    """Expand normalization families into period-specific concrete specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError("duplicate fiscal periods are not allowed in expand_normalization_specs")
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_normalization_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in NORMALIZATION_COMPONENT_CATALOG:
+        for j, period in enumerate(periods):
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 def _deferred(
     *,
     id: str,

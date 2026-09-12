@@ -11,18 +11,49 @@ from openpyxl import load_workbook
 from ..data.standardized_io import standardized_from_payload
 from ..model.financial_math import compute_anchor
 from ..model.historical_expected import expected_value_for_component
+from ..model.normalization import NormalizationCase, compute_normalization_series
 from ..model.period_axis import canonical_fiscal_periods
 from .check_context import (
     classification_overrides_for_check,
     load_check_context,
-    validate_live_judgment_structure,
+    normalization_treatments_for_check,
+    validate_live_model_structure,
 )
 from .semantic_io import answer_key_path_for, load_semantic_map, parse_cell_ref
 from .xlsx_fill_patch import CellFillUpdate, apply_fill_updates
 
+
 BLANK_RGB = "FFFF00"
 CORRECT_RGB = "C8E6C9"
 INCORRECT_RGB = "FFC7CE"
+
+
+def _normalization_cases_from_bindings(context) -> tuple[NormalizationCase, ...]:
+    """Rebuild minimal cases from Check bindings (no pedagogical answer text)."""
+    cases: list[NormalizationCase] = []
+    for binding in context.normalization_bindings:
+        alternatives = tuple(
+            treatment
+            for treatment in binding.allowed_treatments
+            if treatment != binding.reference_treatment
+        )
+        cases.append(
+            NormalizationCase(
+                id=binding.case_id,
+                order=binding.order,
+                line_identity=binding.line_identity,
+                override_selector=binding.source_selector,
+                label="",
+                scope=binding.scope,
+                topic="",
+                reference_treatment=binding.reference_treatment,
+                alternatives=alternatives,
+                model_rationale="",
+                consequence_prompt="",
+                model_consequence="",
+            )
+        )
+    return tuple(cases)
 
 
 @dataclass(frozen=True)
@@ -88,7 +119,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
         if context is not None:
             assert answer_wb is not None
             # Setup integrity before treatments or any fill planning.
-            validate_live_judgment_structure(wb, answer_wb, context)
+            validate_live_model_structure(wb, answer_wb, context)
             overrides = classification_overrides_for_check(wb, context)
             financials = standardized_from_payload(context.source_payload)
             modeled_periods = tuple(
@@ -105,8 +136,22 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                 list(modeled_periods),
                 classification_overrides=overrides,
             )
+            normalization = None
+            if context.normalization_bindings:
+                treatments = normalization_treatments_for_check(wb, context)
+                cases = _normalization_cases_from_bindings(context)
+                normalization = compute_normalization_series(
+                    financials,
+                    list(modeled_periods),
+                    anchor,
+                    cases,
+                    treatments,
+                )
             dynamic_expected = {
-                comp.id: expected_value_for_component(anchor, comp) for comp in comps
+                comp.id: expected_value_for_component(
+                    anchor, comp, normalization=normalization
+                )
+                for comp in comps
             }
 
         for comp in comps:
