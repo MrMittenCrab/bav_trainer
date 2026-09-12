@@ -29,6 +29,7 @@ from ..model.normalization import (
     normalization_cases,
 )
 from ..model.period_axis import canonical_fiscal_periods
+from ..model.normalized_per_share import compute_normalized_per_share_series
 from ..model.per_share import compute_per_share_series, per_share_available
 from ..model.per_share_attribution import compute_per_share_attribution_series
 from ..model.profitability_change import compute_profitability_change_series
@@ -43,6 +44,7 @@ from .component_catalog import (
     DEFERRED_COMPONENT_SPECS,
     expand_historical_specs,
     expand_normalization_specs,
+    expand_normalized_per_share_specs,
     expand_per_share_attribution_specs,
     expand_per_share_specs,
     expand_profitability_change_specs,
@@ -275,6 +277,25 @@ class ReferenceModelBuilder:
             self.per_share_specs = ()
             self.per_share_attribution_series = None
             self.per_share_attribution_specs = ()
+        if self.per_share_series is not None and self.normalization_cases:
+            self.normalized_per_share_specs = expand_normalized_per_share_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + len(self.profitability_change_specs)
+                    + len(self.roe_attribution_specs)
+                    + len(self.quality_change_specs)
+                    + len(self.per_share_specs)
+                    + len(self.per_share_attribution_specs)
+                    + 1
+                ),
+            )
+        else:
+            self.normalized_per_share_specs = ()
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
@@ -286,6 +307,7 @@ class ReferenceModelBuilder:
             + self.quality_change_specs
             + self.per_share_specs
             + self.per_share_attribution_specs
+            + self.normalized_per_share_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -319,6 +341,10 @@ class ReferenceModelBuilder:
             (s.family_id, s.period_index): s
             for s in self.per_share_attribution_specs
         }
+        self._normalized_per_share_spec_index = {
+            (s.family_id, s.period_index): s
+            for s in self.normalized_per_share_specs
+        }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
             compute_normalization_series(
@@ -330,6 +356,17 @@ class ReferenceModelBuilder:
             if self.normalization_cases
             else None
         )
+        if (
+            self.normalized_per_share_specs
+            and self.normalization_series is not None
+            and self.per_share_series is not None
+        ):
+            self.normalized_per_share_series = compute_normalized_per_share_series(
+                self.normalization_series,
+                self.per_share_series,
+            )
+        else:
+            self.normalized_per_share_series = None
         self._judgment_row_by_identity = {
             case.line_identity: 4 + case.order
             for case in self.judgment_cases
@@ -554,6 +591,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._per_share_attribution_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_normalized_per_share(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._normalized_per_share_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -2869,6 +2922,180 @@ class ReferenceModelBuilder:
             driver_eps_change_row
         )
         self.rowmap["per_share_attribution_check_row"] = attribution_check_row
+
+        if self.normalized_per_share_series is None:
+            return
+
+        after_tax_src = self.rowmap["earnings_norm_after_tax_row"]
+        normalized_ni_src = self.rowmap["earnings_norm_ni_row"]
+        nps = self.normalized_per_share_series
+
+        section_row = 22
+        after_tax_adjustment_row = 23
+        normalized_ni_row = 24
+        adjustment_ps_row = 25
+        normalized_eps_row = 26
+        level_check_row = 27
+        normalized_eps_change_row = 29
+        normalization_effect_row = 30
+        change_check_row = 31
+
+        ws.cell(
+            row=section_row, column=1, value="NORMALIZED DILUTED EPS BRIDGE"
+        ).font = BOLD
+        ws.cell(
+            row=after_tax_adjustment_row,
+            column=1,
+            value="After-Tax Normalization Adjustment",
+        )
+        ws.cell(row=normalized_ni_row, column=1, value="Normalized Net Income")
+        ws.cell(
+            row=adjustment_ps_row,
+            column=1,
+            value="Normalization Adjustment per Diluted Share",
+        )
+        ws.cell(row=normalized_eps_row, column=1, value="Normalized Diluted EPS")
+        ws.cell(
+            row=level_check_row, column=1, value="NORMALIZED EPS LEVEL CHECK"
+        ).font = BOLD
+        ws.cell(
+            row=normalized_eps_change_row,
+            column=1,
+            value="Change in Normalized Diluted EPS",
+        )
+        ws.cell(
+            row=normalization_effect_row,
+            column=1,
+            value="Normalization Effect on Change in Diluted EPS",
+        )
+        ws.cell(
+            row=change_check_row, column=1, value="NORMALIZED EPS CHANGE CHECK"
+        ).font = BOLD
+
+        for j in range(self._n):
+            col = self._col(2 + j)
+            norm_col = self._col(3 + j)
+            after_tax_link = (
+                f"='Earnings Normalization'!{norm_col}{after_tax_src}"
+            )
+            normalized_ni_link = (
+                f"='Earnings Normalization'!{norm_col}{normalized_ni_src}"
+            )
+            c = ws.cell(
+                row=after_tax_adjustment_row, column=2 + j, value=after_tax_link
+            )
+            c.number_format = NUM_FMT
+            c = ws.cell(row=normalized_ni_row, column=2 + j, value=normalized_ni_link)
+            c.number_format = NUM_FMT
+
+            adjustment_ps_f = (
+                f"=IF({col}{shares_row}<=0,NA(),"
+                f"{col}{after_tax_adjustment_row}/{col}{shares_row})"
+            )
+            normalized_eps_f = (
+                f"=IF({col}{shares_row}<=0,NA(),"
+                f"{col}{normalized_ni_row}/{col}{shares_row})"
+            )
+            level_check_f = (
+                f'=IF(OR(ISNA({col}{adjustment_ps_row}),ISNA({col}{normalized_eps_row})),'
+                f'"N/A",IF(ABS({col}{eps_row}+{col}{adjustment_ps_row}-'
+                f'{col}{normalized_eps_row})<0.0000001,"OK","CHECK"))'
+            )
+            c = ws.cell(row=adjustment_ps_row, column=2 + j, value=adjustment_ps_f)
+            c.number_format = per_share_fmt
+            c = ws.cell(row=normalized_eps_row, column=2 + j, value=normalized_eps_f)
+            c.number_format = per_share_fmt
+            ws.cell(row=level_check_row, column=2 + j, value=level_check_f)
+
+            adj_expected = nps.normalization_adjustment_per_diluted_share[j]
+            self._register_normalized_per_share(
+                "normalization_adjustment_per_diluted_share",
+                j,
+                PER_SHARE_SHEET,
+                adjustment_ps_row,
+                2 + j,
+                adjustment_ps_f,
+                adj_expected
+                if isinstance(adj_expected, str)
+                else float(adj_expected),
+            )
+            n_eps_expected = nps.normalized_diluted_eps[j]
+            self._register_normalized_per_share(
+                "normalized_diluted_eps",
+                j,
+                PER_SHARE_SHEET,
+                normalized_eps_row,
+                2 + j,
+                normalized_eps_f,
+                n_eps_expected
+                if isinstance(n_eps_expected, str)
+                else float(n_eps_expected),
+            )
+
+            if j == 0:
+                ws.cell(row=normalized_eps_change_row, column=2 + j, value="N/A")
+                ws.cell(row=normalization_effect_row, column=2 + j, value="N/A")
+                ws.cell(row=change_check_row, column=2 + j, value="N/A")
+                continue
+
+            prev_col = self._col(2 + j - 1)
+            normalized_eps_change_f = (
+                f"={col}{normalized_eps_row}-{prev_col}{normalized_eps_row}"
+            )
+            normalization_effect_f = (
+                f"={col}{adjustment_ps_row}-{prev_col}{adjustment_ps_row}"
+            )
+            change_check_f = (
+                f'=IF(OR(ISNA({col}{normalized_eps_change_row}),'
+                f'ISNA({col}{normalization_effect_row})),"N/A",'
+                f'IF(ABS({col}{eps_chg_row}+{col}{normalization_effect_row}-'
+                f'{col}{normalized_eps_change_row})<0.0000001,"OK","CHECK"))'
+            )
+            c = ws.cell(
+                row=normalized_eps_change_row,
+                column=2 + j,
+                value=normalized_eps_change_f,
+            )
+            c.number_format = per_share_fmt
+            c = ws.cell(
+                row=normalization_effect_row,
+                column=2 + j,
+                value=normalization_effect_f,
+            )
+            c.number_format = per_share_fmt
+            ws.cell(row=change_check_row, column=2 + j, value=change_check_f)
+
+            n_chg = nps.normalized_diluted_eps_change[j]
+            effect = nps.normalization_effect_on_diluted_eps_change[j]
+            assert n_chg is not None
+            assert effect is not None
+            self._register_normalized_per_share(
+                "normalized_diluted_eps_change",
+                j,
+                PER_SHARE_SHEET,
+                normalized_eps_change_row,
+                2 + j,
+                normalized_eps_change_f,
+                n_chg if isinstance(n_chg, str) else float(n_chg),
+            )
+            self._register_normalized_per_share(
+                "normalization_effect_on_diluted_eps_change",
+                j,
+                PER_SHARE_SHEET,
+                normalization_effect_row,
+                2 + j,
+                normalization_effect_f,
+                effect if isinstance(effect, str) else float(effect),
+            )
+
+        self.rowmap["normalized_per_share_after_tax_row"] = after_tax_adjustment_row
+        self.rowmap["normalized_per_share_ni_row"] = normalized_ni_row
+        self.rowmap["normalized_per_share_adjustment_ps_row"] = adjustment_ps_row
+        self.rowmap["normalized_per_share_eps_row"] = normalized_eps_row
+        self.rowmap["normalized_per_share_level_check_row"] = level_check_row
+        self.rowmap["normalized_per_share_eps_change_row"] = normalized_eps_change_row
+        self.rowmap["normalized_per_share_effect_row"] = normalization_effect_row
+        self.rowmap["normalized_per_share_change_check_row"] = change_check_row
 
     def _build_model_tab(self, wb: Workbook, scenario: str) -> None:
         ws = wb.create_sheet(f"Model_{scenario}")

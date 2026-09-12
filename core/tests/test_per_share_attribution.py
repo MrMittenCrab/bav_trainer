@@ -311,9 +311,9 @@ def test_share_enabled_attribution_surface(tmp_path):
         data, tmp_path / "ATTR_NORM.xlsx", assumptions
     )
     smap_n = load_semantic_map(answer_n)
-    assert len(smap_n.all_ordered()) == 313
-    assert len(group_components_by_family(smap_n)) == 74
-    assert check_workbook(trainer_n).blank == 313
+    assert len(smap_n.all_ordered()) == 331
+    assert len(group_components_by_family(smap_n)) == 78
+    assert check_workbook(trainer_n).blank == 331
 
 
 def test_attribution_check_trust_and_colors(tmp_path):

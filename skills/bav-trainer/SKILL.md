@@ -121,7 +121,7 @@ python -m core check --workbook training/DEMO_HK_Trainer.xlsx
 
 3. Open the Answer Key for the formula and Note hint.
 
-Active historical schedules: Revenue/NI links → tax/interest/NOPAT → OWCA/OWCL/NOWC → OLTA/OLTL/NOLA → NOA → FA/FL/Net Debt → Equity → Sales Growth / NOPAT Margin → RNOA / After-tax CoD / Spread / FLEV / ROE → (optional) Earnings Normalization → Earnings Quality levels and cash-conversion/accrual trends → Working Capital Analysis (when OWCA/OWCL present) → RNOA margin/turnover drivers and change attribution → ROE financing contribution and operating/financing change attribution → (optional) Per Share Analysis when diluted weighted-average share history is supplied, including diluted-EPS earnings vs share-count attribution. These are arithmetic diagnostics, not automatic quality, leverage, dilution, or financing-policy judgments.
+Active historical schedules: Revenue/NI links → tax/interest/NOPAT → OWCA/OWCL/NOWC → OLTA/OLTL/NOLA → NOA → FA/FL/Net Debt → Equity → Sales Growth / NOPAT Margin → RNOA / After-tax CoD / Spread / FLEV / ROE → (optional) Earnings Normalization → Earnings Quality levels and cash-conversion/accrual trends → Working Capital Analysis (when OWCA/OWCL present) → RNOA margin/turnover drivers and change attribution → ROE financing contribution and operating/financing change attribution → (optional) Per Share Analysis when diluted weighted-average share history is supplied, including diluted-EPS earnings vs share-count attribution and (when normalization is also active) the normalized diluted-EPS bridge. These are arithmetic diagnostics, not automatic quality, leverage, dilution, or financing-policy judgments.
 
 Step 9F.1 — historical diluted per-share foundation
 - gated on explicitly supplied diluted weighted-average share history
@@ -134,9 +134,18 @@ Step 9F.2 — diluted EPS earnings / share-count attribution
 - exact midpoint Earnings Effect + Share-Count Effect = Change in Diluted EPS
 - rising share count is not forced to a negative “dilution” conclusion
 - generated attribution check row is trusted (not practice)
-- share-enabled surfaces: 70/293 base, 74/313 with normalization
+- share-enabled surfaces: 70/293 base; with normalization before 9F.3 was 74/313
 
-Still deferred: company-specific causal diagnosis, normalized EPS, basic-vs-diluted attribution, forecasting, valuation, investment conclusions, ROU/deferred-tax alternative modeling.
+Step 9F.3 — normalized diluted EPS bridge
+- gated on both explicit diluted weighted-average share history and active normalization cases
+- Reported EPS remains reported
+- Normalized EPS uses the current Normalization Judgment treatment
+- Reported EPS + normalization adjustment/share reconciles to normalized EPS
+- Reported EPS change + normalization effect reconciles to normalized EPS change
+- No automatic claim is made that normalized EPS is economically superior or more predictive
+- share+normalization surface: 78 families / 331 cells
+
+Still deferred: company-specific causal diagnosis, basic-vs-diluted attribution, forecasting, valuation, investment conclusions, ROU/deferred-tax alternative modeling.
 
 ## Design principles
 

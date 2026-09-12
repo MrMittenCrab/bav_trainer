@@ -1,5 +1,7 @@
 # Step 9F.3 — Historical Normalized Diluted EPS Bridge
 
+> **Status:** COMPLETE — Step 9F.3 verified locally (266 passed). Ordinary demo unchanged at 62/259 and 66/279; share-only 70/293; share+normalization 78/331. See `RESULT.md`. Do not commit/push from the agent.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `1e0d412b26ab1103e19ab547c0b3acca3bb09591` (`Step 9F2`, Step 9F.2 complete). Implement only Step 9F.3 below using red/green TDD. Preserve Step 8 classification/normalization judgment, the trusted-workbook boundary, all Step 9A source-completeness / tax / normalization / `#N/A` semantics, Step 9B working-capital diagnostics, Step 9C profitability drivers/change attribution, Step 9D ROE attribution, Step 9E cash-conversion trends, and the complete Step 9F.1–9F.2 per-share surface. Do not add basic-vs-diluted analysis, period-end share counts, forecasting, valuation, segment analysis, ROU/deferred-tax alternatives, automatic investment conclusions, or company-specific causal claims. Do not commit or push; the user owns the checkpoint commit.

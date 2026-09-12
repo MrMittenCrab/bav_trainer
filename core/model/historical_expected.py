@@ -5,6 +5,7 @@ from __future__ import annotations
 from ..engine.component_catalog import (
     COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
+    NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
     PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG,
     PER_SHARE_COMPONENT_CATALOG,
     PROFITABILITY_CHANGE_COMPONENT_CATALOG,
@@ -19,6 +20,7 @@ from .earnings_quality import EarningsQualitySeries
 from .earnings_quality_change import compute_earnings_quality_change_series
 from .financial_math import AnchorMetrics
 from .normalization import NormalizationSeries
+from .normalized_per_share import compute_normalized_per_share_series
 from .per_share import PerShareSeries
 from .per_share_attribution import compute_per_share_attribution_series
 from .profitability_change import compute_profitability_change_series
@@ -88,6 +90,13 @@ _PER_SHARE_ATTRIBUTION_FAMILY_SERIES = (
     "earnings_effect_on_diluted_eps_change",
     "share_count_effect_on_diluted_eps_change",
     "diluted_eps_change_from_drivers",
+)
+
+_NORMALIZED_PER_SHARE_FAMILY_SERIES = (
+    "normalization_adjustment_per_diluted_share",
+    "normalized_diluted_eps",
+    "normalized_diluted_eps_change",
+    "normalization_effect_on_diluted_eps_change",
 )
 
 _WORKING_CAPITAL_FAMILY_SERIES = (
@@ -408,6 +417,36 @@ def per_share_attribution_expected_series(
     }
 
 
+def normalized_per_share_expected_series(
+    normalization: NormalizationSeries,
+    per_share: PerShareSeries,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map normalized diluted-EPS bridge families from Normalization + PerShare."""
+    values = compute_normalized_per_share_series(normalization, per_share)
+    series = {
+        "normalization_adjustment_per_diluted_share": (
+            values.normalization_adjustment_per_diluted_share
+        ),
+        "normalized_diluted_eps": values.normalized_diluted_eps,
+        "normalized_diluted_eps_change": values.normalized_diluted_eps_change,
+        "normalization_effect_on_diluted_eps_change": (
+            values.normalization_effect_on_diluted_eps_change
+        ),
+    }
+    expected_ids = {family.id for family in NORMALIZED_PER_SHARE_COMPONENT_CATALOG}
+    if set(series) != expected_ids:
+        missing = sorted(expected_ids - set(series))
+        extra = sorted(set(series) - expected_ids)
+        raise ValueError(
+            "normalized_per_share_expected_series family mismatch; "
+            f"missing={missing} extra={extra}"
+        )
+    return {
+        family_id: series[family_id]
+        for family_id in _NORMALIZED_PER_SHARE_FAMILY_SERIES
+    }
+
+
 def expected_value_for_component(
     anchor: AnchorMetrics,
     component: ResolvedComponent,
@@ -426,7 +465,18 @@ def expected_value_for_component(
             f"Component {component.id!r} (family {family_id}) has no period_index"
         )
 
-    if family_id in _PER_SHARE_ATTRIBUTION_FAMILY_SERIES:
+    if family_id in _NORMALIZED_PER_SHARE_FAMILY_SERIES:
+        if normalization is None:
+            raise ValueError(
+                f"Normalized-per-share family {family_id!r} requires a "
+                "NormalizationSeries"
+            )
+        if per_share is None:
+            raise ValueError(
+                f"Normalized-per-share family {family_id!r} requires a PerShareSeries"
+            )
+        series = normalized_per_share_expected_series(normalization, per_share)
+    elif family_id in _PER_SHARE_ATTRIBUTION_FAMILY_SERIES:
         if per_share is None:
             raise ValueError(
                 f"Per-share-attribution family {family_id!r} requires a PerShareSeries"

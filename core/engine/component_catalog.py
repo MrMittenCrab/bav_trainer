@@ -1767,6 +1767,142 @@ def expand_per_share_attribution_specs(
     return tuple(specs)
 
 
+NORMALIZED_PER_SHARE_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="normalization_adjustment_per_diluted_share",
+        order=75,
+        title="Normalization Adjustment per Diluted Share",
+        short_hint=(
+            "After-tax normalization adjustment divided by diluted "
+            "weighted-average shares."
+        ),
+        semantic_key="normalized_per_share.adjustment_per_diluted_share",
+        category="normalized_per_share",
+        tab_template="Per Share Analysis",
+        depends_on_current=("after_tax_normalization_adjustment",),
+        hints=(
+            "Normalization Adjustment per Diluted Share = After-Tax "
+            "Normalization Adjustment / Diluted Weighted-Average Shares.",
+            "The sign is preserved; a positive normalization adjustment raises "
+            "normalized EPS relative to reported EPS.",
+        ),
+    ),
+    ComponentFamily(
+        id="normalized_diluted_eps",
+        order=76,
+        title="Normalized Diluted EPS",
+        short_hint="Normalized Net Income divided by diluted weighted-average shares.",
+        semantic_key="normalized_per_share.normalized_diluted_eps",
+        category="normalized_per_share",
+        tab_template="Per Share Analysis",
+        depends_on_current=("normalized_net_income",),
+        hints=(
+            "Normalized Diluted EPS = Normalized Net Income / Diluted "
+            "Weighted-Average Shares.",
+            "Use the current Normalization Judgment treatment; do not create a "
+            "second treatment assumption here.",
+        ),
+    ),
+    ComponentFamily(
+        id="normalized_diluted_eps_change",
+        order=77,
+        title="Change in Normalized Diluted EPS",
+        short_hint="Current normalized diluted EPS minus prior normalized diluted EPS.",
+        semantic_key="normalized_per_share.normalized_diluted_eps_change",
+        category="normalized_per_share",
+        tab_template="Per Share Analysis",
+        period_scope="comparable",
+        depends_on_current=("normalized_diluted_eps",),
+        depends_on_previous=("normalized_diluted_eps",),
+        hints=(
+            "Change in Normalized Diluted EPS = Current Normalized EPS - Prior "
+            "Normalized EPS.",
+            "Undefined normalized EPS in either period makes the change undefined (#N/A).",
+        ),
+    ),
+    ComponentFamily(
+        id="normalization_effect_on_diluted_eps_change",
+        order=78,
+        title="Normalization Effect on Change in Diluted EPS",
+        short_hint="Change in normalization adjustment per diluted share.",
+        semantic_key="normalized_per_share.normalization_effect_on_diluted_eps_change",
+        category="normalized_per_share",
+        tab_template="Per Share Analysis",
+        period_scope="comparable",
+        depends_on_current=("normalization_adjustment_per_diluted_share",),
+        depends_on_previous=("normalization_adjustment_per_diluted_share",),
+        hints=(
+            "Normalization Effect on EPS Change = Current Adjustment per Share - "
+            "Prior Adjustment per Share.",
+            "Reported EPS Change + this normalization effect must reconcile to "
+            "Change in Normalized Diluted EPS when defined.",
+        ),
+    ),
+)
+
+
+def expand_normalized_per_share_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+) -> tuple[ComponentSpec, ...]:
+    """Expand normalized diluted-EPS bridge families into concrete specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in "
+            "expand_normalized_per_share_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_normalized_per_share_specs requires strictly "
+                "chronological (increasing) period dates"
+            )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in NORMALIZED_PER_SHARE_COMPONENT_CATALOG:
+        if family.period_scope == "all":
+            indices = range(len(periods))
+        elif family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        else:
+            raise ValueError(
+                f"unsupported normalized-per-share period_scope "
+                f"{family.period_scope!r}"
+            )
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            if j > 0:
+                prev = periods[j - 1]
+                for dep_fam in family.depends_on_previous:
+                    deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 def _deferred(
     *,
     id: str,
