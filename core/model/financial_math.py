@@ -24,10 +24,10 @@ class HistoricalSeries:
     net_income: list[float]
     pretax_income: list[float]
     tax_expense: list[float]
-    effective_tax_rate: list[float]
+    effective_tax_rate: list[float | str]
     net_interest: list[float]
-    net_interest_after_tax: list[float]
-    nopat: list[float]
+    net_interest_after_tax: list[float | str]
+    nopat: list[float | str]
 
 
 @dataclass
@@ -36,14 +36,14 @@ class AnchorMetrics:
     nowc: float
     nola: float
     net_debt: float
-    nopat: float
+    nopat: float | str
     equity: float
     noa: float
     leverage: float
     hist_avg_after_tax_cod: float  # already after-tax; do not multiply by (1 − tax) again
-    effective_tax_rate: float
+    effective_tax_rate: float | str
     net_interest: float
-    net_interest_after_tax: float
+    net_interest_after_tax: float | str
     dupont: dict[str, list[float | str | None]]
     reformulation: BalanceSheetReformulation
     historical: HistoricalSeries
@@ -94,9 +94,21 @@ def compute_anchor(
     )
 
     net_int = [-(ie + ii) for ie, ii in zip(int_exp, int_inc)]
-    etr = [(-tax[i] / pretax[i]) if pretax[i] else 0.0 for i in range(n)]
-    niat = [net_int[i] * (1 - etr[i]) for i in range(n)]
-    nopat = [ni[i] + niat[i] for i in range(n)]
+    etr: list[float | str] = [ratio_or_na(-tax[i], pretax[i]) for i in range(n)]
+    niat: list[float | str] = []
+    nopat: list[float | str] = []
+    for i in range(n):
+        if net_int[i] == 0.0:
+            niat_value: float | str = 0.0
+        elif etr[i] == UNDEFINED_RATIO:
+            niat_value = UNDEFINED_RATIO
+        else:
+            niat_value = net_int[i] * (1.0 - float(etr[i]))
+        niat.append(niat_value)
+        if niat_value == UNDEFINED_RATIO:
+            nopat.append(UNDEFINED_RATIO)
+        else:
+            nopat.append(ni[i] + float(niat_value))
 
     nowc = list(reform.nowc)
     nola = list(reform.nola)

@@ -147,6 +147,7 @@ COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         hints=(
             "Effective tax rate uses pretax income in the denominator.",
             "Preserve the model's sign convention for tax expense.",
+            "A zero Pretax Income makes Effective Tax Rate undefined (#N/A).",
         ),
     ),
     ComponentFamily(
@@ -174,6 +175,7 @@ COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         hints=(
             "After-tax net interest = Net Interest × (1 − Effective Tax Rate).",
             "Do not tax-adjust a rate that is already after tax.",
+            "A zero Net Interest amount remains zero even if ETR is undefined; otherwise undefined ETR propagates.",
         ),
     ),
     ComponentFamily(
@@ -189,6 +191,7 @@ COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
             "Start from Net Income on the Income Statement.",
             "Add back after-tax net interest: Net Interest × (1 − Tax Rate).",
             "NOPAT = Net Income + Net Interest After Tax.",
+            "Undefined tax-effected Net Interest propagates to NOPAT.",
         ),
     ),
     ComponentFamily(

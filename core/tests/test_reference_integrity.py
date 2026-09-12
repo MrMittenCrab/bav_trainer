@@ -98,9 +98,11 @@ def test_anchor_exposes_tax_and_interest_expected_values():
     int_inc = resolve_line(data.income_statement, "interest_income", required=True).item
     ni = resolve_line(data.income_statement, "net_income", required=True).item
 
+    from core.model.ratio_values import ratio_or_na
+
     pretax_v = required_period_value(pretax, last, field="pretax_income")
     tax_v = required_period_value(tax, last, field="tax_expense")
-    expected_etr = (-tax_v / pretax_v) if pretax_v else 0.0
+    expected_etr = ratio_or_na(-tax_v, pretax_v)
     expected_net_int = -(
         required_period_value(int_exp, last, field="interest_expense")
         + required_period_value(int_inc, last, field="interest_income")
@@ -109,11 +111,11 @@ def test_anchor_exposes_tax_and_interest_expected_values():
     assert anchor.effective_tax_rate == pytest.approx(expected_etr)
     assert anchor.net_interest == pytest.approx(expected_net_int)
     assert anchor.net_interest_after_tax == pytest.approx(
-        anchor.net_interest * (1 - anchor.effective_tax_rate)
+        anchor.net_interest * (1 - float(anchor.effective_tax_rate))
     )
     assert anchor.nopat == pytest.approx(
         required_period_value(ni, last, field="net_income")
-        + anchor.net_interest_after_tax
+        + float(anchor.net_interest_after_tax)
     )
 
 
@@ -133,11 +135,11 @@ def test_anchor_exposes_full_historical_series():
     assert anchor.historical.nopat[-1] == pytest.approx(anchor.nopat)
 
     for j in range(len(periods)):
-        assert anchor.historical.net_interest_after_tax[j] == pytest.approx(
-            anchor.historical.net_interest[j] * (1 - anchor.historical.effective_tax_rate[j])
-        )
-        assert anchor.historical.nopat[j] == pytest.approx(
-            anchor.historical.net_income[j] + anchor.historical.net_interest_after_tax[j]
+        etr_j = float(anchor.historical.effective_tax_rate[j])
+        niat_j = float(anchor.historical.net_interest_after_tax[j])
+        assert niat_j == pytest.approx(anchor.historical.net_interest[j] * (1 - etr_j))
+        assert float(anchor.historical.nopat[j]) == pytest.approx(
+            anchor.historical.net_income[j] + niat_j
         )
 
     rev_item = resolve_line(data.income_statement, "revenue", required=True).item
@@ -2209,3 +2211,218 @@ def test_dupont_na_formulas_and_check_accept_undefined(tmp_path):
         cached_value=0.0,
     )
     assert check_workbook(trainer2).incorrect == 1
+
+
+def test_effective_tax_rate_undefined_when_pretax_zero():
+    from core.model.ratio_values import UNDEFINED_RATIO
+
+    fin = _base_fin()
+    periods = [p.end_date for p in fin.periods]
+    pretax = next(i for i in fin.income_statement if i.label == "Profit before tax")
+    tax = next(i for i in fin.income_statement if i.label == "Income tax expense")
+
+    pretax.values[periods[0]] = 0.0
+    tax.values[periods[0]] = 0.0
+    anchor = compute_anchor(fin, periods)
+    assert anchor.historical.effective_tax_rate[0] == UNDEFINED_RATIO
+
+    pretax.values[periods[0]] = 0.0
+    tax.values[periods[0]] = -30.0
+    anchor2 = compute_anchor(fin, periods)
+    assert anchor2.historical.effective_tax_rate[0] == UNDEFINED_RATIO
+
+    pretax.values[periods[0]] = 200.0
+    tax.values[periods[0]] = 0.0
+    anchor3 = compute_anchor(fin, periods)
+    assert anchor3.historical.effective_tax_rate[0] == pytest.approx(0.0)
+
+    pretax.values[periods[0]] = 200.0
+    tax.values[periods[0]] = -30.0
+    anchor4 = compute_anchor(fin, periods)
+    assert anchor4.historical.effective_tax_rate[0] == pytest.approx(0.15)
+
+
+def test_undefined_etr_niat_nopat_short_circuit_and_propagation():
+    from core.data.interface import StandardizedFinancials
+    from core.model.ratio_values import UNDEFINED_RATIO
+
+    periods = [p.end_date for p in _synth_periods()]
+
+    # Zero pretax + zero net interest -> ETR #N/A, NIAT 0, numeric NOPAT
+    fin_zero_ni = StandardizedFinancials(
+        ticker="ETR0",
+        company_name="Zero Pretax Zero NI",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=_synth_periods(),
+        income_statement=[
+            _li("Revenue", 1000, 1100),
+            _li("Finance costs", 0, 0),
+            _li("Finance income", 0, 0),
+            _li("Profit before tax", 0, 220),
+            _li("Income tax expense", 0, -33),
+            _li("Profit for the year", 100, 187),
+        ],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 100, 110),
+            _li("Trade receivables", 80, 90),
+            _li("Property, plant and equipment", 400, 420),
+            _li("Trade payables", 50, 55),
+            _li("Bank borrowings", 200, 210),
+            _li("Total equity", 330, 355),
+        ],
+        cash_flow=[_li("Net cash from operating activities", 50, 60)],
+    )
+    anchor_z = compute_anchor(fin_zero_ni, periods)
+    assert anchor_z.historical.effective_tax_rate[0] == UNDEFINED_RATIO
+    assert anchor_z.historical.net_interest[0] == pytest.approx(0.0)
+    assert anchor_z.historical.net_interest_after_tax[0] == pytest.approx(0.0)
+    assert anchor_z.historical.nopat[0] == pytest.approx(100.0)
+
+    # Zero pretax in comparable year + nonzero net interest -> NIAT/NOPAT #N/A;
+    # DuPont NOPAT metrics #N/A; Actual ROE may remain numeric.
+    fin_ni = StandardizedFinancials(
+        ticker="ETR1",
+        company_name="Zero Pretax Nonzero NI",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=_synth_periods(),
+        income_statement=[
+            _li("Revenue", 1000, 1100),
+            _li("Finance costs", -40, -50),
+            _li("Finance income", 5, 6),
+            _li("Profit before tax", 200, 0),
+            _li("Income tax expense", -30, -33),
+            _li("Profit for the year", 170, 187),
+        ],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 100, 110),
+            _li("Trade receivables", 80, 90),
+            _li("Property, plant and equipment", 400, 420),
+            _li("Trade payables", 50, 55),
+            _li("Bank borrowings", 200, 210),
+            _li("Total equity", 330, 355),
+        ],
+        cash_flow=[_li("Net cash from operating activities", 50, 60)],
+    )
+    anchor = compute_anchor(fin_ni, periods)
+    assert anchor.historical.effective_tax_rate[1] == UNDEFINED_RATIO
+    assert abs(anchor.historical.net_interest[1]) > 0
+    assert anchor.historical.net_interest_after_tax[1] == UNDEFINED_RATIO
+    assert anchor.historical.nopat[1] == UNDEFINED_RATIO
+    assert anchor.dupont["NOPAT Margin"][1] == UNDEFINED_RATIO
+    assert anchor.dupont["RNOA"][1] == UNDEFINED_RATIO
+    assert isinstance(anchor.dupont["Actual ROE"][1], float)
+    assert isinstance(anchor.historical.effective_tax_rate[0], float)
+    assert isinstance(anchor.historical.nopat[0], float)
+
+
+def test_condensed_etr_niat_formulas_and_check_na(tmp_path):
+    from core.data.interface import FinancialPeriod, StandardizedFinancials
+    from core.model.ratio_values import UNDEFINED_RATIO
+    from core.tests.test_normalization import _inject_formula_and_cached_value
+    from core.trainer.checker import check_workbook
+    from core.trainer.semantic_io import parse_cell_ref
+
+    data = _ingest_demo()
+    _, answer = build_training_workbook(data, tmp_path / "EtrFormula_Trainer.xlsx")
+    smap = load_semantic_map(answer)
+    etr = next(c for c in smap.all_ordered() if c.family_id == "effective_tax_rate_fy")
+    assert "NA()" in etr.formula
+    assert ",0," not in etr.formula.replace("NA()", "")
+    niat = next(c for c in smap.all_ordered() if c.family_id == "net_interest_after_tax_fy")
+    assert "ISNA(" in niat.formula.upper() or "ISNA(" in niat.formula
+    assert niat.formula.count("IF(") >= 2
+    nopat = next(c for c in smap.all_ordered() if c.family_id == "nopat_fy")
+    assert "NA()" not in nopat.formula
+    assert "+" in nopat.formula
+    # No absent-interest =0 fallback on Condensed net-interest chain
+    for family_id in ("net_interest_fy", "net_interest_after_tax_fy", "effective_tax_rate_fy"):
+        for comp in (c for c in smap.all_ordered() if c.family_id == family_id):
+            assert comp.formula != "=0"
+
+    etr_hint = next(f for f in COMPONENT_CATALOG if f.id == "effective_tax_rate_fy")
+    assert any("#N/A" in h for h in etr_hint.hints)
+    niat_hint = next(f for f in COMPONENT_CATALOG if f.id == "net_interest_after_tax_fy")
+    assert any("zero Net Interest" in h for h in niat_hint.hints)
+    nopat_hint = next(f for f in COMPONENT_CATALOG if f.id == "nopat_fy")
+    assert any("propagates to NOPAT" in h for h in nopat_hint.hints)
+
+    p1, p2 = date(2024, 12, 31), date(2025, 12, 31)
+    fin = StandardizedFinancials(
+        ticker="ETRCK",
+        company_name="ETR Check Co",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=p1, label="FY2024"),
+            FinancialPeriod(end_date=p2, label="FY2025"),
+        ],
+        income_statement=[
+            _li("Revenue", 1000, 1100),
+            _li("Finance costs", -40, -50),
+            _li("Finance income", 5, 6),
+            _li("Profit before tax", 0, 220),
+            _li("Income tax expense", -30, -33),
+            _li("Profit for the year", 170, 187),
+        ],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 100, 110),
+            _li("Trade receivables", 80, 90),
+            _li("Property, plant and equipment", 400, 420),
+            _li("Trade payables", 50, 55),
+            _li("Bank borrowings", 200, 210),
+            _li("Total equity", 330, 355),
+        ],
+        cash_flow=[_li("Net cash from operating activities", 50, 60)],
+    )
+    trainer, answer2 = build_training_workbook(fin, tmp_path / "EtrCheck_Trainer.xlsx")
+    smap2 = load_semantic_map(answer2)
+    etr0 = next(
+        c
+        for c in smap2.all_ordered()
+        if c.family_id == "effective_tax_rate_fy" and c.period_index == 0
+    )
+    niat0 = next(
+        c
+        for c in smap2.all_ordered()
+        if c.family_id == "net_interest_after_tax_fy" and c.period_index == 0
+    )
+    nopat0 = next(
+        c
+        for c in smap2.all_ordered()
+        if c.family_id == "nopat_fy" and c.period_index == 0
+    )
+    assert etr0.expected_value == UNDEFINED_RATIO
+    assert niat0.expected_value == UNDEFINED_RATIO
+    assert nopat0.expected_value == UNDEFINED_RATIO
+    assert "NA()" in etr0.formula
+
+    for comp in (etr0, niat0, nopat0):
+        wb = load_workbook(trainer, data_only=False)
+        row, col = parse_cell_ref(comp.cell)
+        wb[comp.tab].cell(row=row, column=col).value = comp.formula
+        wb.save(trainer)
+        wb.close()
+        assert check_workbook(trainer).correct >= 1
+
+        _inject_formula_and_cached_value(
+            trainer,
+            comp.tab,
+            comp.cell,
+            formula="=NA()",
+            cached_value=UNDEFINED_RATIO,
+        )
+        assert check_workbook(trainer).correct >= 1
+
+        _inject_formula_and_cached_value(
+            trainer,
+            comp.tab,
+            comp.cell,
+            formula="=0",
+            cached_value=0.0,
+        )
+        assert check_workbook(trainer).incorrect >= 1

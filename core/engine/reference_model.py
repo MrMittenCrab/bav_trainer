@@ -480,10 +480,18 @@ class ReferenceModelBuilder:
 
         ni_src = self._resolved_source_row(self.fin.income_statement, "net_income", required=True)
         rev_src = self._resolved_source_row(self.fin.income_statement, "revenue", required=True)
-        pretax_src = self._resolved_source_row(self.fin.income_statement, "pretax_income")
-        tax_src = self._resolved_source_row(self.fin.income_statement, "tax_expense")
-        int_exp_src = self._resolved_source_row(self.fin.income_statement, "interest_expense")
-        int_inc_src = self._resolved_source_row(self.fin.income_statement, "interest_income")
+        pretax_src = self._resolved_source_row(
+            self.fin.income_statement, "pretax_income", required=True
+        )
+        tax_src = self._resolved_source_row(
+            self.fin.income_statement, "tax_expense", required=True
+        )
+        int_exp_src = self._resolved_source_row(
+            self.fin.income_statement, "interest_expense", required=True
+        )
+        int_inc_src = self._resolved_source_row(
+            self.fin.income_statement, "interest_income", required=True
+        )
         equity_src = self._resolved_source_row(self.fin.balance_sheet, "total_equity")
         row_nums: dict[str, int] = {}
         hist = self.anchor.historical
@@ -495,8 +503,7 @@ class ReferenceModelBuilder:
             ("Interest Expense", int_exp_src, False, None, None),
             ("Interest Income", int_inc_src, False, None, None),
         ]:
-            if not src_row:
-                continue
+            assert src_row is not None
             ws.cell(row=r, column=1, value=label).font = Font(bold=bold)
             for j in range(self._n):
                 col = self._col(2 + j)
@@ -521,14 +528,11 @@ class ReferenceModelBuilder:
 
         etr_row = r
         ws.cell(row=r, column=1, value="Effective Tax Rate")
+        pretax_r = row_nums["Pretax Income"]
+        tax_r = row_nums["Tax Expense"]
         for j in range(self._n):
             col = self._col(2 + j)
-            if "Tax Expense" in row_nums and "Pretax Income" in row_nums:
-                pretax_r = row_nums["Pretax Income"]
-                tax_r = row_nums["Tax Expense"]
-                formula = f"=IF({col}{pretax_r}=0,0,-{col}{tax_r}/{col}{pretax_r})"
-            else:
-                formula = "=0"
+            formula = f"=IF({col}{pretax_r}=0,NA(),-{col}{tax_r}/{col}{pretax_r})"
             ws.cell(row=r, column=2 + j, value=formula).number_format = PCT_FMT
             self._register_historical(
                 "effective_tax_rate_fy",
@@ -543,24 +547,15 @@ class ReferenceModelBuilder:
         self.rowmap["condensed_etr_row"] = etr_row
         r += 1
 
-        # Net interest: missing optional interest lines treated as zero (matches Python).
+        # Net interest uses explicitly supplied Interest Expense and Interest Income.
         net_int_row = r
         ws.cell(row=r, column=1, value="Net Interest")
-        has_ie = "Interest Expense" in row_nums
-        has_ii = "Interest Income" in row_nums
         for j in range(self._n):
             col = self._col(2 + j)
-            if has_ie and has_ii:
-                f: str = (
-                    f"=-({col}{row_nums['Interest Expense']}"
-                    f"+{col}{row_nums['Interest Income']})"
-                )
-            elif has_ie:
-                f = f"=-{col}{row_nums['Interest Expense']}"
-            elif has_ii:
-                f = f"=-{col}{row_nums['Interest Income']}"
-            else:
-                f = "=0"
+            f = (
+                f"=-({col}{row_nums['Interest Expense']}"
+                f"+{col}{row_nums['Interest Income']})"
+            )
             ws.cell(row=r, column=2 + j, value=f).number_format = NUM_FMT
             self._register_historical(
                 "net_interest_fy",
@@ -578,7 +573,10 @@ class ReferenceModelBuilder:
         ws.cell(row=r, column=1, value="Net Interest After Tax")
         for j in range(self._n):
             col = self._col(2 + j)
-            formula = f"={col}{net_int_row}*(1-{col}{etr_row})"
+            formula = (
+                f"=IF({col}{net_int_row}=0,0,"
+                f"IF(ISNA({col}{etr_row}),NA(),{col}{net_int_row}*(1-{col}{etr_row})))"
+            )
             ws.cell(row=r, column=2 + j, value=formula).number_format = NUM_FMT
             self._register_historical(
                 "net_interest_after_tax_fy",
@@ -1168,7 +1166,11 @@ class ReferenceModelBuilder:
             reported_ni = f"='Condensed Financials'!{condensed_col}{ni_r}"
             pretax = f'=-SUMIF({treat_range},"Non-recurring",{value_range})'
             etr = f"='Condensed Financials'!{condensed_col}{etr_r}"
-            after_tax = f"={period_col}{pretax_row}*(1-{period_col}{etr_row})"
+            after_tax = (
+                f"=IF({period_col}{pretax_row}=0,0,"
+                f"IF(ISNA({period_col}{etr_row}),NA(),"
+                f"{period_col}{pretax_row}*(1-{period_col}{etr_row})))"
+            )
             norm_nopat = f"={period_col}{reported_nopat_row}+{period_col}{after_tax_row}"
             norm_ni = f"={period_col}{reported_ni_row}+{period_col}{after_tax_row}"
             check = (

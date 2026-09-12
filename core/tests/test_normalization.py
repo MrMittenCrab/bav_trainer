@@ -1139,3 +1139,219 @@ def test_judgment_gh_edits_do_not_fail_trusted_validation(tmp_path):
     summary = check_workbook(trainer_path)
     assert summary.correct == 1
     assert summary.incorrect == 0
+
+
+def test_normalization_candidate_period_completeness_required():
+    from core.model.normalization import NormalizationCase
+    from core.model.source_values import MissingHistoricalValueError
+    from core.data.line_identity import line_identity
+
+    fin = _tiny_fin(
+        _li("Revenue", 100, 110, concept="revenue"),
+        _li("One-off charge", -20, -10, concept="one_off"),
+    )
+    periods = canonical_fiscal_periods(fin)
+    candidate = {
+        "selector": "concept:one_off",
+        "referenceTreatment": "Non-recurring",
+        "scope": SUPPORTED_NORMALIZATION_SCOPE,
+        "topic": "charge",
+        "referenceRationale": "r",
+        "consequenceNote": "c",
+    }
+    charge = next(i for i in fin.income_statement if i.concept == "one_off")
+    del charge.values[periods[1]]
+    with pytest.raises(MissingHistoricalValueError, match="normalization candidate"):
+        normalization_cases(fin, periods, {"normalizationCandidates": [candidate]})
+
+    charge.values[periods[1]] = None
+    with pytest.raises(MissingHistoricalValueError, match="normalization candidate"):
+        normalization_cases(fin, periods, {"normalizationCandidates": [candidate]})
+
+    charge.values[periods[0]] = 0.0
+    charge.values[periods[1]] = 0.0
+    assert normalization_cases(fin, periods, {"normalizationCandidates": [candidate]}) == ()
+
+    charge.values[periods[0]] = -20.0
+    charge.values[periods[1]] = 0.0
+    cases = normalization_cases(fin, periods, {"normalizationCandidates": [candidate]})
+    assert len(cases) == 1
+
+    d1, d2 = periods
+    full = StandardizedFinancials(
+        company_name="Tiny Co",
+        ticker="TINY",
+        currency="HKD",
+        jurisdiction="HK",
+        units="HKD millions",
+        periods=[
+            FinancialPeriod(end_date=d1, label="FY2021"),
+            FinancialPeriod(end_date=d2, label="FY2022"),
+        ],
+        income_statement=[
+            LineItem(label="Revenue", values={d1: 100, d2: 110}, concept="revenue"),
+            LineItem(label="Finance costs", values={d1: -1, d2: -1}),
+            LineItem(label="Finance income", values={d1: 0, d2: 0}),
+            LineItem(label="Profit before tax", values={d1: 50, d2: 55}),
+            LineItem(label="Income tax expense", values={d1: -5, d2: -6}),
+            LineItem(label="Profit for the year", values={d1: 45, d2: 49}),
+            LineItem(
+                label="One-off charge",
+                values={d1: -20.0, d2: None},
+                concept="one_off",
+            ),
+        ],
+        balance_sheet=[
+            LineItem(label="Cash", values={d1: 10, d2: 12}, concept="cash"),
+            LineItem(
+                label="Total equity", values={d1: 10, d2: 12}, concept="total_equity"
+            ),
+        ],
+        cash_flow=[
+            LineItem(
+                label="Net cash from operating activities",
+                values={d1: 1, d2: 2},
+            )
+        ],
+    )
+    item = next(i for i in full.income_statement if i.concept == "one_off")
+    identity = line_identity(item).key()
+    manual = NormalizationCase(
+        id=f"normalization::{identity}",
+        order=1,
+        line_identity=identity,
+        override_selector="concept:one_off",
+        label="One-off charge",
+        scope=SUPPORTED_NORMALIZATION_SCOPE,
+        topic="charge",
+        reference_treatment="Non-recurring",
+        alternatives=("Recurring",),
+        model_rationale="r",
+        consequence_prompt="p",
+        model_consequence="c",
+    )
+    anchor = compute_anchor(full, periods)
+    with pytest.raises(MissingHistoricalValueError, match="normalization candidate"):
+        compute_normalization_series(full, periods, anchor, (manual,))
+
+
+def test_normalization_undefined_etr_tax_effect_and_check(tmp_path):
+    from core.engine.reference_model import EARNINGS_NORMALIZATION_SHEET
+    from core.model.ratio_values import UNDEFINED_RATIO
+
+    d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
+    fin = StandardizedFinancials(
+        ticker="NORMETR",
+        company_name="Norm ETR Co",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=d1, label="FY2024"),
+            FinancialPeriod(end_date=d2, label="FY2025"),
+        ],
+        income_statement=[
+            LineItem(label="Revenue", values={d1: 1000, d2: 1100}),
+            LineItem(label="Finance costs", values={d1: 0, d2: 0}),
+            LineItem(label="Finance income", values={d1: 0, d2: 0}),
+            LineItem(label="Profit before tax", values={d1: 0, d2: 0}),
+            LineItem(label="Income tax expense", values={d1: 0, d2: 0}),
+            LineItem(label="Profit for the year", values={d1: 80, d2: 90}),
+            LineItem(
+                label="Restructuring expense",
+                values={d1: 0.0, d2: -100.0},
+                concept="restructuring_expense",
+            ),
+        ],
+        balance_sheet=[
+            LineItem(label="Cash and cash equivalents", values={d1: 100, d2: 110}),
+            LineItem(label="Trade receivables", values={d1: 80, d2: 90}),
+            LineItem(label="Property, plant and equipment", values={d1: 400, d2: 420}),
+            LineItem(label="Trade payables", values={d1: 50, d2: 55}),
+            LineItem(label="Bank borrowings", values={d1: 200, d2: 210}),
+            LineItem(label="Total equity", values={d1: 330, d2: 355}),
+        ],
+        cash_flow=[
+            LineItem(
+                label="Net cash from operating activities",
+                values={d1: 50, d2: 60},
+            )
+        ],
+    )
+    periods = [d1, d2]
+    assumptions = {
+        "normalizationCandidates": [
+            {
+                "selector": "concept:restructuring_expense",
+                "referenceTreatment": "Non-recurring",
+                "scope": SUPPORTED_NORMALIZATION_SCOPE,
+                "topic": "restructure",
+                "referenceRationale": "one-off",
+                "consequenceNote": "normalize",
+            }
+        ]
+    }
+    cases = normalization_cases(fin, periods, assumptions)
+    assert len(cases) == 1
+    anchor = compute_anchor(fin, periods)
+    assert anchor.historical.effective_tax_rate == [UNDEFINED_RATIO, UNDEFINED_RATIO]
+    series = compute_normalization_series(fin, periods, anchor, cases)
+    assert series.pretax_adjustment[0] == pytest.approx(0.0)
+    assert series.after_tax_adjustment[0] == pytest.approx(0.0)
+    assert series.normalized_net_income[0] == pytest.approx(80.0)
+    assert series.normalized_nopat[0] == pytest.approx(float(anchor.historical.nopat[0]))
+    assert series.pretax_adjustment[1] == pytest.approx(100.0)
+    assert series.after_tax_adjustment[1] == UNDEFINED_RATIO
+    assert series.normalized_net_income[1] == UNDEFINED_RATIO
+    assert series.normalized_nopat[1] == UNDEFINED_RATIO
+
+    trainer, answer = build_training_workbook(
+        fin, tmp_path / "NormEtr_Trainer.xlsx", assumptions
+    )
+    smap = load_semantic_map(answer)
+    after = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "after_tax_normalization_adjustment" and c.period_index == 1
+    )
+    assert after.expected_value == UNDEFINED_RATIO
+    assert "ISNA(" in after.formula
+    assert after.formula.startswith("=IF(")
+    norm_ni = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "normalized_net_income" and c.period_index == 1
+    )
+    assert norm_ni.expected_value == UNDEFINED_RATIO
+
+    wb = load_workbook(trainer, data_only=False)
+    row, col = parse_cell_ref(after.cell)
+    wb[after.tab].cell(row=row, column=col).value = after.formula
+    wb.save(trainer)
+    wb.close()
+    assert check_workbook(trainer).correct == 1
+
+    _inject_formula_and_cached_value(
+        trainer,
+        after.tab,
+        after.cell,
+        formula="=NA()",
+        cached_value=UNDEFINED_RATIO,
+    )
+    assert check_workbook(trainer).correct == 1
+
+    _inject_formula_and_cached_value(
+        trainer,
+        after.tab,
+        after.cell,
+        formula="=0",
+        cached_value=0.0,
+    )
+    assert check_workbook(trainer).incorrect == 1
+
+    _, demo_answer = _build_norm_pair(tmp_path / "demo_norm")
+    demo_smap = load_semantic_map(demo_answer)
+    demo_after = _fy2023(demo_smap, "after_tax_normalization_adjustment")
+    assert "ISNA(" in demo_after.formula
+    assert "=IF(" in demo_after.formula
+    assert demo_after.tab == EARNINGS_NORMALIZATION_SHEET

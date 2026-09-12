@@ -1,5 +1,7 @@
 # Step 9A.5 — Historical Tax and Normalization Undefined-State Hardening
 
+> **Status:** Step 9A.5 complete. See `RESULT.md` for verification evidence (202 passed; base 30/141; normalization 34/161; zero Pretax Income → ETR `#N/A` / `NA()`; normalization candidate period completeness). Do not commit or push from this checkpoint unless the user requests it.
+
 > **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `8c7dcb9007c58f5d9cb4b8fc25a6b6ecc9897722` (`Step 9.3`, Step 9A.4 complete). Implement only Step 9A.5 below using red/green TDD. Preserve Step 8 classification/normalization judgment, the trusted-workbook boundary, Step 9A earnings-quality diagnostics, Step 9A.3 source completeness, and Step 9A.4 DuPont `#N/A` semantics. Do not begin working-capital interpretation, automatic quality scoring, forecasting, valuation, ROU/deferred-tax alternative modeling, or later research-diagnostic work. Do not commit or push; the user owns the checkpoint commit.
 
 **Goal:** Remove the remaining active historical tax-rate and normalization cases where an undefined or missing source state is silently converted to numeric zero. A zero pretax-income denominator must produce an undefined effective tax rate, dependent tax-effected amounts must propagate that state only when the tax rate is actually needed, and explicitly configured normalization source lines must be complete across every modeled period.

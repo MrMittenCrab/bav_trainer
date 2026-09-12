@@ -9,6 +9,8 @@ from ..data.interface import LineItem, StandardizedFinancials
 from ..data.line_identity import line_identity
 from ..data.schema import normalize_label
 from .financial_math import AnchorMetrics
+from .ratio_values import UNDEFINED_RATIO
+from .source_values import required_period_series, required_period_value
 
 NORMALIZATION_TREATMENTS = ("Recurring", "Non-recurring")
 SUPPORTED_NORMALIZATION_SCOPE = "operating_pretax_effective_tax"
@@ -48,9 +50,9 @@ class NormalizationCase:
 @dataclass(frozen=True)
 class NormalizationSeries:
     pretax_adjustment: tuple[float, ...]
-    after_tax_adjustment: tuple[float, ...]
-    normalized_nopat: tuple[float, ...]
-    normalized_net_income: tuple[float, ...]
+    after_tax_adjustment: tuple[float | str, ...]
+    normalized_nopat: tuple[float | str, ...]
+    normalized_net_income: tuple[float | str, ...]
 
 
 def _label_match_key(label: str) -> str:
@@ -157,14 +159,20 @@ def _parse_candidate(raw: object, index: int) -> NormalizationCandidateSpec:
     )
 
 
+def _candidate_period_values(
+    item: LineItem,
+    periods: list[date],
+) -> tuple[float, ...]:
+    return required_period_series(
+        item,
+        periods,
+        field=f"normalization candidate {line_identity(item).key()}",
+    )
+
+
 def _line_has_nonzero_value(item: LineItem, periods: list[date]) -> bool:
-    for period in periods:
-        value = item.values.get(period)
-        if value is None:
-            continue
-        if float(value) != 0.0:
-            return True
-    return False
+    values = _candidate_period_values(item, periods)
+    return any(float(value) != 0.0 for value in values)
 
 
 def _stable_override_selector(item: LineItem, supplied_selector: str) -> str:
@@ -275,24 +283,38 @@ def compute_normalization_series(
         )
 
     pretax: list[float] = []
-    after_tax: list[float] = []
-    norm_nopat: list[float] = []
-    norm_ni: list[float] = []
+    after_tax: list[float | str] = []
+    norm_nopat: list[float | str] = []
+    norm_ni: list[float | str] = []
     for j, period in enumerate(periods):
         pretax_adj = 0.0
         for case in cases:
             treatment = treatments.get(case.id, case.reference_treatment)
             if treatment == "Recurring":
                 continue
-            reported = items_by_case[case.id].values.get(period)
-            signed = 0.0 if reported is None else float(reported)
-            pretax_adj += -signed
-        etr = float(hist.effective_tax_rate[j] or 0.0)
-        after = pretax_adj * (1.0 - etr)
+            reported = required_period_value(
+                items_by_case[case.id],
+                period,
+                field=f"normalization candidate {case.line_identity}",
+            )
+            pretax_adj += -float(reported)
+        if pretax_adj == 0.0:
+            after: float | str = 0.0
+        elif hist.effective_tax_rate[j] == UNDEFINED_RATIO:
+            after = UNDEFINED_RATIO
+        else:
+            after = pretax_adj * (1.0 - float(hist.effective_tax_rate[j]))
         pretax.append(pretax_adj)
         after_tax.append(after)
-        norm_nopat.append(float(hist.nopat[j]) + after)
-        norm_ni.append(float(hist.net_income[j]) + after)
+        reported_nopat = hist.nopat[j]
+        if reported_nopat == UNDEFINED_RATIO or after == UNDEFINED_RATIO:
+            norm_nopat.append(UNDEFINED_RATIO)
+        else:
+            norm_nopat.append(float(reported_nopat) + float(after))
+        if after == UNDEFINED_RATIO:
+            norm_ni.append(UNDEFINED_RATIO)
+        else:
+            norm_ni.append(float(hist.net_income[j]) + float(after))
 
     return NormalizationSeries(
         pretax_adjustment=tuple(pretax),
