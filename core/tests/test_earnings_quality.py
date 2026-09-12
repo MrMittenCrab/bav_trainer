@@ -210,6 +210,155 @@ def test_zero_average_assets_accrual_ratio_convention():
     assert series.accrual_ratio[1] == 0.0
 
 
+def test_incomplete_or_missing_cfo_period_fails_without_zero_fabrication():
+    fin = _tiny_fin()
+    periods = canonical_fiscal_periods(fin)
+    anchor = compute_anchor(fin, periods)
+    missing_period = periods[1]
+    del fin.cash_flow[0].values[missing_period]
+    with pytest.raises(ValueError, match="operating_cash_flow") as exc_info:
+        compute_earnings_quality_series(fin, periods, anchor)
+    assert missing_period.isoformat() in str(exc_info.value)
+
+    fin_none = _tiny_fin()
+    fin_none.cash_flow[0].values[periods[0]] = None
+    with pytest.raises(ValueError, match="operating_cash_flow") as exc_info:
+        compute_earnings_quality_series(
+            fin_none, periods, compute_anchor(fin_none, periods)
+        )
+    assert periods[0].isoformat() in str(exc_info.value)
+
+    fin_zero = _tiny_fin()
+    fin_zero.cash_flow[0].values[periods[0]] = 0.0
+    series = compute_earnings_quality_series(
+        fin_zero, periods, compute_anchor(fin_zero, periods)
+    )
+    assert series.operating_cash_flow[0] == 0.0
+    assert series.total_accruals[0] == pytest.approx(100.0)
+
+
+def test_incomplete_total_assets_fails_without_zero_fabrication():
+    fin = _tiny_fin()
+    periods = canonical_fiscal_periods(fin)
+    # Mutate after anchor so reformulation integrity still passes (same pattern as
+    # zero-average-assets). Completeness is enforced inside the quality series.
+    anchor = compute_anchor(fin, periods)
+    assets = next(item for item in fin.balance_sheet if item.label == "Total assets")
+    del assets.values[periods[0]]
+    with pytest.raises(ValueError, match="total_assets") as exc_info:
+        compute_earnings_quality_series(fin, periods, anchor)
+    assert periods[0].isoformat() in str(exc_info.value)
+
+    fin_later = _tiny_fin()
+    periods = canonical_fiscal_periods(fin_later)
+    anchor_later = compute_anchor(fin_later, periods)
+    assets_later = next(
+        item for item in fin_later.balance_sheet if item.label == "Total assets"
+    )
+    assets_later.values[periods[1]] = None
+    with pytest.raises(ValueError, match="total_assets") as exc_info:
+        compute_earnings_quality_series(fin_later, periods, anchor_later)
+    assert periods[1].isoformat() in str(exc_info.value)
+
+    fin_zero = _tiny_fin()
+    periods = canonical_fiscal_periods(fin_zero)
+    anchor_zero = compute_anchor(fin_zero, periods)
+    assets_zero = next(
+        item for item in fin_zero.balance_sheet if item.label == "Total assets"
+    )
+    assets_zero.values[periods[0]] = 0.0
+    assets_zero.values[periods[1]] = 0.0
+    series = compute_earnings_quality_series(fin_zero, periods, anchor_zero)
+    assert series.average_total_assets[1] == 0.0
+    assert series.accrual_ratio[1] == 0.0
+
+
+def test_availability_and_incompleteness_are_distinct(tmp_path):
+    # CFO absent, Total Assets present -> omit module
+    fin_no_cfo = _tiny_fin(with_cfo=False)
+    builder = ReferenceModelBuilder(fin_no_cfo)
+    assert builder.quality_series is None
+    assert builder.quality_specs == ()
+    answer = tmp_path / "AbsentCFO_Answer_Key.xlsx"
+    builder.build(answer)
+    wb = load_workbook(answer)
+    assert EARNINGS_QUALITY_SHEET not in wb.sheetnames
+    wb.close()
+
+    # CFO complete, Total Assets absent -> core families only
+    fin_no_assets = _tiny_fin(with_assets=False)
+    builder = ReferenceModelBuilder(fin_no_assets)
+    assert builder.quality_series is not None
+    assert {s.family_id for s in builder.quality_specs} == {
+        "operating_cash_flow_link",
+        "cash_conversion_ratio",
+        "total_accruals",
+    }
+    answer = tmp_path / "AbsentAssets_Answer_Key.xlsx"
+    builder.build(answer)
+    wb = load_workbook(answer)
+    assert EARNINGS_QUALITY_SHEET in wb.sheetnames
+    wb.close()
+
+    # CFO present but incomplete -> build raises (do not omit module)
+    fin_incomplete_cfo = _tiny_fin()
+    periods = canonical_fiscal_periods(fin_incomplete_cfo)
+    del fin_incomplete_cfo.cash_flow[0].values[periods[1]]
+    with pytest.raises(ValueError, match="operating_cash_flow"):
+        ReferenceModelBuilder(fin_incomplete_cfo)
+    with pytest.raises(ValueError, match="operating_cash_flow"):
+        build_training_workbook(
+            fin_incomplete_cfo, tmp_path / "IncompleteCFO_Trainer.xlsx"
+        )
+
+    # Total Assets present but incomplete -> quality series fails closed (do not
+    # omit extension / invent zero). Mutate after a successful builder init so
+    # reformulation is not the confounding failure mode.
+    fin_incomplete_assets = _tiny_fin()
+    periods = canonical_fiscal_periods(fin_incomplete_assets)
+    builder = ReferenceModelBuilder(fin_incomplete_assets)
+    assert builder.quality_series is not None
+    assets = next(
+        item
+        for item in fin_incomplete_assets.balance_sheet
+        if item.label == "Total assets"
+    )
+    del assets.values[periods[0]]
+    with pytest.raises(ValueError, match="total_assets"):
+        compute_earnings_quality_series(
+            fin_incomplete_assets,
+            periods,
+            builder.anchor,
+        )
+    # Fresh build from incomplete Total Assets also fails closed (reformulation
+    # integrity rejects the malformed source before/alongside quality).
+    fin_build_incomplete = _tiny_fin()
+    assets_build = next(
+        item
+        for item in fin_build_incomplete.balance_sheet
+        if item.label == "Total assets"
+    )
+    del assets_build.values[periods[0]]
+    with pytest.raises(Exception):
+        ReferenceModelBuilder(fin_build_incomplete)
+    with pytest.raises(Exception):
+        build_training_workbook(
+            fin_build_incomplete, tmp_path / "IncompleteAssets_Trainer.xlsx"
+        )
+
+    # Both complete -> all five quality families
+    fin_complete = _tiny_fin()
+    builder = ReferenceModelBuilder(fin_complete)
+    assert builder.quality_series is not None
+    assert {s.family_id for s in builder.quality_specs} == {
+        "operating_cash_flow_link",
+        "cash_conversion_ratio",
+        "total_accruals",
+        "average_total_assets",
+        "accrual_ratio",
+    }
+
+
 def test_expand_quality_specs_counts_and_gating():
     periods = [date(y, 12, 31) for y in range(2021, 2026)]
     assert len(QUALITY_COMPONENT_CATALOG) == 5

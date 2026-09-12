@@ -1,5 +1,7 @@
 # Step 9A.1 — Earnings-Quality Source Completeness Hardening
 
+> **Status:** Step 9A.1 complete. See `RESULT.md` for verification evidence (186 passed; base 30/141; normalization 34/161; incomplete resolved CFO/Total Assets fail closed). Do not commit or push from this checkpoint unless the user requests it.
+
 > **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `3e4be6976d5b24b090a27a1b60fabda8e3bf3a24` (`Step 9`). Implement only the Step 9A.1 hardening below using red/green TDD. Preserve the Step 8A/8B1 classification workflow, Step 8B2 normalization workflow, Step 8B2.2 trusted-workbook boundary, and the Step 9A earnings-quality formulas and workbook surface. Do not begin working-capital interpretation, quality scoring, research-writing evaluation, forecasting, valuation, ROU/deferred-tax alternative modeling, or later Step 9/10 work. Do not commit or push; the user owns the checkpoint commit.
 
 **Goal:** Eliminate the remaining invented-input path in Step 9A. A resolved CFO or Total Assets line must contain an explicitly supplied value for every modeled period used by the active earnings-quality schedule; missing period values must fail clearly instead of being silently converted to zero.
