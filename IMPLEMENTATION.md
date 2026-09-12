@@ -1,692 +1,540 @@
-Status: Step 9I.1 complete — learner-ready historical presentation
-
-# Step 9I.1 — Learner-Ready Historical Workbook + Practical README
+# Step 9J.1 — GOOGL Historical Reference Audit + Convergence Roadmap
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **For Cursor:** Read `TARGET.md` first, then read this plan in full. The accepted implementation base is commit `80985ef4142b78563521438a90c9598c1f7eb51d` (`Step 9H1`, historical-v1 exit gate complete). Implement only Step 9I.1 below using red/green TDD. This remains **Step 9 historical work**. Do not begin forecasting, valuation, scenarios, or a Step 10-style forward model. Preserve all formula families, expected values, workbook logic, judgment behavior, Check behavior, optional-module gating, and cross-company robustness established through Step 9H.1. Do not commit or push; the user owns the checkpoint commit.
+> **For Cursor:** Read the revised `TARGET.md` first, then read this plan in full. The accepted implementation base is commit `69e500f5e8d304e7274283f766f3d170fca4ce6c` (`Step 9I1`, learner-ready historical presentation complete). `TARGET.md` was revised by ChatGPT in planning commit `f8e7f688047ab94e98e72ad24ae105d10b426fdc` to make `example/GOOGL_Demo_Integrated_Financials.xlsx` the explicit structural reference for historical convergence. Implement only Step 9J.1 below. This remains **Step 9 historical work**. Do not begin forecasting, valuation, scenarios, or forward-model activation. Do not commit or push; the user owns the checkpoint commit.
 
-**Goal:** Make the completed historical trainer pleasant enough to use for actual learning now: simplify the visible Excel aesthetic to a strict white/yellow system with Aptos Narrow 11 throughout, remove decorative styling, and replace the repository’s legacy-heavy GitHub landing README with a short practical guide to the trainer’s current functions and planned future functions.
+**Goal:** Convert the GOOGL integrated workbook from an informal inspiration into an explicit, evidence-based historical reference contract: inspect it read-only, compare it with the current Trainer/Answer-Key product, classify historical gaps, and produce a prioritized Step 9 convergence roadmap without changing active model formulas yet.
 
-**Architecture:** Treat this as learner-readiness polish, not curriculum expansion. Keep the historical semantic surface frozen at family orders `1..78`. Simplify presentation centrally in `TrainingWorkbookGenerator` so every visible sheet follows one style contract, then regenerate the canonical demo pair. Replace root `README.md` as the repository front door; keep it focused on install/build/practice/check/current scope/future roadmap rather than project lineage. No model math or expected-value logic should change.
+**Architecture:** Add one small read-only workbook-audit utility with a synthetic test fixture so the GOOGL inventory is reproducible rather than hand-waved. Use that audit plus direct workbook inspection to write one concise historical reference/gap document. The document must distinguish what the GOOGL workbook actually contains from what `TARGET.md` independently requires. No current historical formula family, worksheet, expected value, Check rule, or practice count should change in this checkpoint.
 
-**Tech Stack:** Python, pytest, openpyxl, existing `TrainingWorkbookGenerator`, `build_training_workbook`, `check_workbook`, semantic map helpers, Step 9H.1 exit-gate tests, and the existing canonical demo inputs.
+**Tech Stack:** Python, pytest, openpyxl, existing repository workbooks, current canonical Trainer/Answer-Key pair, and existing Step 9 regression tests.
 
-**Spec:** `TARGET.md` plus the user’s newer explicit presentation instruction in this checkpoint. **Important:** the existing `TARGET.md` sentence that mentions “20-point bold worksheet titles” and “thin borders” is now stale relative to the user’s explicit instruction. For Step 9I.1, the visual contract below is authoritative. Cursor must not edit `TARGET.md`; ChatGPT owns that planning document.
+**Spec:** Revised `TARGET.md`, especially `Reference workbook for historical convergence`, `Historical accounting competence to cover`, and `Step 9 roadmap before forecasting`.
 
 ## Global Constraints
 
-- `TARGET.md` is read-only in Cursor.
-- Remain in Step 9. Do not implement forecasting or valuation next.
-- Preserve non-financial-company scope.
-- Preserve active family namespace exactly `1..78`; add no new semantic family or practice cell.
-- Preserve current workbook surfaces exactly:
-  - ordinary demo, no assumptions: `62 families / 259 practice cells`;
-  - ordinary demo + normalization assumptions: `66 / 279`;
+- `TARGET.md` is read-only for Cursor in this checkpoint.
+- Remain in Step 9. Forecasting and valuation stay deferred.
+- Treat `example/GOOGL_Demo_Integrated_Financials.xlsx` as a **read-only reference artifact**.
+- Do not modify or regenerate the GOOGL workbook.
+- Do not infer a capability merely because its name would be plausible. Record only what the workbook actually evidences.
+- When a target topic is not evidenced by the GOOGL workbook, say so explicitly rather than silently filling the gap from general knowledge.
+- Preserve active family namespace exactly `1..78`.
+- Add no semantic family, practice cell, user-facing worksheet, judgment type, source field, or public CLI command.
+- Preserve current surfaces exactly:
+  - ordinary demo: `62 / 259`;
+  - normalization demo: `66 / 279`;
   - shares only: `70 / 293`;
   - shares + normalization: `78 / 331`;
   - services matrix: `59 / 248`;
   - retail matrix: `78 / 331`;
   - manufacturer matrix: `70 / 293`.
-- Preserve CLI exactly `{ingest, build, check, list}`.
-- Preserve Check semantics: blank yellow, correct green, incorrect red; Check changes fill only and remains non-disclosing.
-- Green/red are a **functional Check-state exception** to the fresh-workbook white/yellow palette. A freshly built Trainer/Answer Key must use no decorative fill colors other than white and yellow.
-- Preserve formulas, expected values, number formats, column widths, row heights, alignment, freeze panes, hidden-sheet state, validation lists, Notes, and worksheet order unless a change is strictly required for the presentation contract.
-- Preserve deferred forecast/valuation tabs as hidden placeholders.
-- Do not add logos, icons, charts, gradients, colored fonts, decorative separators, new borders, or additional fill colors.
+- Preserve fresh workbook style from Step 9I.1: Aptos Narrow 11, white/yellow only, no decorative borders; Check green/red remains functional feedback only.
+- Do not expand root `README.md` back into a technical essay. It remains the minimal practical landing page.
 - Cursor must not commit, push, reset, rebase, merge, or delete branches.
 
 ---
 
-## Review of commit `80985ef4`
+## Accepted Step 9I.1 baseline
 
-Step 9H.1 is a valid historical integrity/release gate:
+Commit `69e500f5` records:
 
-- `288 passed` locally;
-- active historical family orders `1..78` are unique;
-- normal builds do not execute dormant forecast/valuation code;
-- canonical demo artifacts were regenerated from source;
-- base/norm/share/cross-company surfaces are preserved;
-- Check remains formula-preserving and non-disclosing.
+- learner-ready minimal workbook style;
+- practical root README;
+- active historical family namespace unchanged at `1..78`;
+- `292 passed` locally;
+- forecasting / valuation still deferred;
+- canonical demo and cross-company surfaces preserved.
 
-Two learner-facing problems remain and are the entire scope of this checkpoint.
+This checkpoint should therefore answer a different question:
 
-### Problem 1 — the workbook styling is more decorated than requested
-
-`core/trainer/workbook.py` currently defines and applies:
-
-```text
-TITLE_FONT = Aptos Narrow 20 bold
-BODY_BOLD_FONT = Aptos Narrow 11 bold
-THIN_BORDER = black thin border
-section/header/total-row border logic
-```
-
-`_apply_oshkosh_style()` also preserves title/header emphasis. This conflicts with the desired learning surface: **no decorative hierarchy beyond white vs yellow and one Aptos Narrow 11 font**.
-
-### Problem 2 — GitHub’s root README is still the wrong product front door
-
-Current root `README.md` still opens with `BAVGems — BAV Pipeline + HK Excel Trainer`, then describes a separate AI-maintained coverage system, lineage, Gemini/Claude workflow, sentinel automation, vault structure, valuation, etc. That is not the product a user of this repository should see first and it is inconsistent with the current historical trainer.
-
-`README-HK-TRAINER.md` is much closer to the current implementation, but GitHub renders root `README.md` as the repository landing page. The root README must become the canonical practical introduction.
+> What useful **historical** structure and analytical depth does the GOOGL integrated workbook contain that the current Trainer should eventually teach, and which parts should not be copied?
 
 ---
 
-### Task 1: Add a strict fresh-workbook visual contract
+### Task 1: Add a reproducible read-only workbook inventory utility
 
 **Files:**
-- Create: `core/tests/test_learner_ready_presentation.py`
-- Read: `core/tests/test_historical_v1_exit_gate.py`
-- Read: `core/tests/test_trainer.py`
+- Create: `scripts/audit_reference_workbook.py`
+- Create: `core/tests/test_reference_workbook_audit.py`
 
 **Interfaces:**
-- Consumes: public `build_training_workbook()` path and canonical demo inputs.
-- Produces: regression tests that precisely define the new visible styling contract without changing workbook semantics.
+- Produces: `audit_workbook(path: Path) -> dict`
+- Optional CLI:
+  `python scripts/audit_reference_workbook.py <workbook.xlsx>`
 
-- [x] **Step 1: Build a canonical Trainer/Answer-Key pair in the new test module**
+The audit must never save or mutate the inspected workbook.
 
-Use the same source and normalization assumptions as Step 9H.1:
+- [ ] **Step 1: Write a synthetic workbook test first**
 
-```python
-from core.tests.test_per_share import DEMO_ASSUMPTIONS, DEMO_JSON
-from core.data.interface import DocumentManifest, DocumentType
-from core.ingestion.manual_hk import HKManualDocumentAdapter
-from core.trainer.workbook import build_training_workbook
-
-
-def _build_canonical(tmp_path):
-    data = HKManualDocumentAdapter().ingest(
-        [DocumentManifest(path=str(DEMO_JSON), doc_type=DocumentType.OTHER)]
-    )
-    assumptions = json.loads(DEMO_ASSUMPTIONS.read_text(encoding="utf-8"))
-    return build_training_workbook(
-        data,
-        tmp_path / "DEMO_HK_Trainer.xlsx",
-        assumptions,
-    )
-```
-
-- [x] **Step 2: Add a helper for cells that are actually part of the visible workbook surface**
-
-Ignore truly unused cells. Inspect cells when at least one of these is true:
-
-```python
-cell.value is not None
-cell.comment is not None
-cell.has_style
-```
-
-Only inspect worksheets where:
-
-```python
-ws.sheet_state == "visible"
-```
-
-Hidden internal metadata sheets and hidden deferred forecast placeholders are not part of the fresh visible-style contract.
-
-- [x] **Step 3: Assert one font everywhere on the fresh visible surface**
-
-For both Trainer and Answer Key require every inspected visible cell to use:
+In `core/tests/test_reference_workbook_audit.py`, create a temporary workbook with:
 
 ```text
-font name: Aptos Narrow
-font size: 11
-font bold: False
-font italic: False
-font underline: none
-font color: black
+Sheet "Income Statement" — visible
+  A1 = Revenue
+  B1 = 100
+  C1 = =B1*1.1
+
+Sheet "Model_Base" — hidden
+  A1 = Deferred example
 ```
 
-Titles, headers, section labels, totals, Trainer index headers, judgment sheets, source sheets, and analytical sheets all follow the same font rule.
-
-Do not special-case row 1 or headers.
-
-- [x] **Step 4: Assert no visible decorative borders**
-
-For each inspected visible cell, require every border side to have no style:
+Then test:
 
 ```python
-for side in (
-    cell.border.left,
-    cell.border.right,
-    cell.border.top,
-    cell.border.bottom,
-    cell.border.diagonal,
-):
-    assert side.style is None
+result = audit_workbook(path)
+
+assert result["workbook"] == path.name
+assert [s["name"] for s in result["sheets"]] == [
+    "Income Statement",
+    "Model_Base",
+]
+assert result["sheets"][0]["state"] == "visible"
+assert result["sheets"][1]["state"] == "hidden"
+assert result["sheets"][0]["formula_cells"] == 1
+assert result["sheets"][0]["nonempty_cells"] == 3
 ```
 
-- [x] **Step 5: Assert the fresh visible fill palette is only white or yellow**
+Also require a stable list of representative text labels from the used range.
 
-Use the existing fill-color normalization convention and require:
-
-```text
-FFFFFF = ordinary / populated workbook cell
-FFFF00 = practice / learner-response cell
-```
-
-No orange, blue, gray, green, red, gradient, or section-header fill is allowed in a fresh build.
-
-The semantic formula-practice cells must remain yellow in both workbooks. Judgment-response cells that are learner-editable remain yellow. Ordinary visible cells are white.
-
-- [x] **Step 6: Prove Check colors are a functional exception, not a new base style**
-
-On a fresh Trainer:
-
-1. enter one exact Answer-Key formula into one practice cell;
-2. leave another practice cell blank;
-3. run `check_workbook()`;
-4. require the entered cell to become green `C8E6C9`;
-5. require the blank cell to remain yellow `FFFF00`;
-6. require non-practice visible cells to remain white;
-7. require font and border rules to remain unchanged.
-
-Do not alter Check’s existing red/green/yellow constants.
-
-- [x] **Step 7: Run the new tests red**
+- [ ] **Step 2: Run the test red**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_learner_ready_presentation.py -v
+PYTHONPATH=. pytest core/tests/test_reference_workbook_audit.py -v
 ```
 
-Expected before implementation: fail because current titles are 20-point bold and current section/header/total rows receive thin borders.
+Expected: fail because the audit utility does not exist.
+
+- [ ] **Step 3: Implement the smallest read-only audit**
+
+Implement:
+
+```python
+def audit_workbook(path: Path) -> dict:
+```
+
+Use `openpyxl.load_workbook(path, data_only=False, read_only=True)`.
+
+Return:
+
+```python
+{
+    "workbook": path.name,
+    "sheets": [
+        {
+            "name": ws.title,
+            "state": ws.sheet_state,
+            "max_row": ...,
+            "max_column": ...,
+            "nonempty_cells": ...,
+            "formula_cells": ...,
+            "representative_labels": [...],
+        },
+        ...
+    ],
+}
+```
+
+Rules:
+
+- `nonempty_cells`: cells whose value is not `None`;
+- `formula_cells`: string values beginning with `=`;
+- `representative_labels`: preserve workbook text exactly; collect the first 40 distinct non-empty string values encountered in columns A–C, in workbook order;
+- do not normalize, reinterpret, or rename workbook labels;
+- close the workbook;
+- never call `save()`.
+
+- [ ] **Step 4: Add a simple CLI**
+
+When executed directly:
+
+```bash
+python scripts/audit_reference_workbook.py example/GOOGL_Demo_Integrated_Financials.xlsx
+```
+
+print deterministic JSON to stdout:
+
+```python
+print(json.dumps(audit_workbook(path), indent=2, default=str))
+```
+
+No new `python -m core` command is added.
+
+- [ ] **Step 5: Run focused tests green**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_reference_workbook_audit.py -v
+```
+
+Expected: pass.
 
 ---
 
-### Task 2: Replace the Oshkosh-style decoration layer with one minimal style
+### Task 2: Inventory the GOOGL reference and the current historical product
 
 **Files:**
-- Modify: `core/trainer/workbook.py`
-- Test: `core/tests/test_learner_ready_presentation.py`
-- Test: `core/tests/test_trainer.py`
+- Read only: `example/GOOGL_Demo_Integrated_Financials.xlsx`
+- Read only: `example/DEMO_HK_Answer_Key.xlsx`
+- Create: `docs/GOOGL_HISTORICAL_REFERENCE.md`
 
 **Interfaces:**
-- Consumes: existing visible workbook structure and SemanticMap.
-- Produces: a fresh workbook whose only intentional visible style distinctions are white vs yellow, plus functional Check green/red after validation.
+- Consumes the audit utility from Task 1.
+- Produces a source-grounded reference inventory and historical gap map.
 
-- [x] **Step 1: Collapse font constants to one base font**
-
-Replace title/body/bold variants with one constant:
-
-```python
-FONT_NAME = "Aptos Narrow"
-BASE_FONT = Font(
-    name=FONT_NAME,
-    size=11,
-    bold=False,
-    italic=False,
-    color="000000",
-)
-```
-
-Keep:
-
-```python
-WHITE_FILL = PatternFill("solid", start_color="FFFFFF")
-PRACTICE_FILL = PatternFill("solid", start_color="FFFF00")
-```
-
-Remove unused decorative constants/imports:
-
-```text
-TITLE_FONT
-BODY_FONT
-BODY_BOLD_FONT
-THIN_BORDER
-Side
-```
-
-Use a plain `Border()` when clearing pre-existing borders.
-
-- [x] **Step 2: Rename `_apply_oshkosh_style()` to `_apply_minimal_style()`**
-
-The old name encodes an irrelevant legacy aesthetic. The new method should describe the actual product contract.
-
-- [x] **Step 3: Create the Trainer index before applying the global minimal style**
-
-Change the Answer-Key generation sequence from:
-
-```python
-self._apply_oshkosh_style(wb)
-self._add_trainer_ui(wb)
-```
-
-to:
-
-```python
-self._add_trainer_ui(wb)
-self._apply_minimal_style(wb)
-```
-
-This ensures the `Trainer` index sheet receives the same font/border/fill normalization as every other visible sheet.
-
-- [x] **Step 4: Implement `_apply_minimal_style()` as a normalization pass**
-
-For every visible worksheet:
-
-```python
-ws.sheet_view.showGridLines = False
-```
-
-For every cell in its used range that has a value/comment/style, set:
-
-```python
-cell.font = BASE_FONT
-cell.fill = WHITE_FILL
-cell.border = Border()
-```
-
-Do **not** overwrite:
-
-```text
-cell.value
-cell.comment
-cell.number_format
-cell.alignment
-cell.protection
-row height
-column width
-freeze panes
-data validation
-```
-
-Do not create title/header/section/total special cases.
-
-- [x] **Step 5: Re-apply only functional yellow learner surfaces after white normalization**
-
-Keep the existing semantic decoration functions responsible for yellow:
-
-```text
-_decorate_answer_key_practice_cells
-_decorate_answer_key_judgment_cells
-_decorate_answer_key_normalization_judgment_cells
-_blank_trainer_practice_cells
-_blank_trainer_judgment_cells
-_blank_trainer_normalization_judgment_cells
-```
-
-They may change fill to `PRACTICE_FILL`, but must not introduce bold fonts, borders, or other fills.
-
-- [x] **Step 6: Simplify `_add_trainer_ui()` styling**
-
-Remove direct title/header font or border assignment. It should set only content, widths, and other structural metadata; `_apply_minimal_style()` owns visible styling.
-
-In particular remove logic equivalent to:
-
-```python
-ws["A1"].font = TITLE_FONT
-cell.font = BODY_BOLD_FONT
-cell.border = THIN_BORDER
-```
-
-- [x] **Step 7: Remove unused header-border helpers only if no longer referenced**
-
-If `was_header_row()` becomes unused after the minimal-style change, delete it and its dead support code. Do not remove helpers still used elsewhere.
-
-- [x] **Step 8: Run focused presentation and Trainer tests**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_learner_ready_presentation.py -v
-PYTHONPATH=. pytest core/tests/test_trainer.py -v
-PYTHONPATH=. pytest core/tests/test_historical_v1_exit_gate.py -v
-```
-
-All must pass without changing any practice counts or formulas.
-
----
-
-### Task 3: Replace root GitHub README with a minimal practical trainer guide
-
-**Files:**
-- Replace: `README.md`
-- Modify only if needed for consistency: `README-HK-TRAINER.md`
-- Test: `core/tests/test_learner_ready_presentation.py`
-
-**Interfaces:**
-- Root `README.md` becomes the canonical GitHub landing page for the BAV Excel Trainer.
-- `README-HK-TRAINER.md`, if retained, is an optional deeper technical reference and must not be necessary to understand basic use.
-
-- [x] **Step 1: Delete the current root README content rather than incrementally editing it**
-
-The current root README primarily documents another coverage/pipeline product. Replace it with a short trainer-specific document.
-
-The new root README must **not** discuss project lineage/origin or the old pipeline system. Do not include:
-
-```text
-BAVGems
-BAV Pipeline
-Gemini
-Gemini Gems
-legacy/
-coverage/
-sentinel
-EDGAR pipeline
-/bav-pipeline
-/bav-update
-/bav-news
-/bav-brief
-Claude Code plugin installation
-```
-
-Also remove any old claim that this Trainer has `Hint` or `Reveal` commands. The Answer Key is the hint/answer surface.
-
-- [x] **Step 2: Use this compact section structure**
-
-```markdown
-# BAV Excel Trainer — Hong Kong Edition
-
-One short paragraph: historical BAV Excel practice for non-financial companies; the system supplies source facts and the learner reconstructs analytical formulas.
-
-## What works now
-## Quick start
-## How to practice
-## Inputs and scope
-## Planned
-```
-
-Do not add a lineage/history section, architecture essay, plugin installation guide, vault explanation, or long feature marketing copy.
-
-- [x] **Step 3: Make `What works now` describe only implemented functions**
-
-Keep it concise. Include:
-
-```text
-multi-period historical reformulation and DuPont
-classification judgment
-recurring/non-recurring normalization
-cash-conversion / accrual diagnostics and trends
-working-capital diagnostics
-RNOA margin/turnover and change attribution
-ROE operating/financing attribution
-optional diluted per-share analysis when historical diluted-share data is supplied
-optional normalized diluted EPS when both shares and normalization are supplied
-one workbook-wide Check
-matched Trainer + Answer Key
-```
-
-State that forecasting, valuation, and investment conclusions are not active yet.
-
-- [x] **Step 4: Make `Quick start` executable and short**
-
-Use only the current public workflow:
-
-```bash
-pip install -r requirements-trainer.txt
-
-python -m core build example/DEMO_HK_Standardized.json \
-  -a example/DEMO_HK_Assumptions.json \
-  -o example/DEMO_HK_Trainer.xlsx
-
-python -m core list --workbook example/DEMO_HK_Trainer.xlsx
-python -m core check --workbook example/DEMO_HK_Trainer.xlsx
-```
-
-Explain in one sentence that build produces:
-
-```text
-example/DEMO_HK_Trainer.xlsx
-example/DEMO_HK_Answer_Key.xlsx
-```
-
-Do not put obsolete component counts in the root README unless they materially help the user; prefer avoiding brittle counts in the landing page.
-
-- [x] **Step 5: Make `How to practice` describe the actual loop**
-
-Use a short numbered sequence:
-
-```text
-1. Open the Trainer.
-2. Fill the yellow formula cells; supplied historical facts stay populated.
-3. Run Check.
-4. Yellow = blank, green = correct, red = incorrect.
-5. If stuck, open the matching Answer Key for the working formula and its Note.
-6. Repeat left-to-right in the Trainer index dependency order.
-```
-
-Mention that Accounting Judgment / Normalization Judgment treatment choices can change downstream expected formulas where those sheets are present.
-
-- [x] **Step 6: Make `Inputs and scope` practical**
-
-State:
-
-```text
-non-financial operating companies only
-manual historical JSON or Excel/Bloomberg/Wind-style exports
-actual historical share data is required for per-share modules
-missing optional data omits the corresponding module rather than inventing facts
-```
-
-Do not describe automatic HKEX/SEC scraping as a current feature.
-
-- [x] **Step 7: Make `Planned` reflect the user’s requested roadmap order**
-
-Separate the next Step 9 work from later forward modelling:
-
-```text
-Next Step 9 work:
-- learner usability / real-company practice runs
-- broader historical accounting judgments where source data supports them
-- additional structured historical interpretation and diagnostics
-
-Later:
-- driver-based forecasting
-- valuation
-- scenario / sensitivity work
-- concise investment conclusions
-```
-
-Do not imply forecasting is the next immediate implementation stage.
-
-- [x] **Step 8: Clean the secondary trainer README if it still exposes irrelevant lineage**
-
-If `README-HK-TRAINER.md` still contains sections such as `Relationship to BAV Pipeline`, Claude/plugin setup, or project-origin discussion, remove those sections. Keep it only as a deeper technical trainer reference.
-
-Do not expand it; this checkpoint is reducing documentation noise.
-
-- [x] **Step 9: Add README regression assertions**
-
-In `test_learner_ready_presentation.py`, load root `README.md` and require the five section headings above. Assert the forbidden legacy/pipeline terms are absent case-insensitively.
-
-Also require the current public commands to appear:
-
-```text
-python -m core build
-python -m core list
-python -m core check
-```
-
-- [x] **Step 10: Run README/presentation tests**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_learner_ready_presentation.py -v
-```
-
----
-
-### Task 4: Refresh canonical workbooks after the style change
-
-**Files:**
-- Regenerate: `example/DEMO_HK_Trainer.xlsx`
-- Regenerate: `example/DEMO_HK_Answer_Key.xlsx`
-- Do not modify: `example/DEMO_HK_Standardized.json`
-- Do not modify: `example/DEMO_HK_Assumptions.json`
-
-**Interfaces:**
-- Produces the committed example pair users can open immediately to start learning.
-
-- [x] **Step 1: Regenerate through the public build path**
+- [ ] **Step 1: Record hashes before inspection**
 
 Run:
 
 ```bash
-python -m core build example/DEMO_HK_Standardized.json \
-  -a example/DEMO_HK_Assumptions.json \
-  -o example/DEMO_HK_Trainer.xlsx
+shasum -a 256 example/GOOGL_Demo_Integrated_Financials.xlsx
+shasum -a 256 example/DEMO_HK_Answer_Key.xlsx
 ```
 
-Do not manually edit the `.xlsx` binaries.
+Keep both values for end-of-checkpoint verification.
 
-- [x] **Step 2: Verify canonical semantic and Check counts remain unchanged**
+- [ ] **Step 2: Run the audit on both workbooks**
 
-Require:
+```bash
+python scripts/audit_reference_workbook.py \
+  example/GOOGL_Demo_Integrated_Financials.xlsx \
+  > /tmp/googl_reference_inventory.json
+
+python scripts/audit_reference_workbook.py \
+  example/DEMO_HK_Answer_Key.xlsx \
+  > /tmp/trainer_reference_inventory.json
+```
+
+Read both inventories before drafting the document.
+
+- [ ] **Step 3: Inspect the actual sheets directly where labels are ambiguous**
+
+Use a short one-off Python inspection with `openpyxl` to print only:
 
 ```text
-66 families
-279 practice cells
-fresh Trainer Check = 0 correct / 0 incorrect / 279 blank
+sheet name
+sheet visibility
+non-empty values in columns A:C
+formula/non-formula status
 ```
 
-- [x] **Step 3: Run the new minimal-style assertion against the committed pair**
+for sections necessary to understand the historical structure.
 
-Add or reuse a test that opens:
+Do not print or reproduce entire worksheets. Do not treat the root README or general model knowledge as evidence for a workbook section that is not actually visible in the GOOGL file.
 
-```text
-example/DEMO_HK_Trainer.xlsx
-example/DEMO_HK_Answer_Key.xlsx
+- [ ] **Step 4: Create `docs/GOOGL_HISTORICAL_REFERENCE.md` with exactly these sections**
+
+```markdown
+# GOOGL Historical Reference
+
+## Role of the reference
+## GOOGL workbook inventory
+## Current Trainer inventory
+## Historical capability gap matrix
+## Explicitly deferred / not copied
+## Prioritized Step 9 queue
 ```
 
-and applies the same fresh visible-style contract as temporary builds.
-
-- [x] **Step 4: Verify Trainer answer separation remains intact**
-
-Require no Trainer answer-bearing sidecars and preserve all Step 9H.1 practice-cell / Note / Check contracts.
+Keep it analytical and concise. This is an internal development reference, not a marketing document.
 
 ---
 
-### Task 5: Preserve the historical logic surface while changing presentation only
+### Task 3: Build the historical capability gap matrix from evidence
 
 **Files:**
-- Test: `core/tests/test_cross_company_robustness.py`
-- Test: `core/tests/test_reference_integrity.py`
-- Test: `core/tests/test_historical_v1_exit_gate.py`
-- Production model files should not change.
+- Modify: `docs/GOOGL_HISTORICAL_REFERENCE.md`
 
-- [x] **Step 1: Prove semantic-map identity is unchanged**
+**Interfaces:**
+- Produces one explicit classification per historical capability.
 
-No family additions/removals/reordering. The Step 9H.1 namespace assertion must remain:
+- [ ] **Step 1: Use only these status labels**
 
-```text
-active family orders = 1..78 exactly
-```
-
-- [x] **Step 2: Prove all cross-company surfaces remain unchanged**
-
-Require:
+Every capability row must use exactly one status:
 
 ```text
-services:      59 / 248
-retail:        78 / 331
-manufacturer:  70 / 293
+implemented
+implemented-differently
+missing-current-data-supported
+missing-needs-new-explicit-data
+deferred-forward
+not-trainer-target
+not-evidenced-in-GOOGL
 ```
 
-- [x] **Step 3: Prove live judgment behavior still works**
+Definitions:
 
-Run the existing cross-company tests for:
+- `implemented`: substantially present in current Trainer.
+- `implemented-differently`: same analytical purpose exists but is adapted to training mechanics.
+- `missing-current-data-supported`: not currently taught, but current standardized historical inputs appear sufficient without inventing facts.
+- `missing-needs-new-explicit-data`: useful historical module requires a new explicit source fact/input contract.
+- `deferred-forward`: forecasting / scenarios / valuation / forward-looking analysis.
+- `not-trainer-target`: pipeline/automation or other functionality that should not become a Trainer feature merely because the reference has it.
+- `not-evidenced-in-GOOGL`: required by `TARGET.md`, but the inspected GOOGL workbook does not visibly evidence the topic.
+
+- [ ] **Step 2: The matrix must evaluate all of these historical areas**
+
+Create one row for each:
 
 ```text
-retail Short-term investment classification
-retail normalization -> normalized EPS
-manufacturer lease liability treatment
+source statements / statement linkage
+operating-vs-financing reformulation
+DuPont / RNOA / Spread / FLEV / ROE
+classification judgment
+recurring/non-recurring normalization
+cash conversion / accrual analysis
+working-capital behavior
+RNOA margin / turnover / asset intensity
+ROE operating / financing attribution
+historical per-share / diluted-share bridge
+stock-based compensation / dilution
+capex / depreciation / PP&E / asset intensity
+leases
+goodwill / acquired intangibles / acquisitions
+deferred taxes / unusual tax rates
+minority / non-controlling interests
+segment economics
+accounting consistency / reconciliation checks
+historical interpretation / diagnostics
 ```
 
-Style changes must not affect dynamic expected values or trusted-cell validation.
+Columns:
 
-- [x] **Step 4: Prove Check recoloring still patches fill only**
+```text
+Historical area
+GOOGL evidence
+Current Trainer
+Status
+Source facts required
+Training adaptation
+Proposed Step 9 action
+```
 
-Existing repeated-Check / cached-result tests must continue to pass. Do not replace OOXML fill patching with openpyxl workbook rewrites.
+- [ ] **Step 3: Separate GOOGL evidence from TARGET-driven requirements**
+
+For every row:
+
+- `GOOGL evidence` must cite the actual sheet/section/label observed in the workbook, or say `Not evidenced in inspected workbook`.
+- `Current Trainer` must cite the actual current sheet/family/feature, or say absent.
+- Do not claim GOOGL contains SBC, segment economics, NCI, or any other topic unless inspection actually supports that claim.
+
+- [ ] **Step 4: Treat forward sections as explicitly deferred**
+
+Any GOOGL content involving:
+
+```text
+forecast years
+Bear/Base/Bull
+scenario probabilities
+terminal value
+residual income valuation
+DCF
+valuation multiples
+market-price rationalization
+guidance / consensus
+```
+
+must be classified `deferred-forward` for the current roadmap.
+
+Do not translate these into active Step 9 implementation tasks.
+
+- [ ] **Step 5: Treat automation / monitoring as not a Trainer target**
+
+Any reference functionality whose purpose is:
+
+```text
+coverage maintenance
+news monitoring
+sentinel / scheduled update
+vault / dossier persistence
+automation infrastructure
+```
+
+must be classified `not-trainer-target` unless a future user request changes product scope.
 
 ---
 
-### Task 6: Final Step 9I.1 verification and status
+### Task 4: Produce a prioritized historical convergence queue
 
 **Files:**
+- Modify: `docs/GOOGL_HISTORICAL_REFERENCE.md`
 - Modify: `RESULT.md`
-- Modify: `IMPLEMENTATION.md` status only after all checks pass
-- Modify: `skills/bav-trainer/SKILL.md` only if it contains presentation/documentation claims that are now false
-- Do not modify: `TARGET.md`
+- Modify only if needed for roadmap consistency: `README.md`
+- Modify only if needed for roadmap consistency: `skills/bav-trainer/SKILL.md`
 
-- [x] **Step 1: Run focused learner-readiness tests**
+**Interfaces:**
+- Produces the next Step 9 implementation order; it does not implement those modules yet.
+
+- [ ] **Step 1: Use four priority buckets**
+
+The `Prioritized Step 9 queue` must use:
+
+```text
+Priority A — historically useful and current-data-supported
+Priority B — historically useful but needs explicit new historical inputs
+Priority C — TARGET-required historical topic not evidenced by GOOGL
+Deferred — forecasting / valuation / non-Trainer reference features
+```
+
+- [ ] **Step 2: Rank within each bucket by dependency order**
+
+Use this ordering principle:
+
+```text
+source facts
+-> accounting treatment / classification
+-> historical schedule
+-> ratio / bridge
+-> attribution / interpretation
+```
+
+Prefer foundational historical schedules before derivative interpretation exercises.
+
+- [ ] **Step 3: Do not preselect a module without evidence**
+
+The first future implementation step after 9J.1 should be the highest-value `Priority A` item revealed by the audit.
+
+If there is no credible Priority A item, the next step should define the smallest explicit historical source-data contract needed for the highest-value Priority B item.
+
+Do not choose forecasting as the fallback.
+
+- [ ] **Step 4: Keep root README minimal**
+
+Only touch `README.md` if its `Planned` section still implies forecasting is the next immediate stage.
+
+If changed, limit the edit to one short roadmap statement equivalent to:
+
+```text
+Next: continue Step 9 historical convergence using the GOOGL integrated workbook as a structural reference.
+Later: forecasting, valuation, scenarios, and investment conclusions.
+```
+
+Do not add the gap matrix to the README.
+
+- [ ] **Step 5: Update `RESULT.md`**
+
+Record:
+
+```text
+Step 9J.1 complete — GOOGL historical reference audit
+GOOGL workbook inspected read-only
+current Trainer inspected
+historical gap matrix created
+Priority A / B / C counts
+next historical implementation candidate
+forecasting / valuation still deferred
+GOOGL workbook hash unchanged
+TARGET.md unchanged by Cursor
+```
+
+Do not claim a capability was implemented merely because it was identified.
+
+---
+
+### Task 5: Verify reference integrity and preserve the historical product
+
+**Files:**
+- Test: `core/tests/test_reference_workbook_audit.py`
+- Test: existing Step 9 regression modules
+- Do not modify: `TARGET.md`
+- Do not modify: `example/GOOGL_Demo_Integrated_Financials.xlsx`
+
+- [ ] **Step 1: Re-check the reference workbook hashes**
+
+Run:
+
+```bash
+shasum -a 256 example/GOOGL_Demo_Integrated_Financials.xlsx
+shasum -a 256 example/DEMO_HK_Answer_Key.xlsx
+```
+
+The GOOGL SHA-256 must exactly match the value recorded before inspection.
+
+The canonical Answer Key should also remain unchanged in this audit-only checkpoint.
+
+- [ ] **Step 2: Run focused audit tests**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_reference_workbook_audit.py -v
+```
+
+- [ ] **Step 3: Run historical release regressions**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_learner_ready_presentation.py -v
 PYTHONPATH=. pytest core/tests/test_historical_v1_exit_gate.py -v
+PYTHONPATH=. pytest core/tests/test_cross_company_robustness.py -v
+PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
 PYTHONPATH=. pytest core/tests/test_trainer.py -v
 ```
 
-- [x] **Step 2: Run model-integrity and cross-company regressions**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
-PYTHONPATH=. pytest core/tests/test_cross_company_robustness.py -v
-PYTHONPATH=. pytest core/tests/test_normalization.py -v
-PYTHONPATH=. pytest core/tests/test_per_share.py -v
-PYTHONPATH=. pytest core/tests/test_per_share_attribution.py -v
-PYTHONPATH=. pytest core/tests/test_normalized_per_share.py -v
-```
-
-- [x] **Step 3: Run the full suite**
+- [ ] **Step 4: Run the full suite**
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
 ```
 
-Record the actual final passing count; do not prestate a new number.
+Record the actual final passing count. The pre-Step-9J.1 baseline is `292 passed`; the count may increase only because of the new audit tests.
 
-- [x] **Step 4: Verify public CLI remains exactly unchanged**
+- [ ] **Step 5: Verify product surfaces are unchanged**
 
 Require:
 
 ```text
-ingest
-build
-check
-list
+active family orders = 1..78
+base demo = 62 / 259
+normalization demo = 66 / 279
+shares only = 70 / 293
+shares + normalization = 78 / 331
+services = 59 / 248
+retail = 78 / 331
+manufacturer = 70 / 293
+CLI = {ingest, build, check, list}
 ```
 
-No `forecast`, `value`, `hint`, or `reveal` command.
+No active formula family, workbook sheet, or practice count changes in Step 9J.1.
 
-- [x] **Step 5: Record learner-ready presentation evidence in `RESULT.md`**
+- [ ] **Step 6: Verify Step 9I.1 presentation remains intact**
 
-Record at minimum:
+Fresh canonical Trainer and Answer Key still require:
 
 ```text
-fresh visible workbook fonts: Aptos Narrow 11 everywhere
-fresh visible workbook fills: white/yellow only
-fresh visible workbook borders: none
-Check green/red feedback preserved
-canonical example pair regenerated
-root README replaced with practical trainer guide
-legacy/pipeline origin material absent from root README
-family/cell counts unchanged
-full pytest count
-forecasting / valuation still deferred
-TARGET.md unchanged
+Aptos Narrow 11
+non-bold
+ordinary cells white
+learner/practice cells yellow
+no decorative borders
 ```
 
-- [x] **Step 6: Mark this plan complete only after every verification is green**
+- [ ] **Step 7: Verify forecasting remains dormant**
 
-Add a concise status line at the top of `IMPLEMENTATION.md`.
+No normal build should execute or expose forecasting/valuation.
 
-Then stop. Do **not** prepare or implement forecasting. The next planning checkpoint should remain within Step 9 unless the user explicitly changes direction.
+Do not unhide:
+
+```text
+Model_Bear
+Model_Base
+Model_Bull
+Scenario_Summary
+```
+
+Do not add a `forecast` or `value` CLI command.
 
 ---
 
-## Definition of Done
+## Definition of done
 
-Step 9I.1 is complete only when all of the following are true:
+Step 9J.1 is complete only when all of the following are true:
 
-1. The latest historical model math and semantic surface remain unchanged at family orders `1..78`.
-2. Every fresh visible Trainer/Answer-Key cell that participates in the workbook surface uses Aptos Narrow 11, non-bold, non-italic, black text.
-3. Fresh visible cells have no decorative borders.
-4. Fresh visible fills are white or yellow only.
-5. Yellow remains the learner/practice distinction.
-6. Check still uses green/red/yellow as functional validation feedback without changing formulas.
-7. Trainer and Answer Key remain structurally identical apart from practice contents/Notes and Trainer sanitization.
-8. Root `README.md` is a concise practical guide to the BAV Excel Trainer, not a BAVGems/BAV Pipeline history page.
-9. Root README explains current functions, Quick Start, the actual learning loop, supported inputs/scope, next Step 9 work, and later planned forecasting/valuation functions.
-10. Root README contains no project-lineage / legacy-pipeline narrative and no obsolete Hint/Reveal workflow.
-11. The committed canonical demo pair is regenerated from source under the new style.
-12. Ordinary, share-enabled, and cross-company counts remain exactly unchanged.
-13. Full historical test suite passes.
-14. Forecasting and valuation remain deferred and dormant.
-15. Cursor performs no Git commit/push operations.
+1. The GOOGL workbook has been inspected read-only with a reproducible audit utility.
+2. Its actual sheet/section evidence is documented without filling gaps from general knowledge.
+3. The current Trainer has been compared against it.
+4. Every required historical topic in this plan has a status in the gap matrix.
+5. Forward/valuation features are explicitly separated from current Step 9 work.
+6. The next historical implementation candidate is selected by the evidence-based priority rules.
+7. The GOOGL workbook is byte-for-byte unchanged.
+8. Active Trainer formulas, sheets, counts, Check behavior, and minimal presentation are unchanged.
+9. `TARGET.md` remains unchanged by Cursor.
+10. Full tests pass.
+11. `RESULT.md` records the actual audit outcome and next Step 9 candidate.
+12. Cursor performs no Git operations.
