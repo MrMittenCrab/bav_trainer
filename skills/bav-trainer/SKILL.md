@@ -145,6 +145,12 @@ Step 9F.3 — normalized diluted EPS bridge
 - No automatic claim is made that normalized EPS is economically superior or more predictive
 - share+normalization surface: 78 families / 331 cells
 
+Step 9G.1 — cross-company robustness
+- historical engine regression-tested on three deterministic non-financial archetypes: asset-light services, inventory-heavy retail, and capital-intensive manufacturing
+- these are synthetic robustness fixtures, not empirical company data or product examples
+- surfaces: services 59/248; retail 78/331; manufacturer 70/293
+- ordinary demo and share-enabled regressions preserved; no new families/sheets/CLI
+
 Still deferred: company-specific causal diagnosis, basic-vs-diluted attribution, forecasting, valuation, investment conclusions, ROU/deferred-tax alternative modeling.
 
 ## Design principles

@@ -243,11 +243,11 @@ Per Share Analysis: present, normalized-per-share families absent
 Accounting Judgment: includes lease liability Operating LT Liability vs Financial Liability case
 ```
 
-- [ ] **Step 1: Write fixture-construction tests**
+- [x] **Step 1: Write fixture-construction tests**
 
 Assert each fixture has five periods, complete required historical series, unique line identities, and the expected share/normalization presence.
 
-- [ ] **Step 2: Run fixture tests red, then implement the factories**
+- [x] **Step 2: Run fixture tests red, then implement the factories**
 
 Run:
 
@@ -257,7 +257,7 @@ PYTHONPATH=. pytest core/tests/test_cross_company_robustness.py -k fixture -v
 
 Expected before implementation: fail because the fixture module does not exist.
 
-- [ ] **Step 3: Verify all three fixtures pass existing source/reformulation integrity without validator relaxation**
+- [x] **Step 3: Verify all three fixtures pass existing source/reformulation integrity without validator relaxation**
 
 For each case:
 
@@ -281,7 +281,7 @@ Do not modify validators merely because a fixture is inconvenient. Correct fixtu
 - Consumes: all three `RobustCompanyCase` fixtures.
 - Produces: one parameterized end-to-end robustness matrix.
 
-- [ ] **Step 1: Round-trip each case through the public standardized/manual-ingestion path**
+- [x] **Step 1: Round-trip each case through the public standardized/manual-ingestion path**
 
 For each case:
 
@@ -295,7 +295,7 @@ ingested = HKManualDocumentAdapter().ingest(
 
 Assert ticker, five modeled periods, line identities, and historical shares (when present) survive the round-trip.
 
-- [ ] **Step 2: Build matched Trainer / Answer Key pairs and assert exact surfaces**
+- [x] **Step 2: Build matched Trainer / Answer Key pairs and assert exact surfaces**
 
 For each case call:
 
@@ -320,7 +320,7 @@ capital_intensive_manufacturer    70 / 293
 
 Also assert expected sheet gating from Task 1.
 
-- [ ] **Step 3: Assert every fresh Trainer is entirely blank on the semantic practice surface**
+- [x] **Step 3: Assert every fresh Trainer is entirely blank on the semantic practice surface**
 
 ```python
 summary = check_workbook(trainer)
@@ -330,7 +330,7 @@ assert summary.correct == 0
 assert summary.incorrect == 0
 ```
 
-- [ ] **Step 4: Fill every semantic practice cell with its Answer-Key formula and require workbook-wide green**
+- [x] **Step 4: Fill every semantic practice cell with its Answer-Key formula and require workbook-wide green**
 
 Add a test helper:
 
@@ -356,7 +356,7 @@ assert summary.incorrect == 0
 
 This test is the core cross-company acceptance test: every active formula family must build, sanitize, and Check correctly on each materially different company shape.
 
-- [ ] **Step 5: Assert deferred forecast/valuation tabs remain hidden placeholders for all three cases**
+- [x] **Step 5: Assert deferred forecast/valuation tabs remain hidden placeholders for all three cases**
 
 For `Model_Bear`, `Model_Base`, `Model_Bull`, and `Scenario_Summary`, require hidden state and the existing deferred-placeholder content. No case may activate the forecast engine.
 
@@ -368,7 +368,7 @@ For `Model_Bear`, `Model_Base`, `Model_Bull`, and `Scenario_Summary`, require hi
 - Modify: `core/tests/test_cross_company_robustness.py`
 - Modify production code only if a generalized defect is exposed, with a focused regression in the owning test module.
 
-- [ ] **Step 1: Prove asset-scaled quality gating on the services fixture**
+- [x] **Step 1: Prove asset-scaled quality gating on the services fixture**
 
 Require:
 
@@ -384,7 +384,7 @@ assert "accrual_ratio_change" not in families
 
 This fixture must still retain Working Capital Analysis because receivables/payables are present.
 
-- [ ] **Step 2: Prove declining-revenue working-capital arithmetic on the retail fixture**
+- [x] **Step 2: Prove declining-revenue working-capital arithmetic on the retail fixture**
 
 Identify FY2024 (`period_end == "2024-12-31"`) components for:
 
@@ -398,7 +398,7 @@ incremental_owcl_to_revenue_change
 
 Require `revenue_change.expected_value < 0` and confirm the three incremental-ratio formulas contain no `ABS(` and no `IFERROR`.
 
-- [ ] **Step 3: Prove the retail Short-term investment judgment changes live downstream expecteds**
+- [x] **Step 3: Prove the retail Short-term investment judgment changes live downstream expecteds**
 
 Locate the `Accounting Judgment` row whose line item is `Short-term investment`. The supplied treatment must be `Financial Asset`; change column F to `Operating Working Capital Asset`.
 
@@ -411,7 +411,7 @@ Use a FY2025 working-capital component such as `nowc_to_revenue` or `incremental
 
 Reuse the existing cached-formula injection helper; do not add a second checker path.
 
-- [ ] **Step 4: Prove retail normalization changes normalized per-share values but not reported EPS**
+- [x] **Step 4: Prove retail normalization changes normalized per-share values but not reported EPS**
 
 On the share+normalization retail case:
 
@@ -423,13 +423,13 @@ On the share+normalization retail case:
 
 Do not add another normalized-EPS formula family.
 
-- [ ] **Step 5: Prove manufacturer lease judgment changes financing diagnostics without breaking per-share analysis**
+- [x] **Step 5: Prove manufacturer lease judgment changes financing diagnostics without breaking per-share analysis**
 
 Locate the lease-liability judgment row. Change column F from `Operating Long-Term Liability` to `Financial Liability`.
 
 Require a treatment-conditioned financing component such as `net_debt`, `flev`, or `financing_contribution_to_roe` to change, while `reported_diluted_eps` remains unchanged because reported Net Income and supplied share count are unchanged.
 
-- [ ] **Step 6: Prove falling share count has the mechanically correct sign**
+- [x] **Step 6: Prove falling share count has the mechanically correct sign**
 
 For the manufacturer fixture, require the FY2023–FY2025 `share_count_effect_on_diluted_eps_change` expected values to be positive while Net Income is positive and diluted shares fall. Do not label this automatically as “accretion from buybacks”; the fixture supplies no causal source for the share-count movement.
 
@@ -444,7 +444,7 @@ For the manufacturer fixture, require the FY2023–FY2025 `share_count_effect_on
 - Modify: `IMPLEMENTATION.md` status only after verification
 - Do not modify: `TARGET.md`
 
-- [ ] **Step 1: Parameterize trusted-source tamper protection across all three cases**
+- [x] **Step 1: Parameterize trusted-source tamper protection across all three cases**
 
 For a fresh Trainer in each case:
 
@@ -456,7 +456,7 @@ For a fresh Trainer in each case:
 
 Do not duplicate trusted validation logic; this test must exercise the existing generic mechanism.
 
-- [ ] **Step 2: Preserve ordinary demo regression counts**
+- [x] **Step 2: Preserve ordinary demo regression counts**
 
 Rebuild the existing demo with and without `DEMO_HK_Assumptions.json` and require exactly:
 
@@ -465,7 +465,7 @@ base:          62 families / 259 cells / 0-0-259 blank
 normalization: 66 families / 279 cells / 0-0-279 blank
 ```
 
-- [ ] **Step 3: Preserve share-enabled regression counts**
+- [x] **Step 3: Preserve share-enabled regression counts**
 
 Reuse existing Step 9F fixtures and require:
 
@@ -474,7 +474,7 @@ shares only:              70 / 293
 shares + normalization:   78 / 331
 ```
 
-- [ ] **Step 4: Update documentation without claiming real-company validation**
+- [x] **Step 4: Update documentation without claiming real-company validation**
 
 In `skills/bav-trainer/SKILL.md`, add a short `Step 9G.1 — cross-company robustness` note stating that the historical engine is now regression-tested against three deterministic non-financial archetypes: asset-light services, inventory-heavy retail, and capital-intensive manufacturing. Explicitly say they are synthetic robustness fixtures, not empirical company data.
 
@@ -496,7 +496,7 @@ forecasting / valuation not begun
 
 Record the actual final pytest count; do not prestate it.
 
-- [ ] **Step 5: Run focused tests**
+- [x] **Step 5: Run focused tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_cross_company_robustness.py -v
@@ -513,7 +513,7 @@ PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
 PYTHONPATH=. pytest core/tests/test_trainer.py -v
 ```
 
-- [ ] **Step 6: Run the full historical suite**
+- [x] **Step 6: Run the full historical suite**
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
@@ -521,7 +521,7 @@ PYTHONPATH=. pytest core/tests/ -q
 
 Record the actual passing count in `RESULT.md`.
 
-- [ ] **Step 7: Verify public CLI remains exactly unchanged**
+- [x] **Step 7: Verify public CLI remains exactly unchanged**
 
 Require the public command set to remain:
 
