@@ -1,371 +1,425 @@
-# Step 9A.1 — Earnings-Quality Source Completeness Hardening
+# Step 9A.2 — Undefined-Ratio and Net-Income Source Hardening
 
-> **Status:** Step 9A.1 complete. See `RESULT.md` for verification evidence (186 passed; base 30/141; normalization 34/161; incomplete resolved CFO/Total Assets fail closed). Do not commit or push from this checkpoint unless the user requests it.
+> **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `0ca165067c049106c8ad12018eaac9acca5cfffc` (`Step 9A.1`). Implement only Step 9A.2 below using red/green TDD. Preserve the Step 8 classification/normalization workflow, the trusted-workbook boundary, and the Step 9A earnings-quality schedule. Do not begin working-capital interpretation, quality scoring, research-writing evaluation, forecasting, valuation, ROU/deferred-tax alternative modeling, or later Step 9/10 work. Do not commit or push; the user owns the checkpoint commit.
 
-> **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `3e4be6976d5b24b090a27a1b60fabda8e3bf3a24` (`Step 9`). Implement only the Step 9A.1 hardening below using red/green TDD. Preserve the Step 8A/8B1 classification workflow, Step 8B2 normalization workflow, Step 8B2.2 trusted-workbook boundary, and the Step 9A earnings-quality formulas and workbook surface. Do not begin working-capital interpretation, quality scoring, research-writing evaluation, forecasting, valuation, ROU/deferred-tax alternative modeling, or later Step 9/10 work. Do not commit or push; the user owns the checkpoint commit.
+**Goal:** Remove the last misleading numeric fallbacks in Step 9A. Zero denominators must produce an explicitly undefined ratio rather than a fabricated `0.0`, and reported Net Income used by earnings-quality diagnostics must be explicitly supplied for every modeled period instead of relying on `compute_anchor()`'s legacy missing-value fallback.
 
-**Goal:** Eliminate the remaining invented-input path in Step 9A. A resolved CFO or Total Assets line must contain an explicitly supplied value for every modeled period used by the active earnings-quality schedule; missing period values must fail clearly instead of being silently converted to zero.
+**Architecture:** Keep the existing Step 9A schedule and component families. Represent mathematically undefined active ratios with the literal expected value `#N/A` and Excel `NA()`, because active SemanticMap components may not have `expected_value=None`. Continue using `None` only for genuinely non-applicable first-period comparable metrics that have no practice component. Resolve and validate reported Net Income directly inside the earnings-quality model, then require it to agree with `anchor.historical.net_income`.
 
-**Architecture:** Keep the current line-level availability gating: a completely absent CFO line disables the Earnings Quality module, and a completely absent Total Assets line disables only the asset-scaled extension. Once a source line resolves, however, it is trusted supplied data and must be complete for the modeled periods. Add one small required-period-value helper inside the earnings-quality model and use it for both CFO and Total Assets. Preserve explicit numeric zero as a valid supplied value and preserve the existing Step 9A zero-denominator conventions.
+**Tech Stack:** Python, dataclasses, pytest, openpyxl, existing `StandardizedFinancials`, `LineItem`, `AnchorMetrics`, `SemanticMap`, `ReferenceModelBuilder`, `check_workbook`, and OOXML cached-value handling.
 
-**Tech Stack:** Python, dataclasses, pytest, existing `StandardizedFinancials`, `LineItem`, `ReferenceModelBuilder`, `compute_earnings_quality_series`, Trainer/Answer-Key generation, and workbook-wide Check.
-
-**Spec:** `TARGET.md`, especially “No invented historical inputs,” material/applicable-topic gating, historical model auditability, and the requirement that the Trainer use supplied historical facts rather than fabricated assumptions.
+**Spec:** `TARGET.md`, especially “No invented historical inputs,” formula correctness, accounting competence, historical model auditability, and the requirement that diagnostics teach economically correct meanings rather than mechanically convenient numbers.
 
 ---
 
-## Review of commit `3e4be697`
+## Review of commit `0ca16506`
 
-The main Step 9A implementation is coherent:
+Step 9A.1 correctly closes the missing-CFO / missing-Total-Assets fabrication path:
 
-- canonical final operating-cash-flow resolution is narrow and explicit;
-- the Unicode-apostrophe resolver defect is fixed;
-- the module is omitted when the CFO line is absent;
-- Total Assets independently gates the asset-scaled extension;
-- CFO / Net Income cash conversion, total accruals, average assets, and accrual ratio are separated into auditable formula families;
-- trusted-state validation includes `Earnings Quality` populated cells;
-- quality practice cells remain compatible with exact and equivalent-formula Check;
-- no quality score, arbitrary threshold, forecasting, or valuation logic was added;
-- `RESULT.md` records 183 locally passing tests, with the demo at 30 families / 141 cells without normalization and 34 families / 161 cells with normalization.
+- a completely absent CFO line still omits the module;
+- a resolved but period-incomplete CFO line fails;
+- a completely absent Total Assets line still omits only the scaled extension;
+- a resolved but period-incomplete Total Assets line fails;
+- explicitly supplied numeric zero remains distinguishable from missing data;
+- the Step 9A demo surface remains 30 families / 141 practice cells without normalization and 34 / 161 with normalization;
+- `RESULT.md` records 186 passing local tests;
+- GitHub still has no attached CI status.
 
-GitHub has no attached CI status for this commit, so the recorded tests are local verification rather than independent CI evidence.
+Two issues remain before moving to the interpretive quality layer.
 
-Two issues remain before moving to the interpretive earnings-quality layer.
+### Issue 1 — zero denominators are being taught as a numeric zero ratio
 
-### Blocking issue — missing period values are silently invented as zero
+Current Step 9A conventions are:
 
-`compute_earnings_quality_series()` currently does this for CFO:
+```text
+Net Income = 0           -> Cash Conversion Ratio = 0.0
+Average Total Assets = 0 -> Accrual Ratio = 0.0
+```
+
+Those are not valid ratio values. Division by zero is undefined. A learner seeing `0.00x` or `0.0%` is being taught a false economic result rather than an unavailable ratio.
+
+Correct behavior:
+
+```text
+Net Income = 0           -> Cash Conversion Ratio = #N/A
+Average Total Assets = 0 -> Accrual Ratio = #N/A
+```
+
+Do not use `0.0`, infinity, an arbitrary cap, or a quality label.
+
+### Issue 2 — reported Net Income completeness is still inherited from a legacy zero fallback
+
+`compute_earnings_quality_series()` reads:
 
 ```python
-raw = cfo_item.values.get(period)
-cfo = 0.0 if raw is None else float(raw)
+ni = float(anchor.historical.net_income[j])
 ```
 
-and this for Total Assets:
+but `compute_anchor()` currently obtains historical values through `_val()`, which converts a missing period value to `0.0`.
 
-```python
-prev = 0.0 if prev_raw is None else float(prev_raw)
-cur = 0.0 if cur_raw is None else float(cur_raw)
-```
+Normal `build_training_workbook()` source validation already catches many malformed Net Income inputs, but the earnings-quality model itself should not depend on that outer gate for its “no invented historical inputs” invariant. Direct model use must also fail closed.
 
-This makes a resolved but incomplete source line economically indistinguishable from an explicitly supplied zero. It violates the Step 9A / `TARGET.md` requirement not to invent historical inputs.
+Step 9A.2 validates the reported Net Income line explicitly inside the quality model and verifies that the supplied values agree with the supplied `AnchorMetrics`.
 
-A completely missing source line and a resolved-but-incomplete source line are different states:
+### Test-quality cleanup
 
-```text
-CFO line absent entirely
-    -> module not applicable / omit Earnings Quality
-
-CFO line resolved but one modeled period is missing
-    -> malformed/incomplete supplied source / fail build
-
-Total Assets line absent entirely
-    -> keep CFO diagnostics; omit asset-scaled extension
-
-Total Assets line resolved but one modeled period is missing
-    -> malformed/incomplete supplied source / fail build
-```
-
-Do not silently replace the last two cases with zero and do not silently downgrade an incomplete Total Assets line to “unavailable.”
-
-### Documentation mismatch
-
-`RESULT.md` currently states:
-
-```text
-zero average assets → accrual ratio None
-```
-
-but the accepted Step 9A convention and implementation are:
-
-```text
-zero average assets → accrual ratio 0.0
-```
-
-The test suite also asserts `0.0`. Correct the documentation; do not change this denominator convention in Step 9A.1.
+The Step 9A.1 availability matrix contains broad `pytest.raises(Exception)` assertions for malformed Total Assets. Replace these with `ValueError` or a more specific existing exception. A regression should not pass because of an unrelated exception type.
 
 ---
 
 ## Global constraints
 
 - `TARGET.md` is read-only.
-- Preserve non-financial-company scope.
-- Preserve the Step 9A definitions:
-  - Cash conversion ratio = CFO / Reported Net Income;
-  - Total accruals = Reported Net Income − CFO;
-  - Accrual ratio = Total accruals / Average Total Assets.
-- Preserve the current model conventions:
-  - Net Income exactly zero -> cash conversion ratio `0.0`;
-  - Average Total Assets exactly zero -> accrual ratio `0.0`.
-- Distinguish **missing** from explicitly supplied numeric zero.
-- Do not invent CFO, Total Assets, capex, working-capital movements, or any other historical value.
-- Completely absent CFO still disables the entire Earnings Quality module.
-- Completely absent Total Assets still disables only Average Total Assets / Accrual Ratio.
-- A resolved but period-incomplete CFO or Total Assets line must fail closed.
-- Existing Step 8 classification / normalization treatment mechanics remain unchanged.
-- Existing trusted-state validation remains fail-closed before grading.
-- Formula Check remains non-disclosing and workbook-wide.
-- Do not add thresholds, “good/bad” quality labels, traffic lights, or investment conclusions.
+- Preserve the existing Step 9A definitions:
+  - Cash Conversion Ratio = CFO / Reported Net Income;
+  - Total Accruals = Reported Net Income − CFO;
+  - Accrual Ratio = Total Accruals / Average Total Assets.
+- Preserve source-line availability gating:
+  - no CFO line -> no Earnings Quality module;
+  - no Total Assets line -> core CFO diagnostics only.
+- Preserve fail-closed completeness for resolved CFO and Total Assets lines.
+- Add the same explicit completeness rule for reported Net Income used by Step 9A.
+- An explicitly supplied numeric zero remains valid source data.
+- A zero denominator does **not** imply a zero ratio.
+- Use `#N/A` only for mathematically undefined active ratios.
+- Keep first-period Average Total Assets / Accrual Ratio as structurally non-applicable (`None` in the Python series, no comparable practice component for FY1).
+- Do not add thresholds, traffic lights, “good/bad” quality labels, scores, or investment conclusions.
 - Do not add working-capital interpretation yet.
-- Do not add forecasting, valuation, scenario engine, Hint/Reveal, VBA, or free-form grading.
+- No forecasting, valuation, scenario engine, Hint/Reveal, VBA, or free-form grading.
+- Formula Check remains one workbook-wide, non-disclosing action.
 - Cursor must not commit, push, reset, rebase, merge, or delete branches.
 
 ---
 
-## Task 1 — Add one explicit required-period-value boundary
+## Task 1 — Add an explicit undefined-ratio representation
 
 **Files:**
 - Modify: `core/model/earnings_quality.py`
-- Test: `core/tests/test_earnings_quality.py`
+- Modify: `core/tests/test_earnings_quality.py`
 
-Create one focused helper in `core/model/earnings_quality.py`:
+Add one module-level constant:
 
 ```python
-def _required_period_value(
-    item: LineItem,
-    period: date,
-    *,
-    concept: str,
-) -> float:
-    raw = item.values.get(period)
-    if raw is None:
-        raise ValueError(
-            f"{concept} line {item.label!r} has no supplied value "
-            f"for modeled period {period.isoformat()}"
-        )
-    return float(raw)
+UNDEFINED_RATIO = "#N/A"
 ```
 
-Import `LineItem` from `core.data.interface`.
+Change the dataclass types to permit the sentinel where an active ratio is undefined:
 
-Required semantics:
+```python
+@dataclass(frozen=True)
+class EarningsQualitySeries:
+    operating_cash_flow: tuple[float, ...]
+    cash_conversion_ratio: tuple[float | str, ...]
+    total_accruals: tuple[float, ...]
+    average_total_assets: tuple[float | None, ...]
+    accrual_ratio: tuple[float | str | None, ...]
+```
+
+Do not use `None` for an active zero-denominator ratio because `SemanticMap.validate_complete()` treats `expected_value=None` as a failed build. `None` remains reserved for the first period of comparable asset-scaled metrics, for which no component is created.
+
+### Required semantics
 
 ```text
-key absent from item.values -> ValueError
-key present with None       -> ValueError
-key present with 0          -> 0.0 (valid supplied fact)
-key present with -0.0       -> -0.0 / numerically zero (valid supplied fact)
-nonzero numeric value       -> float(value)
+CFO=80, NI=100             -> cash conversion 0.8
+CFO=0, NI=100              -> cash conversion 0.0
+CFO=80, NI=0               -> cash conversion "#N/A"
+CFO=0, NI=0                -> cash conversion "#N/A"
+
+Accruals=30, Avg Assets=300 -> accrual ratio 0.10
+Accruals=0, Avg Assets=300  -> accrual ratio 0.0
+Avg Assets=0                -> accrual ratio "#N/A"
 ```
 
-Do not use `value or 0`, `.get(..., 0)`, or any equivalent fallback.
+The numerator may legitimately be zero. Only the denominator controls undefined-ratio behavior.
 
 ### TDD
 
-- [ ] Unit-test `_required_period_value()` indirectly through `compute_earnings_quality_series()`; direct private-helper testing is unnecessary.
-- [ ] CFO line with one modeled period omitted -> clear `ValueError` containing `operating_cash_flow` and the missing date.
-- [ ] CFO line with one modeled period explicitly `None` -> same failure.
-- [ ] CFO line with an explicitly supplied `0.0` -> succeeds and preserves `0.0`.
-- [ ] Run the focused tests red before implementation.
+- [ ] Replace the existing zero-Net-Income `0.0` assertion with `UNDEFINED_RATIO`.
+- [ ] Replace the existing zero-average-assets `0.0` assertion with `UNDEFINED_RATIO`.
+- [ ] Add explicit zero-numerator/nonzero-denominator cases that still return numeric `0.0`.
+- [ ] Run the focused tests red before production changes.
 
 Run:
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_earnings_quality.py -k "missing or incomplete or zero" -v
+PYTHONPATH=. pytest core/tests/test_earnings_quality.py -k "zero or undefined or denominator" -v
 ```
 
 ---
 
-## Task 2 — Remove CFO zero fabrication
+## Task 2 — Make the Python earnings-quality series mathematically correct
 
 **Files:**
 - Modify: `core/model/earnings_quality.py`
 - Test: `core/tests/test_earnings_quality.py`
 
-Replace:
+Change:
 
 ```python
-raw = cfo_item.values.get(period)
-cfo = 0.0 if raw is None else float(raw)
+conversion.append(0.0 if ni == 0.0 else cfo / ni)
 ```
 
-with:
+to:
 
 ```python
-cfo = _required_period_value(
-    cfo_item,
-    period,
-    concept="operating_cash_flow",
+conversion.append(
+    UNDEFINED_RATIO if ni == 0.0 else cfo / ni
 )
 ```
 
-Do not change the line-level gating in `earnings_quality_availability()`:
+Change:
 
-```text
-no resolvable CFO line -> operating_cash_flow=False
+```python
+if average == 0.0:
+    ratios.append(0.0)
+else:
+    ratios.append(accruals[j] / average)
 ```
 
-The stricter completeness rule begins only after the CFO line resolves.
+to:
 
-### Required builder behavior
+```python
+if average == 0.0:
+    ratios.append(UNDEFINED_RATIO)
+else:
+    ratios.append(accruals[j] / average)
+```
 
-Add an end-to-end regression:
+Do not change Total Accruals. `Net Income - CFO` remains well-defined when either input is explicitly zero.
 
-1. create a financials fixture with a resolvable CFO line;
-2. delete one modeled-period CFO value;
-3. instantiate `ReferenceModelBuilder` or call `build_training_workbook()`;
-4. require the build to raise before writing a valid Trainer/Answer-Key pair;
-5. assert the error identifies the CFO concept and missing period.
-
-Do not silently omit the Earnings Quality module in this state.
+Do not convert `#N/A` back into a numeric value anywhere in `historical_expected.py` or Check.
 
 ---
 
-## Task 3 — Remove Total Assets zero fabrication
+## Task 3 — Require explicitly supplied reported Net Income
 
 **Files:**
 - Modify: `core/model/earnings_quality.py`
-- Test: `core/tests/test_earnings_quality.py`
+- Modify: `core/tests/test_earnings_quality.py`
 
-When `total_assets` resolves, every modeled-period asset value used by the active asset-scaled schedule must be explicitly supplied.
-
-Replace:
+Inside `compute_earnings_quality_series()`, resolve reported Net Income directly:
 
 ```python
-prev = 0.0 if prev_raw is None else float(prev_raw)
-cur = 0.0 if cur_raw is None else float(cur_raw)
+net_income_item = resolve_line(
+    financials.income_statement,
+    "net_income",
+    required=True,
+).item
+assert net_income_item is not None
 ```
 
-with required supplied values.
-
-A simple implementation is to resolve all asset values once:
+Build an explicit source series using the existing required-period helper:
 
 ```python
-asset_values = [
+net_income_values = [
     _required_period_value(
-        assets_item,
+        net_income_item,
         period,
-        concept="total_assets",
+        concept="net_income",
     )
     for period in periods
 ]
 ```
 
-then calculate:
+Use `net_income_values[j]` for cash conversion and total accruals rather than silently trusting the AnchorMetrics vector.
+
+Then verify source/anchor consistency before calculations:
 
 ```python
-for j in range(1, n):
-    average = (asset_values[j - 1] + asset_values[j]) / 2.0
+for j, source_ni in enumerate(net_income_values):
+    anchor_ni = float(anchor.historical.net_income[j])
+    if abs(source_ni - anchor_ni) > 1e-9:
+        raise ValueError(
+            "earnings-quality reported Net Income does not match AnchorMetrics "
+            f"for modeled period {periods[j].isoformat()}"
+        )
 ```
 
-### Required semantics
+The quality layer must not silently combine CFO from one source state with Net Income from a stale or differently computed anchor.
 
-- Total Assets line absent -> existing `None` series and core CFO diagnostics preserved.
-- Total Assets line present + complete -> current asset-scaled behavior preserved.
-- Total Assets line present + one period absent/None -> fail clearly; do not omit the extension and do not substitute zero.
-- Explicit Total Assets `0.0` remains valid supplied data.
-- Two explicitly supplied zero Total Assets periods -> Average Total Assets `0.0`, Accrual Ratio `0.0` under the accepted Step 9A denominator convention.
+### Required tests
 
-### Tests
+- [ ] Net Income line present but one modeled-period key absent -> `ValueError` containing `net_income` and the period date.
+- [ ] Net Income line present with explicit `None` -> same failure.
+- [ ] Net Income explicitly `0.0` -> source completeness passes; cash conversion becomes `#N/A`.
+- [ ] Deliberately construct an `AnchorMetrics` object/source mismatch (or mutate the source after computing the anchor) -> clear mismatch `ValueError`.
+- [ ] Normal complete input remains unchanged numerically.
 
-- [ ] Missing first-period Total Assets -> fail.
-- [ ] Missing later-period Total Assets -> fail.
-- [ ] Explicit zero Total Assets remains accepted.
-- [ ] Existing “Total Assets line entirely absent” test remains green and still omits only scaled families.
+Do not modify global `compute_anchor()` behavior in this checkpoint. This task makes the Step 9A module independently source-safe without broadening scope into a historical-engine refactor.
 
 ---
 
-## Task 4 — Prove availability gating and incompleteness are distinct
+## Task 4 — Render undefined ratios correctly in Excel
 
 **Files:**
-- Test: `core/tests/test_earnings_quality.py`
+- Modify: `core/engine/reference_model.py`
+- Modify: `core/tests/test_earnings_quality.py`
 
-Create a compact matrix of end-to-end behavior:
+Change Cash Conversion Ratio formulas from:
+
+```excel
+=IF(B6=0,0,B5/B6)
+```
+
+to:
+
+```excel
+=IF(B6=0,NA(),B5/B6)
+```
+
+Change Accrual Ratio formulas from:
+
+```excel
+=IF(C11=0,0,C8/C11)
+```
+
+to:
+
+```excel
+=IF(C11=0,NA(),C8/C11)
+```
+
+Preserve the existing number formats. Excel error values should visibly show `#N/A`, making the undefined denominator explicit.
+
+When registering quality components, pass the Python expected value unchanged. `SemanticMap` already permits `float | str | None`, and `"#N/A"` is a valid non-None expected value.
+
+### Workbook tests
+
+- [ ] Build a fixture with zero reported Net Income and verify the Answer Key cash-conversion formula contains `NA()` rather than a zero fallback.
+- [ ] Build a fixture with zero Average Total Assets and verify the accrual-ratio formula contains `NA()`.
+- [ ] Verify normal nonzero demo formulas remain structurally identical except for the denominator guard.
+- [ ] Trainer practice cells remain blank yellow.
+
+---
+
+## Task 5 — Verify Formula Check handles `#N/A` without disclosure
+
+**Files:**
+- Modify: `core/tests/test_earnings_quality.py`
+- Modify production Check code only if a failing regression proves necessary
+
+`_values_match()` already falls back to case-insensitive string comparison when numeric conversion fails. Preserve that behavior.
+
+Add regressions for an active zero-denominator quality component:
+
+### Exact formula
+
+Insert the exact Answer-Key formula containing `NA()` into the Trainer practice cell.
+
+Required:
 
 ```text
-CFO line absent, Total Assets present
-    quality_series is None
-    quality_specs == ()
-    Earnings Quality sheet absent
-
-CFO line present+complete, Total Assets absent
-    quality_series exists
-    only operating_cash_flow_link / cash_conversion_ratio / total_accruals
-    Earnings Quality sheet present
-
-CFO line present+incomplete
-    build raises
-
-CFO line present+complete, Total Assets present+incomplete
-    build raises
-
-CFO line present+complete, Total Assets present+complete
-    all five quality families active
+Check -> correct
 ```
 
-Do not encode “incomplete” as ordinary feature unavailability.
+### Equivalent formula / cached error
 
-This distinction is the central acceptance test of Step 9A.1.
+Using the existing OOXML cached-value test helper, inject an equivalent formula whose cached result is `#N/A`.
+
+Required:
+
+```text
+expected = "#N/A"
+cached   = "#N/A"
+Check -> correct
+```
+
+If the current helper cannot encode an Excel error cached value safely, extend the **test helper** minimally rather than weakening production Check.
+
+### Wrong numeric fallback
+
+Inject:
+
+```excel
+=0
+```
+
+with cached `0.0` for a zero-denominator ratio.
+
+Required:
+
+```text
+Check -> incorrect
+```
+
+This proves the new semantics are not merely cosmetic workbook formulas.
 
 ---
 
-## Task 5 — Preserve Check and trusted-state behavior
+## Task 6 — Tighten broad exception regressions
 
 **Files:**
-- Test: `core/tests/test_earnings_quality.py`
-- Modify production Check code only if a failing regression proves it is necessary
+- Modify: `core/tests/test_earnings_quality.py`
 
-No Check redesign is expected.
+Replace the Step 9A.1 assertions:
 
-Because new incomplete artifacts should fail during build, normal new Trainer/Answer-Key pairs cannot contain fabricated CFO/asset values. Still verify that dynamic Check remains compatible with the stricter model function.
+```python
+with pytest.raises(Exception):
+    ...
+```
 
-Required regressions:
+with at least:
 
-- [ ] Normal complete Step 9A workbook still checks fresh as all blank.
-- [ ] Exact earnings-quality formula still turns green.
-- [ ] Equivalent formula with correct cached result still turns green.
-- [ ] Trusted populated Earnings Quality tamper still fails before recoloring.
-- [ ] Existing Step 8 judgment choices continue to compose with quality Check.
+```python
+with pytest.raises(ValueError):
+    ...
+```
 
-Do not loosen `_validate_trusted_sheet_cells()` to accommodate missing data.
+Where the production path has a stable meaningful error message, assert it as well.
+
+Do not make tests pass on unrelated runtime errors, assertion failures, or programming exceptions.
+
+This is a test-hardening task only; do not restructure the historical engine to force a particular error source if the build already fails closed correctly.
 
 ---
 
-## Task 6 — Correct checkpoint documentation
+## Task 7 — Documentation and checkpoint evidence
 
 **Files:**
 - Modify: `RESULT.md`
-- Modify: `README-HK-TRAINER.md` only if it states or implies missing period values become zero
-- Modify: `skills/bav-trainer/SKILL.md` only if it states or implies missing period values become zero
+- Modify: `README-HK-TRAINER.md` if it documents zero-denominator conventions
+- Modify: `skills/bav-trainer/SKILL.md` if it documents zero-denominator conventions
 - Modify: `IMPLEMENTATION.md` status only after verification passes
 - Do not modify: `TARGET.md`
 
-Correct this inaccurate `RESULT.md` statement:
+Replace any statement that says:
 
 ```text
-zero average assets → accrual ratio None
+zero Net Income -> cash conversion ratio 0.0
+zero Average Total Assets -> accrual ratio 0.0
 ```
 
-to the accepted implemented convention:
+with:
 
 ```text
-zero average assets → accrual ratio 0.0 (explicit Step 9A denominator convention)
+zero Net Income -> cash conversion ratio #N/A (undefined denominator)
+zero Average Total Assets -> accrual ratio #N/A (undefined denominator)
 ```
 
-Add explicit evidence:
+Record explicitly:
 
 ```text
-- absent CFO line -> quality module omitted
-- incomplete resolved CFO line -> build rejected; no zero fabrication
-- absent Total Assets line -> asset-scaled extension omitted
-- incomplete resolved Total Assets line -> build rejected; no zero fabrication
-- explicit numeric zero remains valid supplied data
+- missing CFO / Total Assets / Net Income are never fabricated as zero
+- explicit numeric zero remains a valid supplied historical fact
+- zero numerator with nonzero denominator remains a valid 0.0 ratio
+- zero denominator produces #N/A, not 0.0
+- Step 9A demo surfaces remain unchanged
 ```
 
-Do not write `Unresolved: none` until the new partial-period regressions pass.
+GitHub currently has no attached CI checks for this branch, so continue to label test results as local verification.
 
 ---
 
-## Task 7 — Full verification
+## Task 8 — Full verification
 
-Run focused tests:
+Run focused quality tests:
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_earnings_quality.py -v
 PYTHONPATH=. pytest core/tests/test_line_resolver.py -v
 ```
 
-Then the historical/judgment regression suites:
+Run the historical/judgment regression suites:
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
@@ -375,15 +429,15 @@ PYTHONPATH=. pytest core/tests/test_classification.py -v
 PYTHONPATH=. pytest core/tests/test_line_identity.py -v
 ```
 
-Then the complete suite:
+Then:
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
 ```
 
-Record the actual passing count; do not prestate a new total.
+Record the actual passing total.
 
-Verify the complete demo build still has the Step 9A surface:
+Verify the unchanged Step 9A demo surface:
 
 ```bash
 PYTHONPATH=. python -m core build \
@@ -397,7 +451,7 @@ PYTHONPATH=. python -m core list \
   --workbook /tmp/DEMO_BASE_Trainer.xlsx
 ```
 
-Required demo result:
+Required:
 
 ```text
 30 schedule groups
@@ -420,7 +474,7 @@ PYTHONPATH=. python -m core list \
   --workbook /tmp/DEMO_NORM_Trainer.xlsx
 ```
 
-Required demo result:
+Required:
 
 ```text
 34 schedule groups
@@ -428,13 +482,7 @@ Required demo result:
 fresh Check: 0 correct / 0 incorrect / 161 blank
 ```
 
-Verify CLI remains unchanged:
-
-```bash
-PYTHONPATH=. python -m core --help
-```
-
-Public commands remain:
+Verify CLI remains:
 
 ```text
 ingest
@@ -443,28 +491,26 @@ check
 list
 ```
 
-GitHub currently has no attached CI checks for the implementation branch, so `RESULT.md` must describe these as local verification unless CI is added separately.
-
 ---
 
 ## Definition of done
 
-Step 9A.1 is complete only when:
+Step 9A.2 is complete only when:
 
-1. A completely absent CFO line still disables the Earnings Quality module.
-2. A resolved CFO line missing any modeled-period value fails clearly.
-3. Missing CFO period values are never converted to zero.
-4. A completely absent Total Assets line still disables only the asset-scaled extension.
-5. A resolved Total Assets line missing any modeled-period value fails clearly.
-6. Missing Total Assets period values are never converted to zero.
-7. Explicit numeric zero remains distinguishable from missing data and remains valid.
-8. Zero Net Income still maps to cash conversion ratio `0.0` under the accepted convention.
-9. Zero Average Total Assets still maps to accrual ratio `0.0` under the accepted convention.
-10. Step 9A demo surfaces remain 30 / 141 and 34 / 161.
-11. Trusted-state and judgment regressions remain green.
-12. Full test suite passes.
-13. `RESULT.md` no longer falsely states that zero average assets produce `None`.
+1. Resolved CFO, Total Assets, and reported Net Income lines require explicit values for every modeled period they supply to Step 9A.
+2. Missing historical facts are never converted to numeric zero by the earnings-quality module.
+3. Explicit numeric zero remains a valid source fact.
+4. A zero numerator with a valid nonzero denominator produces numeric `0.0`.
+5. A zero Net Income denominator produces `#N/A` Cash Conversion Ratio.
+6. A zero Average Total Assets denominator produces `#N/A` Accrual Ratio.
+7. Excel Answer Key formulas use `NA()` for zero denominators.
+8. Formula Check marks correct `#N/A` formulas/results green and rejects a fabricated numeric-zero fallback.
+9. First-period Average Total Assets / Accrual Ratio remain non-applicable rather than active `#N/A` practice cells.
+10. Broad `pytest.raises(Exception)` assertions added in Step 9A.1 are removed.
+11. Base demo remains 30 families / 141 practice cells.
+12. Normalization demo remains 34 families / 161 practice cells.
+13. Full test suite passes.
 14. `TARGET.md` remains unchanged.
-15. Working-capital interpretation, forecasting, valuation, and quality scoring have not begun.
+15. Working-capital interpretation, quality scoring, forecasting, and valuation have not begun.
 
-After completing this checkpoint, stop and report changed files, exact test outputs, and any unresolved issue. Do not proceed to the interpretive earnings-quality step and do not commit or push.
+After completing this checkpoint, stop and report changed files and exact verification output. Do not commit or push.
