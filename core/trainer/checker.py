@@ -9,10 +9,12 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 from ..data.standardized_io import standardized_from_payload
+from ..model.earnings_quality import compute_earnings_quality_series
 from ..model.financial_math import compute_anchor
 from ..model.historical_expected import expected_value_for_component
 from ..model.normalization import NormalizationCase, compute_normalization_series
 from ..model.period_axis import canonical_fiscal_periods
+from ..engine.component_catalog import QUALITY_COMPONENT_CATALOG
 from .check_context import (
     classification_overrides_for_check,
     load_check_context,
@@ -153,9 +155,20 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     cases,
                     treatments,
                 )
+            quality_family_ids = {family.id for family in QUALITY_COMPONENT_CATALOG}
+            earnings_quality = None
+            if any(comp.family_id in quality_family_ids for comp in comps):
+                earnings_quality = compute_earnings_quality_series(
+                    financials,
+                    list(modeled_periods),
+                    anchor,
+                )
             dynamic_expected = {
                 comp.id: expected_value_for_component(
-                    anchor, comp, normalization=normalization
+                    anchor,
+                    comp,
+                    normalization=normalization,
+                    earnings_quality=earnings_quality,
                 )
                 for comp in comps
             }

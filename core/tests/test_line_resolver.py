@@ -110,3 +110,25 @@ def test_missing_required_raises():
 def test_optional_missing_returns_none():
     resolved = resolve_line([_item("Revenue", 1, 2)], "interest_income", required=False)
     assert resolved.item is None and resolved.index is None
+
+
+def test_curly_apostrophe_equity_alias_resolves():
+    items = [_item("Shareholders\u2019 equity", 100, 110)]
+    resolved = resolve_line(items, "total_equity", required=True)
+    assert resolved.item is not None
+    assert resolved.item.label == "Shareholders\u2019 equity"
+
+
+def test_operating_cash_flow_aliases_and_non_alias():
+    assert resolve_line(
+        [_item("Net cash from operating activities", 1, 2)],
+        "operating_cash_flow",
+    ).item is not None
+    assert (
+        resolve_line(
+            [_item("Cash generated from operations", 1, 2)],
+            "operating_cash_flow",
+            required=False,
+        ).item
+        is None
+    )

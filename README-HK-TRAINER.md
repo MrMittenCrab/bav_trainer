@@ -2,9 +2,9 @@
 
 Progressive training that takes an **accounting novice** toward junior accounting-based equity-research competence, with particular strength in Business Analysis and Valuation (BAV).
 
-**Current capability** is a **multi-period historical model-construction foundation** plus **Step 8A guided classification reasoning**, **Step 8B1 live supported classification**, and **Step 8B2 guided earnings normalization** for non-financial operating companies. Earnings-quality diagnostics, forecasting, valuation, and research conclusions remain deferred.
+**Current capability** is a **multi-period historical model-construction foundation** plus **Step 8A/8B1 classification**, **Step 8B2 earnings normalization**, and **Step 9A historical earnings-quality diagnostics** for non-financial operating companies. Working-capital interpretation, forecasting, valuation, and research conclusions remain deferred.
 
-## Product loop (Step 7 + Step 8A/B)
+## Product loop (Step 7–9A)
 
 ```text
 end-state goal:
@@ -34,13 +34,21 @@ Step 8B2 — guided earnings normalization
 - Check conditions normalization formulas on the current treatment
 - rationale/consequence are ungraded
 
-ROU/deferred-tax alternatives, earnings-quality diagnostics, forecasting, and valuation remain deferred.
+Step 9A — historical earnings-quality diagnostics
+- operating cash-flow link
+- cash conversion ratio
+- total accruals
+- average total assets where supplied
+- accrual ratio where supplied
+- these are mechanical diagnostics and do not yet explain why conversion changed or grade an investment conclusion
+
+ROU/deferred-tax alternatives, forecasting, and valuation remain deferred.
 
 This is a transition from supplied judgment to guided judgment, not independent analyst competence.
 
 still deferred:
 - ROU / deferred-tax alternative modeling
-- earnings-quality diagnostics
+- working-capital / driver interpretation of conversion changes
 - forecasting
 - valuation
 - investment conclusion
@@ -68,8 +76,8 @@ python -m core build example/DEMO_HK_Standardized.json \
   -o example/DEMO_HK_Trainer.xlsx
 # → example/DEMO_HK_Trainer.xlsx
 # → example/DEMO_HK_Answer_Key.xlsx
-# Components resolved: 138 (29 families) with demo assumptions;
-# Components resolved: 118 (25 families) without -a
+# Components resolved: 161 (34 families) with demo assumptions;
+# Components resolved: 141 (30 families) without -a
 
 # List conceptual schedule families
 python -m core list --workbook example/DEMO_HK_Trainer.xlsx

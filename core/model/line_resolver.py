@@ -33,7 +33,7 @@ class ResolvedLine:
 
 def _norm_text(text: str) -> str:
     s = normalize_label(text).lower()
-    for ch in ("'", "'", "`", "´"):
+    for ch in ("\u2018", "\u2019", "`", "´"):
         s = s.replace(ch, "'")
     s = re.sub(r"[^a-z0-9' ]+", " ", s)
     return " ".join(s.split())
@@ -81,6 +81,15 @@ _EXACT_ALIASES: dict[str, frozenset[str]] = {
     ),
     "total_assets": frozenset({"total assets"}),
     "total_liabilities": frozenset({"total liabilities"}),
+    "operating_cash_flow": frozenset(
+        {
+            "net cash from operating activities",
+            "net cash generated from operating activities",
+            "net cash provided by operating activities",
+            "net cash flow from operating activities",
+            "net cash flows from operating activities",
+        }
+    ),
 }
 
 

@@ -25,6 +25,7 @@ CHECK_CONTEXT_LEGACY_SCHEMA_VERSION = 1
 JUDGMENT_SHEET = "Accounting Judgment"
 NORMALIZATION_JUDGMENT_SHEET = "Normalization Judgment"
 EARNINGS_NORMALIZATION_SHEET = "Earnings Normalization"
+EARNINGS_QUALITY_SHEET = "Earnings Quality"
 
 
 @dataclass(frozen=True)
@@ -576,6 +577,20 @@ def validate_live_model_structure(
                 for tab, cell in practice_cells
                 if tab == EARNINGS_NORMALIZATION_SHEET
             },
+        )
+
+    quality_practice = {
+        cell for tab, cell in practice_cells if tab == EARNINGS_QUALITY_SHEET
+    }
+    if quality_practice:
+        for wb, label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
+            if EARNINGS_QUALITY_SHEET not in wb.sheetnames:
+                raise ValueError(f"{label} is missing Earnings Quality sheet")
+        _validate_trusted_sheet_cells(
+            trainer_wb[EARNINGS_QUALITY_SHEET],
+            answer_key_wb[EARNINGS_QUALITY_SHEET],
+            sheet_name=EARNINGS_QUALITY_SHEET,
+            editable_cells=quality_practice,
         )
 
     _validate_trusted_sheet_cells(

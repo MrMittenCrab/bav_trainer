@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
-from ..engine.component_catalog import COMPONENT_CATALOG, NORMALIZATION_COMPONENT_CATALOG
+from ..engine.component_catalog import (
+    COMPONENT_CATALOG,
+    NORMALIZATION_COMPONENT_CATALOG,
+    QUALITY_COMPONENT_CATALOG,
+)
 from ..engine.semantic_map import ResolvedComponent
+from .earnings_quality import EarningsQualitySeries
 from .financial_math import AnchorMetrics
 from .normalization import NormalizationSeries
 
@@ -40,6 +45,14 @@ _NORMALIZATION_FAMILY_SERIES = (
     "after_tax_normalization_adjustment",
     "normalized_nopat",
     "normalized_net_income",
+)
+
+_QUALITY_FAMILY_SERIES = (
+    "operating_cash_flow_link",
+    "cash_conversion_ratio",
+    "total_accruals",
+    "average_total_assets",
+    "accrual_ratio",
 )
 
 
@@ -107,11 +120,34 @@ def normalization_expected_series(
     return {family_id: series[family_id] for family_id in _NORMALIZATION_FAMILY_SERIES}
 
 
+def earnings_quality_expected_series(
+    earnings_quality: EarningsQualitySeries,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map earnings-quality formula families to an EarningsQualitySeries."""
+    series = {
+        "operating_cash_flow_link": earnings_quality.operating_cash_flow,
+        "cash_conversion_ratio": earnings_quality.cash_conversion_ratio,
+        "total_accruals": earnings_quality.total_accruals,
+        "average_total_assets": earnings_quality.average_total_assets,
+        "accrual_ratio": earnings_quality.accrual_ratio,
+    }
+    expected_ids = {family.id for family in QUALITY_COMPONENT_CATALOG}
+    if set(series) != expected_ids:
+        missing = sorted(expected_ids - set(series))
+        extra = sorted(set(series) - expected_ids)
+        raise ValueError(
+            f"earnings_quality_expected_series family mismatch; "
+            f"missing={missing} extra={extra}"
+        )
+    return {family_id: series[family_id] for family_id in _QUALITY_FAMILY_SERIES}
+
+
 def expected_value_for_component(
     anchor: AnchorMetrics,
     component: ResolvedComponent,
     *,
     normalization: NormalizationSeries | None = None,
+    earnings_quality: EarningsQualitySeries | None = None,
 ) -> float | str | None:
     """Return the treatment-conditioned expected value for one practice component."""
     family_id = component.family_id
@@ -123,7 +159,13 @@ def expected_value_for_component(
             f"Component {component.id!r} (family {family_id}) has no period_index"
         )
 
-    if family_id in _NORMALIZATION_FAMILY_SERIES:
+    if family_id in _QUALITY_FAMILY_SERIES:
+        if earnings_quality is None:
+            raise ValueError(
+                f"Earnings-quality family {family_id!r} requires an EarningsQualitySeries"
+            )
+        series = earnings_quality_expected_series(earnings_quality)
+    elif family_id in _NORMALIZATION_FAMILY_SERIES:
         if normalization is None:
             raise ValueError(
                 f"Normalization family {family_id!r} requires a NormalizationSeries"

@@ -16,6 +16,10 @@ from ..data.interface import LineItem, StandardizedFinancials
 from ..data.line_identity import line_identity
 from ..model.classification import BALANCE_SHEET_CATEGORIES
 from ..model.financial_math import compute_anchor
+from ..model.earnings_quality import (
+    compute_earnings_quality_series,
+    earnings_quality_availability,
+)
 from ..model.judgment import JudgmentCase, classification_judgment_cases
 from ..model.line_resolver import resolve_line, workbook_row_for
 from ..model.normalization import (
@@ -29,6 +33,7 @@ from .component_catalog import (
     DEFERRED_COMPONENT_SPECS,
     expand_historical_specs,
     expand_normalization_specs,
+    expand_quality_specs,
 )
 from .map_embed import embed_component_map_sheet
 from .semantic_map import SemanticMap
@@ -49,6 +54,7 @@ DEFERRED_PLACEHOLDER = "Deferred from historical-only v1"
 JUDGMENT_SHEET = "Accounting Judgment"
 NORMALIZATION_JUDGMENT_SHEET = "Normalization Judgment"
 EARNINGS_NORMALIZATION_SHEET = "Earnings Normalization"
+EARNINGS_QUALITY_SHEET = "Earnings Quality"
 JUDGMENT_INSTRUCTION = (
     "The supplied treatment is the model's reference treatment, not a universal "
     "accounting truth. Compare it with the listed alternative(s), choose the "
@@ -118,13 +124,35 @@ class ReferenceModelBuilder:
             if self.normalization_cases
             else ()
         )
-        self.expected_specs = self.historical_specs + self.normalization_specs
+        self.quality_availability = earnings_quality_availability(self.fin)
+        if self.quality_availability.operating_cash_flow:
+            self.quality_series = compute_earnings_quality_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.quality_specs = expand_quality_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs) + len(self.normalization_specs) + 1
+                ),
+                include_asset_scaled=self.quality_availability.total_assets,
+            )
+        else:
+            self.quality_series = None
+            self.quality_specs = ()
+        self.expected_specs = (
+            self.historical_specs + self.normalization_specs + self.quality_specs
+        )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
             (s.family_id, s.period_index): s for s in self.historical_specs
         }
         self._normalization_spec_index = {
             (s.family_id, s.period_index): s for s in self.normalization_specs
+        }
+        self._quality_spec_index = {
+            (s.family_id, s.period_index): s for s in self.quality_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -221,6 +249,8 @@ class ReferenceModelBuilder:
         if self.normalization_cases:
             self._build_normalization_judgment(wb)
             self._build_earnings_normalization(wb)
+        if self.quality_series is not None:
+            self._build_earnings_quality(wb)
         if self.include_deferred_forecast:
             for scenario in ("Bear", "Base", "Bull"):
                 self._build_model_tab(wb, scenario)
@@ -291,6 +321,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._normalization_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_quality(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._quality_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -1190,6 +1236,156 @@ class ReferenceModelBuilder:
         self.rowmap["earnings_norm_nopat_row"] = norm_nopat_row
         self.rowmap["earnings_norm_ni_row"] = norm_ni_row
         self.rowmap["earnings_norm_check_row"] = check_row
+
+    def _build_earnings_quality(self, wb: Workbook) -> None:
+        if self.quality_series is None:
+            raise RuntimeError("quality_series required when building Earnings Quality")
+
+        ws = wb.create_sheet(EARNINGS_QUALITY_SHEET)
+        ws["A1"] = f"{self.fin.company_name} — Earnings Quality"
+        ws["A1"].font = BOLD
+        ws["A2"] = (
+            "Historical cash-conversion and accrual diagnostics. These are mechanical "
+            "diagnostics, not an automatic quality score."
+        )
+        ws.column_dimensions["A"].width = 42
+
+        header_row = 4
+        ws.cell(row=header_row, column=1, value="Metric").font = BOLD
+        for j, pd in enumerate(self.periods):
+            cell = ws.cell(row=header_row, column=2 + j, value=pd)
+            cell.number_format = "mmm dd, yyyy"
+            cell.font = BOLD
+            ws.column_dimensions[self._col(2 + j)].width = 14
+
+        cfo_src = self._resolved_source_row(
+            self.fin.cash_flow, "operating_cash_flow", required=True
+        )
+        assert cfo_src is not None
+        ni_r = self.rowmap["condensed_ni_row"]
+        series = self.quality_series
+
+        cfo_row = 5
+        ni_row = 6
+        conversion_row = 7
+        accruals_row = 8
+
+        ws.cell(row=cfo_row, column=1, value="Operating Cash Flow")
+        ws.cell(row=ni_row, column=1, value="Reported Net Income")
+        ws.cell(row=conversion_row, column=1, value="Cash Conversion Ratio")
+        ws.cell(row=accruals_row, column=1, value="Total Accruals (Net Income - CFO)")
+
+        for j in range(self._n):
+            col = self._col(2 + j)
+            cfo_formula = f"='Cash Flow Statement'!{col}{cfo_src}"
+            ni_formula = f"='Condensed Financials'!{col}{ni_r}"
+            conversion_formula = (
+                f"=IF({col}{ni_row}=0,0,{col}{cfo_row}/{col}{ni_row})"
+            )
+            accruals_formula = f"={col}{ni_row}-{col}{cfo_row}"
+
+            c = ws.cell(row=cfo_row, column=2 + j, value=cfo_formula)
+            c.number_format = NUM_FMT
+            c = ws.cell(row=ni_row, column=2 + j, value=ni_formula)
+            c.number_format = NUM_FMT
+            c = ws.cell(row=conversion_row, column=2 + j, value=conversion_formula)
+            c.number_format = "0.00x"
+            c = ws.cell(row=accruals_row, column=2 + j, value=accruals_formula)
+            c.number_format = NUM_FMT
+
+            self._register_quality(
+                "operating_cash_flow_link",
+                j,
+                EARNINGS_QUALITY_SHEET,
+                cfo_row,
+                2 + j,
+                cfo_formula,
+                series.operating_cash_flow[j],
+            )
+            self._register_quality(
+                "cash_conversion_ratio",
+                j,
+                EARNINGS_QUALITY_SHEET,
+                conversion_row,
+                2 + j,
+                conversion_formula,
+                series.cash_conversion_ratio[j],
+            )
+            self._register_quality(
+                "total_accruals",
+                j,
+                EARNINGS_QUALITY_SHEET,
+                accruals_row,
+                2 + j,
+                accruals_formula,
+                series.total_accruals[j],
+            )
+
+        self.rowmap["quality_cfo_row"] = cfo_row
+        self.rowmap["quality_ni_row"] = ni_row
+        self.rowmap["quality_conversion_row"] = conversion_row
+        self.rowmap["quality_accruals_row"] = accruals_row
+
+        if not self.quality_availability.total_assets:
+            return
+
+        assets_src = self._resolved_source_row(
+            self.fin.balance_sheet, "total_assets", required=True
+        )
+        assert assets_src is not None
+        assets_row = 10
+        avg_assets_row = 11
+        accrual_ratio_row = 12
+        ws.cell(row=assets_row, column=1, value="Total Assets")
+        ws.cell(row=avg_assets_row, column=1, value="Average Total Assets")
+        ws.cell(row=accrual_ratio_row, column=1, value="Accrual Ratio")
+
+        for j in range(self._n):
+            col = self._col(2 + j)
+            assets_formula = f"='Balance Sheet'!{col}{assets_src}"
+            c = ws.cell(row=assets_row, column=2 + j, value=assets_formula)
+            c.number_format = NUM_FMT
+
+            if j == 0:
+                ws.cell(row=avg_assets_row, column=2 + j, value=None)
+                ws.cell(row=accrual_ratio_row, column=2 + j, value=None)
+                continue
+
+            prev_col = self._col(2 + j - 1)
+            avg_formula = f"=({prev_col}{assets_row}+{col}{assets_row})/2"
+            ratio_formula = (
+                f"=IF({col}{avg_assets_row}=0,0,"
+                f"{col}{accruals_row}/{col}{avg_assets_row})"
+            )
+            c = ws.cell(row=avg_assets_row, column=2 + j, value=avg_formula)
+            c.number_format = NUM_FMT
+            c = ws.cell(row=accrual_ratio_row, column=2 + j, value=ratio_formula)
+            c.number_format = PCT_FMT
+
+            assert series.average_total_assets[j] is not None
+            assert series.accrual_ratio[j] is not None
+            self._register_quality(
+                "average_total_assets",
+                j,
+                EARNINGS_QUALITY_SHEET,
+                avg_assets_row,
+                2 + j,
+                avg_formula,
+                float(series.average_total_assets[j]),
+            )
+            self._register_quality(
+                "accrual_ratio",
+                j,
+                EARNINGS_QUALITY_SHEET,
+                accrual_ratio_row,
+                2 + j,
+                ratio_formula,
+                float(series.accrual_ratio[j]),
+            )
+
+        self.rowmap["quality_assets_row"] = assets_row
+        self.rowmap["quality_avg_assets_row"] = avg_assets_row
+        self.rowmap["quality_accrual_ratio_row"] = accrual_ratio_row
 
     def _build_model_tab(self, wb: Workbook, scenario: str) -> None:
         ws = wb.create_sheet(f"Model_{scenario}")

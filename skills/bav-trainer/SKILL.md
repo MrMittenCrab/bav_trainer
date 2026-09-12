@@ -1,11 +1,11 @@
 ---
 name: bav-trainer
-description: Build matched BAV Excel Trainer / Answer Key workbooks for Hong Kong-listed non-financial companies from manually supplied filings or Excel/Bloomberg/Wind exports. Step 7 multi-period historical schedules, Step 8A guided classification reasoning, Step 8B1 live supported classification, and Step 8B2 guided earnings normalization with judgment-aware Formula Check.
+description: Build matched BAV Excel Trainer / Answer Key workbooks for Hong Kong-listed non-financial companies from manually supplied filings or Excel/Bloomberg/Wind exports. Step 7 historical schedules, Step 8A/8B1 classification, Step 8B2 earnings normalization, and Step 9A historical earnings-quality diagnostics with judgment-aware Formula Check.
 ---
 
 # BAV Excel Trainer — Hong Kong Edition
 
-Build a **matched Trainer / Answer Key pair** where the learner reconstructs multi-period historical BAV schedules, compares selected ambiguous classifications with defensible alternatives, and practices explicit recurring/non-recurring earnings normalization.
+Build a **matched Trainer / Answer Key pair** where the learner reconstructs multi-period historical BAV schedules, compares selected ambiguous classifications, practices explicit recurring/non-recurring earnings normalization, and computes mechanical cash-conversion / accrual diagnostics.
 
 ## Product loop
 
@@ -37,13 +37,21 @@ Step 8B2 — guided earnings normalization
 - Check conditions normalization formulas on the current treatment
 - rationale/consequence are ungraded
 
-ROU/deferred-tax alternatives, earnings-quality diagnostics, forecasting, and valuation remain deferred.
+Step 9A — historical earnings-quality diagnostics
+- operating cash-flow link
+- cash conversion ratio
+- total accruals
+- average total assets where supplied
+- accrual ratio where supplied
+- these are mechanical diagnostics and do not yet explain why conversion changed or grade an investment conclusion
+
+ROU/deferred-tax alternatives, forecasting, and valuation remain deferred.
 
 This is a transition from supplied judgment to guided judgment, not independent analyst competence.
 
 still deferred:
 - ROU / deferred-tax alternative modeling
-- earnings-quality diagnostics
+- working-capital / driver interpretation of conversion changes
 - forecasting
 - valuation
 - investment conclusion
@@ -97,8 +105,8 @@ python -m core build example/DEMO_HK_Standardized.json \
 Outputs:
 - `DEMO_HK_Trainer.xlsx` — source/classifications filled; yellow schedule cells blank
 - `DEMO_HK_Answer_Key.xlsx` — working formulas + legacy Notes on the same cells
-- With demo assumptions: 29 families / 138 cells (includes Earnings Normalization)
-- Without `-a`: 25 families / 118 cells (no normalization sheets)
+- With demo assumptions: 34 families / 161 cells (includes Earnings Normalization + Earnings Quality)
+- Without `-a`: 30 families / 141 cells (includes Earnings Quality; no normalization sheets)
 
 There is **no** user-facing `*_reference.xlsx` and no Trainer `.trainer.json`.
 
@@ -113,7 +121,7 @@ python -m core check --workbook training/DEMO_HK_Trainer.xlsx
 
 3. Open the Answer Key for the formula and Note hint.
 
-Active historical schedules: Revenue/NI links → tax/interest/NOPAT → OWCA/OWCL/NOWC → OLTA/OLTL/NOLA → NOA → FA/FL/Net Debt → Equity → Sales Growth / NOPAT Margin → RNOA / After-tax CoD / Spread / FLEV / ROE.
+Active historical schedules: Revenue/NI links → tax/interest/NOPAT → OWCA/OWCL/NOWC → OLTA/OLTL/NOLA → NOA → FA/FL/Net Debt → Equity → Sales Growth / NOPAT Margin → RNOA / After-tax CoD / Spread / FLEV / ROE → (optional) Earnings Normalization → Earnings Quality (CFO / cash conversion / accruals).
 
 ## Design principles
 

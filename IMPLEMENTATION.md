@@ -1,5 +1,7 @@
 # Step 9A — Historical Earnings Quality: Cash Conversion and Accruals
 
+> **Status:** Step 9A complete. See `RESULT.md` for verification evidence (183 passed; base 30/141; normalization 34/161). Do not commit or push from this checkpoint unless the user requests it.
+
 > **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `5254d6277e71b36af1a0b2dbb5ed07597b88b8ce` (`Step 8.3`). Implement only Step 9A below using red/green TDD. Preserve the trusted-workbook boundary, Step 8A/8B1 classification workflow, Step 8B2 normalization workflow, and workbook-wide non-disclosing Check. Do not begin working-capital interpretation, research-writing evaluation, forecasting, valuation, ROU/deferred-tax alternative modeling, or any later Step 9/10 work. Do not commit or push; the user owns the checkpoint commit.
 
 **Goal:** Add the first earnings-quality diagnostic layer: a transparent historical schedule that teaches operating cash-flow conversion, total accruals, and an asset-scaled accrual ratio using only supplied historical facts.

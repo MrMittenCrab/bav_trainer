@@ -559,6 +559,142 @@ def expand_normalization_specs(
     return tuple(specs)
 
 
+QUALITY_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="operating_cash_flow_link",
+        order=30,
+        title="Operating cash flow historical source link",
+        short_hint="Link net cash from operating activities for the same fiscal period.",
+        semantic_key="quality.operating_cash_flow",
+        category="earnings_quality",
+        tab_template="Earnings Quality",
+        hints=(
+            "Pull final net cash from operating activities for the same period.",
+        ),
+    ),
+    ComponentFamily(
+        id="cash_conversion_ratio",
+        order=31,
+        title="Cash conversion ratio",
+        short_hint="Compare operating cash flow with reported Net Income.",
+        semantic_key="quality.cash_conversion_ratio",
+        category="earnings_quality",
+        tab_template="Earnings Quality",
+        depends_on_current=("operating_cash_flow_link", "net_income_link"),
+        hints=(
+            "Cash conversion = CFO / Reported Net Income.",
+        ),
+    ),
+    ComponentFamily(
+        id="total_accruals",
+        order=32,
+        title="Total accruals",
+        short_hint="Reported Net Income minus operating cash flow.",
+        semantic_key="quality.total_accruals",
+        category="earnings_quality",
+        tab_template="Earnings Quality",
+        depends_on_current=("operating_cash_flow_link", "net_income_link"),
+        hints=(
+            "Total accruals = Reported Net Income − CFO.",
+        ),
+    ),
+    ComponentFamily(
+        id="average_total_assets",
+        order=33,
+        title="Average total assets",
+        short_hint="Average beginning and ending reported total assets.",
+        semantic_key="quality.average_total_assets",
+        category="earnings_quality",
+        tab_template="Earnings Quality",
+        period_scope="comparable",
+        hints=(
+            "Average Total Assets = (Beginning Total Assets + Ending Total Assets) / 2.",
+        ),
+    ),
+    ComponentFamily(
+        id="accrual_ratio",
+        order=34,
+        title="Accrual ratio",
+        short_hint="Scale total accruals by average total assets.",
+        semantic_key="quality.accrual_ratio",
+        category="earnings_quality",
+        tab_template="Earnings Quality",
+        period_scope="comparable",
+        depends_on_current=("total_accruals", "average_total_assets"),
+        hints=(
+            "Accrual ratio = Total Accruals / Average Total Assets.",
+        ),
+    ),
+)
+
+
+def expand_quality_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    include_asset_scaled: bool,
+) -> tuple[ComponentSpec, ...]:
+    """Expand earnings-quality families into period-specific concrete specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError("duplicate fiscal periods are not allowed in expand_quality_specs")
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_quality_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    families = QUALITY_COMPONENT_CATALOG
+    if not include_asset_scaled:
+        families = tuple(
+            family
+            for family in QUALITY_COMPONENT_CATALOG
+            if family.id
+            not in {
+                "average_total_assets",
+                "accrual_ratio",
+            }
+        )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in families:
+        if family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        else:
+            indices = range(len(periods))
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            if j > 0:
+                prev = periods[j - 1]
+                for dep_fam in family.depends_on_previous:
+                    deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 def _deferred(
     *,
     id: str,

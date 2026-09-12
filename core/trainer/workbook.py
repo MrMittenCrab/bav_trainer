@@ -9,7 +9,11 @@ from openpyxl import load_workbook
 from openpyxl.comments import Comment
 from openpyxl.styles import Border, Font, PatternFill, Side
 
-from ..engine.component_catalog import COMPONENT_CATALOG, NORMALIZATION_COMPONENT_CATALOG
+from ..engine.component_catalog import (
+    COMPONENT_CATALOG,
+    NORMALIZATION_COMPONENT_CATALOG,
+    QUALITY_COMPONENT_CATALOG,
+)
 from ..engine.reference_model import (
     JUDGMENT_SHEET,
     NORMALIZATION_JUDGMENT_SHEET,
@@ -57,7 +61,8 @@ THIN_BORDER = Border(
 _HIDDEN_PREFIX = "_"
 
 TRAINER_INDEX_INSTRUCTION = (
-    "Complete each historical formula schedule left-to-right in dependency order. "
+    "Complete each historical model-construction and earnings-quality diagnostic "
+    "formula schedule left-to-right in dependency order. "
     "Run Check to validate the yellow formula cells against the treatment currently "
     "selected in Accounting Judgment column F (blank F uses the supplied reference "
     "treatment). Generated Condensed Financials classification links are system-"
@@ -275,6 +280,7 @@ def group_components_by_family(smap: SemanticMap) -> list[dict]:
 
     family_meta = {f.id: f for f in COMPONENT_CATALOG}
     family_meta.update({f.id: f for f in NORMALIZATION_COMPONENT_CATALOG})
+    family_meta.update({f.id: f for f in QUALITY_COMPONENT_CATALOG})
     groups: list[dict] = []
     for family_id, comps in by_family.items():
         comps = sorted(comps, key=lambda c: (c.period_index is None, c.period_index or 0, c.order))
