@@ -1,264 +1,109 @@
-# Step 9F.1 — Historical Diluted Per-Share Foundation
-
-> **Status:** COMPLETE — Step 9F.1 verified locally (252 passed). Ordinary demo unchanged at 62/259 and 66/279; share-enabled fixture 66/277 and 70/297. See `RESULT.md`. Do not commit/push from the agent.
+# Step 9F.2 — Historical Diluted EPS Earnings / Share-Count Attribution
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `8959cad3166067f2281b52479ba7a84b3cb6e63a` (`Step 9E1`, Step 9E.1 complete). Implement only Step 9F.1 below using red/green TDD. Preserve Step 8 judgment behavior, the trusted-workbook boundary, all Step 9A source-completeness / tax / normalization / `#N/A` semantics, the full Step 9B working-capital surface, the full Step 9C profitability-driver/change surface, the full Step 9D ROE-attribution surface, and the Step 9E cash-conversion trend surface. Do not add forecasting, valuation, normalized EPS, basic-vs-diluted dilution attribution, period-end share-count analysis, segment analysis, ROU/deferred-tax alternatives, or company-specific investment conclusions. Do not commit or push; the user owns the checkpoint commit.
+> **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `7e9afb1a37081e8340e5e94cc9db8976de6cfa65` (`Step 9F1`, Step 9F.1 complete). Implement only Step 9F.2 below using red/green TDD. Preserve Step 8 judgment behavior, the trusted-workbook boundary, all Step 9A source-completeness / tax / normalization / `#N/A` semantics, the full Step 9B working-capital surface, the full Step 9C profitability-driver/change surface, the full Step 9D ROE-attribution surface, the Step 9E cash-conversion trend surface, and the complete Step 9F.1 diluted per-share foundation. Do not add normalized EPS, basic-vs-diluted attribution, period-end share-count analysis, forecasting, valuation, segment analysis, ROU/deferred-tax alternatives, or company-specific investment conclusions. Do not commit or push; the user owns the checkpoint commit.
 
-**Goal:** Add historical diluted per-share analysis only when actual diluted weighted-average share counts are supplied through the standardized historical input path, so the learner can calculate reported diluted EPS, NOPAT per diluted share, and their basic period-to-period per-share/dilution movements without invented share assumptions.
+**Goal:** Extend the Step 9F.1 per-share foundation into an exact historical attribution of period-to-period diluted EPS change between reported-earnings movement and the diluted weighted-average share-count denominator, so the learner can distinguish earnings-driven per-share change from share-count-driven per-share change without inventing causal explanations.
 
-**Architecture:** Extend `StandardizedFinancials` with one optional explicit historical-share contract rather than hiding share counts in generic metadata or forecast assumptions. Add one focused `PerShareSeries` driven by treatment-conditioned historical Net Income / NOPAT plus supplied diluted weighted-average shares. Add four semantic practice families on a gated `Per Share Analysis` sheet. Check must reconstruct the same share history from `_CheckContext`, dynamically recompute NOPAT-per-share under the current Accounting Judgment treatment, and treat supplied share-count cells as trusted system inputs.
+**Architecture:** Keep all Step 9F.1 formulas and the historical-share input contract unchanged. Add one focused `PerShareAttributionSeries` that consumes the already validated `PerShareSeries` plus treatment-conditioned reported Net Income from `AnchorMetrics`. Attribute `Change in Diluted EPS` exactly by treating EPS as `Net Income × (1 / Diluted Shares)` and applying the same symmetric midpoint product-change method already used in the RNOA and ROE attribution layers. Add four comparable-period semantic families to the existing `Per Share Analysis` worksheet plus one generated non-practice reconciliation row. Existing trusted-sheet validation should protect that generated row automatically.
 
-**Tech Stack:** Python, dataclasses, pytest, openpyxl, existing `StandardizedFinancials`, `standardized_to_payload` / `standardized_from_payload`, `HKManualDocumentAdapter`, `AnchorMetrics`, `UNDEFINED_RATIO`, `ComponentFamily`, `SemanticMap`, `ReferenceModelBuilder`, `expected_value_for_component`, `check_workbook`, and trusted-sheet validation.
+**Tech Stack:** Python, dataclasses, pytest, openpyxl, existing `AnchorMetrics`, `PerShareSeries`, `ComponentFamily`, `SemanticMap`, `ReferenceModelBuilder`, `historical_expected`, `check_workbook`, and existing trusted-sheet validation for `Per Share Analysis`.
 
-**Spec:** `TARGET.md`, especially the v1 boundary requiring “historical EPS / per-share metrics when required historical share-count data is supplied”, the rule that historical share counts remain populated source facts rather than transcription practice, the “No invented historical inputs” requirement, and the historical practice-surface expansion strategy’s per-share step.
+**Spec:** `TARGET.md`, especially the requirements to explain whether earnings growth came from operating improvement, leverage, acquisitions, tax effects, or **dilution**; historical EPS/per-share analysis only when actual historical share-count data is supplied; structured diagnostics before free-form causal claims; and the rule that historical source facts such as share counts stay populated rather than becoming transcription exercises.
 
 ## Global Constraints
 
 - `TARGET.md` is read-only.
 - Preserve non-financial-company scope.
-- Preserve all existing historical and diagnostic formula families unchanged.
-- Preserve current demo behavior when no historical share data is supplied.
-- The existing demo JSON must remain share-data-free in this checkpoint; do not change its current 62-family / 259-cell base surface or 66-family / 279-cell normalization surface.
-- Historical share counts are supplied facts, not learner practice cells.
-- Do not use `assumptions["marketData"]["dilutedShares"]`, dormant forecast defaults, current market-data shares, or any synthetic/fallback share count for historical per-share calculations.
-- Do not infer share counts from EPS, equity, market capitalization, stock price, or labels.
-- The Step 9F.1 module is applicable only when diluted weighted-average share history is explicitly supplied.
-- A completely absent diluted-share history omits the module without error.
-- A present-but-incomplete diluted-share history fails closed; do not omit missing years or fabricate zero.
-- Diluted weighted-average share counts must be strictly positive in every modeled fiscal period. Zero or negative shares are invalid source data, not `#N/A` denominators.
-- Share-count values use `scale_basis="financial_statement_units"`: if financial statements are in millions, share counts are supplied in millions of shares; if statements are in thousands, shares are supplied in thousands of shares. This makes currency-unit / scaled-share division produce currency per share directly without hidden conversion assumptions.
-- Any other share scale basis is unsupported in this checkpoint and must fail clearly.
-- Preserve signs in Net Income, NOPAT, EPS, and period changes. Do not take absolute values.
-- If NOPAT is `#N/A`, NOPAT per diluted share is `#N/A`; do not convert it to zero.
-- `Reported Diluted EPS` in this checkpoint means model-calculated historical Net Income divided by supplied diluted weighted-average shares. Do not claim it is an independent reconciliation to a company-reported EPS line unless such a source line is added in a later checkpoint.
-- Do not add normalized EPS yet; Step 8B2 normalization remains unchanged.
-- Do not add basic-share or basic-vs-diluted dilution analysis yet.
+- Preserve Step 9F.1 `HistoricalShareData` and `StandardizedFinancials.historical_shares` exactly; no source-schema expansion in this checkpoint.
+- Preserve the only supported share scale basis: `financial_statement_units`.
+- Preserve the Step 9F.1 rule that diluted weighted-average shares must be explicitly supplied, complete for every modeled fiscal period, and strictly positive.
+- Preserve Step 9F.1 gating: absent / empty historical shares omit `Per Share Analysis` and every per-share family.
+- Preserve existing Step 9F.1 families and formulas unchanged:
+  - `reported_diluted_eps`
+  - `nopat_per_diluted_share`
+  - `diluted_eps_change`
+  - `diluted_share_count_change`
+- This checkpoint attributes **reported diluted EPS**, not normalized EPS.
+- Use reported Net Income from the treatment-conditioned `AnchorMetrics.historical.net_income` / existing `Per Share Analysis` Net Income row.
+- Use diluted weighted-average shares from the trusted Step 9F.1 share row. Share-count levels remain populated, system-controlled inputs and never become practice cells.
+- Define `EPS = Net Income × Inverse Diluted Shares`, where `Inverse Diluted Shares = 1 / Diluted Weighted-Average Shares`.
+- Use an exact symmetric midpoint decomposition; do not assign the interaction term arbitrarily to earnings or share count.
+- Preserve signs. Do not use `ABS()` in practice formulas.
+- A larger diluted weighted-average share denominator is not automatically a negative business-quality conclusion. With positive earnings it mechanically pressures EPS; with losses the sign can reverse. Preserve the arithmetic rather than forcing an intuitive sign.
+- Do not infer why share count changed (issuance, buybacks, options, SBC, convertibles, M&A consideration, etc.).
+- Do not call the share-count effect “SBC dilution” or any other specific cause without supplied evidence.
+- Do not add EPS growth-rate exercises in this checkpoint. Continue using absolute EPS change to avoid misleading percentage growth around zero / negative EPS.
+- Do not add normalized EPS, basic shares, period-end shares, share-price data, valuation multiples, or market-cap calculations.
 - Do not add forecasting, valuation, scenarios, Hint/Reveal, VBA, or new public CLI commands.
 - Do not modify dormant forecast/scenario behavior.
 - Cursor must not commit, push, reset, rebase, merge, or delete branches.
 
 ---
 
-## Review of commit `8959cad3`
+## Review of commit `7e9afb1a`
 
-Step 9E.1 is complete and coherent:
+Step 9F.1 is complete and establishes the required historical-share foundation:
 
-- Earnings Quality now includes period-to-period CFO, cash-conversion, accrual, and accrual-ratio trends;
-- undefined ratio inputs propagate to `#N/A` rather than fabricated zeros;
-- asset-scaled change diagnostics retain their applicability gate;
-- trusted-sheet validation protects generated trend-check cells;
-- the base demo is 62 families / 259 cells;
-- the normalization demo is 66 families / 279 cells;
-- `RESULT.md` records 240 locally passing tests;
-- no forecasting or valuation has begun.
+- `HistoricalShareData` supplies diluted weighted-average share history with an explicit scale basis;
+- standardized JSON round-trip and structured JSON/YAML ingestion preserve historical shares;
+- multi-document merging handles historical-share restatements and rejects scale-basis conflicts;
+- missing, incomplete, non-positive, or unsupported-scale share history fails closed;
+- share counts are trusted populated inputs on `Per Share Analysis` rather than practice cells;
+- `Reported Diluted EPS = Reported Net Income / Diluted WAS`;
+- `NOPAT per Diluted Share = NOPAT / Diluted WAS`;
+- absolute Change in Diluted EPS and Change in Diluted WAS are practice families;
+- no-share demo builds remain unchanged at 62 families / 259 cells without normalization and 66 / 279 with normalization;
+- share-enabled five-year builds contain 66 families / 277 cells without normalization and 70 / 297 with normalization;
+- `RESULT.md` records 252 locally passing tests;
+- GitHub has no attached CI status.
 
-The next explicit historical-v1 dependency in `TARGET.md` is per-share analysis when actual historical share-count data is supplied. The current standardized contract has no dedicated historical-share field, and `standardized_to_payload()` currently drops generic metadata from Check reconstruction, so a trustworthy per-share module requires an explicit source contract before any EPS formula is added.
+The remaining per-share interpretation gap is explicit in `TARGET.md`: when EPS changes, the learner should be able to distinguish movement in reported earnings from movement in the diluted-share denominator.
 
-Step 9F.1 establishes that contract and a minimal diluted per-share schedule only.
-
----
-
-### Task 1: Add an explicit historical diluted-share data contract
-
-**Files:**
-- Modify: `core/data/interface.py`
-- Modify: `core/data/standardized_io.py`
-- Modify: `core/ingestion/manual_hk.py`
-- Modify: `core/ingestion/reconciler.py`
-- Create: `core/tests/test_per_share.py`
-
-**Interfaces:**
-- Produces: `HistoricalShareData` and `StandardizedFinancials.historical_shares`.
-- JSON key: `historical_shares`.
-- This task must preserve all current inputs that omit the new field.
-
-- [ ] **Step 1: Add the optional data model and failing round-trip tests**
-
-In `core/data/interface.py`, add immediately before `StandardizedFinancials`:
-
-```python
-@dataclass
-class HistoricalShareData:
-    """Explicit historical share-count inputs used by per-share schedules."""
-
-    scale_basis: str = ""
-    diluted_weighted_average: dict[date, float | None] = field(default_factory=dict)
-```
-
-Then add to `StandardizedFinancials`:
-
-```python
-historical_shares: HistoricalShareData | None = None
-```
-
-Create `core/tests/test_per_share.py` with a fixture proving an object containing:
-
-```python
-HistoricalShareData(
-    scale_basis="financial_statement_units",
-    diluted_weighted_average={
-        date(2024, 12, 31): 1000.0,
-        date(2025, 12, 31): 1025.0,
-    },
-)
-```
-
-survives `standardized_to_payload()` -> `standardized_from_payload()` with dates and numeric values unchanged.
-
-Also prove `historical_shares is None` remains valid for legacy payloads.
-
-Run:
-
-```bash
-PYTHONPATH=. pytest core/tests/test_per_share.py -k "round_trip or legacy" -v
-```
-
-Expected initial state: red because the interface field / serializer does not exist.
-
-- [ ] **Step 2: Serialize and deserialize the new field explicitly**
-
-In `core/data/standardized_io.py`, import `HistoricalShareData` and add focused helpers:
-
-```python
-def _serialize_historical_shares(
-    shares: HistoricalShareData | None,
-) -> dict[str, Any] | None:
-    if shares is None:
-        return None
-    return {
-        "scale_basis": shares.scale_basis,
-        "diluted_weighted_average": {
-            _date_key(period): (None if value is None else float(value))
-            for period, value in shares.diluted_weighted_average.items()
-        },
-    }
-
-
-def _deserialize_historical_shares(
-    payload: object,
-) -> HistoricalShareData | None:
-    if payload is None:
-        return None
-    if not isinstance(payload, dict):
-        raise ValueError("historical_shares must be an object or null")
-    return HistoricalShareData(
-        scale_basis=str(payload.get("scale_basis") or ""),
-        diluted_weighted_average={
-            _parse_date(period): (None if value is None else float(value))
-            for period, value in (
-                payload.get("diluted_weighted_average") or {}
-            ).items()
-        },
-    )
-```
-
-Add the field to `standardized_to_payload()` and `standardized_from_payload()`.
-
-For backwards compatibility, emitting `"historical_shares": None` is acceptable, but do not serialize unrelated `metadata` as a substitute.
-
-- [ ] **Step 3: Parse structured JSON/YAML share history**
-
-In `core/ingestion/manual_hk.py`, import `HistoricalShareData` and add:
-
-```python
-def _load_historical_shares(payload: dict) -> HistoricalShareData | None:
-    raw = payload.get("historical_shares")
-    if raw is None:
-        return None
-    if not isinstance(raw, dict):
-        raise ValueError("historical_shares must be an object")
-    values = raw.get("diluted_weighted_average") or {}
-    if not isinstance(values, dict):
-        raise ValueError(
-            "historical_shares.diluted_weighted_average must be an object"
-        )
-    return HistoricalShareData(
-        scale_basis=str(raw.get("scale_basis") or ""),
-        diluted_weighted_average={
-            _parse_date(str(period)): (
-                None if value is None else float(value)
-            )
-            for period, value in values.items()
-        },
-    )
-```
-
-Pass `historical_shares=_load_historical_shares(payload)` into `StandardizedFinancials(...)`.
-
-Use this exact structured-input shape in tests:
-
-```json
-"historical_shares": {
-  "scale_basis": "financial_statement_units",
-  "diluted_weighted_average": {
-    "2024-12-31": 1000.0,
-    "2025-12-31": 1025.0
-  }
-}
-```
-
-Do not add Excel-import share parsing in this checkpoint.
-
-- [ ] **Step 4: Preserve share history through multi-document merge**
-
-In `core/ingestion/reconciler.py`, import `HistoricalShareData` and add a private helper with newest-document period values winning:
-
-```python
-def _merge_historical_shares(
-    base: StandardizedFinancials,
-    supplement: StandardizedFinancials,
-) -> None:
-    incoming = supplement.historical_shares
-    if incoming is None:
-        return
-    if base.historical_shares is None:
-        base.historical_shares = HistoricalShareData(
-            scale_basis=incoming.scale_basis,
-            diluted_weighted_average=dict(incoming.diluted_weighted_average),
-        )
-        return
-    existing = base.historical_shares
-    if existing.scale_basis != incoming.scale_basis:
-        raise ValueError(
-            "historical share scale_basis mismatch across merged documents: "
-            f"{existing.scale_basis!r} != {incoming.scale_basis!r}"
-        )
-    existing.diluted_weighted_average.update(
-        incoming.diluted_weighted_average
-    )
-```
-
-Call it from `merge_documents()` before reconciliation returns.
-
-Tests must prove:
+For each comparable period, let:
 
 ```text
-base no shares + supplement shares -> shares retained
-both with same basis -> supplement period values win
-basis mismatch -> ValueError
+N_t = Reported Net Income in current period
+N_p = Reported Net Income in prior period
+S_t = Current diluted weighted-average shares
+S_p = Prior diluted weighted-average shares
+q_t = 1 / S_t
+q_p = 1 / S_p
+
+EPS_t = N_t × q_t
+EPS_p = N_p × q_p
 ```
 
-- [ ] **Step 5: Run Task 1 tests to green**
+Use the exact symmetric midpoint identity:
 
-```bash
-PYTHONPATH=. pytest core/tests/test_per_share.py -k "round_trip or ingest or merge or legacy" -v
+```text
+Earnings Effect
+= (N_t - N_p) × (q_t + q_p) / 2
+
+Share-Count Effect
+= (q_t - q_p) × (N_t + N_p) / 2
+
+Change in EPS from Drivers
+= Earnings Effect + Share-Count Effect
+= EPS_t - EPS_p
 ```
+
+This is exact and order-neutral. It is an arithmetic attribution, not a causal explanation of why earnings or share count changed.
 
 ---
 
-### Task 2: Build one authoritative diluted per-share series
+### Task 1: Add authoritative diluted-EPS attribution series
 
 **Files:**
-- Create: `core/model/per_share.py`
-- Modify: `core/tests/test_per_share.py`
+- Create: `core/model/per_share_attribution.py`
+- Create: `core/tests/test_per_share_attribution.py`
 
 **Interfaces:**
-- Consumes: `StandardizedFinancials`, modeled fiscal periods, `AnchorMetrics`.
-- Produces: `PerShareSeries`, `per_share_available()`, `compute_per_share_series()`.
+- Consumes: `AnchorMetrics`, `PerShareSeries`.
+- Produces: `PerShareAttributionSeries` and `compute_per_share_attribution_series(anchor, per_share)`.
 
-- [ ] **Step 1: Write failing model tests**
+- [ ] **Step 1: Write the failing data-model and ordinary-case test**
 
 Create:
 
@@ -266,353 +111,466 @@ Create:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
 
-from ..data.interface import StandardizedFinancials
 from .financial_math import AnchorMetrics
-from .ratio_values import UNDEFINED_RATIO, ratio_or_na
-
-
-SUPPORTED_SHARE_SCALE_BASIS = "financial_statement_units"
+from .per_share import PerShareSeries
 
 
 @dataclass(frozen=True)
-class PerShareSeries:
-    diluted_weighted_average_shares: tuple[float, ...]
-    reported_diluted_eps: tuple[float, ...]
-    nopat_per_diluted_share: tuple[float | str, ...]
-    diluted_eps_change: tuple[float | None, ...]
-    diluted_share_count_change: tuple[float | None, ...]
+class PerShareAttributionSeries:
+    reported_net_income_change: tuple[float | None, ...]
+    earnings_effect_on_diluted_eps_change: tuple[float | None, ...]
+    share_count_effect_on_diluted_eps_change: tuple[float | None, ...]
+    diluted_eps_change_from_drivers: tuple[float | None, ...]
 ```
 
-Test an ordinary three-period case where Net Income, NOPAT, and diluted shares produce exact expected EPS/per-share values and signed changes.
+In `core/tests/test_per_share_attribution.py`, use either a focused synthetic `AnchorMetrics` fixture or the existing Step 9F.1 helpers from `core/tests/test_per_share.py`.
 
-- [ ] **Step 2: Implement applicability separately from completeness**
-
-Create:
-
-```python
-def per_share_available(financials: StandardizedFinancials) -> bool:
-    shares = financials.historical_shares
-    return bool(
-        shares is not None
-        and shares.diluted_weighted_average
-    )
-```
-
-A company with no share object, or an empty diluted-share mapping, is simply not applicable in Step 9F.1.
-
-Do not call completeness validation from `per_share_available()`.
-
-- [ ] **Step 3: Add strict source validation**
-
-Create:
-
-```python
-def _required_diluted_share_series(
-    financials: StandardizedFinancials,
-    periods: list[date],
-) -> tuple[float, ...]:
-    shares = financials.historical_shares
-    if shares is None or not shares.diluted_weighted_average:
-        raise ValueError("diluted weighted-average share history is not supplied")
-    if shares.scale_basis != SUPPORTED_SHARE_SCALE_BASIS:
-        raise ValueError(
-            "unsupported historical share scale_basis "
-            f"{shares.scale_basis!r}; expected "
-            f"{SUPPORTED_SHARE_SCALE_BASIS!r}"
-        )
-
-    values: list[float] = []
-    for period in periods:
-        if period not in shares.diluted_weighted_average:
-            raise ValueError(
-                "missing diluted weighted-average shares for modeled period "
-                f"{period.isoformat()}"
-            )
-        raw = shares.diluted_weighted_average[period]
-        if raw is None:
-            raise ValueError(
-                "missing diluted weighted-average shares for modeled period "
-                f"{period.isoformat()}"
-            )
-        value = float(raw)
-        if value <= 0.0:
-            raise ValueError(
-                "diluted weighted-average shares must be > 0 for modeled period "
-                f"{period.isoformat()}, got {value}"
-            )
-        values.append(value)
-    return tuple(values)
-```
-
-Extra historical-share dates outside the modeled axis may remain present and are ignored.
-
-Tests must prove omitted, `None`, zero, negative, and unsupported-scale values fail closed with the affected date / basis visible in the message.
-
-- [ ] **Step 4: Compute the per-share series**
-
-Create:
-
-```python
-def compute_per_share_series(
-    financials: StandardizedFinancials,
-    periods: list[date],
-    anchor: AnchorMetrics,
-) -> PerShareSeries:
-    shares = _required_diluted_share_series(financials, periods)
-    net_income = tuple(float(v) for v in anchor.historical.net_income)
-    nopat = tuple(anchor.historical.nopat)
-
-    if len(net_income) != len(periods) or len(nopat) != len(periods):
-        raise ValueError(
-            "per-share period axis must match AnchorMetrics historical series length"
-        )
-
-    eps = tuple(
-        net_income[i] / shares[i]
-        for i in range(len(periods))
-    )
-    nopat_per_share = tuple(
-        ratio_or_na(nopat[i], shares[i])
-        for i in range(len(periods))
-    )
-
-    eps_change: list[float | None] = [None]
-    share_change: list[float | None] = [None]
-    for i in range(1, len(periods)):
-        eps_change.append(eps[i] - eps[i - 1])
-        share_change.append(shares[i] - shares[i - 1])
-
-    return PerShareSeries(
-        diluted_weighted_average_shares=shares,
-        reported_diluted_eps=eps,
-        nopat_per_diluted_share=nopat_per_share,
-        diluted_eps_change=tuple(eps_change),
-        diluted_share_count_change=tuple(share_change),
-    )
-```
-
-Required semantics:
+Test this simple arithmetic case:
 
 ```text
-negative Net Income -> negative EPS retained
-negative NOPAT -> negative NOPAT/share retained
-NOPAT #N/A -> NOPAT/share #N/A
-unchanged shares -> Change in shares = 0.0
-falling shares -> negative Change in shares retained
-EPS change may be positive or negative; no automatic quality label
+Prior Net Income = 100
+Current Net Income = 120
+Prior diluted WAS = 100
+Current diluted WAS = 110
+
+Prior EPS = 1.000000
+Current EPS = 1.090909...
+Direct Change in EPS = +0.090909...
+
+Change in Net Income = +20
+Earnings Effect = 20 × ((1/110 + 1/100) / 2)
+                = +0.190909...
+Share-Count Effect = (1/110 - 1/100) × ((120 + 100) / 2)
+                   = -0.100000
+Driver Change = +0.090909...
 ```
 
-- [ ] **Step 5: Run model tests to green**
+- [ ] **Step 2: Run the focused test and verify red state**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_per_share.py -k "series or available or missing or scale or positive" -v
+PYTHONPATH=. pytest core/tests/test_per_share_attribution.py -v
 ```
+
+Expected: fail because `core.model.per_share_attribution` does not yet exist.
+
+- [ ] **Step 3: Implement source-series validation**
+
+Create:
+
+```python
+def compute_per_share_attribution_series(
+    anchor: AnchorMetrics,
+    per_share: PerShareSeries,
+) -> PerShareAttributionSeries:
+    net_income = tuple(float(v) for v in anchor.historical.net_income)
+    shares = tuple(float(v) for v in per_share.diluted_weighted_average_shares)
+    direct_eps = tuple(float(v) for v in per_share.reported_diluted_eps)
+    direct_eps_change = tuple(per_share.diluted_eps_change)
+
+    lengths = {
+        "net_income": len(net_income),
+        "diluted_weighted_average_shares": len(shares),
+        "reported_diluted_eps": len(direct_eps),
+        "diluted_eps_change": len(direct_eps_change),
+    }
+    if len(set(lengths.values())) != 1 or lengths["net_income"] == 0:
+        raise ValueError(
+            "per-share attribution series length mismatch: "
+            + ", ".join(f"{name}={n}" for name, n in lengths.items())
+        )
+
+    for i, value in enumerate(shares):
+        if value <= 0.0:
+            raise ValueError(
+                "per-share attribution requires positive diluted weighted-average "
+                f"shares: period_index={i} shares={value}"
+            )
+```
+
+This defensive positive-share check does not replace Step 9F.1 source validation; it protects the attribution function from malformed direct calls.
+
+- [ ] **Step 4: Implement non-applicable first period and exact midpoint attribution**
+
+Initialize:
+
+```python
+n = len(net_income)
+net_income_change: list[float | None] = [None] * n
+earnings_effect: list[float | None] = [None] * n
+share_count_effect: list[float | None] = [None] * n
+driver_change: list[float | None] = [None] * n
+```
+
+For every `i >= 1`:
+
+```python
+prior = i - 1
+current_inverse_shares = 1.0 / shares[i]
+prior_inverse_shares = 1.0 / shares[prior]
+
+ni_delta = net_income[i] - net_income[prior]
+earnings_value = (
+    ni_delta
+    * (current_inverse_shares + prior_inverse_shares)
+    / 2.0
+)
+share_value = (
+    (current_inverse_shares - prior_inverse_shares)
+    * (net_income[i] + net_income[prior])
+    / 2.0
+)
+driver_value = earnings_value + share_value
+
+net_income_change[i] = ni_delta
+earnings_effect[i] = earnings_value
+share_count_effect[i] = share_value
+driver_change[i] = driver_value
+```
+
+Do not take absolute values and do not force the share-count effect negative.
+
+- [ ] **Step 5: Add independent reconciliation validation**
+
+For every `i >= 1`:
+
+```python
+direct = direct_eps_change[i]
+if direct is None:
+    raise ValueError(
+        "per-share attribution requires comparable diluted EPS change: "
+        f"period_index={i}"
+    )
+if abs(driver_value - float(direct)) > 1e-9:
+    raise ValueError(
+        "diluted EPS earnings/share-count attribution does not reconcile: "
+        f"period_index={i} direct={direct} driver={driver_value}"
+    )
+```
+
+Also validate the supplied level series before the change attribution:
+
+```python
+for i in range(n):
+    recomputed = net_income[i] / shares[i]
+    if abs(recomputed - direct_eps[i]) > 1e-9:
+        raise ValueError(
+            "reported diluted EPS level does not reconcile before attribution: "
+            f"period_index={i} direct={direct_eps[i]} recomputed={recomputed}"
+        )
+```
+
+Return:
+
+```python
+return PerShareAttributionSeries(
+    reported_net_income_change=tuple(net_income_change),
+    earnings_effect_on_diluted_eps_change=tuple(earnings_effect),
+    share_count_effect_on_diluted_eps_change=tuple(share_count_effect),
+    diluted_eps_change_from_drivers=tuple(driver_change),
+)
+```
+
+- [ ] **Step 6: Add edge-case tests**
+
+Add tests proving:
+
+```text
+first period                                      -> all four attribution values None
+unchanged Net Income                              -> Earnings Effect = 0.0
+unchanged diluted shares                          -> Share-Count Effect = 0.0
+positive earnings + rising shares                 -> Share-Count Effect negative
+negative earnings + rising shares                 -> Share-Count Effect may be positive
+falling shares                                    -> sign follows exact reciprocal arithmetic
+negative Net Income change                        -> signed Earnings Effect retained
+zero Net Income in either/both periods            -> numeric arithmetic, not #N/A
+non-positive supplied share level                 -> ValueError
+series-length mismatch                            -> clear ValueError
+inconsistent reported EPS level                   -> ValueError
+inconsistent direct EPS-change series             -> ValueError
+```
+
+For the two inconsistency tests, construct a `PerShareSeries` directly with one intentionally altered `reported_diluted_eps` or `diluted_eps_change` value. Do not weaken Step 9F.1 computation to make the inconsistency possible.
+
+- [ ] **Step 7: Run focused tests to green**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_per_share_attribution.py -v
+```
+
+Expected: all tests pass.
 
 ---
 
-### Task 3: Add four gated semantic per-share formula families
+### Task 2: Add four semantic diluted-EPS attribution families
 
 **Files:**
 - Modify: `core/engine/component_catalog.py`
 - Modify: `core/model/historical_expected.py`
-- Modify: `core/tests/test_per_share.py`
+- Test: `core/tests/test_per_share_attribution.py`
+- Test: `core/tests/test_reference_integrity.py`
 
 **Interfaces:**
-- Consumes: `PerShareSeries` from Task 2.
-- Produces: `PER_SHARE_COMPONENT_CATALOG`, `expand_per_share_specs()`, and per-share expected-value routing.
+- Consumes: `PerShareAttributionSeries` from Task 1 and existing Step 9F.1 per-share families.
+- Produces: four comparable-period semantic families and dynamic expected-value routing.
 
-- [ ] **Step 1: Add the per-share catalog with orders 67–70**
+- [ ] **Step 1: Add a separate attribution catalog**
 
-Add exactly:
+Create:
 
 ```python
-PER_SHARE_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
-    ComponentFamily(
-        id="reported_diluted_eps",
-        order=67,
-        title="Reported Diluted EPS",
-        short_hint="Reported Net Income divided by diluted weighted-average shares.",
-        semantic_key="per_share.reported_diluted_eps",
-        category="per_share",
-        tab_template="Per Share Analysis",
-        depends_on_current=("net_income_link",),
-        hints=(
-            "Diluted EPS = Reported Net Income / Diluted Weighted-Average Shares.",
-            "Share count is a supplied historical input and remains populated.",
-        ),
-    ),
-    ComponentFamily(
-        id="nopat_per_diluted_share",
-        order=68,
-        title="NOPAT per Diluted Share",
-        short_hint="Historical NOPAT divided by diluted weighted-average shares.",
-        semantic_key="per_share.nopat_per_diluted_share",
-        category="per_share",
-        tab_template="Per Share Analysis",
-        depends_on_current=("nopat_fy",),
-        hints=(
-            "NOPAT per Diluted Share = NOPAT / Diluted Weighted-Average Shares.",
-            "If NOPAT is undefined, the per-share amount is also undefined (#N/A).",
-        ),
-    ),
-    ComponentFamily(
-        id="diluted_eps_change",
-        order=69,
-        title="Change in Diluted EPS",
-        short_hint="Current Reported Diluted EPS minus prior EPS.",
-        semantic_key="per_share.diluted_eps_change",
-        category="per_share",
-        tab_template="Per Share Analysis",
-        period_scope="comparable",
-        depends_on_current=("reported_diluted_eps",),
-        depends_on_previous=("reported_diluted_eps",),
-        hints=(
-            "Change in Diluted EPS = Current EPS - Prior EPS.",
-            "Use an absolute per-share change here rather than a growth rate that can become misleading around zero or negative EPS.",
-        ),
-    ),
-    ComponentFamily(
-        id="diluted_share_count_change",
-        order=70,
-        title="Change in Diluted Weighted-Average Shares",
-        short_hint="Current diluted weighted-average shares minus prior shares.",
-        semantic_key="per_share.diluted_share_count_change",
-        category="per_share",
-        tab_template="Per Share Analysis",
-        period_scope="comparable",
-        hints=(
-            "Change in Diluted Weighted-Average Shares = Current Shares - Prior Shares.",
-            "A positive change is mechanical evidence of a larger diluted share denominator; do not infer the cause automatically.",
-        ),
+PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (...)
+```
+
+Keep `PER_SHARE_COMPONENT_CATALOG` unchanged. Use family orders `71` through `74`. All four new families use:
+
+```text
+tab: Per Share Analysis
+category: per_share_attribution
+period_scope: comparable
+```
+
+Define exactly:
+
+#### Family 71 — `reported_net_income_change`
+
+```python
+ComponentFamily(
+    id="reported_net_income_change",
+    order=71,
+    title="Change in Reported Net Income",
+    short_hint="Current Reported Net Income minus prior Reported Net Income.",
+    semantic_key="per_share_attribution.reported_net_income_change",
+    category="per_share_attribution",
+    tab_template="Per Share Analysis",
+    period_scope="comparable",
+    depends_on_current=("net_income_link",),
+    depends_on_previous=("net_income_link",),
+    hints=(
+        "Change in Reported Net Income = Current Net Income - Prior Net Income.",
+        "This is the earnings-numerator movement used in diluted-EPS attribution.",
     ),
 )
 ```
 
-- [ ] **Step 2: Add `expand_per_share_specs()`**
-
-Use the same chronological / duplicate-period validation as existing expanders.
+#### Family 72 — `earnings_effect_on_diluted_eps_change`
 
 ```python
-def expand_per_share_specs(
+ComponentFamily(
+    id="earnings_effect_on_diluted_eps_change",
+    order=72,
+    title="Earnings Effect on Change in Diluted EPS",
+    short_hint="Change in Net Income multiplied by midpoint inverse diluted shares.",
+    semantic_key="per_share_attribution.earnings_effect",
+    category="per_share_attribution",
+    tab_template="Per Share Analysis",
+    period_scope="comparable",
+    depends_on_current=("reported_net_income_change",),
+    hints=(
+        "Earnings Effect = Change in Net Income × average of current and prior inverse diluted shares.",
+        "Inverse diluted shares means 1 / diluted weighted-average shares.",
+        "This is an arithmetic numerator effect, not a causal explanation of why earnings changed.",
+    ),
+)
+```
+
+#### Family 73 — `share_count_effect_on_diluted_eps_change`
+
+```python
+ComponentFamily(
+    id="share_count_effect_on_diluted_eps_change",
+    order=73,
+    title="Share-Count Effect on Change in Diluted EPS",
+    short_hint="Change in inverse diluted shares multiplied by midpoint Reported Net Income.",
+    semantic_key="per_share_attribution.share_count_effect",
+    category="per_share_attribution",
+    tab_template="Per Share Analysis",
+    period_scope="comparable",
+    depends_on_current=("diluted_share_count_change", "net_income_link"),
+    depends_on_previous=("net_income_link",),
+    hints=(
+        "Share-Count Effect = Change in (1 / diluted shares) × average current/prior Net Income.",
+        "Rising share count is not forced to a negative effect; losses can reverse the sign mechanically.",
+        "Do not infer whether the share-count movement came from issuance, SBC, options, M&A, or buybacks without separate evidence.",
+    ),
+)
+```
+
+#### Family 74 — `diluted_eps_change_from_drivers`
+
+```python
+ComponentFamily(
+    id="diluted_eps_change_from_drivers",
+    order=74,
+    title="Change in Diluted EPS from Earnings + Share-Count Effects",
+    short_hint="Earnings Effect plus Share-Count Effect.",
+    semantic_key="per_share_attribution.diluted_eps_change_from_drivers",
+    category="per_share_attribution",
+    tab_template="Per Share Analysis",
+    period_scope="comparable",
+    depends_on_current=(
+        "earnings_effect_on_diluted_eps_change",
+        "share_count_effect_on_diluted_eps_change",
+    ),
+    hints=(
+        "Change in Diluted EPS from Drivers = Earnings Effect + Share-Count Effect.",
+        "The driver total must reconcile exactly to the direct Change in Diluted EPS.",
+    ),
+)
+```
+
+- [ ] **Step 2: Add the expander**
+
+Create:
+
+```python
+def expand_per_share_attribution_specs(
     periods: list[date],
     *,
     start_order: int,
 ) -> tuple[ComponentSpec, ...]:
 ```
 
-For `period_scope == "all"`, use all periods. For `"comparable"`, use indices `1..n-1`. Reject any other scope.
+Use the same duplicate and strictly chronological period validation as `expand_per_share_specs()`.
 
-For five periods this must create:
+All four families use:
 
-```text
-Reported Diluted EPS                 5
-NOPAT per Diluted Share              5
-Change in Diluted EPS                4
-Change in Diluted Weighted-Average Shares 4
-Total                               18
+```python
+indices = range(1, len(periods))
 ```
 
-- [ ] **Step 3: Add expected-value routing**
+Resolve current / previous practice-family dependencies with `concrete_component_id()` exactly like the existing expanders.
 
-In `core/model/historical_expected.py`, import `PER_SHARE_COMPONENT_CATALOG` and `PerShareSeries`.
+For five modeled periods:
+
+```text
+4 families × 4 comparable periods = 16 new practice cells
+```
+
+- [ ] **Step 3: Add expected-value routing without a second per-share recomputation path**
+
+In `core/model/historical_expected.py`, import:
+
+```python
+PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG
+PerShareAttributionSeries
+compute_per_share_attribution_series
+```
 
 Add:
 
 ```python
-_PER_SHARE_FAMILY_SERIES = (
-    "reported_diluted_eps",
-    "nopat_per_diluted_share",
-    "diluted_eps_change",
-    "diluted_share_count_change",
+_PER_SHARE_ATTRIBUTION_FAMILY_SERIES = (
+    "reported_net_income_change",
+    "earnings_effect_on_diluted_eps_change",
+    "share_count_effect_on_diluted_eps_change",
+    "diluted_eps_change_from_drivers",
 )
 ```
 
 Create:
 
 ```python
-def per_share_expected_series(
+def per_share_attribution_expected_series(
+    anchor: AnchorMetrics,
     per_share: PerShareSeries,
 ) -> dict[str, tuple[float | str | None, ...]]:
+    attribution = compute_per_share_attribution_series(anchor, per_share)
     series = {
-        "reported_diluted_eps": per_share.reported_diluted_eps,
-        "nopat_per_diluted_share": per_share.nopat_per_diluted_share,
-        "diluted_eps_change": per_share.diluted_eps_change,
-        "diluted_share_count_change": per_share.diluted_share_count_change,
+        "reported_net_income_change": attribution.reported_net_income_change,
+        "earnings_effect_on_diluted_eps_change": (
+            attribution.earnings_effect_on_diluted_eps_change
+        ),
+        "share_count_effect_on_diluted_eps_change": (
+            attribution.share_count_effect_on_diluted_eps_change
+        ),
+        "diluted_eps_change_from_drivers": (
+            attribution.diluted_eps_change_from_drivers
+        ),
     }
-    expected_ids = {family.id for family in PER_SHARE_COMPONENT_CATALOG}
+    expected_ids = {
+        family.id for family in PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG
+    }
     if set(series) != expected_ids:
         missing = sorted(expected_ids - set(series))
         extra = sorted(set(series) - expected_ids)
         raise ValueError(
-            f"per_share_expected_series family mismatch; "
+            "per_share_attribution_expected_series family mismatch; "
             f"missing={missing} extra={extra}"
         )
-    return {family_id: series[family_id] for family_id in _PER_SHARE_FAMILY_SERIES}
+    return {
+        family_id: series[family_id]
+        for family_id in _PER_SHARE_ATTRIBUTION_FAMILY_SERIES
+    }
 ```
 
-Extend `expected_value_for_component()` with:
+Extend `expected_value_for_component()` before the Step 9F.1 per-share branch:
 
 ```python
-per_share: PerShareSeries | None = None,
+if family_id in _PER_SHARE_ATTRIBUTION_FAMILY_SERIES:
+    if per_share is None:
+        raise ValueError(
+            f"Per-share-attribution family {family_id!r} requires a PerShareSeries"
+        )
+    series = per_share_attribution_expected_series(anchor, per_share)
+elif family_id in _PER_SHARE_FAMILY_SERIES:
+    ...
 ```
 
-and route `_PER_SHARE_FAMILY_SERIES` before the historical fallback. If a per-share family is requested while `per_share is None`, raise a clear `ValueError`.
+Do not add another source-data or share-series argument to `expected_value_for_component()`.
 
-- [ ] **Step 4: Test exact catalog shape**
+- [ ] **Step 4: Add catalog/expected tests**
 
-Tests must prove:
+Prove:
 
 ```text
-catalog IDs exactly the four above
-orders exactly [67, 68, 69, 70]
-5 periods -> 18 specs
-first two families -> all periods
-last two -> comparable periods only
-expected-series keys exactly equal catalog IDs
+PER_SHARE_COMPONENT_CATALOG remains exactly the Step 9F.1 four families
+PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG contains exactly four unique IDs
+orders are exactly 71, 72, 73, 74
+all four attribution families are comparable-period
+five periods expand to exactly 16 attribution specs
+expected-series keys exactly equal attribution-catalog IDs
+driver EPS change equals Step 9F.1 direct diluted_eps_change for every comparable period
 ```
 
 Run:
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_per_share.py -k "catalog or expand or expected" -v
+PYTHONPATH=. pytest core/tests/test_per_share_attribution.py -v
+PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "per_share or attribution" -v
 ```
 
 ---
 
-### Task 4: Wire the gated per-share module into build and Check
+### Task 3: Wire attribution into `ReferenceModelBuilder`
 
 **Files:**
 - Modify: `core/engine/reference_model.py`
-- Modify: `core/trainer/checker.py`
-- Modify: `core/trainer/check_context.py`
-- Modify: `core/trainer/workbook.py`
-- Modify: `core/tests/test_per_share.py`
+- Test: `core/tests/test_per_share_attribution.py`
+- Test: `core/tests/test_reference_integrity.py`
 
 **Interfaces:**
-- Consumes: Task 2 `per_share_available()` / `compute_per_share_series()` and Task 3 catalog/specs.
-- Produces: gated semantic surface, dynamic treatment-conditioned Check, trusted worksheet boundary.
+- Consumes: `self.per_share_series` from Step 9F.1.
+- Produces: `self.per_share_attribution_series`, attribution specs, semantic registrations, and the visible worksheet attribution section.
 
-- [ ] **Step 1: Add builder gating after the Step 9E specs**
+- [ ] **Step 1: Compute attribution only when Step 9F.1 is applicable**
 
 Import:
 
 ```python
-from ..model.per_share import compute_per_share_series, per_share_available
-from .component_catalog import expand_per_share_specs
+from ..model.per_share_attribution import compute_per_share_attribution_series
+from .component_catalog import expand_per_share_attribution_specs
 ```
 
-After `quality_change_specs` are established:
+Immediately after the existing Step 9F.1 `per_share_series / per_share_specs` gating:
 
 ```python
-if per_share_available(self.fin):
-    self.per_share_series = compute_per_share_series(
-        self.fin,
-        self.periods,
+if self.per_share_series is not None:
+    self.per_share_attribution_series = compute_per_share_attribution_series(
         self.anchor,
+        self.per_share_series,
     )
-    self.per_share_specs = expand_per_share_specs(
+    self.per_share_attribution_specs = expand_per_share_attribution_specs(
         self.periods,
         start_order=(
             len(self.historical_specs)
@@ -623,108 +581,204 @@ if per_share_available(self.fin):
             + len(self.profitability_change_specs)
             + len(self.roe_attribution_specs)
             + len(self.quality_change_specs)
+            + len(self.per_share_specs)
             + 1
         ),
     )
 else:
-    self.per_share_series = None
-    self.per_share_specs = ()
+    self.per_share_attribution_series = None
+    self.per_share_attribution_specs = ()
 ```
 
-Append `self.per_share_specs` to `self.expected_specs` and create `_per_share_spec_index`.
+Append the new specs after `self.per_share_specs` in `self.expected_specs`.
 
-Add `_register_per_share()` following the existing focused registration helpers.
-
-- [ ] **Step 2: Add `Per Share Analysis` only when applicable**
-
-Define:
+Create:
 
 ```python
-PER_SHARE_SHEET = "Per Share Analysis"
-```
-
-Build it after `Working Capital Analysis` in the normal historical build path when `self.per_share_series is not None`.
-
-Use this layout:
-
-```text
-A1  <Company> — Per Share Analysis
-A2  Historical per-share diagnostics using supplied diluted weighted-average shares. Share counts are source inputs, not practice cells.
-A4  Metric
-A5  Reported Net Income
-A6  NOPAT
-A7  Diluted Weighted-Average Shares
-A9  Reported Diluted EPS
-A10 NOPAT per Diluted Share
-A12 Change in Diluted EPS
-A13 Change in Diluted Weighted-Average Shares
-```
-
-Rows 5 and 6 are trusted formulas linking to existing `Condensed Financials` rows. Row 7 contains the supplied numeric share-count facts directly from `self.per_share_series.diluted_weighted_average_shares` and is never registered as practice.
-
-For every period `j`:
-
-```python
-reported_eps = f"=IF({col}{shares_row}<=0,NA(),{col}{ni_row}/{col}{shares_row})"
-nopat_per_share = f"=IF({col}{shares_row}<=0,NA(),{col}{nopat_row}/{col}{shares_row})"
-```
-
-Register both practice families.
-
-For `j == 0`, rows 12–13 must contain literal `"N/A"` and must not be registered.
-
-For `j > 0`:
-
-```python
-eps_change = f"={col}{eps_row}-{prev_col}{eps_row}"
-shares_change = f"={col}{shares_row}-{prev_col}{shares_row}"
-```
-
-Register both comparable families.
-
-Use a per-share number format such as:
-
-```text
-0.000
-```
-
-for EPS / NOPAT-per-share / EPS change, and `#,##0.0;(#,##0.0)` for share counts and share-count changes.
-
-Do not add a generated check row merely to increase surface area; the source counts are already trusted and every four semantic formulas are Check-managed.
-
-- [ ] **Step 3: Extend trusted-sheet validation**
-
-In `core/trainer/check_context.py`, add:
-
-```python
-PER_SHARE_SHEET = "Per Share Analysis"
-```
-
-During full trusted validation:
-
-```python
-per_share_practice = {
-    cell for tab, cell in practice_cells if tab == PER_SHARE_SHEET
+self._per_share_attribution_spec_index = {
+    (s.family_id, s.period_index): s
+    for s in self.per_share_attribution_specs
 }
-if per_share_practice:
-    for wb, label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
-        if PER_SHARE_SHEET not in wb.sheetnames:
-            raise ValueError(f"{label} is missing Per Share Analysis sheet")
-    _validate_trusted_sheet_cells(
-        trainer_wb[PER_SHARE_SHEET],
-        answer_key_wb[PER_SHARE_SHEET],
-        sheet_name=PER_SHARE_SHEET,
-        editable_cells=per_share_practice,
+```
+
+- [ ] **Step 2: Add the registration helper**
+
+Create next to `_register_per_share()`:
+
+```python
+def _register_per_share_attribution(
+    self,
+    family_id: str,
+    period_index: int,
+    tab: str,
+    row: int,
+    col: int,
+    formula: str,
+    expected: float | str,
+    related: list[str] | None = None,
+) -> None:
+    spec = self._per_share_attribution_spec_index[(family_id, period_index)]
+    self.semantic_map.register(
+        spec,
+        tab,
+        row,
+        col,
+        formula,
+        expected,
+        related_cells=related,
     )
 ```
 
-This must protect the supplied share-count row and source-link rows before any practice-cell recoloring.
+- [ ] **Step 3: Extend the existing `Per Share Analysis` sheet**
 
-- [ ] **Step 4: Extend dynamic Check**
+Do not create another worksheet. Extend `_build_per_share_analysis()` below the Step 9F.1 rows.
 
-In `core/trainer/checker.py`, import `PER_SHARE_COMPONENT_CATALOG` and `compute_per_share_series`.
+Preserve all existing Step 9F.1 coordinates:
 
-Detect whether any per-share family exists in the semantic map. When it does:
+```text
+row 5  Reported Net Income
+row 6  NOPAT
+row 7  Diluted Weighted-Average Shares
+row 9  Reported Diluted EPS
+row 10 NOPAT per Diluted Share
+row 12 Change in Diluted EPS
+row 13 Change in Diluted Weighted-Average Shares
+```
+
+Add:
+
+```text
+A15  DILUTED EPS CHANGE ATTRIBUTION
+A16  Change in Reported Net Income
+A17  Earnings Effect on Change in Diluted EPS
+A18  Share-Count Effect on Change in Diluted EPS
+A19  Diluted EPS Change from Drivers
+A20  DILUTED EPS CHANGE ATTRIBUTION CHECK
+```
+
+Make rows 15 and 20 bold.
+
+Use existing `per_share_fmt` for rows 17–19 and `NUM_FMT` for row 16.
+
+- [ ] **Step 4: Write first-period non-applicable cells**
+
+For period index `0`, write literal:
+
+```text
+N/A
+```
+
+into rows 16–20. Do not register first-period attribution components.
+
+- [ ] **Step 5: Write the exact comparable-period workbook formulas**
+
+For each `j > 0`:
+
+```python
+prev_col = self._col(2 + j - 1)
+
+net_income_change_f = f"={col}{ni_row}-{prev_col}{ni_row}"
+
+earnings_effect_f = (
+    f"={col}{net_income_change_row}*"
+    f"((1/{col}{shares_row}+1/{prev_col}{shares_row})/2)"
+)
+
+share_count_effect_f = (
+    f"=((1/{col}{shares_row})-(1/{prev_col}{shares_row}))*"
+    f"(({col}{ni_row}+{prev_col}{ni_row})/2)"
+)
+
+driver_eps_change_f = (
+    f"={col}{earnings_effect_row}+{col}{share_count_effect_row}"
+)
+
+attribution_check_f = (
+    f'=IF(ABS({col}{driver_eps_change_row}-{col}{eps_chg_row})'
+    f'<0.0000001,"OK","CHECK")'
+)
+```
+
+Do not use `ABS()` in any practice formula. `ABS()` is allowed only in the generated non-practice reconciliation check.
+
+Do not reference normalized earnings. Use the existing Reported Net Income row.
+
+- [ ] **Step 6: Register all four comparable families**
+
+For each `j > 0`, register the formulas against:
+
+```python
+attribution = self.per_share_attribution_series
+assert attribution is not None
+
+attribution.reported_net_income_change[j]
+attribution.earnings_effect_on_diluted_eps_change[j]
+attribution.share_count_effect_on_diluted_eps_change[j]
+attribution.diluted_eps_change_from_drivers[j]
+```
+
+Each value must be non-`None` for comparable periods.
+
+- [ ] **Step 7: Store rowmap entries**
+
+Add:
+
+```python
+self.rowmap["per_share_attribution_net_income_change_row"] = net_income_change_row
+self.rowmap["per_share_attribution_earnings_effect_row"] = earnings_effect_row
+self.rowmap["per_share_attribution_share_count_effect_row"] = share_count_effect_row
+self.rowmap["per_share_attribution_driver_eps_change_row"] = driver_eps_change_row
+self.rowmap["per_share_attribution_check_row"] = attribution_check_row
+```
+
+- [ ] **Step 8: Add workbook-layout and formula tests**
+
+For a five-period share-enabled fixture, prove:
+
+```text
+Per Share Analysis still uses Step 9F.1 rows 5/6/7/9/10/12/13 unchanged
+attribution heading is row 15
+four practice rows are 16–19
+check row is 20 and is not a semantic practice cell
+first-period rows 16–20 contain literal N/A
+all four attribution families have four comparable cells
+practice formulas contain no ABS()
+share-count-effect formula uses current/prior inverse share levels, not simple raw share-count change multiplication
+answer-key driver change reconciles to direct diluted_eps_change expected value
+Trainer attribution practice cells are blank yellow
+share-count level row remains populated and trusted
+```
+
+---
+
+### Task 4: Extend dynamic Check and Trainer family metadata
+
+**Files:**
+- Modify: `core/trainer/checker.py`
+- Modify: `core/trainer/workbook.py`
+- Do **not** modify `core/trainer/check_context.py` unless a failing test proves a real generic trusted-sheet defect.
+- Test: `core/tests/test_per_share_attribution.py`
+- Test: `core/tests/test_trainer.py`
+
+**Interfaces:**
+- Consumes: existing Step 9F.1 `compute_per_share_series()` dynamic Check path.
+- Produces: attribution families visible to `list` / Trainer index and dynamically checked from current live workbook state.
+
+- [ ] **Step 1: Make dynamic Check recognize both per-share catalogs**
+
+In `core/trainer/checker.py`, import `PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG` and change the family-ID set to:
+
+```python
+per_share_family_ids = {
+    family.id
+    for family in (
+        *PER_SHARE_COMPONENT_CATALOG,
+        *PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG,
+    )
+}
+```
+
+Continue computing exactly one `PerShareSeries`:
 
 ```python
 per_share = compute_per_share_series(
@@ -734,99 +788,144 @@ per_share = compute_per_share_series(
 )
 ```
 
-Pass:
+Do not create a second source reconstruction path for attribution. `expected_value_for_component()` will derive the attribution series from this same `per_share` object plus the live treatment-conditioned `anchor`.
+
+- [ ] **Step 2: Add attribution family metadata to Trainer/list grouping**
+
+In `core/trainer/workbook.py`, import `PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG` and add:
 
 ```python
-per_share=per_share,
-```
-
-into `expected_value_for_component()`.
-
-This recomputation must use the current treatment-conditioned `anchor`, so changing a live classification that changes NOPAT must also change `nopat_per_diluted_share` expected values while leaving Reported Diluted EPS and the supplied share-count row unchanged.
-
-- [ ] **Step 5: Add Trainer-index family metadata**
-
-In `core/trainer/workbook.py`, import `PER_SHARE_COMPONENT_CATALOG` and add it to `family_meta` in `group_components_by_family()`.
-
-Do not alter the semantic ordering of existing families.
-
-- [ ] **Step 6: Test gating, trust, dynamic Check, and `#N/A`**
-
-Add regressions proving:
-
-```text
-no historical shares -> no Per Share Analysis sheet / no per_share components
-shares present but incomplete -> build fails before workbook output
-unsupported scale basis -> build fails clearly
-share count <= 0 -> build fails clearly
-share-enabled five-year demo -> 4 per-share families / 18 new practice cells
-first-period change rows -> literal N/A and not practice
-Trainer supplied share row -> populated identically to Answer Key
-Trainer practice cells -> blank yellow
-exact formulas -> green
-cached equivalent formulas -> green
-incorrect cached values -> red
-share-row tamper -> trusted-sheet ValueError before recolor
-live classification treatment changing NOPAT -> NOPAT/share dynamic expected changes
-NOPAT #N/A -> NOPAT/share expected #N/A; exact/NA equivalent passes, fabricated 0.0 fails
-```
-
-For the share-enabled test fixture, copy/ingest the existing demo in memory and assign:
-
-```python
-HistoricalShareData(
-    scale_basis="financial_statement_units",
-    diluted_weighted_average={
-        period: 1000.0 + 25.0 * i
-        for i, period in enumerate(canonical_fiscal_periods(data))
-    },
+family_meta.update(
+    {f.id: f for f in PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG}
 )
 ```
 
-Do not edit `example/DEMO_HK_Standardized.json`.
+Do not change grouping semantics for other families.
 
-Expected five-year share-enabled surfaces:
+- [ ] **Step 3: Rely on existing Per Share trusted-sheet validation**
+
+The current trusted-sheet rule already validates every non-practice cell on `Per Share Analysis` whenever that sheet has practice cells. Because row 20 is not a practice component, the new reconciliation check should automatically be trusted.
+
+Add a regression proving:
+
+1. build a share-enabled Trainer/Answer Key pair;
+2. enter an exact correct attribution practice formula;
+3. tamper the generated `DILUTED EPS CHANGE ATTRIBUTION CHECK` formula;
+4. run Check;
+5. Check raises `ValueError` matching `Trusted workbook cell was modified: Per Share Analysis`;
+6. the learner formula remains yellow because structural failure occurs before recolor.
+
+Do not add a one-off check-row validator if the generic trusted-sheet rule already passes this test.
+
+- [ ] **Step 4: Add live-state Check regressions**
+
+Prove:
 
 ```text
-without normalization: existing 62/259 + 4 families/18 cells = 66 families / 277 cells
-with normalization:    existing 66/279 + 4 families/18 cells = 70 families / 297 cells
+exact attribution formula -> green
+equivalent formula with matching cached value -> green
+wrong formula/cached value -> red
+share-count row tamper -> ValueError before recolor
+no-share workbook -> attribution families absent and no Per Share Analysis sheet
 ```
 
-The ordinary demo without share history must remain exactly:
+Also prove the attribution responds to current source state reconstructed by Check. Because Step 9F.2 uses reported Net Income and supplied historical shares, no new Accounting Judgment treatment should change Reported Net Income itself; the existing live-classification exercises must still compose and Check successfully alongside the new attribution cells.
+
+Do not invent a treatment dependency that does not economically exist.
+
+---
+
+### Task 5: Preserve gating, counts, and all prior curriculum surfaces
+
+**Files:**
+- Modify tests only as needed for new expected counts on **share-enabled** fixtures.
+- Preserve ordinary no-share demo assertions.
+
+- [ ] **Step 1: Preserve no-share builds exactly**
+
+For the current five-year `DEMO_HK_Standardized.json`, which intentionally contains no historical share data:
 
 ```text
-base: 62 families / 259 cells
-normalization: 66 families / 279 cells
+without normalization:
+62 families / 259 practice cells
+Per Share Analysis absent
+
+with normalization:
+66 families / 279 practice cells
+Per Share Analysis absent
 ```
 
-Run:
+These counts must not change in Step 9F.2.
 
-```bash
-PYTHONPATH=. pytest core/tests/test_per_share.py -v
-PYTHONPATH=. pytest core/tests/test_normalization.py -v
-PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
-PYTHONPATH=. pytest core/tests/test_trainer.py -v
+- [ ] **Step 2: Update share-enabled expected surfaces**
+
+Step 9F.1 share-enabled surface:
+
+```text
+without normalization: 66 families / 277 cells
+with normalization:    70 families / 297 cells
+```
+
+Step 9F.2 adds:
+
+```text
+4 families × 4 comparable periods = 16 practice cells
+```
+
+Therefore the expected five-year share-enabled surfaces become:
+
+```text
+without normalization: 70 families / 293 cells
+with normalization:    74 families / 313 cells
+```
+
+The combined per-share module becomes:
+
+```text
+8 per-share/per-share-attribution families
+34 practice cells
+```
+
+Do not change the demo JSON merely to make these families appear in the default demo.
+
+- [ ] **Step 3: Preserve all earlier module definitions**
+
+Regression tests must confirm no unintended family-definition changes to:
+
+```text
+25 historical core families
+4 normalization families
+5 quality-level families
+4 quality-change families
+11 working-capital families
+4 RNOA-level driver families
+6 RNOA-change families
+7 ROE-attribution families
+4 Step 9F.1 per-share families
 ```
 
 ---
 
-### Task 5: Verify full historical behavior and update docs
+### Task 6: Verification
 
-**Files:**
-- Modify: `RESULT.md`
-- Modify: `skills/bav-trainer/SKILL.md`
-- Modify: `IMPLEMENTATION.md` status only after verification
-- Read-only: `TARGET.md`
+Run focused tests first:
 
-- [ ] **Step 1: Run the full suite**
+```bash
+PYTHONPATH=. pytest core/tests/test_per_share.py -v
+PYTHONPATH=. pytest core/tests/test_per_share_attribution.py -v
+PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "per_share or attribution" -v
+PYTHONPATH=. pytest core/tests/test_trainer.py -v
+```
+
+Then run the entire suite:
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
 ```
 
-Record the actual passing test count. Do not prestate a new total before the suite runs.
+Do not prestate the final test count. Record the actual result in `RESULT.md`.
 
-- [ ] **Step 2: Verify unchanged ordinary demo surfaces**
+### Ordinary no-share demo
 
 ```bash
 PYTHONPATH=. python -m core build \
@@ -838,16 +937,16 @@ PYTHONPATH=. python -m core list \
   --workbook /tmp/DEMO_BASE_Trainer.xlsx
 ```
 
-Required ordinary-demo result:
+Required:
 
 ```text
-62 families
 259 practice cells
-fresh Check 0 correct / 0 incorrect / 259 blank
-no Per Share Analysis sheet
+62 families
+fresh Check 0 / 0 / 259
+Per Share Analysis absent
 ```
 
-Then:
+### Ordinary no-share normalization demo
 
 ```bash
 PYTHONPATH=. python -m core build \
@@ -860,35 +959,55 @@ PYTHONPATH=. python -m core list \
   --workbook /tmp/DEMO_NORM_Trainer.xlsx
 ```
 
-Required ordinary-demo normalization result:
+Required:
 
 ```text
-66 families
 279 practice cells
-fresh Check 0 / 0 / 279 blank
-no Per Share Analysis sheet
+66 families
+fresh Check 0 / 0 / 279
+Per Share Analysis absent
 ```
 
-- [ ] **Step 3: Verify a share-enabled build**
+### Share-enabled five-year fixture
 
-Use a short Python test/helper or the test fixture to build the demo with five complete diluted weighted-average share values. Record:
+Use the existing `_share_enabled_demo()` helper or an equivalent temporary standardized payload that adds:
+
+```python
+HistoricalShareData(
+    scale_basis="financial_statement_units",
+    diluted_weighted_average={
+        FY2021: 1000.0,
+        FY2022: 1025.0,
+        FY2023: 1050.0,
+        FY2024: 1075.0,
+        FY2025: 1100.0,
+    },
+)
+```
+
+Required surfaces:
 
 ```text
-Per Share Analysis present
-4 per-share families
-18 per-share practice cells
-share-enabled base total: 66 families / 277 cells
-share-enabled normalization total: 70 families / 297 cells
-fresh Check all blank
+without normalization: 293 practice cells / 70 families
+with normalization:    313 practice cells / 74 families
+fresh Check: all blank, zero correct, zero incorrect
 ```
 
-- [ ] **Step 4: Verify CLI remains historical-only**
+Verify the share-enabled Answer Key shows exact reconciliation for every comparable period:
+
+```text
+Earnings Effect + Share-Count Effect
+= Diluted EPS Change from Drivers
+= direct Change in Diluted EPS
+```
+
+Verify CLI remains:
 
 ```bash
 PYTHONPATH=. python -m core --help
 ```
 
-Public commands remain:
+with only the existing public commands:
 
 ```text
 ingest
@@ -897,74 +1016,77 @@ check
 list
 ```
 
-No share-specific CLI is added.
+---
 
-- [ ] **Step 5: Update `RESULT.md` with evidence**
+### Task 7: Documentation and checkpoint report
+
+**Files:**
+- Modify: `RESULT.md`
+- Modify: `skills/bav-trainer/SKILL.md`
+- Modify: `IMPLEMENTATION.md` status only after verification
+- Do not modify: `TARGET.md`
+
+- [ ] **Step 1: Update `RESULT.md` with actual evidence**
 
 Record:
 
-- actual full-suite count;
-- ordinary demo unchanged at 62/259 and 66/279;
-- share-enabled demo/fixture at 66/277 and 70/297;
-- explicit standardized historical-share round-trip;
-- structured JSON ingestion;
-- multi-document merge behavior;
-- missing / `None` / zero / negative / unsupported-scale fail-closed behavior;
-- no-share applicability omission;
-- 4 per-share families / 18 five-year cells;
-- live classification-conditioned NOPAT/share Check;
-- trusted share-row tamper rejection;
-- `#N/A` NOPAT/share behavior;
-- no normalized EPS, basic/diluted attribution, forecasting, or valuation;
-- `TARGET.md` unchanged.
+- actual full-suite pytest count;
+- ordinary no-share base and normalization counts unchanged;
+- share-enabled base / normalization counts;
+- exact midpoint earnings/share-count attribution identity;
+- positive-earnings + rising-shares sign test;
+- negative-earnings sign-reversal test;
+- generated reconciliation-row tamper detection;
+- share-level tamper failure before recolor;
+- exact/equivalent/wrong Check behavior;
+- no-share gating;
+- confirmation that normalized EPS, basic-vs-diluted analysis, forecasting, and valuation remain deferred.
 
-Do not write `Unresolved: none` unless every required regression and verification passes.
+Do not write `Unresolved: none` unless every required verification actually passes.
 
-- [ ] **Step 6: Update `skills/bav-trainer/SKILL.md`**
+- [ ] **Step 2: Update the trainer skill documentation**
 
-Add a concise Step 9F note:
+Add Step 9F.2 to `skills/bav-trainer/SKILL.md`:
 
 ```text
-Step 9F.1 — historical diluted per-share foundation
-- gated on explicitly supplied diluted weighted-average share history
-- share counts remain populated trusted inputs
-- Reported Diluted EPS and NOPAT per Diluted Share
-- absolute changes in EPS and diluted weighted-average shares
-- ordinary demo remains unchanged because it supplies no share history
+Historical diluted-EPS attribution (when share history is supplied):
+- direct absolute EPS change remains the reference result
+- reported-earnings effect uses midpoint inverse shares
+- share-count effect uses midpoint reported Net Income
+- the two effects reconcile exactly to direct diluted-EPS change
+- attribution is mechanical, not a causal explanation of issuance/SBC/buybacks
 ```
 
-Keep forecasting / valuation deferred.
+Update share-enabled surface counts only. Preserve no-share demo counts.
 
-- [ ] **Step 7: Mark `IMPLEMENTATION.md` complete only after all evidence exists**
+- [ ] **Step 3: Mark this plan complete only after verification**
 
-Add the final status line only after focused tests, full suite, ordinary demo, share-enabled fixture, trusted-tamper regression, and CLI verification all pass.
+Add a concise completion status at the top of `IMPLEMENTATION.md` only after all required tests and build/check/list verification pass.
+
+Do not commit or push. Stop and report changed files, exact test output, share-enabled/no-share surface counts, reconciliation evidence, trusted-sheet tamper evidence, and any new active historical-model issue discovered.
 
 ---
 
-## Definition of done
+## Definition of Done
 
-Step 9F.1 is complete only when all are true:
+Step 9F.2 is complete only when all of the following are true:
 
-1. `StandardizedFinancials` has an explicit optional `HistoricalShareData` field.
-2. Structured JSON/YAML input can supply diluted weighted-average share history.
-3. Standardized payload round-trip preserves the share history, so `_CheckContext` can reconstruct it.
-4. Cross-document merge preserves/merges share history and rejects scale-basis mismatches.
-5. No-share companies retain the exact prior workbook surface.
-6. Present-but-incomplete share history fails closed.
-7. Zero or negative diluted shares fail closed.
-8. Unsupported share scale basis fails closed.
-9. Share counts remain populated trusted cells, never practice cells.
-10. `Per Share Analysis` appears only when valid diluted-share history is supplied.
-11. Four per-share formula families exist: Reported Diluted EPS, NOPAT per Diluted Share, Change in Diluted EPS, Change in Diluted Weighted-Average Shares.
-12. Five periods create exactly 18 per-share practice cells.
-13. `#N/A` NOPAT propagates to NOPAT/share.
-14. Dynamic Check recomputes NOPAT/share under the learner’s current classification treatment.
-15. Tampering supplied share counts fails before any fill updates.
-16. Ordinary demo remains 62/259 base and 66/279 normalization.
-17. A five-year share-enabled fixture is 66/277 base and 70/297 normalization.
-18. Full tests pass.
-19. CLI remains `{ingest, build, check, list}`.
-20. `TARGET.md` is unchanged.
-21. Normalized EPS, basic-vs-diluted attribution, forecasting, valuation, and investment conclusions have not begun.
+1. Step 9F.1 source schema and per-share formulas remain unchanged.
+2. No share history still means no `Per Share Analysis` sheet or per-share families.
+3. Share-enabled history adds exactly four attribution families / 16 comparable practice cells for five periods.
+4. Change in Reported Net Income is explicit and auditable.
+5. Earnings Effect uses `ΔNet Income × midpoint inverse shares`.
+6. Share-Count Effect uses `Δinverse shares × midpoint Net Income`.
+7. Earnings Effect + Share-Count Effect reconciles to direct Change in Diluted EPS for every comparable period.
+8. Signs are preserved; rising shares are not hard-coded as a negative effect.
+9. Negative-earnings sign reversal is tested and accepted as valid arithmetic.
+10. Share-count levels remain populated trusted source inputs and never become practice cells.
+11. Generated attribution-check formulas are trusted and tamper-detected before recolor.
+12. Exact and equivalent learner formulas pass; wrong formulas fail.
+13. Ordinary no-share surfaces remain 62/259 and 66/279.
+14. Share-enabled five-year surfaces become 70/293 and 74/313.
+15. The full test suite passes.
+16. `TARGET.md` is unchanged.
+17. Normalized EPS, basic-vs-diluted attribution, period-end shares, forecasting, and valuation have not been introduced.
 
-After completing Step 9F.1, stop and report changed files, exact test output, ordinary-demo outputs, share-enabled fixture outputs, source-contract/round-trip evidence, dynamic-Check evidence, and any new active historical-model issue found during implementation. Do not proceed to basic-vs-diluted attribution, normalized EPS, forecasting, or valuation, and do not commit or push.
+After completing Step 9F.2, stop and report. Do not begin normalized per-share analysis, forecasting, or valuation, and do not commit or push.
