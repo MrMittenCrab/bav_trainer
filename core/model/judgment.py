@@ -29,6 +29,7 @@ class JudgmentCase:
     id: str
     order: int
     line_identity: str
+    override_selector: str
     label: str
     topic: str
     supplied_treatment: str
@@ -150,12 +151,19 @@ def classification_judgment_cases(
         item = financials.balance_sheet[idx]
         if not _line_has_nonzero_value(item, periods):
             continue
-        identity = line_identity(item).key()
+        ident = line_identity(item)
+        identity = ident.key()
+        override_selector = (
+            f"concept:{ident.concept}"
+            if ident.concept
+            else f"label:{item.label}"
+        )
         cases.append(
             JudgmentCase(
                 id=f"classification::{identity}",
                 order=order,
                 line_identity=identity,
+                override_selector=override_selector,
                 label=item.label,
                 topic=template.topic,
                 supplied_treatment=decision.category,

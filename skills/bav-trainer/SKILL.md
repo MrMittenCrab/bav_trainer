@@ -1,6 +1,6 @@
 ---
 name: bav-trainer
-description: Build matched BAV Excel Trainer / Answer Key workbooks for Hong Kong-listed non-financial companies from manually supplied filings or Excel/Bloomberg/Wind exports. Step 7 multi-period historical schedules plus Step 8A guided classification judgment; Answer Key Notes/rationale are the hint/answer surface.
+description: Build matched BAV Excel Trainer / Answer Key workbooks for Hong Kong-listed non-financial companies from manually supplied filings or Excel/Bloomberg/Wind exports. Step 7 multi-period historical schedules, Step 8A guided classification reasoning, and Step 8B1 live supported classification with judgment-aware Formula Check.
 ---
 
 # BAV Excel Trainer — Hong Kong Edition
@@ -13,19 +13,22 @@ Build a **matched Trainer / Answer Key pair** where the learner reconstructs mul
 end-state goal:
 accounting novice -> junior accounting-based equity-research competence
 
-Step 7 historical model construction
-- 25 historical schedule families across supplied fiscal years
-- 118 formula practice cells in the five-year illustrative demo
-- workbook-wide formula Check
+Step 7 — historical model construction
+- 25 historical formula families / 118 cells in the five-year illustrative demo
+- workbook-wide Formula Check
 
-Step 8A guided classification judgment
-- only supplied lines whose ambiguity has one of four supported judgment codes become cases
-- supplied reference treatment + one defensible same-side alternative
-- learner chooses a treatment, rationale, and consequence explanation
-- Answer Key presents the reference convention and reasoning, not a universal truth
-- judgment responses are not graded by Check
-- learner choices do not yet drive the main reformulated model
-- deferred-tax and ROU ambiguities are not Step 8A guided cases
+Step 8A — guided classification reasoning
+- supported supplied ambiguities become compare-and-defend exercises
+- rationale/consequence are ungraded
+
+Step 8B1 — live supported classification
+- treatment selected in Accounting Judgment drives the linked Condensed Financials classification
+- blank treatment falls back to the supplied reference treatment
+- downstream reformulation and DuPont schedules respond to the selected treatment
+- Formula Check recomputes expected historical values under the current treatment state
+- exact and equivalent formulas remain checkable under either supported treatment
+
+Normalization / recurring-vs-non-recurring treatment, ROU/deferred-tax alternatives, forecasting, and valuation remain deferred.
 
 This is a transition from supplied judgment to guided judgment, not independent analyst competence.
 
@@ -41,8 +44,8 @@ normal build:
 does not execute forecast/scenario engine
 
 Trainer = blank yellow formula cells + blank yellow judgment-response cells; no answers/hints.
-Check = scans formula practice cells only; blank yellow, correct green, incorrect red; no answers disclosed.
-Answer Key = formula + Note on formula cells; model treatment/rationale/consequence on judgment responses.
+Check = scans formula practice cells only against the current Accounting Judgment treatment; blank yellow, correct green, incorrect red; no answers disclosed.
+Answer Key = formula + Note on formula cells; model treatment/rationale/consequence on judgment responses; hidden Check context for dynamic expecteds.
 ```
 
 ## When to use

@@ -3,10 +3,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 from openpyxl import load_workbook
 
+from ..data.standardized_io import standardized_from_payload
+from ..model.financial_math import compute_anchor
+from ..model.historical_expected import expected_value_for_component
+from ..model.period_axis import canonical_fiscal_periods
+from .check_context import (
+    classification_overrides_for_check,
+    load_check_context,
+)
 from .semantic_io import answer_key_path_for, load_semantic_map, parse_cell_ref
 from .xlsx_fill_patch import CellFillUpdate, apply_fill_updates
 
@@ -64,9 +73,35 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
 
     smap = load_semantic_map(answer_key_path)
     comps = smap.all_ordered()
+    context = load_check_context(answer_key_path)
 
     wb = load_workbook(trainer_path, data_only=False)
     wb_cached = load_workbook(trainer_path, data_only=True)
+
+    dynamic_expected: dict[str, object] | None = None
+    if context is not None:
+        # Validate treatments before any fill update; raise cleanly on invalid input.
+        overrides = classification_overrides_for_check(wb, context)
+        financials = standardized_from_payload(context.source_payload)
+        modeled_periods = tuple(
+            date.fromisoformat(str(item)[:10]) for item in context.modeled_periods
+        )
+        canonical = tuple(canonical_fiscal_periods(financials))
+        if modeled_periods != canonical:
+            wb.close()
+            wb_cached.close()
+            raise ValueError(
+                "Check context modeled_periods do not match canonical_fiscal_periods "
+                f"for reconstructed financials: {list(modeled_periods)} != {list(canonical)}"
+            )
+        anchor = compute_anchor(
+            financials,
+            list(modeled_periods),
+            classification_overrides=overrides,
+        )
+        dynamic_expected = {
+            comp.id: expected_value_for_component(anchor, comp) for comp in comps
+        }
 
     updates: list[CellFillUpdate] = []
     correct = incorrect = blank = 0
@@ -92,11 +127,16 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
             correct += 1
             continue
 
+        expected = (
+            dynamic_expected[comp.id]
+            if dynamic_expected is not None
+            else comp.expected_value
+        )
         cached = None
         if comp.tab in wb_cached.sheetnames:
             cached = wb_cached[comp.tab].cell(row=row, column=col).value
 
-        if cached is not None and _values_match(cached, comp.expected_value, comp.tolerance):
+        if cached is not None and _values_match(cached, expected, comp.tolerance):
             updates.append(CellFillUpdate(comp.tab, comp.cell, CORRECT_RGB))
             correct += 1
         else:

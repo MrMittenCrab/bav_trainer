@@ -44,9 +44,13 @@ JUDGMENT_INSTRUCTION = (
     "treatment you would defend, and explain the economic consequence."
 )
 JUDGMENT_STEP_NOTE = (
-    "Record the judgment on this sheet. Do not edit the supplied classification "
-    "in Condensed Financials for this Step 8A exercise. Formula Check does not "
-    "grade these judgment responses."
+    "Choose a treatment in column F. That choice drives the matching Condensed "
+    "Financials classification and downstream historical schedules; leaving it "
+    "blank uses the supplied reference treatment. Enter your rationale and "
+    "economic consequence in G:H. Formula Check grades formula cells against the "
+    "treatment currently selected here; it does not grade the judgment response "
+    "itself. Do not edit the linked Condensed Financials classification cell "
+    "directly."
 )
 
 
@@ -83,6 +87,10 @@ class ReferenceModelBuilder:
             self.periods,
             self.anchor.reformulation,
         )
+        self._judgment_row_by_identity = {
+            case.line_identity: 4 + case.order
+            for case in self.judgment_cases
+        }
         self._n = len(self.periods)
         self._last_fy_col = 2 + self._n - 1
         self._first_fc_col = 2 + self._n
@@ -172,6 +180,15 @@ class ReferenceModelBuilder:
             raise ValueError("Component map validation failed:\n" + "\n".join(errors))
 
         embed_component_map_sheet(wb, self.semantic_map)
+        from ..trainer.check_context import build_check_context, embed_check_context_sheet
+
+        context = build_check_context(
+            self.fin,
+            self.periods,
+            self.assumptions,
+            self.judgment_cases,
+        )
+        embed_check_context_sheet(wb, context)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         wb.save(output_path)
 
@@ -303,9 +320,20 @@ class ReferenceModelBuilder:
         for idx in reform.detail_indices:
             item = self.fin.balance_sheet[idx]
             decision = reform.decisions[idx]
+            identity = line_identity(item).key()
             ws.cell(row=r, column=1, value=item.label)
-            cat_cell = ws.cell(row=r, column=2, value=decision.category)
-            dv.add(cat_cell)
+            judgment_row = self._judgment_row_by_identity.get(identity)
+            if judgment_row is not None:
+                # Non-practice formula: learner edits Accounting Judgment!F only.
+                formula = (
+                    f"=IF('{JUDGMENT_SHEET}'!$F${judgment_row}=\"\","
+                    f"'{JUDGMENT_SHEET}'!$D${judgment_row},"
+                    f"'{JUDGMENT_SHEET}'!$F${judgment_row})"
+                )
+                ws.cell(row=r, column=2, value=formula)
+            else:
+                cat_cell = ws.cell(row=r, column=2, value=decision.category)
+                dv.add(cat_cell)
             for j, pd in enumerate(self.periods):
                 c = ws.cell(row=r, column=3 + j, value=item.values.get(pd))
                 c.number_format = NUM_FMT

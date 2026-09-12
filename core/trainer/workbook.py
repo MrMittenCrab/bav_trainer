@@ -14,6 +14,7 @@ from ..engine.reference_model import JUDGMENT_SHEET, ReferenceModelBuilder
 from ..engine.semantic_map import ResolvedComponent, SemanticMap
 from ..data.line_identity import validate_financials_identities
 from ..ingestion.reconciler import reconcile_financials
+from .check_context import CHECK_CONTEXT_SHEET
 from .semantic_io import load_semantic_map, resolve_pair_paths
 
 COMPONENT_MAP_SHEET = "_ComponentMap"
@@ -53,10 +54,11 @@ _HIDDEN_PREFIX = "_"
 
 TRAINER_INDEX_INSTRUCTION = (
     "Complete each historical formula schedule left-to-right in dependency order. "
-    "Run Check to validate the yellow formula cells. Also complete Accounting Judgment "
-    "when cases are present; those responses are not graded by Check. Compare them with "
-    "the matching Answer Key. Do not edit the supplied Condensed Financials classification "
-    "for this Step 8A exercise."
+    "Run Check to validate the yellow formula cells against the treatment currently "
+    "selected on Accounting Judgment (blank F uses the supplied reference treatment). "
+    "Also complete Accounting Judgment when cases are present; rationale and consequence "
+    "responses are not graded by Check. Compare them with the matching Answer Key. "
+    "Do not edit linked Condensed Financials classification cells directly."
 )
 
 
@@ -197,6 +199,7 @@ class TrainingWorkbookGenerator:
         """Remove answer-bearing hidden sheets from the Trainer only."""
         for name in (
             COMPONENT_MAP_SHEET,
+            CHECK_CONTEXT_SHEET,
             "_RefFormulas",
             "_RefValues",
             "_TrainerMeta",

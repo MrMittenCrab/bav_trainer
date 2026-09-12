@@ -777,7 +777,12 @@ def test_classification_table_uses_shared_decisions(tmp_path):
     for idx, decision in anchor.reformulation.decisions.items():
         label = data.balance_sheet[idx].label
         row = by_label[label]
-        assert ws.cell(row=row, column=2).value == decision.category
+        cell_val = ws.cell(row=row, column=2).value
+        if isinstance(cell_val, str) and cell_val.startswith("="):
+            assert "Accounting Judgment" in cell_val
+            assert "$F$" in cell_val and "$D$" in cell_val
+        else:
+            assert cell_val == decision.category
         if decision.overridden:
             note = str(ws.cell(row=row, column=notes_col).value or "")
             assert "Override" in note
@@ -896,7 +901,10 @@ def test_historical_reformulation_formulas_match_answer_key_cells(tmp_path):
             break
         if cat is None:
             continue
-        assert cat in BALANCE_SHEET_CATEGORIES
+        if isinstance(cat, str) and cat.startswith("="):
+            assert "Accounting Judgment" in cat
+        else:
+            assert cat in BALANCE_SHEET_CATEGORIES
         assert (
             wb_t["Condensed Financials"].cell(row=r, column=2).value
             == wb_a["Condensed Financials"].cell(row=r, column=2).value
@@ -1444,3 +1452,321 @@ def test_demo_has_one_lease_judgment_case_and_118_formula_components(tmp_path):
     smap = load_semantic_map(answer)
     assert len(smap.all_ordered()) == 118
     check_reformulation_integrity(builder.anchor.reformulation, builder.periods)
+
+
+def test_demo_standardized_payload_round_trip_preserves_identity_and_values():
+    from core.data.line_identity import line_identity
+    from core.data.standardized_io import standardized_from_payload, standardized_to_payload
+
+    data = _ingest_demo()
+    payload = standardized_to_payload(data)
+    restored = standardized_from_payload(payload)
+
+    assert [p.end_date for p in restored.periods] == [p.end_date for p in data.periods]
+    assert [p.is_interim for p in restored.periods] == [p.is_interim for p in data.periods]
+    assert restored.ticker == data.ticker
+    assert restored.stock_code == data.stock_code
+
+    for name in ("income_statement", "balance_sheet", "cash_flow"):
+        original_rows = getattr(data, name)
+        restored_rows = getattr(restored, name)
+        assert len(restored_rows) == len(original_rows)
+        for left, right in zip(original_rows, restored_rows):
+            assert line_identity(left) == line_identity(right)
+            assert left.label == right.label
+            assert (left.concept or "") == (right.concept or "")
+            assert left.values == right.values
+
+    blob = json.dumps(payload)
+    assert "/Users/" not in blob
+    assert "source_doc" not in blob
+    assert "provenance" not in blob
+
+
+def test_demo_check_context_binding_and_no_answer_leakage(tmp_path):
+    from core.engine.reference_model import ReferenceModelBuilder
+    from core.trainer.check_context import (
+        CHECK_CONTEXT_MAGIC,
+        CHECK_CONTEXT_SHEET,
+        build_check_context,
+        load_check_context,
+    )
+
+    data = _ingest_demo()
+    builder = ReferenceModelBuilder(data)
+    assert len(builder.judgment_cases) == 1
+    case = builder.judgment_cases[0]
+    assert case.override_selector == "concept:lease_liability"
+
+    context = build_check_context(
+        data, builder.periods, builder.assumptions, builder.judgment_cases
+    )
+    assert len(context.judgment_bindings) == 1
+    binding = context.judgment_bindings[0]
+    assert binding.worksheet_row == 5
+    assert binding.override_selector == "concept:lease_liability"
+    assert binding.reference_treatment == "Operating Long-Term Liability"
+    assert binding.allowed_treatments == (
+        "Operating Long-Term Liability",
+        "Financial Liability",
+    )
+
+    trainer_path, answer_key_path = _build_pair(tmp_path)
+    loaded = load_check_context(answer_key_path)
+    assert loaded is not None
+    assert loaded.judgment_bindings[0].override_selector == "concept:lease_liability"
+
+    wb_a = load_workbook(answer_key_path, data_only=False)
+    wb_t = load_workbook(trainer_path, data_only=False)
+    assert CHECK_CONTEXT_SHEET in wb_a.sheetnames
+    assert wb_a[CHECK_CONTEXT_SHEET].sheet_state == "hidden"
+    assert wb_a[CHECK_CONTEXT_SHEET]["A1"].value == CHECK_CONTEXT_MAGIC
+    assert CHECK_CONTEXT_SHEET not in wb_t.sheetnames
+
+    chunks = []
+    row = 2
+    while True:
+        value = wb_a[CHECK_CONTEXT_SHEET].cell(row=row, column=1).value
+        if not value:
+            break
+        chunks.append(str(value))
+        row += 1
+    blob = "".join(chunks)
+    assert case.model_rationale not in blob
+    assert case.model_consequence not in blob
+
+    smap = load_semantic_map(answer_key_path)
+    for comp in smap.all_ordered():
+        if comp.formula:
+            assert comp.formula not in blob
+        if comp.short_hint:
+            assert comp.short_hint not in blob
+        for hint in comp.hints:
+            assert str(hint) not in blob
+        # expected numeric values as bare strings may collide with source numbers;
+        # ensure formula answers themselves are absent (checked above).
+    wb_a.close()
+    wb_t.close()
+
+
+def test_judgment_selector_uses_concept_when_present():
+    from core.engine.reference_model import ReferenceModelBuilder
+
+    data = _ingest_demo()
+    builder = ReferenceModelBuilder(data)
+    case = builder.judgment_cases[0]
+    assert case.override_selector == "concept:lease_liability"
+    assert case.line_identity.startswith("concept=lease_liability|")
+
+
+def test_live_classification_judgment_link_for_demo_lease(tmp_path):
+    from core.engine.reference_model import JUDGMENT_SHEET, ReferenceModelBuilder
+    from core.trainer.semantic_io import parse_cell_ref
+
+    trainer_path, answer_key_path = _build_pair(tmp_path)
+    data = _ingest_demo()
+    builder = ReferenceModelBuilder(data)
+    case = builder.judgment_cases[0]
+
+    wb_a = load_workbook(answer_key_path, data_only=False)
+    wb_t = load_workbook(trainer_path, data_only=False)
+    ws_a = wb_a["Condensed Financials"]
+    ws_t = wb_t["Condensed Financials"]
+
+    lease_row = None
+    bank_row = None
+    for row in range(1, (ws_a.max_row or 1) + 1):
+        label = ws_a.cell(row=row, column=1).value
+        if label == "Operating lease liabilities":
+            lease_row = row
+        if label == "Bank borrowings":
+            bank_row = row
+    assert lease_row is not None and bank_row is not None
+
+    lease_formula = ws_a.cell(lease_row, 2).value
+    assert isinstance(lease_formula, str) and lease_formula.startswith("=")
+    compact = lease_formula.replace(" ", "").replace("'", "")
+    assert "AccountingJudgment!$F$5" in compact
+    assert "AccountingJudgment!$D$5" in compact
+    assert ws_t.cell(lease_row, 2).value == lease_formula
+
+    bank_val = ws_a.cell(bank_row, 2).value
+    assert bank_val == "Financial Liability"
+    assert not (isinstance(bank_val, str) and bank_val.startswith("="))
+
+    category_dvs = [
+        dv
+        for dv in ws_a.data_validations.dataValidation
+        if "Operating Working Capital Asset" in str(dv.formula1)
+    ]
+    assert category_dvs
+    category_sqref = " ".join(str(dv.sqref) for dv in category_dvs)
+    assert f"B{bank_row}" in category_sqref
+    assert f"B{lease_row}" not in category_sqref
+
+    smap = load_semantic_map(answer_key_path)
+    practice_cells = {(c.tab, c.cell) for c in smap.all_ordered()}
+    assert ("Condensed Financials", f"B{lease_row}") not in practice_cells
+
+    def _rgb(cell):
+        fill = cell.fill
+        if fill is None or fill.fgColor is None or fill.fgColor.rgb is None:
+            return ""
+        rgb = fill.fgColor.rgb
+        return rgb[-6:] if isinstance(rgb, str) else ""
+
+    assert _rgb(ws_a.cell(lease_row, 2)) != "FFFF00"
+    assert _rgb(ws_t.cell(lease_row, 2)) != "FFFF00"
+    assert ws_a.cell(lease_row, 2).comment is None
+    assert ws_t.cell(lease_row, 2).comment is None
+
+    # Dropdown on judgment F5 survives in both workbooks.
+    for wb in (wb_a, wb_t):
+        formulas = [str(dv.formula1) for dv in wb[JUDGMENT_SHEET].data_validations.dataValidation]
+        assert any(
+            "Operating Long-Term Liability" in f and "Financial Liability" in f
+            for f in formulas
+        )
+        assert any(f"F5" in str(dv.sqref) for dv in wb[JUDGMENT_SHEET].data_validations.dataValidation)
+
+    assert case.supplied_treatment == "Operating Long-Term Liability"
+    wb_a.close()
+    wb_t.close()
+
+
+def test_live_classification_two_case_judgment_links_without_collision(tmp_path):
+    from datetime import date
+
+    from core.data.interface import FinancialPeriod, LineItem, StandardizedFinancials
+    from core.engine.reference_model import JUDGMENT_SHEET, ReferenceModelBuilder
+    from core.trainer.workbook import TrainingWorkbookGenerator
+
+    d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
+
+    def li(label, v1, v2, concept=""):
+        return LineItem(label=label, concept=concept, values={d1: v1, d2: v2})
+
+    # Balanced mini company with two supported guided ambiguities.
+    fin = StandardizedFinancials(
+        ticker="TWO",
+        company_name="Two Case Co",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=d1, label="FY2024"),
+            FinancialPeriod(end_date=d2, label="FY2025"),
+        ],
+        income_statement=[
+            li("Revenue", 1000, 1100),
+            li("Profit before tax", 200, 220),
+            li("Income tax expense", -30, -33),
+            li("Profit for the year", 170, 187),
+        ],
+        balance_sheet=[
+            li("Cash and cash equivalents", 120, 130),
+            li("Trade receivables", 80, 90),
+            li("Property, plant and equipment", 530, 550),
+            li("Total assets", 730, 770),
+            li("Trade payables", 50, 55),
+            li("Operating lease liabilities", 40, 45, concept="lease_liability"),
+            li("Pension obligations", 30, 35),
+            li("Bank borrowings", 200, 210),
+            li("Total liabilities", 320, 345),
+            li("Share capital and reserves", 410, 425),
+            li("Total equity", 410, 425),
+        ],
+        cash_flow=[li("Net cash from operating activities", 50, 60)],
+    )
+    builder = ReferenceModelBuilder(fin)
+    assert len(builder.judgment_cases) == 2
+    answer = tmp_path / "Two_Answer_Key.xlsx"
+    trainer = tmp_path / "Two_Trainer.xlsx"
+    smap = builder.build(answer)
+    TrainingWorkbookGenerator(answer, smap).generate(trainer)
+
+    wb = load_workbook(answer, data_only=False)
+    ws = wb["Condensed Financials"]
+    links = {}
+    for row in range(1, (ws.max_row or 1) + 1):
+        label = ws.cell(row=row, column=1).value
+        val = ws.cell(row=row, column=2).value
+        if label in {"Operating lease liabilities", "Pension obligations"}:
+            assert isinstance(val, str) and val.startswith("=")
+            if "F$5" in val or "F5" in val.replace("$", ""):
+                links[label] = 5
+            elif "F$6" in val or "F6" in val.replace("$", ""):
+                links[label] = 6
+    assert links["Operating lease liabilities"] != links["Pension obligations"]
+    assert set(links.values()) == {5, 6}
+    wb.close()
+
+
+def test_historical_expected_covers_catalog_and_matches_reference_components(tmp_path):
+    from core.model.historical_expected import (
+        expected_value_for_component,
+        historical_expected_series,
+    )
+    from core.engine.reference_model import ReferenceModelBuilder
+
+    data = _ingest_demo()
+    builder = ReferenceModelBuilder(data)
+    series = historical_expected_series(builder.anchor)
+    assert set(series) == {f.id for f in COMPONENT_CATALOG}
+
+    _, answer = _build_pair(tmp_path)
+    smap = load_semantic_map(answer)
+    assert len(smap.all_ordered()) == 118
+    for comp in smap.all_ordered():
+        expected = expected_value_for_component(builder.anchor, comp)
+        if isinstance(expected, (int, float)) and isinstance(comp.expected_value, (int, float)):
+            assert expected == pytest.approx(comp.expected_value)
+        else:
+            assert expected == comp.expected_value
+
+
+def test_alternative_classification_changes_and_invariants():
+    from core.model.classification import check_reformulation_integrity
+    from core.model.historical_expected import historical_expected_series
+    from core.model.period_axis import canonical_fiscal_periods
+
+    data = _ingest_demo()
+    periods = canonical_fiscal_periods(data)
+    ref = compute_anchor(data, periods)
+    alt = compute_anchor(
+        data,
+        periods,
+        classification_overrides={"concept:lease_liability": "Financial Liability"},
+    )
+    check_reformulation_integrity(alt.reformulation, periods)
+
+    ref_s = historical_expected_series(ref)
+    alt_s = historical_expected_series(alt)
+
+    for family in (
+        "oltl_agg",
+        "financial_liabilities_agg",
+        "nola_agg",
+        "noa_agg",
+        "net_debt",
+        "rnoa",
+        "after_tax_cod",
+        "spread",
+        "flev",
+    ):
+        assert ref_s[family] != alt_s[family], family
+
+    for family in (
+        "equity_reformulated_fy",
+        "roe_decomp",
+        "actual_roe",
+        "revenue_link",
+        "net_income_link",
+        "nopat_fy",
+        "sales_growth",
+        "nopat_margin",
+    ):
+        for a, b in zip(ref_s[family], alt_s[family]):
+            if a is None and b is None:
+                continue
+            assert a == pytest.approx(b), family

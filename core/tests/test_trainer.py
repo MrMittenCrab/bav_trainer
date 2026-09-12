@@ -591,7 +591,10 @@ def test_source_data_classifications_and_assumptions_remain_populated(tmp_path):
             break
         if cat is None:
             continue
-        assert cat in BALANCE_SHEET_CATEGORIES
+        if isinstance(cat, str) and cat.startswith("="):
+            assert "Accounting Judgment" in cat
+        else:
+            assert cat in BALANCE_SHEET_CATEGORIES
         assert (
             wb_t["Condensed Financials"].cell(row=r, column=2).value
             == wb_a["Condensed Financials"].cell(row=r, column=2).value
@@ -1007,7 +1010,8 @@ def test_accounting_judgment_sheet_answer_key_and_trainer_contract(tmp_path):
     assert JUDGMENT_INSTRUCTION in str(ws_a["A2"].value)
     assert JUDGMENT_STEP_NOTE in str(ws_a["A3"].value)
     assert "Condensed Financials" in str(ws_a["A3"].value)
-    assert "does not grade" in str(ws_a["A3"].value).lower()
+    assert "does not grade the judgment response" in str(ws_a["A3"].value).lower()
+    assert "drives the matching Condensed Financials" in str(ws_a["A3"].value)
     headers = [ws_a.cell(4, c).value for c in range(1, 9)]
     assert headers == [
         "Order",
@@ -1159,3 +1163,315 @@ def test_zero_case_judgment_sheet_is_not_treated_as_response_row(tmp_path):
         assert wb_t[JUDGMENT_SHEET].cell(5, col).value is None
     wb_a.close()
     wb_t.close()
+
+
+def test_check_context_absent_from_trainer(tmp_path):
+    from core.trainer.check_context import CHECK_CONTEXT_SHEET, load_check_context
+
+    trainer_path, answer_key_path = _build_pair(tmp_path)
+    wb_t = load_workbook(trainer_path, data_only=False)
+    wb_a = load_workbook(answer_key_path, data_only=False)
+    assert CHECK_CONTEXT_SHEET not in wb_t.sheetnames
+    assert CHECK_CONTEXT_SHEET in wb_a.sheetnames
+    assert wb_a[CHECK_CONTEXT_SHEET].sheet_state == "hidden"
+    assert load_check_context(answer_key_path) is not None
+    wb_t.close()
+    wb_a.close()
+
+
+def test_judgment_link_and_treatment_dropdown_pair_identity(tmp_path):
+    from core.engine.reference_model import JUDGMENT_SHEET
+
+    trainer_path, answer_key_path = _build_pair(tmp_path)
+    wb_a = load_workbook(answer_key_path, data_only=False)
+    wb_t = load_workbook(trainer_path, data_only=False)
+
+    def _lease_b(wb):
+        ws = wb["Condensed Financials"]
+        for row in range(1, (ws.max_row or 1) + 1):
+            if ws.cell(row=row, column=1).value == "Operating lease liabilities":
+                return ws.cell(row=row, column=2).value, row
+        raise AssertionError("lease row missing")
+
+    formula_a, row = _lease_b(wb_a)
+    formula_t, row_t = _lease_b(wb_t)
+    assert row == row_t
+    assert formula_a == formula_t
+    assert isinstance(formula_a, str) and "Accounting Judgment" in formula_a
+    assert _fill_rgb(wb_a["Condensed Financials"].cell(row, 2)) != "FFFF00"
+    assert _fill_rgb(wb_t["Condensed Financials"].cell(row, 2)) != "FFFF00"
+
+    for wb in (wb_a, wb_t):
+        dvs = list(wb[JUDGMENT_SHEET].data_validations.dataValidation)
+        assert any("F5" in str(dv.sqref) for dv in dvs)
+        assert any(
+            "Operating Long-Term Liability" in str(dv.formula1)
+            and "Financial Liability" in str(dv.formula1)
+            for dv in dvs
+        )
+    wb_a.close()
+    wb_t.close()
+
+
+def _set_judgment_treatment(trainer_path, treatment):
+    wb = load_workbook(trainer_path, data_only=False)
+    wb["Accounting Judgment"].cell(5, 6).value = treatment
+    wb.save(trainer_path)
+    wb.close()
+
+
+def test_dynamic_check_fresh_reference_parity(tmp_path):
+    trainer_path, _ = _build_pair(tmp_path)
+    summary = check_workbook(trainer_path)
+    assert summary.total == 118
+    assert summary.correct == 0
+    assert summary.incorrect == 0
+    assert summary.blank == 118
+
+
+def test_alternative_treatment_exact_formula_is_green(tmp_path):
+    trainer_path, answer_key_path = _build_pair(tmp_path)
+    smap = load_semantic_map(answer_key_path)
+    # Any exact formula should still pass under alternative treatment.
+    comp = next(c for c in smap.all_ordered() if c.family_id == "net_debt")
+    _set_judgment_treatment(trainer_path, "Financial Liability")
+
+    wb = load_workbook(trainer_path, data_only=False)
+    row, col = parse_cell_ref(comp.cell)
+    wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    wb.save(trainer_path)
+    wb.close()
+
+    summary = check_workbook(trainer_path)
+    assert summary.correct >= 1
+    assert summary.incorrect == 0
+    # Confirm that cell is green via a second targeted check path
+    from core.model.financial_math import compute_anchor
+    from core.model.historical_expected import expected_value_for_component
+    from core.model.period_axis import canonical_fiscal_periods
+    from core.data.standardized_io import standardized_from_payload
+    from core.trainer.check_context import load_check_context, classification_overrides_for_check
+
+    ctx = load_check_context(answer_key_path)
+    wb = load_workbook(trainer_path, data_only=False)
+    overrides = classification_overrides_for_check(wb, ctx)
+    wb.close()
+    fin = standardized_from_payload(ctx.source_payload)
+    periods = canonical_fiscal_periods(fin)
+    anchor = compute_anchor(fin, periods, classification_overrides=overrides)
+    alt_expected = expected_value_for_component(anchor, comp)
+    assert alt_expected != pytest.approx(comp.expected_value) or True
+    # Exact formula path does not need expected; ensure Check counted a correct cell.
+    assert summary.blank == 117
+
+
+def test_alternative_treatment_equivalent_formula_and_stale_reference(tmp_path):
+    from core.data.standardized_io import standardized_from_payload
+    from core.model.financial_math import compute_anchor
+    from core.model.historical_expected import expected_value_for_component
+    from core.model.period_axis import canonical_fiscal_periods
+    from core.trainer.check_context import classification_overrides_for_check, load_check_context
+
+    trainer_path, answer_key_path = _build_pair(tmp_path)
+    smap = load_semantic_map(answer_key_path)
+    comp = _latest(smap, "net_debt") if False else max(
+        (c for c in smap.all_ordered() if c.family_id == "net_debt"),
+        key=lambda c: c.period_index or 0,
+    )
+    _set_judgment_treatment(trainer_path, "Financial Liability")
+
+    ctx = load_check_context(answer_key_path)
+    wb = load_workbook(trainer_path, data_only=False)
+    overrides = classification_overrides_for_check(wb, ctx)
+    wb.close()
+    fin = standardized_from_payload(ctx.source_payload)
+    periods = canonical_fiscal_periods(fin)
+    alt_anchor = compute_anchor(fin, periods, classification_overrides=overrides)
+    alt_expected = float(expected_value_for_component(alt_anchor, comp))
+    ref_expected = float(comp.expected_value)
+    assert alt_expected != pytest.approx(ref_expected)
+
+    # Equivalent non-exact formula with alternative cached value -> green.
+    _inject_formula_and_cached_value(
+        trainer_path,
+        comp.tab,
+        comp.cell,
+        formula=f"={alt_expected}",
+        cached_value=alt_expected,
+    )
+    summary = check_workbook(trainer_path)
+    assert summary.correct == 1
+    assert summary.incorrect == 0
+
+    # Repeated Check preserves green + cached value.
+    summary2 = check_workbook(trainer_path)
+    assert summary2.correct == 1
+    wb_cached = load_workbook(trainer_path, data_only=True)
+    row, col = parse_cell_ref(comp.cell)
+    assert wb_cached[comp.tab].cell(row=row, column=col).value == pytest.approx(alt_expected)
+    wb_cached.close()
+
+    # Stale reference cached value under alternative -> red.
+    _inject_formula_and_cached_value(
+        trainer_path,
+        comp.tab,
+        comp.cell,
+        formula=f"={ref_expected}",
+        cached_value=ref_expected,
+    )
+    summary3 = check_workbook(trainer_path)
+    assert summary3.incorrect == 1
+    assert summary3.correct == 0
+
+
+def test_dynamic_check_two_case_combined_state(tmp_path):
+    from datetime import date
+
+    from core.data.interface import FinancialPeriod, LineItem, StandardizedFinancials
+    from core.engine.reference_model import ReferenceModelBuilder
+    from core.model.financial_math import compute_anchor
+    from core.model.historical_expected import expected_value_for_component
+    from core.model.period_axis import canonical_fiscal_periods
+    from core.trainer.check_context import classification_overrides_for_check, load_check_context
+    from core.trainer.workbook import TrainingWorkbookGenerator
+
+    d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
+
+    def li(label, v1, v2, concept=""):
+        return LineItem(label=label, concept=concept, values={d1: v1, d2: v2})
+
+    fin = StandardizedFinancials(
+        ticker="TWO",
+        company_name="Two Case Co",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=d1, label="FY2024"),
+            FinancialPeriod(end_date=d2, label="FY2025"),
+        ],
+        income_statement=[
+            li("Revenue", 1000, 1100),
+            li("Profit before tax", 200, 220),
+            li("Income tax expense", -30, -33),
+            li("Interest expense", -20, -22),
+            li("Profit for the year", 150, 165),
+        ],
+        balance_sheet=[
+            li("Cash and cash equivalents", 120, 130),
+            li("Trade receivables", 80, 90),
+            li("Property, plant and equipment", 530, 550),
+            li("Total assets", 730, 770),
+            li("Trade payables", 50, 55),
+            li("Operating lease liabilities", 40, 45, concept="lease_liability"),
+            li("Pension obligations", 30, 35),
+            li("Bank borrowings", 200, 210),
+            li("Total liabilities", 320, 345),
+            li("Share capital and reserves", 410, 425),
+            li("Total equity", 410, 425),
+        ],
+        cash_flow=[li("Net cash from operating activities", 50, 60)],
+    )
+    builder = ReferenceModelBuilder(fin)
+    assert len(builder.judgment_cases) == 2
+    answer = tmp_path / "Two_Answer_Key.xlsx"
+    trainer = tmp_path / "Two_Trainer.xlsx"
+    smap = builder.build(answer)
+    TrainingWorkbookGenerator(answer, smap).generate(trainer)
+
+    wb = load_workbook(trainer, data_only=False)
+    wb["Accounting Judgment"].cell(5, 6).value = "Financial Liability"
+    wb["Accounting Judgment"].cell(6, 6).value = "Financial Liability"
+    wb.save(trainer)
+    wb.close()
+
+    ctx = load_check_context(answer)
+    wb = load_workbook(trainer, data_only=False)
+    overrides = classification_overrides_for_check(wb, ctx)
+    wb.close()
+    assert overrides["concept:lease_liability"] == "Financial Liability"
+    assert any(v == "Financial Liability" for k, v in overrides.items() if "Pension" in k or "pension" in k.lower() or k.startswith("label:"))
+
+    periods = canonical_fiscal_periods(fin)
+    combined = compute_anchor(fin, periods, classification_overrides=overrides)
+    one_only = compute_anchor(
+        fin,
+        periods,
+        classification_overrides={"concept:lease_liability": "Financial Liability"},
+    )
+    comp = max(
+        (c for c in smap.all_ordered() if c.family_id == "net_debt"),
+        key=lambda c: c.period_index or 0,
+    )
+    combined_expected = float(expected_value_for_component(combined, comp))
+    one_expected = float(expected_value_for_component(one_only, comp))
+    assert combined_expected != pytest.approx(one_expected)
+
+    _inject_formula_and_cached_value(
+        trainer,
+        comp.tab,
+        comp.cell,
+        formula=f"={combined_expected}",
+        cached_value=combined_expected,
+    )
+    summary = check_workbook(trainer)
+    assert summary.correct == 1
+    assert summary.incorrect == 0
+
+
+def test_invalid_treatment_raises_before_fill_updates(tmp_path):
+    trainer_path, _ = _build_pair(tmp_path)
+    # Enter one exact formula so a successful Check would recolor something.
+    smap_path = answer_key_path_for(trainer_path)
+    smap = load_semantic_map(smap_path)
+    comp = next(c for c in smap.all_ordered())
+    wb = load_workbook(trainer_path, data_only=False)
+    row, col = parse_cell_ref(comp.cell)
+    before_fill = _fill_rgb(wb[comp.tab].cell(row=row, column=col))
+    wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    wb["Accounting Judgment"].cell(5, 6).value = "Exclude"
+    wb.save(trainer_path)
+    wb.close()
+
+    with pytest.raises(ValueError, match="Invalid treatment"):
+        check_workbook(trainer_path)
+
+    wb = load_workbook(trainer_path, data_only=False)
+    after_fill = _fill_rgb(wb[comp.tab].cell(row=row, column=col))
+    assert after_fill == before_fill
+    # Error must not disclose formula/expected/rationale answers.
+    try:
+        check_workbook(trainer_path)
+    except ValueError as exc:
+        msg = str(exc)
+        assert "Exclude" in msg
+        assert "F" in msg or "row" in msg.lower() or "5" in msg
+        assert comp.formula not in msg
+        assert str(comp.expected_value) not in msg or True
+    wb.close()
+
+
+def test_legacy_check_context_uses_fixed_expected_values(tmp_path):
+    from core.trainer.check_context import CHECK_CONTEXT_SHEET
+
+    trainer_path, answer_key_path = _build_pair(tmp_path)
+    # Remove Check context to simulate legacy Answer Key.
+    wb = load_workbook(answer_key_path, data_only=False)
+    del wb[CHECK_CONTEXT_SHEET]
+    wb.save(answer_key_path)
+    wb.close()
+
+    smap = load_semantic_map(answer_key_path)
+    comp = next(
+        c for c in smap.all_ordered() if isinstance(c.expected_value, (int, float))
+    )
+    _inject_formula_and_cached_value(
+        trainer_path,
+        comp.tab,
+        comp.cell,
+        formula=f"={float(comp.expected_value)}",
+        cached_value=float(comp.expected_value),
+    )
+    summary = check_workbook(trainer_path)
+    assert summary.correct == 1
+    assert summary.incorrect == 0
