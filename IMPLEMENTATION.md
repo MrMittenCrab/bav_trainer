@@ -1,5 +1,7 @@
 # Step 9E.1 — Historical Cash-Conversion Trend Diagnostics
 
+> **STATUS: COMPLETE** — verified locally (`240 passed`; base 62/259; norm 66/279). See `RESULT.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `787a1b97b6e2c6664b7e81304165c6757ca325b6` (`Step 9D1`, Step 9D.1 complete). Implement only Step 9E.1 below using red/green TDD. Preserve Step 8 classification/normalization judgment, the trusted-workbook boundary, all Step 9A source-completeness / tax / normalization / `#N/A` semantics, the complete Step 9B working-capital diagnostics, the complete Step 9C RNOA level/change attribution surface, and the complete Step 9D ROE operating/financing attribution surface. Do not add company-specific causal claims, automatic good/bad earnings-quality labels, forecasting, valuation, historical share-count schema changes, segment analysis, ROU/deferred-tax alternative modeling, or later research-diagnostic work. Do not commit or push; the user owns the checkpoint commit.

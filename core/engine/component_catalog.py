@@ -1378,6 +1378,145 @@ def expand_roe_attribution_specs(
     return tuple(specs)
 
 
+QUALITY_CHANGE_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="operating_cash_flow_change",
+        order=63,
+        title="Change in Operating Cash Flow",
+        short_hint="Current CFO minus prior CFO.",
+        semantic_key="quality_change.operating_cash_flow_change",
+        category="earnings_quality_change",
+        tab_template="Earnings Quality",
+        period_scope="comparable",
+        depends_on_current=("operating_cash_flow_link",),
+        depends_on_previous=("operating_cash_flow_link",),
+        hints=(
+            "Change in CFO = Current Operating Cash Flow - Prior Operating Cash Flow.",
+            "A positive or negative movement is mechanical evidence only; interpret it alongside profitability and business conditions.",
+        ),
+    ),
+    ComponentFamily(
+        id="cash_conversion_ratio_change",
+        order=64,
+        title="Change in Cash Conversion Ratio",
+        short_hint="Current cash conversion ratio minus prior ratio.",
+        semantic_key="quality_change.cash_conversion_ratio_change",
+        category="earnings_quality_change",
+        tab_template="Earnings Quality",
+        period_scope="comparable",
+        depends_on_current=("cash_conversion_ratio",),
+        depends_on_previous=("cash_conversion_ratio",),
+        hints=(
+            "Change in Cash Conversion Ratio = Current CFO/Net Income ratio - Prior ratio.",
+            "If either period's ratio is undefined, the change is also undefined (#N/A).",
+            "Do not automatically label a higher ratio as better quality without investigating why it changed.",
+        ),
+    ),
+    ComponentFamily(
+        id="total_accruals_change",
+        order=65,
+        title="Change in Total Accruals",
+        short_hint="Current Total Accruals minus prior Total Accruals.",
+        semantic_key="quality_change.total_accruals_change",
+        category="earnings_quality_change",
+        tab_template="Earnings Quality",
+        period_scope="comparable",
+        depends_on_current=("total_accruals",),
+        depends_on_previous=("total_accruals",),
+        hints=(
+            "Change in Total Accruals = Current (Net Income - CFO) - Prior (Net Income - CFO).",
+            "Retain the sign; do not convert accrual movements to absolute values.",
+            "The direction alone is not an automatic earnings-quality verdict.",
+        ),
+    ),
+    ComponentFamily(
+        id="accrual_ratio_change",
+        order=66,
+        title="Change in Accrual Ratio",
+        short_hint="Current accrual ratio minus prior comparable accrual ratio.",
+        semantic_key="quality_change.accrual_ratio_change",
+        category="earnings_quality_change",
+        tab_template="Earnings Quality",
+        period_scope="post_comparable",
+        depends_on_current=("accrual_ratio",),
+        depends_on_previous=("accrual_ratio",),
+        hints=(
+            "Change in Accrual Ratio = Current Accrual Ratio - Prior Accrual Ratio.",
+            "This family is available only when reported Total Assets support the existing accrual-ratio schedule.",
+            "Undefined current or prior ratios propagate to #N/A.",
+        ),
+    ),
+)
+
+
+def expand_quality_change_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    include_asset_scaled: bool,
+) -> tuple[ComponentSpec, ...]:
+    """Expand earnings-quality change families into period-specific concrete specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_quality_change_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_quality_change_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    families = QUALITY_CHANGE_COMPONENT_CATALOG
+    if not include_asset_scaled:
+        families = tuple(
+            family
+            for family in QUALITY_CHANGE_COMPONENT_CATALOG
+            if family.id != "accrual_ratio_change"
+        )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in families:
+        if family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        elif family.period_scope == "post_comparable":
+            indices = range(2, len(periods))
+        else:
+            raise ValueError(
+                f"unsupported quality-change period_scope {family.period_scope!r}"
+            )
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            prev = periods[j - 1]
+            for dep_fam in family.depends_on_previous:
+                deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 def _deferred(
     *,
     id: str,

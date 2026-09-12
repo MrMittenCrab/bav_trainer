@@ -20,6 +20,7 @@ from ..model.earnings_quality import (
     compute_earnings_quality_series,
     earnings_quality_availability,
 )
+from ..model.earnings_quality_change import compute_earnings_quality_change_series
 from ..model.judgment import JudgmentCase, classification_judgment_cases
 from ..model.line_resolver import resolve_line, workbook_row_for
 from ..model.normalization import (
@@ -42,6 +43,7 @@ from .component_catalog import (
     expand_normalization_specs,
     expand_profitability_change_specs,
     expand_profitability_driver_specs,
+    expand_quality_change_specs,
     expand_quality_specs,
     expand_roe_attribution_specs,
     expand_working_capital_specs,
@@ -203,6 +205,27 @@ class ReferenceModelBuilder:
                 + 1
             ),
         )
+        if self.quality_series is not None:
+            self.quality_change_series = compute_earnings_quality_change_series(
+                self.quality_series
+            )
+            self.quality_change_specs = expand_quality_change_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + len(self.profitability_change_specs)
+                    + len(self.roe_attribution_specs)
+                    + 1
+                ),
+                include_asset_scaled=self.quality_availability.total_assets,
+            )
+        else:
+            self.quality_change_series = None
+            self.quality_change_specs = ()
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
@@ -211,6 +234,7 @@ class ReferenceModelBuilder:
             + self.profitability_driver_specs
             + self.profitability_change_specs
             + self.roe_attribution_specs
+            + self.quality_change_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -233,6 +257,9 @@ class ReferenceModelBuilder:
         }
         self._roe_attribution_spec_index = {
             (s.family_id, s.period_index): s for s in self.roe_attribution_specs
+        }
+        self._quality_change_spec_index = {
+            (s.family_id, s.period_index): s for s in self.quality_change_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -419,6 +446,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._quality_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_quality_change(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._quality_change_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -1958,69 +2001,206 @@ class ReferenceModelBuilder:
         self.rowmap["quality_conversion_row"] = conversion_row
         self.rowmap["quality_accruals_row"] = accruals_row
 
-        if not self.quality_availability.total_assets:
-            return
+        assets_row = None
+        avg_assets_row = None
+        accrual_ratio_row = None
 
-        assets_src = self._resolved_source_row(
-            self.fin.balance_sheet, "total_assets", required=True
+        if self.quality_availability.total_assets:
+            assets_src = self._resolved_source_row(
+                self.fin.balance_sheet, "total_assets", required=True
+            )
+            assert assets_src is not None
+            assets_row = 10
+            avg_assets_row = 11
+            accrual_ratio_row = 12
+            ws.cell(row=assets_row, column=1, value="Total Assets")
+            ws.cell(row=avg_assets_row, column=1, value="Average Total Assets")
+            ws.cell(row=accrual_ratio_row, column=1, value="Accrual Ratio")
+
+            for j in range(self._n):
+                col = self._col(2 + j)
+                assets_formula = f"='Balance Sheet'!{col}{assets_src}"
+                c = ws.cell(row=assets_row, column=2 + j, value=assets_formula)
+                c.number_format = NUM_FMT
+
+                if j == 0:
+                    ws.cell(row=avg_assets_row, column=2 + j, value=None)
+                    ws.cell(row=accrual_ratio_row, column=2 + j, value=None)
+                    continue
+
+                prev_col = self._col(2 + j - 1)
+                avg_formula = f"=({prev_col}{assets_row}+{col}{assets_row})/2"
+                ratio_formula = (
+                    f"=IF({col}{avg_assets_row}=0,NA(),"
+                    f"{col}{accruals_row}/{col}{avg_assets_row})"
+                )
+                c = ws.cell(row=avg_assets_row, column=2 + j, value=avg_formula)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=accrual_ratio_row, column=2 + j, value=ratio_formula)
+                c.number_format = PCT_FMT
+
+                assert series.average_total_assets[j] is not None
+                assert series.accrual_ratio[j] is not None
+                self._register_quality(
+                    "average_total_assets",
+                    j,
+                    EARNINGS_QUALITY_SHEET,
+                    avg_assets_row,
+                    2 + j,
+                    avg_formula,
+                    float(series.average_total_assets[j]),
+                )
+                accrual_expected = series.accrual_ratio[j]
+                self._register_quality(
+                    "accrual_ratio",
+                    j,
+                    EARNINGS_QUALITY_SHEET,
+                    accrual_ratio_row,
+                    2 + j,
+                    ratio_formula,
+                    accrual_expected
+                    if isinstance(accrual_expected, str)
+                    else float(accrual_expected),
+                )
+
+            self.rowmap["quality_assets_row"] = assets_row
+            self.rowmap["quality_avg_assets_row"] = avg_assets_row
+            self.rowmap["quality_accrual_ratio_row"] = accrual_ratio_row
+
+        # Cash-conversion / accrual trend diagnostics (Step 9E.1)
+        if self.quality_change_series is None:
+            raise RuntimeError(
+                "quality_change_series required when building Earnings Quality trends"
+            )
+        changes = self.quality_change_series
+        na = "N/A"
+        trend_section_row = 14
+        cfo_change_row = 15
+        conversion_change_row = 16
+        accruals_change_row = 17
+        accrual_ratio_change_row = 18
+        change_check_row = 19
+
+        ws.cell(
+            row=trend_section_row,
+            column=1,
+            value="EARNINGS QUALITY TREND DIAGNOSTICS",
+        ).font = BOLD
+        ws.cell(row=cfo_change_row, column=1, value="Change in Operating Cash Flow")
+        ws.cell(
+            row=conversion_change_row, column=1, value="Change in Cash Conversion Ratio"
         )
-        assert assets_src is not None
-        assets_row = 10
-        avg_assets_row = 11
-        accrual_ratio_row = 12
-        ws.cell(row=assets_row, column=1, value="Total Assets")
-        ws.cell(row=avg_assets_row, column=1, value="Average Total Assets")
-        ws.cell(row=accrual_ratio_row, column=1, value="Accrual Ratio")
+        ws.cell(row=accruals_change_row, column=1, value="Change in Total Accruals")
+        ws.cell(row=accrual_ratio_change_row, column=1, value="Change in Accrual Ratio")
+        ws.cell(
+            row=change_check_row, column=1, value="EARNINGS QUALITY CHANGE CHECK"
+        ).font = BOLD
 
         for j in range(self._n):
-            col = self._col(2 + j)
-            assets_formula = f"='Balance Sheet'!{col}{assets_src}"
-            c = ws.cell(row=assets_row, column=2 + j, value=assets_formula)
-            c.number_format = NUM_FMT
-
+            out_col_idx = 2 + j
+            col = self._col(out_col_idx)
             if j == 0:
-                ws.cell(row=avg_assets_row, column=2 + j, value=None)
-                ws.cell(row=accrual_ratio_row, column=2 + j, value=None)
+                for row in (
+                    cfo_change_row,
+                    conversion_change_row,
+                    accruals_change_row,
+                    accrual_ratio_change_row,
+                    change_check_row,
+                ):
+                    ws.cell(row=row, column=out_col_idx, value=na)
                 continue
 
             prev_col = self._col(2 + j - 1)
-            avg_formula = f"=({prev_col}{assets_row}+{col}{assets_row})/2"
-            ratio_formula = (
-                f"=IF({col}{avg_assets_row}=0,NA(),"
-                f"{col}{accruals_row}/{col}{avg_assets_row})"
+            cfo_change_f = f"={col}{cfo_row}-{prev_col}{cfo_row}"
+            conversion_change_f = f"={col}{conversion_row}-{prev_col}{conversion_row}"
+            accruals_change_f = f"={col}{accruals_row}-{prev_col}{accruals_row}"
+            change_check_f = (
+                f'=IF(ABS({col}{accruals_change_row}-'
+                f'(({col}{ni_row}-{prev_col}{ni_row})-{col}{cfo_change_row}))'
+                f'<0.01,"OK","CHECK")'
             )
-            c = ws.cell(row=avg_assets_row, column=2 + j, value=avg_formula)
+
+            c = ws.cell(row=cfo_change_row, column=out_col_idx, value=cfo_change_f)
             c.number_format = NUM_FMT
-            c = ws.cell(row=accrual_ratio_row, column=2 + j, value=ratio_formula)
-            c.number_format = PCT_FMT
+            c = ws.cell(
+                row=conversion_change_row, column=out_col_idx, value=conversion_change_f
+            )
+            c.number_format = "0.00x"
+            c = ws.cell(
+                row=accruals_change_row, column=out_col_idx, value=accruals_change_f
+            )
+            c.number_format = NUM_FMT
+            ws.cell(row=change_check_row, column=out_col_idx, value=change_check_f)
 
-            assert series.average_total_assets[j] is not None
-            assert series.accrual_ratio[j] is not None
-            self._register_quality(
-                "average_total_assets",
+            cfo_expected = changes.operating_cash_flow_change[j]
+            assert cfo_expected is not None
+            self._register_quality_change(
+                "operating_cash_flow_change",
                 j,
                 EARNINGS_QUALITY_SHEET,
-                avg_assets_row,
-                2 + j,
-                avg_formula,
-                float(series.average_total_assets[j]),
+                cfo_change_row,
+                out_col_idx,
+                cfo_change_f,
+                float(cfo_expected),
             )
-            accrual_expected = series.accrual_ratio[j]
-            self._register_quality(
-                "accrual_ratio",
+            conv_expected = changes.cash_conversion_ratio_change[j]
+            assert conv_expected is not None
+            self._register_quality_change(
+                "cash_conversion_ratio_change",
                 j,
                 EARNINGS_QUALITY_SHEET,
-                accrual_ratio_row,
-                2 + j,
-                ratio_formula,
-                accrual_expected
-                if isinstance(accrual_expected, str)
-                else float(accrual_expected),
+                conversion_change_row,
+                out_col_idx,
+                conversion_change_f,
+                conv_expected if isinstance(conv_expected, str) else float(conv_expected),
+            )
+            accruals_expected = changes.total_accruals_change[j]
+            assert accruals_expected is not None
+            self._register_quality_change(
+                "total_accruals_change",
+                j,
+                EARNINGS_QUALITY_SHEET,
+                accruals_change_row,
+                out_col_idx,
+                accruals_change_f,
+                float(accruals_expected),
             )
 
-        self.rowmap["quality_assets_row"] = assets_row
-        self.rowmap["quality_avg_assets_row"] = avg_assets_row
-        self.rowmap["quality_accrual_ratio_row"] = accrual_ratio_row
+            if not self.quality_availability.total_assets or j < 2:
+                ws.cell(row=accrual_ratio_change_row, column=out_col_idx, value=na)
+            else:
+                assert accrual_ratio_row is not None
+                accrual_ratio_change_f = (
+                    f"={col}{accrual_ratio_row}-{prev_col}{accrual_ratio_row}"
+                )
+                c = ws.cell(
+                    row=accrual_ratio_change_row,
+                    column=out_col_idx,
+                    value=accrual_ratio_change_f,
+                )
+                c.number_format = PCT_FMT
+                ar_expected = changes.accrual_ratio_change[j]
+                assert ar_expected is not None
+                self._register_quality_change(
+                    "accrual_ratio_change",
+                    j,
+                    EARNINGS_QUALITY_SHEET,
+                    accrual_ratio_change_row,
+                    out_col_idx,
+                    accrual_ratio_change_f,
+                    ar_expected if isinstance(ar_expected, str) else float(ar_expected),
+                )
+
+        # When assets are absent, mark accrual-ratio change N/A for period 0 too
+        # (already handled above for all j when assets absent / j<2).
+        if not self.quality_availability.total_assets:
+            ws.cell(row=accrual_ratio_change_row, column=2, value=na)
+
+        self.rowmap["quality_change_cfo_row"] = cfo_change_row
+        self.rowmap["quality_change_conversion_row"] = conversion_change_row
+        self.rowmap["quality_change_accruals_row"] = accruals_change_row
+        self.rowmap["quality_change_accrual_ratio_row"] = accrual_ratio_change_row
+        self.rowmap["quality_change_check_row"] = change_check_row
 
     def _build_working_capital_analysis(self, wb: Workbook) -> None:
         if self.working_capital_series is None:

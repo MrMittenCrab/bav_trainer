@@ -7,12 +7,14 @@ from ..engine.component_catalog import (
     NORMALIZATION_COMPONENT_CATALOG,
     PROFITABILITY_CHANGE_COMPONENT_CATALOG,
     PROFITABILITY_DRIVER_COMPONENT_CATALOG,
+    QUALITY_CHANGE_COMPONENT_CATALOG,
     QUALITY_COMPONENT_CATALOG,
     ROE_ATTRIBUTION_COMPONENT_CATALOG,
     WORKING_CAPITAL_COMPONENT_CATALOG,
 )
 from ..engine.semantic_map import ResolvedComponent
 from .earnings_quality import EarningsQualitySeries
+from .earnings_quality_change import compute_earnings_quality_change_series
 from .financial_math import AnchorMetrics
 from .normalization import NormalizationSeries
 from .profitability_change import compute_profitability_change_series
@@ -61,6 +63,13 @@ _QUALITY_FAMILY_SERIES = (
     "total_accruals",
     "average_total_assets",
     "accrual_ratio",
+)
+
+_QUALITY_CHANGE_FAMILY_SERIES = (
+    "operating_cash_flow_change",
+    "cash_conversion_ratio_change",
+    "total_accruals_change",
+    "accrual_ratio_change",
 )
 
 _WORKING_CAPITAL_FAMILY_SERIES = (
@@ -188,6 +197,31 @@ def earnings_quality_expected_series(
             f"missing={missing} extra={extra}"
         )
     return {family_id: series[family_id] for family_id in _QUALITY_FAMILY_SERIES}
+
+
+def earnings_quality_change_expected_series(
+    earnings_quality: EarningsQualitySeries,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map earnings-quality-change formula families to trend diagnostics."""
+    changes = compute_earnings_quality_change_series(earnings_quality)
+    series = {
+        "operating_cash_flow_change": changes.operating_cash_flow_change,
+        "cash_conversion_ratio_change": changes.cash_conversion_ratio_change,
+        "total_accruals_change": changes.total_accruals_change,
+        "accrual_ratio_change": changes.accrual_ratio_change,
+    }
+    expected_ids = {family.id for family in QUALITY_CHANGE_COMPONENT_CATALOG}
+    if set(series) != expected_ids:
+        missing = sorted(expected_ids - set(series))
+        extra = sorted(set(series) - expected_ids)
+        raise ValueError(
+            "earnings_quality_change_expected_series family mismatch; "
+            f"missing={missing} extra={extra}"
+        )
+    return {
+        family_id: series[family_id]
+        for family_id in _QUALITY_CHANGE_FAMILY_SERIES
+    }
 
 
 def working_capital_expected_series(
@@ -326,6 +360,13 @@ def expected_value_for_component(
         series = profitability_driver_expected_series(anchor)
     elif family_id in _WORKING_CAPITAL_FAMILY_SERIES:
         series = working_capital_expected_series(anchor)
+    elif family_id in _QUALITY_CHANGE_FAMILY_SERIES:
+        if earnings_quality is None:
+            raise ValueError(
+                f"Earnings-quality-change family {family_id!r} "
+                "requires an EarningsQualitySeries"
+            )
+        series = earnings_quality_change_expected_series(earnings_quality)
     elif family_id in _QUALITY_FAMILY_SERIES:
         if earnings_quality is None:
             raise ValueError(

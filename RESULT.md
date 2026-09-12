@@ -1,38 +1,35 @@
-Status: Step 9D.1 complete — historical ROE operating / financing attribution
+Status: Step 9E.1 complete — historical cash-conversion / accrual trend diagnostics
 
 Implementation base:
-- 2ba3e65 Step 9C.2 complete
+- 787a1b9 Step 9D.1 complete
 
 Historical formula surface (no normalization assumptions):
 - fiscal periods: 5
-- formula families: 58
-- formula practice cells: 244
-- fresh Check: 0 / 0 / 244
+- formula families: 62
+- formula practice cells: 259
+- fresh Check: 0 / 0 / 259
 
 Step 9A illustrative demo (with DEMO_HK_Assumptions.json):
 - fiscal periods: 5
-- formula families: 62
-- formula practice cells: 264
-- fresh Check: 0 / 0 / 264
+- formula families: 66
+- formula practice cells: 279
+- fresh Check: 0 / 0 / 279
 
-ROE operating / financing attribution:
-- 7 ROE-attribution families / 22 practice cells on five-year demo: yes
-- Financing Contribution = FLEV × Spread (comparable periods): yes
-- level bridge RNOA + Financing Contribution = decomposed ROE when defined: yes
-- Operating Effect = Direct Change in RNOA: yes
-- Leverage Effect = ΔFLEV × midpoint Spread: yes
-- Spread Effect = ΔSpread × midpoint FLEV: yes
-- Financing Effect = Leverage + Spread effects: yes
-- Operating + Financing effects reconcile to Direct ΔROE when defined: yes
-- attribution starts at fiscal-period index 2 for change rows: yes
-- undefined FLEV/Spread propagate to `#N/A` (0 × `#N/A` stays `#N/A`): yes
-- live classification changes financing contribution / leverage / financing / driver expecteds: yes
-- trusted ROE LEVEL / ROE CHANGE ATTRIBUTION CHECK tamper fails before recolor: yes
+Cash-conversion trend diagnostics:
+- 4 quality-change families / 15 practice cells on five-year demo with Total Assets: yes
+- Change in CFO / Cash Conversion / Total Accruals (comparable): yes
+- Change in Accrual Ratio (post-comparable, gated on Total Assets): yes
+- no CFO -> no Earnings Quality sheet and no trend families: yes
+- no Total Assets -> 3 trend families only; accrual-ratio change row literal N/A: yes
+- undefined conversion/accrual-ratio inputs propagate to `#N/A`: yes
+- numeric zero differences remain 0.0: yes
+- signs preserved (no ABS on practice formulas): yes
+- trusted EARNINGS QUALITY CHANGE CHECK tamper fails before recolor: yes
 - exact/equivalent `#N/A` accepted; fabricated 0.0 rejected: yes
-- existing direct ROE (decomposed) formula unchanged: yes
-- Step 9C RNOA level/change families unchanged: yes
-- Step 9B working-capital surface preserved: yes
-- no automatic leverage-quality or financing-policy judgment: yes
+- composes with Accounting Judgment + Earnings Normalization Check: yes
+- Step 9A quality level families unchanged: yes
+- Step 9B/9C/9D surfaces preserved: yes
+- no automatic earnings-quality good/bad labels: yes
 
 Preservation:
 - CLI remains {ingest,build,check,list}
@@ -41,26 +38,28 @@ Preservation:
 - forecasting / valuation not begun: yes
 
 Files changed:
-- Add: `core/model/roe_attribution.py`
-- Add: `core/tests/test_roe_attribution.py`
-- Modify: `core/engine/component_catalog.py` — ROE_ATTRIBUTION_COMPONENT_CATALOG + expand
-- Modify: `core/model/historical_expected.py` — roe_attribution_expected_series
-- Modify: `core/engine/reference_model.py` — ALT DuPont ROE attribution sections + registration
+- Add: `core/model/earnings_quality_change.py`
+- Add: `core/tests/test_earnings_quality_change.py`
+- Modify: `core/engine/component_catalog.py` — QUALITY_CHANGE_COMPONENT_CATALOG + expand
+- Modify: `core/model/historical_expected.py` — earnings_quality_change_expected_series
+- Modify: `core/trainer/checker.py` — quality-change families in dynamic expected path
+- Modify: `core/engine/reference_model.py` — Earnings Quality trend section + registration
 - Modify: `core/trainer/workbook.py` — family meta for list/index
-- Modify: `core/tests/test_*.py` — demo surface 58/244 and 62/264
-- Modify: `skills/bav-trainer/SKILL.md` — surface counts + ROE attribution note
+- Modify: `core/tests/test_*.py` — demo surface 62/259 and 66/279
+- Modify: `skills/bav-trainer/SKILL.md` — surface counts + trend note
 - Modify: `RESULT.md`
 - Modify: `IMPLEMENTATION.md` status only
 
 Tests (fresh, local verification — no attached GitHub CI):
-- `PYTHONPATH=. pytest core/tests/ -q` -> 232 passed
-- base build/check/list -> 244 / 58 / 0-0-244 blank
-- norm build/check/list -> 264 / 62 / 0-0-264 blank
+- `PYTHONPATH=. pytest core/tests/ -q` -> 240 passed
+- base build/check/list -> 259 / 62 / 0-0-259 blank
+- norm build/check/list -> 279 / 66 / 0-0-279 blank
 - CLI -> `{ingest,build,check,list}` only
 
 Known deferred limitations:
 - dormant deferred-forecast defaults/fallbacks remain
-- company-specific causal interpretation of operating vs financing ROE remains deferred
+- company-specific causal interpretation of cash conversion / accruals remains deferred
+- historical per-share expansion where share data is not supplied remains deferred
 - quality scoring / forecasting / valuation remain deferred
 
-Unresolved: none on the active historical ROE operating/financing attribution surface addressed by this checkpoint
+Unresolved: none on the active historical cash-conversion trend surface addressed by this checkpoint

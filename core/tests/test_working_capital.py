@@ -262,8 +262,8 @@ def test_demo_working_capital_surface(tmp_path):
     data = _ingest_demo()
     trainer, answer = build_training_workbook(data, tmp_path / "BASE_WC.xlsx")
     smap = load_semantic_map(answer)
-    assert len(smap.all_ordered()) == 244
-    assert len(group_components_by_family(smap)) == 58
+    assert len(smap.all_ordered()) == 259
+    assert len(group_components_by_family(smap)) == 62
     wc = [c for c in smap.all_ordered() if c.category == "working_capital"]
     assert len(wc) == 47
     wb = load_workbook(answer)
@@ -314,17 +314,17 @@ def test_demo_working_capital_surface(tmp_path):
     wb_t.close()
 
     summary = check_workbook(trainer)
-    assert summary.total == 244
-    assert summary.blank == 244
+    assert summary.total == 259
+    assert summary.blank == 259
 
     assumptions = json.loads(DEMO_ASSUMPTIONS.read_text(encoding="utf-8"))
     trainer_n, answer_n = build_training_workbook(
         data, tmp_path / "NORM_WC.xlsx", assumptions
     )
     smap_n = load_semantic_map(answer_n)
-    assert len(smap_n.all_ordered()) == 264
-    assert len(group_components_by_family(smap_n)) == 62
-    assert check_workbook(trainer_n).blank == 264
+    assert len(smap_n.all_ordered()) == 279
+    assert len(group_components_by_family(smap_n)) == 66
+    assert check_workbook(trainer_n).blank == 279
 
 
 def test_working_capital_absent_when_owca_owcl_zero(tmp_path):

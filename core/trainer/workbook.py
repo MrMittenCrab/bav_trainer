@@ -14,6 +14,7 @@ from ..engine.component_catalog import (
     NORMALIZATION_COMPONENT_CATALOG,
     PROFITABILITY_CHANGE_COMPONENT_CATALOG,
     PROFITABILITY_DRIVER_COMPONENT_CATALOG,
+    QUALITY_CHANGE_COMPONENT_CATALOG,
     QUALITY_COMPONENT_CATALOG,
     ROE_ATTRIBUTION_COMPONENT_CATALOG,
     WORKING_CAPITAL_COMPONENT_CATALOG,
@@ -285,6 +286,7 @@ def group_components_by_family(smap: SemanticMap) -> list[dict]:
     family_meta = {f.id: f for f in COMPONENT_CATALOG}
     family_meta.update({f.id: f for f in NORMALIZATION_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in QUALITY_COMPONENT_CATALOG})
+    family_meta.update({f.id: f for f in QUALITY_CHANGE_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in WORKING_CAPITAL_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in PROFITABILITY_DRIVER_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in PROFITABILITY_CHANGE_COMPONENT_CATALOG})

@@ -389,12 +389,12 @@ def test_semantic_formulas_have_no_blank_required_refs(tmp_path):
     _, answer = _build_pair(tmp_path)
     smap = load_semantic_map(answer)
     wb = load_workbook(answer, data_only=False)
-    assert len(smap.all_ordered()) == 244
+    assert len(smap.all_ordered()) == 259
     hist = expand_historical_specs(
         (_ingest_demo().fiscal_years() or _ingest_demo().period_dates())
     )
     assert len(hist) == 118
-    assert len(smap.all_ordered()) == 244
+    assert len(smap.all_ordered()) == 259
 
     def _labels(ws):
         return {ws.cell(row=r, column=1).value: r for r in range(1, (ws.max_row or 1) + 1)}
@@ -978,6 +978,7 @@ def test_dupont_chain_registers_all_six_latest_comparable_formulas(tmp_path):
 def test_multi_period_practice_surface_for_five_year_demo(tmp_path):
     from core.engine.component_catalog import (
         QUALITY_COMPONENT_CATALOG,
+        QUALITY_CHANGE_COMPONENT_CATALOG,
         WORKING_CAPITAL_COMPONENT_CATALOG,
         PROFITABILITY_DRIVER_COMPONENT_CATALOG,
         PROFITABILITY_CHANGE_COMPONENT_CATALOG,
@@ -986,12 +987,13 @@ def test_multi_period_practice_surface_for_five_year_demo(tmp_path):
 
     _, answer = _build_pair(tmp_path)
     smap = load_semantic_map(answer)
-    assert len(smap.all_ordered()) == 244
+    assert len(smap.all_ordered()) == 259
 
     families = {c.family_id for c in smap.all_ordered()}
     assert families == (
         {f.id for f in COMPONENT_CATALOG}
         | {f.id for f in QUALITY_COMPONENT_CATALOG}
+        | {f.id for f in QUALITY_CHANGE_COMPONENT_CATALOG}
         | {f.id for f in WORKING_CAPITAL_COMPONENT_CATALOG}
         | {f.id for f in PROFITABILITY_DRIVER_COMPONENT_CATALOG}
         | {f.id for f in PROFITABILITY_CHANGE_COMPONENT_CATALOG}
@@ -1019,6 +1021,13 @@ def test_multi_period_practice_surface_for_five_year_demo(tmp_path):
         assert family.period_scope == "post_comparable"
         assert len(comps) == 3
     for family in ROE_ATTRIBUTION_COMPONENT_CATALOG:
+        comps = [c for c in smap.all_ordered() if c.family_id == family.id]
+        if family.period_scope == "comparable":
+            assert len(comps) == 4
+        else:
+            assert family.period_scope == "post_comparable"
+            assert len(comps) == 3
+    for family in QUALITY_CHANGE_COMPONENT_CATALOG:
         comps = [c for c in smap.all_ordered() if c.family_id == family.id]
         if family.period_scope == "comparable":
             assert len(comps) == 4
@@ -1523,7 +1532,7 @@ def test_demo_has_one_lease_judgment_case_and_204_formula_components(tmp_path):
 
     _, answer = _build_pair(tmp_path)
     smap = load_semantic_map(answer)
-    assert len(smap.all_ordered()) == 244
+    assert len(smap.all_ordered()) == 259
     check_reformulation_integrity(builder.anchor.reformulation, builder.periods)
 
 
@@ -1815,7 +1824,7 @@ def test_historical_expected_covers_catalog_and_matches_reference_components(tmp
 
     _, answer = _build_pair(tmp_path)
     smap = load_semantic_map(answer)
-    assert len(smap.all_ordered()) == 244
+    assert len(smap.all_ordered()) == 259
     for comp in smap.all_ordered():
         expected = expected_value_for_component(
             builder.anchor, comp, earnings_quality=quality
