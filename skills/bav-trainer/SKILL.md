@@ -105,8 +105,8 @@ python -m core build example/DEMO_HK_Standardized.json \
 Outputs:
 - `DEMO_HK_Trainer.xlsx` — source/classifications filled; yellow schedule cells blank
 - `DEMO_HK_Answer_Key.xlsx` — working formulas + legacy Notes on the same cells
-- With demo assumptions: 45 families / 208 cells (includes Earnings Normalization + Earnings Quality)
-- Without `-a`: 41 families / 188 cells (includes Earnings Quality; no normalization sheets)
+- With demo assumptions: 49 families / 224 cells (includes Earnings Normalization + Earnings Quality)
+- Without `-a`: 45 families / 204 cells (includes Earnings Quality; no normalization sheets)
 
 There is **no** user-facing `*_reference.xlsx` and no Trainer `.trainer.json`.
 

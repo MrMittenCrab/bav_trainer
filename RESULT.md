@@ -1,33 +1,35 @@
-Status: Step 9B.2 complete — historical working-capital driver decomposition
+Status: Step 9C.1 complete — historical RNOA margin / turnover driver decomposition
 
 Implementation base:
-- 57bcda4 StepB.1 (Step 9B.1 complete)
+- 70f2af5 Step 9B.2 complete
 
 Historical formula surface (no normalization assumptions):
 - fiscal periods: 5
-- formula families: 41
-- formula practice cells: 188
-- fresh Check: 0 / 0 / 188
+- formula families: 45
+- formula practice cells: 204
+- fresh Check: 0 / 0 / 204
 
 Step 9A illustrative demo (with DEMO_HK_Assumptions.json):
 - fiscal periods: 5
-- formula families: 45
-- formula practice cells: 208
-- fresh Check: 0 / 0 / 208
+- formula families: 49
+- formula practice cells: 224
+- fresh Check: 0 / 0 / 224
 
-Working-capital driver decomposition:
-- 11 working-capital families / 47 practice cells on five-year applicable demo: yes
-- Change in OWCA / Change in OWCL: yes
-- Change in NOWC from Components = ΔOWCA − ΔOWCL reconciles to direct ΔNOWC: yes
-- Incremental OWCA / ΔRevenue and Incremental OWCL / ΔRevenue: yes
-- zero ΔRevenue -> `#N/A` / Excel `NA()` on side incremental ratios: yes
-- signed declining-Revenue denominators retained (no ABS): yes
-- first-period driver rows are non-applicable `N/A` text: yes
-- DRIVER DECOMPOSITION CHECK trusted / tamper-detected before recolor: yes
-- live classification-conditioned OWCA driver Check: yes
-- all-zero OWCA/OWCL still omits Working Capital Analysis: yes
-- Step 9B.1 six families unchanged: yes
-- no causal line-item diagnosis or automatic quality score: yes
+RNOA margin / turnover drivers:
+- 4 profitability-driver families / 16 practice cells on five-year demo: yes
+- Average NOA = (prior + current NOA) / 2: yes
+- NOA Turnover = Revenue / Average NOA: yes
+- NOA Intensity = Average NOA / Revenue: yes
+- RNOA from Margin × Turnover reconciles to direct RNOA when defined: yes
+- undefined decomposition yields Excel/Python `#N/A` and check text `N/A` (not false CHECK): yes
+- zero Average NOA -> turnover `#N/A`: yes
+- zero Revenue -> intensity `#N/A`; turnover may remain numeric 0.0: yes
+- existing direct RNOA / NOPAT Margin formulas unchanged: yes
+- live classification changes Average NOA / turnover / intensity / driver RNOA: yes
+- trusted RNOA DRIVER CHECK tamper fails before recolor: yes
+- exact/equivalent `#N/A` accepted; fabricated `0.0` rejected: yes
+- Step 9B working-capital surface preserved: yes
+- no automatic causal diagnosis or profitability quality score: yes
 
 Preservation:
 - CLI remains {ingest,build,check,list}
@@ -36,25 +38,26 @@ Preservation:
 - forecasting / valuation not begun: yes
 
 Files changed:
-- Modify: `core/model/working_capital.py` — OWCA/OWCL changes + bridge + side incremental ratios
-- Modify: `core/engine/component_catalog.py` — five new WC families (orders 41–45)
-- Modify: `core/model/historical_expected.py` — expected series keys for new families
-- Modify: `core/engine/reference_model.py` — driver-decomposition section + trusted check row
-- Modify: `core/tests/test_working_capital.py` — bridge / live / `#N/A` / tamper regressions
-- Modify: `core/tests/test_*.py` — demo surface 41/188 and 45/208
-- Modify: `skills/bav-trainer/SKILL.md` — surface counts + driver bridge note
+- Add: `core/model/profitability_drivers.py`
+- Add: `core/tests/test_profitability_drivers.py`
+- Modify: `core/engine/component_catalog.py` — PROFITABILITY_DRIVER_COMPONENT_CATALOG + expand
+- Modify: `core/model/historical_expected.py` — profitability_driver_expected_series
+- Modify: `core/engine/reference_model.py` — ALT DuPont driver section + registration
+- Modify: `core/trainer/workbook.py` — family meta for list/index
+- Modify: `core/tests/test_*.py` — demo surface 45/204 and 49/224
+- Modify: `skills/bav-trainer/SKILL.md` — surface counts + RNOA driver note
 - Modify: `RESULT.md`
 - Modify: `IMPLEMENTATION.md` status only
 
 Tests (fresh, local verification — no attached GitHub CI):
-- `PYTHONPATH=. pytest core/tests/ -q` -> 213 passed
-- base build/check/list -> 188 / 41 / 0-0-188 blank
-- norm build/check/list -> 208 / 45 / 0-0-208 blank
+- `PYTHONPATH=. pytest core/tests/ -q` -> 219 passed
+- base build/check/list -> 204 / 45 / 0-0-204 blank
+- norm build/check/list -> 224 / 49 / 0-0-224 blank
 - CLI -> `{ingest,build,check,list}` only
 
 Known deferred limitations:
 - dormant deferred-forecast defaults/fallbacks remain
-- line-item causal working-capital diagnosis remains deferred
+- company-specific causal interpretation of margin vs intensity remains deferred
 - quality scoring / forecasting / valuation remain deferred
 
-Unresolved: none on the active historical working-capital driver-decomposition surface addressed by this checkpoint
+Unresolved: none on the active historical RNOA margin/turnover driver surface addressed by this checkpoint

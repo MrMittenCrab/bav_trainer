@@ -1,5 +1,7 @@
 # Step 9C.1 — Historical RNOA Margin / Turnover Driver Decomposition
 
+> **Status:** Step 9C.1 complete. See `RESULT.md` for verification evidence (219 passed; base 45/204; normalization 49/224; RNOA = Margin × Turnover driver bridge on ALT DuPont). Do not commit or push from this checkpoint unless the user requests it.
+
 > **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `70f2af5de1d2b5938867529ae03a96b7015be9a8` (`Step 9B.2 complete`). Implement only Step 9C.1 below using red/green TDD. Preserve Step 8 classification/normalization judgment, the trusted-workbook boundary, Step 9A earnings-quality/source-completeness/`#N/A` semantics, and the complete Step 9B working-capital diagnostic surface. Do not add automatic good/bad profitability labels, company-specific causal inference, forecasting, valuation, ROU/deferred-tax alternative modeling, segment analysis, or later research-diagnostic work. Do not commit or push; the user owns the checkpoint commit.
 
 **Goal:** Add an auditable historical decomposition of RNOA into operating margin and net-operating-asset turnover/capital intensity so the learner can distinguish profitability changes caused by operating margin from those caused by the amount of operating assets required to support Revenue.

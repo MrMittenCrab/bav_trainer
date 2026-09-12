@@ -28,6 +28,7 @@ from ..model.normalization import (
     normalization_cases,
 )
 from ..model.period_axis import canonical_fiscal_periods
+from ..model.profitability_drivers import compute_profitability_driver_series
 from ..model.ri_engine import run_scenario, weighted_ivps
 from ..model.working_capital import (
     compute_working_capital_series,
@@ -37,6 +38,7 @@ from .component_catalog import (
     DEFERRED_COMPONENT_SPECS,
     expand_historical_specs,
     expand_normalization_specs,
+    expand_profitability_driver_specs,
     expand_quality_specs,
     expand_working_capital_specs,
 )
@@ -161,11 +163,23 @@ class ReferenceModelBuilder:
         else:
             self.working_capital_series = None
             self.working_capital_specs = ()
+        self.profitability_driver_series = compute_profitability_driver_series(self.anchor)
+        self.profitability_driver_specs = expand_profitability_driver_specs(
+            self.periods,
+            start_order=(
+                len(self.historical_specs)
+                + len(self.normalization_specs)
+                + len(self.quality_specs)
+                + len(self.working_capital_specs)
+                + 1
+            ),
+        )
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
             + self.quality_specs
             + self.working_capital_specs
+            + self.profitability_driver_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -179,6 +193,9 @@ class ReferenceModelBuilder:
         }
         self._working_capital_spec_index = {
             (s.family_id, s.period_index): s for s in self.working_capital_specs
+        }
+        self._profitability_driver_spec_index = {
+            (s.family_id, s.period_index): s for s in self.profitability_driver_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -381,6 +398,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._working_capital_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_profitability_driver(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._profitability_driver_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -1020,6 +1053,126 @@ class ReferenceModelBuilder:
                 actual_f,
                 dup["Actual ROE"][j],
             )
+
+        # RNOA margin / turnover driver decomposition (Step 9C.1)
+        drivers = self.profitability_driver_series
+        driver_section_row = actual_row + 2
+        average_noa_row = driver_section_row + 1
+        turnover_row = driver_section_row + 2
+        intensity_row = driver_section_row + 3
+        driver_rnoa_row = driver_section_row + 4
+        driver_check_row = driver_section_row + 5
+
+        ws.cell(
+            row=driver_section_row, column=1, value="RNOA DRIVER DECOMPOSITION"
+        ).font = BOLD
+        ws.cell(row=average_noa_row, column=1, value="Average NOA")
+        ws.cell(row=turnover_row, column=1, value="NOA Turnover")
+        ws.cell(row=intensity_row, column=1, value="NOA Intensity")
+        ws.cell(row=driver_rnoa_row, column=1, value="RNOA from Margin × Turnover")
+        ws.cell(row=driver_check_row, column=1, value="RNOA DRIVER CHECK").font = BOLD
+
+        for j in range(self._n):
+            out_col_idx = 2 + j
+            out_col = self._col(out_col_idx)
+            src_col = self._col(2 + j)
+            if j == 0:
+                for row in (
+                    average_noa_row,
+                    turnover_row,
+                    intensity_row,
+                    driver_rnoa_row,
+                    driver_check_row,
+                ):
+                    ws.cell(row=row, column=out_col_idx, value=na)
+                continue
+
+            src_prev = self._col(2 + j - 1)
+            average_f = (
+                f"=('Condensed Financials'!{src_prev}{noa_r}+"
+                f"'Condensed Financials'!{src_col}{noa_r})/2"
+            )
+            turnover_f = (
+                f"=IF({out_col}{average_noa_row}=0,NA(),"
+                f"'Condensed Financials'!{src_col}{rev_r}/{out_col}{average_noa_row})"
+            )
+            intensity_f = (
+                f"=IF('Condensed Financials'!{src_col}{rev_r}=0,NA(),"
+                f"{out_col}{average_noa_row}/'Condensed Financials'!{src_col}{rev_r})"
+            )
+            driver_rnoa_f = f"={out_col}{margin_row}*{out_col}{turnover_row}"
+            driver_check = (
+                f'=IF(ISNA({out_col}{driver_rnoa_row}),"N/A",'
+                f'IF(ISNA({out_col}{rnoa_row}),"CHECK",'
+                f'IF(ABS({out_col}{driver_rnoa_row}-{out_col}{rnoa_row})<0.0000001,'
+                f'"OK","CHECK")))'
+            )
+
+            c = ws.cell(row=average_noa_row, column=out_col_idx, value=average_f)
+            c.number_format = NUM_FMT
+            c = ws.cell(row=turnover_row, column=out_col_idx, value=turnover_f)
+            c.number_format = "0.00x"
+            c = ws.cell(row=intensity_row, column=out_col_idx, value=intensity_f)
+            c.number_format = "0.00x"
+            c = ws.cell(row=driver_rnoa_row, column=out_col_idx, value=driver_rnoa_f)
+            c.number_format = PCT_FMT
+            ws.cell(row=driver_check_row, column=out_col_idx, value=driver_check)
+
+            assert drivers.average_noa[j] is not None
+            self._register_profitability_driver(
+                "average_noa",
+                j,
+                "ALT DuPont",
+                average_noa_row,
+                out_col_idx,
+                average_f,
+                float(drivers.average_noa[j]),
+            )
+            turnover_expected = drivers.noa_turnover[j]
+            assert turnover_expected is not None
+            self._register_profitability_driver(
+                "noa_turnover",
+                j,
+                "ALT DuPont",
+                turnover_row,
+                out_col_idx,
+                turnover_f,
+                turnover_expected
+                if isinstance(turnover_expected, str)
+                else float(turnover_expected),
+            )
+            intensity_expected = drivers.noa_intensity[j]
+            assert intensity_expected is not None
+            self._register_profitability_driver(
+                "noa_intensity",
+                j,
+                "ALT DuPont",
+                intensity_row,
+                out_col_idx,
+                intensity_f,
+                intensity_expected
+                if isinstance(intensity_expected, str)
+                else float(intensity_expected),
+            )
+            driver_expected = drivers.rnoa_from_margin_turnover[j]
+            assert driver_expected is not None
+            self._register_profitability_driver(
+                "rnoa_margin_turnover",
+                j,
+                "ALT DuPont",
+                driver_rnoa_row,
+                out_col_idx,
+                driver_rnoa_f,
+                driver_expected
+                if isinstance(driver_expected, str)
+                else float(driver_expected),
+            )
+
+        self.rowmap["dupont_average_noa_row"] = average_noa_row
+        self.rowmap["dupont_noa_turnover_row"] = turnover_row
+        self.rowmap["dupont_noa_intensity_row"] = intensity_row
+        self.rowmap["dupont_driver_rnoa_row"] = driver_rnoa_row
+        self.rowmap["dupont_driver_check_row"] = driver_check_row
 
     def _build_accounting_judgment(self, wb: Workbook) -> None:
         ws = wb.create_sheet(JUDGMENT_SHEET)

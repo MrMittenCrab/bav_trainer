@@ -933,6 +933,125 @@ def expand_working_capital_specs(
     return tuple(specs)
 
 
+PROFITABILITY_DRIVER_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="average_noa",
+        order=46,
+        title="Average Net Operating Assets",
+        short_hint="Average beginning and ending NOA for the comparable period.",
+        semantic_key="profitability.average_noa",
+        category="profitability_driver",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("noa_agg",),
+        depends_on_previous=("noa_agg",),
+        hints=(
+            "Average NOA = (Beginning NOA + Ending NOA) / 2.",
+            "Use the same Average NOA denominator as direct RNOA.",
+        ),
+    ),
+    ComponentFamily(
+        id="noa_turnover",
+        order=47,
+        title="Net Operating Asset Turnover",
+        short_hint="Revenue divided by Average NOA.",
+        semantic_key="profitability.noa_turnover",
+        category="profitability_driver",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("revenue_link", "average_noa"),
+        hints=(
+            "NOA Turnover = Revenue / Average NOA.",
+            "Higher turnover means more Revenue is generated per unit of net operating assets, but the cause requires separate analysis.",
+            "A zero Average NOA denominator makes the ratio undefined (#N/A).",
+        ),
+    ),
+    ComponentFamily(
+        id="noa_intensity",
+        order=48,
+        title="Net Operating Asset Intensity",
+        short_hint="Average NOA divided by Revenue.",
+        semantic_key="profitability.noa_intensity",
+        category="profitability_driver",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("average_noa", "revenue_link"),
+        hints=(
+            "NOA Intensity = Average NOA / Revenue.",
+            "It expresses how much net operating asset investment supports each unit of Revenue.",
+            "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        ),
+    ),
+    ComponentFamily(
+        id="rnoa_margin_turnover",
+        order=49,
+        title="RNOA from Margin × Turnover",
+        short_hint="NOPAT Margin multiplied by NOA Turnover.",
+        semantic_key="profitability.rnoa_margin_turnover",
+        category="profitability_driver",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("nopat_margin", "noa_turnover"),
+        hints=(
+            "RNOA = NOPAT Margin × NOA Turnover when both terms are defined.",
+            "This separates operating profitability per sales dollar from operating-asset efficiency.",
+            "If either required driver is undefined, the decomposition is also undefined (#N/A).",
+        ),
+    ),
+)
+
+
+def expand_profitability_driver_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+) -> tuple[ComponentSpec, ...]:
+    """Expand profitability-driver families into period-specific concrete specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_profitability_driver_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_profitability_driver_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in PROFITABILITY_DRIVER_COMPONENT_CATALOG:
+        for j in range(1, len(periods)):
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            prev = periods[j - 1]
+            for dep_fam in family.depends_on_previous:
+                deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 def _deferred(
     *,
     id: str,
