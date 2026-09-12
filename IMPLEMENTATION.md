@@ -1,67 +1,76 @@
-# Step 9A.3 — Historical Core Source Completeness Hardening
+# Step 9A.4 — Historical DuPont Undefined-Ratio Hardening
 
-> **Status:** Step 9A.3 complete. See `RESULT.md` for verification evidence (195 passed; base 30/141; normalization 34/161; core IS/BS/CF completeness fail-closed). Do not commit or push from this checkpoint unless the user requests it.
+> **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `fea4b384495e9cc6d5ae6359a1e10ad7c7dc5618` (`Step 9.3`, Step 9A.3 complete). Implement only Step 9A.4 below using red/green TDD. Preserve Step 8 classification/normalization, the trusted-workbook boundary, Step 9A earnings-quality diagnostics, and Step 9A.3 historical source-completeness rules. Do not begin working-capital interpretation, quality scoring, forecasting, valuation, ROU/deferred-tax alternative modeling, or later research-diagnostic work. Do not commit or push; the user owns the checkpoint commit.
 
-> **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `142a3718caeaeab54f791928e898601e6d26ec2d` (`Step 9.2`). Implement only Step 9A.3 below using red/green TDD. Preserve Step 8 classification/normalization, the trusted-workbook boundary, and the complete Step 9A earnings-quality surface. Do not begin working-capital interpretation, quality scoring, forecasting, valuation, ROU/deferred-tax alternative modeling, or later research-diagnostic work. Do not commit or push; the user owns the checkpoint commit.
+**Goal:** Stop the active historical DuPont model from representing mathematically undefined ratios as numeric zero. Zero numerators remain valid zero results when the denominator is nonzero; zero denominators produce Excel/Python `#N/A`, and dependent DuPont metrics propagate that undefined state instead of manufacturing apparently meaningful profitability or leverage values.
 
-**Goal:** Remove the remaining period-level missing-to-zero fallbacks from the authoritative historical accounting engine. A historical line used by the active model must distinguish an explicitly supplied zero from a missing value, and a resolved line with a missing modeled-period value must fail clearly before Trainer/Answer-Key generation.
+**Architecture:** Introduce one shared historical-ratio sentinel/helper that can be used by both Step 9A earnings-quality ratios and the core DuPont engine without circular imports. Keep source completeness, formula families, workbook layout, semantic component identities, and Formula Check unchanged. Change only denominator-zero semantics and dependent-ratio propagation on the existing active historical surface.
 
-**Architecture:** Centralize one shared required-period-value primitive and use it in the historical income engine, earnings-quality engine, and balance-sheet reformulation. The historical core income concepts become explicit required inputs rather than silently optional zeroes. Balance-sheet detail rows remain company-specific, but every supplied detail row must be complete across modeled periods; reported BS totals remain optional as whole lines, while any total line that exists must be period-complete. Keep the existing component families and workbook layout unchanged.
+**Tech Stack:** Python, pytest, openpyxl, existing `AnchorMetrics`, `HistoricalSeries`, `ReferenceModelBuilder`, `SemanticMap`, `historical_expected`, `check_workbook`, and the existing `#N/A` Check behavior established in Step 9A.2.
 
-**Tech Stack:** Python, dataclasses, pytest, existing `StandardizedFinancials`, `LineItem`, `compute_anchor`, `reformulate_balance_sheet`, `ReferenceModelBuilder`, `SemanticMap`, Trainer/Answer-Key generation, and workbook-wide Check.
-
-**Spec:** `TARGET.md`, especially **No invented historical inputs**, historical reference-model correctness, statement linkage, accounting consistency, and the requirement that historical ratios use supplied historical facts rather than fabricated defaults.
+**Spec:** `TARGET.md`, especially historical accounting correctness, BAV/DuPont methodology, accounting consistency, research diagnostics, the rule against invented historical inputs, and the requirement that formula correctness reflect economically meaningful model logic rather than convenient numeric defaults.
 
 ---
 
-## Review of commit `142a3718`
+## Review of commit `fea4b384`
 
-Step 9A.2 is implemented coherently:
+Step 9A.3 is implemented coherently:
 
-- cash-conversion and accrual ratios now return `#N/A` / Excel `NA()` when their denominator is exactly zero;
-- an explicit zero numerator with a nonzero denominator remains a valid numeric `0.0`;
-- reported Net Income is resolved directly for earnings-quality calculations and must be period-complete;
-- the quality Net Income series is checked against `AnchorMetrics`;
-- exact `NA()` formulas and equivalent cached `#N/A` results are Check-compatible;
-- the Step 9A workbook surfaces remain 30 families / 141 cells and 34 families / 161 cells;
-- `RESULT.md` records 188 locally passing tests;
+- required historical income lines are explicit and period-complete;
+- supplied balance-sheet detail rows are period-complete;
+- optional reported BS totals remain optional as whole lines but complete when present;
+- cash-flow checksum validation no longer invents zero for missing periods;
+- explicit numeric zero remains distinct from missing data;
+- the base workbook remains 30 families / 141 practice cells;
+- the normalization workbook remains 34 families / 161 practice cells;
+- `RESULT.md` records 195 locally passing tests;
 - GitHub has no attached CI status.
 
-No blocking defect remains in the new `#N/A` implementation itself.
+The new completeness boundary is suitable for proceeding, but one active historical-model defect should be fixed before adding interpretation on top of the ratios.
 
-However, the review exposes one broader historical-engine integrity gap that should be fixed before building working-capital interpretation on top of it.
+### Blocking semantic issue — active DuPont zero denominators still become numeric zero
 
-### Blocking historical-core issue — resolved source values can still silently become zero
-
-`core/model/financial_math.py` still has:
+`core/model/financial_math.py` still contains denominator guards such as:
 
 ```python
-def _val(item: LineItem | None, period: date) -> float:
-    if item is None:
-        return 0.0
-    v = item.values.get(period)
-    return float(v) if v is not None else 0.0
+nopat[0] / revenues[0] if revenues[0] else 0
+rnoa = nopat[i] / avg(noa, i) if avg(noa, i) else 0
+cod = niat[i] / avg(net_debt, i) if avg(net_debt, i) else 0
+flev = avg(net_debt, i) / avg(equity, i) if avg(equity, i) else 0
+actual = ni[i] / avg(equity, i) if avg(equity, i) else 0
+revenues[i] / revenues[i - 1] - 1 if revenues[i - 1] else 0
 ```
 
-This means the authoritative historical model can still treat a missing modeled-period value as an actual zero for Revenue, Net Income, Pretax Income, Tax Expense, Interest Expense, or Interest Income.
+The generated `ALT DuPont` formulas mirror this with `IF(denominator=0,0,...)`.
 
-Step 9A.2 protects Net Income only when the Earnings Quality module is active. If CFO is unavailable and that module is omitted, an incomplete Net Income line can still flow through the core historical model as zero.
+A zero denominator does not imply a 0% return, 0% growth rate, 0% cost of debt, or zero leverage ratio. These values are undefined. Step 9A.2 already established the correct product convention for undefined ratios: Python expected value `"#N/A"` and Excel `NA()`.
 
-`core/model/classification.py` has the same period-level fallback for balance-sheet detail rows and resolved reported totals:
+The current behavior can therefore teach a false economic conclusion. For example:
 
-```python
-def _val(item: LineItem, period: date) -> float:
-    v = item.values.get(period)
-    return float(v) if v is not None else 0.0
+```text
+Average Net Debt = 0
+Net Interest After Tax = 10
 ```
 
-A supplied balance-sheet row with a missing period therefore becomes indistinguishable from an explicitly supplied zero. Reconciliation may catch some cases when totals are present, but it is not a reliable completeness boundary and can be bypassed when reported totals are absent.
+currently reports:
 
-`core/data/validators.py::validate_cash_flow()` also uses `... or 0` while summing CFO / CFI / CFF, so a present cash-flow line with a missing period can be treated as zero during source checksum validation.
+```text
+After-tax CoD = 0%
+```
 
-Finally, `core/model/classification.py::_norm()` still contains the old duplicate straight-apostrophe normalization tuple and does not deliberately normalize curly apostrophes.
+rather than undefined. That fabricated 0% then contaminates Spread and decomposed ROE.
 
-Step 9A.3 closes these source-integrity gaps only. It does not add new analysis.
+### Documentation inconsistency exposed by Step 9A.3
+
+`core/engine/component_catalog.py` still tells the learner:
+
+```text
+Missing optional interest lines are treated as zero.
+```
+
+Step 9A.3 deliberately changed the historical-core contract: Interest Expense and Interest Income are required explicit source lines, with explicit numeric zero when the economic amount is zero. The hint must no longer state the old behavior.
+
+Step 9A.4 fixes these two active-surface issues only.
 
 ---
 
@@ -72,405 +81,434 @@ Step 9A.3 closes these source-integrity gaps only. It does not add new analysis.
 - Preserve all current visible sheets and component families.
 - Preserve base demo surface at 30 families / 141 practice cells.
 - Preserve normalization demo surface at 34 families / 161 practice cells.
-- Preserve Step 9A `#N/A` denominator semantics.
-- Preserve Step 8 judgment behavior and dynamic Check.
-- Explicit numeric zero is a valid supplied fact.
-- Missing key and explicit `None` are both missing data, never numeric zero.
-- Do not invent Revenue, Net Income, Pretax Income, Tax Expense, Interest Expense, Interest Income, balance-sheet detail values, or reported BS totals.
-- Completely absent optional reported BS totals remain allowed; reformulation can operate from complete detail rows without them.
-- If an optional reported BS total line exists, it must be complete for all modeled periods.
-- The six income-statement concepts used by the historical core are required inputs in this checkpoint:
-  - `revenue`
-  - `net_income`
-  - `pretax_income`
-  - `tax_expense`
-  - `interest_expense`
-  - `interest_income`
-- If a company genuinely has zero Interest Income or Interest Expense, standardized input must supply an explicit zero-valued line. Absence is not silently interpreted as zero.
-- Do not add feature-level availability gating for the 25 historical families in this checkpoint.
-- Do not add working-capital interpretation, thresholds, quality labels, forecasting, valuation, scenarios, Hint/Reveal, VBA, or free-form grading.
+- Preserve Step 8 judgment behavior and treatment-conditioned Check.
+- Preserve Step 9A earnings-quality formulas and applicability gating.
+- Preserve Step 9A.3 required-source and period-completeness rules.
+- Explicit zero numerator with a nonzero denominator is a valid numeric `0.0` ratio.
+- Zero denominator produces the undefined-ratio sentinel `#N/A`; never numeric `0.0` merely to avoid division by zero.
+- First-period non-applicability remains `None` where a metric requires a prior period.
+- `Spread` and decomposed ROE must propagate `#N/A` when required upstream ratios are undefined.
+- Do not convert source facts, balance-sheet values, or non-ratio accounting amounts to `#N/A` merely because their value is zero.
+- Do not alter the existing effective-tax-rate convention in this checkpoint. Effective-tax/NOPAT propagation is a separate accounting-design issue and is not required to fix the DuPont denominator defect.
+- Do not change the dormant deferred forecast/scenario system in this checkpoint.
+- Do not add working-capital interpretation, thresholds, automatic good/bad labels, forecasting, valuation, scenarios, Hint/Reveal, VBA, or free-form grading.
 - Cursor must not commit, push, reset, rebase, merge, or delete branches.
 
 ---
 
-## Task 1 — Centralize required historical period values
+## Task 1 — Centralize the undefined-ratio sentinel
 
 **Files:**
-- Create: `core/model/source_values.py`
+- Create: `core/model/ratio_values.py`
 - Modify: `core/model/earnings_quality.py`
-- Test: `core/tests/test_reference_integrity.py`
 - Test: `core/tests/test_earnings_quality.py`
+- Test: `core/tests/test_reference_integrity.py`
 
 Create:
 
 ```python
 from __future__ import annotations
 
-from datetime import date
-
-from ..data.interface import LineItem
+UNDEFINED_RATIO = "#N/A"
 
 
-class MissingHistoricalValueError(ValueError):
-    """A resolved historical source line lacks a required modeled-period value."""
-
-
-def required_period_value(
-    item: LineItem,
-    period: date,
-    *,
-    field: str,
-) -> float:
-    raw = item.values.get(period)
-    if raw is None:
-        raise MissingHistoricalValueError(
-            f"{field} line {item.label!r} has no supplied value "
-            f"for modeled period {period.isoformat()}"
-        )
-    return float(raw)
-
-
-def required_period_series(
-    item: LineItem,
-    periods: list[date],
-    *,
-    field: str,
-) -> tuple[float, ...]:
-    return tuple(
-        required_period_value(item, period, field=field)
-        for period in periods
-    )
+def ratio_or_na(numerator: float, denominator: float) -> float | str:
+    """Return a historical ratio, or #N/A when its denominator is zero."""
+    if denominator == 0.0:
+        return UNDEFINED_RATIO
+    return float(numerator) / float(denominator)
 ```
 
-Required semantics:
+Do not add epsilon/tolerance behavior. Historical Excel formulas test exact zero denominators, so Python must use the same exact-zero convention.
+
+Move the shared sentinel ownership out of `core/model/earnings_quality.py`:
+
+```python
+from .ratio_values import UNDEFINED_RATIO, ratio_or_na
+```
+
+Migrate the two Step 9A ratio calculations to `ratio_or_na()` without changing their behavior:
+
+```python
+cash_conversion_ratio = CFO / Net Income
+accrual_ratio = Total Accruals / Average Total Assets
+```
+
+Required preservation:
 
 ```text
-period key absent          -> MissingHistoricalValueError
-period key present + None  -> MissingHistoricalValueError
-period key present + 0     -> 0.0
-period key present + -0.0  -> -0.0 / numerically zero
-nonzero number             -> float(number)
+numerator 0, denominator 10  -> 0.0
+denominator 0                -> "#N/A"
+first-period accrual ratio   -> None
 ```
-
-Do not create any fallback parameter such as `default=0`.
-
-Migrate `core/model/earnings_quality.py` from its private `_required_period_value()` helper to this shared primitive. The Step 9A behavior and error semantics must remain otherwise unchanged.
 
 ### TDD
 
-- [ ] Existing incomplete CFO / Total Assets / Net Income tests remain green after migration.
-- [ ] Add at least one focused shared-helper regression through a public caller proving explicit `0.0` is accepted and missing/`None` is rejected.
-- [ ] Do not directly expose the helper through the public CLI or workbook layer.
-
----
-
-## Task 2 — Make all historical-core income inputs explicit and period-complete
-
-**Files:**
-- Modify: `core/model/financial_math.py`
-- Modify: historical test fixtures as required
-- Test: `core/tests/test_reference_integrity.py`
-- Test: `core/tests/test_trainer.py`
-
-### Required concepts
-
-Change `compute_anchor()` so the six core historical income concepts resolve with `required=True`:
-
-```python
-rev_item = resolve_line(is_items, "revenue", required=True).item
-ni_item = resolve_line(is_items, "net_income", required=True).item
-pretax_item = resolve_line(is_items, "pretax_income", required=True).item
-tax_item = resolve_line(is_items, "tax_expense", required=True).item
-int_exp_item = resolve_line(is_items, "interest_expense", required=True).item
-int_inc_item = resolve_line(is_items, "interest_income", required=True).item
-```
-
-Assert all six resolved items are non-`None`, then build each historical series using `required_period_series()`.
-
-Example:
-
-```python
-revenues = list(
-    required_period_series(
-        rev_item,
-        periods,
-        field="revenue",
-    )
-)
-```
-
-Do the same for:
-
-```text
-net_income
-pretax_income
-tax_expense
-interest_expense
-interest_income
-```
-
-Delete or stop using the legacy `_val()` zero-fallback in this core path.
-
-### Required behavior
-
-For each of the six concepts:
-
-```text
-line absent entirely
-    -> build fails with MissingLineError
-
-line resolves but one period is omitted
-    -> build fails with MissingHistoricalValueError
-
-line resolves but one period is None
-    -> build fails with MissingHistoricalValueError
-
-line resolves with explicit 0.0
-    -> accepted as an actual supplied zero
-```
-
-Do not special-case Interest Income or Interest Expense to zero when their entire line is absent. Test fixtures that intend zero must contain explicit zero-valued lines.
-
-### TDD
-
-Parameterize at least the following:
-
-- [ ] missing Revenue period;
-- [ ] missing Net Income period, including a fixture with no CFO so Step 9A cannot be the component that catches it;
-- [ ] missing Pretax Income period;
-- [ ] missing Tax Expense period;
-- [ ] missing Interest Expense period;
-- [ ] missing Interest Income period;
-- [ ] one whole required line absent;
-- [ ] explicit zero Interest Income succeeds;
-- [ ] explicit zero Interest Expense succeeds.
-
-For end-to-end cases call `build_training_workbook()` and require failure before a valid pair is produced.
-
-### Fixture policy
-
-If existing tests rely on an absent Interest Income / Interest Expense line merely to mean zero, update the fixture to contain an explicit zero line. Do not weaken production completeness rules to keep a synthetic fixture convenient.
-
----
-
-## Task 3 — Make balance-sheet reformulation period-complete
-
-**Files:**
-- Modify: `core/model/classification.py`
-- Modify: `core/tests/test_classification.py`
-- Modify: `core/tests/test_reference_integrity.py` if needed
-
-### Detail rows
-
-Every non-subtotal balance-sheet detail row used by `reformulate_balance_sheet()` must contain an explicit value for every modeled period.
-
-Replace:
-
-```python
-def _val(item: LineItem, period: date) -> float:
-    v = item.values.get(period)
-    return float(v) if v is not None else 0.0
-```
-
-with the shared `required_period_value()` path.
-
-Inside the classification aggregation loop use a contextual field string, for example:
-
-```python
-value = required_period_value(
-    item,
-    pd,
-    field=f"balance_sheet detail {line_identity(item).key()}",
-)
-totals[decision.category][j] += value
-```
-
-A detail row may explicitly contain zero. It may not omit the period.
-
-### Reported totals
-
-Preserve **whole-line optionality** of:
-
-```text
-total_assets
-total_liabilities
-total_equity
-```
-
-but change `_optional_total()` semantics:
-
-```text
-line not resolved at all
-    -> tuple(None, None, ...)
-
-line resolved
-    -> every modeled period required
-```
-
-Do not let a resolved Total Assets / Total Liabilities / Total Equity row use zero for a missing period.
-
-### TDD
-
-- [ ] Detail row missing one modeled period -> `MissingHistoricalValueError`.
-- [ ] Detail row containing explicit `0.0` -> accepted.
-- [ ] Total Assets line absent entirely -> current optional behavior preserved.
-- [ ] Total Assets line present but one period missing -> fail.
-- [ ] Total Liabilities line present but one period missing -> fail.
-- [ ] Total Equity line present but one period missing -> fail.
-- [ ] A complete balance sheet still produces the same category totals and reformulation values as before.
-
-Do not rely only on the later reconciliation-gap check for completeness.
-
----
-
-## Task 4 — Fix classification Unicode-apostrophe normalization
-
-**Files:**
-- Modify: `core/model/classification.py`
-- Test: `core/tests/test_classification.py`
-
-Current `_norm()` still has the stale tuple:
-
-```python
-("'", "'", "`")
-```
-
-Replace it with deliberate typographic normalization consistent with the canonical line resolver:
-
-```python
-for ch in ("\u2018", "\u2019", "`", "´"):
-    s = s.replace(ch, "'")
-```
-
-Add regressions showing straight and curly apostrophe spellings behave consistently for classification / explicit label override matching where applicable.
-
-Do not add fuzzy matching or broader punctuation heuristics.
-
----
-
-## Task 5 — Stop cash-flow checksum validation from inventing zeros
-
-**Files:**
-- Modify: `core/data/validators.py`
-- Test: existing validator / trainer tests; create a focused test file only if no suitable validator test location exists
-
-`validate_cash_flow()` currently computes:
-
-```python
-total = sum(float(_val_item(x, period) or 0) for x in (cfo, cfi, cff))
-```
-
-When all four cash-flow summary lines are found, a missing period value on CFO / CFI / CFF must make that period fail validation rather than act as zero.
-
-Use semantics equivalent to:
-
-```python
-values = [_val_item(x, period) for x in (cfo, cfi, cff)]
-net_value = _val_item(net, period)
-if any(value is None for value in values) or net_value is None:
-    ok = False
-else:
-    total = sum(float(value) for value in values)
-    ok = abs(total - float(net_value)) <= 1.0
-```
-
-Preserve the existing behavior when the summary-line set itself is not available; do not broaden the line-identification heuristic in this checkpoint.
-
-### TDD
-
-- [ ] Complete cash-flow summary passes when it reconciles.
-- [ ] Explicit zero CFI/CFF is accepted.
-- [ ] Missing CFI period fails that period.
-- [ ] `None` CFF period fails that period.
-- [ ] Missing net-change period fails that period.
-
----
-
-## Task 6 — End-to-end no-fabrication regressions
-
-**Files:**
-- Test: `core/tests/test_reference_integrity.py`
-- Test: `core/tests/test_trainer.py`
-- Test: `core/tests/test_earnings_quality.py`
-
-Add end-to-end tests proving the completeness boundary exists even when downstream optional modules are absent.
-
-### Mandatory regression: missing Net Income with no CFO
-
-Construct financials where:
-
-```text
-Net Income line resolves
-one modeled-period Net Income value is missing
-operating cash-flow line is absent
-```
-
-Previously the Earnings Quality module was omitted and `compute_anchor()` could silently convert missing Net Income to zero.
-
-Now:
-
-```python
-with pytest.raises(MissingHistoricalValueError, match="net_income"):
-    build_training_workbook(...)
-```
-
-must fail.
-
-### Mandatory regression: missing BS detail with reported totals absent
-
-Construct a balance sheet with no Total Assets / Total Liabilities / Total Equity rows and one classified detail line missing a modeled-period value.
-
-Previously the missing detail could become zero and no reported-total gap existed to catch it.
-
-Now the reformulation/build must fail with `MissingHistoricalValueError`.
-
-### Preservation
-
-Also prove:
-
-- [ ] explicit zero source values continue through formulas normally;
-- [ ] a complete demo still builds unchanged;
-- [ ] Step 9A `#N/A` behavior remains intact;
-- [ ] normalization and classification judgment composition remains intact.
-
----
-
-## Task 7 — Documentation and verification
-
-**Files:**
-- Modify: `RESULT.md`
-- Modify: `README-HK-TRAINER.md` only if it describes missing historical periods as zero/defaulted
-- Modify: `skills/bav-trainer/SKILL.md` only if it describes missing historical periods as zero/defaulted
-- Modify: `IMPLEMENTATION.md` status only after all tests pass
-- Do not modify: `TARGET.md`
-
-Update `RESULT.md` with explicit evidence:
-
-```text
-- historical core IS lines are required and period-complete
-- missing period value is distinct from explicit numeric zero
-- supplied BS detail rows are period-complete
-- optional reported BS totals remain optional as whole lines, but complete if present
-- cash-flow checksum no longer treats missing component periods as zero
-- Step 9A quality #N/A semantics preserved
-- base 30 / 141 preserved
-- normalization 34 / 161 preserved
-```
-
-Do not claim all source availability problems are solved beyond this explicit scope. If any historical code path still performs a missing-value-to-zero conversion, list it under `Unresolved` rather than writing `Unresolved: none`.
-
-### Focused tests
+- [ ] Existing Step 9A zero-denominator tests remain green.
+- [ ] Existing explicit-zero numerator tests remain green.
+- [ ] Add a direct/public-caller regression proving `ratio_or_na(0.0, 10.0) == 0.0` and denominator zero yields `#N/A` through an actual model caller; do not add a CLI surface for the helper.
 
 Run:
 
 ```bash
+PYTHONPATH=. pytest core/tests/test_earnings_quality.py -v
+```
+
+---
+
+## Task 2 — Apply undefined semantics to Python DuPont calculations
+
+**Files:**
+- Modify: `core/model/financial_math.py`
+- Test: `core/tests/test_reference_integrity.py`
+- Test: `core/tests/test_trainer.py` if an existing DuPont test location is more suitable
+
+Import:
+
+```python
+from .ratio_values import UNDEFINED_RATIO, ratio_or_na
+```
+
+`AnchorMetrics.dupont` already permits:
+
+```python
+dict[str, list[float | str | None]]
+```
+
+Keep that interface.
+
+### NOPAT Margin
+
+For every fiscal period:
+
+```python
+margin = ratio_or_na(nopat[i], revenues[i])
+```
+
+Required:
+
+```text
+NOPAT = 0, Revenue = 100 -> 0.0
+Revenue = 0             -> #N/A
+```
+
+### Sales Growth
+
+For `i > 0`:
+
+```python
+base = ratio_or_na(revenues[i], revenues[i - 1])
+sales_growth = UNDEFINED_RATIO if base == UNDEFINED_RATIO else base - 1.0
+```
+
+Required:
+
+```text
+prior Revenue = 0 -> #N/A
+current Revenue = 0, prior Revenue != 0 -> -100%
+```
+
+The first period remains `None` because there is no prior comparable year.
+
+### RNOA
+
+For `i > 0`:
+
+```python
+average_noa = avg(noa, i)
+rnoa = ratio_or_na(nopat[i], average_noa)
+```
+
+Zero average NOA -> `#N/A`.
+
+### After-tax Cost of Debt
+
+For `i > 0`:
+
+```python
+average_net_debt = avg(net_debt, i)
+cod = ratio_or_na(niat[i], average_net_debt)
+```
+
+Zero average Net Debt -> `#N/A`.
+
+### FLEV
+
+For `i > 0`:
+
+```python
+average_net_debt = avg(net_debt, i)
+average_equity = avg(equity, i)
+flev = ratio_or_na(average_net_debt, average_equity)
+```
+
+Zero average Equity -> `#N/A`.
+
+### Actual ROE
+
+For `i > 0`:
+
+```python
+actual = ratio_or_na(ni[i], average_equity)
+```
+
+Zero average Equity -> `#N/A`.
+
+### Dependent metrics
+
+Do not attempt arithmetic on `#N/A` strings.
+
+Use explicit propagation:
+
+```python
+if rnoa == UNDEFINED_RATIO or cod == UNDEFINED_RATIO:
+    spread = UNDEFINED_RATIO
+else:
+    spread = rnoa - cod
+
+if (
+    rnoa == UNDEFINED_RATIO
+    or flev == UNDEFINED_RATIO
+    or spread == UNDEFINED_RATIO
+):
+    decomposed = UNDEFINED_RATIO
+else:
+    decomposed = rnoa + flev * spread
+```
+
+The dependency semantics are therefore:
+
+```text
+undefined RNOA -> undefined Spread -> undefined decomposed ROE
+undefined CoD  -> undefined Spread -> undefined decomposed ROE
+undefined FLEV -> undefined decomposed ROE
+```
+
+`Actual ROE` is independently calculated and may remain numeric even if decomposed ROE is undefined, provided its own denominator is nonzero.
+
+### Historical average CoD
+
+`cod_series` must no longer assume every comparable-period CoD is numeric.
+
+Only numeric CoD observations may enter the existing dormant historical-average-CoD scalar:
+
+```python
+numeric_cod = [
+    value
+    for value in cod_series
+    if isinstance(value, (int, float))
+]
+```
+
+Preserve the current dormant fallback behavior when no numeric CoD exists. Do not redesign the deferred forecasting architecture in this checkpoint.
+
+### TDD
+
+Add focused Python-side regressions for:
+
+- [ ] NOPAT Margin with zero Revenue -> `#N/A`.
+- [ ] Sales Growth with zero prior Revenue -> `#N/A`.
+- [ ] Sales Growth with zero current Revenue and nonzero prior Revenue -> `-1.0`.
+- [ ] RNOA with zero average NOA -> `#N/A`.
+- [ ] After-tax CoD with zero average Net Debt -> `#N/A`.
+- [ ] FLEV with zero average Equity -> `#N/A`.
+- [ ] Actual ROE with zero average Equity -> `#N/A`.
+- [ ] Spread propagates undefined RNOA or CoD.
+- [ ] Decomposed ROE propagates undefined RNOA / CoD / FLEV.
+- [ ] Zero numerator with nonzero denominator remains numeric zero for RNOA, CoD, FLEV where mathematically applicable, and Actual ROE.
+- [ ] First-period non-applicable metrics remain `None` exactly as before.
+
+Run:
+
+```bash
+PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "dupont or rnoa or flev or roe or sales_growth or nopat_margin or cost_of_debt" -v
+```
+
+---
+
+## Task 3 — Make Excel DuPont formulas use `NA()` for zero denominators
+
+**Files:**
+- Modify: `core/engine/reference_model.py`
+- Test: `core/tests/test_reference_integrity.py`
+- Test: `core/tests/test_trainer.py`
+
+Change only the historical `ALT DuPont` denominator guards.
+
+### Sales Growth
+
+Replace the zero fallback:
+
+```excel
+=IF(PriorRevenue=0,0,CurrentRevenue/PriorRevenue-1)
+```
+
+with:
+
+```excel
+=IF(PriorRevenue=0,NA(),CurrentRevenue/PriorRevenue-1)
+```
+
+### NOPAT Margin
+
+Replace:
+
+```excel
+=IF(Revenue=0,0,NOPAT/Revenue)
+```
+
+with:
+
+```excel
+=IF(Revenue=0,NA(),NOPAT/Revenue)
+```
+
+### RNOA
+
+Replace the average-NOA zero branch with `NA()`.
+
+### After-tax CoD
+
+Replace the average-Net-Debt zero branch with `NA()`.
+
+### FLEV
+
+Replace the average-Equity zero branch with `NA()`.
+
+### Actual ROE
+
+Replace the average-Equity zero branch with `NA()`.
+
+### Spread / decomposed ROE
+
+Keep their direct formulas:
+
+```text
+Spread = RNOA - After-tax CoD
+ROE    = RNOA + FLEV * Spread
+```
+
+Excel will naturally propagate `#N/A` from upstream cells. Do not wrap these formulas in `IFERROR(...,0)` or otherwise convert errors back to zero.
+
+### First-period behavior
+
+Preserve existing first-period applicability:
+
+- NOPAT Margin remains an active first-period formula.
+- Sales Growth / RNOA / CoD / Spread / FLEV / decomposed ROE / Actual ROE remain non-applicable in the first fiscal period where currently designed.
+
+### TDD
+
+- [ ] Assert each denominator-guarded Answer-Key formula uses `NA()` rather than `0` in its zero-denominator branch.
+- [ ] Assert normal nonzero-denominator demo formulas are otherwise unchanged.
+- [ ] Assert formula family counts and coordinates do not change.
+
+---
+
+## Task 4 — Prove Formula Check handles historical `#N/A` ratios correctly
+
+**Files:**
+- Modify: `core/tests/test_reference_integrity.py`
+- Modify: `core/tests/test_trainer.py` or reuse existing cached-value injection helpers
+- Modify: `core/tests/test_normalization.py` only if the existing helper for cached Excel errors is intentionally shared there; prefer moving generic test support rather than duplicating production behavior
+
+Step 9A.2 already proved `check_workbook()` can compare cached Excel `#N/A` against an expected `#N/A` for earnings-quality formulas. Add equivalent historical-DuPont coverage so this behavior cannot regress by family type.
+
+Required regressions:
+
+### Exact formula
+
+1. Build a fixture producing one undefined historical DuPont ratio.
+2. Enter the exact Answer-Key formula into that Trainer practice cell.
+3. Run Check.
+4. Require the cell to become green.
+
+### Equivalent formula with cached `#N/A`
+
+1. Put a structurally different formula into the same practice cell.
+2. Inject cached Excel value `#N/A` using the existing test mechanism.
+3. Run Check.
+4. Require green.
+
+### Fabricated numeric zero
+
+1. Put an equivalent-looking formula/cached result that yields numeric `0.0` where expected is `#N/A`.
+2. Run Check.
+3. Require red.
+
+The Check remains non-disclosing; do not print expected values in CLI output.
+
+---
+
+## Task 5 — Correct learner-facing historical ratio hints
+
+**Files:**
+- Modify: `core/engine/component_catalog.py`
+- Test: `core/tests/test_reference_integrity.py` or a catalog-focused existing test
+
+### Remove stale Step 9A.3 contradiction
+
+For `net_interest_fy`, remove:
+
+```text
+Missing optional interest lines are treated as zero.
+```
+
+Replace it with a statement consistent with the current source contract, for example:
+
+```text
+Use the explicitly supplied Interest Expense and Interest Income lines with the model's sign convention.
+```
+
+Do not imply that absent interest lines are automatically zero.
+
+### Add denominator semantics to ratio hints
+
+Where concise and useful, add one final hint to the denominator-sensitive families:
+
+```text
+A zero denominator makes this ratio undefined (#N/A), not 0%.
+```
+
+Applicable families:
+
+- Sales Growth
+- NOPAT Margin
+- RNOA
+- After-tax CoD
+- FLEV
+- Actual ROE
+
+For Spread and decomposed ROE, state instead that an undefined required upstream ratio propagates into the result.
+
+Keep hints concise. Do not turn Notes into accounting essays.
+
+---
+
+## Task 6 — Regression and surface preservation
+
+**Files:**
+- Modify: `RESULT.md`
+- Modify: `IMPLEMENTATION.md` status only after implementation and verification
+- Modify: `README-HK-TRAINER.md` only if an existing statement explicitly documents the old zero-denominator behavior
+- Do not modify: `TARGET.md`
+
+Run focused suites first:
+
+```bash
 PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
-PYTHONPATH=. pytest core/tests/test_classification.py -v
 PYTHONPATH=. pytest core/tests/test_earnings_quality.py -v
 PYTHONPATH=. pytest core/tests/test_trainer.py -v
-PYTHONPATH=. pytest core/tests/test_line_resolver.py -v
+```
+
+Then the remaining existing integrity suites:
+
+```bash
+PYTHONPATH=. pytest core/tests/test_classification.py -v
 PYTHONPATH=. pytest core/tests/test_line_identity.py -v
+PYTHONPATH=. pytest core/tests/test_line_resolver.py -v
 PYTHONPATH=. pytest core/tests/test_normalization.py -v
+PYTHONPATH=. pytest core/tests/test_validators.py -v
 ```
 
 Then:
@@ -479,11 +517,9 @@ Then:
 PYTHONPATH=. pytest core/tests/ -q
 ```
 
-Record the actual passing count; do not prestate it.
+Record the actual passing count. Do not hard-code an expected new total before running the tests.
 
-### Demo verification
-
-Base:
+### Base build
 
 ```bash
 PYTHONPATH=. python -m core build \
@@ -497,15 +533,15 @@ PYTHONPATH=. python -m core list \
   --workbook /tmp/DEMO_BASE_Trainer.xlsx
 ```
 
-Required:
+Required unchanged surface:
 
 ```text
-30 schedule groups
 141 practice cells
 0 correct / 0 incorrect / 141 blank
+30 schedule groups
 ```
 
-Normalization:
+### Normalization build
 
 ```bash
 PYTHONPATH=. python -m core build \
@@ -520,15 +556,15 @@ PYTHONPATH=. python -m core list \
   --workbook /tmp/DEMO_NORM_Trainer.xlsx
 ```
 
-Required:
+Required unchanged surface:
 
 ```text
-34 schedule groups
 161 practice cells
 0 correct / 0 incorrect / 161 blank
+34 schedule groups
 ```
 
-Verify CLI:
+### CLI
 
 ```bash
 PYTHONPATH=. python -m core --help
@@ -543,29 +579,70 @@ check
 list
 ```
 
-GitHub currently has no attached CI status for the implementation branch. Describe verification as local unless CI is separately added.
+---
+
+## Task 7 — Update checkpoint evidence
+
+**Files:**
+- Modify: `RESULT.md`
+- Modify: `IMPLEMENTATION.md` status line after all verification passes
+- Do not modify: `TARGET.md`
+
+`RESULT.md` must record:
+
+- actual full-suite test count;
+- source-completeness behavior from Step 9A.3 remains green;
+- Step 9A earnings-quality `#N/A` behavior remains green;
+- Sales Growth zero denominator -> `#N/A`;
+- NOPAT Margin zero denominator -> `#N/A`;
+- RNOA zero denominator -> `#N/A`;
+- After-tax CoD zero denominator -> `#N/A`;
+- FLEV zero denominator -> `#N/A`;
+- Actual ROE zero denominator -> `#N/A`;
+- Spread / decomposed ROE undefined propagation -> pass;
+- explicit zero numerator with nonzero denominator -> numeric zero preserved;
+- Formula Check exact/equivalent `#N/A` behavior -> pass;
+- fabricated numeric zero where `#N/A` expected -> rejected;
+- stale optional-interest hint removed;
+- base 30 / 141 preserved;
+- normalization 34 / 161 preserved;
+- `TARGET.md` unchanged;
+- no working-capital interpretation, forecasting, or valuation introduced.
+
+Do not report `Unresolved: none` unless no new active historical-surface issue is found during implementation.
+
+It is acceptable to keep these explicitly deferred items listed if still present:
+
+- effective-tax-rate zero-denominator convention and any downstream NOPAT implications;
+- dormant deferred-forecast defaults/fallbacks;
+- working-capital/driver interpretation;
+- quality scoring;
+- forecasting and valuation.
 
 ---
 
 ## Definition of done
 
-Step 9A.3 is complete only when:
+Step 9A.4 is complete only when all of the following are true:
 
-1. Revenue, Net Income, Pretax Income, Tax Expense, Interest Expense, and Interest Income are explicit required historical-core lines.
-2. Every modeled period of each required core income line must contain a supplied numeric value.
-3. Explicit zero remains valid and is not confused with missing data.
-4. No required core income period is silently converted to zero.
-5. Every supplied non-subtotal balance-sheet detail row is period-complete.
-6. Optional reported BS totals remain optional as whole lines but are period-complete when present.
-7. Cash-flow reconciliation does not substitute zero for missing periods on present summary lines.
-8. Classification label normalization handles curly apostrophes consistently.
-9. Missing Net Income fails even when CFO is absent and Earnings Quality is not active.
-10. Missing BS detail fails even when reported BS totals are absent.
-11. Step 9A `#N/A` denominator behavior remains unchanged.
-12. Base demo remains 30 families / 141 practice cells.
-13. Normalization demo remains 34 families / 161 practice cells.
-14. Full test suite passes.
-15. `TARGET.md` is unchanged.
-16. Working-capital interpretation, forecasting, and valuation have not begun.
+1. No active DuPont ratio uses numeric `0.0` solely because its denominator is zero.
+2. Zero numerator with nonzero denominator still produces a legitimate numeric `0.0`.
+3. Sales Growth uses `#N/A` when prior Revenue is zero.
+4. NOPAT Margin uses `#N/A` when Revenue is zero.
+5. RNOA uses `#N/A` when average NOA is zero.
+6. After-tax CoD uses `#N/A` when average Net Debt is zero.
+7. FLEV and Actual ROE use `#N/A` when average Equity is zero.
+8. Spread propagates undefined RNOA or CoD.
+9. Decomposed ROE propagates undefined RNOA, CoD/Spread, or FLEV.
+10. Python expected values and Excel `NA()` formulas agree.
+11. Formula Check accepts exact and equivalent cached `#N/A` results and rejects fabricated numeric zero.
+12. Step 9A earnings-quality behavior remains unchanged.
+13. Step 9A.3 source completeness remains unchanged.
+14. The net-interest hint no longer claims absent interest lines are automatically zero.
+15. Base surface remains 30 families / 141 practice cells.
+16. Normalization surface remains 34 families / 161 practice cells.
+17. Full test suite passes.
+18. `TARGET.md` is unchanged.
+19. Working-capital interpretation, forecasting, and valuation have not begun.
 
-After completing Step 9A.3, stop and report changed files, exact test output, demo build/check/list output, and any remaining missing-value fallback found during implementation. Do not proceed to the next curriculum feature and do not commit or push.
+After completing Step 9A.4, stop and report changed files, exact test output, demo build/check/list output, and any new active historical-model issue found during implementation. Do not proceed to the next curriculum feature and do not commit or push.
