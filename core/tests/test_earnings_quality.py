@@ -22,6 +22,7 @@ from core.engine.component_catalog import (
 from core.engine.reference_model import EARNINGS_QUALITY_SHEET, ReferenceModelBuilder
 from core.ingestion.manual_hk import HKManualDocumentAdapter
 from core.model.earnings_quality import (
+    UNDEFINED_RATIO,
     compute_earnings_quality_series,
     earnings_quality_availability,
 )
@@ -167,12 +168,32 @@ def test_earnings_quality_series_core_cases():
     series2 = compute_earnings_quality_series(fin2, periods, anchor2)
     assert series2.total_accruals[0] == pytest.approx(-30.0)
 
-    # Zero NI -> conversion 0.0
+    # Zero NI -> undefined cash conversion
     fin3 = _tiny_fin()
     fin3.income_statement[-1].values[periods[0]] = 0.0
     anchor3 = compute_anchor(fin3, periods)
     series3 = compute_earnings_quality_series(fin3, periods, anchor3)
-    assert series3.cash_conversion_ratio[0] == 0.0
+    assert series3.cash_conversion_ratio[0] == UNDEFINED_RATIO
+    assert series3.total_accruals[0] == pytest.approx(-80.0)
+
+    # Zero CFO, nonzero NI -> numeric 0.0 conversion
+    fin4 = _tiny_fin()
+    fin4.cash_flow[0].values[periods[0]] = 0.0
+    series4 = compute_earnings_quality_series(
+        fin4, periods, compute_anchor(fin4, periods)
+    )
+    assert series4.cash_conversion_ratio[0] == 0.0
+    assert series4.total_accruals[0] == pytest.approx(100.0)
+
+    # Both zero -> still undefined (denominator rules)
+    fin5 = _tiny_fin()
+    fin5.income_statement[-1].values[periods[0]] = 0.0
+    fin5.cash_flow[0].values[periods[0]] = 0.0
+    series5 = compute_earnings_quality_series(
+        fin5, periods, compute_anchor(fin5, periods)
+    )
+    assert series5.cash_conversion_ratio[0] == UNDEFINED_RATIO
+    assert series5.total_accruals[0] == 0.0
 
 
 def test_earnings_quality_without_assets_and_missing_cfo():
@@ -207,8 +228,52 @@ def test_zero_average_assets_accrual_ratio_convention():
             item.values[periods[1]] = 0.0
     series = compute_earnings_quality_series(fin, periods, anchor)
     assert series.average_total_assets[1] == 0.0
-    assert series.accrual_ratio[1] == 0.0
+    assert series.accrual_ratio[1] == UNDEFINED_RATIO
 
+    # Zero accruals with nonzero average assets -> numeric 0.0
+    fin_num = _tiny_fin()
+    periods = canonical_fiscal_periods(fin_num)
+    fin_num.income_statement[-1].values[periods[1]] = 90.0
+    fin_num.cash_flow[0].values[periods[1]] = 90.0
+    series_num = compute_earnings_quality_series(
+        fin_num, periods, compute_anchor(fin_num, periods)
+    )
+    assert series_num.total_accruals[1] == pytest.approx(0.0)
+    assert series_num.accrual_ratio[1] == pytest.approx(0.0)
+
+
+def test_incomplete_or_missing_net_income_fails_without_zero_fabrication():
+    fin = _tiny_fin()
+    periods = canonical_fiscal_periods(fin)
+    anchor = compute_anchor(fin, periods)
+    ni_item = fin.income_statement[-1]
+    del ni_item.values[periods[1]]
+    with pytest.raises(ValueError, match="net_income") as exc_info:
+        compute_earnings_quality_series(fin, periods, anchor)
+    assert periods[1].isoformat() in str(exc_info.value)
+
+    fin_none = _tiny_fin()
+    periods = canonical_fiscal_periods(fin_none)
+    anchor_none = compute_anchor(fin_none, periods)
+    fin_none.income_statement[-1].values[periods[0]] = None
+    with pytest.raises(ValueError, match="net_income") as exc_info:
+        compute_earnings_quality_series(fin_none, periods, anchor_none)
+    assert periods[0].isoformat() in str(exc_info.value)
+
+    fin_zero = _tiny_fin()
+    periods = canonical_fiscal_periods(fin_zero)
+    fin_zero.income_statement[-1].values[periods[0]] = 0.0
+    series = compute_earnings_quality_series(
+        fin_zero, periods, compute_anchor(fin_zero, periods)
+    )
+    assert series.cash_conversion_ratio[0] == UNDEFINED_RATIO
+
+    fin_mismatch = _tiny_fin()
+    periods = canonical_fiscal_periods(fin_mismatch)
+    anchor_mismatch = compute_anchor(fin_mismatch, periods)
+    fin_mismatch.income_statement[-1].values[periods[0]] = 999.0
+    with pytest.raises(ValueError, match="does not match AnchorMetrics"):
+        compute_earnings_quality_series(fin_mismatch, periods, anchor_mismatch)
 
 def test_incomplete_or_missing_cfo_period_fails_without_zero_fabrication():
     fin = _tiny_fin()
@@ -270,7 +335,7 @@ def test_incomplete_total_assets_fails_without_zero_fabrication():
     assets_zero.values[periods[1]] = 0.0
     series = compute_earnings_quality_series(fin_zero, periods, anchor_zero)
     assert series.average_total_assets[1] == 0.0
-    assert series.accrual_ratio[1] == 0.0
+    assert series.accrual_ratio[1] == UNDEFINED_RATIO
 
 
 def test_availability_and_incompleteness_are_distinct(tmp_path):
@@ -339,9 +404,9 @@ def test_availability_and_incompleteness_are_distinct(tmp_path):
         if item.label == "Total assets"
     )
     del assets_build.values[periods[0]]
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         ReferenceModelBuilder(fin_build_incomplete)
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         build_training_workbook(
             fin_build_incomplete, tmp_path / "IncompleteAssets_Trainer.xlsx"
         )
@@ -545,3 +610,77 @@ def test_quality_composes_with_normalization_and_classification(tmp_path):
     summary = check_workbook(trainer)
     assert summary.correct == 3
     assert summary.incorrect == 0
+
+
+def test_undefined_ratio_formulas_use_na_and_check_accepts_na(tmp_path):
+    from core.tests.test_normalization import _inject_formula_and_cached_value
+
+    # Zero Net Income -> conversion formula uses NA(); expected is #N/A
+    fin_ni = _tiny_fin()
+    periods = canonical_fiscal_periods(fin_ni)
+    fin_ni.income_statement[-1].values[periods[0]] = 0.0
+    trainer, answer = build_training_workbook(fin_ni, tmp_path / "ZeroNI_Trainer.xlsx")
+    smap = load_semantic_map(answer)
+    conv = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "cash_conversion_ratio" and c.period_index == 0
+    )
+    assert conv.expected_value == UNDEFINED_RATIO
+    assert "NA()" in conv.formula
+    assert ",0," not in conv.formula.replace("NA()", "")
+    wb = load_workbook(trainer, data_only=False)
+    row, col = parse_cell_ref(conv.cell)
+    assert wb[conv.tab].cell(row=row, column=col).value is None
+    assert _fill_rgb(wb[conv.tab].cell(row=row, column=col)) == "FFFF00"
+    wb[conv.tab].cell(row=row, column=col).value = conv.formula
+    wb.save(trainer)
+    wb.close()
+    assert check_workbook(trainer).correct == 1
+
+    _inject_formula_and_cached_value(
+        trainer,
+        conv.tab,
+        conv.cell,
+        formula="=NA()",
+        cached_value=UNDEFINED_RATIO,
+    )
+    assert check_workbook(trainer).correct == 1
+
+    _inject_formula_and_cached_value(
+        trainer,
+        conv.tab,
+        conv.cell,
+        formula="=0",
+        cached_value=0.0,
+    )
+    assert check_workbook(trainer).incorrect == 1
+
+    # Zero average assets (post-anchor) -> undefined accrual ratio in the series
+    fin_assets = _tiny_fin()
+    periods = canonical_fiscal_periods(fin_assets)
+    anchor = compute_anchor(fin_assets, periods)
+    for item in fin_assets.balance_sheet:
+        if item.label == "Total assets":
+            item.values[periods[0]] = 0.0
+            item.values[periods[1]] = 0.0
+    series = compute_earnings_quality_series(fin_assets, periods, anchor)
+    assert series.accrual_ratio[1] == UNDEFINED_RATIO
+
+    # Demo Answer Key ratio formulas use NA() denominator guards; Trainer stays blank
+    data = _ingest_demo()
+    demo_trainer, demo_answer = build_training_workbook(
+        data, tmp_path / "DemoNA_Trainer.xlsx"
+    )
+    demo_smap = load_semantic_map(demo_answer)
+    accrual = next(c for c in demo_smap.all_ordered() if c.family_id == "accrual_ratio")
+    conversion = next(
+        c for c in demo_smap.all_ordered() if c.family_id == "cash_conversion_ratio"
+    )
+    assert "NA()" in accrual.formula
+    assert ",0," not in accrual.formula.replace("NA()", "")
+    assert "NA()" in conversion.formula
+    trainer_wb = load_workbook(demo_trainer, data_only=False)
+    r, c = parse_cell_ref(accrual.cell)
+    assert trainer_wb[accrual.tab].cell(row=r, column=c).value is None
+    trainer_wb.close()

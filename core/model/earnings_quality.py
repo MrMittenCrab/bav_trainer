@@ -5,6 +5,8 @@ Definitions (mechanical diagnostics, not automatic quality judgments):
     Cash conversion ratio = CFO / Reported Net Income
     Total accruals         = Reported Net Income - CFO
     Accrual ratio          = Total accruals / Average Total Assets
+
+Zero denominators produce the undefined-ratio sentinel ``#N/A`` (not numeric 0.0).
 """
 
 from __future__ import annotations
@@ -16,6 +18,8 @@ from ..data.interface import LineItem, StandardizedFinancials
 from .financial_math import AnchorMetrics
 from .line_resolver import resolve_line
 
+UNDEFINED_RATIO = "#N/A"
+
 
 @dataclass(frozen=True)
 class EarningsQualityAvailability:
@@ -26,10 +30,10 @@ class EarningsQualityAvailability:
 @dataclass(frozen=True)
 class EarningsQualitySeries:
     operating_cash_flow: tuple[float, ...]
-    cash_conversion_ratio: tuple[float, ...]
+    cash_conversion_ratio: tuple[float | str, ...]
     total_accruals: tuple[float, ...]
     average_total_assets: tuple[float | None, ...]
-    accrual_ratio: tuple[float | None, ...]
+    accrual_ratio: tuple[float | str | None, ...]
 
 
 def _required_period_value(
@@ -75,10 +79,13 @@ def compute_earnings_quality_series(
 ) -> EarningsQualitySeries:
     """Compute cash-conversion and accrual diagnostics for modeled periods.
 
-    Requires a resolvable operating-cash-flow line. A resolved CFO or Total Assets
-    line must supply an explicit value for every modeled period; missing period
-    values raise ``ValueError`` rather than fabricating zeros. A completely absent
-    Total Assets line omits only the asset-scaled extension.
+    Requires a resolvable operating-cash-flow line and explicitly supplied Net
+    Income for every modeled period. A resolved CFO or Total Assets line must
+    also supply an explicit value for every modeled period; missing period values
+    raise ``ValueError`` rather than fabricating zeros. A completely absent Total
+    Assets line omits only the asset-scaled extension.
+
+    Zero denominators yield ``UNDEFINED_RATIO`` (``#N/A``), not numeric ``0.0``.
     """
     cfo_item = resolve_line(
         financials.cash_flow,
@@ -87,6 +94,13 @@ def compute_earnings_quality_series(
     ).item
     assert cfo_item is not None
 
+    net_income_item = resolve_line(
+        financials.income_statement,
+        "net_income",
+        required=True,
+    ).item
+    assert net_income_item is not None
+
     n = len(periods)
     hist = anchor.historical
     if len(hist.net_income) != n:
@@ -94,8 +108,24 @@ def compute_earnings_quality_series(
             "earnings-quality period axis must match AnchorMetrics historical series length"
         )
 
+    net_income_values = [
+        _required_period_value(
+            net_income_item,
+            period,
+            concept="net_income",
+        )
+        for period in periods
+    ]
+    for j, source_ni in enumerate(net_income_values):
+        anchor_ni = float(hist.net_income[j])
+        if abs(source_ni - anchor_ni) > 1e-9:
+            raise ValueError(
+                "earnings-quality reported Net Income does not match AnchorMetrics "
+                f"for modeled period {periods[j].isoformat()}"
+            )
+
     cfo_vals: list[float] = []
-    conversion: list[float] = []
+    conversion: list[float | str] = []
     accruals: list[float] = []
     for j, period in enumerate(periods):
         cfo = _required_period_value(
@@ -103,9 +133,9 @@ def compute_earnings_quality_series(
             period,
             concept="operating_cash_flow",
         )
-        ni = float(hist.net_income[j])
+        ni = net_income_values[j]
         cfo_vals.append(cfo)
-        conversion.append(0.0 if ni == 0.0 else cfo / ni)
+        conversion.append(UNDEFINED_RATIO if ni == 0.0 else cfo / ni)
         accruals.append(ni - cfo)
 
     assets_item = resolve_line(
@@ -133,12 +163,12 @@ def compute_earnings_quality_series(
     ]
 
     avg_assets: list[float | None] = [None]
-    ratios: list[float | None] = [None]
+    ratios: list[float | str | None] = [None]
     for j in range(1, n):
         average = (asset_values[j - 1] + asset_values[j]) / 2.0
         avg_assets.append(average)
         if average == 0.0:
-            ratios.append(0.0)
+            ratios.append(UNDEFINED_RATIO)
         else:
             ratios.append(accruals[j] / average)
 

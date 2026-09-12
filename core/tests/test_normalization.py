@@ -447,7 +447,7 @@ def _inject_formula_and_cached_value(
     cell: str,
     *,
     formula: str,
-    cached_value: float,
+    cached_value: float | str,
 ) -> None:
     import os
     import tempfile
@@ -509,7 +509,13 @@ def _inject_formula_and_cached_value(
     f_el = ET.SubElement(cell_el, f"{{{ssml}}}f")
     f_el.text = formula_body
     v_el = ET.SubElement(cell_el, f"{{{ssml}}}v")
-    v_el.text = f"{float(cached_value)}"
+    if isinstance(cached_value, str):
+        # Excel error cached results use cell type "e" (e.g. #N/A).
+        cell_el.set("t", "e")
+        v_el.text = cached_value
+    else:
+        cell_el.attrib.pop("t", None)
+        v_el.text = f"{float(cached_value)}"
 
     ET.register_namespace("", ssml)
     new_sheet_xml = ET.tostring(root, encoding="utf-8", xml_declaration=True)

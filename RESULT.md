@@ -1,7 +1,7 @@
-Status: Step 9A.1 complete — earnings-quality source completeness hardening
+Status: Step 9A.2 complete — undefined-ratio and Net-Income source hardening
 
 Implementation base:
-- 3e4be697 Step 9
+- 0ca16506 Step 9A.1
 
 Historical formula surface (no normalization assumptions; demo CFO + total assets present):
 - fiscal periods: 5
@@ -15,15 +15,16 @@ Step 9A illustrative demo (with DEMO_HK_Assumptions.json):
 - formula practice cells: 161
 - fresh Check: 0 / 0 / 161
 
-Earnings-quality source completeness:
-- absent CFO line -> quality module omitted: yes
-- incomplete resolved CFO line -> build rejected; no zero fabrication: yes
-- absent Total Assets line -> asset-scaled extension omitted: yes
-- incomplete resolved Total Assets line -> rejected; no zero fabrication: yes
-- explicit numeric zero remains valid supplied data: yes
-- zero Net Income -> cash conversion ratio 0.0 (Step 9A convention): yes
-- zero average assets → accrual ratio 0.0 (explicit Step 9A denominator convention): yes
-- no quality score / threshold / automatic good-bad label: yes
+Undefined-ratio and Net Income hardening:
+- missing CFO / Total Assets / Net Income are never fabricated as zero: yes
+- explicit numeric zero remains a valid supplied historical fact: yes
+- zero numerator with nonzero denominator remains a valid 0.0 ratio: yes
+- zero Net Income -> cash conversion ratio #N/A (undefined denominator): yes
+- zero Average Total Assets -> accrual ratio #N/A (undefined denominator): yes
+- Excel Answer Key formulas use NA() for zero denominators: yes
+- Formula Check accepts exact NA() formulas and cached #N/A; rejects fabricated 0.0: yes
+- reported Net Income resolved + period-complete inside quality model; must match AnchorMetrics: yes
+- first-period Average Total Assets / Accrual Ratio remain non-applicable (None / no FY1 component): yes
 
 Preservation:
 - Step 8A/8B1/8B2 trusted-workbook behavior preserved
@@ -34,16 +35,18 @@ Preservation:
 - working-capital interpretation / forecasting / valuation not begun: yes
 
 Files changed:
-- Modify: `core/model/earnings_quality.py` — `_required_period_value`; fail-closed CFO/Total Assets periods
-- Modify: `core/tests/test_earnings_quality.py` — incompleteness vs availability matrix
+- Modify: `core/model/earnings_quality.py` — UNDEFINED_RATIO; NI completeness; zero-denominator #N/A
+- Modify: `core/engine/reference_model.py` — NA() denominator guards; pass #N/A expecteds
+- Modify: `core/tests/test_earnings_quality.py` — undefined-ratio / NI / Check regressions; tighten ValueError
+- Modify: `core/tests/test_normalization.py` — inject helper supports Excel error cached `#N/A`
 - Modify: `RESULT.md`
 - Modify: `IMPLEMENTATION.md` status only
 
 Tests (fresh, local verification — no attached GitHub CI):
-- `PYTHONPATH=. pytest core/tests/test_earnings_quality.py -v` -> 14 passed
+- `PYTHONPATH=. pytest core/tests/test_earnings_quality.py -v` -> 16 passed
 - `PYTHONPATH=. pytest core/tests/test_line_resolver.py -v` -> 8 passed
 - `PYTHONPATH=. pytest core/tests/test_reference_integrity.py core/tests/test_normalization.py core/tests/test_trainer.py core/tests/test_classification.py core/tests/test_line_identity.py -q` -> 164 passed
-- `PYTHONPATH=. pytest core/tests/ -q` -> 186 passed
+- `PYTHONPATH=. pytest core/tests/ -q` -> 188 passed
 - `PYTHONPATH=. python -m core build example/DEMO_HK_Standardized.json -o /tmp/DEMO_BASE_Trainer.xlsx` -> Components resolved: 141
 - `PYTHONPATH=. python -m core check --workbook /tmp/DEMO_BASE_Trainer.xlsx` -> `Checked 141 practice cells: 0 correct, 0 incorrect, 141 blank.`
 - `PYTHONPATH=. python -m core list --workbook /tmp/DEMO_BASE_Trainer.xlsx` -> 30 schedule groups

@@ -1,5 +1,7 @@
 # Step 9A.2 — Undefined-Ratio and Net-Income Source Hardening
 
+> **Status:** Step 9A.2 complete. See `RESULT.md` for verification evidence (188 passed; base 30/141; normalization 34/161; zero denominators → `#N/A` / `NA()`). Do not commit or push from this checkpoint unless the user requests it.
+
 > **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `0ca165067c049106c8ad12018eaac9acca5cfffc` (`Step 9A.1`). Implement only Step 9A.2 below using red/green TDD. Preserve the Step 8 classification/normalization workflow, the trusted-workbook boundary, and the Step 9A earnings-quality schedule. Do not begin working-capital interpretation, quality scoring, research-writing evaluation, forecasting, valuation, ROU/deferred-tax alternative modeling, or later Step 9/10 work. Do not commit or push; the user owns the checkpoint commit.
 
 **Goal:** Remove the last misleading numeric fallbacks in Step 9A. Zero denominators must produce an explicitly undefined ratio rather than a fabricated `0.0`, and reported Net Income used by earnings-quality diagnostics must be explicitly supplied for every modeled period instead of relying on `compute_anchor()`'s legacy missing-value fallback.

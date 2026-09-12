@@ -1280,7 +1280,7 @@ class ReferenceModelBuilder:
             cfo_formula = f"='Cash Flow Statement'!{col}{cfo_src}"
             ni_formula = f"='Condensed Financials'!{col}{ni_r}"
             conversion_formula = (
-                f"=IF({col}{ni_row}=0,0,{col}{cfo_row}/{col}{ni_row})"
+                f"=IF({col}{ni_row}=0,NA(),{col}{cfo_row}/{col}{ni_row})"
             )
             accruals_formula = f"={col}{ni_row}-{col}{cfo_row}"
 
@@ -1354,7 +1354,7 @@ class ReferenceModelBuilder:
             prev_col = self._col(2 + j - 1)
             avg_formula = f"=({prev_col}{assets_row}+{col}{assets_row})/2"
             ratio_formula = (
-                f"=IF({col}{avg_assets_row}=0,0,"
+                f"=IF({col}{avg_assets_row}=0,NA(),"
                 f"{col}{accruals_row}/{col}{avg_assets_row})"
             )
             c = ws.cell(row=avg_assets_row, column=2 + j, value=avg_formula)
@@ -1373,6 +1373,7 @@ class ReferenceModelBuilder:
                 avg_formula,
                 float(series.average_total_assets[j]),
             )
+            accrual_expected = series.accrual_ratio[j]
             self._register_quality(
                 "accrual_ratio",
                 j,
@@ -1380,7 +1381,9 @@ class ReferenceModelBuilder:
                 accrual_ratio_row,
                 2 + j,
                 ratio_formula,
-                float(series.accrual_ratio[j]),
+                accrual_expected
+                if isinstance(accrual_expected, str)
+                else float(accrual_expected),
             )
 
         self.rowmap["quality_assets_row"] = assets_row
