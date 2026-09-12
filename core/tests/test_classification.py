@@ -300,3 +300,149 @@ def test_override_suppresses_judgment_code():
     assert decision.overridden is True
     assert decision.ambiguous is False
     assert decision.judgment_code is None
+
+
+def test_bs_detail_and_optional_totals_period_completeness():
+    from core.model.source_values import MissingHistoricalValueError
+
+    periods = [P1, P2]
+    # Complete detail + absent totals still works.
+    fin = StandardizedFinancials(
+        ticker="BS",
+        company_name="BS Co",
+        currency="HKD",
+        units="mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=P1, label="FY2024"),
+            FinancialPeriod(end_date=P2, label="FY2025"),
+        ],
+        income_statement=[],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 100, 110),
+            _li("Trade receivables", 80, 90),
+            _li("Property, plant and equipment", 400, 420),
+            _li("Trade payables", 50, 55),
+            _li("Bank borrowings", 200, 210),
+            _li("Share capital and reserves", 330, 355),
+        ],
+        cash_flow=[],
+    )
+    reform = reformulate_balance_sheet(fin, periods)
+    assert reform.total_assets == (None, None)
+    assert reform.category_totals["Financial Asset"][0] == pytest.approx(100.0)
+
+    # Explicit zero detail accepted.
+    fin_zero = StandardizedFinancials(
+        ticker="BS0",
+        company_name="BS Zero",
+        currency="HKD",
+        units="mn",
+        jurisdiction="HK",
+        periods=fin.periods,
+        income_statement=[],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 0, 0),
+            _li("Trade receivables", 80, 90),
+            _li("Property, plant and equipment", 400, 420),
+            _li("Trade payables", 50, 55),
+            _li("Bank borrowings", 200, 210),
+            _li("Share capital and reserves", 230, 245),
+        ],
+        cash_flow=[],
+    )
+    reform_zero = reformulate_balance_sheet(fin_zero, periods)
+    assert reform_zero.category_totals["Financial Asset"][0] == 0.0
+
+    # Missing detail period fails.
+    fin_miss = StandardizedFinancials(
+        ticker="BSM",
+        company_name="BS Miss",
+        currency="HKD",
+        units="mn",
+        jurisdiction="HK",
+        periods=fin.periods,
+        income_statement=[],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 100, 110),
+            _li("Trade receivables", 80, 90),
+            _li("Property, plant and equipment", 400, 420),
+            _li("Trade payables", 50, 55),
+            _li("Bank borrowings", 200, 210),
+            _li("Share capital and reserves", 330, 355),
+        ],
+        cash_flow=[],
+    )
+    del fin_miss.balance_sheet[0].values[P2]
+    with pytest.raises(MissingHistoricalValueError, match="balance_sheet detail"):
+        reformulate_balance_sheet(fin_miss, periods)
+
+    # Present but incomplete Total Assets fails.
+    fin_ta = StandardizedFinancials(
+        ticker="TA",
+        company_name="TA Co",
+        currency="HKD",
+        units="mn",
+        jurisdiction="HK",
+        periods=fin.periods,
+        income_statement=[],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 100, 110),
+            _li("Trade receivables", 80, 90),
+            _li("Property, plant and equipment", 400, 420),
+            _li("Total assets", 580, 620),
+            _li("Trade payables", 50, 55),
+            _li("Bank borrowings", 200, 210),
+            _li("Share capital and reserves", 330, 355),
+        ],
+        cash_flow=[],
+    )
+    del fin_ta.balance_sheet[3].values[P2]
+    with pytest.raises(MissingHistoricalValueError, match="total_assets"):
+        reformulate_balance_sheet(fin_ta, periods)
+
+    for concept, label in (
+        ("total_liabilities", "Total liabilities"),
+        ("total_equity", "Total equity"),
+    ):
+        fin_tot = StandardizedFinancials(
+            ticker="TOT",
+            company_name="Tot Co",
+            currency="HKD",
+            units="mn",
+            jurisdiction="HK",
+            periods=fin.periods,
+            income_statement=[],
+            balance_sheet=[
+                _li("Cash and cash equivalents", 100, 110),
+                _li("Trade receivables", 80, 90),
+                _li("Property, plant and equipment", 400, 420),
+                _li("Trade payables", 50, 55),
+                _li("Bank borrowings", 200, 210),
+                _li("Share capital and reserves", 330, 355),
+                _li(label, 250, 265),
+            ],
+            cash_flow=[],
+        )
+        fin_tot.balance_sheet[-1].values[P1] = None
+        with pytest.raises(MissingHistoricalValueError, match=concept):
+            reformulate_balance_sheet(fin_tot, periods)
+
+
+def test_classification_curly_apostrophe_equity_alias_consistent():
+    from core.model.classification import _norm
+
+    assert _norm("Shareholders' equity") == _norm("Shareholders\u2019 equity")
+    assert _norm("Owners' equity") == _norm("Owners\u2019 equity")
+
+    # Override matching treats curly/straight apostrophe labels consistently.
+    owners_straight = classify_balance_sheet_line(
+        LineItem(label="Owners' residual interest", values={P1: 10, P2: 11}),
+        override="Equity",
+    )
+    owners_curly = classify_balance_sheet_line(
+        LineItem(label="Owners\u2019 residual interest", values={P1: 10, P2: 11}),
+        override="Equity",
+    )
+    assert owners_straight.category == "Equity"
+    assert owners_curly.category == "Equity"

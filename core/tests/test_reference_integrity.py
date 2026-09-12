@@ -3,18 +3,20 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
 from openpyxl import load_workbook
 import pytest
 
-from core.data.interface import DocumentManifest, DocumentType
+from core.data.interface import DocumentManifest, DocumentType, LineItem
 from core.engine.component_catalog import COMPONENT_CATALOG, concrete_component_id, expand_historical_specs
 from core.ingestion.manual_hk import HKManualDocumentAdapter
 from core.model.classification import BALANCE_SHEET_CATEGORIES
-from core.model.financial_math import _val, compute_anchor
+from core.model.financial_math import compute_anchor
 from core.model.line_resolver import resolve_line
 from core.model.ri_engine import run_scenario
+from core.model.source_values import required_period_value
 from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
 from core.trainer.workbook import build_training_workbook
 
@@ -92,21 +94,27 @@ def test_anchor_exposes_tax_and_interest_expected_values():
 
     pretax = resolve_line(data.income_statement, "pretax_income", required=True).item
     tax = resolve_line(data.income_statement, "tax_expense", required=True).item
-    int_exp = resolve_line(data.income_statement, "interest_expense", required=False).item
-    int_inc = resolve_line(data.income_statement, "interest_income", required=False).item
+    int_exp = resolve_line(data.income_statement, "interest_expense", required=True).item
+    int_inc = resolve_line(data.income_statement, "interest_income", required=True).item
     ni = resolve_line(data.income_statement, "net_income", required=True).item
 
-    pretax_v = _val(pretax, last)
-    tax_v = _val(tax, last)
+    pretax_v = required_period_value(pretax, last, field="pretax_income")
+    tax_v = required_period_value(tax, last, field="tax_expense")
     expected_etr = (-tax_v / pretax_v) if pretax_v else 0.0
-    expected_net_int = -(_val(int_exp, last) + _val(int_inc, last))
+    expected_net_int = -(
+        required_period_value(int_exp, last, field="interest_expense")
+        + required_period_value(int_inc, last, field="interest_income")
+    )
 
     assert anchor.effective_tax_rate == pytest.approx(expected_etr)
     assert anchor.net_interest == pytest.approx(expected_net_int)
     assert anchor.net_interest_after_tax == pytest.approx(
         anchor.net_interest * (1 - anchor.effective_tax_rate)
     )
-    assert anchor.nopat == pytest.approx(_val(ni, last) + anchor.net_interest_after_tax)
+    assert anchor.nopat == pytest.approx(
+        required_period_value(ni, last, field="net_income")
+        + anchor.net_interest_after_tax
+    )
 
 
 def test_anchor_exposes_full_historical_series():
@@ -135,8 +143,12 @@ def test_anchor_exposes_full_historical_series():
     rev_item = resolve_line(data.income_statement, "revenue", required=True).item
     ni_item = resolve_line(data.income_statement, "net_income", required=True).item
     for j, period in enumerate(periods):
-        assert anchor.historical.revenue[j] == pytest.approx(_val(rev_item, period))
-        assert anchor.historical.net_income[j] == pytest.approx(_val(ni_item, period))
+        assert anchor.historical.revenue[j] == pytest.approx(
+            required_period_value(rev_item, period, field="revenue")
+        )
+        assert anchor.historical.net_income[j] == pytest.approx(
+            required_period_value(ni_item, period, field="net_income")
+        )
 
 
 HISTORICAL_REFORMULATION_IDS = (
@@ -238,10 +250,12 @@ def test_nopat_formula_adds_after_tax_net_interest(tmp_path):
     anchor = compute_anchor(data, periods)
     assert nopat.expected_value == anchor.nopat
     from core.model.line_resolver import resolve_line
-    from core.model.financial_math import _val
 
     ni_item = resolve_line(data.income_statement, "net_income", required=True).item
-    assert abs(float(nopat.expected_value) - float(_val(ni_item, periods[-1]))) > 1.0
+    assert abs(
+        float(nopat.expected_value)
+        - float(required_period_value(ni_item, periods[-1], field="net_income"))
+    ) > 1.0
     wb.close()
 
 
@@ -554,10 +568,11 @@ def _base_fin(**overrides):
     return StandardizedFinancials(**kwargs)
 
 
-def test_missing_interest_income_still_populates_net_interest_chain(tmp_path):
+def test_explicit_zero_interest_income_still_populates_net_interest_chain(tmp_path):
     is_items = [
         _li("Revenue", 1000, 1100),
         _li("Finance costs", -40, -50),
+        _li("Finance income", 0, 0),
         _li("Profit before tax", 200, 220),
         _li("Income tax expense", -30, -33),
         _li("Profit for the year", 170, 187),
@@ -566,11 +581,12 @@ def test_missing_interest_income_still_populates_net_interest_chain(tmp_path):
     periods = [p.end_date for p in fin.periods]
     anchor = compute_anchor(fin, periods)
     assert anchor.nopat != 0
-    _, answer = build_training_workbook(fin, tmp_path / "MissInc_Trainer.xlsx")
+    assert anchor.historical.net_interest == [40.0, 50.0]
+    _, answer = build_training_workbook(fin, tmp_path / "ZeroInc_Trainer.xlsx")
     wb = load_workbook(answer, data_only=False)
     ws = wb["Condensed Financials"]
     labels = {ws.cell(row=r, column=1).value: r for r in range(1, ws.max_row + 1)}
-    assert "Interest Income" not in labels
+    assert "Interest Income" in labels
     assert "Interest Expense" in labels
     for name in ("Net Interest", "Net Interest After Tax", "NOPAT"):
         row = labels[name]
@@ -578,10 +594,11 @@ def test_missing_interest_income_still_populates_net_interest_chain(tmp_path):
     wb.close()
 
 
-def test_missing_interest_expense_income_only_case(tmp_path):
+def test_explicit_zero_interest_expense_income_only_case(tmp_path):
     is_items = [
         _li("Revenue", 1000, 1100),
         _li("Finance income", 5, 6),
+        _li("Finance costs", 0, 0),
         _li("Profit before tax", 200, 220),
         _li("Income tax expense", -30, -33),
         _li("Profit for the year", 170, 187),
@@ -590,11 +607,12 @@ def test_missing_interest_expense_income_only_case(tmp_path):
     periods = [p.end_date for p in fin.periods]
     anchor = compute_anchor(fin, periods)
     assert anchor.nopat != 0
-    _, answer = build_training_workbook(fin, tmp_path / "MissExp_Trainer.xlsx")
+    assert anchor.historical.net_interest == [-5.0, -6.0]
+    _, answer = build_training_workbook(fin, tmp_path / "ZeroExp_Trainer.xlsx")
     wb = load_workbook(answer, data_only=False)
     ws = wb["Condensed Financials"]
     labels = {ws.cell(row=r, column=1).value: r for r in range(1, ws.max_row + 1)}
-    assert "Interest Expense" not in labels
+    assert "Interest Expense" in labels
     assert "Interest Income" in labels
     for name in ("Net Interest", "Net Interest After Tax", "NOPAT"):
         assert ws.cell(row=labels[name], column=2).value not in (None, "")
@@ -682,6 +700,8 @@ def test_build_rejects_reformulation_gap(tmp_path):
         ],
         income_statement=[
             _li("Revenue", 100, 110),
+            _li("Finance costs", 0, 0),
+            _li("Finance income", 0, 0),
             _li("Profit before tax", 20, 22),
             _li("Income tax expense", -3, -3),
             _li("Profit for the year", 17, 19),
@@ -812,6 +832,8 @@ def test_classification_table_uses_shared_decisions(tmp_path):
         ],
         income_statement=[
             _li("Revenue", 100, 110),
+            _li("Finance costs", 0, 0),
+            _li("Finance income", 0, 0),
             _li("Profit before tax", 20, 22),
             _li("Income tax expense", -3, -3),
             _li("Profit for the year", 17, 19),
@@ -1176,6 +1198,8 @@ def test_gapped_annual_history_requires_contiguous_periods():
         ],
         income_statement=[
             li("Revenue", 1000, 1200),
+            li("Finance costs", 0, 0),
+            li("Finance income", 0, 0),
             li("Profit before tax", 200, 220),
             li("Income tax expense", -30, -33),
             li("Profit for the year", 170, 187),
@@ -1197,7 +1221,7 @@ def test_gapped_annual_history_requires_contiguous_periods():
 def test_excel_descending_headers_build_chronological_model(tmp_path):
     from datetime import date
     from openpyxl import Workbook
-    from core.data.interface import DocumentManifest, DocumentType
+    from core.data.interface import DocumentManifest, DocumentType, LineItem
     from core.ingestion.excel_import import ExcelExportAdapter
 
     path = tmp_path / "REV_Descending.xlsx"
@@ -1304,6 +1328,8 @@ def test_guided_classification_judgment_cases_and_suppressions():
             periods=periods,
             income_statement=[
                 li("Revenue", 1000, 1100),
+                li("Finance costs", 0, 0),
+                li("Finance income", 0, 0),
                 li("Profit before tax", 200, 220),
                 li("Income tax expense", -30, -33),
                 li("Profit for the year", 170, 187),
@@ -1416,6 +1442,8 @@ def test_judgment_cases_use_canonical_periods_not_interim_only_values():
         ],
         income_statement=[
             li("Revenue", 1000, 500),
+            li("Finance costs", 0, 0),
+            li("Finance income", 0, 0),
             li("Profit before tax", 200, 100),
             li("Income tax expense", -30, -15),
             li("Profit for the year", 170, 85),
@@ -1692,6 +1720,8 @@ def test_live_classification_two_case_judgment_links_without_collision(tmp_path)
         ],
         income_statement=[
             li("Revenue", 1000, 1100),
+            li("Finance costs", 0, 0),
+            li("Finance income", 0, 0),
             li("Profit before tax", 200, 220),
             li("Income tax expense", -30, -33),
             li("Profit for the year", 170, 187),
@@ -1807,3 +1837,126 @@ def test_alternative_classification_changes_and_invariants():
             if a is None and b is None:
                 continue
             assert a == pytest.approx(b), family
+
+
+def test_required_core_income_period_completeness(tmp_path):
+    from core.engine.reference_model import ReferenceModelBuilder
+    from core.model.line_resolver import MissingLineError
+    from core.model.source_values import MissingHistoricalValueError
+
+    concepts = (
+        ("Revenue", "revenue"),
+        ("Profit for the year", "net_income"),
+        ("Profit before tax", "pretax_income"),
+        ("Income tax expense", "tax_expense"),
+        ("Finance costs", "interest_expense"),
+        ("Finance income", "interest_income"),
+    )
+    for label, field in concepts:
+        fin = _base_fin()
+        # Drop CFO so quality is not the catching component for NI incompleteness.
+        fin.cash_flow = [
+            LineItem(
+                label="Net cash from financing activities",
+                values={fin.periods[0].end_date: -1, fin.periods[1].end_date: -1},
+            )
+        ]
+        periods = [p.end_date for p in fin.periods]
+        item = next(i for i in fin.income_statement if i.label == label)
+        del item.values[periods[1]]
+        with pytest.raises(MissingHistoricalValueError, match=field):
+            compute_anchor(fin, periods)
+        with pytest.raises(MissingHistoricalValueError, match=field):
+            ReferenceModelBuilder(fin)
+        with pytest.raises(ValueError):
+            build_training_workbook(fin, tmp_path / f"Miss_{field}_Trainer.xlsx")
+
+        fin_none = _base_fin()
+        fin_none.cash_flow = [
+            LineItem(
+                label="Net cash from financing activities",
+                values={
+                    fin_none.periods[0].end_date: -1,
+                    fin_none.periods[1].end_date: -1,
+                },
+            )
+        ]
+        item_none = next(i for i in fin_none.income_statement if i.label == label)
+        item_none.values[periods[0]] = None
+        with pytest.raises(MissingHistoricalValueError, match=field):
+            compute_anchor(fin_none, periods)
+
+    # Whole required line absent.
+    is_no_inc = [
+        _li("Revenue", 1000, 1100),
+        _li("Finance costs", -40, -50),
+        _li("Profit before tax", 200, 220),
+        _li("Income tax expense", -30, -33),
+        _li("Profit for the year", 170, 187),
+    ]
+    fin_absent = _base_fin(income_statement=is_no_inc)
+    with pytest.raises(MissingLineError, match="interest_income"):
+        ReferenceModelBuilder(fin_absent)
+    with pytest.raises(MissingLineError, match="interest_income"):
+        build_training_workbook(fin_absent, tmp_path / "AbsentInc_Trainer.xlsx")
+
+
+def test_missing_net_income_fails_without_cfo_quality_module(tmp_path):
+    from core.engine.reference_model import ReferenceModelBuilder
+    from core.model.source_values import MissingHistoricalValueError
+
+    fin = _base_fin()
+    periods = [p.end_date for p in fin.periods]
+    fin.cash_flow = [
+        LineItem(
+            label="Net cash from financing activities",
+            values={periods[0]: -1, periods[1]: -1},
+        )
+    ]
+    ni = next(i for i in fin.income_statement if i.label == "Profit for the year")
+    del ni.values[periods[1]]
+    with pytest.raises(MissingHistoricalValueError, match="net_income"):
+        compute_anchor(fin, periods)
+    with pytest.raises(MissingHistoricalValueError, match="net_income"):
+        ReferenceModelBuilder(fin)
+    with pytest.raises(ValueError):
+        build_training_workbook(fin, tmp_path / "NoCFO_MissNI_Trainer.xlsx")
+
+
+def test_missing_bs_detail_fails_without_reported_totals(tmp_path):
+    from core.data.interface import FinancialPeriod, StandardizedFinancials
+    from core.model.source_values import MissingHistoricalValueError
+
+    p1, p2 = date(2024, 12, 31), date(2025, 12, 31)
+    cash = _li("Cash and cash equivalents", 100, 110)
+    del cash.values[p2]
+    fin = StandardizedFinancials(
+        ticker="DET",
+        company_name="Detail Co",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=p1, label="FY2024"),
+            FinancialPeriod(end_date=p2, label="FY2025"),
+        ],
+        income_statement=[
+            _li("Revenue", 1000, 1100),
+            _li("Finance costs", -40, -50),
+            _li("Finance income", 5, 6),
+            _li("Profit before tax", 200, 220),
+            _li("Income tax expense", -30, -33),
+            _li("Profit for the year", 170, 187),
+        ],
+        balance_sheet=[
+            cash,
+            _li("Trade receivables", 80, 90),
+            _li("Property, plant and equipment", 400, 420),
+            _li("Trade payables", 50, 55),
+            _li("Bank borrowings", 200, 210),
+            # No Total Assets / Liabilities / Equity rows.
+        ],
+        cash_flow=[_li("Net cash from operating activities", 50, 60)],
+    )
+    with pytest.raises(MissingHistoricalValueError, match="balance_sheet detail"):
+        build_training_workbook(fin, tmp_path / "MissDetail_Trainer.xlsx")

@@ -64,11 +64,12 @@ def validate_cash_flow(data: StandardizedFinancials) -> dict[date, bool]:
     for period in data.period_dates():
         ok = True
         if cfo and cfi and cff and net:
-            total = sum(float(_val_item(x, period) or 0) for x in (cfo, cfi, cff))
-            n = _val_item(net, period)
-            if n is None:
+            values = [_val_item(x, period) for x in (cfo, cfi, cff)]
+            net_value = _val_item(net, period)
+            if any(value is None for value in values) or net_value is None:
                 ok = False
-            elif abs(total - float(n)) > 1.0:
-                ok = False
+            else:
+                total = sum(float(value) for value in values)
+                ok = abs(total - float(net_value)) <= 1.0
         results[period] = ok
     return results

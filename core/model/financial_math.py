@@ -5,20 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
-from ..data.interface import LineItem, StandardizedFinancials
+from ..data.interface import StandardizedFinancials
 from .classification import (
     BalanceSheetReformulation,
     check_reformulation_integrity,
     reformulate_balance_sheet,
 )
 from .line_resolver import resolve_line
-
-
-def _val(item: LineItem | None, period: date) -> float:
-    if item is None:
-        return 0.0
-    v = item.values.get(period)
-    return float(v) if v is not None else 0.0
+from .source_values import required_period_series
 
 
 @dataclass(frozen=True)
@@ -76,17 +70,27 @@ def compute_anchor(
 
     rev_item = resolve_line(is_items, "revenue", required=True).item
     ni_item = resolve_line(is_items, "net_income", required=True).item
-    pretax_item = resolve_line(is_items, "pretax_income", required=False).item
-    tax_item = resolve_line(is_items, "tax_expense", required=False).item
-    int_exp_item = resolve_line(is_items, "interest_expense", required=False).item
-    int_inc_item = resolve_line(is_items, "interest_income", required=False).item
+    pretax_item = resolve_line(is_items, "pretax_income", required=True).item
+    tax_item = resolve_line(is_items, "tax_expense", required=True).item
+    int_exp_item = resolve_line(is_items, "interest_expense", required=True).item
+    int_inc_item = resolve_line(is_items, "interest_income", required=True).item
+    assert rev_item is not None
+    assert ni_item is not None
+    assert pretax_item is not None
+    assert tax_item is not None
+    assert int_exp_item is not None
+    assert int_inc_item is not None
 
-    revenues = [_val(rev_item, p) for p in periods]
-    ni = [_val(ni_item, p) for p in periods]
-    int_exp = [_val(int_exp_item, p) for p in periods]
-    int_inc = [_val(int_inc_item, p) for p in periods]
-    pretax = [_val(pretax_item, p) for p in periods]
-    tax = [_val(tax_item, p) for p in periods]
+    revenues = list(required_period_series(rev_item, periods, field="revenue"))
+    ni = list(required_period_series(ni_item, periods, field="net_income"))
+    pretax = list(required_period_series(pretax_item, periods, field="pretax_income"))
+    tax = list(required_period_series(tax_item, periods, field="tax_expense"))
+    int_exp = list(
+        required_period_series(int_exp_item, periods, field="interest_expense")
+    )
+    int_inc = list(
+        required_period_series(int_inc_item, periods, field="interest_income")
+    )
 
     net_int = [-(ie + ii) for ie, ii in zip(int_exp, int_inc)]
     etr = [(-tax[i] / pretax[i]) if pretax[i] else 0.0 for i in range(n)]

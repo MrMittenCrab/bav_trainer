@@ -1,5 +1,7 @@
 # Step 9A.3 — Historical Core Source Completeness Hardening
 
+> **Status:** Step 9A.3 complete. See `RESULT.md` for verification evidence (195 passed; base 30/141; normalization 34/161; core IS/BS/CF completeness fail-closed). Do not commit or push from this checkpoint unless the user requests it.
+
 > **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `142a3718caeaeab54f791928e898601e6d26ec2d` (`Step 9.2`). Implement only Step 9A.3 below using red/green TDD. Preserve Step 8 classification/normalization, the trusted-workbook boundary, and the complete Step 9A earnings-quality surface. Do not begin working-capital interpretation, quality scoring, forecasting, valuation, ROU/deferred-tax alternative modeling, or later research-diagnostic work. Do not commit or push; the user owns the checkpoint commit.
 
 **Goal:** Remove the remaining period-level missing-to-zero fallbacks from the authoritative historical accounting engine. A historical line used by the active model must distinguish an explicitly supplied zero from a missing value, and a resolved line with a missing modeled-period value must fail clearly before Trainer/Answer-Key generation.

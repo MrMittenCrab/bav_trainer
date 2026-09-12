@@ -1359,6 +1359,7 @@ def test_dynamic_check_two_case_combined_state(tmp_path):
         ],
         income_statement=[
             li("Revenue", 1000, 1100),
+            li("Finance income", 0, 0),
             li("Profit before tax", 200, 220),
             li("Income tax expense", -30, -33),
             li("Interest expense", -20, -22),
@@ -1597,6 +1598,7 @@ def test_judgment_structure_two_case_distinct_links(tmp_path):
         ],
         income_statement=[
             li("Revenue", 1000, 1100),
+            li("Finance income", 0, 0),
             li("Profit before tax", 200, 220),
             li("Income tax expense", -30, -33),
             li("Interest expense", -20, -22),

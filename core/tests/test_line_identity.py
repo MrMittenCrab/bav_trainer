@@ -139,6 +139,8 @@ def test_concept_specific_overrides():
         ],
         income_statement=[
             _li("Revenue", 100, 110),
+            _li("Finance costs", 0, 0),
+            _li("Finance income", 0, 0),
             _li("Profit before tax", 20, 22),
             _li("Income tax expense", -3, -3),
             _li("Profit for the year", 17, 19),
@@ -336,6 +338,8 @@ def test_rowmap_preserves_both_duplicate_labels(tmp_path):
         periods=_periods(),
         income_statement=[
             _li("Revenue", 100, 110),
+            _li("Finance costs", 0, 0),
+            _li("Finance income", 0, 0),
             _li("Profit before tax", 20, 22),
             _li("Income tax expense", -3, -3),
             _li("Profit for the year", 17, 19),

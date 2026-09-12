@@ -67,6 +67,7 @@ def _tiny_fin(*, with_cfo=True, with_assets=True, ambiguous_cfo=False):
         _li("Profit before tax", {d1: 200, d2: 220}),
         _li("Income tax expense", {d1: -30, d2: -33}),
         _li("Finance costs", {d1: -10, d2: -11}),
+        _li("Finance income", {d1: 0.0, d2: 0.0}),
         _li("Profit for the year", {d1: 100, d2: 120}),
     ]
     balance = [

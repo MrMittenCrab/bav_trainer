@@ -14,9 +14,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
-from ..data.interface import LineItem, StandardizedFinancials
+from ..data.interface import StandardizedFinancials
 from .financial_math import AnchorMetrics
 from .line_resolver import resolve_line
+from .source_values import required_period_value
 
 UNDEFINED_RATIO = "#N/A"
 
@@ -34,22 +35,6 @@ class EarningsQualitySeries:
     total_accruals: tuple[float, ...]
     average_total_assets: tuple[float | None, ...]
     accrual_ratio: tuple[float | str | None, ...]
-
-
-def _required_period_value(
-    item: LineItem,
-    period: date,
-    *,
-    concept: str,
-) -> float:
-    """Return an explicitly supplied period value; never invent zero for missing data."""
-    raw = item.values.get(period)
-    if raw is None:
-        raise ValueError(
-            f"{concept} line {item.label!r} has no supplied value "
-            f"for modeled period {period.isoformat()}"
-        )
-    return float(raw)
 
 
 def earnings_quality_availability(
@@ -82,8 +67,8 @@ def compute_earnings_quality_series(
     Requires a resolvable operating-cash-flow line and explicitly supplied Net
     Income for every modeled period. A resolved CFO or Total Assets line must
     also supply an explicit value for every modeled period; missing period values
-    raise ``ValueError`` rather than fabricating zeros. A completely absent Total
-    Assets line omits only the asset-scaled extension.
+    raise ``MissingHistoricalValueError`` rather than fabricating zeros. A
+    completely absent Total Assets line omits only the asset-scaled extension.
 
     Zero denominators yield ``UNDEFINED_RATIO`` (``#N/A``), not numeric ``0.0``.
     """
@@ -109,10 +94,10 @@ def compute_earnings_quality_series(
         )
 
     net_income_values = [
-        _required_period_value(
+        required_period_value(
             net_income_item,
             period,
-            concept="net_income",
+            field="net_income",
         )
         for period in periods
     ]
@@ -128,10 +113,10 @@ def compute_earnings_quality_series(
     conversion: list[float | str] = []
     accruals: list[float] = []
     for j, period in enumerate(periods):
-        cfo = _required_period_value(
+        cfo = required_period_value(
             cfo_item,
             period,
-            concept="operating_cash_flow",
+            field="operating_cash_flow",
         )
         ni = net_income_values[j]
         cfo_vals.append(cfo)
@@ -154,10 +139,10 @@ def compute_earnings_quality_series(
         )
 
     asset_values = [
-        _required_period_value(
+        required_period_value(
             assets_item,
             period,
-            concept="total_assets",
+            field="total_assets",
         )
         for period in periods
     ]

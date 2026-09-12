@@ -13,6 +13,7 @@ from ..data.interface import LineItem, StandardizedFinancials
 from ..data.line_identity import LineIdentity, line_identity
 from ..data.schema import normalize_label
 from .line_resolver import resolve_line
+from .source_values import required_period_value
 
 BALANCE_SHEET_CATEGORIES = (
     "Operating Working Capital Asset",
@@ -77,7 +78,7 @@ class BalanceSheetReformulation:
 
 def _norm(label: str) -> str:
     s = normalize_label(label).lower()
-    for ch in ("'", "'", "`"):
+    for ch in ("\u2018", "\u2019", "`", "´"):
         s = s.replace(ch, "'")
     return " ".join(s.split())
 
@@ -466,18 +467,15 @@ def classify_balance_sheet_line(
     )
 
 
-def _val(item: LineItem, period: date) -> float:
-    v = item.values.get(period)
-    return float(v) if v is not None else 0.0
-
-
 def _optional_total(
     items: list[LineItem], concept: str, periods: list[date]
 ) -> tuple[float | None, ...]:
     resolved = resolve_line(items, concept, required=False)
     if resolved.item is None:
         return tuple(None for _ in periods)
-    return tuple(_val(resolved.item, p) for p in periods)
+    return tuple(
+        required_period_value(resolved.item, p, field=concept) for p in periods
+    )
 
 
 def reformulate_balance_sheet(
@@ -505,7 +503,11 @@ def reformulate_balance_sheet(
         decision = classify_balance_sheet_line(item, override=ov)
         decisions[idx] = decision
         for j, pd in enumerate(periods):
-            totals[decision.category][j] += _val(item, pd)
+            totals[decision.category][j] += required_period_value(
+                item,
+                pd,
+                field=f"balance_sheet detail {line_identity(item).key()}",
+            )
 
     owca = totals["Operating Working Capital Asset"]
     owcl = totals["Operating Working Capital Liability"]
