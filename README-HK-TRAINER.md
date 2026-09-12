@@ -130,26 +130,3 @@ v1 does **not** scrape HKEX automatically. Supply documents manually:
 JSON schema matches `example/DEMO_HK_Standardized.json`. Sign conventions: revenue positive, expenses negative. When exporting via `python -m core ingest ... -o ...`, each statement row includes `concept` (empty string when absent) so concept-aware identity survives reload.
 
 Optional historical configuration (e.g. `classificationOverrides`) can be passed with `-a/--assumptions`.
-
-Use Claude with `/bav-trainer` to assist PDF transcription while you gate classifications.
-
-## Relationship to BAV Pipeline
-
-| BAV Pipeline (US) | BAV Trainer (HK) historical v1 |
-|---|---|
-| SEC EDGAR via edgartools | Manual document adapter |
-| Persistent coverage vault | Per-session training workbook |
-| Sentinel daily updates | Manual rebuild |
-| Full forecast + valuation model | Multi-period historical foundation (forecast/valuation deferred) |
-
-Both share the same analytical DNA for reformulated statements and DuPont; forecast and valuation layers return in later curriculum steps.
-
-## Claude Code skill
-
-Link the trainer skill alongside the pipeline skills:
-
-```bash
-ln -sfn /path/to/BAVGems/skills/bav-trainer .claude/skills/bav-trainer
-```
-
-Then: `/bav-trainer` to build a training workbook interactively.

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 from openpyxl.comments import Comment
-from openpyxl.styles import Border, Font, PatternFill, Side
+from openpyxl.styles import Border, Font, PatternFill
 
 from ..engine.component_catalog import (
     COMPONENT_CATALOG,
@@ -53,18 +53,17 @@ def remove_trainer_sidecars(trainer_path: Path) -> None:
 
 
 PRACTICE_FILL = PatternFill("solid", start_color="FFFF00")
+WHITE_FILL = PatternFill("solid", start_color="FFFFFF")
 
 FONT_NAME = "Aptos Narrow"
-TITLE_FONT = Font(name=FONT_NAME, size=20, bold=True, color="000000")
-BODY_FONT = Font(name=FONT_NAME, size=11, color="000000")
-BODY_BOLD_FONT = Font(name=FONT_NAME, size=11, bold=True, color="000000")
-WHITE_FILL = PatternFill("solid", start_color="FFFFFF")
-THIN_BORDER = Border(
-    left=Side(style="thin", color="000000"),
-    right=Side(style="thin", color="000000"),
-    top=Side(style="thin", color="000000"),
-    bottom=Side(style="thin", color="000000"),
+BASE_FONT = Font(
+    name=FONT_NAME,
+    size=11,
+    bold=False,
+    italic=False,
+    color="000000",
 )
+CLEAR_BORDER = Border()
 
 _HIDDEN_PREFIX = "_"
 
@@ -106,8 +105,8 @@ class TrainingWorkbookGenerator:
     def generate(self, trainer_path: Path) -> tuple[Path, Path]:
         """Finalize Answer Key in place, then derive a sanitized Trainer from it."""
         wb = load_workbook(self.answer_key_path)
-        self._apply_oshkosh_style(wb)
         self._add_trainer_ui(wb)
+        self._apply_minimal_style(wb)
         self._decorate_answer_key_practice_cells(wb)
         self._decorate_answer_key_judgment_cells(wb)
         self._decorate_answer_key_normalization_judgment_cells(wb)
@@ -129,46 +128,29 @@ class TrainingWorkbookGenerator:
         return trainer_path, self.answer_key_path
 
     def _visible_sheets(self, wb):
-        return [ws for ws in wb.worksheets if not ws.title.startswith(_HIDDEN_PREFIX)]
+        return [
+            ws
+            for ws in wb.worksheets
+            if not ws.title.startswith(_HIDDEN_PREFIX) and ws.sheet_state == "visible"
+        ]
 
-    def _apply_oshkosh_style(self, wb) -> None:
-        """Apply shared Oshkosh-derived fonts and base styling to visible sheets."""
+    def _apply_minimal_style(self, wb) -> None:
+        """Normalize visible sheets to Aptos Narrow 11 with white fill and no borders."""
         for ws in self._visible_sheets(wb):
             ws.sheet_view.showGridLines = False
             max_row = ws.max_row or 1
             max_col = ws.max_column or 1
             for row in ws.iter_rows(min_row=1, max_row=max_row, min_col=1, max_col=max_col):
                 for cell in row:
-                    if cell.value is None and (cell.fill is None or cell.fill.fill_type is None):
+                    if (
+                        cell.value is None
+                        and cell.comment is None
+                        and not cell.has_style
+                    ):
                         continue
-                    is_title = cell.row == 1 and cell.column == 1 and isinstance(cell.value, str)
-                    was_bold = bool(cell.font and cell.font.bold)
-                    if is_title:
-                        cell.font = TITLE_FONT
-                    elif was_bold:
-                        cell.font = BODY_BOLD_FONT
-                    elif cell.value is not None:
-                        cell.font = BODY_FONT
-                    # White base; practice yellow is applied later
-                    if cell.fill and cell.fill.fill_type == "solid":
-                        cell.fill = WHITE_FILL
-
-            # Thin borders on header / section / total label rows
-            for r in range(1, max_row + 1):
-                label = ws.cell(row=r, column=1).value
-                if not isinstance(label, str):
-                    continue
-                upper = label.upper()
-                is_section = (
-                    upper.isupper() and len(label) > 3 and " " in label
-                ) or label.endswith(":")
-                is_header = r <= 6 and was_header_row(ws, r)
-                is_total = "total" in label.lower() or label.lower().startswith("weighted")
-                if is_section or is_header or is_total or (r == 1):
-                    for c in range(1, max_col + 1):
-                        cell = ws.cell(row=r, column=c)
-                        if cell.value is not None or is_header:
-                            cell.border = THIN_BORDER
+                    cell.font = BASE_FONT
+                    cell.fill = WHITE_FILL
+                    cell.border = CLEAR_BORDER
 
     def _decorate_answer_key_practice_cells(self, wb) -> None:
         for comp in self.semantic_map.all_ordered():
@@ -256,14 +238,10 @@ class TrainingWorkbookGenerator:
         ws = wb.create_sheet("Trainer", 0)
         ws.sheet_view.showGridLines = False
         ws["A1"] = "BAV Excel Trainer"
-        ws["A1"].font = TITLE_FONT
         ws["A2"] = TRAINER_INDEX_INSTRUCTION
-        ws["A2"].font = BODY_FONT
         headers = ["Order", "Schedule", "Period scope", "Tab", "Practice cells", "Depends on"]
         for j, h in enumerate(headers, start=1):
-            cell = ws.cell(row=4, column=j, value=h)
-            cell.font = BODY_BOLD_FONT
-            cell.border = THIN_BORDER
+            ws.cell(row=4, column=j, value=h)
         ws.column_dimensions["A"].width = 6
         ws.column_dimensions["B"].width = 36
         ws.column_dimensions["C"].width = 22
@@ -272,12 +250,12 @@ class TrainingWorkbookGenerator:
         ws.column_dimensions["F"].width = 28
 
         for i, group in enumerate(group_components_by_family(self.semantic_map), start=5):
-            ws.cell(row=i, column=1, value=group["family_order"]).font = BODY_FONT
-            ws.cell(row=i, column=2, value=group["title"]).font = BODY_FONT
-            ws.cell(row=i, column=3, value=group["period_scope"]).font = BODY_FONT
-            ws.cell(row=i, column=4, value=group["tab"]).font = BODY_FONT
-            ws.cell(row=i, column=5, value=group["practice_cells"]).font = BODY_FONT
-            ws.cell(row=i, column=6, value=group["depends_on"]).font = BODY_FONT
+            ws.cell(row=i, column=1, value=group["family_order"])
+            ws.cell(row=i, column=2, value=group["title"])
+            ws.cell(row=i, column=3, value=group["period_scope"])
+            ws.cell(row=i, column=4, value=group["tab"])
+            ws.cell(row=i, column=5, value=group["practice_cells"])
+            ws.cell(row=i, column=6, value=group["depends_on"])
 
 
 def group_components_by_family(smap: SemanticMap) -> list[dict]:
@@ -367,16 +345,6 @@ def _format_practice_cells(comps: list[ResolvedComponent]) -> str:
             end = f"{get_column_letter(cols[-1])}{row}"
             return f"{start}:{end}"
     return ", ".join(cells)
-
-def was_header_row(ws, row: int) -> bool:
-    """Heuristic: row looks like a column-header band (dates / Metric / Scenario)."""
-    vals = [ws.cell(row=row, column=c).value for c in range(1, min(6, (ws.max_column or 1) + 1))]
-    texts = [v for v in vals if isinstance(v, str)]
-    if not texts:
-        return False
-    markers = ("line item", "metric", "scenario", "probability", "ivps")
-    return any(t.lower() in markers or t.lower().startswith("line") for t in texts)
-
 
 def _cell_to_rc(cell_ref: str) -> tuple[int, int]:
     from openpyxl.utils import column_index_from_string

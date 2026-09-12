@@ -148,6 +148,11 @@ Step 9H.1 — historical v1 exit gate
 - canonical demo workbooks regenerated from current builder (66/279)
 - historical-v1 model-construction foundation complete/release-gated; forecasting and valuation remain deferred
 
+Step 9I.1 — learner-ready presentation
+- fresh visible workbooks use Aptos Narrow 11 everywhere; white/yellow fills only; no decorative borders
+- Check green/red remains functional validation feedback only
+- root README is a practical trainer guide (no pipeline/lineage narrative)
+
 Still deferred: company-specific causal diagnosis, basic-vs-diluted attribution, forecasting, valuation, investment conclusions, ROU/deferred-tax alternative modeling, empirical real-company validation.
 
 ## Design principles

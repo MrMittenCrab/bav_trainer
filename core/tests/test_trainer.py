@@ -350,7 +350,9 @@ def test_pair_style_and_structure_parity(tmp_path):
         assert ct.font.name == ca.font.name
         assert ct.font.size == ca.font.size
         assert ct.font.bold == ca.font.bold
-        assert ct.border.left.style == ca.border.left.style
+        ct_left = None if ct.border.left is None else ct.border.left.style
+        ca_left = None if ca.border.left is None else ca.border.left.style
+        assert ct_left == ca_left
         assert ct.alignment.horizontal == ca.alignment.horizontal
         assert ct.alignment.vertical == ca.alignment.vertical
         assert ct.number_format == ca.number_format
@@ -361,22 +363,23 @@ def test_pair_style_and_structure_parity(tmp_path):
     wb_a.close()
 
 
-def test_oshkosh_font_conventions(tmp_path):
+def test_minimal_font_conventions(tmp_path):
     trainer_path, answer_key_path = _build_pair(tmp_path)
     for path in (trainer_path, answer_key_path):
         wb = load_workbook(path, data_only=False)
         for name in wb.sheetnames:
-            if name.startswith("_"):
+            if name.startswith("_") or wb[name].sheet_state != "visible":
                 continue
             ws = wb[name]
             title = ws["A1"]
             assert title.font.name == FONT_NAME
-            assert title.font.size == 20
-            assert title.font.bold is True
+            assert title.font.size == 11
+            assert title.font.bold is False
             body = ws.cell(row=6, column=1)
             if body.value is not None:
                 assert body.font.name == FONT_NAME
                 assert body.font.size == 11
+                assert body.font.bold is False
         wb.close()
 
 

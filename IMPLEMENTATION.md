@@ -1,3 +1,5 @@
+Status: Step 9I.1 complete — learner-ready historical presentation
+
 # Step 9I.1 — Learner-Ready Historical Workbook + Practical README
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -81,7 +83,7 @@ Current root `README.md` still opens with `BAVGems — BAV Pipeline + HK Excel T
 - Consumes: public `build_training_workbook()` path and canonical demo inputs.
 - Produces: regression tests that precisely define the new visible styling contract without changing workbook semantics.
 
-- [ ] **Step 1: Build a canonical Trainer/Answer-Key pair in the new test module**
+- [x] **Step 1: Build a canonical Trainer/Answer-Key pair in the new test module**
 
 Use the same source and normalization assumptions as Step 9H.1:
 
@@ -104,7 +106,7 @@ def _build_canonical(tmp_path):
     )
 ```
 
-- [ ] **Step 2: Add a helper for cells that are actually part of the visible workbook surface**
+- [x] **Step 2: Add a helper for cells that are actually part of the visible workbook surface**
 
 Ignore truly unused cells. Inspect cells when at least one of these is true:
 
@@ -122,7 +124,7 @@ ws.sheet_state == "visible"
 
 Hidden internal metadata sheets and hidden deferred forecast placeholders are not part of the fresh visible-style contract.
 
-- [ ] **Step 3: Assert one font everywhere on the fresh visible surface**
+- [x] **Step 3: Assert one font everywhere on the fresh visible surface**
 
 For both Trainer and Answer Key require every inspected visible cell to use:
 
@@ -139,7 +141,7 @@ Titles, headers, section labels, totals, Trainer index headers, judgment sheets,
 
 Do not special-case row 1 or headers.
 
-- [ ] **Step 4: Assert no visible decorative borders**
+- [x] **Step 4: Assert no visible decorative borders**
 
 For each inspected visible cell, require every border side to have no style:
 
@@ -154,7 +156,7 @@ for side in (
     assert side.style is None
 ```
 
-- [ ] **Step 5: Assert the fresh visible fill palette is only white or yellow**
+- [x] **Step 5: Assert the fresh visible fill palette is only white or yellow**
 
 Use the existing fill-color normalization convention and require:
 
@@ -167,7 +169,7 @@ No orange, blue, gray, green, red, gradient, or section-header fill is allowed i
 
 The semantic formula-practice cells must remain yellow in both workbooks. Judgment-response cells that are learner-editable remain yellow. Ordinary visible cells are white.
 
-- [ ] **Step 6: Prove Check colors are a functional exception, not a new base style**
+- [x] **Step 6: Prove Check colors are a functional exception, not a new base style**
 
 On a fresh Trainer:
 
@@ -181,7 +183,7 @@ On a fresh Trainer:
 
 Do not alter Check’s existing red/green/yellow constants.
 
-- [ ] **Step 7: Run the new tests red**
+- [x] **Step 7: Run the new tests red**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_learner_ready_presentation.py -v
@@ -202,7 +204,7 @@ Expected before implementation: fail because current titles are 20-point bold an
 - Consumes: existing visible workbook structure and SemanticMap.
 - Produces: a fresh workbook whose only intentional visible style distinctions are white vs yellow, plus functional Check green/red after validation.
 
-- [ ] **Step 1: Collapse font constants to one base font**
+- [x] **Step 1: Collapse font constants to one base font**
 
 Replace title/body/bold variants with one constant:
 
@@ -236,11 +238,11 @@ Side
 
 Use a plain `Border()` when clearing pre-existing borders.
 
-- [ ] **Step 2: Rename `_apply_oshkosh_style()` to `_apply_minimal_style()`**
+- [x] **Step 2: Rename `_apply_oshkosh_style()` to `_apply_minimal_style()`**
 
 The old name encodes an irrelevant legacy aesthetic. The new method should describe the actual product contract.
 
-- [ ] **Step 3: Create the Trainer index before applying the global minimal style**
+- [x] **Step 3: Create the Trainer index before applying the global minimal style**
 
 Change the Answer-Key generation sequence from:
 
@@ -258,7 +260,7 @@ self._apply_minimal_style(wb)
 
 This ensures the `Trainer` index sheet receives the same font/border/fill normalization as every other visible sheet.
 
-- [ ] **Step 4: Implement `_apply_minimal_style()` as a normalization pass**
+- [x] **Step 4: Implement `_apply_minimal_style()` as a normalization pass**
 
 For every visible worksheet:
 
@@ -290,7 +292,7 @@ data validation
 
 Do not create title/header/section/total special cases.
 
-- [ ] **Step 5: Re-apply only functional yellow learner surfaces after white normalization**
+- [x] **Step 5: Re-apply only functional yellow learner surfaces after white normalization**
 
 Keep the existing semantic decoration functions responsible for yellow:
 
@@ -305,7 +307,7 @@ _blank_trainer_normalization_judgment_cells
 
 They may change fill to `PRACTICE_FILL`, but must not introduce bold fonts, borders, or other fills.
 
-- [ ] **Step 6: Simplify `_add_trainer_ui()` styling**
+- [x] **Step 6: Simplify `_add_trainer_ui()` styling**
 
 Remove direct title/header font or border assignment. It should set only content, widths, and other structural metadata; `_apply_minimal_style()` owns visible styling.
 
@@ -317,11 +319,11 @@ cell.font = BODY_BOLD_FONT
 cell.border = THIN_BORDER
 ```
 
-- [ ] **Step 7: Remove unused header-border helpers only if no longer referenced**
+- [x] **Step 7: Remove unused header-border helpers only if no longer referenced**
 
 If `was_header_row()` becomes unused after the minimal-style change, delete it and its dead support code. Do not remove helpers still used elsewhere.
 
-- [ ] **Step 8: Run focused presentation and Trainer tests**
+- [x] **Step 8: Run focused presentation and Trainer tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_learner_ready_presentation.py -v
@@ -344,7 +346,7 @@ All must pass without changing any practice counts or formulas.
 - Root `README.md` becomes the canonical GitHub landing page for the BAV Excel Trainer.
 - `README-HK-TRAINER.md`, if retained, is an optional deeper technical reference and must not be necessary to understand basic use.
 
-- [ ] **Step 1: Delete the current root README content rather than incrementally editing it**
+- [x] **Step 1: Delete the current root README content rather than incrementally editing it**
 
 The current root README primarily documents another coverage/pipeline product. Replace it with a short trainer-specific document.
 
@@ -368,7 +370,7 @@ Claude Code plugin installation
 
 Also remove any old claim that this Trainer has `Hint` or `Reveal` commands. The Answer Key is the hint/answer surface.
 
-- [ ] **Step 2: Use this compact section structure**
+- [x] **Step 2: Use this compact section structure**
 
 ```markdown
 # BAV Excel Trainer — Hong Kong Edition
@@ -384,7 +386,7 @@ One short paragraph: historical BAV Excel practice for non-financial companies; 
 
 Do not add a lineage/history section, architecture essay, plugin installation guide, vault explanation, or long feature marketing copy.
 
-- [ ] **Step 3: Make `What works now` describe only implemented functions**
+- [x] **Step 3: Make `What works now` describe only implemented functions**
 
 Keep it concise. Include:
 
@@ -404,7 +406,7 @@ matched Trainer + Answer Key
 
 State that forecasting, valuation, and investment conclusions are not active yet.
 
-- [ ] **Step 4: Make `Quick start` executable and short**
+- [x] **Step 4: Make `Quick start` executable and short**
 
 Use only the current public workflow:
 
@@ -428,7 +430,7 @@ example/DEMO_HK_Answer_Key.xlsx
 
 Do not put obsolete component counts in the root README unless they materially help the user; prefer avoiding brittle counts in the landing page.
 
-- [ ] **Step 5: Make `How to practice` describe the actual loop**
+- [x] **Step 5: Make `How to practice` describe the actual loop**
 
 Use a short numbered sequence:
 
@@ -443,7 +445,7 @@ Use a short numbered sequence:
 
 Mention that Accounting Judgment / Normalization Judgment treatment choices can change downstream expected formulas where those sheets are present.
 
-- [ ] **Step 6: Make `Inputs and scope` practical**
+- [x] **Step 6: Make `Inputs and scope` practical**
 
 State:
 
@@ -456,7 +458,7 @@ missing optional data omits the corresponding module rather than inventing facts
 
 Do not describe automatic HKEX/SEC scraping as a current feature.
 
-- [ ] **Step 7: Make `Planned` reflect the user’s requested roadmap order**
+- [x] **Step 7: Make `Planned` reflect the user’s requested roadmap order**
 
 Separate the next Step 9 work from later forward modelling:
 
@@ -475,13 +477,13 @@ Later:
 
 Do not imply forecasting is the next immediate implementation stage.
 
-- [ ] **Step 8: Clean the secondary trainer README if it still exposes irrelevant lineage**
+- [x] **Step 8: Clean the secondary trainer README if it still exposes irrelevant lineage**
 
 If `README-HK-TRAINER.md` still contains sections such as `Relationship to BAV Pipeline`, Claude/plugin setup, or project-origin discussion, remove those sections. Keep it only as a deeper technical trainer reference.
 
 Do not expand it; this checkpoint is reducing documentation noise.
 
-- [ ] **Step 9: Add README regression assertions**
+- [x] **Step 9: Add README regression assertions**
 
 In `test_learner_ready_presentation.py`, load root `README.md` and require the five section headings above. Assert the forbidden legacy/pipeline terms are absent case-insensitively.
 
@@ -493,7 +495,7 @@ python -m core list
 python -m core check
 ```
 
-- [ ] **Step 10: Run README/presentation tests**
+- [x] **Step 10: Run README/presentation tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_learner_ready_presentation.py -v
@@ -512,7 +514,7 @@ PYTHONPATH=. pytest core/tests/test_learner_ready_presentation.py -v
 **Interfaces:**
 - Produces the committed example pair users can open immediately to start learning.
 
-- [ ] **Step 1: Regenerate through the public build path**
+- [x] **Step 1: Regenerate through the public build path**
 
 Run:
 
@@ -524,7 +526,7 @@ python -m core build example/DEMO_HK_Standardized.json \
 
 Do not manually edit the `.xlsx` binaries.
 
-- [ ] **Step 2: Verify canonical semantic and Check counts remain unchanged**
+- [x] **Step 2: Verify canonical semantic and Check counts remain unchanged**
 
 Require:
 
@@ -534,7 +536,7 @@ Require:
 fresh Trainer Check = 0 correct / 0 incorrect / 279 blank
 ```
 
-- [ ] **Step 3: Run the new minimal-style assertion against the committed pair**
+- [x] **Step 3: Run the new minimal-style assertion against the committed pair**
 
 Add or reuse a test that opens:
 
@@ -545,7 +547,7 @@ example/DEMO_HK_Answer_Key.xlsx
 
 and applies the same fresh visible-style contract as temporary builds.
 
-- [ ] **Step 4: Verify Trainer answer separation remains intact**
+- [x] **Step 4: Verify Trainer answer separation remains intact**
 
 Require no Trainer answer-bearing sidecars and preserve all Step 9H.1 practice-cell / Note / Check contracts.
 
@@ -559,7 +561,7 @@ Require no Trainer answer-bearing sidecars and preserve all Step 9H.1 practice-c
 - Test: `core/tests/test_historical_v1_exit_gate.py`
 - Production model files should not change.
 
-- [ ] **Step 1: Prove semantic-map identity is unchanged**
+- [x] **Step 1: Prove semantic-map identity is unchanged**
 
 No family additions/removals/reordering. The Step 9H.1 namespace assertion must remain:
 
@@ -567,7 +569,7 @@ No family additions/removals/reordering. The Step 9H.1 namespace assertion must 
 active family orders = 1..78 exactly
 ```
 
-- [ ] **Step 2: Prove all cross-company surfaces remain unchanged**
+- [x] **Step 2: Prove all cross-company surfaces remain unchanged**
 
 Require:
 
@@ -577,7 +579,7 @@ retail:        78 / 331
 manufacturer:  70 / 293
 ```
 
-- [ ] **Step 3: Prove live judgment behavior still works**
+- [x] **Step 3: Prove live judgment behavior still works**
 
 Run the existing cross-company tests for:
 
@@ -589,7 +591,7 @@ manufacturer lease liability treatment
 
 Style changes must not affect dynamic expected values or trusted-cell validation.
 
-- [ ] **Step 4: Prove Check recoloring still patches fill only**
+- [x] **Step 4: Prove Check recoloring still patches fill only**
 
 Existing repeated-Check / cached-result tests must continue to pass. Do not replace OOXML fill patching with openpyxl workbook rewrites.
 
@@ -603,7 +605,7 @@ Existing repeated-Check / cached-result tests must continue to pass. Do not repl
 - Modify: `skills/bav-trainer/SKILL.md` only if it contains presentation/documentation claims that are now false
 - Do not modify: `TARGET.md`
 
-- [ ] **Step 1: Run focused learner-readiness tests**
+- [x] **Step 1: Run focused learner-readiness tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_learner_ready_presentation.py -v
@@ -611,7 +613,7 @@ PYTHONPATH=. pytest core/tests/test_historical_v1_exit_gate.py -v
 PYTHONPATH=. pytest core/tests/test_trainer.py -v
 ```
 
-- [ ] **Step 2: Run model-integrity and cross-company regressions**
+- [x] **Step 2: Run model-integrity and cross-company regressions**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
@@ -622,7 +624,7 @@ PYTHONPATH=. pytest core/tests/test_per_share_attribution.py -v
 PYTHONPATH=. pytest core/tests/test_normalized_per_share.py -v
 ```
 
-- [ ] **Step 3: Run the full suite**
+- [x] **Step 3: Run the full suite**
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
@@ -630,7 +632,7 @@ PYTHONPATH=. pytest core/tests/ -q
 
 Record the actual final passing count; do not prestate a new number.
 
-- [ ] **Step 4: Verify public CLI remains exactly unchanged**
+- [x] **Step 4: Verify public CLI remains exactly unchanged**
 
 Require:
 
@@ -643,7 +645,7 @@ list
 
 No `forecast`, `value`, `hint`, or `reveal` command.
 
-- [ ] **Step 5: Record learner-ready presentation evidence in `RESULT.md`**
+- [x] **Step 5: Record learner-ready presentation evidence in `RESULT.md`**
 
 Record at minimum:
 
@@ -661,7 +663,7 @@ forecasting / valuation still deferred
 TARGET.md unchanged
 ```
 
-- [ ] **Step 6: Mark this plan complete only after every verification is green**
+- [x] **Step 6: Mark this plan complete only after every verification is green**
 
 Add a concise status line at the top of `IMPLEMENTATION.md`.
 
