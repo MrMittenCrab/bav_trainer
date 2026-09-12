@@ -1,3 +1,5 @@
+Status: Step 9H.1 complete — historical v1 exit gate
+
 # Step 9H.1 — Historical v1 Exit Gate and Canonical Artifact Refresh
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -65,7 +67,7 @@ Commit `76ec6f26` records:
 - Consumes all active `ComponentFamily` catalogs.
 - Produces one release-gate assertion that the active historical family namespace is complete, unique, and separate from deferred forecast/valuation specs.
 
-- [ ] **Step 1: Add the catalog list explicitly**
+- [x] **Step 1: Add the catalog list explicitly**
 
 In the new test module import:
 
@@ -104,7 +106,7 @@ ACTIVE_CATALOGS = (
 )
 ```
 
-- [ ] **Step 2: Write the release-gate assertions**
+- [x] **Step 2: Write the release-gate assertions**
 
 ```python
 def test_historical_v1_active_catalog_namespace_is_frozen():
@@ -123,7 +125,7 @@ def test_historical_v1_active_catalog_namespace_is_frozen():
 
 Do not renumber existing families to make the test pass. If the assertion fails, identify an accidental catalog regression.
 
-- [ ] **Step 3: Run the focused test**
+- [x] **Step 3: Run the focused test**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_historical_v1_exit_gate.py::test_historical_v1_active_catalog_namespace_is_frozen -v
@@ -143,14 +145,14 @@ Expected: pass on the accepted Step 9G.1 implementation.
 - Consumes the public `build_training_workbook` path and Step 9G.1 fixtures.
 - Proves that normal historical generation does not execute dormant scenario/valuation functions.
 
-- [ ] **Step 1: Add a fail-fast forecast stub**
+- [x] **Step 1: Add a fail-fast forecast stub**
 
 ```python
 def _forecast_must_not_run(*args, **kwargs):
     raise AssertionError("dormant forecast/valuation engine executed during historical build")
 ```
 
-- [ ] **Step 2: Parameterize representative normal builds**
+- [x] **Step 2: Parameterize representative normal builds**
 
 Use:
 
@@ -172,7 +174,7 @@ inventory retail (shares + normalization)
 capital-intensive manufacturer (shares only)
 ```
 
-- [ ] **Step 3: Monkeypatch the imported dormant functions in the builder module**
+- [x] **Step 3: Monkeypatch the imported dormant functions in the builder module**
 
 ```python
 def test_normal_historical_build_never_executes_dormant_forecast(monkeypatch, tmp_path):
@@ -185,7 +187,7 @@ def test_normal_historical_build_never_executes_dormant_forecast(monkeypatch, tm
 
 Every normal build must succeed. Do not enable `include_deferred_forecast=True` anywhere in this test.
 
-- [ ] **Step 4: Assert deferred tabs and semantic exclusion for every build**
+- [x] **Step 4: Assert deferred tabs and semantic exclusion for every build**
 
 For each Answer Key and Trainer:
 
@@ -219,7 +221,7 @@ PYTHONPATH=. pytest core/tests/test_historical_v1_exit_gate.py -k dormant -v
 - Consumes a canonical demo build with `DEMO_HK_Assumptions.json`.
 - Proves the visible Trainer/Answer-Key contract for every active semantic practice cell.
 
-- [ ] **Step 1: Build the canonical demo in a temporary directory**
+- [x] **Step 1: Build the canonical demo in a temporary directory**
 
 Use the same public path as the README:
 
@@ -234,7 +236,7 @@ assert len(group_components_by_family(smap)) == 66
 assert len(smap.all_ordered()) == 279
 ```
 
-- [ ] **Step 2: Check every active practice cell in both workbooks**
+- [x] **Step 2: Check every active practice cell in both workbooks**
 
 For each resolved component:
 
@@ -255,7 +257,7 @@ assert _fill_rgb(answer_cell) == "FFFF00"
 
 Use or import the existing `_fill_rgb` helper; do not create a different color convention.
 
-- [ ] **Step 3: Require Trainer answer-bearing sidecars to be absent**
+- [x] **Step 3: Require Trainer answer-bearing sidecars to be absent**
 
 ```python
 for suffix in (".component_map.json", ".trainer.json", ".assumptions.json"):
@@ -264,7 +266,7 @@ for suffix in (".component_map.json", ".trainer.json", ".assumptions.json"):
 
 The matching Answer Key may retain its existing internal/sidecar metadata used by Check.
 
-- [ ] **Step 4: Verify Check changes color only**
+- [x] **Step 4: Verify Check changes color only**
 
 Choose one numeric practice component, enter its exact Answer-Key formula, save, and record the formula string. Run `check_workbook(trainer)` twice. Require:
 
@@ -277,7 +279,7 @@ cached-result behavior remains covered by existing test_trainer regression
 
 Also leave a second component blank and require it remains `None` and yellow after Check.
 
-- [ ] **Step 5: Preserve the non-disclosure CLI regression**
+- [x] **Step 5: Preserve the non-disclosure CLI regression**
 
 Do not create a new Check output path. Run the existing focused non-disclosure test from `test_trainer.py` as part of Task 6.
 
@@ -295,7 +297,7 @@ Do not create a new Check output path. Run the existing focused non-disclosure t
 - Consumes the accepted public build command.
 - Produces committed example binaries matching the current `66 families / 279 cells` normalization-enabled demo surface.
 
-- [ ] **Step 1: Regenerate from source inputs, not by editing Excel manually**
+- [x] **Step 1: Regenerate from source inputs, not by editing Excel manually**
 
 Run:
 
@@ -305,7 +307,7 @@ python -m core build example/DEMO_HK_Standardized.json \
   -o example/DEMO_HK_Trainer.xlsx
 ```
 
-- [ ] **Step 2: Verify the regenerated pair**
+- [x] **Step 2: Verify the regenerated pair**
 
 Run a short Python verification using repository APIs:
 
@@ -324,7 +326,7 @@ summary = check_workbook(trainer)
 assert (summary.correct, summary.incorrect, summary.blank) == (0, 0, 279)
 ```
 
-- [ ] **Step 3: Verify no stale Trainer sidecars were left behind**
+- [x] **Step 3: Verify no stale Trainer sidecars were left behind**
 
 ```python
 for suffix in (".component_map.json", ".trainer.json", ".assumptions.json"):
@@ -346,7 +348,7 @@ Do not manually paste formulas into the committed Trainer.
 **Interfaces:**
 - Documents the accepted product honestly without implying forecasting, valuation, or real-company empirical validation.
 
-- [ ] **Step 1: Replace stale Step 7–9A capability language in `README-HK-TRAINER.md`**
+- [x] **Step 1: Replace stale Step 7–9A capability language in `README-HK-TRAINER.md`**
 
 The current README still reports obsolete `161/141` component counts. Update it so the current capability description includes:
 
@@ -373,7 +375,7 @@ Investment conclusion: deferred
 Real-company empirical validation: not established by the synthetic matrix
 ```
 
-- [ ] **Step 2: Fix Quick Start counts exactly**
+- [x] **Step 2: Fix Quick Start counts exactly**
 
 The README must say:
 
@@ -384,7 +386,7 @@ without assumptions:           62 families / 259 practice cells
 
 The illustrative demo has no historical share input, so `Per Share Analysis` is absent in both demo builds.
 
-- [ ] **Step 3: Update the skill frontmatter and product loop**
+- [x] **Step 3: Update the skill frontmatter and product loop**
 
 Remove the stale description ending at Step 9A. The skill should describe the current historical-v1 surface and retain the current optional-gating language.
 
@@ -396,7 +398,7 @@ share-enabled: 70/293 base, 78/331 with normalization
 cross-company synthetic matrix: services 59/248, retail 78/331, manufacturer 70/293
 ```
 
-- [ ] **Step 4: Do not overclaim completion**
+- [x] **Step 4: Do not overclaim completion**
 
 Use “historical-v1 model-construction foundation complete/release-gated”, not “BAV Trainer complete” or “job-ready”. Preserve the distinction in `TARGET.md` between historical model mechanics and the broader forecasting/valuation/research curriculum.
 
@@ -408,7 +410,7 @@ Use “historical-v1 model-construction foundation complete/release-gated”, no
 - Modify: `RESULT.md`
 - Modify: `IMPLEMENTATION.md` status only after all checks pass.
 
-- [ ] **Step 1: Record `TARGET.md` SHA-256 before final verification**
+- [x] **Step 1: Record `TARGET.md` SHA-256 before final verification**
 
 ```bash
 shasum -a 256 TARGET.md
@@ -416,7 +418,7 @@ shasum -a 256 TARGET.md
 
 Keep the value in the terminal/output notes and compare it after all work. Do not edit `TARGET.md`.
 
-- [ ] **Step 2: Run focused exit-gate tests**
+- [x] **Step 2: Run focused exit-gate tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_historical_v1_exit_gate.py -v
@@ -429,7 +431,7 @@ PYTHONPATH=. pytest core/tests/test_per_share_attribution.py -v
 PYTHONPATH=. pytest core/tests/test_normalized_per_share.py -v
 ```
 
-- [ ] **Step 3: Run the full historical suite**
+- [x] **Step 3: Run the full historical suite**
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
@@ -437,7 +439,7 @@ PYTHONPATH=. pytest core/tests/ -q
 
 Record the actual passing count. Do not prestate the new count.
 
-- [ ] **Step 4: Re-run the canonical demo release checks**
+- [x] **Step 4: Re-run the canonical demo release checks**
 
 Require:
 
@@ -452,7 +454,7 @@ retail matrix:      78 / 331
 manufacturer matrix:70 / 293
 ```
 
-- [ ] **Step 5: Verify the public CLI remains exactly four commands**
+- [x] **Step 5: Verify the public CLI remains exactly four commands**
 
 Run:
 
@@ -471,7 +473,7 @@ list
 
 Do not add a `forecast`, `value`, `hint`, or `reveal` command.
 
-- [ ] **Step 6: Re-check `TARGET.md` SHA-256**
+- [x] **Step 6: Re-check `TARGET.md` SHA-256**
 
 ```bash
 shasum -a 256 TARGET.md
@@ -479,7 +481,7 @@ shasum -a 256 TARGET.md
 
 It must exactly match the value recorded in Step 1.
 
-- [ ] **Step 7: Update `RESULT.md` with release-gate evidence**
+- [x] **Step 7: Update `RESULT.md` with release-gate evidence**
 
 Record:
 
@@ -497,7 +499,7 @@ forecasting / valuation remain deferred
 TARGET.md unchanged
 ```
 
-- [ ] **Step 8: Mark this plan complete only after every verification is green**
+- [x] **Step 8: Mark this plan complete only after every verification is green**
 
 Add a concise status line at the top of `IMPLEMENTATION.md`. Do not prepare or implement forecasting in this checkpoint.
 

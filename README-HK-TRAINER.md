@@ -2,56 +2,47 @@
 
 Progressive training that takes an **accounting novice** toward junior accounting-based equity-research competence, with particular strength in Business Analysis and Valuation (BAV).
 
-**Current capability** is a **multi-period historical model-construction foundation** plus **Step 8A/8B1 classification**, **Step 8B2 earnings normalization**, and **Step 9A historical earnings-quality diagnostics** for non-financial operating companies. Working-capital interpretation, forecasting, valuation, and research conclusions remain deferred.
+**Current capability** is a **historical-v1 model-construction foundation** (release-gated by Step 9H.1) for non-financial operating companies: multi-period reformulation / DuPont, classification judgment, earnings normalization, cash-conversion / accrual diagnostics and trends, working-capital diagnostics, RNOA margin/turnover and change attribution, ROE operating/financing attribution, optional diluted per-share analysis, and an optional normalized diluted-EPS bridge — plus a synthetic cross-company robustness matrix. Forecasting, valuation, investment conclusions, and empirical real-company validation remain deferred.
 
-## Product loop (Step 7–9A)
+## Product loop (historical v1)
 
 ```text
 end-state goal:
 accounting novice -> junior accounting-based equity-research competence
 
-Step 7 — historical model construction
-- 25 historical formula families / 118 cells in the five-year illustrative demo
-- workbook-wide Formula Check
+Historical v1 foundation: release-gated by Step 9H.1
+Forecasting: deferred
+Valuation: deferred
+Investment conclusion: deferred
+Real-company empirical validation: not established by the synthetic matrix
 
-Step 8A — guided classification reasoning
-- supported supplied ambiguities become compare-and-defend exercises
-- rationale/consequence are ungraded
+Active historical surface:
+- historical reformulation + DuPont
+- classification judgment (Accounting Judgment column F)
+- earnings normalization (when candidates are supplied)
+- cash-conversion / accrual diagnostics and trends
+- working-capital diagnostics (when OWCA/OWCL present)
+- RNOA margin/turnover and change attribution
+- ROE operating/financing attribution
+- optional diluted per-share analysis (when diluted WAS shares supplied)
+- optional normalized diluted-EPS bridge (shares + normalization)
+- synthetic cross-company robustness matrix (services / retail / manufacturer)
 
-Step 8B1 — live supported classification
-- Accounting Judgment column F is the only learner treatment input
-- blank F uses the supplied reference treatment
-- generated Condensed Financials links are system-controlled and validated by Check
-- Formula Check recomputes expected historical values for the selected supported treatment
-- rationale/consequence remain ungraded
+Regression surfaces:
+- with DEMO_HK_Assumptions.json: 66 families / 279 practice cells
+- without assumptions:           62 families / 259 practice cells
+- share-enabled:                 70 / 293 base; 78 / 331 with normalization
+- synthetic matrix:              services 59/248; retail 78/331; manufacturer 70/293
 
-Step 8B2 — guided earnings normalization
-- normalization candidates are explicitly supplied; they are not inferred from labels
-- learner chooses Recurring vs Non-recurring
-- reported statements and reported historical model remain unchanged
-- Earnings Normalization bridges reported to normalized NOPAT / Net Income
-- Step 8B2 supports operating pretax items using period effective tax rate as the supplied training convention
-- Check conditions normalization formulas on the current treatment
-- rationale/consequence are ungraded
-
-Step 9A — historical earnings-quality diagnostics
-- operating cash-flow link
-- cash conversion ratio
-- total accruals
-- average total assets where supplied
-- accrual ratio where supplied
-- these are mechanical diagnostics and do not yet explain why conversion changed or grade an investment conclusion
-
-ROU/deferred-tax alternatives, forecasting, and valuation remain deferred.
-
-This is a transition from supplied judgment to guided judgment, not independent analyst competence.
+The illustrative demo has no historical share input, so Per Share Analysis is absent in both demo builds.
 
 still deferred:
 - ROU / deferred-tax alternative modeling
-- working-capital / driver interpretation of conversion changes
+- company-specific causal / investment diagnosis
 - forecasting
 - valuation
 - investment conclusion
+- empirical real-company validation
 
 normal build:
 does not execute forecast/scenario engine
@@ -76,8 +67,9 @@ python -m core build example/DEMO_HK_Standardized.json \
   -o example/DEMO_HK_Trainer.xlsx
 # → example/DEMO_HK_Trainer.xlsx
 # → example/DEMO_HK_Answer_Key.xlsx
-# Components resolved: 161 (34 families) with demo assumptions;
-# Components resolved: 141 (30 families) without -a
+# with DEMO_HK_Assumptions.json: 66 families / 279 practice cells
+# without assumptions:           62 families / 259 practice cells
+# (illustrative demo has no share history → no Per Share Analysis)
 
 # List conceptual schedule families
 python -m core list --workbook example/DEMO_HK_Trainer.xlsx
@@ -143,12 +135,12 @@ Use Claude with `/bav-trainer` to assist PDF transcription while you gate classi
 
 ## Relationship to BAV Pipeline
 
-| BAV Pipeline (US) | BAV Trainer (HK) Step 7 |
+| BAV Pipeline (US) | BAV Trainer (HK) historical v1 |
 |---|---|
 | SEC EDGAR via edgartools | Manual document adapter |
 | Persistent coverage vault | Per-session training workbook |
 | Sentinel daily updates | Manual rebuild |
-| Full forecast + valuation model | Multi-period historical foundation |
+| Full forecast + valuation model | Multi-period historical foundation (forecast/valuation deferred) |
 
 Both share the same analytical DNA for reformulated statements and DuPont; forecast and valuation layers return in later curriculum steps.
 

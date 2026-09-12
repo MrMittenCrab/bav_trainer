@@ -1,64 +1,59 @@
-Status: Step 9G.1 complete — cross-company historical robustness matrix
+Status: Step 9H.1 complete — historical v1 exit gate
 
 Implementation base:
-- f1cc147 Step 9F.3 complete
-- 0c56192 Plan Step 9G.1
+- 76ec6f2 Step 9G.1 complete
+- d5d4562 Plan Step 9H.1
 
-Matrix cases: 3/3 build + fresh Check + fully-filled Check pass
-- asset-light services: 59 families / 248 cells
-- inventory retail: 78 / 331
-- capital-intensive manufacturer: 70 / 293
+Active family namespace: orders 1..78 unique; deferred forecast/valuation specs disjoint: yes
+Normal build forecast isolation (`run_scenario` / `weighted_ivps` fail-fast stubs): yes
+Trainer/Answer-Key practice contract verified across all canonical demo cells (66/279): yes
+Check formula-preservation / non-disclosure verified: yes
+Canonical demo workbooks regenerated from source: yes
+TARGET.md SHA-256 unchanged:
+  c826071609046ba4205aed7fba564bbcc96b6afabec5bfe00b6cf38976d64b08
 
-Ordinary demo preserved:
-- no assumptions / no share history: 62 / 259
-- normalization assumptions / no share history: 66 / 279
-
-Share-enabled regressions preserved:
+Surfaces preserved:
+- base demo: 62 / 259 / 0-0-259 blank
+- normalization demo: 66 / 279 / 0-0-279 blank
+- canonical committed demo pair: 66 / 279 / 0-0-279 blank
 - shares only: 70 / 293
-- shares + normalization: 78 / 331
+- shares + norm: 78 / 331
+- services matrix: 59 / 248
+- retail matrix: 78 / 331
+- manufacturer matrix: 70 / 293
 
-Cross-company robustness evidence:
-- three synthetic FY2021–FY2025 non-financial archetypes: yes
-- source/reformulation integrity without validator relaxation: yes
-- standardized payload → manual HK adapter round-trip: yes
-- services omits Total-Assets-dependent quality families only: yes
-- retail declining-revenue WC signed arithmetic: yes
-- retail STI live judgment updates expecteds / rejects stale cache: yes
-- retail Normalization Judgment updates normalized EPS; reported EPS unchanged: yes
-- manufacturer lease judgment updates financing diagnostics; reported EPS unchanged: yes
-- manufacturer falling share count has correct share-count effect sign: yes
-- trusted source-cell tamper fails before recolor on all three: yes
-- deferred Model_*/Scenario_Summary remain hidden placeholders: yes
+Release-gate notes:
+- historical-v1 model-construction foundation complete/release-gated: yes
+- cross-company matrix remains synthetic, not empirical company validation: yes
+- forecasting / valuation remain deferred: yes
 - no new semantic family / sheet / CLI / forecast / valuation: yes
-- fixtures are synthetic robustness cases, not empirical company data: yes
+- production model code unchanged: yes
 
 Preservation:
 - CLI remains {ingest,build,check,list}
-- DEMO_HK_Standardized.json unchanged (share-data-free)
+- DEMO_HK_Standardized.json / DEMO_HK_Assumptions.json unchanged: yes
 - TARGET.md unchanged: yes
-- forecasting / valuation not begun: yes
-- production engine unchanged (robustness tests only): yes
 
 Files changed:
-- Add: `core/tests/cross_company_fixtures.py`
-- Add: `core/tests/test_cross_company_robustness.py`
+- Add: `core/tests/test_historical_v1_exit_gate.py`
+- Regenerate: `example/DEMO_HK_Trainer.xlsx`
+- Regenerate: `example/DEMO_HK_Answer_Key.xlsx`
+- Modify: `README-HK-TRAINER.md`
 - Modify: `skills/bav-trainer/SKILL.md`
 - Modify: `RESULT.md`
 - Modify: `IMPLEMENTATION.md` status only
 
 Tests (fresh, local verification — no attached GitHub CI):
-- `PYTHONPATH=. pytest core/tests/ -q` -> 281 passed
-- cross-company matrix -> 15 passed
-- base build/check/list -> 259 / 62 / 0-0-259 blank
-- norm build/check/list -> 279 / 66 / 0-0-279 blank
-- share-only -> 293 / 70; share+norm -> 331 / 78
+- `PYTHONPATH=. pytest core/tests/ -q` -> 288 passed
+- exit-gate module -> 7 passed
+- focused release suite (exit + cross-company + trainer + integrity + norm + per-share) -> 186 passed
 - CLI -> `{ingest,build,check,list}` only
 
 Known deferred limitations:
 - dormant deferred-forecast defaults/fallbacks remain
 - basic-vs-diluted / period-end share-count analysis remains deferred
-- company-specific dilution / normalization causal interpretation remains deferred
+- company-specific causal interpretation remains deferred
 - quality scoring / forecasting / valuation remain deferred
 - synthetic fixtures are not real-company validation
 
-Unresolved: none on the active cross-company historical robustness matrix addressed by this checkpoint
+Unresolved: none on the historical-v1 exit gate addressed by this checkpoint

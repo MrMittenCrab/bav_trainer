@@ -1,11 +1,11 @@
 ---
 name: bav-trainer
-description: Build matched BAV Excel Trainer / Answer Key workbooks for Hong Kong-listed non-financial companies from manually supplied filings or Excel/Bloomberg/Wind exports. Step 7 historical schedules, Step 8A/8B1 classification, Step 8B2 earnings normalization, and Step 9A historical earnings-quality diagnostics with judgment-aware Formula Check.
+description: Build matched BAV Excel Trainer / Answer Key workbooks for Hong Kong-listed non-financial companies from manually supplied filings or Excel/Bloomberg/Wind exports. Historical-v1 model-construction foundation (release-gated by Step 9H.1): reformulation/DuPont, classification and normalization judgment, earnings-quality and working-capital diagnostics, profitability/ROE attribution, optional per-share and normalized-EPS bridge, plus a synthetic cross-company robustness matrix. Forecasting and valuation remain deferred.
 ---
 
 # BAV Excel Trainer — Hong Kong Edition
 
-Build a **matched Trainer / Answer Key pair** where the learner reconstructs multi-period historical BAV schedules, compares selected ambiguous classifications, practices explicit recurring/non-recurring earnings normalization, and computes mechanical cash-conversion / accrual diagnostics.
+Build a **matched Trainer / Answer Key pair** where the learner reconstructs multi-period historical BAV schedules, practices classification and earnings-normalization judgment, and computes mechanical research diagnostics through the historical-v1 surface.
 
 ## Product loop
 
@@ -13,48 +13,38 @@ Build a **matched Trainer / Answer Key pair** where the learner reconstructs mul
 end-state goal:
 accounting novice -> junior accounting-based equity-research competence
 
-Step 7 — historical model construction
-- 25 historical formula families / 118 cells in the five-year illustrative demo
-- workbook-wide Formula Check
+Historical v1 foundation: release-gated by Step 9H.1
+Forecasting: deferred
+Valuation: deferred
+Investment conclusion: deferred
+Real-company empirical validation: not established by the synthetic matrix
 
-Step 8A — guided classification reasoning
-- supported supplied ambiguities become compare-and-defend exercises
-- rationale/consequence are ungraded
+Active historical surface:
+- historical reformulation + DuPont
+- classification judgment
+- earnings normalization
+- cash-conversion / accrual diagnostics and trends
+- working-capital diagnostics
+- RNOA margin/turnover and change attribution
+- ROE operating/financing attribution
+- optional diluted per-share analysis
+- optional normalized diluted-EPS bridge
+- synthetic cross-company robustness matrix
 
-Step 8B1 — live supported classification
-- Accounting Judgment column F is the only learner treatment input
-- blank F uses the supplied reference treatment
-- generated Condensed Financials links are system-controlled and validated by Check
-- Formula Check recomputes expected historical values for the selected supported treatment
-- rationale/consequence remain ungraded
+Regression surfaces:
+- ordinary demo: 62/259 base, 66/279 with normalization
+- share-enabled: 70/293 base, 78/331 with normalization
+- cross-company synthetic matrix: services 59/248, retail 78/331, manufacturer 70/293
 
-Step 8B2 — guided earnings normalization
-- normalization candidates are explicitly supplied; they are not inferred from labels
-- learner chooses Recurring vs Non-recurring
-- reported statements and reported historical model remain unchanged
-- Earnings Normalization bridges reported to normalized NOPAT / Net Income
-- Step 8B2 supports operating pretax items using period effective tax rate as the supplied training convention
-- Check conditions normalization formulas on the current treatment
-- rationale/consequence are ungraded
-
-Step 9A — historical earnings-quality diagnostics
-- operating cash-flow link
-- cash conversion ratio
-- total accruals
-- average total assets where supplied
-- accrual ratio where supplied
-- these are mechanical diagnostics and do not yet explain why conversion changed or grade an investment conclusion
-
-ROU/deferred-tax alternatives, forecasting, and valuation remain deferred.
-
-This is a transition from supplied judgment to guided judgment, not independent analyst competence.
+The illustrative demo has no historical share input, so Per Share Analysis is absent in both demo builds.
 
 still deferred:
 - ROU / deferred-tax alternative modeling
-- working-capital / driver interpretation of conversion changes
+- company-specific causal / investment diagnosis
 - forecasting
 - valuation
 - investment conclusion
+- empirical real-company validation
 
 normal build:
 does not execute forecast/scenario engine
@@ -151,7 +141,14 @@ Step 9G.1 — cross-company robustness
 - surfaces: services 59/248; retail 78/331; manufacturer 70/293
 - ordinary demo and share-enabled regressions preserved; no new families/sheets/CLI
 
-Still deferred: company-specific causal diagnosis, basic-vs-diluted attribution, forecasting, valuation, investment conclusions, ROU/deferred-tax alternative modeling.
+Step 9H.1 — historical v1 exit gate
+- active family namespace frozen at orders 1..78
+- normal builds never execute dormant forecast/valuation engines
+- Trainer/Answer-Key practice contract and non-disclosing Check release-gated
+- canonical demo workbooks regenerated from current builder (66/279)
+- historical-v1 model-construction foundation complete/release-gated; forecasting and valuation remain deferred
+
+Still deferred: company-specific causal diagnosis, basic-vs-diluted attribution, forecasting, valuation, investment conclusions, ROU/deferred-tax alternative modeling, empirical real-company validation.
 
 ## Design principles
 
@@ -166,6 +163,6 @@ Still deferred: company-specific causal diagnosis, basic-vs-diluted attribution,
 
 - `core/data/interface.py` — standardized data contract
 - `core/model/classification.py` — Stage-3 classification / reformulation
-- `core/engine/component_catalog.py` — 25 conceptual families; period expansion at build time
+- `core/engine/component_catalog.py` — conceptual families; period expansion at build time
 - `core/engine/semantic_map.py` — runtime coordinates resolved at build time
 - `TARGET.md` — product competency progression (future steps deferred)
