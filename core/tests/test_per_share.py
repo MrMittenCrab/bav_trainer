@@ -481,8 +481,8 @@ def test_share_enabled_demo_surface(tmp_path):
     data = _share_enabled_demo()
     trainer, answer = build_training_workbook(data, tmp_path / "SHARE_BASE.xlsx")
     smap = load_semantic_map(answer)
-    assert len(smap.all_ordered()) == 277
-    assert len(group_components_by_family(smap)) == 66
+    assert len(smap.all_ordered()) == 293
+    assert len(group_components_by_family(smap)) == 70
     ps = [c for c in smap.all_ordered() if c.category == "per_share"]
     assert len(ps) == 18
     assert {c.family_id for c in ps} == {f.id for f in PER_SHARE_COMPONENT_CATALOG}
@@ -522,17 +522,17 @@ def test_share_enabled_demo_surface(tmp_path):
     wb_t.close()
 
     summary = check_workbook(trainer)
-    assert summary.total == 277
-    assert summary.blank == 277
+    assert summary.total == 293
+    assert summary.blank == 293
 
     assumptions = json.loads(DEMO_ASSUMPTIONS.read_text(encoding="utf-8"))
     trainer_n, answer_n = build_training_workbook(
         data, tmp_path / "SHARE_NORM.xlsx", assumptions
     )
     smap_n = load_semantic_map(answer_n)
-    assert len(smap_n.all_ordered()) == 297
-    assert len(group_components_by_family(smap_n)) == 70
-    assert check_workbook(trainer_n).blank == 297
+    assert len(smap_n.all_ordered()) == 313
+    assert len(group_components_by_family(smap_n)) == 74
+    assert check_workbook(trainer_n).blank == 313
 
 
 def test_per_share_check_trust_and_dynamic(tmp_path):

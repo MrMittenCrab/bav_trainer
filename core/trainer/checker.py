@@ -15,6 +15,7 @@ from ..model.historical_expected import expected_value_for_component
 from ..model.normalization import NormalizationCase, compute_normalization_series
 from ..model.period_axis import canonical_fiscal_periods
 from ..engine.component_catalog import (
+    PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG,
     PER_SHARE_COMPONENT_CATALOG,
     QUALITY_CHANGE_COMPONENT_CATALOG,
     QUALITY_COMPONENT_CATALOG,
@@ -174,7 +175,13 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     list(modeled_periods),
                     anchor,
                 )
-            per_share_family_ids = {family.id for family in PER_SHARE_COMPONENT_CATALOG}
+            per_share_family_ids = {
+                family.id
+                for family in (
+                    *PER_SHARE_COMPONENT_CATALOG,
+                    *PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG,
+                )
+            }
             per_share = None
             if any(comp.family_id in per_share_family_ids for comp in comps):
                 per_share = compute_per_share_series(

@@ -30,6 +30,7 @@ from ..model.normalization import (
 )
 from ..model.period_axis import canonical_fiscal_periods
 from ..model.per_share import compute_per_share_series, per_share_available
+from ..model.per_share_attribution import compute_per_share_attribution_series
 from ..model.profitability_change import compute_profitability_change_series
 from ..model.profitability_drivers import compute_profitability_driver_series
 from ..model.roe_attribution import compute_roe_attribution_series
@@ -42,6 +43,7 @@ from .component_catalog import (
     DEFERRED_COMPONENT_SPECS,
     expand_historical_specs,
     expand_normalization_specs,
+    expand_per_share_attribution_specs,
     expand_per_share_specs,
     expand_profitability_change_specs,
     expand_profitability_driver_specs,
@@ -249,9 +251,30 @@ class ReferenceModelBuilder:
                     + 1
                 ),
             )
+            self.per_share_attribution_series = compute_per_share_attribution_series(
+                self.anchor,
+                self.per_share_series,
+            )
+            self.per_share_attribution_specs = expand_per_share_attribution_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + len(self.profitability_change_specs)
+                    + len(self.roe_attribution_specs)
+                    + len(self.quality_change_specs)
+                    + len(self.per_share_specs)
+                    + 1
+                ),
+            )
         else:
             self.per_share_series = None
             self.per_share_specs = ()
+            self.per_share_attribution_series = None
+            self.per_share_attribution_specs = ()
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
@@ -262,6 +285,7 @@ class ReferenceModelBuilder:
             + self.roe_attribution_specs
             + self.quality_change_specs
             + self.per_share_specs
+            + self.per_share_attribution_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -290,6 +314,10 @@ class ReferenceModelBuilder:
         }
         self._per_share_spec_index = {
             (s.family_id, s.period_index): s for s in self.per_share_specs
+        }
+        self._per_share_attribution_spec_index = {
+            (s.family_id, s.period_index): s
+            for s in self.per_share_attribution_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -510,6 +538,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._per_share_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_per_share_attribution(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._per_share_attribution_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -2676,6 +2720,137 @@ class ReferenceModelBuilder:
                 float(series.diluted_share_count_change[j]),
             )
 
+        # Diluted EPS change attribution (Step 9F.2)
+        if self.per_share_attribution_series is None:
+            raise RuntimeError(
+                "per_share_attribution_series required when building "
+                "Per Share Analysis attribution"
+            )
+        attribution = self.per_share_attribution_series
+
+        section_row = 15
+        net_income_change_row = 16
+        earnings_effect_row = 17
+        share_count_effect_row = 18
+        driver_eps_change_row = 19
+        attribution_check_row = 20
+
+        ws.cell(
+            row=section_row, column=1, value="DILUTED EPS CHANGE ATTRIBUTION"
+        ).font = BOLD
+        ws.cell(row=net_income_change_row, column=1, value="Change in Reported Net Income")
+        ws.cell(
+            row=earnings_effect_row,
+            column=1,
+            value="Earnings Effect on Change in Diluted EPS",
+        )
+        ws.cell(
+            row=share_count_effect_row,
+            column=1,
+            value="Share-Count Effect on Change in Diluted EPS",
+        )
+        ws.cell(
+            row=driver_eps_change_row,
+            column=1,
+            value="Diluted EPS Change from Drivers",
+        )
+        ws.cell(
+            row=attribution_check_row,
+            column=1,
+            value="DILUTED EPS CHANGE ATTRIBUTION CHECK",
+        ).font = BOLD
+
+        for j in range(self._n):
+            col = self._col(2 + j)
+            if j == 0:
+                for row in (
+                    net_income_change_row,
+                    earnings_effect_row,
+                    share_count_effect_row,
+                    driver_eps_change_row,
+                    attribution_check_row,
+                ):
+                    ws.cell(row=row, column=2 + j, value="N/A")
+                continue
+
+            prev_col = self._col(2 + j - 1)
+            net_income_change_f = f"={col}{ni_row}-{prev_col}{ni_row}"
+            earnings_effect_f = (
+                f"={col}{net_income_change_row}*"
+                f"((1/{col}{shares_row}+1/{prev_col}{shares_row})/2)"
+            )
+            share_count_effect_f = (
+                f"=((1/{col}{shares_row})-(1/{prev_col}{shares_row}))*"
+                f"(({col}{ni_row}+{prev_col}{ni_row})/2)"
+            )
+            driver_eps_change_f = (
+                f"={col}{earnings_effect_row}+{col}{share_count_effect_row}"
+            )
+            attribution_check_f = (
+                f'=IF(ABS({col}{driver_eps_change_row}-{col}{eps_chg_row})'
+                f'<0.0000001,"OK","CHECK")'
+            )
+
+            c = ws.cell(
+                row=net_income_change_row, column=2 + j, value=net_income_change_f
+            )
+            c.number_format = NUM_FMT
+            c = ws.cell(row=earnings_effect_row, column=2 + j, value=earnings_effect_f)
+            c.number_format = per_share_fmt
+            c = ws.cell(
+                row=share_count_effect_row, column=2 + j, value=share_count_effect_f
+            )
+            c.number_format = per_share_fmt
+            c = ws.cell(
+                row=driver_eps_change_row, column=2 + j, value=driver_eps_change_f
+            )
+            c.number_format = per_share_fmt
+            ws.cell(
+                row=attribution_check_row, column=2 + j, value=attribution_check_f
+            )
+
+            assert attribution.reported_net_income_change[j] is not None
+            assert attribution.earnings_effect_on_diluted_eps_change[j] is not None
+            assert attribution.share_count_effect_on_diluted_eps_change[j] is not None
+            assert attribution.diluted_eps_change_from_drivers[j] is not None
+
+            self._register_per_share_attribution(
+                "reported_net_income_change",
+                j,
+                PER_SHARE_SHEET,
+                net_income_change_row,
+                2 + j,
+                net_income_change_f,
+                float(attribution.reported_net_income_change[j]),
+            )
+            self._register_per_share_attribution(
+                "earnings_effect_on_diluted_eps_change",
+                j,
+                PER_SHARE_SHEET,
+                earnings_effect_row,
+                2 + j,
+                earnings_effect_f,
+                float(attribution.earnings_effect_on_diluted_eps_change[j]),
+            )
+            self._register_per_share_attribution(
+                "share_count_effect_on_diluted_eps_change",
+                j,
+                PER_SHARE_SHEET,
+                share_count_effect_row,
+                2 + j,
+                share_count_effect_f,
+                float(attribution.share_count_effect_on_diluted_eps_change[j]),
+            )
+            self._register_per_share_attribution(
+                "diluted_eps_change_from_drivers",
+                j,
+                PER_SHARE_SHEET,
+                driver_eps_change_row,
+                2 + j,
+                driver_eps_change_f,
+                float(attribution.diluted_eps_change_from_drivers[j]),
+            )
+
         self.rowmap["per_share_ni_row"] = ni_row
         self.rowmap["per_share_nopat_row"] = nopat_row
         self.rowmap["per_share_shares_row"] = shares_row
@@ -2683,6 +2858,17 @@ class ReferenceModelBuilder:
         self.rowmap["per_share_nopat_ps_row"] = nopat_ps_row
         self.rowmap["per_share_eps_chg_row"] = eps_chg_row
         self.rowmap["per_share_shares_chg_row"] = shares_chg_row
+        self.rowmap["per_share_attribution_net_income_change_row"] = (
+            net_income_change_row
+        )
+        self.rowmap["per_share_attribution_earnings_effect_row"] = earnings_effect_row
+        self.rowmap["per_share_attribution_share_count_effect_row"] = (
+            share_count_effect_row
+        )
+        self.rowmap["per_share_attribution_driver_eps_change_row"] = (
+            driver_eps_change_row
+        )
+        self.rowmap["per_share_attribution_check_row"] = attribution_check_row
 
     def _build_model_tab(self, wb: Workbook, scenario: str) -> None:
         ws = wb.create_sheet(f"Model_{scenario}")

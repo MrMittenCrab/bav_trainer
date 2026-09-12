@@ -121,7 +121,7 @@ python -m core check --workbook training/DEMO_HK_Trainer.xlsx
 
 3. Open the Answer Key for the formula and Note hint.
 
-Active historical schedules: Revenue/NI links → tax/interest/NOPAT → OWCA/OWCL/NOWC → OLTA/OLTL/NOLA → NOA → FA/FL/Net Debt → Equity → Sales Growth / NOPAT Margin → RNOA / After-tax CoD / Spread / FLEV / ROE → (optional) Earnings Normalization → Earnings Quality levels and cash-conversion/accrual trends → Working Capital Analysis (when OWCA/OWCL present) → RNOA margin/turnover drivers and change attribution → ROE financing contribution and operating/financing change attribution → (optional) Per Share Analysis when diluted weighted-average share history is supplied. These are arithmetic diagnostics, not automatic quality, leverage, dilution, or financing-policy judgments.
+Active historical schedules: Revenue/NI links → tax/interest/NOPAT → OWCA/OWCL/NOWC → OLTA/OLTL/NOLA → NOA → FA/FL/Net Debt → Equity → Sales Growth / NOPAT Margin → RNOA / After-tax CoD / Spread / FLEV / ROE → (optional) Earnings Normalization → Earnings Quality levels and cash-conversion/accrual trends → Working Capital Analysis (when OWCA/OWCL present) → RNOA margin/turnover drivers and change attribution → ROE financing contribution and operating/financing change attribution → (optional) Per Share Analysis when diluted weighted-average share history is supplied, including diluted-EPS earnings vs share-count attribution. These are arithmetic diagnostics, not automatic quality, leverage, dilution, or financing-policy judgments.
 
 Step 9F.1 — historical diluted per-share foundation
 - gated on explicitly supplied diluted weighted-average share history
@@ -129,6 +129,12 @@ Step 9F.1 — historical diluted per-share foundation
 - Reported Diluted EPS and NOPAT per Diluted Share
 - absolute changes in EPS and diluted weighted-average shares
 - ordinary demo remains unchanged because it supplies no share history
+
+Step 9F.2 — diluted EPS earnings / share-count attribution
+- exact midpoint Earnings Effect + Share-Count Effect = Change in Diluted EPS
+- rising share count is not forced to a negative “dilution” conclusion
+- generated attribution check row is trusted (not practice)
+- share-enabled surfaces: 70/293 base, 74/313 with normalization
 
 Still deferred: company-specific causal diagnosis, normalized EPS, basic-vs-diluted attribution, forecasting, valuation, investment conclusions, ROU/deferred-tax alternative modeling.
 

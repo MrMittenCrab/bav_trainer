@@ -1639,6 +1639,134 @@ def expand_per_share_specs(
     return tuple(specs)
 
 
+PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="reported_net_income_change",
+        order=71,
+        title="Change in Reported Net Income",
+        short_hint="Current Reported Net Income minus prior Reported Net Income.",
+        semantic_key="per_share_attribution.reported_net_income_change",
+        category="per_share_attribution",
+        tab_template="Per Share Analysis",
+        period_scope="comparable",
+        depends_on_current=("net_income_link",),
+        depends_on_previous=("net_income_link",),
+        hints=(
+            "Change in Reported Net Income = Current Net Income - Prior Net Income.",
+            "This is the earnings-numerator movement used in diluted-EPS attribution.",
+        ),
+    ),
+    ComponentFamily(
+        id="earnings_effect_on_diluted_eps_change",
+        order=72,
+        title="Earnings Effect on Change in Diluted EPS",
+        short_hint="Change in Net Income multiplied by midpoint inverse diluted shares.",
+        semantic_key="per_share_attribution.earnings_effect",
+        category="per_share_attribution",
+        tab_template="Per Share Analysis",
+        period_scope="comparable",
+        depends_on_current=("reported_net_income_change",),
+        hints=(
+            "Earnings Effect = Change in Net Income × average of current and prior inverse diluted shares.",
+            "Inverse diluted shares means 1 / diluted weighted-average shares.",
+            "This is an arithmetic numerator effect, not a causal explanation of why earnings changed.",
+        ),
+    ),
+    ComponentFamily(
+        id="share_count_effect_on_diluted_eps_change",
+        order=73,
+        title="Share-Count Effect on Change in Diluted EPS",
+        short_hint="Change in inverse diluted shares multiplied by midpoint Reported Net Income.",
+        semantic_key="per_share_attribution.share_count_effect",
+        category="per_share_attribution",
+        tab_template="Per Share Analysis",
+        period_scope="comparable",
+        depends_on_current=("diluted_share_count_change", "net_income_link"),
+        depends_on_previous=("net_income_link",),
+        hints=(
+            "Share-Count Effect = Change in (1 / diluted shares) × average current/prior Net Income.",
+            "Rising share count is not forced to a negative effect; losses can reverse the sign mechanically.",
+            "Do not infer whether the share-count movement came from issuance, SBC, options, M&A, or buybacks without separate evidence.",
+        ),
+    ),
+    ComponentFamily(
+        id="diluted_eps_change_from_drivers",
+        order=74,
+        title="Change in Diluted EPS from Earnings + Share-Count Effects",
+        short_hint="Earnings Effect plus Share-Count Effect.",
+        semantic_key="per_share_attribution.diluted_eps_change_from_drivers",
+        category="per_share_attribution",
+        tab_template="Per Share Analysis",
+        period_scope="comparable",
+        depends_on_current=(
+            "earnings_effect_on_diluted_eps_change",
+            "share_count_effect_on_diluted_eps_change",
+        ),
+        hints=(
+            "Change in Diluted EPS from Drivers = Earnings Effect + Share-Count Effect.",
+            "The driver total must reconcile exactly to the direct Change in Diluted EPS.",
+        ),
+    ),
+)
+
+
+def expand_per_share_attribution_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+) -> tuple[ComponentSpec, ...]:
+    """Expand diluted-EPS attribution families into comparable-period specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in "
+            "expand_per_share_attribution_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_per_share_attribution_specs requires strictly "
+                "chronological (increasing) period dates"
+            )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG:
+        if family.period_scope != "comparable":
+            raise ValueError(
+                f"unsupported per-share-attribution period_scope "
+                f"{family.period_scope!r}"
+            )
+        for j in range(1, len(periods)):
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            prev = periods[j - 1]
+            for dep_fam in family.depends_on_previous:
+                deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 def _deferred(
     *,
     id: str,

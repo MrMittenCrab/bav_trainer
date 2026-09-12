@@ -1,5 +1,7 @@
 # Step 9F.2 — Historical Diluted EPS Earnings / Share-Count Attribution
 
+> **Status:** COMPLETE — Step 9F.2 verified locally (259 passed). Ordinary demo unchanged at 62/259 and 66/279; share-enabled fixture 70/293 and 74/313. See `RESULT.md`. Do not commit/push from the agent.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `7e9afb1a37081e8340e5e94cc9db8976de6cfa65` (`Step 9F1`, Step 9F.1 complete). Implement only Step 9F.2 below using red/green TDD. Preserve Step 8 judgment behavior, the trusted-workbook boundary, all Step 9A source-completeness / tax / normalization / `#N/A` semantics, the full Step 9B working-capital surface, the full Step 9C profitability-driver/change surface, the full Step 9D ROE-attribution surface, the Step 9E cash-conversion trend surface, and the complete Step 9F.1 diluted per-share foundation. Do not add normalized EPS, basic-vs-diluted attribution, period-end share-count analysis, forecasting, valuation, segment analysis, ROU/deferred-tax alternatives, or company-specific investment conclusions. Do not commit or push; the user owns the checkpoint commit.
