@@ -28,6 +28,7 @@ from ..model.normalization import (
     normalization_cases,
 )
 from ..model.period_axis import canonical_fiscal_periods
+from ..model.profitability_change import compute_profitability_change_series
 from ..model.profitability_drivers import compute_profitability_driver_series
 from ..model.ri_engine import run_scenario, weighted_ivps
 from ..model.working_capital import (
@@ -38,6 +39,7 @@ from .component_catalog import (
     DEFERRED_COMPONENT_SPECS,
     expand_historical_specs,
     expand_normalization_specs,
+    expand_profitability_change_specs,
     expand_profitability_driver_specs,
     expand_quality_specs,
     expand_working_capital_specs,
@@ -174,12 +176,25 @@ class ReferenceModelBuilder:
                 + 1
             ),
         )
+        self.profitability_change_series = compute_profitability_change_series(self.anchor)
+        self.profitability_change_specs = expand_profitability_change_specs(
+            self.periods,
+            start_order=(
+                len(self.historical_specs)
+                + len(self.normalization_specs)
+                + len(self.quality_specs)
+                + len(self.working_capital_specs)
+                + len(self.profitability_driver_specs)
+                + 1
+            ),
+        )
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
             + self.quality_specs
             + self.working_capital_specs
             + self.profitability_driver_specs
+            + self.profitability_change_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -196,6 +211,9 @@ class ReferenceModelBuilder:
         }
         self._profitability_driver_spec_index = {
             (s.family_id, s.period_index): s for s in self.profitability_driver_specs
+        }
+        self._profitability_change_spec_index = {
+            (s.family_id, s.period_index): s for s in self.profitability_change_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -414,6 +432,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._profitability_driver_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_profitability_change(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._profitability_change_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -1173,6 +1207,177 @@ class ReferenceModelBuilder:
         self.rowmap["dupont_noa_intensity_row"] = intensity_row
         self.rowmap["dupont_driver_rnoa_row"] = driver_rnoa_row
         self.rowmap["dupont_driver_check_row"] = driver_check_row
+
+        # RNOA change attribution: Margin vs Turnover (Step 9C.2)
+        changes = self.profitability_change_series
+        change_section_row = driver_check_row + 2
+        margin_change_row = change_section_row + 1
+        turnover_change_row = change_section_row + 2
+        direct_rnoa_change_row = change_section_row + 3
+        margin_effect_row = change_section_row + 4
+        turnover_effect_row = change_section_row + 5
+        driver_change_row = change_section_row + 6
+        change_check_row = change_section_row + 7
+
+        ws.cell(
+            row=change_section_row, column=1, value="RNOA CHANGE ATTRIBUTION"
+        ).font = BOLD
+        ws.cell(row=margin_change_row, column=1, value="Change in NOPAT Margin")
+        ws.cell(row=turnover_change_row, column=1, value="Change in NOA Turnover")
+        ws.cell(row=direct_rnoa_change_row, column=1, value="Direct Change in RNOA")
+        ws.cell(row=margin_effect_row, column=1, value="Margin Effect on RNOA Change")
+        ws.cell(
+            row=turnover_effect_row, column=1, value="Turnover Effect on RNOA Change"
+        )
+        ws.cell(row=driver_change_row, column=1, value="RNOA Change from Drivers")
+        ws.cell(
+            row=change_check_row, column=1, value="RNOA CHANGE DRIVER CHECK"
+        ).font = BOLD
+
+        for j in range(self._n):
+            out_col_idx = 2 + j
+            out_col = self._col(out_col_idx)
+            if j < 2:
+                for row in (
+                    margin_change_row,
+                    turnover_change_row,
+                    direct_rnoa_change_row,
+                    margin_effect_row,
+                    turnover_effect_row,
+                    driver_change_row,
+                    change_check_row,
+                ):
+                    ws.cell(row=row, column=out_col_idx, value=na)
+                continue
+
+            prev_col = self._col(2 + j - 1)
+            margin_change_f = f"={out_col}{margin_row}-{prev_col}{margin_row}"
+            turnover_change_f = f"={out_col}{turnover_row}-{prev_col}{turnover_row}"
+            direct_rnoa_change_f = f"={out_col}{rnoa_row}-{prev_col}{rnoa_row}"
+            margin_effect_f = (
+                f"={out_col}{margin_change_row}*"
+                f"(({out_col}{turnover_row}+{prev_col}{turnover_row})/2)"
+            )
+            turnover_effect_f = (
+                f"={out_col}{turnover_change_row}*"
+                f"(({out_col}{margin_row}+{prev_col}{margin_row})/2)"
+            )
+            driver_change_f = (
+                f"={out_col}{margin_effect_row}+{out_col}{turnover_effect_row}"
+            )
+            change_check_f = (
+                f'=IF(OR(ISNA({out_col}{driver_change_row}),'
+                f'ISNA({out_col}{direct_rnoa_change_row})),"N/A",'
+                f'IF(ABS({out_col}{driver_change_row}-{out_col}{direct_rnoa_change_row})'
+                f'<0.0000001,"OK","CHECK"))'
+            )
+
+            c = ws.cell(row=margin_change_row, column=out_col_idx, value=margin_change_f)
+            c.number_format = PCT_FMT
+            c = ws.cell(
+                row=turnover_change_row, column=out_col_idx, value=turnover_change_f
+            )
+            c.number_format = "0.00x"
+            c = ws.cell(
+                row=direct_rnoa_change_row, column=out_col_idx, value=direct_rnoa_change_f
+            )
+            c.number_format = PCT_FMT
+            c = ws.cell(row=margin_effect_row, column=out_col_idx, value=margin_effect_f)
+            c.number_format = PCT_FMT
+            c = ws.cell(
+                row=turnover_effect_row, column=out_col_idx, value=turnover_effect_f
+            )
+            c.number_format = PCT_FMT
+            c = ws.cell(row=driver_change_row, column=out_col_idx, value=driver_change_f)
+            c.number_format = PCT_FMT
+            ws.cell(row=change_check_row, column=out_col_idx, value=change_check_f)
+
+            margin_change_expected = changes.nopat_margin_change[j]
+            assert margin_change_expected is not None
+            self._register_profitability_change(
+                "nopat_margin_change",
+                j,
+                "ALT DuPont",
+                margin_change_row,
+                out_col_idx,
+                margin_change_f,
+                margin_change_expected
+                if isinstance(margin_change_expected, str)
+                else float(margin_change_expected),
+            )
+            turnover_change_expected = changes.noa_turnover_change[j]
+            assert turnover_change_expected is not None
+            self._register_profitability_change(
+                "noa_turnover_change",
+                j,
+                "ALT DuPont",
+                turnover_change_row,
+                out_col_idx,
+                turnover_change_f,
+                turnover_change_expected
+                if isinstance(turnover_change_expected, str)
+                else float(turnover_change_expected),
+            )
+            rnoa_change_expected = changes.rnoa_change[j]
+            assert rnoa_change_expected is not None
+            self._register_profitability_change(
+                "rnoa_change",
+                j,
+                "ALT DuPont",
+                direct_rnoa_change_row,
+                out_col_idx,
+                direct_rnoa_change_f,
+                rnoa_change_expected
+                if isinstance(rnoa_change_expected, str)
+                else float(rnoa_change_expected),
+            )
+            margin_effect_expected = changes.margin_effect_on_rnoa[j]
+            assert margin_effect_expected is not None
+            self._register_profitability_change(
+                "rnoa_margin_effect",
+                j,
+                "ALT DuPont",
+                margin_effect_row,
+                out_col_idx,
+                margin_effect_f,
+                margin_effect_expected
+                if isinstance(margin_effect_expected, str)
+                else float(margin_effect_expected),
+            )
+            turnover_effect_expected = changes.turnover_effect_on_rnoa[j]
+            assert turnover_effect_expected is not None
+            self._register_profitability_change(
+                "rnoa_turnover_effect",
+                j,
+                "ALT DuPont",
+                turnover_effect_row,
+                out_col_idx,
+                turnover_effect_f,
+                turnover_effect_expected
+                if isinstance(turnover_effect_expected, str)
+                else float(turnover_effect_expected),
+            )
+            driver_change_expected = changes.rnoa_change_from_drivers[j]
+            assert driver_change_expected is not None
+            self._register_profitability_change(
+                "rnoa_change_from_drivers",
+                j,
+                "ALT DuPont",
+                driver_change_row,
+                out_col_idx,
+                driver_change_f,
+                driver_change_expected
+                if isinstance(driver_change_expected, str)
+                else float(driver_change_expected),
+            )
+
+        self.rowmap["dupont_margin_change_row"] = margin_change_row
+        self.rowmap["dupont_turnover_change_row"] = turnover_change_row
+        self.rowmap["dupont_direct_rnoa_change_row"] = direct_rnoa_change_row
+        self.rowmap["dupont_margin_effect_row"] = margin_effect_row
+        self.rowmap["dupont_turnover_effect_row"] = turnover_effect_row
+        self.rowmap["dupont_rnoa_change_from_drivers_row"] = driver_change_row
+        self.rowmap["dupont_rnoa_change_check_row"] = change_check_row
 
     def _build_accounting_judgment(self, wb: Workbook) -> None:
         ws = wb.create_sheet(JUDGMENT_SHEET)

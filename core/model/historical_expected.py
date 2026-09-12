@@ -5,6 +5,7 @@ from __future__ import annotations
 from ..engine.component_catalog import (
     COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
+    PROFITABILITY_CHANGE_COMPONENT_CATALOG,
     PROFITABILITY_DRIVER_COMPONENT_CATALOG,
     QUALITY_COMPONENT_CATALOG,
     WORKING_CAPITAL_COMPONENT_CATALOG,
@@ -13,6 +14,7 @@ from ..engine.semantic_map import ResolvedComponent
 from .earnings_quality import EarningsQualitySeries
 from .financial_math import AnchorMetrics
 from .normalization import NormalizationSeries
+from .profitability_change import compute_profitability_change_series
 from .profitability_drivers import compute_profitability_driver_series
 from .working_capital import compute_working_capital_series
 
@@ -78,6 +80,15 @@ _PROFITABILITY_DRIVER_FAMILY_SERIES = (
     "noa_turnover",
     "noa_intensity",
     "rnoa_margin_turnover",
+)
+
+_PROFITABILITY_CHANGE_FAMILY_SERIES = (
+    "nopat_margin_change",
+    "noa_turnover_change",
+    "rnoa_change",
+    "rnoa_margin_effect",
+    "rnoa_turnover_effect",
+    "rnoa_change_from_drivers",
 )
 
 
@@ -221,6 +232,35 @@ def profitability_driver_expected_series(
     }
 
 
+def profitability_change_expected_series(
+    anchor: AnchorMetrics,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map RNOA-change formula families to diagnostics from ``anchor``."""
+    changes = compute_profitability_change_series(anchor)
+    series = {
+        "nopat_margin_change": changes.nopat_margin_change,
+        "noa_turnover_change": changes.noa_turnover_change,
+        "rnoa_change": changes.rnoa_change,
+        "rnoa_margin_effect": changes.margin_effect_on_rnoa,
+        "rnoa_turnover_effect": changes.turnover_effect_on_rnoa,
+        "rnoa_change_from_drivers": changes.rnoa_change_from_drivers,
+    }
+    expected_ids = {
+        family.id for family in PROFITABILITY_CHANGE_COMPONENT_CATALOG
+    }
+    if set(series) != expected_ids:
+        missing = sorted(expected_ids - set(series))
+        extra = sorted(set(series) - expected_ids)
+        raise ValueError(
+            "profitability_change_expected_series family mismatch; "
+            f"missing={missing} extra={extra}"
+        )
+    return {
+        family_id: series[family_id]
+        for family_id in _PROFITABILITY_CHANGE_FAMILY_SERIES
+    }
+
+
 def expected_value_for_component(
     anchor: AnchorMetrics,
     component: ResolvedComponent,
@@ -238,7 +278,9 @@ def expected_value_for_component(
             f"Component {component.id!r} (family {family_id}) has no period_index"
         )
 
-    if family_id in _PROFITABILITY_DRIVER_FAMILY_SERIES:
+    if family_id in _PROFITABILITY_CHANGE_FAMILY_SERIES:
+        series = profitability_change_expected_series(anchor)
+    elif family_id in _PROFITABILITY_DRIVER_FAMILY_SERIES:
         series = profitability_driver_expected_series(anchor)
     elif family_id in _WORKING_CAPITAL_FAMILY_SERIES:
         series = working_capital_expected_series(anchor)

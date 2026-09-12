@@ -139,7 +139,12 @@ def test_build_paired_trainer_and_answer_key(tmp_path):
     smap = load_semantic_map(answer_key_path)
     data = _ingest_demo()
     periods = data.fiscal_years() or data.period_dates()
-    from core.engine.component_catalog import expand_quality_specs, expand_working_capital_specs, expand_profitability_driver_specs
+    from core.engine.component_catalog import (
+        expand_quality_specs,
+        expand_working_capital_specs,
+        expand_profitability_driver_specs,
+        expand_profitability_change_specs,
+    )
 
     hist = expand_historical_specs(periods)
     quality = expand_quality_specs(
@@ -151,8 +156,11 @@ def test_build_paired_trainer_and_answer_key(tmp_path):
     pd = expand_profitability_driver_specs(
         periods, start_order=len(hist) + len(quality) + len(wc) + 1
     )
-    expected = hist + quality + wc + pd
-    assert len(smap.all_ordered()) == len(expected) == 204
+    pc = expand_profitability_change_specs(
+        periods, start_order=len(hist) + len(quality) + len(wc) + len(pd) + 1
+    )
+    expected = hist + quality + wc + pd + pc
+    assert len(smap.all_ordered()) == len(expected) == 222
     for spec in expected:
         comp = smap.get(spec.id)
         assert comp.formula.startswith("=")
@@ -270,12 +278,12 @@ def test_trainer_index_groups_schedules_not_cells(tmp_path):
     trainer_path, answer_key_path = _build_pair(tmp_path)
     smap = load_semantic_map(answer_key_path)
     groups = group_components_by_family(smap)
-    assert len(groups) == 45
+    assert len(groups) == 51
 
     wb = load_workbook(trainer_path, data_only=False)
     ws = wb["Trainer"]
     index_family_rows = (ws.max_row or 4) - 4
-    assert index_family_rows == 45
+    assert index_family_rows == 51
 
     by_title = {g["title"]: g for g in groups}
     assert by_title["Revenue historical source link"]["count"] == 5
@@ -637,7 +645,7 @@ def test_v1_deferred_tabs_are_hidden_placeholders(tmp_path):
     for comp in smap.all_ordered():
         for name in deferred:
             assert name not in comp.formula
-    assert len(smap.all_ordered()) == 204
+    assert len(smap.all_ordered()) == 222
     deferred_ids = {
         "model_sales_y1",
         "model_nopat_y1",
@@ -652,7 +660,7 @@ def test_v1_deferred_tabs_are_hidden_placeholders(tmp_path):
 def test_expanded_historical_chain_check_three_states(tmp_path):
     trainer_path, answer_key_path = _build_pair(tmp_path)
     smap = load_semantic_map(answer_key_path)
-    assert len(smap.all_ordered()) == 204
+    assert len(smap.all_ordered()) == 222
 
     etr = next(c for c in smap.all_ordered() if c.family_id == "effective_tax_rate_fy")
     owca = next(c for c in smap.all_ordered() if c.family_id == "owca_agg")
@@ -668,10 +676,10 @@ def test_expanded_historical_chain_check_three_states(tmp_path):
     wb.close()
 
     summary = check_workbook(trainer_path)
-    assert summary.total == 204
+    assert summary.total == 222
     assert summary.correct == 1
     assert summary.incorrect == 1
-    assert summary.blank == 202
+    assert summary.blank == 220
 
     wb = load_workbook(trainer_path, data_only=False)
     r, c = parse_cell_ref(etr.cell)
@@ -903,7 +911,7 @@ def test_period_aware_semantic_map_round_trip(tmp_path):
 def test_multi_period_correction_cycle(tmp_path):
     trainer_path, answer_key_path = _build_pair(tmp_path)
     smap = load_semantic_map(answer_key_path)
-    assert len(smap.all_ordered()) == 204
+    assert len(smap.all_ordered()) == 222
 
     nopats = [c for c in smap.all_ordered() if c.family_id == "nopat_fy"]
     assert len(nopats) == 5
@@ -919,10 +927,10 @@ def test_multi_period_correction_cycle(tmp_path):
     wb.close()
 
     summary = check_workbook(trainer_path)
-    assert summary.total == 204
+    assert summary.total == 222
     assert summary.correct == 5
     assert summary.incorrect == 1
-    assert summary.blank == 198
+    assert summary.blank == 216
 
     wb = load_workbook(trainer_path, data_only=False)
     r, c = parse_cell_ref(growth.cell)
@@ -933,7 +941,7 @@ def test_multi_period_correction_cycle(tmp_path):
     summary = check_workbook(trainer_path)
     assert summary.correct == 6
     assert summary.incorrect == 0
-    assert summary.blank == 198
+    assert summary.blank == 216
 
     wb = load_workbook(trainer_path, data_only=False)
     r, c = parse_cell_ref(nopats[0].cell)
@@ -944,7 +952,7 @@ def test_multi_period_correction_cycle(tmp_path):
     summary = check_workbook(trainer_path)
     assert summary.correct == 5
     assert summary.incorrect == 0
-    assert summary.blank == 199
+    assert summary.blank == 217
 
     wb = load_workbook(trainer_path, data_only=False)
     for comp in nopats[1:]:
@@ -989,7 +997,7 @@ def test_stale_trainer_sidecars_removed_on_rebuild(tmp_path, capsys):
     assert main(["list", "--workbook", str(trainer_path)]) == 0
     out = capsys.readouterr().out
     lines = [ln for ln in out.splitlines() if ln.strip()]
-    assert len(lines) == 45
+    assert len(lines) == 51
     assert any("5 cells" in ln for ln in lines)
     assert any("4 cells" in ln for ln in lines)
     assert "SECRET_OLD_FORMULA" not in out
@@ -1011,7 +1019,7 @@ def test_accounting_judgment_sheet_answer_key_and_trainer_contract(tmp_path):
     case = builder.judgment_cases[0]
 
     smap = load_semantic_map(answer_key_path)
-    assert len(smap.all_ordered()) == 204
+    assert len(smap.all_ordered()) == 222
 
     wb_a = load_workbook(answer_key_path, data_only=False)
     wb_t = load_workbook(trainer_path, data_only=False)
@@ -1063,10 +1071,10 @@ def test_accounting_judgment_sheet_answer_key_and_trainer_contract(tmp_path):
     )
 
     summary = check_workbook(trainer_path)
-    assert summary.total == 204
+    assert summary.total == 222
     assert summary.correct == 0
     assert summary.incorrect == 0
-    assert summary.blank == 204
+    assert summary.blank == 222
 
     forbidden = [case.model_rationale, case.model_consequence]
     for name in wb_t.sheetnames:
@@ -1104,7 +1112,7 @@ def test_trainer_instruction_mentions_judgment_not_graded_by_check(tmp_path):
     assert "Condensed Financials" in instruction
     assert "every yellow cell" not in instruction.lower()
     # Accounting Judgment is not an extra formula-family row.
-    assert (wb["Trainer"].max_row or 4) - 4 == 45
+    assert (wb["Trainer"].max_row or 4) - 4 == 51
     wb.close()
 
 
@@ -1237,10 +1245,10 @@ def _set_judgment_treatment(trainer_path, treatment):
 def test_dynamic_check_fresh_reference_parity(tmp_path):
     trainer_path, _ = _build_pair(tmp_path)
     summary = check_workbook(trainer_path)
-    assert summary.total == 204
+    assert summary.total == 222
     assert summary.correct == 0
     assert summary.incorrect == 0
-    assert summary.blank == 204
+    assert summary.blank == 222
 
 
 def test_alternative_treatment_exact_formula_is_green(tmp_path):
@@ -1277,7 +1285,7 @@ def test_alternative_treatment_exact_formula_is_green(tmp_path):
     summary = check_workbook(trainer_path)
     assert summary.correct == 1
     assert summary.incorrect == 0
-    assert summary.blank == 203
+    assert summary.blank == 221
 
 
 def test_alternative_treatment_equivalent_formula_and_stale_reference(tmp_path):
@@ -1531,7 +1539,7 @@ def test_judgment_structure_passes_for_blank_and_alternative(tmp_path):
     wb_t.close()
     wb_a.close()
     summary = check_workbook(trainer_path)
-    assert summary.blank == 204
+    assert summary.blank == 222
 
 
 def test_prompt_modified_d_rejected_before_grading(tmp_path):

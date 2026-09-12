@@ -1052,6 +1052,155 @@ def expand_profitability_driver_specs(
     return tuple(specs)
 
 
+PROFITABILITY_CHANGE_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="nopat_margin_change",
+        order=50,
+        title="Change in NOPAT Margin",
+        short_hint="Current NOPAT Margin minus prior comparable NOPAT Margin.",
+        semantic_key="profitability_change.nopat_margin_change",
+        category="profitability_change",
+        tab_template="ALT DuPont",
+        period_scope="post_comparable",
+        depends_on_current=("nopat_margin",),
+        depends_on_previous=("nopat_margin",),
+        hints=(
+            "Change in NOPAT Margin = Current Margin - Prior Margin.",
+            "This is an arithmetic movement, not a causal explanation of pricing or costs.",
+        ),
+    ),
+    ComponentFamily(
+        id="noa_turnover_change",
+        order=51,
+        title="Change in NOA Turnover",
+        short_hint="Current NOA Turnover minus prior comparable NOA Turnover.",
+        semantic_key="profitability_change.noa_turnover_change",
+        category="profitability_change",
+        tab_template="ALT DuPont",
+        period_scope="post_comparable",
+        depends_on_current=("noa_turnover",),
+        depends_on_previous=("noa_turnover",),
+        hints=(
+            "Change in NOA Turnover = Current Turnover - Prior Turnover.",
+            "A lower turnover is mechanically consistent with greater NOA intensity when the reciprocal is defined, but the business cause requires separate analysis.",
+        ),
+    ),
+    ComponentFamily(
+        id="rnoa_change",
+        order=52,
+        title="Direct Change in RNOA",
+        short_hint="Current direct RNOA minus prior comparable direct RNOA.",
+        semantic_key="profitability_change.rnoa_change",
+        category="profitability_change",
+        tab_template="ALT DuPont",
+        period_scope="post_comparable",
+        depends_on_current=("rnoa",),
+        depends_on_previous=("rnoa",),
+        hints=(
+            "Direct Change in RNOA = Current RNOA - Prior RNOA.",
+        ),
+    ),
+    ComponentFamily(
+        id="rnoa_margin_effect",
+        order=53,
+        title="Margin Effect on Change in RNOA",
+        short_hint="Change in Margin multiplied by midpoint NOA Turnover.",
+        semantic_key="profitability_change.rnoa_margin_effect",
+        category="profitability_change",
+        tab_template="ALT DuPont",
+        period_scope="post_comparable",
+        depends_on_current=("nopat_margin_change", "noa_turnover"),
+        depends_on_previous=("noa_turnover",),
+        hints=(
+            "Margin Effect = Change in Margin × average of current and prior NOA Turnover.",
+            "Midpoint weighting gives an exact order-neutral product-change attribution.",
+        ),
+    ),
+    ComponentFamily(
+        id="rnoa_turnover_effect",
+        order=54,
+        title="Turnover Effect on Change in RNOA",
+        short_hint="Change in NOA Turnover multiplied by midpoint NOPAT Margin.",
+        semantic_key="profitability_change.rnoa_turnover_effect",
+        category="profitability_change",
+        tab_template="ALT DuPont",
+        period_scope="post_comparable",
+        depends_on_current=("noa_turnover_change", "nopat_margin"),
+        depends_on_previous=("nopat_margin",),
+        hints=(
+            "Turnover Effect = Change in NOA Turnover × average of current and prior NOPAT Margin.",
+            "Do not reinterpret this aggregate effect as a specific asset-management cause without further evidence.",
+        ),
+    ),
+    ComponentFamily(
+        id="rnoa_change_from_drivers",
+        order=55,
+        title="Change in RNOA from Margin + Turnover Effects",
+        short_hint="Margin Effect plus Turnover Effect.",
+        semantic_key="profitability_change.rnoa_change_from_drivers",
+        category="profitability_change",
+        tab_template="ALT DuPont",
+        period_scope="post_comparable",
+        depends_on_current=("rnoa_margin_effect", "rnoa_turnover_effect"),
+        hints=(
+            "Driver Change in RNOA = Margin Effect + Turnover Effect.",
+            "When both driver periods are defined, this must reconcile to Direct Change in RNOA.",
+        ),
+    ),
+)
+
+
+def expand_profitability_change_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+) -> tuple[ComponentSpec, ...]:
+    """Expand RNOA-change families into period-specific concrete specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_profitability_change_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_profitability_change_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in PROFITABILITY_CHANGE_COMPONENT_CATALOG:
+        for j in range(2, len(periods)):
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            prev = periods[j - 1]
+            for dep_fam in family.depends_on_previous:
+                deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 def _deferred(
     *,
     id: str,

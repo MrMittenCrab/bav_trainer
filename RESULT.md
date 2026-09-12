@@ -1,33 +1,33 @@
-Status: Step 9C.1 complete — historical RNOA margin / turnover driver decomposition
+Status: Step 9C.2 complete — historical RNOA Margin / Turnover change attribution
 
 Implementation base:
-- 70f2af5 Step 9B.2 complete
+- 536d5e6 Step 9C.1 complete
 
 Historical formula surface (no normalization assumptions):
 - fiscal periods: 5
-- formula families: 45
-- formula practice cells: 204
-- fresh Check: 0 / 0 / 204
+- formula families: 51
+- formula practice cells: 222
+- fresh Check: 0 / 0 / 222
 
 Step 9A illustrative demo (with DEMO_HK_Assumptions.json):
 - fiscal periods: 5
-- formula families: 49
-- formula practice cells: 224
-- fresh Check: 0 / 0 / 224
+- formula families: 55
+- formula practice cells: 242
+- fresh Check: 0 / 0 / 242
 
-RNOA margin / turnover drivers:
-- 4 profitability-driver families / 16 practice cells on five-year demo: yes
-- Average NOA = (prior + current NOA) / 2: yes
-- NOA Turnover = Revenue / Average NOA: yes
-- NOA Intensity = Average NOA / Revenue: yes
-- RNOA from Margin × Turnover reconciles to direct RNOA when defined: yes
-- undefined decomposition yields Excel/Python `#N/A` and check text `N/A` (not false CHECK): yes
-- zero Average NOA -> turnover `#N/A`: yes
-- zero Revenue -> intensity `#N/A`; turnover may remain numeric 0.0: yes
-- existing direct RNOA / NOPAT Margin formulas unchanged: yes
-- live classification changes Average NOA / turnover / intensity / driver RNOA: yes
-- trusted RNOA DRIVER CHECK tamper fails before recolor: yes
-- exact/equivalent `#N/A` accepted; fabricated `0.0` rejected: yes
+RNOA change attribution:
+- 6 profitability-change families / 18 practice cells on five-year demo: yes
+- attribution starts at fiscal-period index 2 (post-comparable): yes
+- Margin Effect = ΔMargin × midpoint Turnover: yes
+- Turnover Effect = ΔTurnover × midpoint Margin: yes
+- Margin Effect + Turnover Effect reconciles to Direct ΔRNOA when defined: yes
+- undefined Margin/Turnover inputs propagate to `#N/A` (no fabricated zero effects): yes
+- zero driver change with defined inputs remains numeric 0.0: yes
+- signs preserved (no ABS on practice formulas): yes
+- live classification changes turnover-change / turnover-effect / driver-change expecteds: yes
+- trusted RNOA CHANGE DRIVER CHECK tamper fails before recolor: yes
+- exact/equivalent formulas pass; fabricated 0.0 rejected when expected `#N/A`: yes
+- Step 9C.1 level decomposition families unchanged: yes
 - Step 9B working-capital surface preserved: yes
 - no automatic causal diagnosis or profitability quality score: yes
 
@@ -38,26 +38,27 @@ Preservation:
 - forecasting / valuation not begun: yes
 
 Files changed:
-- Add: `core/model/profitability_drivers.py`
-- Add: `core/tests/test_profitability_drivers.py`
-- Modify: `core/engine/component_catalog.py` — PROFITABILITY_DRIVER_COMPONENT_CATALOG + expand
-- Modify: `core/model/historical_expected.py` — profitability_driver_expected_series
-- Modify: `core/engine/reference_model.py` — ALT DuPont driver section + registration
+- Add: `core/model/profitability_change.py`
+- Add: `core/tests/test_profitability_change.py`
+- Modify: `core/engine/component_catalog.py` — PROFITABILITY_CHANGE_COMPONENT_CATALOG + expand
+- Modify: `core/model/historical_expected.py` — profitability_change_expected_series
+- Modify: `core/engine/reference_model.py` — ALT DuPont change section + registration
 - Modify: `core/trainer/workbook.py` — family meta for list/index
-- Modify: `core/tests/test_*.py` — demo surface 45/204 and 49/224
-- Modify: `skills/bav-trainer/SKILL.md` — surface counts + RNOA driver note
+- Modify: `core/tests/test_*.py` — demo surface 51/222 and 55/242
+- Modify: `skills/bav-trainer/SKILL.md` — surface counts + change-attribution note
 - Modify: `RESULT.md`
 - Modify: `IMPLEMENTATION.md` status only
 
 Tests (fresh, local verification — no attached GitHub CI):
-- `PYTHONPATH=. pytest core/tests/ -q` -> 219 passed
-- base build/check/list -> 204 / 45 / 0-0-204 blank
-- norm build/check/list -> 224 / 49 / 0-0-224 blank
+- `PYTHONPATH=. pytest core/tests/ -q` -> 226 passed
+- base build/check/list -> 222 / 51 / 0-0-222 blank
+- norm build/check/list -> 242 / 55 / 0-0-242 blank
 - CLI -> `{ingest,build,check,list}` only
 
 Known deferred limitations:
 - dormant deferred-forecast defaults/fallbacks remain
 - company-specific causal interpretation of margin vs intensity remains deferred
+- ROE operating-versus-financing attribution remains deferred
 - quality scoring / forecasting / valuation remain deferred
 
-Unresolved: none on the active historical RNOA margin/turnover driver surface addressed by this checkpoint
+Unresolved: none on the active historical RNOA change-attribution surface addressed by this checkpoint

@@ -1,5 +1,7 @@
 # Step 9C.2 — Historical RNOA Change Attribution
 
+> **STATUS: COMPLETE** — verified locally (`226 passed`; base 51/222; norm 55/242). See `RESULT.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `536d5e6d3348de7619789f618fe661ab1cce9fca` (`Step 9C1`, Step 9C.1 complete). Implement only Step 9C.2 below using red/green TDD. Preserve Step 8 classification/normalization judgment, the trusted-workbook boundary, all Step 9A source-completeness / tax / normalization / `#N/A` semantics, the complete Step 9B working-capital diagnostics, and the complete Step 9C.1 RNOA level decomposition. Do not add company-specific causal claims, automatic good/bad profitability labels, forecasting, valuation, segment analysis, ROU/deferred-tax alternative modeling, or later research-diagnostic work. Do not commit or push; the user owns the checkpoint commit.
