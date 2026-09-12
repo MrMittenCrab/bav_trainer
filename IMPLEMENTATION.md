@@ -1,3 +1,5 @@
+Status: Step 9J.1 complete — GOOGL historical reference audit
+
 # Step 9J.1 — GOOGL Historical Reference Audit + Convergence Roadmap
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -66,7 +68,7 @@ This checkpoint should therefore answer a different question:
 
 The audit must never save or mutate the inspected workbook.
 
-- [ ] **Step 1: Write a synthetic workbook test first**
+- [x] **Step 1: Write a synthetic workbook test first**
 
 In `core/tests/test_reference_workbook_audit.py`, create a temporary workbook with:
 
@@ -98,7 +100,7 @@ assert result["sheets"][0]["nonempty_cells"] == 3
 
 Also require a stable list of representative text labels from the used range.
 
-- [ ] **Step 2: Run the test red**
+- [x] **Step 2: Run the test red**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_reference_workbook_audit.py -v
@@ -106,7 +108,7 @@ PYTHONPATH=. pytest core/tests/test_reference_workbook_audit.py -v
 
 Expected: fail because the audit utility does not exist.
 
-- [ ] **Step 3: Implement the smallest read-only audit**
+- [x] **Step 3: Implement the smallest read-only audit**
 
 Implement:
 
@@ -145,7 +147,7 @@ Rules:
 - close the workbook;
 - never call `save()`.
 
-- [ ] **Step 4: Add a simple CLI**
+- [x] **Step 4: Add a simple CLI**
 
 When executed directly:
 
@@ -161,7 +163,7 @@ print(json.dumps(audit_workbook(path), indent=2, default=str))
 
 No new `python -m core` command is added.
 
-- [ ] **Step 5: Run focused tests green**
+- [x] **Step 5: Run focused tests green**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_reference_workbook_audit.py -v
@@ -182,7 +184,7 @@ Expected: pass.
 - Consumes the audit utility from Task 1.
 - Produces a source-grounded reference inventory and historical gap map.
 
-- [ ] **Step 1: Record hashes before inspection**
+- [x] **Step 1: Record hashes before inspection**
 
 Run:
 
@@ -193,7 +195,7 @@ shasum -a 256 example/DEMO_HK_Answer_Key.xlsx
 
 Keep both values for end-of-checkpoint verification.
 
-- [ ] **Step 2: Run the audit on both workbooks**
+- [x] **Step 2: Run the audit on both workbooks**
 
 ```bash
 python scripts/audit_reference_workbook.py \
@@ -207,7 +209,7 @@ python scripts/audit_reference_workbook.py \
 
 Read both inventories before drafting the document.
 
-- [ ] **Step 3: Inspect the actual sheets directly where labels are ambiguous**
+- [x] **Step 3: Inspect the actual sheets directly where labels are ambiguous**
 
 Use a short one-off Python inspection with `openpyxl` to print only:
 
@@ -222,7 +224,7 @@ for sections necessary to understand the historical structure.
 
 Do not print or reproduce entire worksheets. Do not treat the root README or general model knowledge as evidence for a workbook section that is not actually visible in the GOOGL file.
 
-- [ ] **Step 4: Create `docs/GOOGL_HISTORICAL_REFERENCE.md` with exactly these sections**
+- [x] **Step 4: Create `docs/GOOGL_HISTORICAL_REFERENCE.md` with exactly these sections**
 
 ```markdown
 # GOOGL Historical Reference
@@ -247,7 +249,7 @@ Keep it analytical and concise. This is an internal development reference, not a
 **Interfaces:**
 - Produces one explicit classification per historical capability.
 
-- [ ] **Step 1: Use only these status labels**
+- [x] **Step 1: Use only these status labels**
 
 Every capability row must use exactly one status:
 
@@ -271,7 +273,7 @@ Definitions:
 - `not-trainer-target`: pipeline/automation or other functionality that should not become a Trainer feature merely because the reference has it.
 - `not-evidenced-in-GOOGL`: required by `TARGET.md`, but the inspected GOOGL workbook does not visibly evidence the topic.
 
-- [ ] **Step 2: The matrix must evaluate all of these historical areas**
+- [x] **Step 2: The matrix must evaluate all of these historical areas**
 
 Create one row for each:
 
@@ -309,7 +311,7 @@ Training adaptation
 Proposed Step 9 action
 ```
 
-- [ ] **Step 3: Separate GOOGL evidence from TARGET-driven requirements**
+- [x] **Step 3: Separate GOOGL evidence from TARGET-driven requirements**
 
 For every row:
 
@@ -317,7 +319,7 @@ For every row:
 - `Current Trainer` must cite the actual current sheet/family/feature, or say absent.
 - Do not claim GOOGL contains SBC, segment economics, NCI, or any other topic unless inspection actually supports that claim.
 
-- [ ] **Step 4: Treat forward sections as explicitly deferred**
+- [x] **Step 4: Treat forward sections as explicitly deferred**
 
 Any GOOGL content involving:
 
@@ -337,7 +339,7 @@ must be classified `deferred-forward` for the current roadmap.
 
 Do not translate these into active Step 9 implementation tasks.
 
-- [ ] **Step 5: Treat automation / monitoring as not a Trainer target**
+- [x] **Step 5: Treat automation / monitoring as not a Trainer target**
 
 Any reference functionality whose purpose is:
 
@@ -364,7 +366,7 @@ must be classified `not-trainer-target` unless a future user request changes pro
 **Interfaces:**
 - Produces the next Step 9 implementation order; it does not implement those modules yet.
 
-- [ ] **Step 1: Use four priority buckets**
+- [x] **Step 1: Use four priority buckets**
 
 The `Prioritized Step 9 queue` must use:
 
@@ -375,7 +377,7 @@ Priority C — TARGET-required historical topic not evidenced by GOOGL
 Deferred — forecasting / valuation / non-Trainer reference features
 ```
 
-- [ ] **Step 2: Rank within each bucket by dependency order**
+- [x] **Step 2: Rank within each bucket by dependency order**
 
 Use this ordering principle:
 
@@ -389,7 +391,7 @@ source facts
 
 Prefer foundational historical schedules before derivative interpretation exercises.
 
-- [ ] **Step 3: Do not preselect a module without evidence**
+- [x] **Step 3: Do not preselect a module without evidence**
 
 The first future implementation step after 9J.1 should be the highest-value `Priority A` item revealed by the audit.
 
@@ -397,7 +399,7 @@ If there is no credible Priority A item, the next step should define the smalles
 
 Do not choose forecasting as the fallback.
 
-- [ ] **Step 4: Keep root README minimal**
+- [x] **Step 4: Keep root README minimal**
 
 Only touch `README.md` if its `Planned` section still implies forecasting is the next immediate stage.
 
@@ -410,7 +412,7 @@ Later: forecasting, valuation, scenarios, and investment conclusions.
 
 Do not add the gap matrix to the README.
 
-- [ ] **Step 5: Update `RESULT.md`**
+- [x] **Step 5: Update `RESULT.md`**
 
 Record:
 
@@ -438,7 +440,7 @@ Do not claim a capability was implemented merely because it was identified.
 - Do not modify: `TARGET.md`
 - Do not modify: `example/GOOGL_Demo_Integrated_Financials.xlsx`
 
-- [ ] **Step 1: Re-check the reference workbook hashes**
+- [x] **Step 1: Re-check the reference workbook hashes**
 
 Run:
 
@@ -451,13 +453,13 @@ The GOOGL SHA-256 must exactly match the value recorded before inspection.
 
 The canonical Answer Key should also remain unchanged in this audit-only checkpoint.
 
-- [ ] **Step 2: Run focused audit tests**
+- [x] **Step 2: Run focused audit tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_reference_workbook_audit.py -v
 ```
 
-- [ ] **Step 3: Run historical release regressions**
+- [x] **Step 3: Run historical release regressions**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_learner_ready_presentation.py -v
@@ -467,7 +469,7 @@ PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
 PYTHONPATH=. pytest core/tests/test_trainer.py -v
 ```
 
-- [ ] **Step 4: Run the full suite**
+- [x] **Step 4: Run the full suite**
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
@@ -475,7 +477,7 @@ PYTHONPATH=. pytest core/tests/ -q
 
 Record the actual final passing count. The pre-Step-9J.1 baseline is `292 passed`; the count may increase only because of the new audit tests.
 
-- [ ] **Step 5: Verify product surfaces are unchanged**
+- [x] **Step 5: Verify product surfaces are unchanged**
 
 Require:
 
@@ -493,7 +495,7 @@ CLI = {ingest, build, check, list}
 
 No active formula family, workbook sheet, or practice count changes in Step 9J.1.
 
-- [ ] **Step 6: Verify Step 9I.1 presentation remains intact**
+- [x] **Step 6: Verify Step 9I.1 presentation remains intact**
 
 Fresh canonical Trainer and Answer Key still require:
 
@@ -505,7 +507,7 @@ learner/practice cells yellow
 no decorative borders
 ```
 
-- [ ] **Step 7: Verify forecasting remains dormant**
+- [x] **Step 7: Verify forecasting remains dormant**
 
 No normal build should execute or expose forecasting/valuation.
 

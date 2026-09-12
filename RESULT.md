@@ -1,59 +1,56 @@
-Status: Step 9I.1 complete — learner-ready historical presentation
+Status: Step 9J.1 complete — GOOGL historical reference audit
 
 Implementation base:
-- 80985ef Step 9H.1 complete
-- 917a0f5 Plan Step 9I.1
+- 69e500f Step 9I.1 complete
+- 63a6fac Plan Step 9J.1
 
-Presentation contract:
-- fresh visible workbook fonts: Aptos Narrow 11 everywhere
-- fresh visible workbook fills: white/yellow only
-- fresh visible workbook borders: none
-- Check green/red feedback preserved: yes
-- canonical example pair regenerated: yes
+Audit evidence:
+- GOOGL workbook inspected read-only: yes
+- current Trainer inspected: yes
+- historical gap matrix created: `docs/GOOGL_HISTORICAL_REFERENCE.md`
+- Priority A items: 6
+- Priority B items: 3
+- Priority C items: 2
+- next historical implementation candidate: capex / depreciation / PP&E / asset-intensity diagnostics (Priority A)
+- forecasting / valuation still deferred: yes
+- GOOGL workbook hash unchanged:
+  81faf2882d0df07ecf5def45695431c1935b4f7a94c1e017367596a063063896
+- DEMO_HK_Answer_Key.xlsx hash unchanged:
+  5392f571144ad72a4de623f02fc6aaabd6f91fa2c877a4a66be6ccbd70af49f4
+- TARGET.md unchanged by Cursor:
+  88f69fb47d8464084d504b6e65be9742d5e4924ca78a2c3412156293b3fa2015
 
-Documentation:
-- root README replaced with practical trainer guide: yes
-- legacy/pipeline origin material absent from root README: yes
-- README-HK-TRAINER lineage/plugin sections removed: yes
-
-Surfaces preserved:
-- base demo: 62 / 259 / 0-0-259 blank
-- normalization demo: 66 / 279 / 0-0-279 blank
-- canonical committed demo pair: 66 / 279 / 0-0-279 blank
+Product surfaces unchanged:
+- active family orders 1..78
+- base demo: 62 / 259
+- normalization demo: 66 / 279
 - shares only: 70 / 293
 - shares + norm: 78 / 331
-- services matrix: 59 / 248
-- retail matrix: 78 / 331
-- manufacturer matrix: 70 / 293
-- active family namespace 1..78 unchanged: yes
-
-Preservation:
-- CLI remains {ingest,build,check,list}
-- formulas / expected values / Check semantics unchanged: yes
-- DEMO_HK_Standardized.json / DEMO_HK_Assumptions.json unchanged: yes
-- TARGET.md unchanged:
-  c826071609046ba4205aed7fba564bbcc96b6afabec5bfe00b6cf38976d64b08
-- forecasting / valuation still deferred: yes
+- services: 59 / 248
+- retail: 78 / 331
+- manufacturer: 70 / 293
+- CLI: {ingest, build, check, list}
+- Step 9I.1 presentation intact: yes
+- deferred Model_*/Scenario_Summary remain hidden placeholders: yes
+- no new formula family / sheet / practice count: yes
 
 Files changed:
-- Add: `core/tests/test_learner_ready_presentation.py`
-- Modify: `core/trainer/workbook.py` — minimal white/yellow style
-- Modify: `core/tests/test_trainer.py` — style assertions
-- Replace: `README.md`
-- Modify: `README-HK-TRAINER.md`
-- Regenerate: `example/DEMO_HK_Trainer.xlsx`
-- Regenerate: `example/DEMO_HK_Answer_Key.xlsx`
+- Add: `scripts/audit_reference_workbook.py`
+- Add: `core/tests/test_reference_workbook_audit.py`
+- Add: `docs/GOOGL_HISTORICAL_REFERENCE.md`
+- Modify: `README.md` — Planned section points to historical convergence
 - Modify: `skills/bav-trainer/SKILL.md`
 - Modify: `RESULT.md`
 - Modify: `IMPLEMENTATION.md` status only
 
 Tests (fresh, local verification — no attached GitHub CI):
-- `PYTHONPATH=. pytest core/tests/ -q` -> 292 passed
+- `PYTHONPATH=. pytest core/tests/ -q` -> 294 passed
+- audit module -> 2 passed
 - CLI -> `{ingest,build,check,list}` only
 
 Known deferred limitations:
-- dormant deferred-forecast defaults/fallbacks remain
-- forecasting / valuation / investment conclusions remain deferred
+- forecasting / valuation / scenarios remain deferred
+- Priority B/C topics await explicit inputs or real-company cases
 - synthetic fixtures are not real-company validation
 
-Unresolved: none on the learner-ready presentation polish addressed by this checkpoint
+Unresolved: none on the GOOGL historical reference audit addressed by this checkpoint

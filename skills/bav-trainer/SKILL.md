@@ -153,6 +153,12 @@ Step 9I.1 — learner-ready presentation
 - Check green/red remains functional validation feedback only
 - root README is a practical trainer guide (no pipeline/lineage narrative)
 
+Step 9J.1 — GOOGL historical reference audit
+- read-only audit of `example/GOOGL_Demo_Integrated_Financials.xlsx`
+- historical gap matrix + prioritized Step 9 queue in `docs/GOOGL_HISTORICAL_REFERENCE.md`
+- next candidate: capex / depreciation / PP&E / asset-intensity diagnostics (Priority A)
+- no new formula families or practice counts in this checkpoint
+
 Still deferred: company-specific causal diagnosis, basic-vs-diluted attribution, forecasting, valuation, investment conclusions, ROU/deferred-tax alternative modeling, empirical real-company validation.
 
 ## Design principles

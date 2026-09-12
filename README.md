@@ -55,11 +55,9 @@ No automatic HKEX/SEC scraping in this product.
 
 ## Planned
 
-Next Step 9 work:
+Next:
 
-- Learner usability / real-company practice runs
-- Broader historical accounting judgments where source data supports them
-- Additional structured historical interpretation and diagnostics
+- Continue Step 9 historical convergence using the GOOGL integrated workbook as a structural reference.
 
 Later:
 
