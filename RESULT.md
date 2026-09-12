@@ -1,35 +1,33 @@
-Status: Step 9B.1 complete — historical working-capital diagnostics foundation
+Status: Step 9B.2 complete — historical working-capital driver decomposition
 
 Implementation base:
-- 67f273a Step 9.5 (Step 9A.5 complete)
+- 57bcda4 StepB.1 (Step 9B.1 complete)
 
 Historical formula surface (no normalization assumptions):
 - fiscal periods: 5
-- formula families: 36
-- formula practice cells: 168
-- fresh Check: 0 / 0 / 168
-
-Step 9A illustrative demo (with DEMO_HK_Assumptions.json):
-- fiscal periods: 5
-- formula families: 40
+- formula families: 41
 - formula practice cells: 188
 - fresh Check: 0 / 0 / 188
 
-Working-capital diagnostics:
-- applicability gate (any nonzero OWCA or OWCL): yes
-- all-zero OWCA/OWCL omits Working Capital Analysis sheet: yes
-- six families / 27 practice cells on five-year applicable demo: yes
-- OWCA / Revenue, OWCL / Revenue, NOWC / Revenue: yes
-- Change in Revenue, Change in NOWC: yes
-- Incremental NOWC / Change in Revenue: yes
-- zero Revenue / zero ΔRevenue -> `#N/A` / Excel `NA()`: yes
-- first-period change/incremental cells are non-applicable `N/A` text: yes
-- signed ΔNOWC / ΔRevenue retained (no absolute-value conversion): yes
-- live classification-conditioned Check (short-term investment FA↔OWCA): yes
-- trusted Condensed source-link tamper rejected before recolor: yes
-- exact/equivalent `#N/A` accepted; fabricated `0.0` rejected: yes
-- no automatic good/bad quality labels or seasonality inference: yes
-- Step 9A earnings-quality / source-completeness / `#N/A` conventions preserved: yes
+Step 9A illustrative demo (with DEMO_HK_Assumptions.json):
+- fiscal periods: 5
+- formula families: 45
+- formula practice cells: 208
+- fresh Check: 0 / 0 / 208
+
+Working-capital driver decomposition:
+- 11 working-capital families / 47 practice cells on five-year applicable demo: yes
+- Change in OWCA / Change in OWCL: yes
+- Change in NOWC from Components = ΔOWCA − ΔOWCL reconciles to direct ΔNOWC: yes
+- Incremental OWCA / ΔRevenue and Incremental OWCL / ΔRevenue: yes
+- zero ΔRevenue -> `#N/A` / Excel `NA()` on side incremental ratios: yes
+- signed declining-Revenue denominators retained (no ABS): yes
+- first-period driver rows are non-applicable `N/A` text: yes
+- DRIVER DECOMPOSITION CHECK trusted / tamper-detected before recolor: yes
+- live classification-conditioned OWCA driver Check: yes
+- all-zero OWCA/OWCL still omits Working Capital Analysis: yes
+- Step 9B.1 six families unchanged: yes
+- no causal line-item diagnosis or automatic quality score: yes
 
 Preservation:
 - CLI remains {ingest,build,check,list}
@@ -38,27 +36,25 @@ Preservation:
 - forecasting / valuation not begun: yes
 
 Files changed:
-- Add: `core/model/working_capital.py`
-- Add: `core/tests/test_working_capital.py`
-- Modify: `core/engine/component_catalog.py` — WORKING_CAPITAL_COMPONENT_CATALOG + expand
-- Modify: `core/model/historical_expected.py` — working_capital_expected_series
-- Modify: `core/engine/reference_model.py` — applicability, sheet, registration
-- Modify: `core/trainer/check_context.py` — trusted Working Capital Analysis sheet
-- Modify: `core/trainer/workbook.py` — family meta for list/index
-- Modify: `core/tests/test_*.py` — demo surface 36/168 and 40/188
-- Modify: `skills/bav-trainer/SKILL.md` — surface counts + schedule list
+- Modify: `core/model/working_capital.py` — OWCA/OWCL changes + bridge + side incremental ratios
+- Modify: `core/engine/component_catalog.py` — five new WC families (orders 41–45)
+- Modify: `core/model/historical_expected.py` — expected series keys for new families
+- Modify: `core/engine/reference_model.py` — driver-decomposition section + trusted check row
+- Modify: `core/tests/test_working_capital.py` — bridge / live / `#N/A` / tamper regressions
+- Modify: `core/tests/test_*.py` — demo surface 41/188 and 45/208
+- Modify: `skills/bav-trainer/SKILL.md` — surface counts + driver bridge note
 - Modify: `RESULT.md`
 - Modify: `IMPLEMENTATION.md` status only
 
 Tests (fresh, local verification — no attached GitHub CI):
-- `PYTHONPATH=. pytest core/tests/ -q` -> 210 passed
-- base build/check/list -> 168 / 36 / 0-0-168 blank
-- norm build/check/list -> 188 / 40 / 0-0-188 blank
+- `PYTHONPATH=. pytest core/tests/ -q` -> 213 passed
+- base build/check/list -> 188 / 41 / 0-0-188 blank
+- norm build/check/list -> 208 / 45 / 0-0-208 blank
 - CLI -> `{ingest,build,check,list}` only
 
 Known deferred limitations:
 - dormant deferred-forecast defaults/fallbacks remain
-- working-capital interpretation beyond mechanical diagnostics remains deferred
+- line-item causal working-capital diagnosis remains deferred
 - quality scoring / forecasting / valuation remain deferred
 
-Unresolved: none on the active historical working-capital diagnostic surface addressed by this checkpoint
+Unresolved: none on the active historical working-capital driver-decomposition surface addressed by this checkpoint

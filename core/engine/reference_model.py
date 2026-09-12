@@ -1599,10 +1599,141 @@ class ReferenceModelBuilder:
                 else float(incr_expected),
             )
 
+        # Driver decomposition section (Step 9B.2)
+        section_row = 18
+        owca_change_row = 19
+        owcl_change_row = 20
+        nowc_bridge_row = 21
+        incremental_owca_row = 22
+        incremental_owcl_row = 23
+        driver_check_row = 24
+
+        ws.cell(row=section_row, column=1, value="WORKING-CAPITAL DRIVER DECOMPOSITION").font = BOLD
+        ws.cell(row=owca_change_row, column=1, value="Change in OWCA")
+        ws.cell(row=owcl_change_row, column=1, value="Change in OWCL")
+        ws.cell(row=nowc_bridge_row, column=1, value="Change in NOWC from Components")
+        ws.cell(
+            row=incremental_owca_row,
+            column=1,
+            value="Incremental OWCA / Change in Revenue",
+        )
+        ws.cell(
+            row=incremental_owcl_row,
+            column=1,
+            value="Incremental OWCL / Change in Revenue",
+        )
+        ws.cell(row=driver_check_row, column=1, value="DRIVER DECOMPOSITION CHECK").font = BOLD
+
+        for j in range(self._n):
+            col = self._col(2 + j)
+            if j == 0:
+                for row in (
+                    owca_change_row,
+                    owcl_change_row,
+                    nowc_bridge_row,
+                    incremental_owca_row,
+                    incremental_owcl_row,
+                    driver_check_row,
+                ):
+                    ws.cell(row=row, column=2 + j, value="N/A")
+                continue
+
+            prev_col = self._col(2 + j - 1)
+            owca_chg = f"={col}{owca_row}-{prev_col}{owca_row}"
+            owcl_chg = f"={col}{owcl_row}-{prev_col}{owcl_row}"
+            nowc_bridge = f"={col}{owca_change_row}-{col}{owcl_change_row}"
+            incr_owca = (
+                f"=IF({col}{rev_chg_row}=0,NA(),"
+                f"{col}{owca_change_row}/{col}{rev_chg_row})"
+            )
+            incr_owcl = (
+                f"=IF({col}{rev_chg_row}=0,NA(),"
+                f"{col}{owcl_change_row}/{col}{rev_chg_row})"
+            )
+            driver_check = (
+                f'=IF(ABS({col}{nowc_bridge_row}-{col}{nowc_chg_row})<0.01,'
+                f'"OK","CHECK")'
+            )
+
+            c = ws.cell(row=owca_change_row, column=2 + j, value=owca_chg)
+            c.number_format = NUM_FMT
+            c = ws.cell(row=owcl_change_row, column=2 + j, value=owcl_chg)
+            c.number_format = NUM_FMT
+            c = ws.cell(row=nowc_bridge_row, column=2 + j, value=nowc_bridge)
+            c.number_format = NUM_FMT
+            c = ws.cell(row=incremental_owca_row, column=2 + j, value=incr_owca)
+            c.number_format = PCT_FMT
+            c = ws.cell(row=incremental_owcl_row, column=2 + j, value=incr_owcl)
+            c.number_format = PCT_FMT
+            ws.cell(row=driver_check_row, column=2 + j, value=driver_check)
+
+            assert series.owca_change[j] is not None
+            assert series.owcl_change[j] is not None
+            assert series.nowc_change_from_components[j] is not None
+            self._register_working_capital(
+                "owca_change",
+                j,
+                WORKING_CAPITAL_SHEET,
+                owca_change_row,
+                2 + j,
+                owca_chg,
+                float(series.owca_change[j]),
+            )
+            self._register_working_capital(
+                "owcl_change",
+                j,
+                WORKING_CAPITAL_SHEET,
+                owcl_change_row,
+                2 + j,
+                owcl_chg,
+                float(series.owcl_change[j]),
+            )
+            self._register_working_capital(
+                "nowc_change_from_components",
+                j,
+                WORKING_CAPITAL_SHEET,
+                nowc_bridge_row,
+                2 + j,
+                nowc_bridge,
+                float(series.nowc_change_from_components[j]),
+            )
+            incr_owca_expected = series.incremental_owca_to_revenue_change[j]
+            assert incr_owca_expected is not None
+            self._register_working_capital(
+                "incremental_owca_to_revenue_change",
+                j,
+                WORKING_CAPITAL_SHEET,
+                incremental_owca_row,
+                2 + j,
+                incr_owca,
+                incr_owca_expected
+                if isinstance(incr_owca_expected, str)
+                else float(incr_owca_expected),
+            )
+            incr_owcl_expected = series.incremental_owcl_to_revenue_change[j]
+            assert incr_owcl_expected is not None
+            self._register_working_capital(
+                "incremental_owcl_to_revenue_change",
+                j,
+                WORKING_CAPITAL_SHEET,
+                incremental_owcl_row,
+                2 + j,
+                incr_owcl,
+                incr_owcl_expected
+                if isinstance(incr_owcl_expected, str)
+                else float(incr_owcl_expected),
+            )
+
         self.rowmap["wc_revenue_row"] = rev_row
         self.rowmap["wc_owca_row"] = owca_row
         self.rowmap["wc_owcl_row"] = owcl_row
         self.rowmap["wc_nowc_row"] = nowc_row
+        self.rowmap["wc_owca_change_row"] = owca_change_row
+        self.rowmap["wc_owcl_change_row"] = owcl_change_row
+        self.rowmap["wc_nowc_bridge_row"] = nowc_bridge_row
+        self.rowmap["wc_incremental_owca_row"] = incremental_owca_row
+        self.rowmap["wc_incremental_owcl_row"] = incremental_owcl_row
+        self.rowmap["wc_driver_check_row"] = driver_check_row
 
     def _build_model_tab(self, wb: Workbook, scenario: str) -> None:
         ws = wb.create_sheet(f"Model_{scenario}")

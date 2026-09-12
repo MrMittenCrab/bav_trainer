@@ -64,6 +64,11 @@ _WORKING_CAPITAL_FAMILY_SERIES = (
     "revenue_change",
     "nowc_change",
     "incremental_nowc_to_revenue_change",
+    "owca_change",
+    "owcl_change",
+    "nowc_change_from_components",
+    "incremental_owca_to_revenue_change",
+    "incremental_owcl_to_revenue_change",
 )
 
 
@@ -165,6 +170,11 @@ def working_capital_expected_series(
         "revenue_change": wc.revenue_change,
         "nowc_change": wc.nowc_change,
         "incremental_nowc_to_revenue_change": wc.incremental_nowc_to_revenue_change,
+        "owca_change": wc.owca_change,
+        "owcl_change": wc.owcl_change,
+        "nowc_change_from_components": wc.nowc_change_from_components,
+        "incremental_owca_to_revenue_change": wc.incremental_owca_to_revenue_change,
+        "incremental_owcl_to_revenue_change": wc.incremental_owcl_to_revenue_change,
     }
     expected_ids = {family.id for family in WORKING_CAPITAL_COMPONENT_CATALOG}
     if set(series) != expected_ids:

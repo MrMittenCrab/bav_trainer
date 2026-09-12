@@ -1,4 +1,4 @@
-"""Historical working-capital intensity and incremental diagnostics (Step 9B.1)."""
+"""Historical working-capital intensity and incremental diagnostics (Step 9B)."""
 
 from __future__ import annotations
 
@@ -16,6 +16,11 @@ class WorkingCapitalSeries:
     revenue_change: tuple[float | None, ...]
     nowc_change: tuple[float | None, ...]
     incremental_nowc_to_revenue_change: tuple[float | str | None, ...]
+    owca_change: tuple[float | None, ...]
+    owcl_change: tuple[float | None, ...]
+    nowc_change_from_components: tuple[float | None, ...]
+    incremental_owca_to_revenue_change: tuple[float | str | None, ...]
+    incremental_owcl_to_revenue_change: tuple[float | str | None, ...]
 
 
 def _source_series(anchor: AnchorMetrics) -> tuple[
@@ -70,12 +75,30 @@ def compute_working_capital_series(anchor: AnchorMetrics) -> WorkingCapitalSerie
     revenue_change: list[float | None] = [None]
     nowc_change: list[float | None] = [None]
     incremental: list[float | str | None] = [None]
+    owca_change: list[float | None] = [None]
+    owcl_change: list[float | None] = [None]
+    nowc_change_from_components: list[float | None] = [None]
+    incremental_owca: list[float | str | None] = [None]
+    incremental_owcl: list[float | str | None] = [None]
     for i in range(1, n):
         delta_revenue = revenue[i] - revenue[i - 1]
         delta_nowc = nowc[i] - nowc[i - 1]
+        delta_owca = owca[i] - owca[i - 1]
+        delta_owcl = owcl[i] - owcl[i - 1]
+        bridge_nowc = delta_owca - delta_owcl
+        if abs(bridge_nowc - delta_nowc) > 1e-9:
+            raise ValueError(
+                "working-capital change bridge does not reconcile: "
+                f"period_index={i} direct={delta_nowc} bridge={bridge_nowc}"
+            )
         revenue_change.append(delta_revenue)
         nowc_change.append(delta_nowc)
         incremental.append(ratio_or_na(delta_nowc, delta_revenue))
+        owca_change.append(delta_owca)
+        owcl_change.append(delta_owcl)
+        nowc_change_from_components.append(bridge_nowc)
+        incremental_owca.append(ratio_or_na(delta_owca, delta_revenue))
+        incremental_owcl.append(ratio_or_na(delta_owcl, delta_revenue))
 
     return WorkingCapitalSeries(
         owca_to_revenue=owca_to_revenue,
@@ -84,4 +107,9 @@ def compute_working_capital_series(anchor: AnchorMetrics) -> WorkingCapitalSerie
         revenue_change=tuple(revenue_change),
         nowc_change=tuple(nowc_change),
         incremental_nowc_to_revenue_change=tuple(incremental),
+        owca_change=tuple(owca_change),
+        owcl_change=tuple(owcl_change),
+        nowc_change_from_components=tuple(nowc_change_from_components),
+        incremental_owca_to_revenue_change=tuple(incremental_owca),
+        incremental_owcl_to_revenue_change=tuple(incremental_owcl),
     )

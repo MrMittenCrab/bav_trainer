@@ -1,5 +1,7 @@
 # Step 9B.2 — Historical Working-Capital Driver Decomposition
 
+> **Status:** Step 9B.2 complete. See `RESULT.md` for verification evidence (213 passed; base 41/188; normalization 45/208; OWCA/OWCL driver bridge + trusted DRIVER DECOMPOSITION CHECK). Do not commit or push from this checkpoint unless the user requests it.
+
 > **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `57bcda4af010a70f21bb7515d03486e83e5be936` (`StepB.1`, Step 9B.1 complete). Implement only Step 9B.2 below using red/green TDD. Preserve Step 8 classification/normalization judgment, the trusted-workbook boundary, Step 9A earnings-quality/source-completeness/`#N/A` semantics, and the complete Step 9B.1 Working Capital Analysis surface. Do not add automatic good/bad quality labels, line-item causal inference, seasonality claims, forecasting, valuation, ROU/deferred-tax alternative modeling, segment analysis, or later research-diagnostic work. Do not commit or push; the user owns the checkpoint commit.
 
 **Goal:** Extend the Working Capital Analysis from one net `Change in NOWC` measure into an auditable driver bridge showing how changes in Operating Working Capital Assets and Operating Working Capital Liabilities combine into the net working-capital investment, and how each side moves relative to incremental Revenue.
