@@ -1,18 +1,16 @@
-# Step 9D.1 — Historical ROE Operating / Financing Attribution
-
-> **STATUS: COMPLETE** — verified locally (`232 passed`; base 58/244; norm 62/264). See `RESULT.md`.
+# Step 9E.1 — Historical Cash-Conversion Trend Diagnostics
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `2ba3e65accbce9584aad8f6be74ad14c5ac7bfd6` (`step 9C2`, Step 9C.2 complete). Implement only Step 9D.1 below using red/green TDD. Preserve Step 8 classification/normalization judgment, the trusted-workbook boundary, all Step 9A source-completeness / tax / normalization / `#N/A` semantics, the complete Step 9B working-capital diagnostics, and the complete Step 9C RNOA level/change attribution surface. Do not add company-specific causal claims, automatic good/bad profitability or leverage labels, forecasting, valuation, segment analysis, ROU/deferred-tax alternative modeling, or later research-diagnostic work. Do not commit or push; the user owns the checkpoint commit.
+> **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `787a1b97b6e2c6664b7e81304165c6757ca325b6` (`Step 9D1`, Step 9D.1 complete). Implement only Step 9E.1 below using red/green TDD. Preserve Step 8 classification/normalization judgment, the trusted-workbook boundary, all Step 9A source-completeness / tax / normalization / `#N/A` semantics, the complete Step 9B working-capital diagnostics, the complete Step 9C RNOA level/change attribution surface, and the complete Step 9D ROE operating/financing attribution surface. Do not add company-specific causal claims, automatic good/bad earnings-quality labels, forecasting, valuation, historical share-count schema changes, segment analysis, ROU/deferred-tax alternative modeling, or later research-diagnostic work. Do not commit or push; the user owns the checkpoint commit.
 
-**Goal:** Extend historical DuPont analysis from RNOA drivers to an exact operating-versus-financing attribution of ROE, so the learner can distinguish changes in operating return from changes caused by financial leverage and financing spread without inventing causal explanations.
+**Goal:** Extend the existing Earnings Quality schedule from level diagnostics into period-to-period cash-conversion trends so the learner can see how Operating Cash Flow, cash conversion, and accrual measures moved over time without turning mechanical changes into unsupported quality judgments.
 
-**Architecture:** Keep the existing direct `ROE (decomposed) = RNOA + FLEV × Spread` formula unchanged. Add one focused `ROEAttributionSeries` that exposes the financing contribution at each comparable period and attributes period-to-period decomposed-ROE change into Operating Effect (`ΔRNOA`), Leverage Effect, and Spread Effect using symmetric midpoint weights. Add seven semantic families to the existing `ALT DuPont` sheet plus generated non-practice reconciliation checks. Dynamic Check must recompute all values under the learner's current classification treatment, while existing trusted-sheet validation protects the generated checks automatically.
+**Architecture:** Keep the existing `EarningsQualitySeries` and five Step 9A formula families unchanged. Add one focused `EarningsQualityChangeSeries` that consumes the already validated quality series and produces four change series. Add four new semantic families after the current Step 9D surface, append a trend section to the existing `Earnings Quality` worksheet, and reuse the existing dynamic Check / trusted-sheet architecture. The Total-Assets-dependent accrual-ratio change family remains gated exactly like the existing asset-scaled quality extension.
 
-**Tech Stack:** Python, dataclasses, pytest, openpyxl, existing `AnchorMetrics`, `ProfitabilityChangeSeries`, `UNDEFINED_RATIO`, `ComponentFamily`, `SemanticMap`, `ReferenceModelBuilder`, `historical_expected`, `check_workbook`, and trusted-sheet validation for `ALT DuPont`.
+**Tech Stack:** Python, dataclasses, pytest, openpyxl, existing `EarningsQualitySeries`, `UNDEFINED_RATIO`, `ComponentFamily`, `SemanticMap`, `ReferenceModelBuilder`, `historical_expected`, `check_workbook`, and existing trusted-sheet validation for `Earnings Quality`.
 
-**Spec:** `TARGET.md`, especially the interpretation requirement “Is an apparent improvement in ROE operating or financing-driven?”, operating/financing reformulation, RNOA / after-tax cost of debt / Spread / FLEV / ROE decomposition, historical dependency order, and the rule that diagnostic arithmetic must be distinguished from unsupported causal claims.
+**Spec:** `TARGET.md`, especially the requirements to explain changes in cash conversion, cover accruals / cash conversion / quality of earnings, diagnose whether cash conversion is consistent with reported profitability, follow material/applicable-topic gating, and keep structured diagnostics separate from unsupported causal or investment-quality claims.
 
 ## Global Constraints
 
@@ -20,101 +18,72 @@
 - Preserve non-financial-company scope.
 - Preserve all existing Step 8 judgment behavior and treatment-conditioned Check.
 - Preserve all Step 9A source-completeness, tax, normalization, and `#N/A` semantics.
-- Preserve all 11 Step 9B working-capital families unchanged.
-- Preserve all Step 9C.1 profitability-driver and Step 9C.2 profitability-change families unchanged.
-- Use only the authoritative treatment-conditioned `AnchorMetrics`; do not resolve or reclassify source statements again.
-- Preserve the existing level identity `ROE (decomposed) = RNOA + FLEV × Spread` unchanged.
-- Define `Financing Contribution to ROE = FLEV × Spread` only when both inputs are defined.
-- Change attribution begins only when two consecutive comparable ROE periods exist. In a five-period history this means fiscal-period indices `2, 3, 4`.
-- First fiscal period is non-applicable for financing-contribution level analysis because FLEV / Spread are non-applicable there.
-- First fiscal period and first comparable fiscal period are non-applicable for ROE change attribution.
-- `Operating Effect on Change in ROE = Change in RNOA`.
-- Attribute the change in `FLEV × Spread` symmetrically: do not assign the interaction term arbitrarily to leverage or spread.
-- Preserve signs. Do not take absolute values of RNOA, FLEV, Spread, changes, or effects.
-- Undefined required driver values propagate to `#N/A`; never fabricate zero effects.
-- A numeric zero FLEV or Spread with the other input defined may produce a numeric zero financing contribution. Do not short-circuit `0 × #N/A` to zero; undefined inputs remain undefined.
-- `Actual ROE` remains an independent reported-equity diagnostic. This checkpoint attributes **decomposed ROE**, not Actual ROE.
-- Do not infer debt-policy quality, funding stress, management intent, cost-of-capital changes, or capital-allocation quality automatically from the arithmetic attribution.
+- Preserve all Step 9B, Step 9C, and Step 9D families/formulas unchanged.
+- Preserve the original five `QUALITY_COMPONENT_CATALOG` families unchanged.
+- The new trend module is applicable only when the existing Earnings Quality module is applicable, i.e. Operating Cash Flow resolves and is complete.
+- If Operating Cash Flow is absent, there is no `Earnings Quality` sheet and there must be no Step 9E.1 families.
+- If Total Assets is absent, the three core change families remain applicable but `Change in Accrual Ratio` is omitted from the semantic practice surface.
+- First-period differences are non-applicable, not numeric zero.
+- `Change in Accrual Ratio` additionally requires two defined comparable accrual-ratio observations, so fiscal-period indices `0` and `1` are non-applicable.
+- If either the current or prior ratio is undefined (`#N/A`), the corresponding ratio change is also `#N/A`.
+- A numeric zero difference is a valid `0.0`; do not convert unchanged metrics to `#N/A`.
+- Preserve signs. Do not take absolute values of CFO changes, conversion changes, accrual changes, or accrual-ratio changes.
+- Do not automatically label higher/lower cash conversion, accruals, or accrual ratio as good, bad, improving, deteriorating, sustainable, or suspicious.
+- Do not infer collection quality, inventory issues, supplier behavior, earnings manipulation, seasonality, or management intent from these aggregate changes.
 - Do not add automatic quality scoring or free-form automatic grading.
-- Do not add forecasting, valuation, scenarios, Hint/Reveal, VBA, or new public CLI commands.
+- Do not add forecasting, valuation, scenarios, historical diluted-share schema work, Hint/Reveal, VBA, or new public CLI commands.
 - Do not modify dormant forecast/scenario behavior.
 - Cursor must not commit, push, reset, rebase, merge, or delete branches.
 
 ---
 
-## Review of commit `2ba3e65a`
+## Review of commit `787a1b97`
 
-Step 9C.2 is complete and coherent:
+Step 9D.1 is complete and coherent:
 
-- six RNOA-change families attribute direct `ΔRNOA` to NOPAT-Margin and NOA-Turnover effects;
-- midpoint weighting gives an exact order-neutral product-change attribution;
-- undefined Margin / Turnover inputs propagate to `#N/A` rather than fabricated zero effects;
-- the generated `RNOA CHANGE DRIVER CHECK` is trusted and tamper-detected;
-- live classification changes turnover-sensitive dynamic expected values;
-- base demo is 51 families / 222 practice cells;
-- normalization demo is 55 families / 242 practice cells;
-- `RESULT.md` records 226 locally passing tests;
+- Financing Contribution to ROE is exposed as `FLEV × Spread`;
+- historical decomposed-ROE changes are split into Operating, Leverage, and Spread effects;
+- midpoint weighting provides exact order-neutral financing-product attribution;
+- undefined financing inputs propagate to `#N/A` rather than fabricated zero effects;
+- level and change reconciliation checks are trusted and tamper-detected;
+- live classification changes financing-sensitive dynamic expected values;
+- base demo is 58 families / 244 practice cells;
+- normalization demo is 62 families / 264 practice cells;
+- `RESULT.md` records 232 locally passing tests;
 - GitHub has no attached CI status.
 
-The remaining historical interpretation gap is the next question explicitly named in `TARGET.md`: whether an ROE movement is operating or financing-driven.
-
-The current model already calculates:
+The remaining historical interpretation gap explicitly named in `TARGET.md` is cash conversion. Step 9A currently shows the level diagnostics:
 
 ```text
-ROE = RNOA + FLEV × Spread
+Cash Conversion Ratio = CFO / Reported Net Income
+Total Accruals         = Reported Net Income - CFO
+Accrual Ratio          = Total Accruals / Average Total Assets
 ```
 
-so define the financing contribution:
+but the learner still has to inspect the rows manually to determine what changed over time.
+
+Step 9E.1 adds **trend arithmetic only**:
 
 ```text
-Financing Contribution = FLEV × Spread
+Change in CFO
+Change in Cash Conversion Ratio
+Change in Total Accruals
+Change in Accrual Ratio
 ```
 
-For period-to-period changes:
-
-```text
-Change in ROE
-= Change in RNOA
-+ Change in (FLEV × Spread)
-```
-
-Decompose the financing-product change symmetrically:
-
-```text
-Leverage Effect
-= (FLEV_t - FLEV_(t-1))
-  × (Spread_t + Spread_(t-1)) / 2
-
-Spread Effect
-= (Spread_t - Spread_(t-1))
-  × (FLEV_t + FLEV_(t-1)) / 2
-
-Financing Effect
-= Leverage Effect + Spread Effect
-
-Change in ROE from Drivers
-= Operating Effect + Financing Effect
-```
-
-where:
-
-```text
-Operating Effect = Change in RNOA
-```
-
-This is exact when all required inputs are defined. It is an arithmetic attribution, not a causal model of financing policy.
+It does not decide whether those movements represent better or worse earnings quality.
 
 ---
 
-### Task 1: Add authoritative ROE operating / financing attribution series
+### Task 1: Add authoritative earnings-quality change series
 
 **Files:**
-- Create: `core/model/roe_attribution.py`
-- Create: `core/tests/test_roe_attribution.py`
+- Create: `core/model/earnings_quality_change.py`
+- Create: `core/tests/test_earnings_quality_change.py`
 
 **Interfaces:**
-- Consumes: `AnchorMetrics`, `compute_profitability_change_series(anchor)`, `UNDEFINED_RATIO`.
-- Produces: `ROEAttributionSeries` and `compute_roe_attribution_series(anchor)`.
+- Consumes: `EarningsQualitySeries`, `UNDEFINED_RATIO`.
+- Produces: `EarningsQualityChangeSeries` and `compute_earnings_quality_change_series(earnings_quality)`.
 
 - [ ] **Step 1: Write the failing data-model and ordinary-case test**
 
@@ -125,57 +94,47 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .financial_math import AnchorMetrics
-from .profitability_change import compute_profitability_change_series
+from .earnings_quality import EarningsQualitySeries
 from .ratio_values import UNDEFINED_RATIO
 
 
 @dataclass(frozen=True)
-class ROEAttributionSeries:
-    financing_contribution_to_roe: tuple[float | str | None, ...]
-    roe_change: tuple[float | str | None, ...]
-    operating_effect_on_roe_change: tuple[float | str | None, ...]
-    leverage_effect_on_roe_change: tuple[float | str | None, ...]
-    spread_effect_on_roe_change: tuple[float | str | None, ...]
-    financing_effect_on_roe_change: tuple[float | str | None, ...]
-    roe_change_from_drivers: tuple[float | str | None, ...]
+class EarningsQualityChangeSeries:
+    operating_cash_flow_change: tuple[float | None, ...]
+    cash_conversion_ratio_change: tuple[float | str | None, ...]
+    total_accruals_change: tuple[float | None, ...]
+    accrual_ratio_change: tuple[float | str | None, ...]
 ```
 
-Test an ordinary numeric case such as:
+Use a three- or four-period synthetic `EarningsQualitySeries` and verify ordinary differences.
+
+Example:
 
 ```text
-Prior RNOA   = 12%
-Current RNOA = 15%
-Prior FLEV   = 0.40x
-Current FLEV = 0.50x
-Prior Spread = 4%
-Current Spread = 6%
-Prior ROE    = 13.6%
-Current ROE  = 18.0%
+CFO:                  80 -> 90 -> 120
+Cash Conversion:     0.80 -> 0.75 -> 1.00
+Total Accruals:      20 -> 30 -> 0
+Accrual Ratio:       N/A-period -> 0.10 -> 0.04
 ```
 
-Expected:
+Expected changes:
 
 ```text
-Prior financing contribution   = 0.40 × 0.04 = 0.016
-Current financing contribution = 0.50 × 0.06 = 0.030
-Direct Change in ROE           = 0.044
-Operating Effect               = 0.030
-Leverage Effect                = 0.10 × 0.05 = 0.005
-Spread Effect                  = 0.02 × 0.45 = 0.009
-Financing Effect               = 0.014
-Change in ROE from Drivers     = 0.044
+Change CFO:              None, +10, +30
+Change Cash Conversion:  None, -0.05, +0.25
+Change Total Accruals:   None, +10, -30
+Change Accrual Ratio:    None, None, -0.06
 ```
 
-- [ ] **Step 2: Run the focused test and verify red state**
+- [ ] **Step 2: Run focused tests and verify red state**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_roe_attribution.py -v
+PYTHONPATH=. pytest core/tests/test_earnings_quality_change.py -v
 ```
 
-Expected: fail because `core.model.roe_attribution` does not yet exist.
+Expected: fail because `core.model.earnings_quality_change` does not yet exist.
 
-- [ ] **Step 3: Implement source-series validation and helpers**
+- [ ] **Step 3: Implement one undefined-aware difference helper**
 
 Create:
 
@@ -184,184 +143,91 @@ def _difference_or_na(current, prior) -> float | str:
     if current == UNDEFINED_RATIO or prior == UNDEFINED_RATIO:
         return UNDEFINED_RATIO
     return float(current) - float(prior)
-
-
-def _product_or_na(left, right) -> float | str:
-    if left == UNDEFINED_RATIO or right == UNDEFINED_RATIO:
-        return UNDEFINED_RATIO
-    return float(left) * float(right)
 ```
 
-Then begin:
+Do not introduce tolerance or zero-default behavior.
+
+- [ ] **Step 4: Implement series-length validation and first-period semantics**
+
+Create:
 
 ```python
-def compute_roe_attribution_series(
-    anchor: AnchorMetrics,
-) -> ROEAttributionSeries:
-    profitability_change = compute_profitability_change_series(anchor)
-    rnoa = tuple(anchor.dupont["RNOA"])
-    flev = tuple(anchor.dupont["FLEV"])
-    spread = tuple(anchor.dupont["Spread"])
-    roe = tuple(anchor.dupont["ROE (decomposed)"])
+def compute_earnings_quality_change_series(
+    earnings_quality: EarningsQualitySeries,
+) -> EarningsQualityChangeSeries:
+    cfo = tuple(earnings_quality.operating_cash_flow)
+    conversion = tuple(earnings_quality.cash_conversion_ratio)
+    accruals = tuple(earnings_quality.total_accruals)
+    accrual_ratio = tuple(earnings_quality.accrual_ratio)
 
     lengths = {
-        "RNOA": len(rnoa),
-        "FLEV": len(flev),
-        "Spread": len(spread),
-        "ROE (decomposed)": len(roe),
-        "RNOA change": len(profitability_change.rnoa_change),
+        "operating_cash_flow": len(cfo),
+        "cash_conversion_ratio": len(conversion),
+        "total_accruals": len(accruals),
+        "accrual_ratio": len(accrual_ratio),
     }
-    if len(set(lengths.values())) != 1 or lengths["RNOA"] == 0:
+    if len(set(lengths.values())) != 1 or lengths["operating_cash_flow"] == 0:
         raise ValueError(
-            "ROE-attribution series length mismatch: "
+            "earnings-quality change series length mismatch: "
             + ", ".join(f"{name}={n}" for name, n in lengths.items())
         )
+
+    n = len(cfo)
+    cfo_change: list[float | None] = [None] * n
+    conversion_change: list[float | str | None] = [None] * n
+    accruals_change: list[float | None] = [None] * n
+    accrual_ratio_change: list[float | str | None] = [None] * n
 ```
 
-- [ ] **Step 4: Implement financing-contribution level series**
+- [ ] **Step 5: Implement core comparable-period changes**
 
-Initialize:
-
-```python
-n = len(rnoa)
-financing_contribution: list[float | str | None] = [None] * n
-```
-
-For `i >= 1`:
+For every `i >= 1`:
 
 ```python
-contribution = _product_or_na(flev[i], spread[i])
-financing_contribution[i] = contribution
-
-if contribution != UNDEFINED_RATIO:
-    if rnoa[i] == UNDEFINED_RATIO or roe[i] == UNDEFINED_RATIO:
-        raise ValueError(
-            "ROE financing contribution is numeric while level ROE identity is undefined: "
-            f"period_index={i} contribution={contribution}"
-        )
-    level_roe = float(rnoa[i]) + float(contribution)
-    if abs(level_roe - float(roe[i])) > 1e-9:
-        raise ValueError(
-            "ROE operating/financing level bridge does not reconcile: "
-            f"period_index={i} direct={roe[i]} bridge={level_roe}"
-        )
-```
-
-Do not define a financing contribution for index `0` because FLEV / Spread are non-applicable there.
-
-- [ ] **Step 5: Implement change-attribution series**
-
-Initialize:
-
-```python
-roe_change: list[float | str | None] = [None] * n
-operating_effect: list[float | str | None] = [None] * n
-leverage_effect: list[float | str | None] = [None] * n
-spread_effect: list[float | str | None] = [None] * n
-financing_effect: list[float | str | None] = [None] * n
-driver_change: list[float | str | None] = [None] * n
-```
-
-For every `i >= 2`:
-
-```python
-direct_delta = _difference_or_na(roe[i], roe[i - 1])
-operating = profitability_change.rnoa_change[i]
-assert operating is not None
-
-roe_change[i] = direct_delta
-operating_effect[i] = operating
-
-required_financing = (
-    flev[i],
-    flev[i - 1],
-    spread[i],
-    spread[i - 1],
+cfo_change[i] = float(cfo[i]) - float(cfo[i - 1])
+conversion_change[i] = _difference_or_na(
+    conversion[i],
+    conversion[i - 1],
 )
-if any(value == UNDEFINED_RATIO for value in required_financing):
-    leverage_effect[i] = UNDEFINED_RATIO
-    spread_effect[i] = UNDEFINED_RATIO
-    financing_effect[i] = UNDEFINED_RATIO
-else:
-    leverage_value = (
-        (float(flev[i]) - float(flev[i - 1]))
-        * (float(spread[i]) + float(spread[i - 1]))
-        / 2.0
-    )
-    spread_value = (
-        (float(spread[i]) - float(spread[i - 1]))
-        * (float(flev[i]) + float(flev[i - 1]))
-        / 2.0
-    )
-    financing_value = leverage_value + spread_value
-
-    leverage_effect[i] = leverage_value
-    spread_effect[i] = spread_value
-    financing_effect[i] = financing_value
+accruals_change[i] = float(accruals[i]) - float(accruals[i - 1])
 ```
 
-Then:
+- [ ] **Step 6: Implement asset-scaled accrual-ratio changes**
+
+The existing no-Total-Assets path represents `accrual_ratio` as all `None`.
+
+Detect applicability with:
 
 ```python
-if operating == UNDEFINED_RATIO or financing_effect[i] == UNDEFINED_RATIO:
-    driver_change[i] = UNDEFINED_RATIO
-else:
-    driver_change[i] = float(operating) + float(financing_effect[i])
+has_accrual_ratio = any(
+    value is not None
+    for value in accrual_ratio[1:]
+)
 ```
 
-- [ ] **Step 6: Add independent financing-change and total-ROE reconciliation checks**
-
-When `financing_effect[i]` is numeric and both financing-contribution levels are numeric:
+If `has_accrual_ratio` is true, for every `i >= 2`:
 
 ```python
-current_contribution = financing_contribution[i]
-prior_contribution = financing_contribution[i - 1]
-assert current_contribution is not None
-assert prior_contribution is not None
-
-if (
-    current_contribution != UNDEFINED_RATIO
-    and prior_contribution != UNDEFINED_RATIO
-):
-    direct_financing_change = (
-        float(current_contribution) - float(prior_contribution)
-    )
-    if abs(float(financing_effect[i]) - direct_financing_change) > 1e-9:
-        raise ValueError(
-            "ROE financing-effect attribution does not reconcile: "
-            f"period_index={i} direct={direct_financing_change} "
-            f"driver={financing_effect[i]}"
-        )
-```
-
-When `driver_change[i]` is numeric:
-
-```python
-if direct_delta == UNDEFINED_RATIO:
+current = accrual_ratio[i]
+prior = accrual_ratio[i - 1]
+if current is None or prior is None:
     raise ValueError(
-        "ROE driver attribution is numeric while direct ROE change is undefined: "
-        f"period_index={i} driver={driver_change[i]}"
+        "earnings-quality accrual-ratio change requires consecutive comparable values: "
+        f"period_index={i} current={current!r} prior={prior!r}"
     )
-if abs(float(driver_change[i]) - float(direct_delta)) > 1e-9:
-    raise ValueError(
-        "ROE operating/financing change attribution does not reconcile: "
-        f"period_index={i} direct={direct_delta} driver={driver_change[i]}"
-    )
+accrual_ratio_change[i] = _difference_or_na(current, prior)
 ```
 
-If the driver attribution is `#N/A`, do not require direct ROE change to be `#N/A`.
+If Total Assets are absent, leave the entire `accrual_ratio_change` series as `None`.
 
-- [ ] **Step 7: Return all seven series**
+- [ ] **Step 7: Return all four series**
 
 ```python
-return ROEAttributionSeries(
-    financing_contribution_to_roe=tuple(financing_contribution),
-    roe_change=tuple(roe_change),
-    operating_effect_on_roe_change=tuple(operating_effect),
-    leverage_effect_on_roe_change=tuple(leverage_effect),
-    spread_effect_on_roe_change=tuple(spread_effect),
-    financing_effect_on_roe_change=tuple(financing_effect),
-    roe_change_from_drivers=tuple(driver_change),
+return EarningsQualityChangeSeries(
+    operating_cash_flow_change=tuple(cfo_change),
+    cash_conversion_ratio_change=tuple(conversion_change),
+    total_accruals_change=tuple(accruals_change),
+    accrual_ratio_change=tuple(accrual_ratio_change),
 )
 ```
 
@@ -370,393 +236,355 @@ return ROEAttributionSeries(
 Add tests proving:
 
 ```text
-index 0 financing contribution                        -> None
-indices 0 and 1 all change-attribution series        -> None
-numeric zero FLEV with defined Spread                -> financing contribution 0.0
-numeric zero Spread with defined FLEV                -> financing contribution 0.0
-FLEV #N/A or Spread #N/A                             -> financing contribution #N/A
-0 × #N/A                                              -> #N/A, not 0.0
-unchanged RNOA                                        -> Operating Effect 0.0
-unchanged FLEV with all financing inputs defined      -> Leverage Effect 0.0
-unchanged Spread with all financing inputs defined    -> Spread Effect 0.0
-negative FLEV / Spread changes                        -> signed effects retained
-undefined current/prior FLEV or Spread                -> financing effects #N/A
-undefined Operating Effect                            -> total driver Change in ROE #N/A
-numeric driver attribution + mismatched direct ROE    -> ValueError
-numeric financing effects + mismatched contribution   -> ValueError
-series-length mismatch                                -> clear ValueError
+index 0 all core changes                         -> None
+indices 0 and 1 accrual-ratio change             -> None
+unchanged numeric metric                         -> 0.0
+negative CFO change                              -> signed negative value
+negative accrual change                          -> signed negative value
+current conversion #N/A                          -> conversion change #N/A
+prior conversion #N/A                            -> conversion change #N/A
+current accrual ratio #N/A                       -> accrual-ratio change #N/A
+prior accrual ratio #N/A                         -> accrual-ratio change #N/A
+no Total Assets / all accrual ratios None        -> all accrual-ratio changes None
+inconsistent partially missing accrual-ratio row -> clear ValueError
+series-length mismatch                           -> clear ValueError
 ```
 
 - [ ] **Step 9: Run focused tests to green**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_roe_attribution.py -v
+PYTHONPATH=. pytest core/tests/test_earnings_quality_change.py -v
 ```
-
-Expected: all tests pass.
 
 ---
 
-### Task 2: Add seven semantic ROE-attribution families
+### Task 2: Add four semantic cash-conversion trend families
 
 **Files:**
 - Modify: `core/engine/component_catalog.py`
 - Modify: `core/model/historical_expected.py`
-- Test: `core/tests/test_roe_attribution.py`
-- Test: `core/tests/test_reference_integrity.py`
+- Test: `core/tests/test_earnings_quality_change.py`
+- Test: `core/tests/test_earnings_quality.py`
 
 **Interfaces:**
-- Consumes: `ROEAttributionSeries` from Task 1.
-- Produces: seven semantic families and dynamic expected values.
+- Consumes: `EarningsQualityChangeSeries` from Task 1.
+- Produces: four semantic families and dynamic expected values.
 
-- [ ] **Step 1: Add a separate component catalog**
+- [ ] **Step 1: Add a separate quality-change catalog**
 
-Create:
+Add after `ROE_ATTRIBUTION_COMPONENT_CATALOG` / its expander and before deferred specs:
 
 ```python
-ROE_ATTRIBUTION_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (...)
+QUALITY_CHANGE_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (...)
 ```
 
-Use family orders `56` through `62`.
+Use family orders `63` through `66` and tab `Earnings Quality`.
 
 Define exactly:
 
-```text
-56  financing_contribution_to_roe
-57  roe_change
-58  operating_effect_on_roe_change
-59  leverage_effect_on_roe_change
-60  spread_effect_on_roe_change
-61  financing_effect_on_roe_change
-62  roe_change_from_drivers
-```
-
-`financing_contribution_to_roe` is a `comparable` family (`i >= 1`). The remaining six are `post_comparable` families (`i >= 2`).
-
-- [ ] **Step 2: Define the financing-contribution family**
-
 ```python
 ComponentFamily(
-    id="financing_contribution_to_roe",
-    order=56,
-    title="Financing Contribution to ROE",
-    short_hint="FLEV multiplied by Spread.",
-    semantic_key="roe_attribution.financing_contribution",
-    category="roe_attribution",
-    tab_template="ALT DuPont",
+    id="operating_cash_flow_change",
+    order=63,
+    title="Change in Operating Cash Flow",
+    short_hint="Current CFO minus prior CFO.",
+    semantic_key="quality_change.operating_cash_flow_change",
+    category="earnings_quality_change",
+    tab_template="Earnings Quality",
     period_scope="comparable",
-    depends_on_current=("flev", "spread"),
+    depends_on_current=("operating_cash_flow_link",),
+    depends_on_previous=("operating_cash_flow_link",),
     hints=(
-        "Financing Contribution to ROE = FLEV × Spread.",
-        "A positive contribution raises decomposed ROE above RNOA; a negative contribution lowers it.",
-        "Do not call the contribution good or bad without understanding leverage and financing economics.",
-    ),
-)
-```
-
-- [ ] **Step 3: Define the six post-comparable change families**
-
-```python
-ComponentFamily(
-    id="roe_change",
-    order=57,
-    title="Direct Change in Decomposed ROE",
-    short_hint="Current decomposed ROE minus prior decomposed ROE.",
-    semantic_key="roe_attribution.roe_change",
-    category="roe_attribution",
-    tab_template="ALT DuPont",
-    period_scope="post_comparable",
-    depends_on_current=("roe_decomp",),
-    depends_on_previous=("roe_decomp",),
-    hints=(
-        "Direct Change in ROE = Current decomposed ROE - Prior decomposed ROE.",
+        "Change in CFO = Current Operating Cash Flow - Prior Operating Cash Flow.",
+        "A positive or negative movement is mechanical evidence only; interpret it alongside profitability and business conditions.",
     ),
 )
 ```
 
 ```python
 ComponentFamily(
-    id="operating_effect_on_roe_change",
-    order=58,
-    title="Operating Effect on Change in ROE",
-    short_hint="The direct Change in RNOA from the prior diagnostic section.",
-    semantic_key="roe_attribution.operating_effect",
-    category="roe_attribution",
-    tab_template="ALT DuPont",
-    period_scope="post_comparable",
-    depends_on_current=("rnoa_change",),
+    id="cash_conversion_ratio_change",
+    order=64,
+    title="Change in Cash Conversion Ratio",
+    short_hint="Current cash conversion ratio minus prior ratio.",
+    semantic_key="quality_change.cash_conversion_ratio_change",
+    category="earnings_quality_change",
+    tab_template="Earnings Quality",
+    period_scope="comparable",
+    depends_on_current=("cash_conversion_ratio",),
+    depends_on_previous=("cash_conversion_ratio",),
     hints=(
-        "Operating Effect on Change in ROE = Change in RNOA.",
-        "Use the existing direct RNOA-change result; do not reassign financing effects into the operating term.",
+        "Change in Cash Conversion Ratio = Current CFO/Net Income ratio - Prior ratio.",
+        "If either period's ratio is undefined, the change is also undefined (#N/A).",
+        "Do not automatically label a higher ratio as better quality without investigating why it changed.",
     ),
 )
 ```
 
 ```python
 ComponentFamily(
-    id="leverage_effect_on_roe_change",
-    order=59,
-    title="Leverage Effect on Change in ROE",
-    short_hint="Change in FLEV multiplied by midpoint Spread.",
-    semantic_key="roe_attribution.leverage_effect",
-    category="roe_attribution",
-    tab_template="ALT DuPont",
-    period_scope="post_comparable",
-    depends_on_current=("flev", "spread"),
-    depends_on_previous=("flev", "spread"),
+    id="total_accruals_change",
+    order=65,
+    title="Change in Total Accruals",
+    short_hint="Current Total Accruals minus prior Total Accruals.",
+    semantic_key="quality_change.total_accruals_change",
+    category="earnings_quality_change",
+    tab_template="Earnings Quality",
+    period_scope="comparable",
+    depends_on_current=("total_accruals",),
+    depends_on_previous=("total_accruals",),
     hints=(
-        "Leverage Effect = Change in FLEV × average of current and prior Spread.",
-        "Midpoint weighting gives an exact order-neutral attribution of the financing product change.",
+        "Change in Total Accruals = Current (Net Income - CFO) - Prior (Net Income - CFO).",
+        "Retain the sign; do not convert accrual movements to absolute values.",
+        "The direction alone is not an automatic earnings-quality verdict.",
     ),
 )
 ```
 
 ```python
 ComponentFamily(
-    id="spread_effect_on_roe_change",
-    order=60,
-    title="Spread Effect on Change in ROE",
-    short_hint="Change in Spread multiplied by midpoint FLEV.",
-    semantic_key="roe_attribution.spread_effect",
-    category="roe_attribution",
-    tab_template="ALT DuPont",
+    id="accrual_ratio_change",
+    order=66,
+    title="Change in Accrual Ratio",
+    short_hint="Current accrual ratio minus prior comparable accrual ratio.",
+    semantic_key="quality_change.accrual_ratio_change",
+    category="earnings_quality_change",
+    tab_template="Earnings Quality",
     period_scope="post_comparable",
-    depends_on_current=("spread", "flev"),
-    depends_on_previous=("spread", "flev"),
+    depends_on_current=("accrual_ratio",),
+    depends_on_previous=("accrual_ratio",),
     hints=(
-        "Spread Effect = Change in Spread × average of current and prior FLEV.",
-        "Do not interpret Spread movement as a specific financing-policy cause without additional evidence.",
+        "Change in Accrual Ratio = Current Accrual Ratio - Prior Accrual Ratio.",
+        "This family is available only when reported Total Assets support the existing accrual-ratio schedule.",
+        "Undefined current or prior ratios propagate to #N/A.",
     ),
 )
 ```
 
-```python
-ComponentFamily(
-    id="financing_effect_on_roe_change",
-    order=61,
-    title="Financing Effect on Change in ROE",
-    short_hint="Leverage Effect plus Spread Effect.",
-    semantic_key="roe_attribution.financing_effect",
-    category="roe_attribution",
-    tab_template="ALT DuPont",
-    period_scope="post_comparable",
-    depends_on_current=(
-        "leverage_effect_on_roe_change",
-        "spread_effect_on_roe_change",
-    ),
-    hints=(
-        "Financing Effect = Leverage Effect + Spread Effect.",
-        "This equals the change in FLEV × Spread when all required inputs are defined.",
-    ),
-)
-```
-
-```python
-ComponentFamily(
-    id="roe_change_from_drivers",
-    order=62,
-    title="Change in ROE from Operating + Financing Drivers",
-    short_hint="Operating Effect plus Financing Effect.",
-    semantic_key="roe_attribution.roe_change_from_drivers",
-    category="roe_attribution",
-    tab_template="ALT DuPont",
-    period_scope="post_comparable",
-    depends_on_current=(
-        "operating_effect_on_roe_change",
-        "financing_effect_on_roe_change",
-    ),
-    hints=(
-        "Change in ROE from Drivers = Operating Effect + Financing Effect.",
-        "When all required terms are defined, this must reconcile to Direct Change in Decomposed ROE.",
-    ),
-)
-```
-
-- [ ] **Step 4: Add a dedicated spec expander**
+- [ ] **Step 2: Add `expand_quality_change_specs()`**
 
 Create:
 
 ```python
-def expand_roe_attribution_specs(
+def expand_quality_change_specs(
     periods: list[date],
     *,
     start_order: int,
+    include_asset_scaled: bool,
 ) -> tuple[ComponentSpec, ...]:
-    ...
 ```
 
-Validate duplicate / non-chronological periods exactly as the other expanders do.
+Requirements:
 
-Expansion rule:
+- reject duplicate or non-increasing periods exactly like existing expanders;
+- if `include_asset_scaled` is false, omit `accrual_ratio_change`;
+- `comparable` -> `range(1, len(periods))`;
+- `post_comparable` -> `range(2, len(periods))`;
+- build dependencies with the existing `concrete_component_id()` pattern;
+- reject any unexpected period scope explicitly.
 
-```python
-if family.period_scope == "comparable":
-    indices = range(1, len(periods))
-elif family.period_scope == "post_comparable":
-    indices = range(2, len(periods))
-else:
-    raise ValueError(
-        f"unsupported ROE-attribution period_scope {family.period_scope!r}"
-    )
-```
-
-Use `concrete_component_id()` and existing current/previous dependency expansion.
-
-For five fiscal periods:
+For five modeled periods:
 
 ```text
-Financing Contribution: 1 family × 4 comparable periods = 4 cells
-Change attribution:      6 families × 3 post-comparable periods = 18 cells
-Total Step 9D.1:         7 families / 22 practice cells
+with Total Assets:
+3 comparable families × 4 periods + 1 post-comparable × 3 periods = 15 cells
+4 families
+
+without Total Assets:
+3 comparable families × 4 periods = 12 cells
+3 families
 ```
 
-- [ ] **Step 5: Add expected-series mapping**
+- [ ] **Step 3: Add expected-series mapping**
 
 In `core/model/historical_expected.py`, import:
 
 ```python
-from ..engine.component_catalog import ROE_ATTRIBUTION_COMPONENT_CATALOG
-from .roe_attribution import compute_roe_attribution_series
-```
-
-Add:
-
-```python
-_ROE_ATTRIBUTION_FAMILY_SERIES = (
-    "financing_contribution_to_roe",
-    "roe_change",
-    "operating_effect_on_roe_change",
-    "leverage_effect_on_roe_change",
-    "spread_effect_on_roe_change",
-    "financing_effect_on_roe_change",
-    "roe_change_from_drivers",
-)
-```
-
-Create:
-
-```python
-def roe_attribution_expected_series(
-    anchor: AnchorMetrics,
-) -> dict[str, tuple[float | str | None, ...]]:
-    values = compute_roe_attribution_series(anchor)
-    series = {
-        "financing_contribution_to_roe": values.financing_contribution_to_roe,
-        "roe_change": values.roe_change,
-        "operating_effect_on_roe_change": values.operating_effect_on_roe_change,
-        "leverage_effect_on_roe_change": values.leverage_effect_on_roe_change,
-        "spread_effect_on_roe_change": values.spread_effect_on_roe_change,
-        "financing_effect_on_roe_change": values.financing_effect_on_roe_change,
-        "roe_change_from_drivers": values.roe_change_from_drivers,
-    }
-    expected_ids = {family.id for family in ROE_ATTRIBUTION_COMPONENT_CATALOG}
-    if set(series) != expected_ids:
-        missing = sorted(expected_ids - set(series))
-        extra = sorted(set(series) - expected_ids)
-        raise ValueError(
-            "roe_attribution_expected_series family mismatch; "
-            f"missing={missing} extra={extra}"
-        )
-    return {
-        family_id: series[family_id]
-        for family_id in _ROE_ATTRIBUTION_FAMILY_SERIES
-    }
-```
-
-Extend `expected_value_for_component()` with an ROE-attribution branch before falling back to the historical core families.
-
-- [ ] **Step 6: Add catalog/expansion regressions**
-
-Add tests proving:
-
-```text
-catalog IDs are exactly the seven listed above
-family orders are 56..62
-one family is comparable; six are post_comparable
-five fiscal periods expand to exactly 22 concrete specs
-expected-series keys exactly equal catalog IDs
-existing Step 9C.1 / Step 9C.2 catalogs remain unchanged
-```
-
-Run:
-
-```bash
-PYTHONPATH=. pytest core/tests/test_roe_attribution.py -v
-PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "roe_attribution or financing_contribution" -v
-```
-
----
-
-### Task 3: Wire ROE attribution into `ReferenceModelBuilder`
-
-**Files:**
-- Modify: `core/engine/reference_model.py`
-- Test: `core/tests/test_roe_attribution.py`
-- Test: `core/tests/test_reference_integrity.py`
-
-**Interfaces:**
-- Consumes: `compute_roe_attribution_series()` and `expand_roe_attribution_specs()`.
-- Produces: registered semantic practice components on `ALT DuPont`.
-
-- [ ] **Step 1: Add imports and builder state**
-
-Import:
-
-```python
-from ..model.roe_attribution import compute_roe_attribution_series
+QUALITY_CHANGE_COMPONENT_CATALOG
 ```
 
 and:
 
 ```python
-from .component_catalog import expand_roe_attribution_specs
+from .earnings_quality_change import compute_earnings_quality_change_series
 ```
 
-After existing profitability-change setup:
+Add:
 
 ```python
-self.roe_attribution_series = compute_roe_attribution_series(self.anchor)
-self.roe_attribution_specs = expand_roe_attribution_specs(
-    self.periods,
-    start_order=(
-        len(self.historical_specs)
-        + len(self.normalization_specs)
-        + len(self.quality_specs)
-        + len(self.working_capital_specs)
-        + len(self.profitability_driver_specs)
-        + len(self.profitability_change_specs)
-        + 1
-    ),
-)
-```
-
-Append:
-
-```python
-self.expected_specs = (
-    self.historical_specs
-    + self.normalization_specs
-    + self.quality_specs
-    + self.working_capital_specs
-    + self.profitability_driver_specs
-    + self.profitability_change_specs
-    + self.roe_attribution_specs
+_QUALITY_CHANGE_FAMILY_SERIES = (
+    "operating_cash_flow_change",
+    "cash_conversion_ratio_change",
+    "total_accruals_change",
+    "accrual_ratio_change",
 )
 ```
 
 Create:
 
 ```python
-self._roe_attribution_spec_index = {
-    (s.family_id, s.period_index): s
-    for s in self.roe_attribution_specs
+def earnings_quality_change_expected_series(
+    earnings_quality: EarningsQualitySeries,
+) -> dict[str, tuple[float | str | None, ...]]:
+    changes = compute_earnings_quality_change_series(earnings_quality)
+    series = {
+        "operating_cash_flow_change": changes.operating_cash_flow_change,
+        "cash_conversion_ratio_change": changes.cash_conversion_ratio_change,
+        "total_accruals_change": changes.total_accruals_change,
+        "accrual_ratio_change": changes.accrual_ratio_change,
+    }
+    expected_ids = {family.id for family in QUALITY_CHANGE_COMPONENT_CATALOG}
+    if set(series) != expected_ids:
+        missing = sorted(expected_ids - set(series))
+        extra = sorted(set(series) - expected_ids)
+        raise ValueError(
+            "earnings_quality_change_expected_series family mismatch; "
+            f"missing={missing} extra={extra}"
+        )
+    return {
+        family_id: series[family_id]
+        for family_id in _QUALITY_CHANGE_FAMILY_SERIES
+    }
+```
+
+- [ ] **Step 4: Route dynamic expected values through the existing quality object**
+
+In `expected_value_for_component()`, before the existing `_QUALITY_FAMILY_SERIES` branch:
+
+```python
+if family_id in _QUALITY_CHANGE_FAMILY_SERIES:
+    if earnings_quality is None:
+        raise ValueError(
+            f"Earnings-quality-change family {family_id!r} "
+            "requires an EarningsQualitySeries"
+        )
+    series = earnings_quality_change_expected_series(earnings_quality)
+```
+
+Keep every other expected-value branch unchanged.
+
+- [ ] **Step 5: Extend the Check quality-family detector**
+
+In `core/trainer/checker.py`, import:
+
+```python
+QUALITY_CHANGE_COMPONENT_CATALOG
+```
+
+Replace the old detector with:
+
+```python
+quality_family_ids = {
+    family.id
+    for family in (
+        *QUALITY_COMPONENT_CATALOG,
+        *QUALITY_CHANGE_COMPONENT_CATALOG,
+    )
 }
 ```
 
-- [ ] **Step 2: Add a focused registration helper**
+The same `compute_earnings_quality_series()` result must serve both level and change families. Do not create a second source-resolution path inside Check.
+
+- [ ] **Step 6: Add focused catalog / expected-value tests**
+
+Prove:
+
+```text
+QUALITY_CHANGE_COMPONENT_CATALOG contains exactly 4 unique IDs
+orders are exactly 63,64,65,66
+five periods + assets -> 15 concrete specs
+five periods without assets -> 12 concrete specs
+accrual_ratio_change absent when assets are unavailable
+expected-series keys exactly equal the 4 catalog IDs
+quality-change expected values use the passed EarningsQualitySeries
+```
+
+Run:
+
+```bash
+PYTHONPATH=. pytest core/tests/test_earnings_quality_change.py core/tests/test_earnings_quality.py -v
+```
+
+---
+
+### Task 3: Wire quality-change specs into `ReferenceModelBuilder`
+
+**Files:**
+- Modify: `core/engine/reference_model.py`
+- Test: `core/tests/test_earnings_quality_change.py`
+- Test: `core/tests/test_reference_integrity.py`
+
+**Interfaces:**
+- Consumes: `compute_earnings_quality_change_series()`, `expand_quality_change_specs()`.
+- Produces: builder state and semantic registrations for Step 9E.1.
+
+- [ ] **Step 1: Add imports**
+
+Import:
 
 ```python
-def _register_roe_attribution(
+from ..model.earnings_quality_change import compute_earnings_quality_change_series
+```
+
+and:
+
+```python
+expand_quality_change_specs
+```
+
+- [ ] **Step 2: Compute the quality-change series only when the existing quality module is active**
+
+After `self.roe_attribution_specs` are established, add:
+
+```python
+if self.quality_series is not None:
+    self.quality_change_series = compute_earnings_quality_change_series(
+        self.quality_series
+    )
+    self.quality_change_specs = expand_quality_change_specs(
+        self.periods,
+        start_order=(
+            len(self.historical_specs)
+            + len(self.normalization_specs)
+            + len(self.quality_specs)
+            + len(self.working_capital_specs)
+            + len(self.profitability_driver_specs)
+            + len(self.profitability_change_specs)
+            + len(self.roe_attribution_specs)
+            + 1
+        ),
+        include_asset_scaled=self.quality_availability.total_assets,
+    )
+else:
+    self.quality_change_series = None
+    self.quality_change_specs = ()
+```
+
+Do not renumber existing families or move Step 9E.1 before existing diagnostic specs.
+
+- [ ] **Step 3: Append specs and index them**
+
+Append to `self.expected_specs`:
+
+```python
++ self.quality_change_specs
+```
+
+Create:
+
+```python
+self._quality_change_spec_index = {
+    (s.family_id, s.period_index): s
+    for s in self.quality_change_specs
+}
+```
+
+- [ ] **Step 4: Add a registration helper**
+
+Create alongside `_register_quality()`:
+
+```python
+def _register_quality_change(
     self,
     family_id: str,
     period_index: int,
@@ -767,7 +595,7 @@ def _register_roe_attribution(
     expected: float | str,
     related: list[str] | None = None,
 ) -> None:
-    spec = self._roe_attribution_spec_index[(family_id, period_index)]
+    spec = self._quality_change_spec_index[(family_id, period_index)]
     self.semantic_map.register(
         spec,
         tab,
@@ -779,393 +607,327 @@ def _register_roe_attribution(
     )
 ```
 
-- [ ] **Step 3: Run builder-focused tests and verify red state**
+- [ ] **Step 5: Add builder-state tests**
 
-Before adding worksheet formulas, run:
+Prove:
 
-```bash
-PYTHONPATH=. pytest core/tests/test_roe_attribution.py core/tests/test_reference_integrity.py -k "roe_attribution or financing_contribution" -v
+```text
+CFO unavailable -> quality_change_series is None and quality_change_specs == ()
+CFO available + assets available -> four quality-change families present
+CFO available + assets absent -> exactly three quality-change families present
+existing quality specs/families remain unchanged
 ```
 
-Expected: fail because expected semantic components are not yet registered.
+Run focused tests before workbook-layout work.
 
 ---
 
-### Task 4: Extend `ALT DuPont` with ROE operating / financing attribution
+### Task 4: Append the cash-conversion trend section to `Earnings Quality`
 
 **Files:**
 - Modify: `core/engine/reference_model.py`
-- Test: `core/tests/test_roe_attribution.py`
-- Test: `core/tests/test_reference_integrity.py`
+- Test: `core/tests/test_earnings_quality_change.py`
+- Test: `core/tests/test_earnings_quality.py`
 
 **Interfaces:**
-- Consumes: existing local rows `rnoa_row`, `spread_row`, `flev_row`, `roe_row`, `direct_rnoa_change_row`, and Step 9C.2 `change_check_row` inside `_build_dupont()`.
-- Produces: seven practice rows plus two generated trusted reconciliation rows.
+- Consumes: existing Earnings Quality level rows plus `self.quality_change_series`.
+- Produces: Step 9E.1 worksheet formulas and semantic registrations.
 
-- [ ] **Step 1: Add the level-attribution section after Step 9C.2**
+- [ ] **Step 1: Refactor the current Total-Assets early return**
 
-Immediately after the Step 9C.2 section, create rows relative to its existing `change_check_row`:
+`_build_earnings_quality()` currently returns immediately when `total_assets` is unavailable. Replace that early return with conditional construction of rows 10–12, then continue to the trend section in both asset and no-asset cases.
 
-```python
-roe_section_row = change_check_row + 2
-financing_contribution_row = roe_section_row + 1
-roe_level_check_row = roe_section_row + 2
-roe_change_section_row = roe_section_row + 4
-direct_roe_change_row = roe_change_section_row + 1
-operating_effect_row = roe_change_section_row + 2
-leverage_effect_row = roe_change_section_row + 3
-spread_effect_row = roe_change_section_row + 4
-financing_effect_row = roe_change_section_row + 5
-driver_roe_change_row = roe_change_section_row + 6
-roe_change_check_row = roe_change_section_row + 7
-```
-
-Labels:
-
-```text
-ROE OPERATING / FINANCING ATTRIBUTION
-Financing Contribution to ROE
-ROE LEVEL ATTRIBUTION CHECK
-
-ROE CHANGE ATTRIBUTION
-Direct Change in Decomposed ROE
-Operating Effect on Change in ROE
-Leverage Effect on Change in ROE
-Spread Effect on Change in ROE
-Financing Effect on Change in ROE
-Change in ROE from Drivers
-ROE CHANGE ATTRIBUTION CHECK
-```
-
-Make both section headers and both generated check labels bold.
-
-- [ ] **Step 2: Add first-period / applicability literals**
-
-For fiscal-period index `0`:
-
-```text
-Financing Contribution to ROE -> N/A
-ROE LEVEL ATTRIBUTION CHECK    -> N/A
-all change-attribution rows    -> N/A
-ROE CHANGE ATTRIBUTION CHECK   -> N/A
-```
-
-For fiscal-period index `1`:
-
-```text
-Financing Contribution to ROE -> active formula
-ROE LEVEL ATTRIBUTION CHECK    -> active generated check
-all change-attribution rows    -> N/A
-ROE CHANGE ATTRIBUTION CHECK   -> N/A
-```
-
-Do not register practice components where the catalog says the period is non-applicable.
-
-- [ ] **Step 3: Add financing-contribution level formula and generated check**
-
-For every `j >= 1`:
-
-```python
-financing_contribution = f"={out_col}{flev_row}*{out_col}{spread_row}"
-level_check = (
-    f'=IF(OR(ISNA({out_col}{rnoa_row}),'
-    f'ISNA({out_col}{financing_contribution_row}),'
-    f'ISNA({out_col}{roe_row})),"N/A",'
-    f'IF(ABS({out_col}{rnoa_row}+{out_col}{financing_contribution_row}'
-    f'-{out_col}{roe_row})<0.0000001,"OK","CHECK"))'
-)
-```
-
-Write the financing contribution with `PCT_FMT`.
-
-Register:
-
-```python
-self._register_roe_attribution(
-    "financing_contribution_to_roe",
-    j,
-    "ALT DuPont",
-    financing_contribution_row,
-    out_col_idx,
-    financing_contribution,
-    expected,
-)
-```
-
-Do **not** register `ROE LEVEL ATTRIBUTION CHECK`; it is a generated non-practice cell and existing trusted `ALT DuPont` validation must protect it.
-
-- [ ] **Step 4: Add post-comparable change formulas**
-
-For every `j >= 2`, let:
-
-```python
-prev_col = self._col(2 + j - 1)
-```
+Do not change the current formulas or registration behavior of rows 5–12.
 
 Use:
 
 ```python
-direct_roe_change = f"={out_col}{roe_row}-{prev_col}{roe_row}"
-operating_effect = f"={out_col}{direct_rnoa_change_row}"
-leverage_effect = (
-    f"=({out_col}{flev_row}-{prev_col}{flev_row})*"
-    f"(({out_col}{spread_row}+{prev_col}{spread_row})/2)"
-)
-spread_effect = (
-    f"=({out_col}{spread_row}-{prev_col}{spread_row})*"
-    f"(({out_col}{flev_row}+{prev_col}{flev_row})/2)"
-)
-financing_effect = f"={out_col}{leverage_effect_row}+{out_col}{spread_effect_row}"
-driver_roe_change = f"={out_col}{operating_effect_row}+{out_col}{financing_effect_row}"
-roe_change_check = (
-    f'=IF(OR(ISNA({out_col}{driver_roe_change_row}),'
-    f'ISNA({out_col}{direct_roe_change_row})),"N/A",'
-    f'IF(ABS({out_col}{driver_roe_change_row}-{out_col}{direct_roe_change_row})'
-    f'<0.0000001,"OK","CHECK"))'
-)
+assets_row = None
+avg_assets_row = None
+accrual_ratio_row = None
+
+if self.quality_availability.total_assets:
+    ... existing asset-scaled construction unchanged ...
 ```
 
-Apply `PCT_FMT` to all six practice rows.
+Store the same rowmap keys only when those rows exist.
 
-Do not wrap the effect formulas in `IFERROR(...,0)`. Excel must naturally propagate `#N/A` from undefined required inputs.
+- [ ] **Step 2: Add a fixed trend section**
 
-- [ ] **Step 5: Register the six post-comparable families**
-
-For each `j >= 2`, register:
+Below the existing quality rows use exactly:
 
 ```text
-roe_change
-operating_effect_on_roe_change
-leverage_effect_on_roe_change
-spread_effect_on_roe_change
-financing_effect_on_roe_change
-roe_change_from_drivers
+A14  EARNINGS QUALITY TREND DIAGNOSTICS
+A15  Change in Operating Cash Flow
+A16  Change in Cash Conversion Ratio
+A17  Change in Total Accruals
+A18  Change in Accrual Ratio
+A19  EARNINGS QUALITY CHANGE CHECK
 ```
 
-Use the matching fields from `self.roe_attribution_series`.
+Make rows 14 and 19 bold.
 
-Do not register `ROE CHANGE ATTRIBUTION CHECK`.
+Use `self.quality_change_series`; raise `RuntimeError` if the sheet is being built while that series is unexpectedly `None`.
 
-- [ ] **Step 6: Store rowmap entries**
+- [ ] **Step 3: Preserve non-applicable cells as visible literals**
+
+For fiscal-period index `0`:
+
+```text
+rows 15,16,17,18,19 -> literal "N/A"
+```
+
+For row 18 (`Change in Accrual Ratio`):
+
+- index `1` -> literal `"N/A"`;
+- if Total Assets are absent -> literal `"N/A"` for every period;
+- do not register semantic practice cells where the family is not applicable.
+
+- [ ] **Step 4: Add comparable core change formulas**
+
+For every `j >= 1`:
+
+```python
+col = self._col(2 + j)
+prev_col = self._col(2 + j - 1)
+
+cfo_change_f = f"={col}{cfo_row}-{prev_col}{cfo_row}"
+conversion_change_f = (
+    f"={col}{conversion_row}-{prev_col}{conversion_row}"
+)
+accruals_change_f = f"={col}{accruals_row}-{prev_col}{accruals_row}"
+```
+
+Use formats:
+
+```text
+Change in CFO             -> NUM_FMT
+Change in Cash Conversion -> "0.00x"
+Change in Total Accruals  -> NUM_FMT
+```
+
+Do not wrap ratio differences in `IFERROR`; Excel must naturally propagate `#N/A`.
+
+Register:
+
+```text
+operating_cash_flow_change
+cash_conversion_ratio_change
+total_accruals_change
+```
+
+using `_register_quality_change()` and the current period index.
+
+- [ ] **Step 5: Add accrual-ratio change formulas only when asset-scaled quality exists**
+
+When Total Assets are available, for every `j >= 2`:
+
+```python
+assert accrual_ratio_row is not None
+accrual_ratio_change_f = (
+    f"={col}{accrual_ratio_row}-{prev_col}{accrual_ratio_row}"
+)
+```
+
+Format as `PCT_FMT` and register `accrual_ratio_change`.
+
+- [ ] **Step 6: Add one generated non-practice consistency check**
+
+For every `j >= 1`, use the identity:
+
+```text
+Total Accruals = Net Income - CFO
+```
+
+so:
+
+```text
+Change in Total Accruals
+= Change in Net Income - Change in CFO
+```
+
+Use a generated formula in row 19:
+
+```python
+change_check_f = (
+    f'=IF(ABS({col}{accruals_change_row}-'
+    f'(({col}{ni_row}-{prev_col}{ni_row})-{col}{cfo_change_row}))'
+    f'<0.01,"OK","CHECK")'
+)
+```
+
+This row is **not** a practice family.
+
+The existing trusted-sheet validator already protects all non-practice cells on `Earnings Quality`; do not modify `check_context.py` unless a failing regression proves that assumption wrong.
+
+- [ ] **Step 7: Store rowmap entries**
 
 Add:
 
 ```python
-self.rowmap["dupont_financing_contribution_row"] = financing_contribution_row
-self.rowmap["dupont_roe_level_attribution_check_row"] = roe_level_check_row
-self.rowmap["dupont_direct_roe_change_row"] = direct_roe_change_row
-self.rowmap["dupont_operating_roe_effect_row"] = operating_effect_row
-self.rowmap["dupont_leverage_roe_effect_row"] = leverage_effect_row
-self.rowmap["dupont_spread_roe_effect_row"] = spread_effect_row
-self.rowmap["dupont_financing_roe_effect_row"] = financing_effect_row
-self.rowmap["dupont_driver_roe_change_row"] = driver_roe_change_row
-self.rowmap["dupont_roe_change_attribution_check_row"] = roe_change_check_row
+self.rowmap["quality_change_cfo_row"] = cfo_change_row
+self.rowmap["quality_change_conversion_row"] = conversion_change_row
+self.rowmap["quality_change_accruals_row"] = accruals_change_row
+self.rowmap["quality_change_accrual_ratio_row"] = accrual_ratio_change_row
+self.rowmap["quality_change_check_row"] = change_check_row
 ```
 
-- [ ] **Step 7: Add worksheet-formula regressions**
+The accrual-ratio change row exists visually even when its practice family is gated off, so the rowmap key may always be recorded.
 
-Assert:
+- [ ] **Step 8: Add workbook regressions**
+
+Prove:
 
 ```text
-financing contribution formula = FLEV × Spread
-level check compares RNOA + financing contribution with decomposed ROE
-operating effect links to the existing Direct Change in RNOA row
-leverage effect uses ΔFLEV × midpoint Spread
-spread effect uses ΔSpread × midpoint FLEV
-financing effect sums leverage + spread effects
-driver ROE change sums operating + financing effects
-change check compares driver Change in ROE with direct decomposed-ROE change
-no ABS() appears in any practice effect/change formula
-no IFERROR(...,0) or other zero fallback is introduced
+existing rows/formulas 5–12 remain unchanged
+trend section appears whenever CFO quality module appears
+first-period trend cells are literal N/A
+asset-present demo registers 15 trend practice cells
+asset-absent fixture registers 12 trend practice cells
+asset-absent row18 is N/A across all periods
+no CFO -> no Earnings Quality sheet and no trend section
+change-check row is populated but never a practice cell
 ```
-
-Run:
-
-```bash
-PYTHONPATH=. pytest core/tests/test_roe_attribution.py core/tests/test_reference_integrity.py -k "roe_attribution or financing_contribution" -v
-```
-
-Expected: green.
 
 ---
 
-### Task 5: Prove dynamic Check, `#N/A`, and trusted-sheet behavior
+### Task 5: Prove Formula Check and trusted-sheet behavior for the trend section
 
 **Files:**
-- Modify: `core/tests/test_roe_attribution.py`
-- Modify: `core/tests/test_reference_integrity.py`
-- Modify: `core/tests/test_trainer.py` only if a generic cached-value helper is needed
+- Modify: `core/tests/test_earnings_quality_change.py`
+- Modify: `core/tests/test_earnings_quality.py`
+- Modify: `core/tests/test_reference_integrity.py` only if that is the established location for one integrity assertion
 
-**Interfaces:**
-- Consumes: normal `check_workbook()` dynamic expected-value recomputation.
-- Produces: regressions proving Step 9D.1 participates in the existing live/trusted model boundary.
+- [ ] **Step 1: Add exact-formula Check regression**
 
-- [ ] **Step 1: Add live-classification regression**
+Build a normal pair, enter one exact Step 9E.1 formula, run Check, and require exactly that cell to become green.
 
-Reuse an existing classification judgment fixture such as the lease-liability treatment switch where changing:
+- [ ] **Step 2: Add undefined change regression**
 
-```text
-Financial Liability
--> Operating Long-Term Liability
-```
+Use at least three periods and make one Net Income period exactly zero so one current/prior cash-conversion ratio is `#N/A`.
 
-changes treatment-conditioned Net Debt / NOA while leaving reported source facts unchanged.
-
-Assert that at least these Step 9D.1 expected values change under the alternate treatment where mathematically applicable:
+Require:
 
 ```text
-Financing Contribution to ROE
-Leverage Effect on Change in ROE
-Financing Effect on Change in ROE
-Change in ROE from Drivers
+cash_conversion_ratio_change expected -> #N/A
+Answer-Key formula is a direct difference that naturally propagates #N/A
+exact formula -> green
+structurally different formula + cached #N/A -> green
+fabricated 0.0 -> red
 ```
 
-Then enter formulas/cached values consistent with the learner's selected treatment and require Check to mark them green.
+Reuse the existing cached-value injection helper already used by Step 9A tests rather than creating production evaluator logic.
 
-- [ ] **Step 2: Add undefined-input regression**
+- [ ] **Step 3: Add trusted check-row tamper regression**
 
-Build a fixture where one required FLEV or Spread period is `#N/A` under existing historical semantics.
+1. Build Trainer/Answer Key.
+2. Put a valid formula into one Step 9E.1 practice cell and verify it is still yellow before Check.
+3. Overwrite one populated `EARNINGS QUALITY CHANGE CHECK` formula in Trainer.
+4. Run Check.
+5. Require `ValueError` for trusted Earnings Quality modification.
+6. Reopen Trainer and prove the learner practice cell remains yellow: no partial recoloring.
 
-Assert Python expected values propagate:
+Do not modify production trusted-sheet code unless this test fails for a real reason.
 
-```text
-Financing Contribution -> #N/A
-Leverage / Spread Effects when required period is undefined -> #N/A
-Financing Effect -> #N/A
-Driver Change in ROE -> #N/A when financing attribution is required
-```
+- [ ] **Step 4: Preserve composition with classification and normalization**
 
-Do not fabricate `0.0`.
+Extend or add an end-to-end composition test where:
 
-- [ ] **Step 3: Add exact/equivalent `#N/A` Check regression**
+- Accounting Judgment has a valid alternative treatment;
+- Normalization Judgment has a valid treatment;
+- one historical classification-sensitive formula, one normalization formula, and one Step 9E.1 formula are entered;
+- Check grades all three without interference.
 
-For one Step 9D.1 practice cell whose expected result is `#N/A`:
-
-1. exact Answer-Key formula -> green;
-2. structurally different learner formula with cached `#N/A` -> green;
-3. learner formula / cached numeric `0.0` -> red.
-
-Reuse the existing cached-error injection helper rather than adding production-only evaluation logic.
-
-- [ ] **Step 4: Add trusted generated-check tamper regressions**
-
-Build a normal Trainer/Answer-Key pair, put one valid Step 9D.1 learner formula in a practice cell, then separately tamper:
-
-```text
-ROE LEVEL ATTRIBUTION CHECK
-ROE CHANGE ATTRIBUTION CHECK
-```
-
-in the Trainer.
-
-For each tamper:
-
-```python
-with pytest.raises(ValueError, match="Trusted workbook cell was modified"):
-    check_workbook(trainer_path)
-```
-
-Reopen the workbook and prove the learner practice cell remains yellow: no partial recoloring before structural failure.
-
-No `check_context.py` production change should be needed because `ALT DuPont` is already a trusted sheet outside semantic practice cells.
-
-- [ ] **Step 5: Run focused Check tests**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_roe_attribution.py -v
-PYTHONPATH=. pytest core/tests/test_reference_integrity.py -k "roe_attribution or financing_contribution or trusted" -v
-```
-
-Expected: green.
+The quality-change formula does not itself need to be classification-sensitive; the test proves coexistence of all active modules.
 
 ---
 
-### Task 6: Integrate family metadata and preserve the curriculum surface
+### Task 6: Add Trainer index metadata and update product documentation
 
 **Files:**
 - Modify: `core/trainer/workbook.py`
 - Modify: `skills/bav-trainer/SKILL.md`
-- Modify: count assertions in `core/tests/test_reference_integrity.py`, `core/tests/test_trainer.py`, and other tests that intentionally pin the complete demo surface
+- Test: `core/tests/test_earnings_quality_change.py`
+- Test: `core/tests/test_trainer.py`
 
-- [ ] **Step 1: Add ROE-attribution catalog to Trainer family metadata**
+- [ ] **Step 1: Add the new catalog to Trainer family metadata**
 
 Import:
 
 ```python
-ROE_ATTRIBUTION_COMPONENT_CATALOG
+QUALITY_CHANGE_COMPONENT_CATALOG
 ```
 
-and extend `group_components_by_family()`:
+Then extend `family_meta`:
 
 ```python
-family_meta.update({f.id: f for f in ROE_ATTRIBUTION_COMPONENT_CATALOG})
+family_meta.update({f.id: f for f in QUALITY_CHANGE_COMPONENT_CATALOG})
 ```
 
-The `list` command / Trainer index must display the seven new schedules in orders `56..62`.
+Do not alter existing family metadata ordering.
 
-- [ ] **Step 2: Update demo acceptance counts**
+- [ ] **Step 2: Verify Trainer/List dependency labels**
 
-Step 9D.1 adds:
+For the four new schedules, verify:
 
 ```text
-7 families
-22 practice cells
+Change in Operating Cash Flow -> depends on operating_cash_flow_link
+Change in Cash Conversion Ratio -> depends on cash_conversion_ratio
+Change in Total Accruals -> depends on total_accruals
+Change in Accrual Ratio -> depends on accrual_ratio
 ```
 
-Therefore the five-year demo surfaces become:
+The Trainer index should show their actual fiscal-period scope and practice cells through the existing grouping logic.
+
+- [ ] **Step 3: Update `skills/bav-trainer/SKILL.md`**
+
+Update the product-loop documentation to reflect that the historical diagnostic surface now includes:
 
 ```text
-base demo:
-58 families
-244 practice cells
-
-normalization demo:
-62 families
-264 practice cells
+Step 9A — earnings-quality level diagnostics
+Step 9B — working-capital diagnostics / driver bridge
+Step 9C — RNOA margin / turnover level and change attribution
+Step 9D — ROE operating / financing attribution
+Step 9E.1 — cash-conversion / accrual trend diagnostics
 ```
 
-Update only assertions/documentation that intentionally pin the complete current demo surface. Do not hard-code these counts into generic company logic.
+Remove stale language claiming working-capital/driver interpretation is still wholly deferred.
 
-- [ ] **Step 3: Update skill documentation**
-
-Update `skills/bav-trainer/SKILL.md` to state that the historical diagnostic surface now includes:
+Keep these still deferred:
 
 ```text
-Financing Contribution to ROE = FLEV × Spread
-ROE change attribution = Operating Effect + Financing Effect
-Financing Effect = Leverage Effect + Spread Effect
+company-specific causal diagnosis
+historical per-share expansion where share data is not yet supplied
+forecasting
+valuation
+investment conclusion
+ROU/deferred-tax alternative modeling
 ```
 
-Retain the warning that these are arithmetic diagnostics, not automatic judgments about leverage quality or financing policy.
+Do not rewrite old release history; update only the current product description / scope statements.
 
 ---
 
-### Task 7: Full regression and checkpoint evidence
+### Task 7: Full regression and acceptance evidence
 
 **Files:**
 - Modify: `RESULT.md`
 - Modify: `IMPLEMENTATION.md` status only after all verification passes
 - Do not modify: `TARGET.md`
 
-- [ ] **Step 1: Run focused new suites**
+- [ ] **Step 1: Run focused tests**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_roe_attribution.py -v
-PYTHONPATH=. pytest core/tests/test_profitability_change.py -v
-PYTHONPATH=. pytest core/tests/test_profitability_drivers.py -v
+PYTHONPATH=. pytest core/tests/test_earnings_quality_change.py -v
+PYTHONPATH=. pytest core/tests/test_earnings_quality.py -v
 ```
 
-- [ ] **Step 2: Run existing high-risk regressions**
+- [ ] **Step 2: Run integrity / Trainer suites**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_working_capital.py -v
 PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
 PYTHONPATH=. pytest core/tests/test_trainer.py -v
 PYTHONPATH=. pytest core/tests/test_normalization.py -v
-PYTHONPATH=. pytest core/tests/test_earnings_quality.py -v
-PYTHONPATH=. pytest core/tests/test_classification.py -v
-PYTHONPATH=. pytest core/tests/test_line_identity.py -v
-PYTHONPATH=. pytest core/tests/test_line_resolver.py -v
 ```
 
 - [ ] **Step 3: Run the complete suite**
@@ -1174,9 +936,9 @@ PYTHONPATH=. pytest core/tests/test_line_resolver.py -v
 PYTHONPATH=. pytest core/tests/ -q
 ```
 
-Record the actual passing count in `RESULT.md`; do not predict it in advance.
+Record the actual final pass count; do not invent it in advance.
 
-- [ ] **Step 4: Verify the base demo**
+- [ ] **Step 4: Verify the five-year base demo**
 
 ```bash
 PYTHONPATH=. python -m core build \
@@ -1190,12 +952,21 @@ PYTHONPATH=. python -m core list \
   --workbook /tmp/DEMO_BASE_Trainer.xlsx
 ```
 
-Required:
+Required Step 9E.1 surface:
 
 ```text
-Components resolved: 244
-Checked 244 practice cells: 0 correct, 0 incorrect, 244 blank.
-58 schedule groups
+62 formula families
+259 practice cells
+fresh Check: 0 correct / 0 incorrect / 259 blank
+62 schedule groups
+```
+
+Reason:
+
+```text
+Step 9D.1 base: 58 families / 244 cells
+Step 9E.1:      +4 families / +15 cells
+new base:        62 families / 259 cells
 ```
 
 - [ ] **Step 5: Verify the normalization demo**
@@ -1216,18 +987,37 @@ PYTHONPATH=. python -m core list \
 Required:
 
 ```text
-Components resolved: 264
-Checked 264 practice cells: 0 correct, 0 incorrect, 264 blank.
-62 schedule groups
+66 formula families
+279 practice cells
+fresh Check: 0 correct / 0 incorrect / 279 blank
+66 schedule groups
 ```
 
-- [ ] **Step 6: Verify CLI scope**
+- [ ] **Step 6: Verify no-asset and no-CFO gating**
+
+Using existing focused fixtures:
+
+```text
+CFO absent:
+- Earnings Quality sheet absent
+- all existing quality families absent
+- all Step 9E.1 quality-change families absent
+
+CFO present, Total Assets absent:
+- Earnings Quality sheet present
+- existing three non-asset quality families preserved
+- Step 9E.1 has exactly 3 families / 12 practice cells
+- accrual_ratio_change absent from SemanticMap
+- visual Change in Accrual Ratio row remains N/A for all periods
+```
+
+- [ ] **Step 7: Verify public CLI remains unchanged**
 
 ```bash
 PYTHONPATH=. python -m core --help
 ```
 
-Public commands must remain:
+Required public commands remain:
 
 ```text
 ingest
@@ -1236,57 +1026,49 @@ check
 list
 ```
 
-- [ ] **Step 7: Update checkpoint evidence**
+- [ ] **Step 8: Update `RESULT.md`**
 
-`RESULT.md` must record:
+Record:
 
-```text
-actual full-suite pass count
-base 58 / 244 surface
-normalization 62 / 264 surface
-Financing Contribution = FLEV × Spread
-Operating Effect = Change in RNOA
-Leverage Effect midpoint attribution
-Spread Effect midpoint attribution
-Financing Effect = Leverage + Spread effects
-Operating + Financing effects reconcile to direct decomposed-ROE change when defined
-undefined FLEV / Spread states propagate to #N/A
-live classification-conditioned ROE attribution passes Check
-generated ROE level/change checks are trusted and tamper-detected
-no automatic leverage-quality or financing-policy judgment added
-forecasting and valuation not begun
-TARGET.md unchanged
-```
-
-Only after all verification passes, prepend a concise completion-status line to `IMPLEMENTATION.md`. Do not rewrite the plan body.
+- actual full-suite pass count;
+- base 62 / 259 preservation;
+- normalization 66 / 279 preservation;
+- four cash-conversion trend families when Total Assets are available;
+- three trend families when Total Assets are absent;
+- no-CFO omission behavior;
+- `#N/A` propagation in ratio changes;
+- trusted `EARNINGS QUALITY CHANGE CHECK` tamper failure before recolor;
+- exact/equivalent formulas remain eligible;
+- no automatic quality labels or causal diagnosis;
+- CLI unchanged;
+- `TARGET.md` unchanged;
+- forecasting / valuation / historical-share schema work not begun.
 
 ---
 
 ## Definition of done
 
-Step 9D.1 is complete only when all of the following are true:
+Step 9E.1 is complete only when all of the following are true:
 
-1. `Financing Contribution to ROE = FLEV × Spread` exists as a comparable-period formula family.
-2. The level bridge `RNOA + Financing Contribution = ROE (decomposed)` reconciles when defined.
-3. Direct Change in Decomposed ROE exists only for post-comparable periods.
-4. Operating Effect equals direct Change in RNOA.
-5. Leverage Effect uses `ΔFLEV × midpoint Spread`.
-6. Spread Effect uses `ΔSpread × midpoint FLEV`.
-7. Leverage Effect + Spread Effect equals the change in financing contribution when defined.
-8. Financing Effect equals Leverage Effect + Spread Effect.
-9. Operating Effect + Financing Effect equals Direct Change in Decomposed ROE when defined.
-10. Undefined required FLEV / Spread / RNOA states propagate to `#N/A`; no fabricated zero effect is introduced.
-11. `0 × #N/A` remains undefined; only fully defined zero products become numeric `0.0`.
-12. First-period / first-comparable applicability remains explicit `N/A`, not numeric zero.
-13. Live classification judgment changes relevant Step 9D.1 dynamic expected values.
-14. Exact and equivalent formulas continue to pass under dynamic Check, including expected `#N/A` cases.
-15. Tampering either generated ROE attribution check fails before any learner-cell recoloring.
-16. Existing Step 8, Step 9A, Step 9B, and Step 9C families remain unchanged.
-17. Base demo surface is 58 families / 244 practice cells.
-18. Normalization demo surface is 62 families / 264 practice cells.
-19. Full test suite passes.
-20. CLI remains `{ingest,build,check,list}` only.
-21. `TARGET.md` is unchanged.
-22. No forecasting, valuation, segment analysis, automatic leverage-quality judgment, or company-specific financing causality has been introduced.
+1. Operating Cash Flow change is practiced across comparable periods.
+2. Cash Conversion Ratio change is practiced across comparable periods.
+3. Total Accruals change is practiced across comparable periods.
+4. Accrual Ratio change is practiced only when Total Assets support the existing accrual-ratio schedule.
+5. First-period core changes are non-applicable, not zero.
+6. First two Accrual Ratio change periods are non-applicable.
+7. Undefined current/prior ratios propagate to `#N/A`.
+8. Numeric unchanged metrics produce `0.0` changes.
+9. Signs are preserved; no absolute-value normalization is introduced.
+10. The generated Earnings Quality change check is trusted and tamper-detected before any fill change.
+11. Existing five Step 9A quality families/formulas remain unchanged.
+12. CFO-absent builds omit the quality-change module entirely.
+13. Total-Assets-absent builds retain the three core trend families and omit only the accrual-ratio-change family.
+14. Dynamic Check reuses the same authoritative EarningsQualitySeries rather than resolving source facts a second time.
+15. Five-year base demo is 62 families / 259 practice cells.
+16. Five-year normalization demo is 66 families / 279 practice cells.
+17. Full test suite passes.
+18. Public CLI remains `{ingest,build,check,list}`.
+19. `TARGET.md` remains unchanged.
+20. No automatic earnings-quality verdict, causal working-capital diagnosis, forecasting, valuation, per-share schema expansion, or investment conclusion has been introduced.
 
-After completing Step 9D.1, stop and report changed files, exact test output, demo build/check/list output, level/change reconciliation evidence, live-classification evidence, and any new active historical-model issue found during implementation. Do not proceed to forecasting or valuation, and do not commit or push.
+After completing Step 9E.1, stop and report changed files, exact test output, base/normalization build-check-list output, gating evidence, `#N/A` change evidence, trusted-check tamper evidence, and any new active historical-model issue found during implementation. Do not proceed to the next curriculum feature and do not commit or push.
