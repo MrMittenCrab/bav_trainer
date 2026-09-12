@@ -12,6 +12,7 @@ from openpyxl.styles import Border, Font, PatternFill, Side
 from ..engine.component_catalog import (
     COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
+    PER_SHARE_COMPONENT_CATALOG,
     PROFITABILITY_CHANGE_COMPONENT_CATALOG,
     PROFITABILITY_DRIVER_COMPONENT_CATALOG,
     QUALITY_CHANGE_COMPONENT_CATALOG,
@@ -291,6 +292,7 @@ def group_components_by_family(smap: SemanticMap) -> list[dict]:
     family_meta.update({f.id: f for f in PROFITABILITY_DRIVER_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in PROFITABILITY_CHANGE_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in ROE_ATTRIBUTION_COMPONENT_CATALOG})
+    family_meta.update({f.id: f for f in PER_SHARE_COMPONENT_CATALOG})
     groups: list[dict] = []
     for family_id, comps in by_family.items():
         comps = sorted(comps, key=lambda c: (c.period_index is None, c.period_index or 0, c.order))

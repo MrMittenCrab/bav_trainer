@@ -53,6 +53,14 @@ class LineItem:
 
 
 @dataclass
+class HistoricalShareData:
+    """Explicit historical share-count inputs used by per-share schedules."""
+
+    scale_basis: str = ""
+    diluted_weighted_average: dict[date, float | None] = field(default_factory=dict)
+
+
+@dataclass
 class StandardizedFinancials:
     """Canonical IS / BS / CF structure expected by the BAV engine."""
 
@@ -66,6 +74,7 @@ class StandardizedFinancials:
     income_statement: list[LineItem] = field(default_factory=list)
     balance_sheet: list[LineItem] = field(default_factory=list)
     cash_flow: list[LineItem] = field(default_factory=list)
+    historical_shares: HistoricalShareData | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     provenance: list[dict[str, str]] = field(default_factory=list)
 

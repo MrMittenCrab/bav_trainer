@@ -1517,6 +1517,128 @@ def expand_quality_change_specs(
     return tuple(specs)
 
 
+PER_SHARE_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="reported_diluted_eps",
+        order=67,
+        title="Reported Diluted EPS",
+        short_hint="Reported Net Income divided by diluted weighted-average shares.",
+        semantic_key="per_share.reported_diluted_eps",
+        category="per_share",
+        tab_template="Per Share Analysis",
+        depends_on_current=("net_income_link",),
+        hints=(
+            "Diluted EPS = Reported Net Income / Diluted Weighted-Average Shares.",
+            "Share count is a supplied historical input and remains populated.",
+        ),
+    ),
+    ComponentFamily(
+        id="nopat_per_diluted_share",
+        order=68,
+        title="NOPAT per Diluted Share",
+        short_hint="Historical NOPAT divided by diluted weighted-average shares.",
+        semantic_key="per_share.nopat_per_diluted_share",
+        category="per_share",
+        tab_template="Per Share Analysis",
+        depends_on_current=("nopat_fy",),
+        hints=(
+            "NOPAT per Diluted Share = NOPAT / Diluted Weighted-Average Shares.",
+            "If NOPAT is undefined, the per-share amount is also undefined (#N/A).",
+        ),
+    ),
+    ComponentFamily(
+        id="diluted_eps_change",
+        order=69,
+        title="Change in Diluted EPS",
+        short_hint="Current Reported Diluted EPS minus prior EPS.",
+        semantic_key="per_share.diluted_eps_change",
+        category="per_share",
+        tab_template="Per Share Analysis",
+        period_scope="comparable",
+        depends_on_current=("reported_diluted_eps",),
+        depends_on_previous=("reported_diluted_eps",),
+        hints=(
+            "Change in Diluted EPS = Current EPS - Prior EPS.",
+            "Use an absolute per-share change here rather than a growth rate that can become misleading around zero or negative EPS.",
+        ),
+    ),
+    ComponentFamily(
+        id="diluted_share_count_change",
+        order=70,
+        title="Change in Diluted Weighted-Average Shares",
+        short_hint="Current diluted weighted-average shares minus prior shares.",
+        semantic_key="per_share.diluted_share_count_change",
+        category="per_share",
+        tab_template="Per Share Analysis",
+        period_scope="comparable",
+        hints=(
+            "Change in Diluted Weighted-Average Shares = Current Shares - Prior Shares.",
+            "A positive change is mechanical evidence of a larger diluted share denominator; do not infer the cause automatically.",
+        ),
+    ),
+)
+
+
+def expand_per_share_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+) -> tuple[ComponentSpec, ...]:
+    """Expand diluted per-share families into period-specific concrete specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_per_share_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_per_share_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in PER_SHARE_COMPONENT_CATALOG:
+        if family.period_scope == "all":
+            indices = range(len(periods))
+        elif family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        else:
+            raise ValueError(
+                f"unsupported per-share period_scope {family.period_scope!r}"
+            )
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            if j > 0:
+                prev = periods[j - 1]
+                for dep_fam in family.depends_on_previous:
+                    deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 def _deferred(
     *,
     id: str,

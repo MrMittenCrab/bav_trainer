@@ -19,6 +19,7 @@ from ..data.interface import (
     DocumentManifest,
     DocumentType,
     FinancialPeriod,
+    HistoricalShareData,
     LineItem,
     StandardizedFinancials,
 )
@@ -36,6 +37,28 @@ def _parse_date(raw: str | date) -> date:
         except ValueError:
             continue
     raise ValueError(f"Cannot parse date: {raw!r}")
+
+
+def _load_historical_shares(payload: dict) -> HistoricalShareData | None:
+    raw = payload.get("historical_shares")
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError("historical_shares must be an object")
+    values = raw.get("diluted_weighted_average") or {}
+    if not isinstance(values, dict):
+        raise ValueError(
+            "historical_shares.diluted_weighted_average must be an object"
+        )
+    return HistoricalShareData(
+        scale_basis=str(raw.get("scale_basis") or ""),
+        diluted_weighted_average={
+            _parse_date(str(period)): (
+                None if value is None else float(value)
+            )
+            for period, value in values.items()
+        },
+    )
 
 
 def _load_structured_json(path: Path) -> StandardizedFinancials:
@@ -81,6 +104,7 @@ def _load_structured_json(path: Path) -> StandardizedFinancials:
         income_statement=load_items("income_statement"),
         balance_sheet=load_items("balance_sheet"),
         cash_flow=load_items("cash_flow"),
+        historical_shares=_load_historical_shares(payload),
         metadata=payload.get("metadata", {}),
         provenance=[{"source": str(path), "type": "structured_json"}],
     )

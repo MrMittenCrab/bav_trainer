@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from ..data.interface import LineItem, ReconciliationReport, StandardizedFinancials
+from ..data.interface import (
+    HistoricalShareData,
+    LineItem,
+    ReconciliationReport,
+    StandardizedFinancials,
+)
 from ..data.line_identity import line_identity, validate_statement_identities
 from ..data.validators import (
     validate_balance_sheet,
@@ -74,6 +79,30 @@ def reconcile_financials(data: StandardizedFinancials) -> ReconciliationReport:
     return report
 
 
+def _merge_historical_shares(
+    base: StandardizedFinancials,
+    supplement: StandardizedFinancials,
+) -> None:
+    incoming = supplement.historical_shares
+    if incoming is None:
+        return
+    if base.historical_shares is None:
+        base.historical_shares = HistoricalShareData(
+            scale_basis=incoming.scale_basis,
+            diluted_weighted_average=dict(incoming.diluted_weighted_average),
+        )
+        return
+    existing = base.historical_shares
+    if existing.scale_basis != incoming.scale_basis:
+        raise ValueError(
+            "historical share scale_basis mismatch across merged documents: "
+            f"{existing.scale_basis!r} != {incoming.scale_basis!r}"
+        )
+    existing.diluted_weighted_average.update(
+        incoming.diluted_weighted_average
+    )
+
+
 def merge_documents(
     base: StandardizedFinancials,
     supplement: StandardizedFinancials,
@@ -96,6 +125,7 @@ def merge_documents(
                 next(p for p in supplement.periods if p.end_date == pd)
             )
     base.provenance.extend(supplement.provenance)
+    _merge_historical_shares(base, supplement)
     rec = reconcile_financials(base)
     report.checksums = rec.checksums
     report.warnings.extend(rec.warnings)

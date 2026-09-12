@@ -1,5 +1,7 @@
 # Step 9F.1 — Historical Diluted Per-Share Foundation
 
+> **Status:** COMPLETE — Step 9F.1 verified locally (252 passed). Ordinary demo unchanged at 62/259 and 66/279; share-enabled fixture 66/277 and 70/297. See `RESULT.md`. Do not commit/push from the agent.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `8959cad3166067f2281b52479ba7a84b3cb6e63a` (`Step 9E1`, Step 9E.1 complete). Implement only Step 9F.1 below using red/green TDD. Preserve Step 8 judgment behavior, the trusted-workbook boundary, all Step 9A source-completeness / tax / normalization / `#N/A` semantics, the full Step 9B working-capital surface, the full Step 9C profitability-driver/change surface, the full Step 9D ROE-attribution surface, and the Step 9E cash-conversion trend surface. Do not add forecasting, valuation, normalized EPS, basic-vs-diluted dilution attribution, period-end share-count analysis, segment analysis, ROU/deferred-tax alternatives, or company-specific investment conclusions. Do not commit or push; the user owns the checkpoint commit.

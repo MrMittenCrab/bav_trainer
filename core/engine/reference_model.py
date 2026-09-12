@@ -29,6 +29,7 @@ from ..model.normalization import (
     normalization_cases,
 )
 from ..model.period_axis import canonical_fiscal_periods
+from ..model.per_share import compute_per_share_series, per_share_available
 from ..model.profitability_change import compute_profitability_change_series
 from ..model.profitability_drivers import compute_profitability_driver_series
 from ..model.roe_attribution import compute_roe_attribution_series
@@ -41,6 +42,7 @@ from .component_catalog import (
     DEFERRED_COMPONENT_SPECS,
     expand_historical_specs,
     expand_normalization_specs,
+    expand_per_share_specs,
     expand_profitability_change_specs,
     expand_profitability_driver_specs,
     expand_quality_change_specs,
@@ -69,6 +71,7 @@ NORMALIZATION_JUDGMENT_SHEET = "Normalization Judgment"
 EARNINGS_NORMALIZATION_SHEET = "Earnings Normalization"
 EARNINGS_QUALITY_SHEET = "Earnings Quality"
 WORKING_CAPITAL_SHEET = "Working Capital Analysis"
+PER_SHARE_SHEET = "Per Share Analysis"
 JUDGMENT_INSTRUCTION = (
     "The supplied treatment is the model's reference treatment, not a universal "
     "accounting truth. Compare it with the listed alternative(s), choose the "
@@ -226,6 +229,29 @@ class ReferenceModelBuilder:
         else:
             self.quality_change_series = None
             self.quality_change_specs = ()
+        if per_share_available(self.fin):
+            self.per_share_series = compute_per_share_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.per_share_specs = expand_per_share_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + len(self.profitability_change_specs)
+                    + len(self.roe_attribution_specs)
+                    + len(self.quality_change_specs)
+                    + 1
+                ),
+            )
+        else:
+            self.per_share_series = None
+            self.per_share_specs = ()
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
@@ -235,6 +261,7 @@ class ReferenceModelBuilder:
             + self.profitability_change_specs
             + self.roe_attribution_specs
             + self.quality_change_specs
+            + self.per_share_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -260,6 +287,9 @@ class ReferenceModelBuilder:
         }
         self._quality_change_spec_index = {
             (s.family_id, s.period_index): s for s in self.quality_change_specs
+        }
+        self._per_share_spec_index = {
+            (s.family_id, s.period_index): s for s in self.per_share_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -360,6 +390,8 @@ class ReferenceModelBuilder:
             self._build_earnings_quality(wb)
         if self.working_capital_series is not None:
             self._build_working_capital_analysis(wb)
+        if self.per_share_series is not None:
+            self._build_per_share_analysis(wb)
         if self.include_deferred_forecast:
             for scenario in ("Bear", "Base", "Bull"):
                 self._build_model_tab(wb, scenario)
@@ -462,6 +494,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._quality_change_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_per_share(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._per_share_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -2498,6 +2546,143 @@ class ReferenceModelBuilder:
         self.rowmap["wc_incremental_owca_row"] = incremental_owca_row
         self.rowmap["wc_incremental_owcl_row"] = incremental_owcl_row
         self.rowmap["wc_driver_check_row"] = driver_check_row
+
+    def _build_per_share_analysis(self, wb: Workbook) -> None:
+        if self.per_share_series is None:
+            raise RuntimeError(
+                "per_share_series required when building Per Share Analysis"
+            )
+
+        ws = wb.create_sheet(PER_SHARE_SHEET)
+        ws["A1"] = f"{self.fin.company_name} — Per Share Analysis"
+        ws["A1"].font = BOLD
+        ws["A2"] = (
+            "Historical per-share diagnostics using supplied diluted "
+            "weighted-average shares. Share counts are source inputs, not "
+            "practice cells."
+        )
+        ws.column_dimensions["A"].width = 48
+
+        header_row = 4
+        ws.cell(row=header_row, column=1, value="Metric").font = BOLD
+        for j, pd in enumerate(self.periods):
+            cell = ws.cell(row=header_row, column=2 + j, value=pd)
+            cell.number_format = "mmm dd, yyyy"
+            cell.font = BOLD
+            ws.column_dimensions[self._col(2 + j)].width = 14
+
+        ni_src = self.rowmap["condensed_ni_row"]
+        nopat_src = self.rowmap["condensed_nopat_row"]
+        series = self.per_share_series
+
+        ni_row = 5
+        nopat_row = 6
+        shares_row = 7
+        eps_row = 9
+        nopat_ps_row = 10
+        eps_chg_row = 12
+        shares_chg_row = 13
+
+        share_fmt = "#,##0.0;(#,##0.0)"
+        per_share_fmt = "0.000"
+
+        ws.cell(row=ni_row, column=1, value="Reported Net Income")
+        ws.cell(row=nopat_row, column=1, value="NOPAT")
+        ws.cell(row=shares_row, column=1, value="Diluted Weighted-Average Shares")
+        ws.cell(row=eps_row, column=1, value="Reported Diluted EPS")
+        ws.cell(row=nopat_ps_row, column=1, value="NOPAT per Diluted Share")
+        ws.cell(row=eps_chg_row, column=1, value="Change in Diluted EPS")
+        ws.cell(
+            row=shares_chg_row,
+            column=1,
+            value="Change in Diluted Weighted-Average Shares",
+        )
+
+        for j in range(self._n):
+            col = self._col(2 + j)
+            for row, src in ((ni_row, ni_src), (nopat_row, nopat_src)):
+                formula = f"='Condensed Financials'!{col}{src}"
+                c = ws.cell(row=row, column=2 + j, value=formula)
+                c.number_format = NUM_FMT
+
+            share_val = series.diluted_weighted_average_shares[j]
+            c = ws.cell(row=shares_row, column=2 + j, value=float(share_val))
+            c.number_format = share_fmt
+
+            reported_eps = (
+                f"=IF({col}{shares_row}<=0,NA(),{col}{ni_row}/{col}{shares_row})"
+            )
+            nopat_per_share = (
+                f"=IF({col}{shares_row}<=0,NA(),{col}{nopat_row}/{col}{shares_row})"
+            )
+            c = ws.cell(row=eps_row, column=2 + j, value=reported_eps)
+            c.number_format = per_share_fmt
+            c = ws.cell(row=nopat_ps_row, column=2 + j, value=nopat_per_share)
+            c.number_format = per_share_fmt
+
+            self._register_per_share(
+                "reported_diluted_eps",
+                j,
+                PER_SHARE_SHEET,
+                eps_row,
+                2 + j,
+                reported_eps,
+                series.reported_diluted_eps[j],
+            )
+            nopat_expected = series.nopat_per_diluted_share[j]
+            self._register_per_share(
+                "nopat_per_diluted_share",
+                j,
+                PER_SHARE_SHEET,
+                nopat_ps_row,
+                2 + j,
+                nopat_per_share,
+                nopat_expected
+                if isinstance(nopat_expected, str)
+                else float(nopat_expected),
+            )
+
+            if j == 0:
+                ws.cell(row=eps_chg_row, column=2 + j, value="N/A")
+                ws.cell(row=shares_chg_row, column=2 + j, value="N/A")
+                continue
+
+            prev_col = self._col(2 + j - 1)
+            eps_change = f"={col}{eps_row}-{prev_col}{eps_row}"
+            shares_change = f"={col}{shares_row}-{prev_col}{shares_row}"
+            c = ws.cell(row=eps_chg_row, column=2 + j, value=eps_change)
+            c.number_format = per_share_fmt
+            c = ws.cell(row=shares_chg_row, column=2 + j, value=shares_change)
+            c.number_format = share_fmt
+
+            assert series.diluted_eps_change[j] is not None
+            assert series.diluted_share_count_change[j] is not None
+            self._register_per_share(
+                "diluted_eps_change",
+                j,
+                PER_SHARE_SHEET,
+                eps_chg_row,
+                2 + j,
+                eps_change,
+                float(series.diluted_eps_change[j]),
+            )
+            self._register_per_share(
+                "diluted_share_count_change",
+                j,
+                PER_SHARE_SHEET,
+                shares_chg_row,
+                2 + j,
+                shares_change,
+                float(series.diluted_share_count_change[j]),
+            )
+
+        self.rowmap["per_share_ni_row"] = ni_row
+        self.rowmap["per_share_nopat_row"] = nopat_row
+        self.rowmap["per_share_shares_row"] = shares_row
+        self.rowmap["per_share_eps_row"] = eps_row
+        self.rowmap["per_share_nopat_ps_row"] = nopat_ps_row
+        self.rowmap["per_share_eps_chg_row"] = eps_chg_row
+        self.rowmap["per_share_shares_chg_row"] = shares_chg_row
 
     def _build_model_tab(self, wb: Workbook, scenario: str) -> None:
         ws = wb.create_sheet(f"Model_{scenario}")

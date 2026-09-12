@@ -5,7 +5,12 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any
 
-from .interface import FinancialPeriod, LineItem, StandardizedFinancials
+from .interface import (
+    FinancialPeriod,
+    HistoricalShareData,
+    LineItem,
+    StandardizedFinancials,
+)
 
 
 def _date_key(value: date | datetime | str) -> str:
@@ -43,6 +48,38 @@ def _deserialize_line(payload: dict[str, Any]) -> LineItem:
     )
 
 
+def _serialize_historical_shares(
+    shares: HistoricalShareData | None,
+) -> dict[str, Any] | None:
+    if shares is None:
+        return None
+    return {
+        "scale_basis": shares.scale_basis,
+        "diluted_weighted_average": {
+            _date_key(period): (None if value is None else float(value))
+            for period, value in shares.diluted_weighted_average.items()
+        },
+    }
+
+
+def _deserialize_historical_shares(
+    payload: object,
+) -> HistoricalShareData | None:
+    if payload is None:
+        return None
+    if not isinstance(payload, dict):
+        raise ValueError("historical_shares must be an object or null")
+    return HistoricalShareData(
+        scale_basis=str(payload.get("scale_basis") or ""),
+        diluted_weighted_average={
+            _parse_date(period): (None if value is None else float(value))
+            for period, value in (
+                payload.get("diluted_weighted_average") or {}
+            ).items()
+        },
+    )
+
+
 def standardized_to_payload(fin: StandardizedFinancials) -> dict:
     """Serialize model-relevant fields only (no source paths, provenance, or hints)."""
     return {
@@ -63,6 +100,7 @@ def standardized_to_payload(fin: StandardizedFinancials) -> dict:
         "income_statement": [_serialize_line(item) for item in fin.income_statement],
         "balance_sheet": [_serialize_line(item) for item in fin.balance_sheet],
         "cash_flow": [_serialize_line(item) for item in fin.cash_flow],
+        "historical_shares": _serialize_historical_shares(fin.historical_shares),
     }
 
 
@@ -84,7 +122,14 @@ def standardized_from_payload(payload: dict) -> StandardizedFinancials:
         jurisdiction=str(payload.get("jurisdiction") or ""),
         stock_code=str(payload.get("stock_code") or ""),
         periods=periods,
-        income_statement=[_deserialize_line(item) for item in payload.get("income_statement") or []],
-        balance_sheet=[_deserialize_line(item) for item in payload.get("balance_sheet") or []],
+        income_statement=[
+            _deserialize_line(item) for item in payload.get("income_statement") or []
+        ],
+        balance_sheet=[
+            _deserialize_line(item) for item in payload.get("balance_sheet") or []
+        ],
         cash_flow=[_deserialize_line(item) for item in payload.get("cash_flow") or []],
+        historical_shares=_deserialize_historical_shares(
+            payload.get("historical_shares")
+        ),
     )
