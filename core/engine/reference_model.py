@@ -834,7 +834,7 @@ class ReferenceModelBuilder:
 
             # NOPAT Margin — all periods
             margin_f = (
-                f"=IF('Condensed Financials'!{src_col}{rev_r}=0,0,"
+                f"=IF('Condensed Financials'!{src_col}{rev_r}=0,NA(),"
                 f"'Condensed Financials'!{src_col}{nopat_r}/"
                 f"'Condensed Financials'!{src_col}{rev_r})"
             )
@@ -865,7 +865,7 @@ class ReferenceModelBuilder:
 
             assert src_prev is not None
             sales_f = (
-                f"=IF('Condensed Financials'!{src_prev}{rev_r}=0,0,"
+                f"=IF('Condensed Financials'!{src_prev}{rev_r}=0,NA(),"
                 f"'Condensed Financials'!{src_col}{rev_r}/"
                 f"'Condensed Financials'!{src_prev}{rev_r}-1)"
             )
@@ -882,7 +882,7 @@ class ReferenceModelBuilder:
 
             rnoa_f = (
                 f"=IF((('Condensed Financials'!{src_col}{noa_r}+"
-                f"'Condensed Financials'!{src_prev}{noa_r})/2)=0,0,"
+                f"'Condensed Financials'!{src_prev}{noa_r})/2)=0,NA(),"
                 f"'Condensed Financials'!{src_col}{nopat_r}/"
                 f"(('Condensed Financials'!{src_col}{noa_r}+"
                 f"'Condensed Financials'!{src_prev}{noa_r})/2))"
@@ -900,7 +900,7 @@ class ReferenceModelBuilder:
 
             cod_f = (
                 f"=IF((('Condensed Financials'!{src_col}{nd_r}+"
-                f"'Condensed Financials'!{src_prev}{nd_r})/2)=0,0,"
+                f"'Condensed Financials'!{src_prev}{nd_r})/2)=0,NA(),"
                 f"'Condensed Financials'!{src_col}{niat_r}/"
                 f"(('Condensed Financials'!{src_col}{nd_r}+"
                 f"'Condensed Financials'!{src_prev}{nd_r})/2))"
@@ -930,7 +930,7 @@ class ReferenceModelBuilder:
 
             flev_f = (
                 f"=IF((('Condensed Financials'!{src_col}{eq_r}+"
-                f"'Condensed Financials'!{src_prev}{eq_r})/2)=0,0,"
+                f"'Condensed Financials'!{src_prev}{eq_r})/2)=0,NA(),"
                 f"(('Condensed Financials'!{src_col}{nd_r}+"
                 f"'Condensed Financials'!{src_prev}{nd_r})/2)/"
                 f"(('Condensed Financials'!{src_col}{eq_r}+"
@@ -961,7 +961,7 @@ class ReferenceModelBuilder:
 
             actual_f = (
                 f"=IF((('Condensed Financials'!{src_col}{eq_r}+"
-                f"'Condensed Financials'!{src_prev}{eq_r})/2)=0,0,"
+                f"'Condensed Financials'!{src_prev}{eq_r})/2)=0,NA(),"
                 f"'Condensed Financials'!{src_col}{ni_r}/"
                 f"(('Condensed Financials'!{src_col}{eq_r}+"
                 f"'Condensed Financials'!{src_prev}{eq_r})/2))"

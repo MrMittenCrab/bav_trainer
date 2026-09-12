@@ -17,9 +17,8 @@ from datetime import date
 from ..data.interface import StandardizedFinancials
 from .financial_math import AnchorMetrics
 from .line_resolver import resolve_line
+from .ratio_values import UNDEFINED_RATIO, ratio_or_na
 from .source_values import required_period_value
-
-UNDEFINED_RATIO = "#N/A"
 
 
 @dataclass(frozen=True)
@@ -120,7 +119,7 @@ def compute_earnings_quality_series(
         )
         ni = net_income_values[j]
         cfo_vals.append(cfo)
-        conversion.append(UNDEFINED_RATIO if ni == 0.0 else cfo / ni)
+        conversion.append(ratio_or_na(cfo, ni))
         accruals.append(ni - cfo)
 
     assets_item = resolve_line(
@@ -152,10 +151,7 @@ def compute_earnings_quality_series(
     for j in range(1, n):
         average = (asset_values[j - 1] + asset_values[j]) / 2.0
         avg_assets.append(average)
-        if average == 0.0:
-            ratios.append(UNDEFINED_RATIO)
-        else:
-            ratios.append(accruals[j] / average)
+        ratios.append(ratio_or_na(accruals[j], average))
 
     return EarningsQualitySeries(
         operating_cash_flow=tuple(cfo_vals),

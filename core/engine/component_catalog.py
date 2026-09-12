@@ -159,7 +159,7 @@ COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         tab_template="Condensed Financials",
         hints=(
             "Net interest consolidates interest expense and interest income.",
-            "Missing optional interest lines are treated as zero.",
+            "Use the explicitly supplied Interest Expense and Interest Income lines with the model's sign convention.",
         ),
     ),
     ComponentFamily(
@@ -346,6 +346,7 @@ COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         depends_on_previous=("revenue_link",),
         hints=(
             "Sales Growth = Current Revenue / Prior Revenue − 1.",
+            "A zero denominator makes this ratio undefined (#N/A), not 0%.",
         ),
     ),
     ComponentFamily(
@@ -359,6 +360,7 @@ COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         depends_on_current=("nopat_fy", "revenue_link"),
         hints=(
             "NOPAT Margin = NOPAT / Revenue.",
+            "A zero denominator makes this ratio undefined (#N/A), not 0%.",
         ),
     ),
     ComponentFamily(
@@ -375,6 +377,7 @@ COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         hints=(
             "RNOA = NOPAT / Average NOA.",
             "Average NOA = (Beginning NOA + Ending NOA) / 2.",
+            "A zero denominator makes this ratio undefined (#N/A), not 0%.",
         ),
     ),
     ComponentFamily(
@@ -391,6 +394,7 @@ COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         hints=(
             "After-tax CoD = Net Interest After Tax / Average Net Debt.",
             "Do not apply the tax rate a second time.",
+            "A zero denominator makes this ratio undefined (#N/A), not 0%.",
         ),
     ),
     ComponentFamily(
@@ -406,6 +410,7 @@ COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         hints=(
             "After-tax CoD = Net Interest After Tax / Average Net Debt.",
             "Spread = RNOA − After-tax CoD.",
+            "An undefined required upstream ratio propagates into Spread.",
         ),
     ),
     ComponentFamily(
@@ -421,6 +426,7 @@ COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         depends_on_previous=("net_debt", "equity_reformulated_fy"),
         hints=(
             "FLEV = Average Net Debt / Average Equity.",
+            "A zero denominator makes this ratio undefined (#N/A), not 0%.",
         ),
     ),
     ComponentFamily(
@@ -436,6 +442,7 @@ COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         hints=(
             "Financial leverage (FLEV) = Average Net Debt / Average Equity.",
             "ROE (decomposed) = RNOA + FLEV × (RNOA − After-tax CoD).",
+            "An undefined required upstream ratio propagates into decomposed ROE.",
         ),
     ),
     ComponentFamily(
@@ -451,6 +458,7 @@ COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         depends_on_previous=("equity_reformulated_fy",),
         hints=(
             "Actual ROE = Net Income / Average Equity.",
+            "A zero denominator makes this ratio undefined (#N/A), not 0%.",
         ),
     ),
 )

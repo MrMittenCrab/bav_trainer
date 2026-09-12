@@ -1960,3 +1960,252 @@ def test_missing_bs_detail_fails_without_reported_totals(tmp_path):
     )
     with pytest.raises(MissingHistoricalValueError, match="balance_sheet detail"):
         build_training_workbook(fin, tmp_path / "MissDetail_Trainer.xlsx")
+
+
+def test_dupont_undefined_ratio_semantics_and_propagation():
+    from core.model.ratio_values import UNDEFINED_RATIO
+
+    # Zero prior revenue -> sales growth #N/A; zero current with nonzero prior -> -1.0
+    fin = _base_fin()
+    periods = [p.end_date for p in fin.periods]
+    rev = next(i for i in fin.income_statement if i.label == "Revenue")
+    rev.values[periods[0]] = 0.0
+    anchor = compute_anchor(fin, periods)
+    assert anchor.dupont["Sales Growth"][0] is None
+    assert anchor.dupont["Sales Growth"][1] == UNDEFINED_RATIO
+
+    fin2 = _base_fin()
+    rev2 = next(i for i in fin2.income_statement if i.label == "Revenue")
+    rev2.values[periods[1]] = 0.0
+    anchor2 = compute_anchor(fin2, periods)
+    assert anchor2.dupont["Sales Growth"][1] == pytest.approx(-1.0)
+
+    # Zero revenue -> NOPAT Margin #N/A; zero NOPAT with nonzero revenue -> 0.0
+    fin3 = _base_fin()
+    rev3 = next(i for i in fin3.income_statement if i.label == "Revenue")
+    rev3.values[periods[0]] = 0.0
+    # Keep NIAT/NOPAT well-defined via complete IS.
+    anchor3 = compute_anchor(fin3, periods)
+    assert anchor3.dupont["NOPAT Margin"][0] == UNDEFINED_RATIO
+
+    fin4 = _base_fin()
+    # Force NOPAT=0 by setting NI = -NIAT via explicit NI mutation after we know NIAT.
+    # Simpler: set NI and interest so NI + NIAT = 0 with nonzero revenue.
+    # NI=170, interest exp=-40, inc=5 -> net_int=35, etr≈0.15, niat≈29.75, nopat≈199.75
+    # Set NI to -niat by iterating: set Profit for year to cancel.
+    # Use post-compute approach: mutate historical path inputs so nopat is 0.
+    # pretax=200, tax=-30 -> etr=0.15; net_int = -(-40+5)=35; niat=35*0.85=29.75
+    # nopat = ni + niat = 0 => ni = -29.75
+    ni4 = next(i for i in fin4.income_statement if i.label == "Profit for the year")
+    ni4.values[periods[0]] = -29.75
+    anchor4 = compute_anchor(fin4, periods)
+    assert anchor4.historical.nopat[0] == pytest.approx(0.0)
+    assert anchor4.dupont["NOPAT Margin"][0] == pytest.approx(0.0)
+
+    # Zero average Net Debt -> CoD #N/A; Spread/decomposed propagate; Actual ROE may remain numeric
+    from core.data.interface import FinancialPeriod, StandardizedFinancials
+
+    p1, p2 = periods
+    fin_nd = StandardizedFinancials(
+        ticker="ND0",
+        company_name="Zero ND Co",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=p1, label="FY2024"),
+            FinancialPeriod(end_date=p2, label="FY2025"),
+        ],
+        income_statement=[
+            _li("Revenue", 1000, 1100),
+            _li("Finance costs", -40, -50),
+            _li("Finance income", 5, 6),
+            _li("Profit before tax", 200, 220),
+            _li("Income tax expense", -30, -33),
+            _li("Profit for the year", 170, 187),
+        ],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 200, 210),
+            _li("Trade receivables", 80, 90),
+            _li("Property, plant and equipment", 400, 420),
+            _li("Trade payables", 50, 55),
+            _li("Bank borrowings", 200, 210),
+            _li("Total equity", 430, 455),
+        ],
+        cash_flow=[_li("Net cash from operating activities", 50, 60)],
+    )
+    anchor_nd = compute_anchor(fin_nd, periods)
+    assert anchor_nd.reformulation.net_debt == (0.0, 0.0)
+    assert anchor_nd.dupont["After-tax CoD"][1] == UNDEFINED_RATIO
+    assert anchor_nd.dupont["Spread"][1] == UNDEFINED_RATIO
+    assert anchor_nd.dupont["ROE (decomposed)"][1] == UNDEFINED_RATIO
+    assert isinstance(anchor_nd.dupont["Actual ROE"][1], float)
+
+    # Zero average Equity -> FLEV / Actual ROE #N/A
+    fin_eq = StandardizedFinancials(
+        ticker="EQ0",
+        company_name="Zero Equity Co",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=p1, label="FY2024"),
+            FinancialPeriod(end_date=p2, label="FY2025"),
+        ],
+        income_statement=[
+            _li("Revenue", 1000, 1100),
+            _li("Finance costs", -40, -50),
+            _li("Finance income", 5, 6),
+            _li("Profit before tax", 200, 220),
+            _li("Income tax expense", -30, -33),
+            _li("Profit for the year", 170, 187),
+        ],
+        balance_sheet=[
+            # NOA = ND => implied equity 0
+            _li("Cash and cash equivalents", 100, 110),
+            _li("Trade receivables", 50, 55),
+            _li("Property, plant and equipment", 150, 155),
+            _li("Trade payables", 50, 55),
+            _li("Bank borrowings", 250, 265),
+            _li("Total equity", 0, 0),
+        ],
+        cash_flow=[_li("Net cash from operating activities", 50, 60)],
+    )
+    anchor_eq = compute_anchor(fin_eq, periods)
+    assert anchor_eq.reformulation.implied_equity == (0.0, 0.0)
+    assert anchor_eq.dupont["FLEV"][1] == UNDEFINED_RATIO
+    assert anchor_eq.dupont["Actual ROE"][1] == UNDEFINED_RATIO
+    assert anchor_eq.dupont["ROE (decomposed)"][1] == UNDEFINED_RATIO
+
+    # Zero average NOA -> RNOA #N/A propagates to Spread / decomposed ROE
+    fin_noa = StandardizedFinancials(
+        ticker="NOA0",
+        company_name="Zero NOA Co",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=p1, label="FY2024"),
+            FinancialPeriod(end_date=p2, label="FY2025"),
+        ],
+        income_statement=[
+            _li("Revenue", 1000, 1100),
+            _li("Finance costs", -40, -50),
+            _li("Finance income", 5, 6),
+            _li("Profit before tax", 200, 220),
+            _li("Income tax expense", -30, -33),
+            _li("Profit for the year", 170, 187),
+        ],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 100, 110),
+            _li("Trade receivables", 50, 55),
+            _li("Trade payables", 50, 55),
+            _li("Bank borrowings", 200, 210),
+            _li("Total equity", -100, -100),
+        ],
+        cash_flow=[_li("Net cash from operating activities", 50, 60)],
+    )
+    anchor_noa = compute_anchor(fin_noa, periods)
+    assert anchor_noa.reformulation.noa == (0.0, 0.0)
+    assert anchor_noa.dupont["RNOA"][1] == UNDEFINED_RATIO
+    assert anchor_noa.dupont["Spread"][1] == UNDEFINED_RATIO
+    assert anchor_noa.dupont["ROE (decomposed)"][1] == UNDEFINED_RATIO
+
+
+def test_dupont_na_formulas_and_check_accept_undefined(tmp_path):
+    from core.model.ratio_values import UNDEFINED_RATIO
+    from core.tests.test_normalization import _inject_formula_and_cached_value
+    from core.trainer.checker import check_workbook
+    from core.trainer.semantic_io import parse_cell_ref
+
+    # Demo formulas use NA() guards
+    data = _ingest_demo()
+    trainer, answer = build_training_workbook(data, tmp_path / "DupontNA_Trainer.xlsx")
+    smap = load_semantic_map(answer)
+    for family_id in (
+        "sales_growth",
+        "nopat_margin",
+        "rnoa",
+        "after_tax_cod",
+        "flev",
+        "actual_roe",
+    ):
+        comp = next(c for c in smap.all_ordered() if c.family_id == family_id)
+        assert "NA()" in comp.formula
+        assert ",0," not in comp.formula.replace("NA()", "")
+    # Spread / decomposed keep direct formulas (Excel propagates #N/A)
+    spread = next(c for c in smap.all_ordered() if c.family_id == "spread")
+    assert "NA()" not in spread.formula
+    assert "IFERROR" not in spread.formula.upper()
+
+    # Stale optional-interest hint removed
+    ni_hint = next(f for f in COMPONENT_CATALOG if f.id == "net_interest_fy")
+    assert all("Missing optional interest" not in h for h in ni_hint.hints)
+    assert any("explicitly supplied" in h for h in ni_hint.hints)
+
+    # Undefined After-tax CoD fixture: exact / equivalent #N/A green; fabricated 0 red
+    from core.data.interface import FinancialPeriod, StandardizedFinancials
+
+    p1, p2 = date(2024, 12, 31), date(2025, 12, 31)
+    fin = StandardizedFinancials(
+        ticker="COD0",
+        company_name="Zero CoD Co",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=p1, label="FY2024"),
+            FinancialPeriod(end_date=p2, label="FY2025"),
+        ],
+        income_statement=[
+            _li("Revenue", 1000, 1100),
+            _li("Finance costs", -40, -50),
+            _li("Finance income", 5, 6),
+            _li("Profit before tax", 200, 220),
+            _li("Income tax expense", -30, -33),
+            _li("Profit for the year", 170, 187),
+        ],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 200, 210),
+            _li("Trade receivables", 80, 90),
+            _li("Property, plant and equipment", 400, 420),
+            _li("Trade payables", 50, 55),
+            _li("Bank borrowings", 200, 210),
+            _li("Total equity", 430, 455),
+        ],
+        cash_flow=[_li("Net cash from operating activities", 50, 60)],
+    )
+    trainer2, answer2 = build_training_workbook(fin, tmp_path / "ZeroCOD_Trainer.xlsx")
+    smap2 = load_semantic_map(answer2)
+    comp = next(
+        c
+        for c in smap2.all_ordered()
+        if c.family_id == "after_tax_cod" and c.period_index == 1
+    )
+    assert comp.expected_value == UNDEFINED_RATIO
+    assert "NA()" in comp.formula
+
+    wb = load_workbook(trainer2, data_only=False)
+    row, col = parse_cell_ref(comp.cell)
+    wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    wb.save(trainer2)
+    wb.close()
+    assert check_workbook(trainer2).correct == 1
+
+    _inject_formula_and_cached_value(
+        trainer2,
+        comp.tab,
+        comp.cell,
+        formula="=NA()",
+        cached_value=UNDEFINED_RATIO,
+    )
+    assert check_workbook(trainer2).correct == 1
+
+    _inject_formula_and_cached_value(
+        trainer2,
+        comp.tab,
+        comp.cell,
+        formula="=0",
+        cached_value=0.0,
+    )
+    assert check_workbook(trainer2).incorrect == 1

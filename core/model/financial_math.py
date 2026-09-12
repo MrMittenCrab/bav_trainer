@@ -12,6 +12,7 @@ from .classification import (
     reformulate_balance_sheet,
 )
 from .line_resolver import resolve_line
+from .ratio_values import UNDEFINED_RATIO, ratio_or_na
 from .source_values import required_period_series
 
 
@@ -112,11 +113,11 @@ def compute_anchor(
         "Sales Growth", "NOPAT Margin", "RNOA", "After-tax CoD", "Spread",
         "FLEV", "ROE (decomposed)", "Actual ROE",
     ]}
-    cod_series: list[float] = []
+    cod_series: list[float | str] = []
     for i in range(n):
         if i == 0:
             dupont["Sales Growth"].append(None)
-            dupont["NOPAT Margin"].append(nopat[0] / revenues[0] if revenues[0] else 0)
+            dupont["NOPAT Margin"].append(ratio_or_na(nopat[0], revenues[0]))
             dupont["RNOA"].append(None)
             dupont["After-tax CoD"].append(None)
             dupont["Spread"].append(None)
@@ -124,15 +125,32 @@ def compute_anchor(
             dupont["ROE (decomposed)"].append(None)
             dupont["Actual ROE"].append(None)
             continue
-        rnoa = nopat[i] / avg(noa, i) if avg(noa, i) else 0
-        cod = niat[i] / avg(net_debt, i) if avg(net_debt, i) else 0
+        average_noa = avg(noa, i)
+        average_net_debt = avg(net_debt, i)
+        average_equity = avg(equity, i)
+        rnoa = ratio_or_na(nopat[i], average_noa)
+        cod = ratio_or_na(niat[i], average_net_debt)
         cod_series.append(cod)
-        flev = avg(net_debt, i) / avg(equity, i) if avg(equity, i) else 0
-        spread = rnoa - cod
-        decomposed = rnoa + flev * spread
-        actual = ni[i] / avg(equity, i) if avg(equity, i) else 0
-        dupont["Sales Growth"].append(revenues[i] / revenues[i - 1] - 1 if revenues[i - 1] else 0)
-        dupont["NOPAT Margin"].append(nopat[i] / revenues[i] if revenues[i] else 0)
+        flev = ratio_or_na(average_net_debt, average_equity)
+        if rnoa == UNDEFINED_RATIO or cod == UNDEFINED_RATIO:
+            spread: float | str = UNDEFINED_RATIO
+        else:
+            spread = rnoa - cod
+        if (
+            rnoa == UNDEFINED_RATIO
+            or flev == UNDEFINED_RATIO
+            or spread == UNDEFINED_RATIO
+        ):
+            decomposed: float | str = UNDEFINED_RATIO
+        else:
+            decomposed = rnoa + flev * spread
+        actual = ratio_or_na(ni[i], average_equity)
+        base = ratio_or_na(revenues[i], revenues[i - 1])
+        sales_growth = (
+            UNDEFINED_RATIO if base == UNDEFINED_RATIO else base - 1.0
+        )
+        dupont["Sales Growth"].append(sales_growth)
+        dupont["NOPAT Margin"].append(ratio_or_na(nopat[i], revenues[i]))
         dupont["RNOA"].append(rnoa)
         dupont["After-tax CoD"].append(cod)
         dupont["Spread"].append(spread)
@@ -140,7 +158,10 @@ def compute_anchor(
         dupont["ROE (decomposed)"].append(decomposed)
         dupont["Actual ROE"].append(actual)
 
-    hist_avg_cod = sum(cod_series) / len(cod_series) if cod_series else 0.04
+    numeric_cod = [
+        value for value in cod_series if isinstance(value, (int, float))
+    ]
+    hist_avg_cod = sum(numeric_cod) / len(numeric_cod) if numeric_cod else 0.04
     last = n - 1
     total_capital = net_debt[last] + equity[last]
     leverage = net_debt[last] / total_capital if total_capital else 0

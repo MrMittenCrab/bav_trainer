@@ -1,5 +1,7 @@
 # Step 9A.4 — Historical DuPont Undefined-Ratio Hardening
 
+> **Status:** Step 9A.4 complete. See `RESULT.md` for verification evidence (197 passed; base 30/141; normalization 34/161; DuPont zero denominators → `#N/A` / `NA()`). Do not commit or push from this checkpoint unless the user requests it.
+
 > **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `fea4b384495e9cc6d5ae6359a1e10ad7c7dc5618` (`Step 9.3`, Step 9A.3 complete). Implement only Step 9A.4 below using red/green TDD. Preserve Step 8 classification/normalization, the trusted-workbook boundary, Step 9A earnings-quality diagnostics, and Step 9A.3 historical source-completeness rules. Do not begin working-capital interpretation, quality scoring, forecasting, valuation, ROU/deferred-tax alternative modeling, or later research-diagnostic work. Do not commit or push; the user owns the checkpoint commit.
 
 **Goal:** Stop the active historical DuPont model from representing mathematically undefined ratios as numeric zero. Zero numerators remain valid zero results when the denominator is nonzero; zero denominators produce Excel/Python `#N/A`, and dependent DuPont metrics propagate that undefined state instead of manufacturing apparently meaningful profitability or leverage values.
