@@ -209,3 +209,82 @@ def classification_overrides_for_check(
                 )
         overrides[binding.override_selector] = treatment
     return overrides
+
+
+def live_classification_formula(
+    judgment_row: int,
+    reference_treatment: str,
+) -> str:
+    """System-generated Condensed classification formula driven only by Judgment!F."""
+    if judgment_row < 1:
+        raise ValueError(f"judgment_row must be >= 1, got {judgment_row}")
+    if reference_treatment is None or not str(reference_treatment).strip():
+        raise ValueError("reference_treatment must be a non-empty category string")
+    treatment = str(reference_treatment)
+    escaped = treatment.replace('"', '""')
+    return (
+        f"=IF('Accounting Judgment'!$F${judgment_row}=\"\","
+        f"\"{escaped}\","
+        f"'Accounting Judgment'!$F${judgment_row})"
+    )
+
+
+def _find_condensed_cells_with_formula(ws, expected_formula: str) -> list[tuple[int, int]]:
+    matches: list[tuple[int, int]] = []
+    for row in range(1, (ws.max_row or 0) + 1):
+        value = ws.cell(row=row, column=2).value
+        if value == expected_formula:
+            matches.append((row, 2))
+    return matches
+
+
+def validate_live_judgment_structure(
+    trainer_wb,
+    answer_key_wb,
+    context: CheckContext,
+) -> None:
+    """Fail fast if generated judgment prompts or live Condensed links were modified."""
+    judgment = "Accounting Judgment"
+    condensed = "Condensed Financials"
+    for wb, label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
+        if judgment not in wb.sheetnames:
+            raise ValueError(f"{label} is missing Accounting Judgment sheet")
+        if condensed not in wb.sheetnames:
+            raise ValueError(f"{label} is missing Condensed Financials sheet")
+
+    for binding in context.judgment_bindings:
+        row = binding.worksheet_row
+        expected_alts = ", ".join(binding.allowed_treatments[1:])
+        for wb, label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
+            d_val = wb[judgment].cell(row=row, column=4).value
+            e_val = wb[judgment].cell(row=row, column=5).value
+            if d_val != binding.reference_treatment:
+                raise ValueError(
+                    f"Accounting Judgment reference prompt was modified on row {row}"
+                )
+            if e_val != expected_alts:
+                raise ValueError(
+                    f"Accounting Judgment alternatives prompt was modified on row {row}"
+                )
+
+        expected_formula = live_classification_formula(
+            binding.worksheet_row,
+            binding.reference_treatment,
+        )
+        ak_matches = _find_condensed_cells_with_formula(
+            answer_key_wb[condensed], expected_formula
+        )
+        if len(ak_matches) != 1:
+            raise ValueError(
+                "Answer Key live-classification binding is missing/ambiguous "
+                f"for judgment row {row}"
+            )
+        link_row, link_col = ak_matches[0]
+        trainer_val = trainer_wb[condensed].cell(row=link_row, column=link_col).value
+        if trainer_val != expected_formula:
+            from openpyxl.utils import get_column_letter
+
+            coord = f"{get_column_letter(link_col)}{link_row}"
+            raise ValueError(
+                f"Linked Condensed Financials classification was modified at {coord}"
+            )

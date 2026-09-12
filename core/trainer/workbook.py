@@ -55,10 +55,11 @@ _HIDDEN_PREFIX = "_"
 TRAINER_INDEX_INSTRUCTION = (
     "Complete each historical formula schedule left-to-right in dependency order. "
     "Run Check to validate the yellow formula cells against the treatment currently "
-    "selected on Accounting Judgment (blank F uses the supplied reference treatment). "
-    "Also complete Accounting Judgment when cases are present; rationale and consequence "
-    "responses are not graded by Check. Compare them with the matching Answer Key. "
-    "Do not edit linked Condensed Financials classification cells directly."
+    "selected in Accounting Judgment column F (blank F uses the supplied reference "
+    "treatment). Generated Condensed Financials classification links are system-"
+    "controlled and validated by Check—do not edit them or columns D:E. Also complete "
+    "Accounting Judgment rationale/consequence when cases are present; those responses "
+    "are not graded by Check. Compare them with the matching Answer Key."
 )
 
 

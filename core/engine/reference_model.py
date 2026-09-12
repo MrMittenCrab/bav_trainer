@@ -44,13 +44,14 @@ JUDGMENT_INSTRUCTION = (
     "treatment you would defend, and explain the economic consequence."
 )
 JUDGMENT_STEP_NOTE = (
-    "Choose a treatment in column F. That choice drives the matching Condensed "
-    "Financials classification and downstream historical schedules; leaving it "
-    "blank uses the supplied reference treatment. Enter your rationale and "
-    "economic consequence in G:H. Formula Check grades formula cells against the "
-    "treatment currently selected here; it does not grade the judgment response "
-    "itself. Do not edit the linked Condensed Financials classification cell "
-    "directly."
+    "Choose a treatment in column F only. That choice drives the matching Condensed "
+    "Financials classification and downstream historical schedules; leaving F blank "
+    "uses the supplied reference treatment. Columns D:E are display context and must "
+    "not be edited. Enter your rationale and economic consequence in G:H. Formula Check "
+    "grades formula cells against the treatment currently selected in F and validates "
+    "that the generated classification links remain intact; it does not grade the "
+    "judgment response itself. Do not edit the linked Condensed Financials "
+    "classification cell directly."
 )
 
 
@@ -90,6 +91,9 @@ class ReferenceModelBuilder:
         self._judgment_row_by_identity = {
             case.line_identity: 4 + case.order
             for case in self.judgment_cases
+        }
+        self._judgment_case_by_identity = {
+            case.line_identity: case for case in self.judgment_cases
         }
         self._n = len(self.periods)
         self._last_fy_col = 2 + self._n - 1
@@ -322,13 +326,14 @@ class ReferenceModelBuilder:
             decision = reform.decisions[idx]
             identity = line_identity(item).key()
             ws.cell(row=r, column=1, value=item.label)
-            judgment_row = self._judgment_row_by_identity.get(identity)
-            if judgment_row is not None:
+            judgment_case = self._judgment_case_by_identity.get(identity)
+            if judgment_case is not None:
                 # Non-practice formula: learner edits Accounting Judgment!F only.
-                formula = (
-                    f"=IF('{JUDGMENT_SHEET}'!$F${judgment_row}=\"\","
-                    f"'{JUDGMENT_SHEET}'!$D${judgment_row},"
-                    f"'{JUDGMENT_SHEET}'!$F${judgment_row})"
+                from ..trainer.check_context import live_classification_formula
+
+                formula = live_classification_formula(
+                    4 + judgment_case.order,
+                    judgment_case.supplied_treatment,
                 )
                 ws.cell(row=r, column=2, value=formula)
             else:

@@ -19,11 +19,11 @@ Step 8A — guided classification reasoning
 - rationale/consequence are ungraded
 
 Step 8B1 — live supported classification
-- treatment selected in Accounting Judgment drives the linked Condensed Financials classification
-- blank treatment falls back to the supplied reference treatment
-- downstream reformulation and DuPont schedules respond to the selected treatment
-- Formula Check recomputes expected historical values under the current treatment state
-- exact and equivalent formulas remain checkable under either supported treatment
+- Accounting Judgment column F is the only learner treatment input
+- blank F uses the supplied reference treatment
+- generated Condensed Financials links are system-controlled and validated by Check
+- Formula Check recomputes expected historical values for the selected supported treatment
+- rationale/consequence remain ungraded
 
 Normalization / recurring-vs-non-recurring treatment, ROU/deferred-tax alternatives, forecasting, and valuation remain deferred.
 

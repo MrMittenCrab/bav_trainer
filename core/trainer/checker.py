@@ -15,6 +15,7 @@ from ..model.period_axis import canonical_fiscal_periods
 from .check_context import (
     classification_overrides_for_check,
     load_check_context,
+    validate_live_judgment_structure,
 )
 from .semantic_io import answer_key_path_for, load_semantic_map, parse_cell_ref
 from .xlsx_fill_patch import CellFillUpdate, apply_fill_updates
@@ -77,76 +78,81 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
 
     wb = load_workbook(trainer_path, data_only=False)
     wb_cached = load_workbook(trainer_path, data_only=True)
-
-    dynamic_expected: dict[str, object] | None = None
-    if context is not None:
-        # Validate treatments before any fill update; raise cleanly on invalid input.
-        overrides = classification_overrides_for_check(wb, context)
-        financials = standardized_from_payload(context.source_payload)
-        modeled_periods = tuple(
-            date.fromisoformat(str(item)[:10]) for item in context.modeled_periods
-        )
-        canonical = tuple(canonical_fiscal_periods(financials))
-        if modeled_periods != canonical:
-            wb.close()
-            wb_cached.close()
-            raise ValueError(
-                "Check context modeled_periods do not match canonical_fiscal_periods "
-                f"for reconstructed financials: {list(modeled_periods)} != {list(canonical)}"
-            )
-        anchor = compute_anchor(
-            financials,
-            list(modeled_periods),
-            classification_overrides=overrides,
-        )
-        dynamic_expected = {
-            comp.id: expected_value_for_component(anchor, comp) for comp in comps
-        }
-
+    answer_wb = (
+        load_workbook(answer_key_path, data_only=False) if context is not None else None
+    )
     updates: list[CellFillUpdate] = []
     correct = incorrect = blank = 0
-    for comp in comps:
-        if comp.tab not in wb.sheetnames:
-            incorrect += 1
-            continue
-        row, col = parse_cell_ref(comp.cell)
-        cell = wb[comp.tab].cell(row=row, column=col)
-        formula_val = cell.value
+    try:
+        dynamic_expected: dict[str, object] | None = None
+        if context is not None:
+            assert answer_wb is not None
+            # Setup integrity before treatments or any fill planning.
+            validate_live_judgment_structure(wb, answer_wb, context)
+            overrides = classification_overrides_for_check(wb, context)
+            financials = standardized_from_payload(context.source_payload)
+            modeled_periods = tuple(
+                date.fromisoformat(str(item)[:10]) for item in context.modeled_periods
+            )
+            canonical = tuple(canonical_fiscal_periods(financials))
+            if modeled_periods != canonical:
+                raise ValueError(
+                    "Check context modeled_periods do not match canonical_fiscal_periods "
+                    f"for reconstructed financials: {list(modeled_periods)} != {list(canonical)}"
+                )
+            anchor = compute_anchor(
+                financials,
+                list(modeled_periods),
+                classification_overrides=overrides,
+            )
+            dynamic_expected = {
+                comp.id: expected_value_for_component(anchor, comp) for comp in comps
+            }
 
-        if _is_blank(formula_val):
-            updates.append(CellFillUpdate(comp.tab, comp.cell, BLANK_RGB))
-            blank += 1
-            continue
+        for comp in comps:
+            if comp.tab not in wb.sheetnames:
+                incorrect += 1
+                continue
+            row, col = parse_cell_ref(comp.cell)
+            cell = wb[comp.tab].cell(row=row, column=col)
+            formula_val = cell.value
 
-        if (
-            isinstance(formula_val, str)
-            and formula_val.startswith("=")
-            and _normalize_formula(formula_val) == _normalize_formula(comp.formula)
-        ):
-            updates.append(CellFillUpdate(comp.tab, comp.cell, CORRECT_RGB))
-            correct += 1
-            continue
+            if _is_blank(formula_val):
+                updates.append(CellFillUpdate(comp.tab, comp.cell, BLANK_RGB))
+                blank += 1
+                continue
 
-        expected = (
-            dynamic_expected[comp.id]
-            if dynamic_expected is not None
-            else comp.expected_value
-        )
-        cached = None
-        if comp.tab in wb_cached.sheetnames:
-            cached = wb_cached[comp.tab].cell(row=row, column=col).value
+            if (
+                isinstance(formula_val, str)
+                and formula_val.startswith("=")
+                and _normalize_formula(formula_val) == _normalize_formula(comp.formula)
+            ):
+                updates.append(CellFillUpdate(comp.tab, comp.cell, CORRECT_RGB))
+                correct += 1
+                continue
 
-        if cached is not None and _values_match(cached, expected, comp.tolerance):
-            updates.append(CellFillUpdate(comp.tab, comp.cell, CORRECT_RGB))
-            correct += 1
-        else:
-            updates.append(CellFillUpdate(comp.tab, comp.cell, INCORRECT_RGB))
-            incorrect += 1
+            expected = (
+                dynamic_expected[comp.id]
+                if dynamic_expected is not None
+                else comp.expected_value
+            )
+            cached = None
+            if comp.tab in wb_cached.sheetnames:
+                cached = wb_cached[comp.tab].cell(row=row, column=col).value
 
-    wb.close()
-    wb_cached.close()
+            if cached is not None and _values_match(cached, expected, comp.tolerance):
+                updates.append(CellFillUpdate(comp.tab, comp.cell, CORRECT_RGB))
+                correct += 1
+            else:
+                updates.append(CellFillUpdate(comp.tab, comp.cell, INCORRECT_RGB))
+                incorrect += 1
+    finally:
+        wb.close()
+        wb_cached.close()
+        if answer_wb is not None:
+            answer_wb.close()
+
     apply_fill_updates(trainer_path, updates)
-
     return CheckSummary(
         total=len(comps),
         correct=correct,

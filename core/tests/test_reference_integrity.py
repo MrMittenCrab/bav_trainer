@@ -780,7 +780,9 @@ def test_classification_table_uses_shared_decisions(tmp_path):
         cell_val = ws.cell(row=row, column=2).value
         if isinstance(cell_val, str) and cell_val.startswith("="):
             assert "Accounting Judgment" in cell_val
-            assert "$F$" in cell_val and "$D$" in cell_val
+            assert "$F$" in cell_val
+            assert "$D$" not in cell_val
+            assert decision.category in str(cell_val)
         else:
             assert cell_val == decision.category
         if decision.overridden:
@@ -1559,14 +1561,39 @@ def test_judgment_selector_uses_concept_when_present():
     assert case.line_identity.startswith("concept=lease_liability|")
 
 
+def test_live_classification_formula_helper_and_validation():
+    from core.trainer.check_context import live_classification_formula
+
+    formula = live_classification_formula(5, "Operating Long-Term Liability")
+    assert "$F$5" in formula
+    assert "$D$5" not in formula
+    assert '"Operating Long-Term Liability"' in formula
+    assert formula == (
+        "=IF('Accounting Judgment'!$F$5=\"\","
+        "\"Operating Long-Term Liability\","
+        "'Accounting Judgment'!$F$5)"
+    )
+    with pytest.raises(ValueError):
+        live_classification_formula(0, "Operating Long-Term Liability")
+    with pytest.raises(ValueError):
+        live_classification_formula(5, "")
+    with pytest.raises(ValueError):
+        live_classification_formula(5, "   ")
+    # Escape embedded quotes for a future category edge case.
+    quoted = live_classification_formula(6, 'Foo "Bar" Liability')
+    assert '"Foo ""Bar"" Liability"' in quoted
+    assert "$D$6" not in quoted
+
+
 def test_live_classification_judgment_link_for_demo_lease(tmp_path):
     from core.engine.reference_model import JUDGMENT_SHEET, ReferenceModelBuilder
-    from core.trainer.semantic_io import parse_cell_ref
+    from core.trainer.check_context import live_classification_formula
 
     trainer_path, answer_key_path = _build_pair(tmp_path)
     data = _ingest_demo()
     builder = ReferenceModelBuilder(data)
     case = builder.judgment_cases[0]
+    expected = live_classification_formula(5, "Operating Long-Term Liability")
 
     wb_a = load_workbook(answer_key_path, data_only=False)
     wb_t = load_workbook(trainer_path, data_only=False)
@@ -1584,11 +1611,9 @@ def test_live_classification_judgment_link_for_demo_lease(tmp_path):
     assert lease_row is not None and bank_row is not None
 
     lease_formula = ws_a.cell(lease_row, 2).value
-    assert isinstance(lease_formula, str) and lease_formula.startswith("=")
-    compact = lease_formula.replace(" ", "").replace("'", "")
-    assert "AccountingJudgment!$F$5" in compact
-    assert "AccountingJudgment!$D$5" in compact
-    assert ws_t.cell(lease_row, 2).value == lease_formula
+    assert lease_formula == expected
+    assert "$D$5" not in str(lease_formula)
+    assert ws_t.cell(lease_row, 2).value == expected
 
     bank_val = ws_a.cell(bank_row, 2).value
     assert bank_val == "Financial Liability"
@@ -1620,7 +1645,6 @@ def test_live_classification_judgment_link_for_demo_lease(tmp_path):
     assert ws_a.cell(lease_row, 2).comment is None
     assert ws_t.cell(lease_row, 2).comment is None
 
-    # Dropdown on judgment F5 survives in both workbooks.
     for wb in (wb_a, wb_t):
         formulas = [str(dv.formula1) for dv in wb[JUDGMENT_SHEET].data_validations.dataValidation]
         assert any(

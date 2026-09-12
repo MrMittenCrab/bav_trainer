@@ -1198,6 +1198,8 @@ def test_judgment_link_and_treatment_dropdown_pair_identity(tmp_path):
     assert row == row_t
     assert formula_a == formula_t
     assert isinstance(formula_a, str) and "Accounting Judgment" in formula_a
+    assert "$D$" not in formula_a
+    assert '"Operating Long-Term Liability"' in formula_a
     assert _fill_rgb(wb_a["Condensed Financials"].cell(row, 2)) != "FFFF00"
     assert _fill_rgb(wb_t["Condensed Financials"].cell(row, 2)) != "FFFF00"
 
@@ -1232,25 +1234,17 @@ def test_dynamic_check_fresh_reference_parity(tmp_path):
 def test_alternative_treatment_exact_formula_is_green(tmp_path):
     trainer_path, answer_key_path = _build_pair(tmp_path)
     smap = load_semantic_map(answer_key_path)
-    # Any exact formula should still pass under alternative treatment.
-    comp = next(c for c in smap.all_ordered() if c.family_id == "net_debt")
-    _set_judgment_treatment(trainer_path, "Financial Liability")
-
-    wb = load_workbook(trainer_path, data_only=False)
-    row, col = parse_cell_ref(comp.cell)
-    wb[comp.tab].cell(row=row, column=col).value = comp.formula
-    wb.save(trainer_path)
-    wb.close()
-
-    summary = check_workbook(trainer_path)
-    assert summary.correct >= 1
-    assert summary.incorrect == 0
-    # Confirm that cell is green via a second targeted check path
+    from core.data.standardized_io import standardized_from_payload
     from core.model.financial_math import compute_anchor
     from core.model.historical_expected import expected_value_for_component
     from core.model.period_axis import canonical_fiscal_periods
-    from core.data.standardized_io import standardized_from_payload
-    from core.trainer.check_context import load_check_context, classification_overrides_for_check
+    from core.trainer.check_context import classification_overrides_for_check, load_check_context
+
+    comp = max(
+        (c for c in smap.all_ordered() if c.family_id == "net_debt"),
+        key=lambda c: c.period_index or 0,
+    )
+    _set_judgment_treatment(trainer_path, "Financial Liability")
 
     ctx = load_check_context(answer_key_path)
     wb = load_workbook(trainer_path, data_only=False)
@@ -1260,8 +1254,17 @@ def test_alternative_treatment_exact_formula_is_green(tmp_path):
     periods = canonical_fiscal_periods(fin)
     anchor = compute_anchor(fin, periods, classification_overrides=overrides)
     alt_expected = expected_value_for_component(anchor, comp)
-    assert alt_expected != pytest.approx(comp.expected_value) or True
-    # Exact formula path does not need expected; ensure Check counted a correct cell.
+    assert alt_expected != pytest.approx(comp.expected_value)
+
+    wb = load_workbook(trainer_path, data_only=False)
+    row, col = parse_cell_ref(comp.cell)
+    wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    wb.save(trainer_path)
+    wb.close()
+
+    summary = check_workbook(trainer_path)
+    assert summary.correct == 1
+    assert summary.incorrect == 0
     assert summary.blank == 117
 
 
@@ -1428,27 +1431,29 @@ def test_invalid_treatment_raises_before_fill_updates(tmp_path):
     wb = load_workbook(trainer_path, data_only=False)
     row, col = parse_cell_ref(comp.cell)
     before_fill = _fill_rgb(wb[comp.tab].cell(row=row, column=col))
+    assert before_fill == "FFFF00"
     wb[comp.tab].cell(row=row, column=col).value = comp.formula
     wb["Accounting Judgment"].cell(5, 6).value = "Exclude"
     wb.save(trainer_path)
     wb.close()
 
-    with pytest.raises(ValueError, match="Invalid treatment"):
+    with pytest.raises(ValueError, match="Invalid treatment") as excinfo:
         check_workbook(trainer_path)
+    msg = str(excinfo.value)
+    assert "Exclude" in msg
+    assert "5" in msg
+    assert comp.formula not in msg
 
     wb = load_workbook(trainer_path, data_only=False)
     after_fill = _fill_rgb(wb[comp.tab].cell(row=row, column=col))
-    assert after_fill == before_fill
-    # Error must not disclose formula/expected/rationale answers.
-    try:
-        check_workbook(trainer_path)
-    except ValueError as exc:
-        msg = str(exc)
-        assert "Exclude" in msg
-        assert "F" in msg or "row" in msg.lower() or "5" in msg
-        assert comp.formula not in msg
-        assert str(comp.expected_value) not in msg or True
+    assert after_fill == "FFFF00"
     wb.close()
+
+    # Same pair remains usable after the failed attempt.
+    _set_judgment_treatment(trainer_path, "Financial Liability")
+    summary = check_workbook(trainer_path)
+    assert summary.correct == 1
+    assert summary.incorrect == 0
 
 
 def test_legacy_check_context_uses_fixed_expected_values(tmp_path):
@@ -1475,3 +1480,159 @@ def test_legacy_check_context_uses_fixed_expected_values(tmp_path):
     summary = check_workbook(trainer_path)
     assert summary.correct == 1
     assert summary.incorrect == 0
+
+
+def _probe_yellow_practice_cell(trainer_path):
+    smap = load_semantic_map(answer_key_path_for(trainer_path))
+    comp = next(c for c in smap.all_ordered())
+    wb = load_workbook(trainer_path, data_only=False)
+    row, col = parse_cell_ref(comp.cell)
+    assert _fill_rgb(wb[comp.tab].cell(row=row, column=col)) == "FFFF00"
+    wb.close()
+    return comp
+
+
+def _assert_probe_still_yellow(trainer_path, comp):
+    wb = load_workbook(trainer_path, data_only=False)
+    row, col = parse_cell_ref(comp.cell)
+    assert _fill_rgb(wb[comp.tab].cell(row=row, column=col)) == "FFFF00"
+    wb.close()
+
+
+def test_judgment_structure_passes_for_blank_and_alternative(tmp_path):
+    from core.trainer.check_context import load_check_context, validate_live_judgment_structure
+
+    trainer_path, answer_key_path = _build_pair(tmp_path)
+    ctx = load_check_context(answer_key_path)
+    wb_t = load_workbook(trainer_path, data_only=False)
+    wb_a = load_workbook(answer_key_path, data_only=False)
+    validate_live_judgment_structure(wb_t, wb_a, ctx)
+    wb_t["Accounting Judgment"].cell(5, 6).value = "Financial Liability"
+    wb_t.save(trainer_path)
+    wb_t.close()
+    wb_a.close()
+
+    wb_t = load_workbook(trainer_path, data_only=False)
+    wb_a = load_workbook(answer_key_path, data_only=False)
+    validate_live_judgment_structure(wb_t, wb_a, ctx)
+    wb_t.close()
+    wb_a.close()
+    summary = check_workbook(trainer_path)
+    assert summary.blank == 118
+
+
+def test_prompt_modified_d_rejected_before_grading(tmp_path):
+    trainer_path, _ = _build_pair(tmp_path)
+    comp = _probe_yellow_practice_cell(trainer_path)
+    wb = load_workbook(trainer_path, data_only=False)
+    wb["Accounting Judgment"].cell(5, 4).value = "Financial Liability"
+    wb.save(trainer_path)
+    wb.close()
+    with pytest.raises(ValueError, match="reference prompt was modified on row 5"):
+        check_workbook(trainer_path)
+    _assert_probe_still_yellow(trainer_path, comp)
+
+
+def test_prompt_modified_e_rejected_before_grading(tmp_path):
+    trainer_path, _ = _build_pair(tmp_path)
+    comp = _probe_yellow_practice_cell(trainer_path)
+    wb = load_workbook(trainer_path, data_only=False)
+    wb["Accounting Judgment"].cell(5, 5).value = "Exclude"
+    wb.save(trainer_path)
+    wb.close()
+    with pytest.raises(ValueError, match="alternatives prompt was modified on row 5"):
+        check_workbook(trainer_path)
+    _assert_probe_still_yellow(trainer_path, comp)
+
+
+def test_classification_modified_rejected_before_grading(tmp_path):
+    trainer_path, _ = _build_pair(tmp_path)
+    comp = _probe_yellow_practice_cell(trainer_path)
+    wb = load_workbook(trainer_path, data_only=False)
+    ws = wb["Condensed Financials"]
+    lease_row = None
+    for row in range(1, (ws.max_row or 1) + 1):
+        if ws.cell(row=row, column=1).value == "Operating lease liabilities":
+            lease_row = row
+            break
+    assert lease_row is not None
+    ws.cell(row=lease_row, column=2).value = "Financial Liability"
+    wb.save(trainer_path)
+    wb.close()
+    with pytest.raises(ValueError, match="Linked Condensed Financials classification was modified"):
+        check_workbook(trainer_path)
+    _assert_probe_still_yellow(trainer_path, comp)
+
+
+def test_judgment_structure_two_case_distinct_links(tmp_path):
+    from datetime import date
+
+    from core.data.interface import FinancialPeriod, LineItem, StandardizedFinancials
+    from core.engine.reference_model import ReferenceModelBuilder
+    from core.trainer.check_context import (
+        live_classification_formula,
+        load_check_context,
+        validate_live_judgment_structure,
+    )
+    from core.trainer.workbook import TrainingWorkbookGenerator
+
+    d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
+
+    def li(label, v1, v2, concept=""):
+        return LineItem(label=label, concept=concept, values={d1: v1, d2: v2})
+
+    fin = StandardizedFinancials(
+        ticker="TWO",
+        company_name="Two Case Co",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=d1, label="FY2024"),
+            FinancialPeriod(end_date=d2, label="FY2025"),
+        ],
+        income_statement=[
+            li("Revenue", 1000, 1100),
+            li("Profit before tax", 200, 220),
+            li("Income tax expense", -30, -33),
+            li("Interest expense", -20, -22),
+            li("Profit for the year", 150, 165),
+        ],
+        balance_sheet=[
+            li("Cash and cash equivalents", 120, 130),
+            li("Trade receivables", 80, 90),
+            li("Property, plant and equipment", 530, 550),
+            li("Total assets", 730, 770),
+            li("Trade payables", 50, 55),
+            li("Operating lease liabilities", 40, 45, concept="lease_liability"),
+            li("Pension obligations", 30, 35),
+            li("Bank borrowings", 200, 210),
+            li("Total liabilities", 320, 345),
+            li("Share capital and reserves", 410, 425),
+            li("Total equity", 410, 425),
+        ],
+        cash_flow=[li("Net cash from operating activities", 50, 60)],
+    )
+    builder = ReferenceModelBuilder(fin)
+    assert len(builder.judgment_cases) == 2
+    answer = tmp_path / "Two_Answer_Key.xlsx"
+    trainer = tmp_path / "Two_Trainer.xlsx"
+    smap = builder.build(answer)
+    TrainingWorkbookGenerator(answer, smap).generate(trainer)
+    ctx = load_check_context(answer)
+    formulas = [
+        live_classification_formula(b.worksheet_row, b.reference_treatment)
+        for b in ctx.judgment_bindings
+    ]
+    assert len(set(formulas)) == 2
+    wb_t = load_workbook(trainer, data_only=False)
+    wb_a = load_workbook(answer, data_only=False)
+    validate_live_judgment_structure(wb_t, wb_a, ctx)
+    found = []
+    for row in range(1, (wb_a["Condensed Financials"].max_row or 1) + 1):
+        val = wb_a["Condensed Financials"].cell(row=row, column=2).value
+        if val in formulas:
+            found.append(val)
+    assert sorted(found) == sorted(formulas)
+    wb_t.close()
+    wb_a.close()
