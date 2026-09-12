@@ -1201,6 +1201,183 @@ def expand_profitability_change_specs(
     return tuple(specs)
 
 
+ROE_ATTRIBUTION_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="financing_contribution_to_roe",
+        order=56,
+        title="Financing Contribution to ROE",
+        short_hint="FLEV multiplied by Spread.",
+        semantic_key="roe_attribution.financing_contribution",
+        category="roe_attribution",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("flev", "spread"),
+        hints=(
+            "Financing Contribution to ROE = FLEV × Spread.",
+            "A positive contribution raises decomposed ROE above RNOA; a negative contribution lowers it.",
+            "Do not call the contribution good or bad without understanding leverage and financing economics.",
+        ),
+    ),
+    ComponentFamily(
+        id="roe_change",
+        order=57,
+        title="Direct Change in Decomposed ROE",
+        short_hint="Current decomposed ROE minus prior decomposed ROE.",
+        semantic_key="roe_attribution.roe_change",
+        category="roe_attribution",
+        tab_template="ALT DuPont",
+        period_scope="post_comparable",
+        depends_on_current=("roe_decomp",),
+        depends_on_previous=("roe_decomp",),
+        hints=(
+            "Direct Change in ROE = Current decomposed ROE - Prior decomposed ROE.",
+        ),
+    ),
+    ComponentFamily(
+        id="operating_effect_on_roe_change",
+        order=58,
+        title="Operating Effect on Change in ROE",
+        short_hint="The direct Change in RNOA from the prior diagnostic section.",
+        semantic_key="roe_attribution.operating_effect",
+        category="roe_attribution",
+        tab_template="ALT DuPont",
+        period_scope="post_comparable",
+        depends_on_current=("rnoa_change",),
+        hints=(
+            "Operating Effect on Change in ROE = Change in RNOA.",
+            "Use the existing direct RNOA-change result; do not reassign financing effects into the operating term.",
+        ),
+    ),
+    ComponentFamily(
+        id="leverage_effect_on_roe_change",
+        order=59,
+        title="Leverage Effect on Change in ROE",
+        short_hint="Change in FLEV multiplied by midpoint Spread.",
+        semantic_key="roe_attribution.leverage_effect",
+        category="roe_attribution",
+        tab_template="ALT DuPont",
+        period_scope="post_comparable",
+        depends_on_current=("flev", "spread"),
+        depends_on_previous=("flev", "spread"),
+        hints=(
+            "Leverage Effect = Change in FLEV × average of current and prior Spread.",
+            "Midpoint weighting gives an exact order-neutral attribution of the financing product change.",
+        ),
+    ),
+    ComponentFamily(
+        id="spread_effect_on_roe_change",
+        order=60,
+        title="Spread Effect on Change in ROE",
+        short_hint="Change in Spread multiplied by midpoint FLEV.",
+        semantic_key="roe_attribution.spread_effect",
+        category="roe_attribution",
+        tab_template="ALT DuPont",
+        period_scope="post_comparable",
+        depends_on_current=("spread", "flev"),
+        depends_on_previous=("spread", "flev"),
+        hints=(
+            "Spread Effect = Change in Spread × average of current and prior FLEV.",
+            "Do not interpret Spread movement as a specific financing-policy cause without additional evidence.",
+        ),
+    ),
+    ComponentFamily(
+        id="financing_effect_on_roe_change",
+        order=61,
+        title="Financing Effect on Change in ROE",
+        short_hint="Leverage Effect plus Spread Effect.",
+        semantic_key="roe_attribution.financing_effect",
+        category="roe_attribution",
+        tab_template="ALT DuPont",
+        period_scope="post_comparable",
+        depends_on_current=(
+            "leverage_effect_on_roe_change",
+            "spread_effect_on_roe_change",
+        ),
+        hints=(
+            "Financing Effect = Leverage Effect + Spread Effect.",
+            "This equals the change in FLEV × Spread when all required inputs are defined.",
+        ),
+    ),
+    ComponentFamily(
+        id="roe_change_from_drivers",
+        order=62,
+        title="Change in ROE from Operating + Financing Drivers",
+        short_hint="Operating Effect plus Financing Effect.",
+        semantic_key="roe_attribution.roe_change_from_drivers",
+        category="roe_attribution",
+        tab_template="ALT DuPont",
+        period_scope="post_comparable",
+        depends_on_current=(
+            "operating_effect_on_roe_change",
+            "financing_effect_on_roe_change",
+        ),
+        hints=(
+            "Change in ROE from Drivers = Operating Effect + Financing Effect.",
+            "When all required terms are defined, this must reconcile to Direct Change in Decomposed ROE.",
+        ),
+    ),
+)
+
+
+def expand_roe_attribution_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+) -> tuple[ComponentSpec, ...]:
+    """Expand ROE-attribution families into period-specific concrete specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_roe_attribution_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_roe_attribution_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in ROE_ATTRIBUTION_COMPONENT_CATALOG:
+        if family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        elif family.period_scope == "post_comparable":
+            indices = range(2, len(periods))
+        else:
+            raise ValueError(
+                f"unsupported ROE-attribution period_scope {family.period_scope!r}"
+            )
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            prev = periods[j - 1]
+            for dep_fam in family.depends_on_previous:
+                deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 def _deferred(
     *,
     id: str,

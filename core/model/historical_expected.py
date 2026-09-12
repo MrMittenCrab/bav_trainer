@@ -8,6 +8,7 @@ from ..engine.component_catalog import (
     PROFITABILITY_CHANGE_COMPONENT_CATALOG,
     PROFITABILITY_DRIVER_COMPONENT_CATALOG,
     QUALITY_COMPONENT_CATALOG,
+    ROE_ATTRIBUTION_COMPONENT_CATALOG,
     WORKING_CAPITAL_COMPONENT_CATALOG,
 )
 from ..engine.semantic_map import ResolvedComponent
@@ -16,6 +17,7 @@ from .financial_math import AnchorMetrics
 from .normalization import NormalizationSeries
 from .profitability_change import compute_profitability_change_series
 from .profitability_drivers import compute_profitability_driver_series
+from .roe_attribution import compute_roe_attribution_series
 from .working_capital import compute_working_capital_series
 
 _FAMILY_SERIES = (
@@ -89,6 +91,16 @@ _PROFITABILITY_CHANGE_FAMILY_SERIES = (
     "rnoa_margin_effect",
     "rnoa_turnover_effect",
     "rnoa_change_from_drivers",
+)
+
+_ROE_ATTRIBUTION_FAMILY_SERIES = (
+    "financing_contribution_to_roe",
+    "roe_change",
+    "operating_effect_on_roe_change",
+    "leverage_effect_on_roe_change",
+    "spread_effect_on_roe_change",
+    "financing_effect_on_roe_change",
+    "roe_change_from_drivers",
 )
 
 
@@ -261,6 +273,34 @@ def profitability_change_expected_series(
     }
 
 
+def roe_attribution_expected_series(
+    anchor: AnchorMetrics,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map ROE-attribution formula families to diagnostics from ``anchor``."""
+    values = compute_roe_attribution_series(anchor)
+    series = {
+        "financing_contribution_to_roe": values.financing_contribution_to_roe,
+        "roe_change": values.roe_change,
+        "operating_effect_on_roe_change": values.operating_effect_on_roe_change,
+        "leverage_effect_on_roe_change": values.leverage_effect_on_roe_change,
+        "spread_effect_on_roe_change": values.spread_effect_on_roe_change,
+        "financing_effect_on_roe_change": values.financing_effect_on_roe_change,
+        "roe_change_from_drivers": values.roe_change_from_drivers,
+    }
+    expected_ids = {family.id for family in ROE_ATTRIBUTION_COMPONENT_CATALOG}
+    if set(series) != expected_ids:
+        missing = sorted(expected_ids - set(series))
+        extra = sorted(set(series) - expected_ids)
+        raise ValueError(
+            "roe_attribution_expected_series family mismatch; "
+            f"missing={missing} extra={extra}"
+        )
+    return {
+        family_id: series[family_id]
+        for family_id in _ROE_ATTRIBUTION_FAMILY_SERIES
+    }
+
+
 def expected_value_for_component(
     anchor: AnchorMetrics,
     component: ResolvedComponent,
@@ -278,7 +318,9 @@ def expected_value_for_component(
             f"Component {component.id!r} (family {family_id}) has no period_index"
         )
 
-    if family_id in _PROFITABILITY_CHANGE_FAMILY_SERIES:
+    if family_id in _ROE_ATTRIBUTION_FAMILY_SERIES:
+        series = roe_attribution_expected_series(anchor)
+    elif family_id in _PROFITABILITY_CHANGE_FAMILY_SERIES:
         series = profitability_change_expected_series(anchor)
     elif family_id in _PROFITABILITY_DRIVER_FAMILY_SERIES:
         series = profitability_driver_expected_series(anchor)

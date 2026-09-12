@@ -1,5 +1,7 @@
 # Step 9D.1 — Historical ROE Operating / Financing Attribution
 
+> **STATUS: COMPLETE** — verified locally (`232 passed`; base 58/244; norm 62/264). See `RESULT.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > **For Cursor:** Read `TARGET.md` first. The accepted implementation base is commit `2ba3e65accbce9584aad8f6be74ad14c5ac7bfd6` (`step 9C2`, Step 9C.2 complete). Implement only Step 9D.1 below using red/green TDD. Preserve Step 8 classification/normalization judgment, the trusted-workbook boundary, all Step 9A source-completeness / tax / normalization / `#N/A` semantics, the complete Step 9B working-capital diagnostics, and the complete Step 9C RNOA level/change attribution surface. Do not add company-specific causal claims, automatic good/bad profitability or leverage labels, forecasting, valuation, segment analysis, ROU/deferred-tax alternative modeling, or later research-diagnostic work. Do not commit or push; the user owns the checkpoint commit.

@@ -30,6 +30,7 @@ from ..model.normalization import (
 from ..model.period_axis import canonical_fiscal_periods
 from ..model.profitability_change import compute_profitability_change_series
 from ..model.profitability_drivers import compute_profitability_driver_series
+from ..model.roe_attribution import compute_roe_attribution_series
 from ..model.ri_engine import run_scenario, weighted_ivps
 from ..model.working_capital import (
     compute_working_capital_series,
@@ -42,6 +43,7 @@ from .component_catalog import (
     expand_profitability_change_specs,
     expand_profitability_driver_specs,
     expand_quality_specs,
+    expand_roe_attribution_specs,
     expand_working_capital_specs,
 )
 from .map_embed import embed_component_map_sheet
@@ -188,6 +190,19 @@ class ReferenceModelBuilder:
                 + 1
             ),
         )
+        self.roe_attribution_series = compute_roe_attribution_series(self.anchor)
+        self.roe_attribution_specs = expand_roe_attribution_specs(
+            self.periods,
+            start_order=(
+                len(self.historical_specs)
+                + len(self.normalization_specs)
+                + len(self.quality_specs)
+                + len(self.working_capital_specs)
+                + len(self.profitability_driver_specs)
+                + len(self.profitability_change_specs)
+                + 1
+            ),
+        )
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
@@ -195,6 +210,7 @@ class ReferenceModelBuilder:
             + self.working_capital_specs
             + self.profitability_driver_specs
             + self.profitability_change_specs
+            + self.roe_attribution_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -214,6 +230,9 @@ class ReferenceModelBuilder:
         }
         self._profitability_change_spec_index = {
             (s.family_id, s.period_index): s for s in self.profitability_change_specs
+        }
+        self._roe_attribution_spec_index = {
+            (s.family_id, s.period_index): s for s in self.roe_attribution_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -448,6 +467,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._profitability_change_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_roe_attribution(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._roe_attribution_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -1378,6 +1413,197 @@ class ReferenceModelBuilder:
         self.rowmap["dupont_turnover_effect_row"] = turnover_effect_row
         self.rowmap["dupont_rnoa_change_from_drivers_row"] = driver_change_row
         self.rowmap["dupont_rnoa_change_check_row"] = change_check_row
+
+        # ROE operating / financing attribution (Step 9D.1)
+        attribution = self.roe_attribution_series
+        roe_section_row = change_check_row + 2
+        financing_contribution_row = roe_section_row + 1
+        roe_level_check_row = roe_section_row + 2
+        roe_change_section_row = roe_section_row + 4
+        direct_roe_change_row = roe_change_section_row + 1
+        operating_effect_row = roe_change_section_row + 2
+        leverage_effect_row = roe_change_section_row + 3
+        spread_effect_row = roe_change_section_row + 4
+        financing_effect_row = roe_change_section_row + 5
+        driver_roe_change_row = roe_change_section_row + 6
+        roe_change_check_row = roe_change_section_row + 7
+
+        ws.cell(
+            row=roe_section_row,
+            column=1,
+            value="ROE OPERATING / FINANCING ATTRIBUTION",
+        ).font = BOLD
+        ws.cell(
+            row=financing_contribution_row,
+            column=1,
+            value="Financing Contribution to ROE",
+        )
+        ws.cell(
+            row=roe_level_check_row, column=1, value="ROE LEVEL ATTRIBUTION CHECK"
+        ).font = BOLD
+        ws.cell(
+            row=roe_change_section_row, column=1, value="ROE CHANGE ATTRIBUTION"
+        ).font = BOLD
+        ws.cell(
+            row=direct_roe_change_row, column=1, value="Direct Change in Decomposed ROE"
+        )
+        ws.cell(
+            row=operating_effect_row, column=1, value="Operating Effect on Change in ROE"
+        )
+        ws.cell(
+            row=leverage_effect_row, column=1, value="Leverage Effect on Change in ROE"
+        )
+        ws.cell(row=spread_effect_row, column=1, value="Spread Effect on Change in ROE")
+        ws.cell(
+            row=financing_effect_row, column=1, value="Financing Effect on Change in ROE"
+        )
+        ws.cell(row=driver_roe_change_row, column=1, value="Change in ROE from Drivers")
+        ws.cell(
+            row=roe_change_check_row, column=1, value="ROE CHANGE ATTRIBUTION CHECK"
+        ).font = BOLD
+
+        for j in range(self._n):
+            out_col_idx = 2 + j
+            out_col = self._col(out_col_idx)
+            change_rows = (
+                direct_roe_change_row,
+                operating_effect_row,
+                leverage_effect_row,
+                spread_effect_row,
+                financing_effect_row,
+                driver_roe_change_row,
+                roe_change_check_row,
+            )
+            if j == 0:
+                ws.cell(row=financing_contribution_row, column=out_col_idx, value=na)
+                ws.cell(row=roe_level_check_row, column=out_col_idx, value=na)
+                for row in change_rows:
+                    ws.cell(row=row, column=out_col_idx, value=na)
+                continue
+
+            financing_contribution_f = f"={out_col}{flev_row}*{out_col}{spread_row}"
+            level_check = (
+                f'=IF(OR(ISNA({out_col}{rnoa_row}),'
+                f'ISNA({out_col}{financing_contribution_row}),'
+                f'ISNA({out_col}{roe_row})),"N/A",'
+                f'IF(ABS({out_col}{rnoa_row}+{out_col}{financing_contribution_row}'
+                f'-{out_col}{roe_row})<0.0000001,"OK","CHECK"))'
+            )
+            c = ws.cell(
+                row=financing_contribution_row,
+                column=out_col_idx,
+                value=financing_contribution_f,
+            )
+            c.number_format = PCT_FMT
+            ws.cell(row=roe_level_check_row, column=out_col_idx, value=level_check)
+
+            fin_expected = attribution.financing_contribution_to_roe[j]
+            assert fin_expected is not None
+            self._register_roe_attribution(
+                "financing_contribution_to_roe",
+                j,
+                "ALT DuPont",
+                financing_contribution_row,
+                out_col_idx,
+                financing_contribution_f,
+                fin_expected if isinstance(fin_expected, str) else float(fin_expected),
+            )
+
+            if j < 2:
+                for row in change_rows:
+                    ws.cell(row=row, column=out_col_idx, value=na)
+                continue
+
+            prev_col = self._col(2 + j - 1)
+            direct_roe_change_f = f"={out_col}{roe_row}-{prev_col}{roe_row}"
+            operating_effect_f = f"={out_col}{direct_rnoa_change_row}"
+            leverage_effect_f = (
+                f"=({out_col}{flev_row}-{prev_col}{flev_row})*"
+                f"(({out_col}{spread_row}+{prev_col}{spread_row})/2)"
+            )
+            spread_effect_f = (
+                f"=({out_col}{spread_row}-{prev_col}{spread_row})*"
+                f"(({out_col}{flev_row}+{prev_col}{flev_row})/2)"
+            )
+            financing_effect_f = (
+                f"={out_col}{leverage_effect_row}+{out_col}{spread_effect_row}"
+            )
+            driver_roe_change_f = (
+                f"={out_col}{operating_effect_row}+{out_col}{financing_effect_row}"
+            )
+            roe_change_check_f = (
+                f'=IF(OR(ISNA({out_col}{driver_roe_change_row}),'
+                f'ISNA({out_col}{direct_roe_change_row})),"N/A",'
+                f'IF(ABS({out_col}{driver_roe_change_row}-{out_col}{direct_roe_change_row})'
+                f'<0.0000001,"OK","CHECK"))'
+            )
+
+            for row, formula in (
+                (direct_roe_change_row, direct_roe_change_f),
+                (operating_effect_row, operating_effect_f),
+                (leverage_effect_row, leverage_effect_f),
+                (spread_effect_row, spread_effect_f),
+                (financing_effect_row, financing_effect_f),
+                (driver_roe_change_row, driver_roe_change_f),
+            ):
+                c = ws.cell(row=row, column=out_col_idx, value=formula)
+                c.number_format = PCT_FMT
+            ws.cell(row=roe_change_check_row, column=out_col_idx, value=roe_change_check_f)
+
+            registrations = (
+                ("roe_change", direct_roe_change_row, direct_roe_change_f, attribution.roe_change[j]),
+                (
+                    "operating_effect_on_roe_change",
+                    operating_effect_row,
+                    operating_effect_f,
+                    attribution.operating_effect_on_roe_change[j],
+                ),
+                (
+                    "leverage_effect_on_roe_change",
+                    leverage_effect_row,
+                    leverage_effect_f,
+                    attribution.leverage_effect_on_roe_change[j],
+                ),
+                (
+                    "spread_effect_on_roe_change",
+                    spread_effect_row,
+                    spread_effect_f,
+                    attribution.spread_effect_on_roe_change[j],
+                ),
+                (
+                    "financing_effect_on_roe_change",
+                    financing_effect_row,
+                    financing_effect_f,
+                    attribution.financing_effect_on_roe_change[j],
+                ),
+                (
+                    "roe_change_from_drivers",
+                    driver_roe_change_row,
+                    driver_roe_change_f,
+                    attribution.roe_change_from_drivers[j],
+                ),
+            )
+            for family_id, row, formula, expected in registrations:
+                assert expected is not None
+                self._register_roe_attribution(
+                    family_id,
+                    j,
+                    "ALT DuPont",
+                    row,
+                    out_col_idx,
+                    formula,
+                    expected if isinstance(expected, str) else float(expected),
+                )
+
+        self.rowmap["dupont_financing_contribution_row"] = financing_contribution_row
+        self.rowmap["dupont_roe_level_attribution_check_row"] = roe_level_check_row
+        self.rowmap["dupont_direct_roe_change_row"] = direct_roe_change_row
+        self.rowmap["dupont_operating_roe_effect_row"] = operating_effect_row
+        self.rowmap["dupont_leverage_roe_effect_row"] = leverage_effect_row
+        self.rowmap["dupont_spread_roe_effect_row"] = spread_effect_row
+        self.rowmap["dupont_financing_roe_effect_row"] = financing_effect_row
+        self.rowmap["dupont_driver_roe_change_row"] = driver_roe_change_row
+        self.rowmap["dupont_roe_change_attribution_check_row"] = roe_change_check_row
 
     def _build_accounting_judgment(self, wb: Workbook) -> None:
         ws = wb.create_sheet(JUDGMENT_SHEET)
