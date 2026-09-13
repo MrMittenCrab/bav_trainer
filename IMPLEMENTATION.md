@@ -1,702 +1,645 @@
-# Step 9L.1 — Lease-Liability Diagnostics + Judgment-Selector Hardening
-
-**Status: COMPLETE** — `identity:` judgment selectors; aggregate lease-liability families 87–90 on ALT DuPont; surfaces 74/312, 78/332, 82/346, 90/384; manufacturer 74/311; GOOGL provenance repaired; no ROU/capex. See `RESULT.md`.
+# Step 9M.0 — Fast Retailing Real-Company Historical Benchmark Baseline
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **For Cursor:** Read `TARGET.md` first, then `docs/GOOGL_HISTORICAL_REFERENCE.md`, then this plan in full. The accepted implementation base is commit `e81a04837176562c721f3b04f81e21a1bb381a0f` (`Step 9K.1`, fixed-asset diagnostics complete). Implement only Step 9L.1 below using red/green TDD. This remains **Step 9 historical convergence**. Do not begin forecasting, valuation, scenarios, or forward-model activation. Do not commit or push; the user owns the checkpoint commit.
+> **For Cursor:** Read `TARGET.md`, then `docs/FAST_RETAILING_BENCHMARK.md`, then this plan in full. The accepted implementation base is commit `26f22b7e739045a176b9e63012001818a8823fb7` (`Step 9L.1`) plus commit `19c8aad9b10fcd4aea76fd6c86ff2522ed2d1fd0` containing the five Fast Retailing CFS PDFs. Implement only Step 9M.0. This is a **real-company benchmark baseline/audit**, not another historical feature expansion. Do not begin forecasting, valuation, scenarios, or Step 9M.1 fixes. Do not commit or push; the user owns the checkpoint commit.
 
-**Goal:** Harden guided classification so duplicate concepts can be addressed row-by-row, then add a conservative historical lease-liability diagnostic layer that teaches lease-balance intensity and change without inventing ROU assets, lease payments, discount rates, or lease accounting schedules that are not explicitly supplied.
+**Goal:** Replace synthetic-only confidence with a source-grounded FY2021–FY2025 Fast Retailing benchmark: build a reproducible audited-fact fixture with page-level provenance, verify overlapping filings and key source anchors, then run the current Step 9L.1 engine against it and record every real-company failure without hard-coding Fast Retailing-specific fixes.
 
-**Architecture:** First add an exact `identity:` selector for system-generated judgment cases while retaining user-facing `concept:` and `label:` assumption selectors. Then add an optional `LeaseLiabilitySeries` driven only by one uniquely resolvable aggregate lease-liability source line plus existing Revenue. If a company reports split current/non-current lease-liability rows rather than one aggregate balance, keep the judgment cases but omit the new diagnostic module in this checkpoint instead of silently summing lines. Append four semantic families, orders `87..90`, to `ALT DuPont` so the historical model stays integrated.
+**Architecture:** Treat the five committed PDFs as immutable evidence. Transcribe reported facts into a raw `source_facts.json`, generate the model-only `FastRetailing_Standardized.json` through a deterministic benchmark builder using a latest-audited-presentation precedence rule, and keep provenance in a separate machine-readable file because `standardized_io` intentionally strips source metadata. Add a benchmark audit script that runs identity validation, reconciliation, reference-model construction, workbook generation, and Check stage-by-stage and writes a baseline report. Step 9M.0 may legitimately finish with production-engine gaps; the output must make those gaps explicit and reproducible rather than patching them speculatively.
 
-**Tech Stack:** Python, dataclasses, pytest, openpyxl, existing `LineIdentity`, `resolve_line`, `required_period_value`, `ratio_or_na`, `ReferenceModelBuilder`, component catalogs, `historical_expected`, `check_workbook`, trusted-workbook validation, and the existing Accounting Judgment flow.
+**Tech Stack:** Python, pytest, hashlib/json/pathlib from the standard library, existing `StandardizedFinancials` / `standardized_from_payload`, `validate_financials_identities`, `reconcile_financials`, `ReferenceModelBuilder`, `build_training_workbook`, `check_workbook`; optional local PDF text-search helper may use `pypdf` through a benchmark-only requirements file but must not become a Trainer runtime dependency.
 
-**Spec:** `TARGET.md` sections `Historical accounting competence to cover`, `Interpretation is part of the product`, `Reference workbook for historical convergence`, and `Step 9 roadmap before forecasting`; plus the lease Priority A item in `docs/GOOGL_HISTORICAL_REFERENCE.md`.
+**Spec:** `TARGET.md` Step 9 real-company validation requirement plus `docs/FAST_RETAILING_BENCHMARK.md`.
 
 ## Global Constraints
 
 - `TARGET.md` is read-only for Cursor.
-- `example/GOOGL_Demo_Integrated_Financials.xlsx` remains read-only.
-- Remain in Step 9. Forecasting, valuation, scenarios, guidance/consensus, and investment conclusions remain deferred.
-- Preserve Step 9I.1 fresh-workbook style: Aptos Narrow 11, white/yellow only, no decorative borders; Check green/red remains functional feedback only.
-- Preserve Trainer / Answer Key / Check separation and trusted-cell validation.
-- Preserve non-financial-company scope.
-- Preserve source signs. No `ABS()` or `IFERROR(...,0)` in practice formulas.
-- Do not infer an ROU asset from a lease liability.
-- Do not infer lease payments, interest accretion, discount rate, maturity profile, or lease expense.
-- Do not build a lease amortization schedule.
-- Do not aggregate split current/non-current lease-liability rows in this checkpoint.
-- A unique aggregate lease-liability line is sufficient for diagnostics; split rows remain judgment-only until an explicit aggregation contract exists.
-- Missing optional module inputs omit the module. A uniquely resolved line with a missing modeled-period value fails closed through `MissingHistoricalValueError`.
-- Do not add a new visible worksheet; integrate on `ALT DuPont`.
+- The five PDFs under `benchmark/fast_retailing/source/` are immutable source evidence. Do not edit, rename, recompress, or replace them.
+- Do not modify `example/DEMO_HK_Standardized.json` to resemble Fast Retailing.
+- Do not use web data, analyst databases, GOOGL facts, or synthetic fixtures to fill Fast Retailing gaps.
+- Preserve source signs and source units. Do not apply `ABS()` or convert missing facts to zero.
+- Preserve source labels where practical. Use concepts/provenance to disambiguate; do not rename labels merely to satisfy current resolver aliases.
+- No Fast Retailing-specific conditional logic in `core/`.
+- No new historical formula families in Step 9M.0.
+- No production-accounting fix merely to make the benchmark build. Engine fixes belong in Step 9M.1 after the baseline gaps are known.
+- The synthetic DEMO and cross-company fixtures remain active and unchanged as controlled unit/edge-case tests.
+- Forecasting, valuation, scenarios, guidance/consensus, and investment conclusions remain deferred.
 - Cursor must not commit, push, reset, rebase, merge, or delete branches.
 
----
+## Review of Step 9L.1 (`26f22b7`)
 
-### Task 1: Repair GOOGL-reference provenance before adding another module
+Step 9L.1 is accepted for its stated scope:
 
-**Files:**
-- Modify: `docs/GOOGL_HISTORICAL_REFERENCE.md`
-- Modify: `core/tests/test_reference_workbook_audit.py`
+- generated Accounting Judgment cases now use exact `identity:` selectors while legacy/manual `concept:` and `label:` selectors remain supported;
+- duplicate-concept split lease rows can be judged independently;
+- lease-liability families 87–90 are gated on one uniquely resolvable aggregate source line;
+- split current/non-current lease rows are deliberately not summed;
+- Check recomputes lease expected values from trusted source facts;
+- the commit reports `316 passed` locally and no attached GitHub CI status exists.
 
-**Interfaces:**
-- Produces a reference document where the `GOOGL evidence` column contains only evidence actually observed in the GOOGL workbook.
+One important conceptual issue must be **measured in the real-company benchmark rather than silently ignored**: the current lease judgment changes balance-sheet classification but `compute_anchor()` still derives net interest from the reported finance-cost/income lines without conditioning lease interest on the lease treatment. Fast Retailing explicitly discloses lease interest (FY2025: JPY 8,464m). If lease liabilities are treated as operating, the income-side treatment may also require adjustment for internally consistent NOPAT/RNOA/Spread analysis. Step 9M.0 must record this as a benchmark gap; do not fix it yet.
 
-- [ ] **Step 1: Write regression assertions for the fixed-asset row**
-
-Require the document to retain actual GOOGL evidence equivalent to:
-
-```text
-BS Property and equipment
-CF depreciation
-CF Purchases of property and equipment
-```
-
-and require the Trainer column, not the GOOGL column, to mention the Step 9K.1 `FIXED-ASSET INTENSITY CONTEXT` implementation.
-
-Also assert that the document does not permanently present the old canonical Answer-Key SHA as if it were still current after canonical workbooks are regenerated.
-
-- [ ] **Step 2: Run the focused audit test red**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_reference_workbook_audit.py -v
-```
-
-- [ ] **Step 3: Correct the document**
-
-Remove the stale persistent line:
-
-```text
-Canonical Answer Key SHA-256: ...
-```
-
-Keep the immutable GOOGL reference hash.
-
-Restore the fixed-asset `GOOGL evidence` cell to the actual source evidence observed in GOOGL. Keep the Step 9K.1 implementation description under `Current Trainer` / `Training adaptation`.
-
-Do not alter the Priority A ordering except where later tasks in this plan explicitly update the lease row.
-
-- [ ] **Step 4: Run the focused test green**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_reference_workbook_audit.py -v
-```
+A second expected real-company pressure point is intentional rather than a 9L.1 defect: Fast Retailing reports current and non-current lease liabilities separately on the primary statement while Note 17 reports an aggregate lease liability. The present 9L.1 diagnostic contract will omit the module from primary split rows. Record this outcome and the explicit note aggregate; do not manufacture an aggregate balance-sheet row in Step 9M.0.
 
 ---
 
-### Task 2: Add exact `identity:` selectors for generated classification judgments
+### Task 1: Freeze and verify the five-file audited source set
 
 **Files:**
-- Modify: `core/model/classification.py`
-- Modify: `core/model/judgment.py`
-- Test: `core/tests/test_classification.py`
-- Test: `core/tests/test_reference_integrity.py`
+- Create: `benchmark/fast_retailing/source_manifest.json`
+- Create: `core/tests/test_fast_retailing_benchmark.py`
+- Read only: `benchmark/fast_retailing/source/*.pdf`
 
 **Interfaces:**
-- Extends classification-override selectors with `identity:<LineIdentity.key()>`.
-- Existing `concept:` and `label:` selectors remain supported for assumptions/backward compatibility.
-- System-generated `JudgmentCase.override_selector` becomes exact-row identity.
+- `source_manifest.json` is the machine-readable identity of the canonical source set.
+- Benchmark tests fail if a source PDF changes or disappears.
 
-- [ ] **Step 1: Write a duplicate-concept lease regression**
+- [ ] **Step 1: Add a manifest with exactly five entries**
 
-Create two BS lines with distinct labels but the same concept:
-
-```python
-LineItem(
-    label="Current lease liabilities",
-    concept="lease_liability",
-    ...,
-)
-LineItem(
-    label="Non-current lease liabilities",
-    concept="lease_liability",
-    ...,
-)
-```
-
-Prove `validate_statement_identities()` accepts them because their full identities differ.
-
-Then require `classification_judgment_cases()` to produce two distinct selectors beginning with `identity:`.
-
-- [ ] **Step 2: Prove the existing selector is currently ambiguous**
-
-Add a regression showing that one broad manual selector:
+Use these exact relative paths:
 
 ```text
-concept:lease_liability
+benchmark/fast_retailing/source/Fastretailing_CFS2021.pdf
+benchmark/fast_retailing/source/Fastretailing_CFS2022.pdf
+benchmark/fast_retailing/source/Fastretailing_CFS2023.pdf
+benchmark/fast_retailing/source/Fastretailing_CFS2024.pdf
+benchmark/fast_retailing/source/Fastretailing_CFS2025.pdf
 ```
 
-still raises `AmbiguousClassificationOverrideError` when it matches both rows.
+Each entry must contain:
 
-This behavior must remain; do not silently choose one row.
+```json
+{
+  "fiscal_year": 2025,
+  "period_end": "2025-08-31",
+  "path": "benchmark/fast_retailing/source/Fastretailing_CFS2025.pdf",
+  "sha256": "<actual lowercase sha256>",
+  "bytes": 868396
+}
+```
 
-- [ ] **Step 3: Implement `identity:` parsing**
+Calculate SHA-256 from the committed bytes with `hashlib.sha256`; do not copy Git blob SHA values into the `sha256` field.
 
-Extend `_parse_override_selector()` so it returns one of:
+Known file sizes from the committed source checkpoint are:
 
 ```text
-identity
-concept
-label
+2021  635210
+2022 1529815
+2023 1260313
+2024 1059695
+2025  868396
 ```
 
-For `identity:` preserve the exact identity payload after trimming outer whitespace. Do not case-normalize concept IDs inside the serialized identity beyond what `line_identity()` already does.
+- [ ] **Step 2: Add source-integrity tests**
 
-- [ ] **Step 4: Implement exact identity resolution**
-
-In `resolve_classification_overrides()`:
+The test must load the manifest and require:
 
 ```python
-if kind == "identity":
-    matches = [
-        item
-        for item in detail_items
-        if line_identity(item).key() == value
-    ]
+assert len(manifest["sources"]) == 5
+assert {s["fiscal_year"] for s in manifest["sources"]} == {2021, 2022, 2023, 2024, 2025}
 ```
 
-Require exactly one match when present.
+For every entry, require file existence, exact byte size, and recomputed SHA-256 equality.
 
-- zero matches: preserve existing stale-override semantics and ignore;
-- more than one match: raise `AmbiguousClassificationOverrideError` because duplicate full identities should never be silently accepted.
-
-- [ ] **Step 5: Make generated judgment cases use identity selectors**
-
-Replace concept-first generation in `classification_judgment_cases()` with:
-
-```python
-override_selector = f"identity:{identity}"
-```
-
-for every generated case.
-
-Do not change `case.line_identity`.
-
-- [ ] **Step 6: Add Check-context regression**
-
-Build a workbook containing the two split lease-liability rows. Select different treatments for the two judgment cases and prove Check can recompute the historical model without concept-selector ambiguity.
-
-- [ ] **Step 7: Run focused tests**
+- [ ] **Step 3: Run the source-integrity test**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_classification.py -v
-PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
+PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -k source -v
+```
+
+Expected: PASS before any accounting extraction work begins.
+
+---
+
+### Task 2: Create a raw audited-fact layer with page-level provenance
+
+**Files:**
+- Create: `benchmark/fast_retailing/source_facts.json`
+- Create: `benchmark/fast_retailing/PROVENANCE.md`
+- Modify: `core/tests/test_fast_retailing_benchmark.py`
+- Optional create: `requirements-benchmark.txt`
+- Optional create: `scripts/extract_benchmark_pdf_text.py`
+
+**Interfaces:**
+- `source_facts.json` stores values as they are reported in each filing before cross-filing precedence is applied.
+- `PROVENANCE.md` explains any presentation conflict, restatement, derived share count, or structural concept assignment.
+
+- [ ] **Step 1: Use one filing object per PDF**
+
+Use this top-level shape:
+
+```json
+{
+  "company": "FAST RETAILING CO., LTD.",
+  "hk_stock_code": "6288.HK",
+  "currency": "JPY",
+  "units": "JPY millions",
+  "filings": {
+    "2025": {
+      "file": "benchmark/fast_retailing/source/Fastretailing_CFS2025.pdf",
+      "periods": ["2024-08-31", "2025-08-31"],
+      "income_statement": [],
+      "balance_sheet": [],
+      "cash_flow": [],
+      "share_facts": [],
+      "note_facts": []
+    }
+  }
+}
+```
+
+Populate analogous objects for 2021–2024.
+
+- [ ] **Step 2: Transcribe the primary statements, not a curated minimal subset**
+
+For each filing capture the rows from:
+
+```text
+Consolidated Statement of Financial Position
+Consolidated Statement of Profit or Loss
+Consolidated Statement of Cash Flows
+```
+
+Each row must contain at minimum:
+
+```json
+{
+  "label": "Revenue",
+  "concept": "revenue",
+  "pdf_page": 3,
+  "statement": "Consolidated Statement of Profit or Loss",
+  "values": {
+    "2024-08-31": 3103836,
+    "2025-08-31": 3400539
+  }
+}
+```
+
+Use positive/negative signs as economically presented in the standardized model contract. If a primary statement displays an expense as a parenthesized amount, store it as negative.
+
+- [ ] **Step 3: Preserve duplicate source labels using concepts, not cosmetic renaming**
+
+Fast Retailing may use the same display label in current and non-current sections. Keep the source label and assign a structural concept that distinguishes the rows, for example:
+
+```text
+other_current_assets
+other_noncurrent_assets
+lease_liability_current
+lease_liability_noncurrent
+```
+
+The concept records source structure; it must not falsely assert a semantic treatment that the filing does not support.
+
+- [ ] **Step 4: Capture benchmark note facts needed to diagnose existing modules**
+
+At minimum capture, when disclosed by each filing:
+
+```text
+aggregate lease liability
+lease interest expense
+right-of-use assets
+PP&E additions / capex or payments for PP&E
+PP&E depreciation
+combined D&A
+profit attributable to owners
+profit attributable to NCI
+parent-attributable equity
+NCI equity
+basic weighted-average shares
+incremental dilutive shares
+reported diluted EPS
+stock-split disclosure
+```
+
+These note facts remain separate from the primary-statement rows unless the current model contract explicitly supports them.
+
+- [ ] **Step 5: Do not add a runtime PDF dependency**
+
+If text search is needed, a benchmark-only helper may use `pypdf`. If so, create:
+
+```text
+requirements-benchmark.txt
+```
+
+with only the extra benchmark extraction dependency and keep `requirements-trainer.txt` unchanged. The helper is for locating text; numeric transcription still requires source-page verification.
+
+- [ ] **Step 6: Add schema-level tests**
+
+Require every numeric row/fact to carry:
+
+```text
+file via its filing object
+pdf_page
+statement or note name
+period
+reported/derived status where applicable
+```
+
+Reject facts without a page number or with a period outside FY2020–FY2025 comparatives represented by the source set.
+
+---
+
+### Task 3: Add deterministic cross-filing precedence and overlap validation
+
+**Files:**
+- Create: `scripts/build_fast_retailing_benchmark.py`
+- Create: `benchmark/fast_retailing/FastRetailing_Standardized.json`
+- Create: `benchmark/fast_retailing/provenance.json`
+- Modify: `core/tests/test_fast_retailing_benchmark.py`
+
+**Interfaces:**
+
+```python
+def build_benchmark(
+    source_facts_path: Path,
+) -> tuple[dict, dict]:
+    """Return (model_payload, provenance_payload)."""
+```
+
+- [ ] **Step 1: Implement the precedence rule from the benchmark spec**
+
+For each fiscal period and economic row, choose the latest supplied audited filing that presents that period. Before choosing, compare overlapping values from adjacent filings.
+
+If two filings disagree, do not silently choose. Require an explicit conflict entry in `PROVENANCE.md` / `provenance.json` containing:
+
+```text
+period
+line identity
+older filing/value
+newer filing/value
+chosen filing/value
+reason
+```
+
+- [ ] **Step 2: Generate a five-period model payload**
+
+Require periods exactly:
+
+```text
+2021-08-31
+2022-08-31
+2023-08-31
+2024-08-31
+2025-08-31
+```
+
+Use:
+
+```text
+ticker = 6288.HK
+company_name = FAST RETAILING CO., LTD.
+currency = JPY
+units = JPY in Millions
+jurisdiction = JP
+stock_code = 6288.HK
+```
+
+Do not set jurisdiction to HK merely because the company has an HK listing.
+
+- [ ] **Step 3: Keep provenance outside the model-only JSON**
+
+`core/data/standardized_io.py` intentionally excludes paths/provenance. Do not change that contract in Step 9M.0. Write `provenance.json` keyed by statement + line identity + period so each emitted model value has a trace back to filing/page/source label.
+
+- [ ] **Step 4: Handle diluted weighted-average shares conservatively**
+
+Use `historical_shares` only for periods whose audited EPS disclosures support a comparable diluted weighted-average share count.
+
+When a filing gives basic average shares plus an incremental dilutive count, a derived total is allowed only as:
+
+```text
+diluted WAS = basic weighted-average shares + incremental dilutive shares
+```
+
+Mark that value `derived` in provenance.
+
+Because Fast Retailing had a 3-for-1 split effective 1 March 2023, do not apply an undocumented multiplier to 2021/2022. If the supplied audited filings do not provide a clearly restated comparable share basis for all five years, omit the per-share module from the five-year benchmark rather than inventing comparability. Record the limitation.
+
+- [ ] **Step 5: Make regeneration deterministic**
+
+Running the builder twice without source changes must produce byte-identical JSON modulo a terminating newline. Use `json.dumps(..., indent=2, sort_keys=True)`.
+
+- [ ] **Step 6: Add round-trip tests**
+
+Load the generated JSON through `standardized_from_payload()` and require the five periods, company metadata, labels, concepts, and values to survive.
+
+---
+
+### Task 4: Add independent audited source-anchor tests
+
+**Files:**
+- Modify: `core/tests/test_fast_retailing_benchmark.py`
+- Read: `docs/FAST_RETAILING_BENCHMARK.md`
+
+**Interfaces:**
+- These assertions are independent of current BAV formulas and catch transcription drift.
+
+- [ ] **Step 1: Assert the FY2025 primary-statement anchors**
+
+Require these exact values in the generated fixture/provenance:
+
+```python
+revenue_2025 = 3_400_539
+profit_before_tax_2025 = 650_574
+tax_expense_2025 = -191_421
+finance_income_2025 = 99_143
+finance_costs_2025 = -12_834
+profit_for_year_2025 = 459_153
+profit_attributable_parent_2025 = 433_009
+cash_2025 = 893_239
+ppe_2025 = 332_351
+rou_assets_2025 = 477_111
+goodwill_2025 = 8_092
+intangible_assets_2025 = 91_606
+current_lease_liability_2025 = 126_830
+noncurrent_lease_liability_2025 = 386_670
+total_assets_2025 = 3_859_353
+total_liabilities_2025 = 1_531_852
+parent_equity_2025 = 2_273_115
+nci_equity_2025 = 54_385
+total_equity_2025 = 2_327_501
+operating_cash_flow_2025 = 580_618
+depreciation_amortization_2025 = 216_492
+ppe_cash_payment_2025 = -135_535
+```
+
+- [ ] **Step 2: Assert note-level lease anchors separately**
+
+Require provenance to retain:
+
+```text
+reported aggregate lease liability = 513,501
+lease interest expense = 8,464
+```
+
+Do not replace the reported `513,501` with `126,830 + 386,670 = 513,500`; record the one-unit difference as source presentation/rounding evidence.
+
+- [ ] **Step 3: Assert the parent/NCI split explicitly**
+
+Require:
+
+```python
+459_153 == 433_009 + 26_143 + 1
+```
+
+Do not “repair” the one-unit presentation difference. Record it as reported rounding.
+
+Also require parent equity and total equity to remain distinct because NCI is non-zero.
+
+- [ ] **Step 4: Assert PDF source references**
+
+Every anchor above must point to the source PDF and page specified in `docs/FAST_RETAILING_BENCHMARK.md`.
+
+- [ ] **Step 5: Run the benchmark fact tests**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -k 'anchor or provenance or round_trip' -v
 ```
 
 ---
 
-### Task 3: Define the conservative aggregate lease-liability resolver contract
+### Task 5: Run the current Step 9L.1 engine as an audit, not a repair exercise
 
 **Files:**
-- Modify: `core/model/line_resolver.py`
-- Modify: `core/tests/test_line_resolver.py`
+- Create: `scripts/audit_fast_retailing_benchmark.py`
+- Create: `benchmark/fast_retailing/BASELINE.md`
+- Create: `benchmark/fast_retailing/GAPS.md`
+- Modify: `core/tests/test_fast_retailing_benchmark.py`
 
 **Interfaces:**
-- Adds canonical concept `lease_liability` to `resolve_line()` for diagnostic source resolution.
 
-- [ ] **Step 1: Add exact aggregate label aliases only**
-
-Support:
+The audit runs these stages in order:
 
 ```text
+1 source fixture load
+2 standardized identity validation
+3 financial reconciliation
+4 ReferenceModelBuilder construction
+5 Trainer / Answer Key generation
+6 blank Check
+7 filled-formula Check, only if stage 5 succeeds
+```
+
+- [ ] **Step 1: Implement a stage-result record**
+
+Use a small dataclass or plain dict with:
+
+```text
+stage
+status = pass | fail | skipped
+exception_type
+message
+```
+
+The audit must continue to write a report after the first production failure by marking later dependent stages `skipped`.
+
+- [ ] **Step 2: Keep audit artifacts isolated**
+
+Generate temporary workbooks under a temporary directory. Do not commit a Fast Retailing Trainer/Answer Key in Step 9M.0.
+
+- [ ] **Step 3: Record module applicability before/where possible**
+
+Report whether the source fixture makes these current modules applicable:
+
+```text
+earnings quality
+working capital
+fixed asset
 lease liability
-lease liabilities
-operating lease liability
-operating lease liabilities
+per share
+normalization
 ```
 
-Do **not** add aliases for:
+Do not force a module on by adding invented inputs.
+
+- [ ] **Step 4: Produce `BASELINE.md` deterministically**
+
+Include:
 
 ```text
-current lease liabilities
-non-current lease liabilities
-short-term lease liabilities
-long-term lease liabilities
+source commit / source hashes
+model commit audited: 26f22b7
+five fiscal periods
+stage table
+first failure, if any
+applicable/omitted modules
+no production fixes applied
 ```
 
-because those are partial balances and this checkpoint has no aggregation contract.
+Do not call the benchmark “passing” unless every stage actually passes.
 
-- [ ] **Step 2: Add explicit-concept tests**
+- [ ] **Step 5: Add a smoke test for the audit script**
 
-One line with:
-
-```python
-concept="lease_liability"
-```
-
-must resolve regardless of display label.
-
-Two rows sharing that concept must raise `AmbiguousLineError` for canonical diagnostic resolution.
-
-- [ ] **Step 3: Run resolver tests**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_line_resolver.py -v
-```
+The test must require that the audit completes and writes all stage records. It must **not** encode a production failure as desirable behavior. Step 9M.0 tests verify observability of the result, not that a particular current failure persists forever.
 
 ---
 
-### Task 4: Add the lease-liability historical series
+### Task 6: Turn the observed baseline into a precise Step 9M.1 gap queue
 
 **Files:**
-- Create: `core/model/lease_liability.py`
-- Create: `core/tests/test_lease_liability.py`
+- Modify: `benchmark/fast_retailing/GAPS.md`
+- Modify: `benchmark/fast_retailing/PROVENANCE.md`
+- Do not modify production `core/` accounting logic in this task.
 
 **Interfaces:**
+- `GAPS.md` is the sole evidence basis for the next engine-fix plan.
 
-```python
-@dataclass(frozen=True)
-class LeaseLiabilityAvailability:
-    lease_liability: bool
-    ambiguous: bool
+- [ ] **Step 1: Classify every observed failure**
 
-@dataclass(frozen=True)
-class LeaseLiabilitySeries:
-    lease_liability: tuple[float, ...]
-    lease_liability_to_revenue: tuple[float | str, ...]
-    lease_liability_change: tuple[float | None, ...]
-    lease_liability_growth: tuple[float | str | None, ...]
-
-
-def lease_liability_availability(
-    financials: StandardizedFinancials,
-) -> LeaseLiabilityAvailability:
-    ...
-
-
-def lease_liability_applicable(
-    financials: StandardizedFinancials,
-) -> bool:
-    ...
-
-
-def compute_lease_liability_series(
-    financials: StandardizedFinancials,
-    periods: list[date],
-    anchor: AnchorMetrics,
-) -> LeaseLiabilitySeries:
-    ...
-```
-
-- [ ] **Step 1: Write ordinary two-period math test**
-
-For lease balances `100, 120` and revenue `1000, 1100` require:
+Use exactly these categories:
 
 ```text
-lease_liability = 100, 120
-lease_liability_to_revenue = 10.0%, 10.909...%
-lease_liability_change = None, 20
-lease_liability_growth = None, 20.0%
+A source-extraction / provenance defect
+B generic line-identity / resolver / classifier gap
+C accounting-model scope gap
+D optional-module input-contract gap
+E comparative/restatement/share-basis conflict
 ```
 
-- [ ] **Step 2: Write zero-denominator semantics**
+For each gap record:
+
+```text
+stage
+exact exception or mismatch
+source fact(s) that trigger it
+whether synthetic tests currently cover it
+why the issue is generalizable beyond Fast Retailing
+```
+
+- [ ] **Step 2: Explicitly probe the known 2025 pressure points**
+
+Even if they are not the first thrown exception, record the current behavior for:
+
+1. **NCI / attribution:** total profit `459,153` versus parent-attributable profit `433,009`; total equity `2,327,501` versus parent equity `2,273,115`.
+2. **Split leases:** current `126,830` and non-current `386,670` versus Note 17 aggregate `513,501`.
+3. **Lease income-side consistency:** Note 17 lease interest `8,464` versus the current treatment-conditioned balance-sheet judgment and treatment-independent `compute_anchor()` net-interest logic.
+4. **Generic financial rows:** other financial assets/liabilities and derivatives.
+5. **Duplicate/current-vs-non-current source labels:** confirm whether concepts are sufficient to preserve identity without cosmetic relabeling.
+6. **Share basis:** verify how the 2023 3-for-1 split affects FY2021/FY2022 comparability before enabling five-year per-share analysis.
+
+- [ ] **Step 3: Do not prescribe speculative fixes**
+
+`GAPS.md` may state the required invariant (for example, “parent-attributable earnings and equity must be handled consistently”), but Step 9M.0 must not redesign NCI, lease accounting, or classification architecture. ChatGPT will use the measured gaps to write Step 9M.1.
+
+---
+
+### Task 7: Protect existing synthetic behavior while adding the benchmark infrastructure
+
+**Files:**
+- Test: `core/tests/test_fast_retailing_benchmark.py`
+- Test: existing historical suite
+- Production model files should remain unchanged in Step 9M.0 unless a non-accounting benchmark utility import path absolutely requires a trivial change; prefer no `core/` production changes.
+
+**Interfaces:**
+- The benchmark adds evidence and tests without replacing existing fixtures.
+
+- [ ] **Step 1: Require the pre-existing Step 9L.1 surface to remain unchanged**
+
+Before finalizing, verify the existing suite still reports the same current surfaces recorded by Step 9L.1:
+
+```text
+active family orders 1..90
+base demo 74 / 312
+normalization demo 78 / 332
+shares only 82 / 346
+shares + normalization 90 / 384
+services 59 / 248
+retail 78 / 331
+manufacturer 74 / 311
+CLI {ingest, build, check, list}
+```
+
+- [ ] **Step 2: Require benchmark tests to be additive**
+
+No existing synthetic assertion should be weakened to accommodate Fast Retailing.
+
+- [ ] **Step 3: Verify the five PDFs are unchanged after all work**
+
+Re-run the manifest hash test at the end.
+
+---
+
+### Task 8: Final Step 9M.0 verification and status
+
+**Files:**
+- Modify: `RESULT.md`
+- Modify: `IMPLEMENTATION.md` status only after verification
+- Do not modify: `TARGET.md`
+- Do not modify: `docs/FAST_RETAILING_BENCHMARK.md` unless a source citation/page error is proven during implementation
+
+- [ ] **Step 1: Run benchmark-focused tests**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
+```
+
+- [ ] **Step 2: Run the benchmark audit**
+
+```bash
+PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
+```
+
+Review `benchmark/fast_retailing/BASELINE.md` and `GAPS.md`. The command may report production stages as failed; that is valid for Step 9M.0 only if the failures are fully captured and no source-integrity test failed.
+
+- [ ] **Step 3: Run the full existing historical suite**
+
+```bash
+PYTHONPATH=. pytest core/tests/ -q
+```
+
+The old 316-test baseline must not regress; record the actual new total including benchmark tests.
+
+- [ ] **Step 4: Verify source immutability and product boundaries**
 
 Require:
 
 ```text
-Revenue = 0 -> Lease Liability / Revenue = #N/A
-Prior Lease Liability = 0 -> growth = #N/A
-Current Lease Liability = 0 with nonzero prior -> growth = -100%
+all five Fast Retailing PDF SHA-256 values unchanged
+GOOGL workbook unchanged
+no forecast/valuation activation
+no new historical formula family
+no Fast Retailing-specific production branch
+no committed Fast Retailing Trainer/Answer Key yet
 ```
 
-Preserve negative source values if supplied; do not wrap in `ABS()`.
+- [ ] **Step 5: Record evidence in `RESULT.md`**
 
-- [ ] **Step 3: Write missing-period failure test**
-
-If the unique aggregate source line exists but one modeled period is missing, `compute_lease_liability_series()` must raise `MissingHistoricalValueError`.
-
-- [ ] **Step 4: Write ambiguity gating test**
-
-For two split rows sharing `concept="lease_liability"`:
+Record at minimum:
 
 ```text
-lease_liability_availability(...).ambiguous == True
-lease_liability_applicable(...) == False
+Step 9L.1 review accepted / findings
+five source hashes verified
+five-period source-fact fixture created
+latest-audited-presentation precedence applied
+number of overlap conflicts/restatements
+2025 anchor checks passed
+current engine audit stage results
+applicable/omitted modules
+number and categories of gaps
+full pytest count
+forecasting/valuation still deferred
 ```
 
-Do not sum them.
+- [ ] **Step 6: Mark Step 9M.0 complete only after the benchmark baseline is reproducible**
 
-- [ ] **Step 5: Implement minimal model**
-
-Use `required_period_value()` and `ratio_or_na()` only. Revenue comes from `anchor.historical.revenue` and its axis length must equal `periods`.
-
-- [ ] **Step 6: Run model tests green**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_lease_liability.py -v
-```
-
----
-
-### Task 5: Add four semantic families, orders 87–90
-
-**Files:**
-- Modify: `core/engine/component_catalog.py`
-- Modify: `core/model/historical_expected.py`
-- Test: `core/tests/test_lease_liability.py`
-
-**Interfaces:**
-
-Add exactly:
-
-```text
-87 lease_liability_source_link
-88 lease_liability_to_revenue
-89 lease_liability_change
-90 lease_liability_growth
-```
-
-Expected 5-period concrete-cell counts:
-
-```text
-source link: 5
-ratio:       5
-change:      4
-growth:      4
-Total:      18
-```
-
-- [ ] **Step 1: Define catalog metadata**
-
-All families use:
-
-```text
-category = lease_liability
-tab_template = ALT DuPont
-```
-
-Comparable-period scope applies to change and growth only.
-
-Hints must explicitly say:
-
-- the source balance is reported lease liability;
-- classification treatment is a separate judgment;
-- balance growth is not rent growth, lease cash payments, commitments, or ROU-asset growth;
-- zero prior balance makes percentage growth undefined.
-
-- [ ] **Step 2: Add expansion function**
-
-Follow the existing fixed-asset expansion pattern, including duplicate/chronology rejection.
-
-- [ ] **Step 3: Add expected-series mapping**
-
-Add:
-
-```python
-lease_liability_expected_series(...)
-```
-
-and route the four family IDs through `expected_value_for_component()`.
-
-- [ ] **Step 4: Run focused tests**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_lease_liability.py -v
-```
-
----
-
-### Task 6: Integrate lease context into `ALT DuPont` and Formula Check
-
-**Files:**
-- Modify: `core/engine/reference_model.py`
-- Modify: `core/trainer/checker.py`
-- Modify: `core/trainer/workbook.py`
-- Test: `core/tests/test_lease_liability.py`
-- Test: `core/tests/test_reference_integrity.py`
-
-**Interfaces:**
-- No new visible worksheet.
-- Section appears only when `lease_liability_applicable(financials)` is true.
-
-- [ ] **Step 1: Add builder initialization**
-
-Compute `LeaseLiabilitySeries` after existing optional historical modules and allocate orders after fixed-asset specs.
-
-Append lease specs to `expected_specs` and maintain a dedicated spec index.
-
-- [ ] **Step 2: Append the section to ALT DuPont**
-
-If fixed-asset context exists, start after its check row. Otherwise start after the existing ROE-attribution check row.
-
-Use these visible labels:
-
-```text
-LEASE LIABILITY CONTEXT
-Lease Liability
-Lease Liability / Revenue
-Change in Lease Liability
-Lease Liability Growth
-```
-
-Do not add a decorative check row unless it validates a genuine accounting identity. These four diagnostics do not need a synthetic self-check identity.
-
-- [ ] **Step 3: Use transparent formulas**
-
-Source link:
-
-```excel
-='Balance Sheet'!<source cell>
-```
-
-Ratio:
-
-```excel
-=IF(<Revenue>=0,NA(),<Lease Liability>/<Revenue>)
-```
-
-Change:
-
-```excel
-=<Current Lease Liability>-<Prior Lease Liability>
-```
-
-Growth:
-
-```excel
-=IF(<Prior Lease Liability>=0,NA(),<Current>/<Prior>-1)
-```
-
-Use exact cell references generated by the builder; do not hard-code coordinates.
-
-- [ ] **Step 4: Add Formula Check recomputation**
-
-When any of the four lease family IDs are present in the SemanticMap, reconstruct `LeaseLiabilitySeries` from trusted source payload and pass it through `expected_value_for_component()`.
-
-- [ ] **Step 5: Register catalog metadata in Trainer grouping**
-
-Add lease families to `group_components_by_family()` family metadata so the Trainer index shows them in orders 87–90.
-
-- [ ] **Step 6: Add trusted-tamper regression**
-
-Tamper with a non-practice generated lease-context cell and require Check to raise before recoloring any practice cell.
-
-- [ ] **Step 7: Prove classification choice does not mutate raw lease diagnostics**
-
-For the aggregate lease demo:
-
-1. record lease ratio expected value under reference operating-liability treatment;
-2. switch Accounting Judgment to `Financial Liability`;
-3. prove downstream NOA / Net Debt changes;
-4. prove `lease_liability_to_revenue` stays numerically unchanged because it is based on the reported raw lease balance and Revenue.
-
-This distinction is pedagogically important: classification affects reformulation, not the reported lease balance itself.
-
----
-
-### Task 7: Prove split lease rows remain usable for judgment without unsafe aggregation
-
-**Files:**
-- Modify: `core/tests/test_classification.py`
-- Modify: `core/tests/test_reference_integrity.py`
-- Modify: `core/tests/test_cross_company_robustness.py`
-
-- [ ] **Step 1: Build a split-liability synthetic case**
-
-Supply:
-
-```text
-Current lease liabilities      concept=lease_liability
-Non-current lease liabilities  concept=lease_liability
-```
-
-with nonzero values across periods.
-
-- [ ] **Step 2: Require two independent Accounting Judgment rows**
-
-Both must have distinct `identity:` selectors and accept separate treatments.
-
-- [ ] **Step 3: Require lease diagnostics to be omitted**
-
-No family `87..90` should appear because canonical aggregate resolution is ambiguous.
-
-- [ ] **Step 4: Require Check to succeed**
-
-Fill all practice formulas, select independent treatments, and require no selector ambiguity or false trusted-state failure.
-
-- [ ] **Step 5: Preserve existing manufacturer judgment regression**
-
-The current aggregate manufacturer lease case remains valid. Extend it to prove the raw lease-liability ratio does not change when classification switches to Financial Liability.
-
----
-
-### Task 8: Update canonical surfaces and regenerate committed demo workbooks
-
-**Files:**
-- Regenerate: `example/DEMO_HK_Trainer.xlsx`
-- Regenerate: `example/DEMO_HK_Answer_Key.xlsx`
-- Modify relevant surface-count tests
-- Do not modify: `example/DEMO_HK_Standardized.json`
-- Do not modify: `example/DEMO_HK_Assumptions.json`
-
-The canonical demo contains one aggregate `Operating lease liabilities` line, so the lease module should activate.
-
-Expected counts after adding four families / 18 concrete cells:
-
-```text
-base demo:               74 families / 312 cells
-normalization demo:      78 / 332
-shares only:             82 / 346
-shares + normalization:  90 / 384
-```
-
-Cross-company expectations:
-
-```text
-services:      59 / 248   (unchanged; no lease)
-retail:        78 / 331   (unchanged; no lease)
-manufacturer:  74 / 311   (+4 families / +18 cells; aggregate lease present)
-```
-
-Full-feature active family namespace must become exactly:
-
-```text
-1..90
-```
-
-- [ ] **Step 1: Update expected counts in tests first**
-
-Run affected tests and confirm they fail before production changes are complete.
-
-- [ ] **Step 2: Regenerate through the public build path**
-
-```bash
-PYTHONPATH=. python -m core build \
-  example/DEMO_HK_Standardized.json \
-  -a example/DEMO_HK_Assumptions.json \
-  -o example/DEMO_HK_Trainer.xlsx
-```
-
-- [ ] **Step 3: Verify fresh Check counts**
-
-Normalization canonical Trainer:
-
-```text
-0 correct
-0 incorrect
-332 blank
-```
-
-- [ ] **Step 4: Preserve Step 9I.1 visual contract**
-
-Fresh visible workbook surface remains Aptos Narrow 11, white/yellow, no decorative borders.
-
----
-
-### Task 9: Update documentation only after the implementation is verified
-
-**Files:**
-- Modify: `README.md`
-- Modify: `docs/GOOGL_HISTORICAL_REFERENCE.md`
-- Modify: `RESULT.md`
-- Modify: `IMPLEMENTATION.md` status only after all tests pass
-- Modify: `skills/bav-trainer/SKILL.md` only if current capability claims would otherwise be false
-- Do not modify: `TARGET.md`
-
-- [ ] **Step 1: Update README current capability list**
-
-Add one concise implemented capability:
-
-```text
-optional lease-liability intensity and trend diagnostics when one aggregate historical lease-liability line is supplied
-```
-
-Do not advertise split-liability aggregation, ROU modeling, or lease amortization.
-
-- [ ] **Step 2: Update the GOOGL gap matrix**
-
-Lease row becomes `implemented-differently` for aggregate-liability diagnostics + guided classification.
-
-State clearly that:
-
-```text
-ROU-asset diagnostics are not implemented
-split current/non-current aggregation is not implemented
-lease payment / discount-rate analysis is not implemented
-```
-
-After Step 9L.1, the next Priority A item should be **goodwill / acquired intangibles / acquisition-cash diagnostics** unless new evidence from tests changes the dependency order.
-
-- [ ] **Step 3: Record review fixes in RESULT.md**
-
-Record:
-
-```text
-GOOGL provenance drift fixed
-stale Answer-Key hash removed from persistent reference doc
-identity: judgment selectors added
-split duplicate-concept lease case verified
-lease module orders 87–90
-aggregate-vs-split gating verified
-actual surface counts
-actual full pytest count
-no attached CI status
-forecasting / valuation still deferred
-TARGET.md unchanged
-```
-
----
-
-### Task 10: Final verification
-
-Run:
-
-```bash
-PYTHONPATH=. pytest core/tests/test_classification.py -v
-PYTHONPATH=. pytest core/tests/test_line_resolver.py -v
-PYTHONPATH=. pytest core/tests/test_lease_liability.py -v
-PYTHONPATH=. pytest core/tests/test_reference_workbook_audit.py -v
-PYTHONPATH=. pytest core/tests/test_reference_integrity.py -v
-PYTHONPATH=. pytest core/tests/test_cross_company_robustness.py -v
-PYTHONPATH=. pytest core/tests/test_historical_v1_exit_gate.py -v
-PYTHONPATH=. pytest core/tests/test_trainer.py -v
-PYTHONPATH=. pytest core/tests/ -q
-```
-
-Do not prestate the final test count. Record the actual count.
-
-Verify CLI remains exactly:
-
-```text
-ingest
-build
-check
-list
-```
-
-Verify deferred sheets remain hidden:
-
-```text
-Model_Bear
-Model_Base
-Model_Bull
-Scenario_Summary
-```
-
-Verify no normal build executes forecast/valuation code.
+Then stop. Do **not** implement the gaps. The next ChatGPT planning checkpoint is Step 9M.1, whose scope must be derived from `benchmark/fast_retailing/GAPS.md` rather than guessed in advance.
 
 ---
 
 ## Definition of Done
 
-Step 9L.1 is complete only when:
+Step 9M.0 is complete only when:
 
-1. Step 9K.1 fixed-asset behavior remains correct.
-2. The GOOGL reference document again separates actual GOOGL evidence from Trainer-created features.
-3. The stale canonical Answer-Key hash is removed from persistent reference documentation.
-4. Generated Accounting Judgment cases use exact `identity:` selectors.
-5. Existing manual `concept:` and `label:` overrides remain backward compatible.
-6. Two different rows sharing one concept can be judged independently without override ambiguity.
-7. One unique aggregate lease-liability line activates four families, orders 87–90.
-8. Split current/non-current lease rows do not get silently aggregated; lease diagnostics are omitted while judgment remains usable.
-9. Lease diagnostics preserve source signs and proper `#N/A` semantics.
-10. Changing lease classification changes reformulated NOA / Net Debt but does not change raw lease-liability intensity/trend diagnostics.
-11. Canonical demo counts are 74/312, 78/332, 82/346, and 90/384 as applicable.
-12. Cross-company counts are services 59/248, retail 78/331, manufacturer 74/311.
-13. Full-feature family namespace is exactly 1..90.
-14. Minimal visual style and workbook-wide Check remain intact.
-15. Full tests pass; actual count is recorded.
-16. Forecasting and valuation remain deferred.
-17. `TARGET.md` remains unchanged by Cursor.
-18. Cursor performs no Git operations.
+1. All five committed Fast Retailing CFS PDFs are hash-locked and unchanged.
+2. FY2021–FY2025 audited primary-statement facts are captured in `source_facts.json` with page-level provenance.
+3. Overlapping comparative years are checked before precedence is applied; conflicts are explicit.
+4. A deterministic five-period `FastRetailing_Standardized.json` and separate `provenance.json` are generated from source facts.
+5. No missing value is invented and no source row is renamed merely to make the current engine resolve it.
+6. The FY2025 independent anchors in `docs/FAST_RETAILING_BENCHMARK.md` pass.
+7. NCI/parent attribution, split lease balances, reported aggregate lease balance, lease interest, and stock-split/share-basis issues are explicitly audited.
+8. The current Step 9L.1 engine is run stage-by-stage against the benchmark and `BASELINE.md` records exactly what passes/fails/skips.
+9. Every observed gap is classified in `GAPS.md` with source evidence and generalizability rationale.
+10. No Fast Retailing-specific accounting logic is added to production code.
+11. Existing Step 9L.1 synthetic surfaces and tests do not regress.
+12. Forecasting and valuation remain dormant.
+13. Step 9M.1 is not implemented in this checkpoint.
