@@ -8,23 +8,23 @@
 
 **File:** `docs/GOOGL_HISTORICAL_REFERENCE.md`
 
-- [ ] Update the Trainer inventory, gap matrix, and queue for implemented split lease-liability aggregation, treatment-conditioned lease interest, parent/NCI attribution, and split-adjusted per-share analysis.
-- [ ] Distinguish implemented capabilities from remaining ROU, lease-payment, SBC, goodwill/acquisition, deferred-tax, capex, and segment gaps.
-- [ ] Preserve GOOGL observations and distinguish demo practice counts from Fast Retailing’s 380-cell surface.
+- [x] Update the Trainer inventory, gap matrix, and queue for implemented split lease-liability aggregation, treatment-conditioned lease interest, parent/NCI attribution, and split-adjusted per-share analysis.
+- [x] Distinguish implemented capabilities from remaining ROU, lease-payment, SBC, goodwill/acquisition, deferred-tax, capex, and segment gaps.
+- [x] Preserve GOOGL observations and distinguish demo practice counts from Fast Retailing’s 380-cell surface.
 
 ### Task 2: Select one bounded historical module
 
 **File:** `docs/GOOGL_HISTORICAL_REFERENCE.md`
 
-- [ ] Evaluate the existing first-priority goodwill/intangibles/acquisition candidate against relevant resolvers and supplied Fast Retailing filing JSON; consult source PDFs only where provenance needs verification.
-- [ ] Record available concepts, periods, units, signs, and source references; distinguish reported balances and cash flows from unsupported acquisition or impairment explanations.
-- [ ] Name one next implementation candidate with its minimum input contract, missing/ambiguous-input behavior, proposed historical calculations, and Trainer/Answer Key/Check scope. If the first candidate lacks sufficient facts, select the next supported queue item.
+- [x] Evaluate the existing first-priority goodwill/intangibles/acquisition candidate against relevant resolvers and supplied Fast Retailing filing JSON; consult source PDFs only where provenance needs verification.
+- [x] Record available concepts, periods, units, signs, and source references; distinguish reported balances and cash flows from unsupported acquisition or impairment explanations.
+- [x] Name one next implementation candidate with its minimum input contract, missing/ambiguous-input behavior, proposed historical calculations, and Trainer/Answer Key/Check scope. If the first candidate lacks sufficient facts, select the next supported queue item.
 
 ### Acceptance
 
-- [ ] Coverage statements agree with current implementation and recorded benchmark evidence; historical evidence is not presented as a newly rerun audit.
-- [ ] Exactly one next implementation candidate is specified with source-supported inputs and concrete expected behavior.
-- [ ] G1–G7 remain closed with overlap/supplemental disagreements retained at `3/3`.
-- [ ] Only `docs/GOOGL_HISTORICAL_REFERENCE.md` changes; production code, fixtures, benchmark artifacts, and workbooks remain unchanged.
-- [ ] `git diff --check` passes; no workbook regeneration or full audit is required.
-- [ ] Forecasting and valuation remain deferred.
+- [x] Coverage statements agree with current implementation and recorded benchmark evidence; historical evidence is not presented as a newly rerun audit.
+- [x] Exactly one next implementation candidate is specified with source-supported inputs and concrete expected behavior.
+- [x] G1–G7 remain closed with overlap/supplemental disagreements retained at `3/3`.
+- [x] Only `docs/GOOGL_HISTORICAL_REFERENCE.md` changes; production code, fixtures, benchmark artifacts, and workbooks remain unchanged.
+- [x] `git diff --check` passes; no workbook regeneration or full audit is required.
+- [x] Forecasting and valuation remain deferred.

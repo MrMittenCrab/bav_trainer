@@ -5,6 +5,8 @@ Internal development reference for Step 9 historical convergence. Evidence is li
 Audit tool: `scripts/audit_reference_workbook.py`  
 GOOGL SHA-256 (pre/post inspection): `81faf2882d0df07ecf5def45695431c1935b4f7a94c1e017367596a063063896`  
 
+**Coverage refresh (Step 9M.4):** Inventory, gap matrix, and queue below incorporate Fast Retailing G1–G7 closure evidence recorded in `benchmark/fast_retailing/` (`BASELINE.md`, `GAPS.md`, reconciled artifacts). That evidence is **not** a newly rerun audit in this step.
+
 ## Role of the reference
 
 `GOOGL_Demo_Integrated_Financials.xlsx` is the project’s **structural / analytical-depth reference**, not a literal template.
@@ -40,7 +42,9 @@ Not evidenced as dedicated structured schedules in the inspected workbook:
 
 ## Current Trainer inventory
 
-Canonical normalization-enabled demo (`DEMO_HK_Answer_Key.xlsx`, 78 families / 332 cells) visible surface:
+### Illustrative DEMO surfaces (synthetic; unchanged by Fast Retailing work)
+
+Canonical normalization-enabled demo (`DEMO_HK_Answer_Key.xlsx`, **78 families / 332 cells**) visible surface:
 
 | Sheet / feature | Role |
 |---|---|
@@ -53,9 +57,27 @@ Canonical normalization-enabled demo (`DEMO_HK_Answer_Key.xlsx`, 78 families / 3
 | Working Capital Analysis | NOWC intensity / incremental WC diagnostics |
 | Profitability / ROE attribution sheets | RNOA margin-turnover and ROE operating/financing change attribution |
 | Per Share Analysis | Optional; gated on diluted WAS history (+ normalized EPS bridge when normalization active) |
+| Ownership Attribution | Optional; gated on complete parent/NCI profit + equity concepts (absent on ordinary DEMO) |
 | Model_* / Scenario_Summary | Hidden deferred placeholders only |
 
-Ordinary / share / cross-company surfaces: `74/312`, `78/332`, `82/346`, `90/384`; services `59/248`, retail `78/331`, manufacturer `74/311`.
+Ordinary / share / cross-company DEMO surfaces (recorded regression counts): `74/312`, `78/332`, `82/346`, `90/384`; services `59/248`, retail `78/331`, manufacturer `74/311`.
+
+### Fast Retailing real-company surface (recorded benchmark; not a new audit)
+
+Distinct from DEMO counts. Post–G1–G7 recorded Stage 4/Check surface:
+
+- **`expected_specs=380`** (blank Check `0/0/380`; filled Check `380/0/0`)
+- Module specs (recorded): `lease_specs=18`, `ownership_specs=34`, `per_share_specs=18`, `per_share_attribution_specs=16`, `fixed_asset_specs=35`
+- Added vs illustrative DEMO when facts resolve: split lease-liability diagnostics, Ownership Attribution (parent/NCI), split-adjusted Per Share Analysis + attribution
+
+### Implemented since prior inventory (G3–G6 / related)
+
+| Capability | Status | Notes |
+|---|---|---|
+| Split lease-liability aggregation | **implemented** | `resolve_lease_liability_source()` accepts unique aggregate **or** exactly one current + one non-current pair summed period-by-period (G3 / 9M.3A) |
+| Treatment-conditioned lease interest | **implemented** | Optional `historical_lease.lease_interest_expense`; operating treatment excludes disclosed lease interest from financing net interest; mixed treatment fails closed (G4 / 9M.3B) |
+| Parent / NCI attribution + parent ROE | **implemented** | Ownership Attribution schedule when four ownership concepts resolve; per-share numerator uses parent profit when ownership complete (G5 / 9M.3C) |
+| Split-adjusted per-share analysis | **implemented** | `historical_shares` with `basis=split_adjusted` drives diluted WAS / EPS practice when share axis resolves (G6 / 9M.3D) |
 
 ## Historical capability gap matrix
 
@@ -70,16 +92,17 @@ Ordinary / share / cross-company surfaces: `74/312`, `78/332`, `82/346`, `90/384
 | working-capital behavior | Condensed NOWC aggregates | Working Capital Analysis sheet | implemented-differently | OWCA/OWCL classifications + Revenue | Dedicated WC diagnostics already stronger for training | Maintain |
 | RNOA margin / turnover / asset intensity | ALT DuPont margin & turnover | Profitability drivers + change attribution; fixed-asset intensity context when PP&E+D&A resolve | implemented-differently | NOPAT, Revenue, NOA; optional PP&E+D&A | Structured attribution + optional PPE context | Maintain; deepen with lease/capex when contracted |
 | ROE operating / financing attribution | ALT DuPont Fin Lev Gain | ROE attribution sheet | implemented-differently | RNOA, Spread, FLEV, equity | Dedicated change attribution | Maintain |
-| historical per-share / diluted-share bridge | IS Basic/Diluted EPS & diluted shares outstanding | Optional Per Share Analysis + norm bridge | implemented-differently | Explicit diluted WAS (+ optional norm) | Gate on share history | Maintain |
-| stock-based compensation / dilution | CF **Stock-based compensation expense**; IS share counts; EQ dilution signal | Diluted-share modules only; no SBC schedule | missing-current-data-supported | CF SBC line and/or SBC disclosure + share history when present | Optional module; omit if absent | Priority A after lease foundation, or Priority B if stricter SBC contract needed |
-| PP&E / D&A / asset intensity | BS Property and equipment; CF depreciation; CF Purchases of property and equipment | ALT DuPont fixed-asset families 79–86 when both PP&E and D&A resolve (`FIXED-ASSET INTENSITY CONTEXT`) | implemented-differently | Explicit PP&E (BS) + D&A (CF) + Revenue | Practice formulas on ALT DuPont; gated; no capex inference; D&A/Average PP&E is context only | Maintain; do not claim pure depreciation rate |
-| capex / reinvestment bridge | CF **Purchases of property and equipment** | Absent | missing-needs-new-explicit-data | Explicit capex / purchases-of-PP&E source + sign contract | Optional gated module after contract exists | Priority B — deferred until explicit capex contract |
-| leases | BS Operating lease assets / Operating lease liabilities; Condensed classification rows | Accounting Judgment + ALT DuPont lease-liability families 87–90 when one aggregate lease liability resolves | implemented-differently | One unique aggregate lease-liability line + Revenue | Guided classification + intensity/trend diagnostics; no ROU inference; no split current/non-current aggregation; no lease payments/discount rates | Maintain; ROU / split aggregation / payment analysis remain deferred |
-| goodwill / acquired intangibles / acquisitions | BS Goodwill; Intangible assets; CF acquisitions line | Often classified as OLTA; no acquisition/goodwill bridge | missing-current-data-supported | Goodwill, intangibles, acquisition CF/lines when present | Optional gated module | Priority A (after lease intensity) |
-| deferred taxes / unusual tax rates | BS Deferred income taxes; CF Deferred income taxes; IS Core bridge tax notes (e.g. Tax Act remasurement) | Effective tax rate + pretax norm tax convention | missing-current-data-supported | Deferred tax BS/CF lines and/or explicit tax-adjustment candidates | Optional tax-quality diagnostics; do not invent | Priority A/B depending on explicit tax-adjustment contract |
-| minority / non-controlling interests | Not evidenced in inspected workbook | Absent | not-evidenced-in-GOOGL | Explicit NCI lines when a company has them | Optional gated module per TARGET | Priority C until a real-company case supplies NCI |
+| historical per-share / diluted-share bridge | IS Basic/Diluted EPS & diluted shares outstanding | Optional Per Share Analysis + norm bridge; split-adjusted WAS when share-basis resolver emits `basis=split_adjusted` | implemented-differently | Explicit diluted WAS (+ optional norm); optional audited split restatement for comparable axis | Gate on share history; analytical axis must not overwrite raw share facts | Maintain |
+| stock-based compensation / dilution | CF **Stock-based compensation expense**; IS share counts; EQ dilution signal | Diluted-share modules only; no SBC schedule | missing-current-data-supported | CF SBC line and/or SBC disclosure + share history when present | Optional module; omit if absent | Priority A when SBC facts exist; Fast Retailing / DEMO currently lack SBC lines |
+| PP&E / D&A / asset intensity | BS Property and equipment; CF depreciation; CF Purchases of property and equipment | ALT DuPont fixed-asset families when both PP&E and D&A resolve (`FIXED-ASSET INTENSITY CONTEXT`) | implemented-differently | Explicit PP&E (BS) + D&A (CF) + Revenue | Practice formulas on ALT DuPont; gated; no capex inference; D&A/Average PP&E is context only | Maintain; do not claim pure depreciation rate |
+| capex / reinvestment bridge | CF **Purchases of property and equipment** | Absent as dedicated practice module (PPE/D&A context only) | missing-needs-new-explicit-data | Explicit `payments_for_ppe` / purchases-of-PP&E source + sign contract | Optional gated module; do not infer from investing CF or ΔPPE+D&A | Priority B — contract can be defined from explicit CF concept; still separate from next candidate |
+| leases (liability) | BS Operating lease liabilities; Condensed classification rows | Accounting Judgment + ALT DuPont lease-liability families; aggregate **or** split current/non-current sum; treatment-conditioned lease interest when complete note axis exists | implemented-differently | Aggregate `lease_liability` **or** unique `lease_liability_current` + `lease_liability_noncurrent`; optional `lease_interest_expense` note axis; Revenue | Guided classification + intensity/trend; financing net interest conditioned on uniform lease treatment | Maintain |
+| leases (ROU / payments) | BS Operating lease assets | ROU BS line may classify as OLTA; **no** ROU intensity schedule; **no** lease-payment / discount-rate diagnostics | missing-current-data-supported | Explicit `right_of_use_assets`; optional lease-payment CF lines when present | Optional gated module after liability foundation (now done) | Priority A remaining lease gap |
+| goodwill / acquired intangibles / acquisitions | BS Goodwill; Intangible assets; CF acquisitions line | Often classified as OLTA; no goodwill/intangibles diagnostic schedule; no acquisition bridge | missing-current-data-supported | Unique `goodwill` / `intangible_assets` (and optional intangible-payment CF) when present; acquisition CF only when explicitly supplied | Optional gated intensity/change module; never invent acquisition or GW-impairment stories | **Next candidate** (bounded; see below) |
+| deferred taxes / unusual tax rates | BS Deferred income taxes; CF Deferred income taxes; IS Core bridge tax notes | Effective tax rate + pretax norm tax convention; no DTA/DTL diagnostic schedule | missing-current-data-supported | Deferred tax BS/CF lines and/or explicit tax-adjustment candidates | Optional tax-quality / balance diagnostics; do not invent | Priority A after next candidate / when contracted |
+| minority / non-controlling interests | Not evidenced in inspected workbook | Ownership Attribution + parent ROE + parent-safe per-share numerator when ownership concepts resolve | implemented-differently | `profit_attributable_to_owners`, `profit_attributable_to_nci`, `equity_attributable_to_owners`, `noncontrolling_interests` | Optional gated schedule; consolidated DuPont unchanged | Maintain (Fast Retailing supplies NCI; GOOGL demo did not evidence it) |
 | segment economics | Not evidenced as structured segment schedules (only scenario narrative mentions) | Absent | not-evidenced-in-GOOGL | Explicit segment revenue/opex/assets disclosures | Optional module; never invent segments | Priority C / B when segment inputs are designed |
-| accounting consistency / reconciliation checks | Source statement arithmetic; EQ screens (Beneish/Piotroski/Benford) | `reconcile_financials` / identity validators; trusted-cell checks | implemented-differently | Existing standardized facts | Keep blocking integrity; forensic screens optional later | Priority B for forensic screens (Benford needs XBRL population — likely not-trainer-target) |
+| accounting consistency / reconciliation checks | Source statement arithmetic; EQ screens (Beneish/Piotroski/Benford) | `reconcile_financials` / identity validators; trusted-cell checks; retained cross-filing conflicts | implemented-differently | Existing standardized facts | Keep blocking integrity; forensic screens optional later | Priority B for forensic screens (Benford needs XBRL population — likely not-trainer-target) |
 | historical interpretation / diagnostics | EQ commentary framing; scenario rationales (forward) | WC / profitability / ROE / EQ change attributions | implemented-differently | Existing computed series | Prefer structured diagnostics over essays | Priority A — extend interpretation on new historical modules |
 
 Forward GOOGL sheets (Guidance & Consensus, Model_*, Scenario_Summary, Implied Cost of Capital, Valuation Multiples) are inventoried above and classified **deferred-forward** for roadmap purposes; they are not Step 9 implementation tasks.
@@ -104,29 +127,30 @@ Forward GOOGL sheets (Guidance & Consensus, Model_*, Scenario_Summary, Implied C
 **not-evidenced-in-GOOGL**
 
 - Structured segment economics schedules
-- Minority / non-controlling interest schedules
+- Minority / non-controlling interest schedules (Trainer now supports NCI when a real company supplies facts; GOOGL reference still lacks them)
 
 ## Prioritized Step 9 queue
 
 ### Priority A — historically useful and current-data-supported
 
-1. Goodwill / acquired intangibles / acquisition cash diagnostics when those lines are supplied.
-2. SBC expense bridge into dilution / per-share interpretation when CF SBC + share history are supplied.
-3. Deferred-tax / unusual-tax diagnostics when deferred-tax lines or explicit tax adjustments are supplied.
-4. Further structured historical interpretation prompts on modules already taught.
-5. Lease ROU-asset diagnostics / split current–non-current aggregation only after an explicit aggregation contract.
+1. **Next:** Bounded goodwill / intangible-asset intensity & change diagnostics (and optional intangible-payments bridge) when unique BS/CF concepts resolve — **without** acquisition-cash or GW-impairment narratives unless those lines are separately supplied.
+2. Lease ROU-asset intensity / trend diagnostics when unique `right_of_use_assets` resolves (liability aggregation foundation is done).
+3. SBC expense bridge into dilution / per-share interpretation when CF SBC + share history are supplied (not present on Fast Retailing or ordinary DEMO today).
+4. Deferred-tax balance / net-position diagnostics when unique DTA/DTL (and/or explicit tax-adjustment candidates) are supplied.
+5. Further structured historical interpretation prompts on modules already taught.
 
 ### Priority B — historically useful but needs explicit new historical inputs
 
-1. Capex / reinvestment bridge (requires explicit purchases-of-PP&E / capex source and sign contract; not inferred from investing cash flow or PP&E change + D&A).
+1. Capex / reinvestment bridge (requires explicit purchases-of-PP&E / `payments_for_ppe` source and sign contract; not inferred from investing cash flow or PP&E change + D&A). Fast Retailing already discloses `payments_for_ppe`, but the Trainer module/contract is not yet implemented.
 2. Formal segment-economics input contract + optional module.
 3. Richer tax-adjustment candidate schema beyond current normalization scopes.
 4. Optional Beneish/Piotroski-style screens only if pedagogically justified and computable from standardized facts (not XBRL scrapes).
+5. Lease-payment / discount-rate analysis only with an explicit payment and rate contract (do not invent from ROU + liability).
 
 ### Priority C — TARGET-required historical topic not evidenced by GOOGL
 
-1. Minority / non-controlling interests (await a company with explicit NCI facts).
-2. Structured segment economics (await disclosures + input contract; not evidenced as GOOGL schedules).
+1. Structured segment economics (await disclosures + input contract; not evidenced as GOOGL schedules).
+2. ~~Minority / non-controlling interests~~ → **moved to implemented** when ownership concepts resolve (Fast Retailing G5).
 
 ### Deferred — forecasting / valuation / non-Trainer reference features
 
@@ -134,8 +158,99 @@ Forward GOOGL sheets (Guidance & Consensus, Model_*, Scenario_Summary, Implied C
 2. Residual-income / DCF valuation, ICC, multiples, guidance/consensus.
 3. Pipeline automation / monitoring features.
 
-**Next historical implementation candidate (evidence rule):** Priority A item 1 — **goodwill / acquired intangibles / acquisition-cash diagnostics**, gated on explicit goodwill/intangibles/acquisition lines without inventing facts or activating forecasting.
+## Step 9M.4 candidate evaluation — goodwill / intangibles / acquisitions
 
-**Step 9K.1 note:** PP&E / D&A asset-intensity diagnostics are implemented-differently on ALT DuPont. Capex remains explicitly deferred until a source/sign contract exists.
+### Resolvers / classification today
 
-**Step 9L.1 note:** Aggregate lease-liability intensity/trend diagnostics + `identity:` judgment selectors are implemented. ROU-asset diagnostics, split-liability aggregation, and lease payment/discount-rate analysis remain deferred.
+- `resolve_line(..., "goodwill"|"intangible_assets"|"payments_for_intangible_assets")` can bind unique concept rows; no dedicated goodwill/intangibles diagnostic module exists.
+- Classification treats goodwill/intangible tokens as operating long-term asset family material; that is structural classification only, not an acquisition bridge.
+- No resolver invents business-acquisition cash, goodwill impairment allocation, or acquired-vs-internally-developed splits.
+
+### Fast Retailing supplied facts (`reconciled/standardized.json`)
+
+Units: **JPY in Millions**. Periods: FY2021–FY2025 (`2021-08-31` … `2025-08-31`). Currency: JPY.
+
+| Concept | Statement | FY2021 → FY2025 values | Sign / nature | Source anchor |
+|---|---|---|---|---|
+| `goodwill` | BS | `8092, 8092, 8092, 8092, 8092` | Asset balance (level) | CFS BS “Goodwill”; FY2025 CFS p.2 anchor `8,092` |
+| `intangible_assets` | BS | `66939, 76621, 87300, 92568, 91606` | Asset balance (level) | CFS BS “Intangible assets”; FY2025 CFS p.2 anchor `91,606` |
+| `payments_for_intangible_assets` | CF | `-19624, -28335, -33542, -30260, -27329` | Cash **outflow** (negative as reported) | CFS “Payments for intangible assets”; FY2025 CF page anchor path |
+| `impairment_losses` | CF | `16908, 23150, 3958, -1700, 598` | General impairment / reversal line | CFS operating adjustments — **not** goodwill-tagged |
+
+**Supported as reported facts:** goodwill balances; intangible-asset balances; intangible-asset payment cash flows.
+
+**Unsupported / must not invent:** business-combination acquisition cash (no subsidiaries/businesses acquisition CF concept present); goodwill impairment or acquisition accounting explanations; linking `impairment_losses` to goodwill (goodwill is flat across FY2021–FY2025 while impairment fluctuates); acquired-vs-internally-generated intangible split; purchase-price allocation.
+
+Illustrative DEMO supplies only a flat unlabeled Goodwill row (no intangibles / no acquisition CF) — any new module must omit itself there unless concepts resolve.
+
+### Verdict on prior Priority A item 1 (full acquisition-cash diagnostics)
+
+The **full** “goodwill / acquired intangibles / acquisition-cash” package **lacks** acquisition-cash and GW-movement facts on Fast Retailing. Do **not** implement acquisition or impairment storytelling.
+
+The **bounded** balance + optional intangible-payments intensity module **is** source-supported and remains the single next implementation candidate.
+
+---
+
+## Next historical implementation candidate (exactly one)
+
+**Name:** Goodwill & intangible-asset intensity / change diagnostics (optional intangible-payments bridge)
+
+### Minimum input contract
+
+Module applicable when **at least one** of the following resolves uniquely on the balance sheet:
+
+1. `goodwill`
+2. `intangible_assets`
+
+Optional enhancement (same module, additional families only when present):
+
+3. Unique CF `payments_for_intangible_assets` with an explicit sign convention: reported negatives are cash outflows; practice formulas may present outflow magnitude as `−payments` or keep the reported signed cash-flow value — pick one convention in implementation and document it in Answer-Key Notes; do not flip signs silently per period.
+
+Revenue for intensity ratios comes from existing anchor revenue (already required elsewhere). No new market or forecast inputs.
+
+### Missing / ambiguous-input behavior
+
+- Neither `goodwill` nor `intangible_assets` unique → **omit entire module** (fail closed; no label fallback).
+- Only one of GW / intangibles resolves → emit families only for the resolving line(s).
+- Duplicate/ambiguous concept matches → omit (same fail-closed posture as lease/fixed-asset resolvers).
+- `payments_for_intangible_assets` absent or ambiguous → omit payment families only; keep balance diagnostics if BS lines resolve.
+- Never read `impairment_losses`, investing “others”, or Δgoodwill plugs as acquisition/impairment evidence.
+- Never activate forecasting/valuation sheets.
+
+### Proposed historical calculations (mechanical; no causal claims)
+
+For each resolving BS line `X` ∈ {goodwill, intangible_assets}, period index `j`:
+
+- source link / populated level `X[j]`
+- `X_change[j] = X[j] − X[j−1]` (first period blank)
+- `X_growth[j] = X_change[j] / X[j−1]` when prior ≠ 0 else `NA()`
+- `avg_X[j] = (X[j−1] + X[j]) / 2` (first period blank)
+- `X_to_revenue[j] = avg_X[j] / revenue[j]` (or level/revenue — match fixed-asset intensity style already used on ALT DuPont)
+- optional combined `goodwill_and_intangibles` total **only if both** resolve uniquely (sum of the two source lines; no other intangibles inferred)
+
+If payments resolve:
+
+- `intangible_payments[j]` per sign convention above
+- `intangible_payments_to_revenue[j]`
+- do **not** title families as “acquisitions” or “capex substitute”
+
+### Trainer / Answer Key / Check scope
+
+- New optional practice families (ALT DuPont context block or a small dedicated historical sheet — implementation chooses the smaller surface consistent with fixed-asset/lease patterns).
+- Trainer: blank yellow formula cells; source BS/CF levels remain populated; no Notes.
+- Answer Key: matching formulas + concise Notes stating mechanical meaning and explicitly warning that flat goodwill ≠ “no impairment disclosure elsewhere” and that intangible payments ≠ business acquisitions.
+- Check: include new families in workbook-wide Check when the module is applicable; non-disclosing counts only.
+- DEMO without resolving concepts: surface unchanged (`74/312`, `78/332`, …). Fast Retailing expected to gain families when implemented (current recorded baseline remains **380** until that later step).
+
+### Explicitly out of scope for this candidate
+
+- Acquisition-cash diagnostics, PPA, bargain purchase, GW impairment allocation
+- SBC, deferred-tax schedule, ROU schedule, capex bridge, segments, forecasting/valuation
+
+**Step 9K.1 note:** PP&E / D&A asset-intensity diagnostics are implemented-differently on ALT DuPont. Capex remains Priority B until the dedicated module/contract is implemented.
+
+**Step 9L.1 / 9M.3A–B note:** Lease-liability intensity/trend diagnostics support aggregate **or** split summation; treatment-conditioned lease interest is implemented when a complete reported lease-interest axis exists. ROU-asset diagnostics and lease-payment/discount-rate analysis remain deferred.
+
+**Step 9M.3C–D note:** Parent/NCI Ownership Attribution and split-adjusted per-share analysis are implemented when their input contracts resolve.
+
+**G1–G7:** remain closed; overlap/supplemental disagreements retained at **3/3** (`benchmark/fast_retailing/conflicts.json` / `BASELINE.md`).
