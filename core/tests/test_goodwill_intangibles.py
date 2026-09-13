@@ -329,6 +329,64 @@ def test_workbook_partial_and_check(tmp_path):
     assert "Change in Goodwill" not in dumped
 
 
+def _dupont_row_by_label(ws, label: str) -> int:
+    for row in range(1, (ws.max_row or 1) + 1):
+        if ws.cell(row=row, column=1).value == label:
+            return row
+    raise AssertionError(f"ALT DuPont label not found: {label!r}")
+
+
+@pytest.mark.parametrize(
+    "stem,kwargs,balance_labels",
+    [
+        (
+            "BOTH",
+            {},
+            ("Goodwill", "Intangible Assets", "Goodwill & Intangibles"),
+        ),
+        (
+            "GW",
+            {"with_intangibles": False, "with_payments": False},
+            ("Goodwill",),
+        ),
+        (
+            "IA",
+            {"with_goodwill": False},
+            ("Intangible Assets",),
+        ),
+    ],
+)
+def test_first_period_balance_diagnostics_blank(tmp_path, stem, kwargs, balance_labels):
+    data = _tiny(**kwargs)
+    trainer, answer = build_training_workbook(data, tmp_path / f"GI_FP_{stem}.xlsx")
+    smap = load_semantic_map(answer)
+    practice_cells = {(c.tab, c.cell) for c in smap.all_ordered()}
+
+    for path in (trainer, answer):
+        wb = load_workbook(path, data_only=False)
+        ws = wb["ALT DuPont"]
+        for balance in balance_labels:
+            level_row = _dupont_row_by_label(ws, balance)
+            diag_rows = (
+                _dupont_row_by_label(ws, f"Change in {balance}"),
+                _dupont_row_by_label(ws, f"{balance} Growth"),
+                _dupont_row_by_label(ws, f"Average {balance}"),
+                _dupont_row_by_label(ws, f"Average {balance} / Revenue"),
+            )
+            assert ws.cell(row=level_row, column=2).value is not None
+            for row in diag_rows:
+                cell = ws.cell(row=row, column=2)
+                assert cell.value is None
+                assert ("ALT DuPont", cell.coordinate) not in practice_cells
+
+                later = ws.cell(row=row, column=3)
+                if path == answer:
+                    assert isinstance(later.value, str) and later.value.startswith("=")
+                else:
+                    assert later.value is None
+        wb.close()
+
+
 def test_demo_practice_counts_unchanged(tmp_path):
     data = _ingest_demo()
     trainer, answer = build_training_workbook(data, tmp_path / "GI_DEMO.xlsx")

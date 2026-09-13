@@ -2408,8 +2408,6 @@ class ReferenceModelBuilder:
                 c.number_format = NUM_FMT
 
                 if j == 0:
-                    for r in (change_row, growth_row, avg_row, intensity_row):
-                        ws.cell(row=r, column=out_col_idx, value=na)
                     continue
 
                 prev_col = self._col(2 + j - 1)
