@@ -25,6 +25,32 @@ Hong Kong company input may remain manual. Automatic HKEX scraping is not requir
 
 Exercises should follow materiality and the information actually supplied. Missing historical facts must not be invented.
 
+## Source-data architecture
+
+The analytical engine does not interpret arbitrary PDFs directly.
+
+For filing-based workflows, the canonical upstream handoff is **source-grounded filing JSON**. Each filing is extracted independently and preserves reported labels, statement sections, periods, currency/unit scale, values, and page-level provenance.
+
+LLM-assisted extraction is permitted upstream, but extraction must remain separate from BAV accounting judgment and analytical modeling. The extractor records what the filing says; BAV determines how accepted reported facts are classified, normalized, reconciled, and analyzed.
+
+The standard filing workflow is:
+
+```text
+source documents
+    → one extracted JSON per filing
+    → deterministic validation
+    → deterministic cross-filing reconciliation
+    → StandardizedFinancials
+    → BAV reference model
+    → Answer Key + Trainer
+```
+
+Cross-filing differences, restatements, and source conflicts must be recorded rather than silently overwritten. Later audited presentations may take deterministic precedence, but the superseded observations remain in provenance.
+
+`StandardizedFinancials` remains the model-facing contract. Source paths, page references, extraction evidence, conflicts, and discarded observations remain separate audit artifacts.
+
+PDF/LLM extraction may later be automated through an external model/API, but the BAV accounting engine must remain provider-independent and consume validated structured data rather than model responses directly.
+
 ## Curriculum progression
 
 The learner should progress through three levels.
@@ -144,15 +170,16 @@ The workbook need not grade free-form essays yet. Structured diagnostics and con
 
 ## Historical learner experience
 
-1. Supply historical company financial data/documents.
-2. Build the historical reference analysis from supplied facts and setup judgments.
-3. Generate a matched `*_Trainer.xlsx` / `*_Answer_Key.xlsx` pair.
-4. In the Trainer, source data and supplied facts remain populated. The learner fills selected yellow historical formula cells and guided judgment-response cells.
-5. Run **Check** when desired:
+1. Supply historical company source documents or already-extracted filing JSON.
+2. Convert each filing into source-grounded structured facts, then validate and reconcile those facts into model-facing historical input.
+3. Build the historical reference analysis from accepted facts and setup judgments.
+4. Generate a matched `*_Trainer.xlsx` / `*_Answer_Key.xlsx` pair.
+5. In the Trainer, source data and supplied facts remain populated. The learner fills selected yellow historical formula cells and guided judgment-response cells.
+6. Run **Check** when desired:
    - blank -> yellow;
    - correct -> green;
    - incorrect -> red.
-6. Open the matching Answer Key when the learner wants the formula or the concise Note hint.
+7. Open the matching Answer Key when the learner wants the formula or the concise Note hint.
 
 The Answer Key is the sole answer-and-hint surface. Check validates only; it does not reveal answers.
 
@@ -172,6 +199,7 @@ The default test is: **does reconstructing this cell teach historical model logi
 
 - **Historical reference-model first.** Trainer formulas come from a complete working historical model.
 - **No invented historical inputs.** Historical ratios and per-share metrics use supplied historical facts only.
+- **Source-grounded structured handoff.** Filing-based LLM extraction produces one auditable JSON artifact per source filing before BAV standardization; source conflicts/restatements are preserved in audit artifacts.
 - **Formula-construction focus.** Practice should teach model logic, not transcription.
 - **Exactly two user-facing workbooks.** One Trainer and one matching Answer Key.
 - **Trainer contains no active answers or hints.** Active formula-practice cells start blank yellow with no Note/comment.
@@ -199,7 +227,7 @@ Step 9 should proceed in this order:
 6. learner-ready presentation and practical documentation;
 7. **GOOGL historical reference audit:** compare the current Trainer with `GOOGL_Demo_Integrated_Financials.xlsx` and classify historical gaps;
 8. **historical convergence:** implement the highest-value missing historical analytical modules supported by explicit data, including where appropriate capex/depreciation/asset intensity, leases, SBC/dilution, goodwill/acquisitions, deferred tax, NCI, segment economics, and consistency checks;
-9. **unseen-company / real-company historical validation:** prove the learning product works beyond synthetic fixtures and the illustrative demo;
+9. **unseen-company / real-company historical validation:** validate the complete source-document → filing-JSON → reconciliation → `StandardizedFinancials` handoff and prove the learning product works beyond synthetic fixtures and the illustrative demo;
 10. only after the historical Step 9 curriculum is coherent and usable, reintroduce driver-based forecasting;
 11. only after forecasting is separately verified, add valuation, scenarios, and investment conclusions.
 
