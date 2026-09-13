@@ -1,6 +1,6 @@
 # Fast Retailing Gap Queue
 
-Evidence basis for Step 9M.3A. Measurement only for remaining gaps — no speculative production redesign here.
+Evidence basis for Step 9M.3B. Measurement only for remaining gaps — no speculative production redesign here.
 
 Categories:
 - **A** source-extraction / provenance defect
@@ -9,14 +9,14 @@ Categories:
 - **D** optional-module input-contract gap
 - **E** comparative/restatement/share-basis conflict
 
-## Observed engine stages (Step 9M.3A)
+## Observed engine stages (Step 9M.3B)
 
 | Stage | Result |
 |---|---|
 | source fixture load | pass |
 | identity validation | pass |
 | financial reconciliation | **pass** (G1 closed) |
-| ReferenceModelBuilder | **pass** (312 specs; lease_specs=18) |
+| ReferenceModelBuilder | **pass** (312 specs; lease_specs=18; G4 lease-interest treatment) |
 | workbook generation | **pass** |
 | blank Check | **pass** (0/312 correct; 312 blank) |
 | filled Check | **pass** (312/312 correct) |
@@ -107,14 +107,25 @@ Categories:
   source contract; it does not condition interest expense/income on lease
   classification treatment.
 
-### G4 — Lease income-side consistency not treatment-conditioned
+### G4 — Treatment-conditioned lease interest — **CLOSED in Step 9M.3B**
 
 - **Category:** C
-- **Stage:** conceptual probe (not first thrown exception)
-- **Exact behavior:** Accounting Judgment can reclassify lease liabilities operating vs financial, but `compute_anchor()` net interest still uses reported finance income/costs without isolating Note 17 lease interest `8,464`.
-- **Source facts:** Note 17 interest on lease liabilities FY2025 `8,464`; primary finance costs `(12,834)`.
-- **Synthetic coverage:** lease judgment tests check NOA/Net Debt movement, not NOPAT/interest consistency.
-- **Why generalizable:** Operating-lease treatment for RNOA/Spread analysis generally requires a matching income-side lease-interest policy once lease interest is disclosed.
+- **Stage:** `compute_anchor` / Condensed net-interest formulas
+- **Resolution:** Optional model-only `historical_lease.lease_interest_expense`
+  is populated only from a complete unambiguous axis of reported
+  `lease_interest_expense` note facts. Under uniform operating lease treatment,
+  financing net interest excludes disclosed lease interest
+  (`reported_net_interest - lease_interest_expense`). Under uniform financial
+  treatment, reported net interest is unchanged. Mixed current/non-current lease
+  treatment with one aggregate interest series raises
+  `InconsistentLeaseTreatmentError` (Excel: `NA()`). No ABS/plugs/allocation;
+  raw finance-cost lines and Note 17 lease-liability balance remain untouched.
+- **Fast Retailing evidence:** FY2021–FY2025 lease interest
+  `4847 / 4757 / 5187 / 6507 / 8464`; default operating net interest equals
+  reported primary net interest minus that series; all-financial override restores
+  reported net interest and raises NOA/Net Debt/NOPAT accordingly; diagnostic BS
+  lease total remains `513500` vs Note 17 `513501`. Stages 1–7 pass with
+  `expected_specs=312` (no new practice family).
 
 ### G5 — NCI / parent attribution vs total profit and equity
 
@@ -145,17 +156,16 @@ Categories:
 - **Synthetic coverage:** none for audited restatement overlaps.
 - **Why generalizable:** Latest-audited-presentation must remain explicit; silent overwrites are forbidden.
 
-## Post-9M.3A audit result
+## Post-9M.3B audit result
 
 - **Stages 1–7:** all **pass**
   - Stage 4: `expected_specs=312 lease_specs=18 fixed_asset_specs=35`
   - Stage 6 blank Check: `correct=0 incorrect=0 blank=312 total=312`
   - Stage 7 filled Check: `correct=312 total=312`
 - **First failing stage / exception:** none
-- **lease_liability module:** applicable (`lease_liability=True`, `ambiguous=False`, mode=`split`)
-- **Note:** G4–G7 remain open (lease-interest treatment conditioning, NCI attribution,
-  share-basis / per-share omission, restatement conflicts). G3 closed without changing
-  G4 income-side lease-interest behavior.
+- **Note:** G5–G7 remain open (NCI attribution, share-basis / per-share omission,
+  restatement conflicts). G4 closed without inventing lease-interest values or
+  allocating aggregate interest across split maturities.
 
 ## Corrected extraction note (A — closed in 9M.0)
 
@@ -167,5 +177,5 @@ CFS2021 IS line `Non-controlling interests 40 5,836 53,109` was initially misrea
 2. Vague unsupported rows (e.g. bare `Other assets`) should remain fail-closed or receive an explicit guided contract — do not auto-classify from the word `other` alone.
 3. Parent vs NCI earnings and equity must be handled consistently when both are disclosed.
 4. Split lease diagnostics use an explicit aggregate-or-split source contract (G3 closed); do not silently invent aggregates from vague labels.
-5. Lease classification treatment and lease-interest income-side treatment must eventually be internally consistent when lease interest is disclosed (G4 open).
+5. Lease classification treatment and disclosed lease-interest income-side treatment are linked when a complete reported lease-interest axis exists (G4 closed).
 6. Multi-year per-share analysis requires an audited comparable share basis.

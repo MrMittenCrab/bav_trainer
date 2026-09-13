@@ -666,3 +666,250 @@ def test_split_lease_judgment_without_diagnostics(tmp_path):
     summary = check_workbook(trainer)
     assert summary.incorrect == 0
     assert summary.blank == 0
+
+
+def test_lease_treatment_aggregate_and_split_resolution():
+    from core.data.line_identity import line_identity
+    from core.model.lease_liability import (
+        InconsistentLeaseTreatmentError,
+        lease_liability_treatment,
+        resolve_lease_liability_source,
+    )
+
+    fin = _tiny()
+    periods = list(canonical_fiscal_periods(fin))
+    reform = reformulate_balance_sheet(fin, periods)
+    assert lease_liability_treatment(fin, reform) == "operating"
+
+    source = resolve_lease_liability_source(fin)
+    assert source is not None
+    fin_override = reformulate_balance_sheet(
+        fin,
+        periods,
+        overrides={f"identity:{line_identity(source.items[0]).key()}": "Financial Liability"},
+    )
+    assert lease_liability_treatment(fin, fin_override) == "financial"
+
+    split = _tiny(standardized_split=True)
+    split_periods = list(canonical_fiscal_periods(split))
+    split_reform = reformulate_balance_sheet(split, split_periods)
+    assert lease_liability_treatment(split, split_reform) == "operating"
+
+    split_source = resolve_lease_liability_source(split)
+    assert split_source is not None
+    both_fin = reformulate_balance_sheet(
+        split,
+        split_periods,
+        overrides={
+            f"identity:{line_identity(item).key()}": "Financial Liability"
+            for item in split_source.items
+        },
+    )
+    assert lease_liability_treatment(split, both_fin) == "financial"
+
+    mixed = reformulate_balance_sheet(
+        split,
+        split_periods,
+        overrides={
+            f"identity:{line_identity(split_source.items[0]).key()}": "Financial Liability"
+        },
+    )
+    with pytest.raises(InconsistentLeaseTreatmentError):
+        lease_liability_treatment(split, mixed)
+
+
+def test_lease_interest_treatment_conditions_net_interest_and_nopat():
+    from core.data.interface import HistoricalLeaseData
+    from core.data.line_identity import line_identity
+    from core.model.lease_liability import resolve_lease_liability_source
+
+    fin = _tiny(lease=(100.0, 120.0), revenue=(1000.0, 1100.0))
+    # Force reported net interest to 20 each period: ie=-20, ii=0
+    d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
+    for item in fin.income_statement:
+        if item.label == "Finance costs":
+            item.values = {d1: -20.0, d2: -20.0}
+        if item.label == "Finance income":
+            item.values = {d1: 0.0, d2: 0.0}
+        if item.label == "Profit before tax":
+            item.values = {d1: 100.0, d2: 100.0}
+        if item.label == "Income tax expense":
+            item.values = {d1: -20.0, d2: -20.0}
+        if item.label == "Profit for the year":
+            item.values = {d1: 80.0, d2: 80.0}
+    fin.historical_lease = HistoricalLeaseData(
+        lease_interest_expense={d1: 5.0, d2: 5.0}
+    )
+    periods = list(canonical_fiscal_periods(fin))
+    operating = compute_anchor(fin, periods)
+    assert operating.historical.net_interest == [15.0, 15.0]
+
+    source = resolve_lease_liability_source(fin)
+    assert source is not None
+    financial = compute_anchor(
+        fin,
+        periods,
+        classification_overrides={
+            f"identity:{line_identity(source.items[0]).key()}": "Financial Liability"
+        },
+    )
+    assert financial.historical.net_interest == [20.0, 20.0]
+    assert financial.historical.net_interest_after_tax[1] - operating.historical.net_interest_after_tax[1] == pytest.approx(4.0)
+    assert financial.historical.nopat[1] - operating.historical.nopat[1] == pytest.approx(4.0)
+
+
+def test_lease_interest_missing_data_preserves_reported_net_interest():
+    from core.data.line_identity import line_identity
+    from core.model.lease_liability import resolve_lease_liability_source
+
+    fin = _tiny()
+    assert fin.historical_lease is None
+    periods = list(canonical_fiscal_periods(fin))
+    operating = compute_anchor(fin, periods)
+    source = resolve_lease_liability_source(fin)
+    assert source is not None
+    financial = compute_anchor(
+        fin,
+        periods,
+        classification_overrides={
+            f"identity:{line_identity(source.items[0]).key()}": "Financial Liability"
+        },
+    )
+    assert operating.historical.net_interest == financial.historical.net_interest
+
+
+def test_lease_interest_incomplete_explicit_series_fails_closed():
+    from core.data.interface import HistoricalLeaseData
+
+    fin = _tiny()
+    d1 = date(2024, 12, 31)
+    fin.historical_lease = HistoricalLeaseData(lease_interest_expense={d1: 5.0})
+    periods = list(canonical_fiscal_periods(fin))
+    with pytest.raises(MissingHistoricalValueError):
+        compute_anchor(fin, periods)
+
+
+def test_net_interest_formula_treatment_conditioned_for_split(tmp_path):
+    from core.data.interface import HistoricalLeaseData
+
+    fin = _tiny(standardized_split=True)
+    d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
+    fin.historical_lease = HistoricalLeaseData(
+        lease_interest_expense={d1: 5.0, d2: 5.0}
+    )
+    trainer, answer = build_training_workbook(fin, tmp_path / "LI_TREAT.xlsx")
+    smap = load_semantic_map(answer)
+    comps = [c for c in smap.all_ordered() if c.family_id == "net_interest_fy"]
+    assert comps
+    for comp in comps:
+        f = comp.formula
+        assert "Operating Long-Term Liability" in f
+        assert "Financial Liability" in f
+        assert "NA()" in f
+        assert "$B$" in f
+        assert "-IF(" in f.replace(" ", "") or "-IF(" in f
+
+    plain = _tiny(standardized_split=True)
+    assert plain.historical_lease is None
+    _, answer2 = build_training_workbook(plain, tmp_path / "LI_PLAIN.xlsx")
+    smap2 = load_semantic_map(answer2)
+    plain_comp = next(c for c in smap2.all_ordered() if c.family_id == "net_interest_fy")
+    assert "Lease Interest" not in plain_comp.formula
+    assert "NA()" not in plain_comp.formula
+    assert plain_comp.formula.replace(" ", "").startswith("=-(")
+
+
+def test_lease_interest_live_check_treatment_switch(tmp_path):
+    from core.data.interface import HistoricalLeaseData
+    from core.data.line_identity import line_identity
+    from core.model.lease_liability import resolve_lease_liability_source
+
+    fin = _tiny(standardized_split=True)
+    d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
+    for item in fin.income_statement:
+        if item.label == "Finance costs":
+            item.values = {d1: -20.0, d2: -20.0}
+        if item.label == "Finance income":
+            item.values = {d1: 0.0, d2: 0.0}
+        if item.label == "Profit before tax":
+            item.values = {d1: 100.0, d2: 100.0}
+        if item.label == "Income tax expense":
+            item.values = {d1: -20.0, d2: -20.0}
+        if item.label == "Profit for the year":
+            item.values = {d1: 80.0, d2: 80.0}
+    fin.historical_lease = HistoricalLeaseData(
+        lease_interest_expense={d1: 5.0, d2: 5.0}
+    )
+    periods = list(canonical_fiscal_periods(fin))
+    op_anchor = compute_anchor(fin, periods)
+    source = resolve_lease_liability_source(fin)
+    assert source is not None
+    overrides = {
+        f"identity:{line_identity(item).key()}": "Financial Liability"
+        for item in source.items
+    }
+    fin_anchor = compute_anchor(fin, periods, classification_overrides=overrides)
+    assert fin_anchor.historical.net_interest[1] == pytest.approx(20.0)
+    assert op_anchor.historical.net_interest[1] == pytest.approx(15.0)
+    assert fin_anchor.net_debt > op_anchor.net_debt
+    assert fin_anchor.noa > op_anchor.noa
+    assert fin_anchor.historical.net_income == op_anchor.historical.net_income
+
+    trainer, answer = build_training_workbook(fin, tmp_path / "LI_CHK.xlsx")
+    smap = load_semantic_map(answer)
+    wb = load_workbook(trainer, data_only=False)
+    for comp in smap.all_ordered():
+        row, col = parse_cell_ref(comp.cell)
+        wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    wb.save(trainer)
+    wb.close()
+    summary = check_workbook(trainer)
+    assert summary.incorrect == 0
+    assert summary.blank == 0
+
+    wb = load_workbook(trainer, data_only=False)
+    ws = wb["Accounting Judgment"]
+    for r in range(5, (ws.max_row or 5) + 1):
+        label = str(ws.cell(r, 2).value or "")
+        if "lease" in label.lower():
+            ws.cell(r, 6).value = "Financial Liability"
+    ctx = load_check_context(answer)
+    check_overrides = classification_overrides_for_check(wb, ctx)
+    alt = compute_anchor(fin, periods, classification_overrides=check_overrides)
+    assert alt.historical.net_interest == fin_anchor.historical.net_interest
+    # Raw lease diagnostic total is treatment-invariant.
+    assert compute_lease_liability_series(fin, periods, op_anchor).lease_liability == (
+        100.0,
+        120.0,
+    )
+    assert compute_lease_liability_series(fin, periods, fin_anchor).lease_liability == (
+        100.0,
+        120.0,
+    )
+    wb.close()
+
+
+def test_mixed_lease_treatment_fails_closed_on_anchor():
+    from core.data.interface import HistoricalLeaseData
+    from core.data.line_identity import line_identity
+    from core.model.lease_liability import (
+        InconsistentLeaseTreatmentError,
+        resolve_lease_liability_source,
+    )
+
+    fin = _tiny(standardized_split=True)
+    d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
+    fin.historical_lease = HistoricalLeaseData(
+        lease_interest_expense={d1: 5.0, d2: 5.0}
+    )
+    source = resolve_lease_liability_source(fin)
+    assert source is not None
+    periods = list(canonical_fiscal_periods(fin))
+    with pytest.raises(InconsistentLeaseTreatmentError):
+        compute_anchor(
+            fin,
+            periods,
+            classification_overrides={
+                f"identity:{line_identity(source.items[0]).key()}": "Financial Liability"
+            },
+        )

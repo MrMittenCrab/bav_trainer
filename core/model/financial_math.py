@@ -12,8 +12,9 @@ from .classification import (
     reformulate_balance_sheet,
 )
 from .line_resolver import resolve_line
+from .lease_liability import lease_liability_treatment
 from .ratio_values import UNDEFINED_RATIO, ratio_or_na
-from .source_values import required_period_series
+from .source_values import MissingHistoricalValueError, required_period_series
 
 
 @dataclass(frozen=True)
@@ -93,7 +94,30 @@ def compute_anchor(
         required_period_series(int_inc_item, periods, field="interest_income")
     )
 
-    net_int = [-(ie + ii) for ie, ii in zip(int_exp, int_inc)]
+    reported_net_int = [-(ie + ii) for ie, ii in zip(int_exp, int_inc)]
+    if fin.historical_lease is None:
+        net_int = list(reported_net_int)
+    else:
+        lease_interest: list[float] = []
+        for period in periods:
+            raw = fin.historical_lease.lease_interest_expense.get(period)
+            if raw is None:
+                raise MissingHistoricalValueError(
+                    "historical_lease.lease_interest_expense has no supplied value "
+                    f"for modeled period {period.isoformat()}"
+                )
+            lease_interest.append(float(raw))
+        treatment = lease_liability_treatment(fin, reform)
+        if treatment == "operating":
+            net_int = [
+                reported - lease
+                for reported, lease in zip(reported_net_int, lease_interest)
+            ]
+        elif treatment == "financial":
+            net_int = list(reported_net_int)
+        else:
+            # No usable lease source — leave reported financing net interest unchanged.
+            net_int = list(reported_net_int)
     etr: list[float | str] = [ratio_or_na(-tax[i], pretax[i]) for i in range(n)]
     niat: list[float | str] = []
     nopat: list[float | str] = []

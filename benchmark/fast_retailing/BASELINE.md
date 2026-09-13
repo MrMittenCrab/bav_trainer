@@ -1,8 +1,8 @@
-# Fast Retailing Benchmark Baseline (Step 9M.3A)
+# Fast Retailing Benchmark Baseline (Step 9M.3B)
 
-- Accounting engine phase: Step 9M.3A (split lease-liability aggregation on 9M.2D base)
+- Accounting engine phase: Step 9M.3B (treatment-conditioned lease interest on 9M.3A base)
 - Input path: generic `extracted/` → `validate-source` → `reconcile` → `reconciled/`
-- Benchmark phase: measurement only — G1/G1B/G2/G2B/G2C/G3 closed; G4–G7 remain open
+- Benchmark phase: measurement only — G1/G1B/G2/G2B/G2C/G3/G4 closed; G5–G7 remain open
 - Five fiscal periods: 2021-08-31 … 2025-08-31
 
 ## Source hashes
@@ -19,7 +19,7 @@
 - Supplemental provenance source-bound: yes
 - Portable source-path validation: yes
 - Silent repeated-share overwrite removed: yes
-- G1/G1B/G2/G2B/G2C/G3 closed; G4–G7 remain open
+- G1/G1B/G2/G2B/G2C/G3/G4 closed; G5–G7 remain open
 
 ## Stage results
 

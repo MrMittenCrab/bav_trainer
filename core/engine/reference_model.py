@@ -835,7 +835,25 @@ class ReferenceModelBuilder:
         ws = wb.active
         ws.title = "Income Statement"
         self._header_block(ws, "Income Statement")
-        self._fill_statement(ws, self.fin.income_statement)
+        next_row = self._fill_statement(ws, self.fin.income_statement)
+        if self.fin.historical_lease is not None:
+            next_row += 1
+            ws.cell(row=next_row, column=1, value="SUPPLEMENTAL DISCLOSURES").font = BOLD
+            next_row += 1
+            ws.cell(
+                row=next_row,
+                column=1,
+                value="Lease interest expense (reported note)",
+            )
+            for j, pd in enumerate(self.periods):
+                raw = self.fin.historical_lease.lease_interest_expense.get(pd)
+                c = ws.cell(
+                    row=next_row,
+                    column=2 + j,
+                    value=None if raw is None else float(raw),
+                )
+                c.number_format = NUM_FMT
+            self.rowmap["supplemental_lease_interest_expense_row"] = next_row
         ws = wb.create_sheet("Balance Sheet")
         self._header_block(ws, "Balance Sheet")
         self._fill_statement(ws, self.fin.balance_sheet)
@@ -866,6 +884,7 @@ class ReferenceModelBuilder:
         ws.column_dimensions[self._col(notes_col)].width = 42
 
         class_start = r
+        classification_row_by_identity: dict[str, int] = {}
         dv = DataValidation(
             type="list",
             formula1=f'"{",".join(BALANCE_SHEET_CATEGORIES)}"',
@@ -892,6 +911,7 @@ class ReferenceModelBuilder:
             else:
                 cat_cell = ws.cell(row=r, column=2, value=decision.category)
                 dv.add(cat_cell)
+            classification_row_by_identity[identity] = r
             for j, pd in enumerate(self.periods):
                 c = ws.cell(row=r, column=3 + j, value=item.values.get(pd))
                 c.number_format = NUM_FMT
@@ -964,6 +984,16 @@ class ReferenceModelBuilder:
                 self.rowmap["condensed_revenue_row"] = r
             r += 1
 
+        lease_interest_src = self.rowmap.get("supplemental_lease_interest_expense_row")
+        if lease_interest_src is not None:
+            ws.cell(row=r, column=1, value="Lease Interest Expense (disclosed)")
+            for j in range(self._n):
+                col = self._col(2 + j)
+                formula = f"='Income Statement'!{col}{lease_interest_src}"
+                ws.cell(row=r, column=2 + j, value=formula)
+            row_nums["Lease Interest Expense (disclosed)"] = r
+            r += 1
+
         etr_row = r
         ws.cell(row=r, column=1, value="Effective Tax Rate")
         pretax_r = row_nums["Pretax Income"]
@@ -985,15 +1015,52 @@ class ReferenceModelBuilder:
         self.rowmap["condensed_etr_row"] = etr_row
         r += 1
 
-        # Net interest uses explicitly supplied Interest Expense and Interest Income.
+        # Net interest uses Interest Expense / Interest Income; when disclosed lease
+        # interest exists, subtract it only under uniform operating lease treatment.
         net_int_row = r
         ws.cell(row=r, column=1, value="Net Interest")
+        lease_source = resolve_lease_liability_source(self.fin)
+        lease_class_refs: list[str] = []
+        if (
+            lease_interest_src is not None
+            and lease_source is not None
+            and "Lease Interest Expense (disclosed)" in row_nums
+        ):
+            for item in lease_source.items:
+                identity = line_identity(item).key()
+                class_row = classification_row_by_identity.get(identity)
+                if class_row is None:
+                    raise KeyError(
+                        f"Missing condensed classification row for lease source {identity!r}"
+                    )
+                lease_class_refs.append(f"$B${class_row}")
         for j in range(self._n):
             col = self._col(2 + j)
-            f = (
-                f"=-({col}{row_nums['Interest Expense']}"
+            reported = (
+                f"-({col}{row_nums['Interest Expense']}"
                 f"+{col}{row_nums['Interest Income']})"
             )
+            if not lease_class_refs:
+                f = f"={reported}"
+            else:
+                lease_cell = f"{col}{row_nums['Lease Interest Expense (disclosed)']}"
+                op_tests = ",".join(
+                    f'{ref}="Operating Long-Term Liability"' for ref in lease_class_refs
+                )
+                fin_tests = ",".join(
+                    f'{ref}="Financial Liability"' for ref in lease_class_refs
+                )
+                if len(lease_class_refs) == 1:
+                    op_cond = op_tests
+                    fin_cond = fin_tests
+                else:
+                    op_cond = f"AND({op_tests})"
+                    fin_cond = f"AND({fin_tests})"
+                f = (
+                    f"={reported}"
+                    f"-IF({op_cond},{lease_cell},"
+                    f"IF({fin_cond},0,NA()))"
+                )
             ws.cell(row=r, column=2 + j, value=f).number_format = NUM_FMT
             self._register_historical(
                 "net_interest_fy",

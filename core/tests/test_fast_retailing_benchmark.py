@@ -295,7 +295,7 @@ def test_audit_script_writes_baseline_and_stage_records():
         "7_filled_check",
     ):
         assert stage in text
-    assert "Step 9M.2A" in text or "Step 9M.2B" in text or "Step 9M.2C" in text or "Step 9M.2D" in text or "Step 9M.3A" in text
+    assert "Step 9M.2A" in text or "Step 9M.2B" in text or "Step 9M.2C" in text or "Step 9M.2D" in text or "Step 9M.3A" in text or "Step 9M.3B" in text
     assert "pass" in completed.stdout or "fail" in completed.stdout
 
 
@@ -587,4 +587,109 @@ def test_fast_retailing_audit_stages_include_lease_module():
     assert "expected_specs=312" in (stages["4_reference_model_builder"].message or "")
     assert "blank=312" in (stages["6_blank_check"].message or "")
     assert "total=312" in (stages["6_blank_check"].message or "")
+    assert "correct=312" in (stages["7_filled_check"].message or "")
+
+
+def test_fast_retailing_historical_lease_interest_axis_and_treatment():
+    from datetime import date
+    from core.data.line_identity import line_identity
+    from core.model.lease_liability import (
+        InconsistentLeaseTreatmentError,
+        compute_lease_liability_series,
+        resolve_lease_liability_source,
+    )
+    from core.model.line_resolver import resolve_line
+    from core.model.source_values import required_period_series
+
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    provenance = _load_json(PROV_JSON)
+    periods = list(canonical_fiscal_periods(fin))
+    assert fin.historical_lease is not None
+    assert fin.historical_lease.lease_interest_expense == {
+        date(2021, 8, 31): 4847.0,
+        date(2022, 8, 31): 4757.0,
+        date(2023, 8, 31): 5187.0,
+        date(2024, 8, 31): 6507.0,
+        date(2025, 8, 31): 8464.0,
+    }
+    note = next(
+        n
+        for n in provenance["note_facts"]
+        if n["fact_type"] == "lease_interest_expense" and n["period"] == "2025-08-31"
+    )
+    assert note["value"] == 8464
+    assert note["status"] == "reported"
+    assert note["source_file"]
+    assert note["source_sha256"]
+    assert note["source"]["page"] > 0
+
+    series = compute_lease_liability_series(fin, periods, compute_anchor(fin, periods))
+    assert series.lease_liability[-1] == pytest.approx(513_500.0)
+    note_total = next(
+        n
+        for n in provenance["note_facts"]
+        if n["fact_type"] == "lease_liability_total" and n["period"] == "2025-08-31"
+    )
+    assert note_total["value"] == 513_501
+
+    int_exp = resolve_line(fin.income_statement, "interest_expense", required=True).item
+    int_inc = resolve_line(fin.income_statement, "interest_income", required=True).item
+    assert int_exp is not None and int_inc is not None
+    reported_net = [
+        -(ie + ii)
+        for ie, ii in zip(
+            required_period_series(int_exp, periods, field="interest_expense"),
+            required_period_series(int_inc, periods, field="interest_income"),
+        )
+    ]
+    lease_interest = [
+        float(fin.historical_lease.lease_interest_expense[p]) for p in periods
+    ]
+    op = compute_anchor(fin, periods)
+    for i in range(len(periods)):
+        assert op.historical.net_interest[i] == pytest.approx(
+            reported_net[i] - lease_interest[i]
+        )
+
+    source = resolve_lease_liability_source(fin)
+    assert source is not None and source.mode == "split"
+    overrides = {
+        f"identity:{line_identity(item).key()}": "Financial Liability"
+        for item in source.items
+    }
+    fin_anchor = compute_anchor(fin, periods, classification_overrides=overrides)
+    assert fin_anchor.historical.net_interest == pytest.approx(reported_net)
+    assert fin_anchor.historical.net_income == op.historical.net_income
+    assert fin_anchor.net_debt > op.net_debt
+    assert fin_anchor.noa > op.noa
+    assert compute_lease_liability_series(fin, periods, fin_anchor).lease_liability[
+        -1
+    ] == pytest.approx(513_500.0)
+    # After-tax/NOPAT move with lease interest for numeric ETR periods.
+    for i in range(len(periods)):
+        if isinstance(op.historical.effective_tax_rate[i], (int, float)):
+            assert fin_anchor.historical.nopat[i] - op.historical.nopat[i] == pytest.approx(
+                lease_interest[i] * (1.0 - float(op.historical.effective_tax_rate[i]))
+            )
+
+    with pytest.raises(InconsistentLeaseTreatmentError):
+        compute_anchor(
+            fin,
+            periods,
+            classification_overrides={
+                f"identity:{line_identity(source.items[0]).key()}": "Financial Liability"
+            },
+        )
+
+    builder = ReferenceModelBuilder(fin)
+    assert len(builder.lease_liability_specs) == 18
+    assert len(builder.expected_specs) == 312
+    result = run_audit()
+    stages = {stage.stage: stage for stage in result["stages"]}
+    assert stages["4_reference_model_builder"].status == "pass"
+    assert "lease_specs=18" in (stages["4_reference_model_builder"].message or "")
+    assert "expected_specs=312" in (stages["4_reference_model_builder"].message or "")
+    assert stages["6_blank_check"].status == "pass"
+    assert "blank=312" in (stages["6_blank_check"].message or "")
+    assert stages["7_filled_check"].status == "pass"
     assert "correct=312" in (stages["7_filled_check"].message or "")

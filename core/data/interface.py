@@ -61,6 +61,13 @@ class HistoricalShareData:
 
 
 @dataclass
+class HistoricalLeaseData:
+    """Explicit reported historical lease-note inputs used by lease treatment."""
+
+    lease_interest_expense: dict[date, float | None] = field(default_factory=dict)
+
+
+@dataclass
 class StandardizedFinancials:
     """Canonical IS / BS / CF structure expected by the BAV engine."""
 
@@ -77,6 +84,7 @@ class StandardizedFinancials:
     historical_shares: HistoricalShareData | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     provenance: list[dict[str, str]] = field(default_factory=list)
+    historical_lease: HistoricalLeaseData | None = None
 
     def period_dates(self) -> list[date]:
         return [p.end_date for p in self.periods]

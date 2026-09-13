@@ -1,21 +1,33 @@
-"""Historical lease-liability intensity / trend diagnostics (Step 9L.1 / 9M.3A).
+"""Historical lease-liability intensity / trend diagnostics (Step 9L.1 / 9M.3A / 9M.3B).
 
 Uses one uniquely resolvable aggregate lease-liability source line, or exactly
 one ``lease_liability_current`` plus one ``lease_liability_noncurrent`` pair
 summed period-by-period. Does not invent ROU assets, lease payments, discount
 rates, or amortisation. Does not promote note aggregates or plug rounding gaps.
+
+Step 9M.3B adds treatment resolution for disclosed lease interest: operating
+treatment removes reported lease interest from financing net interest; financial
+treatment leaves reported net interest unchanged; mixed treatment fails closed.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from typing import TYPE_CHECKING
 
 from ..data.interface import LineItem, StandardizedFinancials
-from .financial_math import AnchorMetrics
+from .classification import BalanceSheetReformulation
 from .line_resolver import AmbiguousLineError, MissingLineError, resolve_line
 from .ratio_values import ratio_or_na
 from .source_values import required_period_value
+
+if TYPE_CHECKING:
+    from .financial_math import AnchorMetrics
+
+
+class InconsistentLeaseTreatmentError(ValueError):
+    """Resolved lease rows do not share one supported operating/financial treatment."""
 
 
 @dataclass(frozen=True)
@@ -136,10 +148,31 @@ def lease_liability_applicable(financials: StandardizedFinancials) -> bool:
     return availability.lease_liability and not availability.ambiguous
 
 
+def lease_liability_treatment(
+    financials: StandardizedFinancials,
+    reformulation: BalanceSheetReformulation,
+) -> str | None:
+    """Return 'operating', 'financial', or None; raise for mixed/unsupported treatment."""
+    source = resolve_lease_liability_source(financials)
+    if source is None:
+        return None
+    categories = {
+        reformulation.decisions[idx].category for idx in source.indices
+    }
+    if categories == {"Operating Long-Term Liability"}:
+        return "operating"
+    if categories == {"Financial Liability"}:
+        return "financial"
+    raise InconsistentLeaseTreatmentError(
+        "Resolved lease-liability rows do not share one supported "
+        f"operating/financial treatment; categories={sorted(categories)}"
+    )
+
+
 def compute_lease_liability_series(
     financials: StandardizedFinancials,
     periods: list[date],
-    anchor: AnchorMetrics,
+    anchor: "AnchorMetrics",
 ) -> LeaseLiabilitySeries:
     """Compute lease-liability intensity / change diagnostics for modeled periods."""
     source = resolve_lease_liability_source(financials)

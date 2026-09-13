@@ -712,3 +712,229 @@ def test_note_fact_disagreement_is_recorded_not_promoted(tmp_path: Path):
         assert obs["source_file"]
         assert obs["source_sha256"]
         assert obs["source"]["page"] > 0
+
+
+def test_historical_lease_payload_round_trip_and_null():
+    from core.data.interface import HistoricalLeaseData
+    from core.data.standardized_io import (
+        standardized_from_payload,
+        standardized_to_payload,
+    )
+
+    payload = {
+        "ticker": "T",
+        "company_name": "Co",
+        "currency": "HKD",
+        "units": "HKD in Millions",
+        "jurisdiction": "HK",
+        "stock_code": "",
+        "periods": [
+            {"end_date": "2024-12-31", "label": "FY2024", "is_interim": False},
+            {"end_date": "2025-12-31", "label": "FY2025", "is_interim": False},
+        ],
+        "income_statement": [],
+        "balance_sheet": [],
+        "cash_flow": [],
+    }
+    fin = standardized_from_payload(payload)
+    assert fin.historical_lease is None
+
+    payload["historical_lease"] = None
+    assert standardized_from_payload(payload).historical_lease is None
+
+    p1, p2 = date(2024, 12, 31), date(2025, 12, 31)
+    fin.historical_lease = HistoricalLeaseData(
+        lease_interest_expense={p1: 10.0, p2: 12.0}
+    )
+    out = standardized_to_payload(fin)
+    assert out["historical_lease"]["lease_interest_expense"] == {
+        p1.isoformat(): 10.0,
+        p2.isoformat(): 12.0,
+    }
+    restored = standardized_from_payload(out)
+    assert restored.historical_lease == fin.historical_lease
+
+    with pytest.raises(ValueError, match="historical_lease must be an object"):
+        standardized_from_payload({**payload, "historical_lease": "bad"})
+    with pytest.raises(ValueError, match="lease_interest_expense must be an object"):
+        standardized_from_payload(
+            {**payload, "historical_lease": {"lease_interest_expense": []}}
+        )
+
+
+def test_historical_lease_complete_axis_promotion(tmp_path: Path):
+    p1, p2 = date(2024, 12, 31), date(2025, 12, 31)
+    notes_2024 = (
+        SupplementalFact(
+            fact_type="lease_interest_expense",
+            period=p1,
+            value=10.0,
+            status="reported",
+            source=SourceRef(page=14, note="17 Leases"),
+        ),
+    )
+    notes_2025 = (
+        SupplementalFact(
+            fact_type="lease_interest_expense",
+            period=p1,
+            value=10.0,
+            status="reported",
+            source=SourceRef(page=14, note="17 Leases"),
+        ),
+        SupplementalFact(
+            fact_type="lease_interest_expense",
+            period=p2,
+            value=12.0,
+            status="reported",
+            source=SourceRef(page=14, note="17 Leases"),
+        ),
+    )
+    f2024 = _filing(
+        year=2024,
+        source_file="a2024.pdf",
+        revenue_values={p1: (100.0, PresentationRole.CURRENT_PERIOD)},
+        note_facts=notes_2024,
+    )
+    f2025 = _filing(
+        year=2025,
+        source_file="a2025.pdf",
+        revenue_values={
+            p1: (100.0, PresentationRole.COMPARATIVE),
+            p2: (110.0, PresentationRole.CURRENT_PERIOD),
+        },
+        note_facts=notes_2025,
+    )
+    reconciled = reconcile_filings(
+        [_validated(tmp_path, f2024, b"2024"), _validated(tmp_path, f2025, b"2025")]
+    )
+    fin = standardize_reconciled(reconciled)
+    assert fin.historical_lease is not None
+    assert fin.historical_lease.lease_interest_expense == {p1: 10.0, p2: 12.0}
+
+
+@pytest.mark.parametrize(
+    "notes_2024,notes_2025",
+    [
+        # missing one modeled period
+        (
+            (
+                SupplementalFact(
+                    fact_type="lease_interest_expense",
+                    period=date(2024, 12, 31),
+                    value=10.0,
+                    status="reported",
+                    source=SourceRef(page=14, note="17"),
+                ),
+            ),
+            (
+                SupplementalFact(
+                    fact_type="lease_interest_expense",
+                    period=date(2024, 12, 31),
+                    value=10.0,
+                    status="reported",
+                    source=SourceRef(page=14, note="17"),
+                ),
+            ),
+        ),
+        # derived-only for one period
+        (
+            (
+                SupplementalFact(
+                    fact_type="lease_interest_expense",
+                    period=date(2024, 12, 31),
+                    value=10.0,
+                    status="reported",
+                    source=SourceRef(page=14, note="17"),
+                ),
+            ),
+            (
+                SupplementalFact(
+                    fact_type="lease_interest_expense",
+                    period=date(2024, 12, 31),
+                    value=10.0,
+                    status="reported",
+                    source=SourceRef(page=14, note="17"),
+                ),
+                SupplementalFact(
+                    fact_type="lease_interest_expense",
+                    period=date(2025, 12, 31),
+                    value=12.0,
+                    status="derived",
+                    source=SourceRef(page=14, note="17"),
+                    derivation="inferred",
+                ),
+            ),
+        ),
+        # disagreeing reported observations
+        (
+            (
+                SupplementalFact(
+                    fact_type="lease_interest_expense",
+                    period=date(2024, 12, 31),
+                    value=10.0,
+                    status="reported",
+                    source=SourceRef(page=14, note="17"),
+                ),
+            ),
+            (
+                SupplementalFact(
+                    fact_type="lease_interest_expense",
+                    period=date(2024, 12, 31),
+                    value=11.0,
+                    status="reported",
+                    source=SourceRef(page=14, note="17"),
+                ),
+                SupplementalFact(
+                    fact_type="lease_interest_expense",
+                    period=date(2025, 12, 31),
+                    value=12.0,
+                    status="reported",
+                    source=SourceRef(page=14, note="17"),
+                ),
+            ),
+        ),
+        # differently named supplemental fact only
+        (
+            (
+                SupplementalFact(
+                    fact_type="lease_liability_total",
+                    period=date(2024, 12, 31),
+                    value=10.0,
+                    status="reported",
+                    source=SourceRef(page=14, note="17"),
+                ),
+            ),
+            (
+                SupplementalFact(
+                    fact_type="lease_liability_total",
+                    period=date(2025, 12, 31),
+                    value=12.0,
+                    status="reported",
+                    source=SourceRef(page=14, note="17"),
+                ),
+            ),
+        ),
+    ],
+)
+def test_historical_lease_fail_closed_gating(tmp_path: Path, notes_2024, notes_2025):
+    p1, p2 = date(2024, 12, 31), date(2025, 12, 31)
+    f2024 = _filing(
+        year=2024,
+        source_file="a2024.pdf",
+        revenue_values={p1: (100.0, PresentationRole.CURRENT_PERIOD)},
+        note_facts=notes_2024,
+    )
+    f2025 = _filing(
+        year=2025,
+        source_file="a2025.pdf",
+        revenue_values={
+            p1: (100.0, PresentationRole.COMPARATIVE),
+            p2: (110.0, PresentationRole.CURRENT_PERIOD),
+        },
+        note_facts=notes_2025,
+    )
+    reconciled = reconcile_filings(
+        [_validated(tmp_path, f2024, b"2024"), _validated(tmp_path, f2025, b"2025")]
+    )
+    fin = standardize_reconciled(reconciled)
+    assert fin.historical_lease is None

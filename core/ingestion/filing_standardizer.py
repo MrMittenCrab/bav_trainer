@@ -9,6 +9,7 @@ from typing import Any
 from ..data.filing import PresentationRole
 from ..data.interface import (
     FinancialPeriod,
+    HistoricalLeaseData,
     HistoricalShareData,
     LineItem,
     StandardizedFinancials,
@@ -125,6 +126,7 @@ def standardize_reconciled(
         )
 
     historical_shares = _historical_shares(reconciled)
+    historical_lease = _historical_lease(reconciled)
 
     return StandardizedFinancials(
         ticker=reconciled.ticker,
@@ -141,6 +143,7 @@ def standardize_reconciled(
         balance_sheet=statements["balance_sheet"],
         cash_flow=statements["cash_flow"],
         historical_shares=historical_shares,
+        historical_lease=historical_lease,
     )
 
 
@@ -170,6 +173,34 @@ def _historical_shares(
     return HistoricalShareData(
         scale_basis="shares",
         diluted_weighted_average={period: series[period] for period in reconciled.periods},
+    )
+
+
+def _historical_lease(
+    reconciled: ReconciledCompanyData,
+) -> HistoricalLeaseData | None:
+    """Emit lease interest only for a complete unambiguous reported note axis."""
+    period_set = set(reconciled.periods)
+    series: dict[date, float] = {}
+    for period in reconciled.periods:
+        observations = [
+            obs
+            for obs in reconciled.note_facts
+            if obs.kind == "note"
+            and obs.fact.status == "reported"
+            and obs.fact.fact_type == "lease_interest_expense"
+            and obs.fact.period == period
+        ]
+        if not observations:
+            return None
+        distinct = {float(obs.fact.value) for obs in observations}
+        if len(distinct) != 1:
+            return None
+        series[period] = next(iter(distinct))
+    if set(series) != period_set:
+        return None
+    return HistoricalLeaseData(
+        lease_interest_expense={period: series[period] for period in reconciled.periods},
     )
 
 

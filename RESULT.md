@@ -1,33 +1,37 @@
-Status: Step 9M.3A complete — split lease-liability aggregation contract (G3 closed)
+Status: Step 9M.3B complete — treatment-conditioned lease interest (G4 closed)
 
 Implementation base:
-- d491126 Step 9M.2D reporting-unit rounding envelope
+- 3f12963 Step 9M.3A split lease-liability aggregation
 
-Step 9M.3A status: complete
+Step 9M.3B status: complete
 
 Final verification:
-- focused tests: 88 passed
-  (`test_lease_liability.py` + `test_reference_integrity.py` + `test_fast_retailing_benchmark.py`)
-- full core tests: 445 passed
+- focused tests: 115 passed
+  (`test_filing_reconciler.py` + `test_lease_liability.py` +
+   `test_reference_integrity.py` + `test_fast_retailing_benchmark.py`)
+- full core tests: 459 passed
 - forecast/valuation isolation: pass
 - family orders: 1..90 unchanged
-- Fast Retailing standardized/provenance/conflicts source artifacts unchanged: yes
+- provenance/conflicts/source/extracted unchanged: yes
+- standardized.json change: historical_lease model field only
 - statement overlap conflicts: 3
 - supplemental conflicts: 3
 
-Lease source contract:
-- Fast Retailing lease source mode: split
-- FY2025 computed BS lease total: 513500 (= 126830 + 386670)
-- FY2025 reported Note 17 total: 513501 (independent; not substituted)
-- lease specs: 18
-- full expected specs: 312
-- blank Check: correct=0 incorrect=0 blank=312 total=312
-- filled Check: correct=312 total=312
+Lease interest contract:
+- Fast Retailing historical_lease series:
+  2021–2025 = 4847 / 4757 / 5187 / 6507 / 8464
+- FY2025 Note 17 lease interest provenance: 8464 (source-bound reported)
+- FY2025 BS diagnostic lease liability: 513500
+- FY2025 Note 17 lease-liability total: 513501
+- default operating: net interest = reported − lease interest
+- all-financial override: net interest returns to reported; NOA/Net Debt/NOPAT rise
+- mixed split treatment: InconsistentLeaseTreatmentError / Excel NA()
+- lease specs: 18; expected specs: 312
+- blank/filled Check: 312 / 312
 
 Fast Retailing Stages 1–7: all pass
-G1/G1B/G2/G2B/G2C/G3 closed; G4–G7 remain open
+G1/G1B/G2/G2B/G2C/G3/G4 closed; G5–G7 remain open
 TARGET.md: unchanged by Cursor
 
 Next checkpoint:
-- G4 lease-interest income-side consistency and/or G5 NCI attribution
-  (select from measured remaining substantive gaps)
+- G5 NCI attribution and/or G6 share-basis / per-share work

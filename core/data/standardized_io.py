@@ -7,6 +7,7 @@ from typing import Any
 
 from .interface import (
     FinancialPeriod,
+    HistoricalLeaseData,
     HistoricalShareData,
     LineItem,
     StandardizedFinancials,
@@ -80,6 +81,38 @@ def _deserialize_historical_shares(
     )
 
 
+def _serialize_historical_lease(
+    lease: HistoricalLeaseData | None,
+) -> dict[str, Any] | None:
+    if lease is None:
+        return None
+    return {
+        "lease_interest_expense": {
+            _date_key(period): (None if value is None else float(value))
+            for period, value in lease.lease_interest_expense.items()
+        }
+    }
+
+
+def _deserialize_historical_lease(payload: object) -> HistoricalLeaseData | None:
+    if payload is None:
+        return None
+    if not isinstance(payload, dict):
+        raise ValueError("historical_lease must be an object or null")
+    if "lease_interest_expense" not in payload or payload.get("lease_interest_expense") is None:
+        series: object = {}
+    else:
+        series = payload.get("lease_interest_expense")
+    if not isinstance(series, dict):
+        raise ValueError("historical_lease.lease_interest_expense must be an object")
+    return HistoricalLeaseData(
+        lease_interest_expense={
+            _parse_date(period): (None if value is None else float(value))
+            for period, value in series.items()
+        }
+    )
+
+
 def standardized_to_payload(fin: StandardizedFinancials) -> dict:
     """Serialize model-relevant fields only (no source paths, provenance, or hints)."""
     return {
@@ -101,6 +134,7 @@ def standardized_to_payload(fin: StandardizedFinancials) -> dict:
         "balance_sheet": [_serialize_line(item) for item in fin.balance_sheet],
         "cash_flow": [_serialize_line(item) for item in fin.cash_flow],
         "historical_shares": _serialize_historical_shares(fin.historical_shares),
+        "historical_lease": _serialize_historical_lease(fin.historical_lease),
     }
 
 
@@ -131,5 +165,8 @@ def standardized_from_payload(payload: dict) -> StandardizedFinancials:
         cash_flow=[_deserialize_line(item) for item in payload.get("cash_flow") or []],
         historical_shares=_deserialize_historical_shares(
             payload.get("historical_shares")
+        ),
+        historical_lease=_deserialize_historical_lease(
+            payload.get("historical_lease")
         ),
     )
