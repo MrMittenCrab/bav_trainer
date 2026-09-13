@@ -1,30 +1,29 @@
-# Step 9M.4 — Historical Convergence Checkpoint
+# Step 9M.4 — Resolver Capability Documentation Repair
 
-**Base:** `280599a0f25dcdf32cee6f928a595f3bc75cd7c4`
+**Base:** `d6b44989b4fd9fd04940d3f885e536980f540215`
 
-**Goal:** Refresh historical coverage and select one source-supported implementation candidate after Fast Retailing G1–G7 closure.
+**Goal:** Correct current resolver capabilities and document explicit concept resolution as required work for the proposed goodwill/intangibles module.
 
-### Task 1: Refresh historical coverage
-
-**File:** `docs/GOOGL_HISTORICAL_REFERENCE.md`
-
-- [x] Update the Trainer inventory, gap matrix, and queue for implemented split lease-liability aggregation, treatment-conditioned lease interest, parent/NCI attribution, and split-adjusted per-share analysis.
-- [x] Distinguish implemented capabilities from remaining ROU, lease-payment, SBC, goodwill/acquisition, deferred-tax, capex, and segment gaps.
-- [x] Preserve GOOGL observations and distinguish demo practice counts from Fast Retailing’s 380-cell surface.
-
-### Task 2: Select one bounded historical module
+### Task 1: Correct the capability statement
 
 **File:** `docs/GOOGL_HISTORICAL_REFERENCE.md`
 
-- [x] Evaluate the existing first-priority goodwill/intangibles/acquisition candidate against relevant resolvers and supplied Fast Retailing filing JSON; consult source PDFs only where provenance needs verification.
-- [x] Record available concepts, periods, units, signs, and source references; distinguish reported balances and cash flows from unsupported acquisition or impairment explanations.
-- [x] Name one next implementation candidate with its minimum input contract, missing/ambiguous-input behavior, proposed historical calculations, and Trainer/Answer Key/Check scope. If the first candidate lacks sufficient facts, select the next supported queue item.
+- [ ] Replace the claim that `resolve_line` supports `goodwill`, `intangible_assets`, and `payments_for_intangible_assets`.
+- [ ] State that all three currently raise `ValueError("Unknown financial concept: ...")` because `core/model/line_resolver.py` rejects unregistered concepts before matching `LineItem.concept`, including when `required=False`.
+- [ ] Distinguish supplied concept-tagged facts and operating long-term asset classification from implemented resolver support.
 
-### Acceptance
+### Task 2: Record the candidate’s resolution prerequisite
 
-- [x] Coverage statements agree with current implementation and recorded benchmark evidence; historical evidence is not presented as a newly rerun audit.
-- [x] Exactly one next implementation candidate is specified with source-supported inputs and concrete expected behavior.
-- [x] G1–G7 remain closed with overlap/supplemental disagreements retained at `3/3`.
-- [x] Only `docs/GOOGL_HISTORICAL_REFERENCE.md` changes; production code, fixtures, benchmark artifacts, and workbooks remain unchanged.
-- [x] `git diff --check` passes; no workbook regeneration or full audit is required.
-- [x] Forecasting and valuation remain deferred.
+**File:** `docs/GOOGL_HISTORICAL_REFERENCE.md`
+
+- [ ] Identify explicit concept resolution for BS `goodwill` / `intangible_assets` and optional CF `payments_for_intangible_assets` as required future implementation work.
+- [ ] Specify unique explicit concept matching without label fallback, with missing or ambiguous inputs following the candidate’s existing omission rules.
+- [ ] Clarify that the minimum input contract and omission behavior are proposed requirements, not current resolver behavior.
+- [ ] Retain the single source-supported candidate, reported facts, proposed calculations, and Trainer/Answer Key/Check scope.
+
+### Validation and acceptance
+
+- [ ] Capability statements agree with the registration guard and matching order in `core/model/line_resolver.py`.
+- [ ] No statement implies these three concepts currently resolve through `resolve_line`.
+- [ ] Only `docs/GOOGL_HISTORICAL_REFERENCE.md` changes; resolver and module implementation remain deferred.
+- [ ] `git diff --check` passes; no new tests, workbook regeneration, or benchmark audit is required.
