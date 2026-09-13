@@ -1,40 +1,51 @@
-# Step 9M.6 — Workbook Acceptance Verification
+# Step 9M.7 — Deferred-Tax Balance Diagnostics
 
-**Base:** `5240f6b1b2cdd2cc0be017e401d4df6a527300b4`
+**Base:** `cb17c496a82413b40a9d51208a115b9f0e33013d`
 
-**Goal:** Verify the lease ROU-asset implementation and workbook integration in a writable environment.
+**Goal:** Add source-gated deferred-tax balance diagnostics using Fast Retailing’s supplied DTA/DTL history.
 
-### Task 1: Run the acceptance suite
+### Task 1: Define the source contract and calculations
 
-- [x] Run in a writable checkout with writable temporary storage:
-  `python -m pytest core/tests/test_lease_rou.py core/tests/test_lease_liability.py core/tests/test_goodwill_intangibles.py core/tests/test_fast_retailing_benchmark.py core/tests/test_reference_workbook_audit.py core/tests/test_cross_company_robustness.py`
-- [x] Record the tested SHA, pass/fail/skip counts, and any failures.
+**Files:** `core/model/deferred_tax.py` (new), `core/model/line_resolver.py`
 
-**Verified:** SHA `945f57267ae0a193db4fb2de0ce91d39140e99ad` (+ 1-line test gate accepting `Step 9M.6` in baseline phase text). Suite result: **85 passed, 0 failed, 0 skipped**. Writable temp confirmed (`tempfile.gettempdir()` writable). Initial run failed only on stale phase-label assertion (`Step 9M.5` allowed, not `Step 9M.6`); after gate update, full suite passed.
+- Resolve BS `deferred_tax_assets` and `deferred_tax_liabilities` by unique exact concept only.
+- Require both sources; missing or ambiguous sources omit the entire module. Missing modeled-period values raise `MissingHistoricalValueError`; never substitute zero.
+- Compute signed net deferred-tax asset position as DTA − DTL for every period.
+- Compute period changes in DTA, DTL, and net position; first-period changes are `None`.
+- Preserve reported signs. Do not infer deferred-tax expense, cash-tax effects, recoverability, or legal offset eligibility.
 
-### Task 2: Verify workbook and benchmark results
+### Task 2: Integrate workbook practice and Check
 
-- [x] Confirm semantic mapping survives source-row reordering and all four first-period ROU diagnostics have `.value is None` in both workbooks.
-- [x] Confirm ROU source balances remain populated; later-period Trainer practice cells are blank yellow without Notes, and matching Answer-Key cells contain formulas and non-empty Notes.
-- [x] Confirm blank/correct/incorrect Check behavior remains non-disclosing.
-- [x] Confirm Fast Retailing FY2025 ROU assets are `477111`, ROU practice count is `16`, and total `expected_specs` is `454`.
-- [x] Confirm Fast Retailing Check reports correct/incorrect/blank counts of `0/0/454` before filling and `454/0/0` after filling.
-- [x] Confirm existing DEMO, goodwill/intangibles, and lease-liability practice counts remain unchanged.
+**Files:** `core/engine/component_catalog.py`, `core/engine/reference_model.py`, `core/model/historical_expected.py`, `core/trainer/checker.py`
 
-**Verified via suite:** `test_semantic_mapping_survives_source_row_reordering`, `test_workbook_first_period_blank_and_check`, `test_demo_omits_and_practice_counts_unchanged`, `test_fast_retailing_lease_rou_module_activates`, Fast Retailing audit stages `6_blank_check` / `7_filled_check` in `BASELINE.md`, plus goodwill/lease-liability/DEMO practice-count tests in the same suite.
+- Follow existing optional-module conventions with `deferred_tax` semantic keys and specs.
+- Add `DEFERRED-TAX BALANCE CONTEXT` on ALT DuPont with populated DTA/DTL source links and four practice families: net position and the three changes.
+- Label net position as analytical DTA less DTL; Notes must distinguish balance movements from tax expense or cash taxes.
+- Register semantic formulas, expected values, and workbook-wide Check coverage.
+- Keep first-period change cells genuinely empty in both workbooks; preserve Trainer/Answer-Key parity, yellow practice cells, and Answer-Key-only formulas and Notes.
 
-### Task 3: Record verified acceptance
+### Task 3: Verify calculations, gating, and workbook behavior
 
-**File:** `IMPLEMENTATION.md`
+**Files:** `core/tests/test_deferred_tax.py` (new), `core/tests/test_fast_retailing_benchmark.py`, `scripts/audit_fast_retailing_benchmark.py`
 
-- [x] Record actual suite results and unresolved failures or environment blockers.
-- [x] Run `git diff --check`.
+- Cover absent, partial, duplicate, label-only, missing-period, and explicit-zero sources; signed net liabilities; source-row reordering; and first-period blanks.
+- Verify source balances remain populated and Check handles blank/correct/incorrect responses without disclosing answers.
+- Verify FY2025 DTA `40889`, DTL `22539`, net position `18350`, and net-position change `17814`.
+- Verify Fast Retailing adds 17 practice cells: `deferred_tax_specs=17`, `expected_specs=471`; blank Check `0/0/471`, filled Check `471/0/0`.
+- Verify existing DEMO counts and other module counts remain unchanged.
+- Run `python -m pytest core/tests/test_deferred_tax.py core/tests/test_fast_retailing_benchmark.py core/tests/test_lease_rou.py core/tests/test_goodwill_intangibles.py core/tests/test_reference_workbook_audit.py core/tests/test_cross_company_robustness.py`.
 
-**Result:** No unresolved failures; no environment blockers. `git diff --check` passed.
+### Task 4: Record coverage and acceptance
+
+**Files:** `docs/GOOGL_HISTORICAL_REFERENCE.md`, `benchmark/fast_retailing/BASELINE.md`, `IMPLEMENTATION.md`
+
+- Update deferred-tax coverage and record measured benchmark results.
+- Replace the unsupported SBC next-candidate entry with the remaining source-supported capex candidate; retain evidence-based deferrals.
+- Record tested SHA, pass/fail/skip counts, and blockers; run `git diff --check`.
 
 ### Acceptance criteria
 
-- The complete acceptance suite passes, including workbook integration tests; required coverage is not skipped or blocked.
-- Workbook parity, ROU source gating, practice counts, and Check assertions pass.
-- `git diff --check` passes.
-- Completion is recorded only after writable-environment verification succeeds.
+- Deferred-tax practice activates only under the defined source contract and passes calculation, workbook, and Check tests.
+- Required tests pass without skipped workbook verification; benchmark counts match measured results.
+- Source facts, retained conflicts, and existing accounting treatments remain unchanged.
+- Forecasting and valuation remain deferred while source-supported Step 9 gaps remain.
