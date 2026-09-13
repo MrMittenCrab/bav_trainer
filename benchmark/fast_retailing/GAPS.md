@@ -1,6 +1,6 @@
 # Fast Retailing Gap Queue
 
-Evidence basis for Step 9M.2C. Measurement only for remaining gaps — no speculative production redesign here.
+Evidence basis for Step 9M.2D. Measurement only for remaining gaps — no speculative production redesign here.
 
 Categories:
 - **A** source-extraction / provenance defect
@@ -9,15 +9,17 @@ Categories:
 - **D** optional-module input-contract gap
 - **E** comparative/restatement/share-basis conflict
 
-## Observed engine stages (Step 9M.2C)
+## Observed engine stages (Step 9M.2D)
 
 | Stage | Result |
 |---|---|
 | source fixture load | pass |
 | identity validation | pass |
 | financial reconciliation | **pass** (G1 closed) |
-| ReferenceModelBuilder | **fail** — `ReformulationIntegrityError` (classified detail vs reported totals gaps) |
-| workbook generation / Check | skipped |
+| ReferenceModelBuilder | **pass** (G1B rounding envelope; G2/G2B/G2C closed) |
+| workbook generation | **pass** |
+| blank Check | **pass** (0/294 correct; 294 blank) |
+| filled Check | **pass** (294/294 correct) |
 
 ## Gaps
 
@@ -27,6 +29,27 @@ Categories:
 - **Stage:** `3_reconciliation`
 - **Resolution:** `validate_balance_sheet` now accepts an absolute residual of at most **1.0** reporting unit without plugs or source mutation. Residuals strictly above `1.0` still fail.
 - **Evidence:** Fast Retailing Stage 3 passes; standardized payload unchanged.
+
+### G1B — Rounded detail-to-total accumulation — **CLOSED in Step 9M.2D**
+
+- **Category:** C
+- **Stage:** `4_reference_model_builder` (`check_reformulation_integrity`)
+- **Prior policy:** fixed absolute tolerance of `1.0` reporting unit for asset-detail,
+  liability-detail, and equity-bridge gaps (too strict once many independently rounded
+  detail lines are summed against independently rounded published totals).
+- **Resolution:** count-derived reporting-unit rounding envelope
+  `max(base_tolerance, 0.5 * (detail_count + 1))`, with separate asset / liability /
+  equity-bridge contributor counts from classified reformulation decisions
+  (`Equity` / `Exclude` do not count as asset or liability observations). Explicit
+  caller `tolerance` remains a floor. No plugs, no source mutation, no company-specific
+  constant. Top-level Stage-3 G1 rule `Assets = Liabilities + Equity` absolute residual
+  `<= 1.0` is unchanged.
+- **Fast Retailing evidence (unchanged arithmetic):** asset gaps
+  `(-4, -8, -8, -7, -8)`, liability gaps `(-6, -5, -6, -5, -6)`, equity gaps
+  `(+2, -3, -1, -1, -2)` with 16 asset + 13 liability detail rows → envelopes
+  8.5 / 7.0 / 15.0. Gaps sit inside those bounds; integrity now passes.
+- **Material omission still fails:** equal asset/liability omissions of 30 remain outside
+  the count-derived envelope and still raise `ReformulationIntegrityError`.
 
 ### G2 — Unclassified generic financial-instrument rows — **CLOSED in Step 9M.2A**
 
@@ -112,19 +135,19 @@ Categories:
 - **Synthetic coverage:** none for audited restatement overlaps.
 - **Why generalizable:** Latest-audited-presentation must remain explicit; silent overwrites are forbidden.
 
-## Post-9M.2C first remaining blocker
+## Post-9M.2D audit result
 
-- **Stage:** `4_reference_model_builder`
-- **Exception:** `ReformulationIntegrityError`
-- **Message:** Balance-sheet reformulation does not reconcile — multi-year classified
-  detail vs reported totals gaps, e.g. FY2021 asset-detail gap=-4, liability-detail
-  gap=-6, equity gap=2; similar gaps across FY2022–FY2025.
-- **ReferenceModelBuilder completed:** no
-- **Workbook generation / Check:** not reached (skipped after Stage 4)
-- **Note:** All Fast Retailing BS detail rows are now classifiable. This integrity
-  gap is a new measured integration defect (missing/excluded detail roll-up vs
-  published totals), not one of the seven G2C concepts. Left open; not fixed in 9M.2C.
-  G3–G7 substantive accounting gaps also remain open.
+- **Stages 1–7:** all **pass**
+  - Stage 4: `expected_specs=294 lease_specs=0 fixed_asset_specs=35`
+  - Stage 6 blank Check: `correct=0 incorrect=0 blank=294 total=294`
+  - Stage 7 filled Check: `correct=294 total=294`
+- **First failing stage / exception:** none
+- **ReferenceModelBuilder completed:** yes
+- **Workbook generation / blank Check / filled Check:** reached and passed
+- **Note:** G3–G7 remain open as measured product/accounting gaps (split-lease
+  module omitted, lease-interest treatment, NCI attribution, share-basis / per-share
+  omission, restatement conflicts). They are no longer the first thrown Stage-4
+  exception; select the next checkpoint from these remaining substantive gaps.
 
 ## Corrected extraction note (A — closed in 9M.0)
 

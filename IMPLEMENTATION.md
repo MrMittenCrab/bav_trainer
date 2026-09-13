@@ -1,6 +1,8 @@
+**Status:** Step 9M.2D complete — count-derived reformulation rounding envelope; Fast Retailing Stages 1–7 all pass. Stopped for user checkpoint.
+
 # Step 9M.2D — Reporting-Unit Rounding Envelope for Reformulation Integrity
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 > **For Cursor:** Read `TARGET.md`, then `benchmark/fast_retailing/GAPS.md`, then this plan in full. The accepted implementation base is commit `290361d34348c730293f3c7a339ff5332eba4626` (`Step 9M.2C`). Implement only Step 9M.2D using red/green TDD. Do not begin G3–G7 accounting-policy work, PDF/AI extraction, forecasting, valuation, scenarios, or investment conclusions. Do not commit, push, reset, rebase, merge, clean, or delete branches; the user owns checkpoint commits.
 
@@ -90,7 +92,7 @@ def check_reformulation_integrity(
 - Add no new public API.
 - A small private helper for count-derived tolerance is allowed.
 
-- [ ] **Step 1: Add an asset-side rounding-envelope acceptance test**
+- [x] **Step 1: Add an asset-side rounding-envelope acceptance test**
 
 Use four independently reported asset detail rows and one reported total. Four detail rows imply a rounding envelope of:
 
@@ -130,7 +132,7 @@ def test_reformulation_integrity_accepts_count_bounded_asset_rounding():
 
 This must fail before the implementation because the current fixed `1.0` tolerance rejects a two-unit gap.
 
-- [ ] **Step 2: Add the immediate outside-envelope rejection case**
+- [x] **Step 2: Add the immediate outside-envelope rejection case**
 
 Using the same four asset rows:
 
@@ -145,7 +147,7 @@ def test_reformulation_integrity_rejects_asset_gap_above_rounding_envelope():
 
 `3.0 > 2.5`, so it must remain a hard failure.
 
-- [ ] **Step 3: Add liability-side boundary tests**
+- [x] **Step 3: Add liability-side boundary tests**
 
 Create four liability detail rows whose labels are already supported by the classifier:
 
@@ -160,7 +162,7 @@ Each is `10` in both periods. With `Total liabilities = 42`, require a `-2` liab
 
 Use `concept="total_liabilities"` on the total row. Do not add Total Assets or Total Equity to this focused fixture so the test isolates the liability check.
 
-- [ ] **Step 4: Add the equity-bridge rounding-envelope boundary test**
+- [x] **Step 4: Add the equity-bridge rounding-envelope boundary test**
 
 Create a fixture with two asset and two liability detail rows, no reported Total Assets / Total Liabilities, and a reported `Total equity` only. The four contributing asset/liability observations imply:
 
@@ -188,13 +190,13 @@ Bank borrowings 5
 
 The implied equity is `10 + 20 - 5 - 5 = 20`.
 
-- [ ] **Step 5: Preserve the existing material-omission regression**
+- [x] **Step 5: Preserve the existing material-omission regression**
 
 Do not change `test_reformulation_detects_equal_asset_liability_omissions()` except, if necessary, strengthen it to assert the omission remains far outside the new count-derived envelope.
 
 Its missing asset and liability detail are `30` each. The test must continue to raise `ReformulationIntegrityError`; this is the key proof that the new policy is not “ignore detail-to-total gaps.”
 
-- [ ] **Step 6: Run the focused tests red**
+- [x] **Step 6: Run the focused tests red**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_classification.py \
@@ -217,7 +219,7 @@ Expected before implementation:
 - `BalanceSheetReformulation` shape remains unchanged.
 - Derive counts from `reform.decisions`; do not add source/company metadata to the reformulation object.
 
-- [ ] **Step 1: Add explicit side-category constants near the integrity logic**
+- [x] **Step 1: Add explicit side-category constants near the integrity logic**
 
 Use the existing category names exactly:
 
@@ -241,7 +243,7 @@ _LIABILITY_REFORMULATION_CATEGORIES = frozenset(
 
 Do not include `Equity` or `Exclude`.
 
-- [ ] **Step 2: Add one private rounding-envelope helper**
+- [x] **Step 2: Add one private rounding-envelope helper**
 
 Implement:
 
@@ -265,7 +267,7 @@ Rationale encoded by the formula:
 
 Do not round the derived tolerance to an integer and do not inspect Fast Retailing residuals.
 
-- [ ] **Step 3: Derive counts from actual contributing decisions**
+- [x] **Step 3: Derive counts from actual contributing decisions**
 
 Inside `check_reformulation_integrity()` compute:
 
@@ -297,7 +299,7 @@ equity_tolerance = _reporting_rounding_tolerance(
 
 Use those three tolerances only for their corresponding integrity checks.
 
-- [ ] **Step 4: Replace only the comparison thresholds**
+- [x] **Step 4: Replace only the comparison thresholds**
 
 The existing gap calculations remain untouched. Change only:
 
@@ -317,7 +319,7 @@ Keep failure messages’ existing gap text. Add the applicable tolerance to each
 
 Do not change values, category totals, NOA, Net Debt, or implied equity.
 
-- [ ] **Step 5: Preserve explicit caller tolerance as a floor**
+- [x] **Step 5: Preserve explicit caller tolerance as a floor**
 
 Add a focused test showing that a caller-supplied larger tolerance still works:
 
@@ -333,7 +335,7 @@ def test_reformulation_integrity_explicit_tolerance_remains_floor():
 
 This prevents the new helper from unexpectedly overriding an explicit caller contract.
 
-- [ ] **Step 6: Run Task 1–2 tests green**
+- [x] **Step 6: Run Task 1–2 tests green**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_classification.py \
@@ -342,7 +344,7 @@ PYTHONPATH=. pytest core/tests/test_classification.py \
 
 Expected: all selected tests pass.
 
-- [ ] **Step 7: Run the full classification test file**
+- [x] **Step 7: Run the full classification test file**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_classification.py -v
@@ -364,7 +366,7 @@ Expected: all pass, including Steps 9M.2A–9M.2C classification/judgment regres
 - Use existing standardized loader, `reformulate_balance_sheet()`, and `check_reformulation_integrity()`.
 - Do not create a Fast Retailing-specific tolerance API.
 
-- [ ] **Step 1: Add exact committed gap assertions before calling integrity check**
+- [x] **Step 1: Add exact committed gap assertions before calling integrity check**
 
 For the five Fast Retailing periods require the current documentary/reformulation gaps to remain exactly:
 
@@ -376,7 +378,7 @@ assert reform.equity_gap == (2.0, -3.0, -1.0, -1.0, -2.0)
 
 These assertions prove Step 9M.2D accepts the existing reported arithmetic rather than altering it.
 
-- [ ] **Step 2: Assert the contributing detail inventory is stable**
+- [x] **Step 2: Assert the contributing detail inventory is stable**
 
 From `reform.decisions`, count categories using the same semantic sets as production and require:
 
@@ -397,7 +399,7 @@ equity bridge = 15.0
 
 Do not hard-code those tolerances in production code; they are acceptance evidence for this fixture only.
 
-- [ ] **Step 3: Require Fast Retailing reformulation integrity to pass without overrides**
+- [x] **Step 3: Require Fast Retailing reformulation integrity to pass without overrides**
 
 ```python
 check_reformulation_integrity(reform, periods)
@@ -405,7 +407,7 @@ check_reformulation_integrity(reform, periods)
 
 No `classificationOverrides`, plugs, or fixture edits are allowed.
 
-- [ ] **Step 4: Run Fast Retailing acceptance tests**
+- [x] **Step 4: Run Fast Retailing acceptance tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
@@ -425,7 +427,7 @@ Expected after Task 2: the previous Stage-4 integrity condition is accepted by t
 **Interfaces:**
 - Existing `run_audit()` remains the integration gate.
 
-- [ ] **Step 1: Update the audit-stage regression**
+- [x] **Step 1: Update the audit-stage regression**
 
 In `core/tests/test_fast_retailing_benchmark.py`, require:
 
@@ -443,7 +445,7 @@ For Stage 4:
 
 Do not pre-assume workbook/Check success.
 
-- [ ] **Step 2: Run the staged audit**
+- [x] **Step 2: Run the staged audit**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
@@ -461,7 +463,7 @@ whether blank Check was reached
 whether filled Check was reached
 ```
 
-- [ ] **Step 3: Stop instead of fixing the newly exposed issue**
+- [x] **Step 3: Stop instead of fixing the newly exposed issue**
 
 If the audit reveals a new blocker, do not fix it in Step 9M.2D unless it is demonstrably an implementation error in the rounding-envelope logic above.
 
@@ -486,7 +488,7 @@ The next checkpoint must be selected from measured post-9M.2D evidence.
 - Test: `core/tests/test_fast_retailing_benchmark.py`
 - Read only: benchmark and example artifacts
 
-- [ ] **Step 1: Prove classification decisions are unchanged**
+- [x] **Step 1: Prove classification decisions are unchanged**
 
 The Step 9M.2D production diff must not modify `classify_balance_sheet_line()` behavior. Run the existing focused classifier/judgment tests covering:
 
@@ -507,7 +509,7 @@ PYTHONPATH=. pytest \
   -q
 ```
 
-- [ ] **Step 2: Prove source/reconciliation artifacts did not drift**
+- [x] **Step 2: Prove source/reconciliation artifacts did not drift**
 
 Run:
 
@@ -529,7 +531,7 @@ primary-statement overlap conflicts = 3
 supplemental conflicts = 3
 ```
 
-- [ ] **Step 3: Prove unrelated example workbook fixtures did not drift**
+- [x] **Step 3: Prove unrelated example workbook fixtures did not drift**
 
 ```bash
 git diff -- \
@@ -540,7 +542,7 @@ git diff -- \
 
 Expected: no output.
 
-- [ ] **Step 4: Verify forecast/valuation isolation**
+- [x] **Step 4: Verify forecast/valuation isolation**
 
 Run the existing normal-v1 isolation regression used in Steps 9M.2A–9M.2C. Require:
 
@@ -562,7 +564,7 @@ Do not add a new formula family for this integrity-policy change.
 - Modify: `RESULT.md`
 - Modify: `IMPLEMENTATION.md` status line only after verification
 
-- [ ] **Step 1: Record the integrity-policy resolution separately from G1**
+- [x] **Step 1: Record the integrity-policy resolution separately from G1**
 
 Add a new closed subsection, for example:
 
@@ -579,15 +581,15 @@ Record:
 
 Do not mark G3–G7 closed.
 
-- [ ] **Step 2: Replace the post-9M.2C blocker section with literal audit evidence**
+- [x] **Step 2: Replace the post-9M.2C blocker section with literal audit evidence**
 
 Use the exact final audit result from Task 4. If all stages pass, state that explicitly and list every reached stage. If another blocker appears, record its exact stage/class/message without proposing its fix inside the evidence section.
 
-- [ ] **Step 3: Update `BASELINE.md` from the regenerated audit**
+- [x] **Step 3: Update `BASELINE.md` from the regenerated audit**
 
 Run the existing audit script if it writes the baseline automatically; otherwise copy only literal stage output. Do not edit benchmark numerical source facts.
 
-- [ ] **Step 4: Run the focused Step 9M.2D suite**
+- [x] **Step 4: Run the focused Step 9M.2D suite**
 
 ```bash
 PYTHONPATH=. pytest \
@@ -599,7 +601,7 @@ PYTHONPATH=. pytest \
 
 Record the exact pass count.
 
-- [ ] **Step 5: Run the full historical regression suite**
+- [x] **Step 5: Run the full historical regression suite**
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
@@ -607,11 +609,11 @@ PYTHONPATH=. pytest core/tests/ -q
 
 Record the exact pass count.
 
-- [ ] **Step 6: Re-run source/workbook no-drift checks**
+- [x] **Step 6: Re-run source/workbook no-drift checks**
 
 Repeat Task 5 Steps 2–3 after all documentation/audit generation. Source/extracted/reconciled JSON and example workbook files must remain unchanged.
 
-- [ ] **Step 7: Run the Fast Retailing audit as the final behavioral gate**
+- [x] **Step 7: Run the Fast Retailing audit as the final behavioral gate**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
@@ -619,7 +621,7 @@ PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
 
 Require the same stage/result as Task 4. If the first blocker changes without code/data changes, stop and investigate nondeterminism instead of recording either result.
 
-- [ ] **Step 8: Mark Step 9M.2D complete only with fresh evidence**
+- [x] **Step 8: Mark Step 9M.2D complete only with fresh evidence**
 
 Only after Steps 4–7 succeed, add a compact status line at the top of this file and update `RESULT.md` with:
 
@@ -637,6 +639,6 @@ forecast/valuation isolation: pass
 
 Do not pre-state counts before the commands run.
 
-- [ ] **Step 9: Stop**
+- [x] **Step 9: Stop**
 
 Do not implement the next blocker. Return the implementation/test summary so the user can run `checkpoint`; ChatGPT should then review that checkpoint and select the next step from measured evidence.

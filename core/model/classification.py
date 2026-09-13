@@ -28,6 +28,22 @@ BALANCE_SHEET_CATEGORIES = (
 
 DEFAULT_TOLERANCE = 1.0
 
+_ASSET_REFORMULATION_CATEGORIES = frozenset(
+    {
+        "Operating Working Capital Asset",
+        "Operating Long-Term Asset",
+        "Financial Asset",
+    }
+)
+
+_LIABILITY_REFORMULATION_CATEGORIES = frozenset(
+    {
+        "Operating Working Capital Liability",
+        "Operating Long-Term Liability",
+        "Financial Liability",
+    }
+)
+
 
 class ClassificationError(ValueError):
     """Base classification/reformulation error."""
@@ -745,6 +761,25 @@ def reformulate_balance_sheet(
     )
 
 
+def _reporting_rounding_tolerance(
+    detail_count: int,
+    *,
+    base_tolerance: float,
+) -> float:
+    """Worst-case reporting-unit rounding for sum(detail) vs reported total.
+
+    Each of ``detail_count`` displayed detail values and the independently
+    displayed total may round by at most half a reporting unit, so the
+    legitimate absolute gap reaches ``0.5 * (detail_count + 1)``. Explicit
+    ``base_tolerance`` remains a floor.
+    """
+    if detail_count < 0:
+        raise ValueError("detail_count must be non-negative")
+    if base_tolerance < 0:
+        raise ValueError("base_tolerance must be non-negative")
+    return max(base_tolerance, 0.5 * (detail_count + 1))
+
+
 def check_reformulation_integrity(
     reform: BalanceSheetReformulation,
     periods: list[date],
@@ -752,26 +787,58 @@ def check_reformulation_integrity(
     tolerance: float = DEFAULT_TOLERANCE,
 ) -> None:
     """Raise if any available asset/liability/equity gap exceeds tolerance."""
+    asset_detail_count = sum(
+        1
+        for decision in reform.decisions.values()
+        if decision.category in _ASSET_REFORMULATION_CATEGORIES
+    )
+    liability_detail_count = sum(
+        1
+        for decision in reform.decisions.values()
+        if decision.category in _LIABILITY_REFORMULATION_CATEGORIES
+    )
+    asset_tolerance = _reporting_rounding_tolerance(
+        asset_detail_count,
+        base_tolerance=tolerance,
+    )
+    liability_tolerance = _reporting_rounding_tolerance(
+        liability_detail_count,
+        base_tolerance=tolerance,
+    )
+    equity_tolerance = _reporting_rounding_tolerance(
+        asset_detail_count + liability_detail_count,
+        base_tolerance=tolerance,
+    )
+
     failures: list[str] = []
     for i, pd in enumerate(periods):
         label = pd.isoformat()
-        if reform.asset_detail_gap[i] is not None and abs(reform.asset_detail_gap[i]) > tolerance:
+        if (
+            reform.asset_detail_gap[i] is not None
+            and abs(reform.asset_detail_gap[i]) > asset_tolerance
+        ):
             failures.append(
                 f"{label}: asset-detail gap={reform.asset_detail_gap[i]:.4g} "
-                f"(classified assets vs Total Assets)"
+                f"(classified assets vs Total Assets; "
+                f"allowed rounding envelope={asset_tolerance:g})"
             )
         if (
             reform.liability_detail_gap[i] is not None
-            and abs(reform.liability_detail_gap[i]) > tolerance
+            and abs(reform.liability_detail_gap[i]) > liability_tolerance
         ):
             failures.append(
                 f"{label}: liability-detail gap={reform.liability_detail_gap[i]:.4g} "
-                f"(classified liabilities vs Total Liabilities)"
+                f"(classified liabilities vs Total Liabilities; "
+                f"allowed rounding envelope={liability_tolerance:g})"
             )
-        if reform.equity_gap[i] is not None and abs(reform.equity_gap[i]) > tolerance:
+        if (
+            reform.equity_gap[i] is not None
+            and abs(reform.equity_gap[i]) > equity_tolerance
+        ):
             failures.append(
                 f"{label}: equity gap={reform.equity_gap[i]:.4g} "
-                f"(NOA-Net Debt vs Reported Equity)"
+                f"(NOA-Net Debt vs Reported Equity; "
+                f"allowed rounding envelope={equity_tolerance:g})"
             )
     if failures:
         raise ReformulationIntegrityError(

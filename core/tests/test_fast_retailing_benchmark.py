@@ -14,8 +14,10 @@ from core.ingestion.filing_validator import validate_extracted_filing
 from core.ingestion.reconciler import reconcile_financials
 from core.model.classification import (
     UnclassifiedBalanceSheetLineError,
+    check_reformulation_integrity,
     classify_balance_sheet_line,
     is_balance_sheet_subtotal,
+    reformulate_balance_sheet,
 )
 from scripts.audit_fast_retailing_benchmark import run_audit
 
@@ -283,7 +285,7 @@ def test_audit_script_writes_baseline_and_stage_records():
         "7_filled_check",
     ):
         assert stage in text
-    assert "Step 9M.2A" in text or "Step 9M.2B" in text or "Step 9M.2C" in text
+    assert "Step 9M.2A" in text or "Step 9M.2B" in text or "Step 9M.2C" in text or "Step 9M.2D" in text
     assert "pass" in completed.stdout or "fail" in completed.stdout
 
 
@@ -455,3 +457,54 @@ def test_fast_retailing_audit_no_longer_fails_on_deterministic_9m2c_rows():
             "Non-controlling interests",
         ):
             assert label not in message, f"Stage 4 still blocked by {label}: {message}"
+
+
+_ASSET_REFORM_CATS = frozenset(
+    {
+        "Operating Working Capital Asset",
+        "Operating Long-Term Asset",
+        "Financial Asset",
+    }
+)
+_LIABILITY_REFORM_CATS = frozenset(
+    {
+        "Operating Working Capital Liability",
+        "Operating Long-Term Liability",
+        "Financial Liability",
+    }
+)
+
+
+def test_fast_retailing_rounding_envelope_accepts_committed_detail_gaps():
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    periods = fin.fiscal_years() or fin.period_dates()
+    reform = reformulate_balance_sheet(fin, periods)
+    assert reform.asset_detail_gap == (-4.0, -8.0, -8.0, -7.0, -8.0)
+    assert reform.liability_detail_gap == (-6.0, -5.0, -6.0, -5.0, -6.0)
+    assert reform.equity_gap == (2.0, -3.0, -1.0, -1.0, -2.0)
+
+    asset_detail_count = sum(
+        1 for d in reform.decisions.values() if d.category in _ASSET_REFORM_CATS
+    )
+    liability_detail_count = sum(
+        1 for d in reform.decisions.values() if d.category in _LIABILITY_REFORM_CATS
+    )
+    assert asset_detail_count == 16
+    assert liability_detail_count == 13
+
+    check_reformulation_integrity(reform, periods)
+
+
+def test_fast_retailing_audit_stages_pass_through_reformulation_integrity():
+    result = run_audit()
+    stages = {stage.stage: stage for stage in result["stages"]}
+    assert stages["1_source_fixture_load"].status == "pass"
+    assert stages["2_identity_validation"].status == "pass"
+    assert stages["3_reconciliation"].status == "pass"
+    stage4 = stages["4_reference_model_builder"]
+    # Step 9M.2C blocker was ReformulationIntegrityError on classified-detail gaps.
+    # After the count-derived envelope those gaps must be accepted.
+    if stage4.status == "fail":
+        assert stage4.exception_type != "ReformulationIntegrityError", (
+            f"Stage 4 still fails on reformulation integrity: {stage4.message}"
+        )

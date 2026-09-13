@@ -187,10 +187,133 @@ def test_reformulation_detects_equal_asset_liability_omissions():
     reform = reformulate_balance_sheet(fin, periods)
     assert reform.asset_detail_gap[1] is not None
     assert reform.liability_detail_gap[1] is not None
-    assert abs(reform.asset_detail_gap[1]) > 1.0
-    assert abs(reform.liability_detail_gap[1]) > 1.0
+    assert abs(reform.asset_detail_gap[1]) == 30.0
+    assert abs(reform.liability_detail_gap[1]) == 30.0
+    # Two asset + two liability detail rows → envelope 0.5*(2+1)=1.5; 30 ≫ 1.5.
+    assert abs(reform.asset_detail_gap[1]) > 1.5
+    assert abs(reform.liability_detail_gap[1]) > 1.5
     with pytest.raises(ReformulationIntegrityError):
         check_reformulation_integrity(reform, periods)
+
+
+def _asset_rounding_fin(total_assets: float) -> StandardizedFinancials:
+    return StandardizedFinancials(
+        ticker="ROUND-A",
+        company_name="Rounded Assets",
+        currency="HKD",
+        units="HKD in Millions",
+        jurisdiction="HK",
+        periods=_periods(),
+        income_statement=[],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 10, 10),
+            _li("Trade receivables", 10, 10),
+            _li("Inventories", 10, 10),
+            _li("Prepaid expenses", 10, 10),
+            _li("Total assets", total_assets, total_assets, concept="total_assets"),
+        ],
+        cash_flow=[],
+    )
+
+
+def _liability_rounding_fin(total_liabilities: float) -> StandardizedFinancials:
+    return StandardizedFinancials(
+        ticker="ROUND-L",
+        company_name="Rounded Liabilities",
+        currency="HKD",
+        units="HKD in Millions",
+        jurisdiction="HK",
+        periods=_periods(),
+        income_statement=[],
+        balance_sheet=[
+            _li("Trade payables", 10, 10),
+            _li("Accrued expenses", 10, 10),
+            _li("Bank borrowings", 10, 10),
+            _li("Lease liabilities", 10, 10),
+            _li(
+                "Total liabilities",
+                total_liabilities,
+                total_liabilities,
+                concept="total_liabilities",
+            ),
+        ],
+        cash_flow=[],
+    )
+
+
+def _equity_rounding_fin(total_equity: float) -> StandardizedFinancials:
+    return StandardizedFinancials(
+        ticker="ROUND-E",
+        company_name="Rounded Equity",
+        currency="HKD",
+        units="HKD in Millions",
+        jurisdiction="HK",
+        periods=_periods(),
+        income_statement=[],
+        balance_sheet=[
+            _li("Trade receivables", 10, 10),
+            _li("Property, plant and equipment", 20, 20),
+            _li("Trade payables", 5, 5),
+            _li("Bank borrowings", 5, 5),
+            _li("Total equity", total_equity, total_equity, concept="total_equity"),
+        ],
+        cash_flow=[],
+    )
+
+
+def test_reformulation_integrity_accepts_count_bounded_asset_rounding_envelope():
+    periods = [P1, P2]
+    reform = reformulate_balance_sheet(_asset_rounding_fin(42), periods)
+    assert reform.asset_detail_gap == (-2.0, -2.0)
+    check_reformulation_integrity(reform, periods)
+
+
+def test_reformulation_integrity_rejects_asset_gap_above_rounding_envelope():
+    periods = [P1, P2]
+    reform = reformulate_balance_sheet(_asset_rounding_fin(43), periods)
+    assert reform.asset_detail_gap == (-3.0, -3.0)
+    with pytest.raises(ReformulationIntegrityError, match="asset-detail gap"):
+        check_reformulation_integrity(reform, periods)
+
+
+def test_reformulation_integrity_accepts_count_bounded_liability_rounding_envelope():
+    periods = [P1, P2]
+    reform = reformulate_balance_sheet(_liability_rounding_fin(42), periods)
+    assert reform.liability_detail_gap == (-2.0, -2.0)
+    check_reformulation_integrity(reform, periods)
+
+
+def test_reformulation_integrity_rejects_liability_gap_above_rounding_envelope():
+    periods = [P1, P2]
+    reform = reformulate_balance_sheet(_liability_rounding_fin(43), periods)
+    assert reform.liability_detail_gap == (-3.0, -3.0)
+    with pytest.raises(ReformulationIntegrityError, match="liability-detail gap"):
+        check_reformulation_integrity(reform, periods)
+
+
+def test_reformulation_integrity_accepts_count_bounded_equity_rounding_envelope():
+    periods = [P1, P2]
+    reform = reformulate_balance_sheet(_equity_rounding_fin(18), periods)
+    assert reform.implied_equity == (20.0, 20.0)
+    assert reform.equity_gap == (2.0, 2.0)
+    check_reformulation_integrity(reform, periods)
+
+
+def test_reformulation_integrity_rejects_equity_gap_above_rounding_envelope():
+    periods = [P1, P2]
+    reform = reformulate_balance_sheet(_equity_rounding_fin(17), periods)
+    assert reform.equity_gap == (3.0, 3.0)
+    with pytest.raises(ReformulationIntegrityError, match="equity gap"):
+        check_reformulation_integrity(reform, periods)
+
+
+def test_reformulation_integrity_explicit_tolerance_remains_floor():
+    periods = [P1, P2]
+    reform = reformulate_balance_sheet(_asset_rounding_fin(46), periods)
+    assert reform.asset_detail_gap == (-6.0, -6.0)
+    with pytest.raises(ReformulationIntegrityError):
+        check_reformulation_integrity(reform, periods)
+    check_reformulation_integrity(reform, periods, tolerance=6.0)
 
 
 def test_demo_reformulation_reconciles_all_years():
