@@ -341,7 +341,7 @@ def write_baseline(result: dict[str, Any]) -> None:
             "- Supplemental provenance source-bound: yes",
             "- Portable source-path validation: yes",
             "- Silent repeated-share overwrite removed: yes",
-            "- G1/G1B/G2/G2B/G2C/G3/G4/G5/G6 closed; G7 remains open",
+            "- G1/G1B/G2/G2B/G2C/G3/G4/G5/G6/G7 closed; G7 disagreements retained with verified deterministic selection and provenance.",
             "",
             "## Stage results",
             "",

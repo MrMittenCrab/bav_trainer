@@ -8,13 +8,13 @@
 
 **File:** `scripts/audit_fast_retailing_benchmark.py`
 
-- [ ] Replace “G1/G1B/G2/G2B/G2C/G3/G4/G5/G6 closed; G7 remains open” in `write_baseline()` with “G1/G1B/G2/G2B/G2C/G3/G4/G5/G6/G7 closed; G7 disagreements retained with verified deterministic selection and provenance.”
+- [x] Replace “G1/G1B/G2/G2B/G2C/G3/G4/G5/G6 closed; G7 remains open” in `write_baseline()` with “G1/G1B/G2/G2B/G2C/G3/G4/G5/G6/G7 closed; G7 disagreements retained with verified deterministic selection and provenance.”
 
 ### Task 2: Regenerate and verify the baseline
 
 **File:** `benchmark/fast_retailing/BASELINE.md`
 
-- [ ] Run `PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py` to regenerate the baseline with the corrected closure statement.
-- [ ] Require Stages 1–7 passing, `expected_specs=380`, blank Check `0 correct / 0 incorrect / 380 blank`, and filled Check `380 correct / 0 incorrect / 0 blank`.
-- [ ] Verify both files contain no “G7 remains open” claim and consistently report G7 closed with disagreements retained.
-- [ ] Verify overlap/supplemental conflict counts remain `3/3`, extracted facts and reconciled artifacts are unchanged, and the diff contains only the two closure-text replacements.
+- [x] Run `PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py` to regenerate the baseline with the corrected closure statement.
+- [x] Require Stages 1–7 passing, `expected_specs=380`, blank Check `0 correct / 0 incorrect / 380 blank`, and filled Check `380 correct / 0 incorrect / 0 blank`.
+- [x] Verify both files contain no “G7 remains open” claim and consistently report G7 closed with disagreements retained.
+- [x] Verify overlap/supplemental conflict counts remain `3/3`, extracted facts and reconciled artifacts are unchanged, and the diff contains only the two closure-text replacements.
