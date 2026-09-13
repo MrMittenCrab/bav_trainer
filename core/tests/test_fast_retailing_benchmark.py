@@ -12,7 +12,11 @@ from core.data.standardized_io import standardized_from_payload
 from core.ingestion.filing_json import load_extracted_filing
 from core.ingestion.filing_validator import validate_extracted_filing
 from core.ingestion.reconciler import reconcile_financials
-from core.model.classification import classify_balance_sheet_line
+from core.model.classification import (
+    UnclassifiedBalanceSheetLineError,
+    classify_balance_sheet_line,
+    is_balance_sheet_subtotal,
+)
 from scripts.audit_fast_retailing_benchmark import run_audit
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -279,7 +283,7 @@ def test_audit_script_writes_baseline_and_stage_records():
         "7_filled_check",
     ):
         assert stage in text
-    assert "Step 9M.2A" in text or "Step 9M.2B" in text
+    assert "Step 9M.2A" in text or "Step 9M.2B" in text or "Step 9M.2C" in text
     assert "pass" in completed.stdout or "fail" in completed.stdout
 
 
@@ -381,3 +385,73 @@ def test_fast_retailing_audit_no_longer_fails_on_other_assets_or_liabilities():
         message = stage4.message
         assert "Other assets" not in message
         assert "Other liabilities" not in message
+
+
+DETERMINISTIC_FR_CONCEPTS = {
+    "current_tax_liabilities": "Operating Working Capital Liability",
+    "provisions_current": "Operating Working Capital Liability",
+    "provisions_noncurrent": "Operating Long-Term Liability",
+    "capital_stock": "Equity",
+    "capital_surplus": "Equity",
+    "other_components_of_equity": "Equity",
+    "noncontrolling_interests": "Equity",
+}
+
+
+def test_fast_retailing_all_balance_sheet_detail_rows_are_classifiable():
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    unsupported = []
+    for item in fin.balance_sheet:
+        if is_balance_sheet_subtotal(item):
+            continue
+        try:
+            classify_balance_sheet_line(item)
+        except UnclassifiedBalanceSheetLineError as exc:
+            unsupported.append((item.label, item.concept, str(exc)))
+    assert unsupported == []
+
+
+def test_fast_retailing_deterministic_accounting_concepts_classify():
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    seen = set()
+    for item in fin.balance_sheet:
+        concept = (item.concept or "").strip()
+        if concept not in DETERMINISTIC_FR_CONCEPTS:
+            continue
+        decision = classify_balance_sheet_line(item)
+        assert decision.category == DETERMINISTIC_FR_CONCEPTS[concept]
+        assert decision.ambiguous is False
+        assert decision.judgment_code is None
+        seen.add(concept)
+    assert seen == set(DETERMINISTIC_FR_CONCEPTS)
+
+
+def test_fast_retailing_nci_equity_classification_does_not_close_g5():
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    nci_item = next(
+        item
+        for item in fin.balance_sheet
+        if (item.concept or "").strip() == "noncontrolling_interests"
+    )
+    decision = classify_balance_sheet_line(nci_item)
+    assert decision.category == "Equity"
+    # G5 parent/NCI attribution remains a separate product gap; this step only
+    # provides structural Equity classification for consolidated reformulation.
+
+
+def test_fast_retailing_audit_no_longer_fails_on_deterministic_9m2c_rows():
+    result = run_audit()
+    stages = {stage.stage: stage for stage in result["stages"]}
+    assert stages["3_reconciliation"].status == "pass"
+    stage4 = stages["4_reference_model_builder"]
+    if stage4.status == "fail" and stage4.exception_type == "UnclassifiedBalanceSheetLineError":
+        message = stage4.message
+        for label in (
+            "Current tax liabilities",
+            "Provisions",
+            "Capital stock",
+            "Capital surplus",
+            "Other components of equity",
+            "Non-controlling interests",
+        ):
+            assert label not in message, f"Stage 4 still blocked by {label}: {message}"

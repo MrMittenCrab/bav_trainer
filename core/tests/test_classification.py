@@ -856,3 +856,138 @@ def test_other_balance_judgment_cases_and_consequence_directions():
             assert reform_alt.noa[0] > reform.noa[0]
             assert reform_alt.net_debt[0] > reform.net_debt[0]
 
+
+@pytest.mark.parametrize(
+    ("label", "concept", "expected_category"),
+    [
+        (
+            "Current tax liabilities",
+            "current_tax_liabilities",
+            "Operating Working Capital Liability",
+        ),
+        (
+            "Provisions",
+            "provisions_current",
+            "Operating Working Capital Liability",
+        ),
+        (
+            "Provisions",
+            "provisions_noncurrent",
+            "Operating Long-Term Liability",
+        ),
+        (
+            "Capital stock",
+            "capital_stock",
+            "Equity",
+        ),
+        (
+            "Capital surplus",
+            "capital_surplus",
+            "Equity",
+        ),
+        (
+            "Other components of equity",
+            "other_components_of_equity",
+            "Equity",
+        ),
+        (
+            "Non-controlling interests",
+            "noncontrolling_interests",
+            "Equity",
+        ),
+    ],
+)
+def test_exact_standard_accounting_concepts_classify_deterministically(
+    label, concept, expected_category
+):
+    decision = classify_balance_sheet_line(_li(label, 10, 12, concept=concept))
+    assert decision.category == expected_category
+    assert decision.ambiguous is False
+    assert decision.judgment_code is None
+    assert decision.reason
+
+
+@pytest.mark.parametrize(
+    ("label", "concept"),
+    [
+        ("Miscellaneous balance", "current_tax_liabilities"),
+        ("Miscellaneous balance", "provisions_current"),
+        ("Miscellaneous balance", "provisions_noncurrent"),
+        ("Miscellaneous balance", "capital_stock"),
+        ("Miscellaneous balance", "capital_surplus"),
+        ("Miscellaneous balance", "other_components_of_equity"),
+        ("Miscellaneous balance", "noncontrolling_interests"),
+    ],
+)
+def test_exact_standard_accounting_concepts_require_compatible_labels(label, concept):
+    with pytest.raises(UnclassifiedBalanceSheetLineError):
+        classify_balance_sheet_line(_li(label, 10, 12, concept=concept))
+
+
+def test_exact_standard_accounting_concepts_do_not_displace_existing_rules():
+    cash = classify_balance_sheet_line(_li("Cash and cash equivalents", 10, 12, concept="cash"))
+    assert cash.category == "Financial Asset"
+
+    payables = classify_balance_sheet_line(
+        _li("Trade and other payables", 10, 12, concept="trade_and_other_payables")
+    )
+    assert payables.category == "Operating Working Capital Liability"
+
+    deferred = classify_balance_sheet_line(
+        _li("Deferred tax liabilities", 10, 12, concept="deferred_tax_liabilities")
+    )
+    assert deferred.category == "Operating Long-Term Liability"
+    assert deferred.ambiguous is True
+
+    lease = classify_balance_sheet_line(
+        _li("Lease liabilities", 10, 12, concept="lease_liability_current")
+    )
+    assert lease.category == "Operating Long-Term Liability"
+    assert lease.judgment_code == "lease_liability_operating_vs_financing"
+
+
+
+def test_deterministic_standard_accounting_concepts_create_no_judgment_cases():
+    fin = StandardizedFinancials(
+        ticker="DET",
+        company_name="Deterministic Co",
+        currency="HKD",
+        units="HKD in Millions",
+        jurisdiction="HK",
+        periods=_periods(),
+        income_statement=[],
+        balance_sheet=[
+            _li("Current tax liabilities", 3, 4, concept="current_tax_liabilities"),
+            _li("Provisions", 5, 6, concept="provisions_current"),
+            _li("Provisions", 7, 8, concept="provisions_noncurrent"),
+            _li("Capital stock", 10, 10, concept="capital_stock"),
+            _li("Capital surplus", 11, 11, concept="capital_surplus"),
+            _li(
+                "Other components of equity",
+                2,
+                2,
+                concept="other_components_of_equity",
+            ),
+            _li(
+                "Non-controlling interests",
+                4,
+                4,
+                concept="noncontrolling_interests",
+            ),
+            _li("Cash and cash equivalents", 20, 21, concept="cash"),
+            _li("Trade and other payables", 8, 9, concept="trade_and_other_payables"),
+        ],
+        cash_flow=[],
+    )
+    periods = [P1, P2]
+    reform = reformulate_balance_sheet(fin, periods)
+    cases = classification_judgment_cases(fin, periods, reform)
+    forbidden_labels = {
+        "Current tax liabilities",
+        "Provisions",
+        "Capital stock",
+        "Capital surplus",
+        "Other components of equity",
+        "Non-controlling interests",
+    }
+    assert not any(case.label in forbidden_labels for case in cases)

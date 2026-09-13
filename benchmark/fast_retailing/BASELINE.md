@@ -1,8 +1,8 @@
-# Fast Retailing Benchmark Baseline (Step 9M.2B)
+# Fast Retailing Benchmark Baseline (Step 9M.2C)
 
-- Accounting engine phase: Step 9M.2B (residual other-balance guided classification on 9M.2A base)
+- Accounting engine phase: Step 9M.2C (deterministic tax/provision/equity concepts on 9M.2B base)
 - Input path: generic `extracted/` → `validate-source` → `reconcile` → `reconciled/`
-- Benchmark phase: measurement only — G1/G2/G2B closed; G3–G7 remain open
+- Benchmark phase: measurement only — G1/G2/G2B/G2C closed; G3–G7 remain open
 - Five fiscal periods: 2021-08-31 … 2025-08-31
 
 ## Source hashes
@@ -19,7 +19,7 @@
 - Supplemental provenance source-bound: yes
 - Portable source-path validation: yes
 - Silent repeated-share overwrite removed: yes
-- G1 closed in 9M.2A; G2 closed in 9M.2A; G2B residual other-balance closed in 9M.2B; G3–G7 remain open
+- G1/G2/G2B/G2C closed; G3–G7 remain open
 
 ## Stage results
 
@@ -28,7 +28,7 @@
 | 1_source_fixture_load | pass | loaded |
 | 2_identity_validation | pass |  |
 | 3_reconciliation | pass |  |
-| 4_reference_model_builder | fail | Cannot safely classify balance-sheet line 'Current tax liabilities'; provide classificationOverrides['Current tax liabilities'] |
+| 4_reference_model_builder | fail | Balance-sheet reformulation does not reconcile: 2021-08-31: asset-detail gap=-4 (classified assets vs Total Assets) 2021-08-31: liability-detail gap=-6 (classified liabilities vs Total Liabilities) 2021-08-31: equity gap=2 (NOA-Net Debt vs Reported Equity) 2022-08-31: asset-detail gap=-8 (classified assets vs Total Assets) 2022-08-31: liability-detail gap=-5 (classified liabilities vs Total Liabilities) 2022-08-31: equity gap=-3 (NOA-Net Debt vs Reported Equity) 2023-08-31: asset-detail gap=-8 (classified assets vs Total Assets) 2023-08-31: liability-detail gap=-6 (classified liabilities vs Total Liabilities) 2024-08-31: asset-detail gap=-7 (classified assets vs Total Assets) 2024-08-31: liability-detail gap=-5 (classified liabilities vs Total Liabilities) 2025-08-31: asset-detail gap=-8 (classified assets vs Total Assets) 2025-08-31: liability-detail gap=-6 (classified liabilities vs Total Liabilities) 2025-08-31: equity gap=-2 (NOA-Net Debt vs Reported Equity) |
 | 5_workbook_generation | skipped | prior stage failed |
 | 6_blank_check | skipped | prior stage failed |
 | 7_filled_check | skipped | prior stage failed |
@@ -37,8 +37,21 @@
 
 - Stage: `4_reference_model_builder`
 - Status: `fail`
-- Exception: `UnclassifiedBalanceSheetLineError`
-- Message: Cannot safely classify balance-sheet line 'Current tax liabilities'; provide classificationOverrides['Current tax liabilities']
+- Exception: `ReformulationIntegrityError`
+- Message: Balance-sheet reformulation does not reconcile:
+2021-08-31: asset-detail gap=-4 (classified assets vs Total Assets)
+2021-08-31: liability-detail gap=-6 (classified liabilities vs Total Liabilities)
+2021-08-31: equity gap=2 (NOA-Net Debt vs Reported Equity)
+2022-08-31: asset-detail gap=-8 (classified assets vs Total Assets)
+2022-08-31: liability-detail gap=-5 (classified liabilities vs Total Liabilities)
+2022-08-31: equity gap=-3 (NOA-Net Debt vs Reported Equity)
+2023-08-31: asset-detail gap=-8 (classified assets vs Total Assets)
+2023-08-31: liability-detail gap=-6 (classified liabilities vs Total Liabilities)
+2024-08-31: asset-detail gap=-7 (classified assets vs Total Assets)
+2024-08-31: liability-detail gap=-5 (classified liabilities vs Total Liabilities)
+2025-08-31: asset-detail gap=-8 (classified assets vs Total Assets)
+2025-08-31: liability-detail gap=-6 (classified liabilities vs Total Liabilities)
+2025-08-31: equity gap=-2 (NOA-Net Debt vs Reported Equity)
 
 ## Module applicability (source fixture)
 

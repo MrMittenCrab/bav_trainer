@@ -1,6 +1,8 @@
+**Status:** Step 9M.2C complete — seven deterministic tax/provision/equity concepts; Stage 4 now fails on ReformulationIntegrityError (classified detail vs totals). Stopped for user checkpoint.
+
 # Step 9M.2C — Deterministic Balance-Sheet Concept Completion Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 > **For Cursor:** Read `TARGET.md`, then `benchmark/fast_retailing/GAPS.md`, then this plan in full. The accepted implementation base is commit `894c525cd81689c27b08cc0f05e1a3eb5d5efa20` (`Step 9M.2B`). Implement only Step 9M.2C using red/green TDD. Do not begin G3–G7 accounting-policy work, PDF/AI extraction, forecasting, valuation, scenarios, or investment conclusions. Do not commit, push, reset, rebase, merge, clean, or delete branches; the user owns checkpoint commits.
 
@@ -89,7 +91,7 @@ classify_balance_sheet_line(
 - Add no public classifier API.
 - Prefer one small private helper called from `_classify_by_concept()` if it keeps the existing function readable.
 
-- [ ] **Step 1: Add the seven exact positive classification cases**
+- [x] **Step 1: Add the seven exact positive classification cases**
 
 Add a parameterized test equivalent to:
 
@@ -146,7 +148,7 @@ def test_exact_standard_accounting_concepts_classify_deterministically(
 
 Use the existing `_li()` helper rather than adding a duplicate `LineItem` fixture.
 
-- [ ] **Step 2: Add concept/label mismatch fail-closed tests**
+- [x] **Step 2: Add concept/label mismatch fail-closed tests**
 
 Require the new helper not to activate when the concept and documentary label family contradict each other. Use neutral labels that are not independently handled by another existing rule:
 
@@ -177,7 +179,7 @@ Deferred tax liabilities / deferred_tax_liabilities -> existing deferred-tax tre
 Lease liabilities / lease_liability_current -> existing lease judgment
 ```
 
-- [ ] **Step 3: Run the focused tests red**
+- [x] **Step 3: Run the focused tests red**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_classification.py \
@@ -187,7 +189,7 @@ PYTHONPATH=. pytest core/tests/test_classification.py \
 
 Expected before implementation: the seven new positive cases are unsupported by the Step 9M.2B classifier; the existing specificity regressions remain green.
 
-- [ ] **Step 4: Implement one exact-concept helper**
+- [x] **Step 4: Implement one exact-concept helper**
 
 Add a private helper with an explicit mapping. Equivalent contract:
 
@@ -258,7 +260,7 @@ no company-specific checks
 
 Call this helper from `_classify_by_concept()` **after** more-specific existing concept policies (deferred tax, lease, associate, cash/debt/equity specifics) and before falling through to label heuristics. Do not weaken the existing G2/G2B helpers.
 
-- [ ] **Step 5: Run Task 1 green plus prior classifier regressions**
+- [x] **Step 5: Run Task 1 green plus prior classifier regressions**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_classification.py \
@@ -283,7 +285,7 @@ Expected: all selected tests pass.
 - Use existing `is_balance_sheet_subtotal()` to exclude subtotal/total rows.
 - Do not add Fast Retailing-specific production behavior.
 
-- [ ] **Step 1: Add one real-company inventory acceptance test**
+- [x] **Step 1: Add one real-company inventory acceptance test**
 
 Add a test that classifies every non-subtotal Fast Retailing balance-sheet row and reports all unsupported rows together rather than stopping on the first:
 
@@ -319,7 +321,7 @@ noncontrolling_interests
 
 If the red test shows an additional concept not in that list, stop before widening production rules and report the discrepancy to the user. Do not silently add another mapping.
 
-- [ ] **Step 2: Add exact Fast Retailing category assertions for the seven rows**
+- [x] **Step 2: Add exact Fast Retailing category assertions for the seven rows**
 
 Locate by `item.concept`, not row position, and require:
 
@@ -340,7 +342,7 @@ ambiguous == False
 judgment_code is None
 ```
 
-- [ ] **Step 3: Add NCI boundary regression**
+- [x] **Step 3: Add NCI boundary regression**
 
 The test should make explicit that NCI balance-sheet classification does not close G5. Require only the structural classification:
 
@@ -351,7 +353,7 @@ assert decision.category == "Equity"
 
 Do **not** add or alter assertions for parent-attributable ROE, parent earnings, per-share attribution, or NCI profit allocation in this task.
 
-- [ ] **Step 4: Run Fast Retailing acceptance tests green**
+- [x] **Step 4: Run Fast Retailing acceptance tests green**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
@@ -372,7 +374,7 @@ Expected after Task 1 implementation: the full balance-sheet detail inventory is
 - Existing `run_audit()` remains the behavioral acceptance path.
 - `ReferenceModelBuilder` remains the real integration gate.
 
-- [ ] **Step 1: Add/update the audit-stage regression**
+- [x] **Step 1: Add/update the audit-stage regression**
 
 Require:
 
@@ -392,7 +394,7 @@ For Stage 4:
 
 Do not assert complete workbook success in advance.
 
-- [ ] **Step 2: Run the staged audit**
+- [x] **Step 2: Run the staged audit**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
@@ -410,7 +412,7 @@ whether blank Check was reached
 whether filled Check was reached
 ```
 
-- [ ] **Step 3: Stop on the first new blocker**
+- [x] **Step 3: Stop on the first new blocker**
 
 Do not fix the newly exposed issue in Step 9M.2C unless the audit shows that one of the seven exact mappings above was implemented incorrectly. In particular, do not use this checkpoint to begin:
 
@@ -434,7 +436,7 @@ The purpose of this task is to finish deterministic Stage-4 classification conve
 - Test: `core/tests/test_fast_retailing_benchmark.py`
 - Read only: benchmark source/extracted/reconciled artifacts
 
-- [ ] **Step 1: Prove no new Accounting Judgment cases are created by the seven deterministic rows**
+- [x] **Step 1: Prove no new Accounting Judgment cases are created by the seven deterministic rows**
 
 Add a minimal integration assertion using the existing builder/judgment machinery. For a fixture containing the seven new exact concepts, require that none of their identities appears as a new `JudgmentCase` solely because of Step 9M.2C:
 
@@ -447,7 +449,7 @@ NCI: no new judgment case in this step
 
 Existing lease, G2 financial-instrument, and G2B residual-other judgment cases must remain unchanged.
 
-- [ ] **Step 2: Prove source/reconciliation artifacts are unchanged**
+- [x] **Step 2: Prove source/reconciliation artifacts are unchanged**
 
 Run:
 
@@ -469,7 +471,7 @@ primary-statement overlap conflicts == 3
 supplemental conflicts == 3
 ```
 
-- [ ] **Step 3: Prove workbook fixtures did not drift**
+- [x] **Step 3: Prove workbook fixtures did not drift**
 
 ```bash
 git diff -- \
@@ -491,7 +493,7 @@ Do not regenerate example workbooks in this step.
 - Modify: `RESULT.md`
 - Modify: `IMPLEMENTATION.md` status line only after final verification
 
-- [ ] **Step 1: Add a Step 9M.2C classifier-resolution entry to `GAPS.md`**
+- [x] **Step 1: Add a Step 9M.2C classifier-resolution entry to `GAPS.md`**
 
 Record a new classifier subsection (for example `G2C`) stating exactly:
 
@@ -513,11 +515,11 @@ G5 remains open despite NCI -> Equity structural classification
 
 Do not rename or mark G3–G7 closed unless the audit independently proves their underlying product problem no longer exists.
 
-- [ ] **Step 2: Replace the post-9M.2B blocker section with literal Step 9M.2C audit evidence**
+- [x] **Step 2: Replace the post-9M.2B blocker section with literal Step 9M.2C audit evidence**
 
 Use the exact Stage/exception/message from Task 3. If all stages pass, state that explicitly and list the workbook/Check stages reached. Do not speculate about the next implementation.
 
-- [ ] **Step 3: Update `RESULT.md` from literal command output**
+- [x] **Step 3: Update `RESULT.md` from literal command output**
 
 Record:
 
@@ -545,7 +547,7 @@ Do not pre-fill test counts before running them.
 **Files:**
 - Modify only final status/docs listed in Task 5 after all checks pass.
 
-- [ ] **Step 1: Run the focused Step 9M.2C suite**
+- [x] **Step 1: Run the focused Step 9M.2C suite**
 
 ```bash
 PYTHONPATH=. pytest \
@@ -557,7 +559,7 @@ PYTHONPATH=. pytest \
 
 Expected: all pass. Record the literal pass count.
 
-- [ ] **Step 2: Run the full historical regression suite**
+- [x] **Step 2: Run the full historical regression suite**
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
@@ -565,15 +567,15 @@ PYTHONPATH=. pytest core/tests/ -q
 
 Expected: all pass. Record the literal pass count.
 
-- [ ] **Step 3: Verify forecast/valuation isolation**
+- [x] **Step 3: Verify forecast/valuation isolation**
 
 Run the existing isolation regression used in Step 9M.2A/9M.2B. Normal historical execution must not call scenario, forecast, DCF, residual-income, or valuation paths. Active historical family orders remain `1..90`; this checkpoint adds no formula family.
 
-- [ ] **Step 4: Re-run the source/workbook no-drift commands from Task 4**
+- [x] **Step 4: Re-run the source/workbook no-drift commands from Task 4**
 
 Expected: no output for source/reconciled/example-workbook paths.
 
-- [ ] **Step 5: Run the Fast Retailing audit as the final behavioral gate**
+- [x] **Step 5: Run the Fast Retailing audit as the final behavioral gate**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
@@ -581,7 +583,7 @@ PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
 
 Require the same stage/result measured in Task 3. If the first blocker changes without code/data changes, stop and investigate nondeterminism rather than documenting either run.
 
-- [ ] **Step 6: Mark Step 9M.2C complete only with fresh evidence**
+- [x] **Step 6: Mark Step 9M.2C complete only with fresh evidence**
 
 Only after Steps 1–5 succeed:
 
@@ -591,6 +593,6 @@ Only after Steps 1–5 succeed:
 - update GAPS.md with the measured next blocker/stage.
 ```
 
-- [ ] **Step 7: Stop**
+- [x] **Step 7: Stop**
 
 Do not implement the next blocker. Return the implementation/test summary to the user so they can run `checkpoint`. ChatGPT should then review that checkpoint and decide whether the next step is a substantive G3/G4/G5 accounting-policy step or another measured integration defect.

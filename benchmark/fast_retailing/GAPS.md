@@ -1,6 +1,6 @@
 # Fast Retailing Gap Queue
 
-Evidence basis for Step 9M.2B. Measurement only for remaining gaps — no speculative production redesign here.
+Evidence basis for Step 9M.2C. Measurement only for remaining gaps — no speculative production redesign here.
 
 Categories:
 - **A** source-extraction / provenance defect
@@ -9,14 +9,14 @@ Categories:
 - **D** optional-module input-contract gap
 - **E** comparative/restatement/share-basis conflict
 
-## Observed engine stages (Step 9M.2B)
+## Observed engine stages (Step 9M.2C)
 
 | Stage | Result |
 |---|---|
 | source fixture load | pass |
 | identity validation | pass |
 | financial reconciliation | **pass** (G1 closed) |
-| ReferenceModelBuilder | **fail** — unclassified `Current tax liabilities` |
+| ReferenceModelBuilder | **fail** — `ReformulationIntegrityError` (classified detail vs reported totals gaps) |
 | workbook generation / Check | skipped |
 
 ## Gaps
@@ -46,6 +46,24 @@ Categories:
   without those concepts still fail closed. No company-specific production rule.
 - **Evidence:** Fast Retailing residual rows classify with the four new judgment codes;
   Stage 4 no longer fails on `Other assets` / `Other liabilities`.
+
+### G2C — Deterministic tax/provision/equity concepts — **CLOSED in Step 9M.2C**
+
+- **Category:** B
+- **Stage:** `4_reference_model_builder`
+- **Resolution:** Exact standardized concepts classify deterministically
+  (`ambiguous=False`, no new judgment templates):
+  - `current_tax_liabilities` → Operating Working Capital Liability
+  - `provisions_current` → Operating Working Capital Liability
+  - `provisions_noncurrent` → Operating Long-Term Liability
+  - `capital_stock` / `capital_surplus` / `other_components_of_equity` /
+    `noncontrolling_interests` → Equity
+  Classification is concept-driven with compatible label-family guards; no broad
+  label fallback; no company-specific production rule. **G5 remains open** despite
+  NCI → Equity structural classification (parent attribution / ROE / per-share logic
+  unchanged).
+- **Evidence:** every Fast Retailing non-subtotal BS detail row is classifiable;
+  Stage 4 no longer fails on `Current tax liabilities` or the other six concepts.
 
 ### G3 — Split lease liabilities omit lease diagnostic module (expected under 9L.1)
 
@@ -94,13 +112,19 @@ Categories:
 - **Synthetic coverage:** none for audited restatement overlaps.
 - **Why generalizable:** Latest-audited-presentation must remain explicit; silent overwrites are forbidden.
 
-## Post-9M.2B first remaining blocker
+## Post-9M.2C first remaining blocker
 
 - **Stage:** `4_reference_model_builder`
-- **Exception:** `UnclassifiedBalanceSheetLineError`
-- **Message:** `Cannot safely classify balance-sheet line 'Current tax liabilities'; provide classificationOverrides['Current tax liabilities']`
+- **Exception:** `ReformulationIntegrityError`
+- **Message:** Balance-sheet reformulation does not reconcile — multi-year classified
+  detail vs reported totals gaps, e.g. FY2021 asset-detail gap=-4, liability-detail
+  gap=-6, equity gap=2; similar gaps across FY2022–FY2025.
+- **ReferenceModelBuilder completed:** no
 - **Workbook generation / Check:** not reached (skipped after Stage 4)
-- **Note:** This is **not** one of the four residual `other_*` concepts closed in 9M.2B. Left open for a later checkpoint; not fixed here.
+- **Note:** All Fast Retailing BS detail rows are now classifiable. This integrity
+  gap is a new measured integration defect (missing/excluded detail roll-up vs
+  published totals), not one of the seven G2C concepts. Left open; not fixed in 9M.2C.
+  G3–G7 substantive accounting gaps also remain open.
 
 ## Corrected extraction note (A — closed in 9M.0)
 

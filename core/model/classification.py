@@ -206,8 +206,10 @@ def _classify_by_concept(item: LineItem) -> ClassificationDecision | None:
     ):
         return ClassificationDecision("Equity")
 
-    return _generic_financial_concept_decision(item) or _generic_other_balance_concept_decision(
-        item
+    return (
+        _generic_financial_concept_decision(item)
+        or _generic_other_balance_concept_decision(item)
+        or _deterministic_accounting_concept_decision(item)
     )
 
 
@@ -321,6 +323,58 @@ def _generic_other_balance_concept_decision(
             "not economic nature — operating vs financial judgment"
         ),
         judgment_code=judgment_code,
+    )
+
+
+def _deterministic_accounting_concept_decision(
+    item: LineItem,
+) -> ClassificationDecision | None:
+    c = _concept_token(item.concept or "")
+    low = _norm(item.label)
+
+    mapping: dict[str, tuple[str, tuple[str, ...]]] = {
+        "currenttaxliabilities": (
+            "Operating Working Capital Liability",
+            ("tax", "liab"),
+        ),
+        "provisionscurrent": (
+            "Operating Working Capital Liability",
+            ("provision",),
+        ),
+        "provisionsnoncurrent": (
+            "Operating Long-Term Liability",
+            ("provision",),
+        ),
+        "capitalstock": (
+            "Equity",
+            ("capital stock",),
+        ),
+        "capitalsurplus": (
+            "Equity",
+            ("capital surplus",),
+        ),
+        "othercomponentsofequity": (
+            "Equity",
+            ("component", "equity"),
+        ),
+        "noncontrollinginterests": (
+            "Equity",
+            ("interest",),
+        ),
+    }
+    spec = mapping.get(c)
+    if spec is None:
+        return None
+    category, required_tokens = spec
+    if not all(token in low for token in required_tokens):
+        return None
+    if c == "noncontrollinginterests":
+        if not ("non-controlling" in low or "noncontrolling" in low):
+            return None
+    return ClassificationDecision(
+        category,
+        ambiguous=False,
+        reason="Exact standardized accounting concept",
     )
 
 
