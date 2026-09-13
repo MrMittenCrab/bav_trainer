@@ -448,25 +448,25 @@ def test_demo_quality_surface_base_and_normalization(tmp_path):
     data = _ingest_demo()
     trainer, answer = build_training_workbook(data, tmp_path / "BASE_Trainer.xlsx")
     smap = load_semantic_map(answer)
-    assert len(smap.all_ordered()) == 294
-    assert len(group_components_by_family(smap)) == 70
+    assert len(smap.all_ordered()) == 312
+    assert len(group_components_by_family(smap)) == 74
     wb = load_workbook(answer)
     assert EARNINGS_QUALITY_SHEET in wb.sheetnames
     wb.close()
     summary = check_workbook(trainer)
-    assert summary.total == 294
-    assert summary.blank == 294
+    assert summary.total == 312
+    assert summary.blank == 312
 
     assumptions = json.loads(DEMO_ASSUMPTIONS.read_text(encoding="utf-8"))
     trainer_n, answer_n = build_training_workbook(
         data, tmp_path / "NORM_Trainer.xlsx", assumptions
     )
     smap_n = load_semantic_map(answer_n)
-    assert len(smap_n.all_ordered()) == 314
-    assert len(group_components_by_family(smap_n)) == 74
+    assert len(smap_n.all_ordered()) == 332
+    assert len(group_components_by_family(smap_n)) == 78
     summary_n = check_workbook(trainer_n)
-    assert summary_n.total == 314
-    assert summary_n.blank == 314
+    assert summary_n.total == 332
+    assert summary_n.blank == 332
 
 
 def test_cfo_unavailable_keeps_prior_surface(tmp_path):

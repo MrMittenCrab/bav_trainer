@@ -68,3 +68,26 @@ def test_googl_reference_workbook_is_auditable_read_only():
         }
         assert isinstance(sheet["representative_labels"], list)
         assert len(sheet["representative_labels"]) <= 40
+
+
+def test_googl_historical_reference_doc_separates_evidence_from_trainer():
+    doc = (ROOT / "docs" / "GOOGL_HISTORICAL_REFERENCE.md").read_text(encoding="utf-8")
+    assert "Canonical Answer Key SHA-256:" not in doc
+    assert "81faf2882d0df07ecf5def45695431c1935b4f7a94c1e017367596a063063896" in doc
+
+    # Fixed-asset matrix row: GOOGL evidence stays source facts; Trainer names the module.
+    assert "BS Property and equipment" in doc
+    assert "CF depreciation" in doc or "CF Depreciation" in doc
+    assert "Purchases of property and equipment" in doc
+    matrix_section = doc.split("## Historical capability gap matrix", 1)[1].split(
+        "## Explicitly deferred", 1
+    )[0]
+    fa_line = next(
+        line
+        for line in matrix_section.splitlines()
+        if line.startswith("| PP&E / D&A / asset intensity |")
+    )
+    cols = [c.strip() for c in fa_line.strip("|").split("|")]
+    googl_evidence, current_trainer = cols[1], cols[2]
+    assert "FIXED-ASSET INTENSITY CONTEXT" not in googl_evidence
+    assert "FIXED-ASSET INTENSITY CONTEXT" in current_trainer or "fixed-asset" in current_trainer.lower()

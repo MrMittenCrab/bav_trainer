@@ -30,12 +30,13 @@ Active historical surface:
 - optional diluted per-share analysis
 - optional normalized diluted-EPS bridge
 - PP&E / D&A fixed-asset intensity diagnostics (when both lines resolve)
+- optional aggregate lease-liability intensity/trend diagnostics
 - synthetic cross-company robustness matrix
 
 Regression surfaces:
-- ordinary demo: 70/294 base, 74/314 with normalization
-- share-enabled: 78/328 base, 86/366 with normalization
-- cross-company synthetic matrix: services 59/248, retail 78/331, manufacturer 70/293
+- ordinary demo: 74/312 base, 78/332 with normalization
+- share-enabled: 82/346 base, 90/384 with normalization
+- cross-company synthetic matrix: services 59/248, retail 78/331, manufacturer 74/311
 
 The illustrative demo has no historical share input, so Per Share Analysis is absent in both demo builds.
 
@@ -96,8 +97,8 @@ python -m core build example/DEMO_HK_Standardized.json \
 Outputs:
 - `DEMO_HK_Trainer.xlsx` — source/classifications filled; yellow schedule cells blank
 - `DEMO_HK_Answer_Key.xlsx` — working formulas + legacy Notes on the same cells
-- With demo assumptions: 74 families / 314 cells (includes Earnings Normalization + Earnings Quality + fixed-asset intensity)
-- Without `-a`: 70 families / 294 cells (includes Earnings Quality + fixed-asset intensity; no normalization sheets)
+- With demo assumptions: 78 families / 332 cells (includes Earnings Normalization + Earnings Quality + fixed-asset + lease-liability intensity)
+- Without `-a`: 74 families / 312 cells (includes Earnings Quality + fixed-asset + lease-liability intensity; no normalization sheets)
 
 There is **no** user-facing `*_reference.xlsx` and no Trainer `.trainer.json`.
 
@@ -112,7 +113,7 @@ python -m core check --workbook training/DEMO_HK_Trainer.xlsx
 
 3. Open the Answer Key for the formula and Note hint.
 
-Active historical schedules: Revenue/NI links → tax/interest/NOPAT → OWCA/OWCL/NOWC → OLTA/OLTL/NOLA → NOA → FA/FL/Net Debt → Equity → Sales Growth / NOPAT Margin → RNOA / After-tax CoD / Spread / FLEV / ROE → (optional) Earnings Normalization → Earnings Quality levels and cash-conversion/accrual trends → Working Capital Analysis (when OWCA/OWCL present) → RNOA margin/turnover drivers and change attribution → ROE financing contribution and operating/financing change attribution → PP&E / D&A fixed-asset intensity context on ALT DuPont when both PP&E and D&A resolve → (optional) Per Share Analysis when diluted weighted-average share history is supplied, including diluted-EPS earnings vs share-count attribution and (when normalization is also active) the normalized diluted-EPS bridge. These are arithmetic diagnostics, not automatic quality, leverage, dilution, financing-policy, or capital-intensity judgments.
+Active historical schedules: Revenue/NI links → tax/interest/NOPAT → OWCA/OWCL/NOWC → OLTA/OLTL/NOLA → NOA → FA/FL/Net Debt → Equity → Sales Growth / NOPAT Margin → RNOA / After-tax CoD / Spread / FLEV / ROE → (optional) Earnings Normalization → Earnings Quality levels and cash-conversion/accrual trends → Working Capital Analysis (when OWCA/OWCL present) → RNOA margin/turnover drivers and change attribution → ROE financing contribution and operating/financing change attribution → PP&E / D&A fixed-asset intensity context on ALT DuPont when both PP&E and D&A resolve → aggregate lease-liability intensity/trend context on ALT DuPont when one lease liability resolves → (optional) Per Share Analysis when diluted weighted-average share history is supplied, including diluted-EPS earnings vs share-count attribution and (when normalization is also active) the normalized diluted-EPS bridge. These are arithmetic diagnostics, not automatic quality, leverage, dilution, financing-policy, capital-intensity, or lease-intensity judgments.
 
 Step 9F.1 — historical diluted per-share foundation
 - gated on explicitly supplied diluted weighted-average share history
@@ -164,11 +165,20 @@ Step 9K.1 — PP&E / D&A fixed-asset intensity diagnostics
 - gated on both explicit PP&E and D&A source lines
 - eight families (orders 79–86) on ALT DuPont; no new worksheet; no capex inference
 - D&A / Average PP&E is context only (combined D&A is not a pure PP&E depreciation rate)
-- surfaces: ordinary 70/294 base, 74/314 with normalization; shares 78/328, shares+norm 86/366
-- cross-company fixtures unchanged (no D&A): services 59/248, retail 78/331, manufacturer 70/293
-- active family namespace: 1..86
+- surfaces after 9K: ordinary 70/294 base, 74/314 with normalization; shares 78/328, shares+norm 86/366
+- cross-company fixtures unchanged then (no D&A): services 59/248, retail 78/331, manufacturer 70/293
+- active family namespace after 9K: 1..86
 
-Still deferred: company-specific causal diagnosis, basic-vs-diluted attribution, forecasting, valuation, investment conclusions, ROU/deferred-tax alternative modeling, explicit capex/reinvestment bridge, empirical real-company validation.
+Step 9L.1 — lease-liability diagnostics + judgment-selector hardening
+- generated Accounting Judgment cases use exact `identity:` selectors (concept:/label: remain for manual overrides)
+- four families (orders 87–90) on ALT DuPont when one aggregate lease liability resolves
+- split current/non-current lease rows stay judgment-usable but omit diagnostics (no silent aggregation)
+- no ROU asset, lease payment, discount-rate, or amortization schedule inference
+- surfaces: ordinary 74/312 base, 78/332 with normalization; shares 82/346, shares+norm 90/384
+- cross-company: services 59/248, retail 78/331, manufacturer 74/311
+- active family namespace: 1..90
+
+Still deferred: company-specific causal diagnosis, basic-vs-diluted attribution, forecasting, valuation, investment conclusions, ROU/deferred-tax alternative modeling, explicit capex/reinvestment bridge, split lease aggregation, empirical real-company validation.
 
 ## Design principles
 

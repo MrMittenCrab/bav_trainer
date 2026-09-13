@@ -13,6 +13,7 @@ from core.engine.component_catalog import (
     COMPONENT_CATALOG,
     DEFERRED_COMPONENT_SPECS,
     FIXED_ASSET_COMPONENT_CATALOG,
+    LEASE_LIABILITY_COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
     PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG,
@@ -51,6 +52,7 @@ ACTIVE_CATALOGS = (
     PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
     FIXED_ASSET_COMPONENT_CATALOG,
+    LEASE_LIABILITY_COMPONENT_CATALOG,
 )
 
 
@@ -95,7 +97,7 @@ def test_historical_v1_active_catalog_namespace_is_frozen():
 
     assert len(ids) == len(set(ids))
     assert len(orders) == len(set(orders))
-    assert sorted(orders) == list(range(1, 87))
+    assert sorted(orders) == list(range(1, 91))
 
     deferred_ids = {spec.id for spec in DEFERRED_COMPONENT_SPECS}
     assert deferred_ids.isdisjoint(ids)
@@ -149,8 +151,8 @@ def test_canonical_demo_trainer_answer_key_practice_contract(tmp_path):
         assumptions,
     )
     smap = load_semantic_map(answer)
-    assert len(group_components_by_family(smap)) == 74
-    assert len(smap.all_ordered()) == 314
+    assert len(group_components_by_family(smap)) == 78
+    assert len(smap.all_ordered()) == 332
 
     trainer_wb = load_workbook(trainer, data_only=False)
     answer_wb = load_workbook(answer, data_only=False)
@@ -217,10 +219,10 @@ def test_committed_canonical_demo_pair_matches_current_builder():
     assert answer.is_file()
 
     smap = load_semantic_map(answer)
-    assert len(group_components_by_family(smap)) == 74
-    assert len(smap.all_ordered()) == 314
+    assert len(group_components_by_family(smap)) == 78
+    assert len(smap.all_ordered()) == 332
     summary = check_workbook(trainer)
-    assert (summary.correct, summary.incorrect, summary.blank) == (0, 0, 314)
+    assert (summary.correct, summary.incorrect, summary.blank) == (0, 0, 332)
 
     for suffix in (".component_map.json", ".trainer.json", ".assumptions.json"):
         assert not trainer.with_suffix(suffix).exists()

@@ -185,8 +185,8 @@ def test_canonical_demo_surface_and_alt_dupont_section(tmp_path):
     data = _ingest_demo()
     trainer, answer = build_training_workbook(data, tmp_path / "FA_BASE.xlsx")
     smap = load_semantic_map(answer)
-    assert len(group_components_by_family(smap)) == 70
-    assert len(smap.all_ordered()) == 294
+    assert len(group_components_by_family(smap)) == 74
+    assert len(smap.all_ordered()) == 312
     fa = [c for c in smap.all_ordered() if c.family_id in {f.id for f in FIXED_ASSET_COMPONENT_CATALOG}]
     assert len({c.family_id for c in fa}) == 8
     assert len(fa) == 35
@@ -198,7 +198,7 @@ def test_canonical_demo_surface_and_alt_dupont_section(tmp_path):
     assert "Fixed Asset Analysis" not in wb.sheetnames
     wb.close()
     summary = check_workbook(trainer)
-    assert (summary.correct, summary.incorrect, summary.blank) == (0, 0, 294)
+    assert (summary.correct, summary.incorrect, summary.blank) == (0, 0, 312)
 
 
 def test_ppe_only_omits_module(tmp_path):

@@ -305,14 +305,14 @@ def test_normalization_sheets_answer_key_and_trainer_contract(tmp_path):
 
     trainer_path, answer_key_path = _build_norm_pair(tmp_path)
     smap = load_semantic_map(answer_key_path)
-    assert len(smap.all_ordered()) == 314
+    assert len(smap.all_ordered()) == 332
     assert len(COMPONENT_CATALOG) == 25
     assert len(NORMALIZATION_COMPONENT_CATALOG) == 4
     assert [f.order for f in NORMALIZATION_COMPONENT_CATALOG] == [26, 27, 28, 29]
 
     groups = group_components_by_family(smap)
-    assert len(groups) == 74
-    assert groups[-1]["family_order"] == 86
+    assert len(groups) == 78
+    assert groups[-1]["family_order"] == 90
 
     wb_a = load_workbook(answer_key_path, data_only=False)
     wb_t = load_workbook(trainer_path, data_only=False)
@@ -408,16 +408,16 @@ def test_no_normalization_assumptions_keeps_quality_surface_and_omits_norm_sheet
         data, tmp_path / "BASE_Trainer.xlsx"
     )
     smap = load_semantic_map(answer_key_path)
-    assert len(smap.all_ordered()) == 294
+    assert len(smap.all_ordered()) == 312
     assert len(expand_historical_specs(canonical_fiscal_periods(data))) == 118
-    assert len(group_components_by_family(smap)) == 70
+    assert len(group_components_by_family(smap)) == 74
     wb = load_workbook(answer_key_path, data_only=False)
     assert "Normalization Judgment" not in wb.sheetnames
     assert "Earnings Normalization" not in wb.sheetnames
     wb.close()
     summary = check_workbook(trainer_path)
-    assert summary.total == 294
-    assert summary.blank == 294
+    assert summary.total == 312
+    assert summary.blank == 312
 
 
 def test_expand_normalization_specs_continuous_order():
@@ -554,11 +554,11 @@ def _fy2023(smap, family_id: str):
 def test_dynamic_normalization_reference_and_recurring(tmp_path):
     trainer_path, answer_key_path = _build_norm_pair(tmp_path)
     smap = load_semantic_map(answer_key_path)
-    assert len(smap.all_ordered()) == 314
+    assert len(smap.all_ordered()) == 332
 
     summary = check_workbook(trainer_path)
-    assert summary.total == 314
-    assert summary.blank == 314
+    assert summary.total == 332
+    assert summary.blank == 332
 
     comp = _fy2023(smap, "after_tax_normalization_adjustment")
     # Exact formula under blank F / Non-recurring reference.
@@ -1000,7 +1000,12 @@ def test_exact_valid_treatments_still_accepted(tmp_path):
     overrides = classification_overrides_for_check(wb, ctx)
     wb.close()
     assert list(treatments.values()) == ["Recurring"]
-    assert overrides["concept:lease_liability"] == "Financial Liability"
+    lease_sel = next(
+        b.override_selector
+        for b in ctx.judgment_bindings
+        if "lease" in b.override_selector
+    )
+    assert overrides[lease_sel] == "Financial Liability"
 
     summary = check_workbook(trainer_path)
     assert summary.correct == 1
@@ -1100,7 +1105,7 @@ def test_base_build_source_tamper_fails_closed(tmp_path):
         data, tmp_path / "BASE_Trainer.xlsx"
     )
     smap = load_semantic_map(answer_key_path)
-    assert len(smap.all_ordered()) == 294
+    assert len(smap.all_ordered()) == 312
     comp = max(
         (c for c in smap.all_ordered() if c.family_id == "revenue_link"),
         key=lambda c: c.period_index or 0,

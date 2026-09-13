@@ -141,6 +141,7 @@ def test_build_paired_trainer_and_answer_key(tmp_path):
     periods = data.fiscal_years() or data.period_dates()
     from core.engine.component_catalog import (
         expand_fixed_asset_specs,
+        expand_lease_liability_specs,
         expand_quality_specs,
         expand_working_capital_specs,
         expand_profitability_driver_specs,
@@ -177,8 +178,22 @@ def test_build_paired_trainer_and_answer_key(tmp_path):
             len(hist) + len(quality) + len(wc) + len(pd) + len(pc) + len(ra) + len(qc) + 1
         ),
     )
-    expected = hist + quality + wc + pd + pc + ra + qc + fa
-    assert len(smap.all_ordered()) == len(expected) == 294
+    lease = expand_lease_liability_specs(
+        periods,
+        start_order=(
+            len(hist)
+            + len(quality)
+            + len(wc)
+            + len(pd)
+            + len(pc)
+            + len(ra)
+            + len(qc)
+            + len(fa)
+            + 1
+        ),
+    )
+    expected = hist + quality + wc + pd + pc + ra + qc + fa + lease
+    assert len(smap.all_ordered()) == len(expected) == 312
     for spec in expected:
         comp = smap.get(spec.id)
         assert comp.formula.startswith("=")
@@ -296,12 +311,12 @@ def test_trainer_index_groups_schedules_not_cells(tmp_path):
     trainer_path, answer_key_path = _build_pair(tmp_path)
     smap = load_semantic_map(answer_key_path)
     groups = group_components_by_family(smap)
-    assert len(groups) == 70
+    assert len(groups) == 74
 
     wb = load_workbook(trainer_path, data_only=False)
     ws = wb["Trainer"]
     index_family_rows = (ws.max_row or 4) - 4
-    assert index_family_rows == 70
+    assert index_family_rows == 74
 
     by_title = {g["title"]: g for g in groups}
     assert by_title["Revenue historical source link"]["count"] == 5
@@ -666,7 +681,7 @@ def test_v1_deferred_tabs_are_hidden_placeholders(tmp_path):
     for comp in smap.all_ordered():
         for name in deferred:
             assert name not in comp.formula
-    assert len(smap.all_ordered()) == 294
+    assert len(smap.all_ordered()) == 312
     deferred_ids = {
         "model_sales_y1",
         "model_nopat_y1",
@@ -681,7 +696,7 @@ def test_v1_deferred_tabs_are_hidden_placeholders(tmp_path):
 def test_expanded_historical_chain_check_three_states(tmp_path):
     trainer_path, answer_key_path = _build_pair(tmp_path)
     smap = load_semantic_map(answer_key_path)
-    assert len(smap.all_ordered()) == 294
+    assert len(smap.all_ordered()) == 312
 
     etr = next(c for c in smap.all_ordered() if c.family_id == "effective_tax_rate_fy")
     owca = next(c for c in smap.all_ordered() if c.family_id == "owca_agg")
@@ -697,10 +712,10 @@ def test_expanded_historical_chain_check_three_states(tmp_path):
     wb.close()
 
     summary = check_workbook(trainer_path)
-    assert summary.total == 294
+    assert summary.total == 312
     assert summary.correct == 1
     assert summary.incorrect == 1
-    assert summary.blank == 292
+    assert summary.blank == 310
 
     wb = load_workbook(trainer_path, data_only=False)
     r, c = parse_cell_ref(etr.cell)
@@ -932,7 +947,7 @@ def test_period_aware_semantic_map_round_trip(tmp_path):
 def test_multi_period_correction_cycle(tmp_path):
     trainer_path, answer_key_path = _build_pair(tmp_path)
     smap = load_semantic_map(answer_key_path)
-    assert len(smap.all_ordered()) == 294
+    assert len(smap.all_ordered()) == 312
 
     nopats = [c for c in smap.all_ordered() if c.family_id == "nopat_fy"]
     assert len(nopats) == 5
@@ -948,10 +963,10 @@ def test_multi_period_correction_cycle(tmp_path):
     wb.close()
 
     summary = check_workbook(trainer_path)
-    assert summary.total == 294
+    assert summary.total == 312
     assert summary.correct == 5
     assert summary.incorrect == 1
-    assert summary.blank == 288
+    assert summary.blank == 306
 
     wb = load_workbook(trainer_path, data_only=False)
     r, c = parse_cell_ref(growth.cell)
@@ -962,7 +977,7 @@ def test_multi_period_correction_cycle(tmp_path):
     summary = check_workbook(trainer_path)
     assert summary.correct == 6
     assert summary.incorrect == 0
-    assert summary.blank == 288
+    assert summary.blank == 306
 
     wb = load_workbook(trainer_path, data_only=False)
     r, c = parse_cell_ref(nopats[0].cell)
@@ -973,7 +988,7 @@ def test_multi_period_correction_cycle(tmp_path):
     summary = check_workbook(trainer_path)
     assert summary.correct == 5
     assert summary.incorrect == 0
-    assert summary.blank == 289
+    assert summary.blank == 307
 
     wb = load_workbook(trainer_path, data_only=False)
     for comp in nopats[1:]:
@@ -1018,7 +1033,7 @@ def test_stale_trainer_sidecars_removed_on_rebuild(tmp_path, capsys):
     assert main(["list", "--workbook", str(trainer_path)]) == 0
     out = capsys.readouterr().out
     lines = [ln for ln in out.splitlines() if ln.strip()]
-    assert len(lines) == 70
+    assert len(lines) == 74
     assert any("5 cells" in ln for ln in lines)
     assert any("4 cells" in ln for ln in lines)
     assert "SECRET_OLD_FORMULA" not in out
@@ -1040,7 +1055,7 @@ def test_accounting_judgment_sheet_answer_key_and_trainer_contract(tmp_path):
     case = builder.judgment_cases[0]
 
     smap = load_semantic_map(answer_key_path)
-    assert len(smap.all_ordered()) == 294
+    assert len(smap.all_ordered()) == 312
 
     wb_a = load_workbook(answer_key_path, data_only=False)
     wb_t = load_workbook(trainer_path, data_only=False)
@@ -1092,10 +1107,10 @@ def test_accounting_judgment_sheet_answer_key_and_trainer_contract(tmp_path):
     )
 
     summary = check_workbook(trainer_path)
-    assert summary.total == 294
+    assert summary.total == 312
     assert summary.correct == 0
     assert summary.incorrect == 0
-    assert summary.blank == 294
+    assert summary.blank == 312
 
     forbidden = [case.model_rationale, case.model_consequence]
     for name in wb_t.sheetnames:
@@ -1133,7 +1148,7 @@ def test_trainer_instruction_mentions_judgment_not_graded_by_check(tmp_path):
     assert "Condensed Financials" in instruction
     assert "every yellow cell" not in instruction.lower()
     # Accounting Judgment is not an extra formula-family row.
-    assert (wb["Trainer"].max_row or 4) - 4 == 70
+    assert (wb["Trainer"].max_row or 4) - 4 == 74
     wb.close()
 
 
@@ -1266,10 +1281,10 @@ def _set_judgment_treatment(trainer_path, treatment):
 def test_dynamic_check_fresh_reference_parity(tmp_path):
     trainer_path, _ = _build_pair(tmp_path)
     summary = check_workbook(trainer_path)
-    assert summary.total == 294
+    assert summary.total == 312
     assert summary.correct == 0
     assert summary.incorrect == 0
-    assert summary.blank == 294
+    assert summary.blank == 312
 
 
 def test_alternative_treatment_exact_formula_is_green(tmp_path):
@@ -1306,7 +1321,7 @@ def test_alternative_treatment_exact_formula_is_green(tmp_path):
     summary = check_workbook(trainer_path)
     assert summary.correct == 1
     assert summary.incorrect == 0
-    assert summary.blank == 293
+    assert summary.blank == 311
 
 
 def test_alternative_treatment_equivalent_formula_and_stale_reference(tmp_path):
@@ -1434,15 +1449,24 @@ def test_dynamic_check_two_case_combined_state(tmp_path):
     wb = load_workbook(trainer, data_only=False)
     overrides = classification_overrides_for_check(wb, ctx)
     wb.close()
-    assert overrides["concept:lease_liability"] == "Financial Liability"
-    assert any(v == "Financial Liability" for k, v in overrides.items() if "Pension" in k or "pension" in k.lower() or k.startswith("label:"))
+    lease_sel = next(
+        b.override_selector
+        for b in ctx.judgment_bindings
+        if "lease" in b.override_selector
+    )
+    assert overrides[lease_sel] == "Financial Liability"
+    assert any(
+        v == "Financial Liability"
+        for k, v in overrides.items()
+        if "Pension" in k or "pension" in k.lower() or k.startswith("label:") or k.startswith("identity:")
+    )
 
     periods = canonical_fiscal_periods(fin)
     combined = compute_anchor(fin, periods, classification_overrides=overrides)
     one_only = compute_anchor(
         fin,
         periods,
-        classification_overrides={"concept:lease_liability": "Financial Liability"},
+        classification_overrides={lease_sel: "Financial Liability"},
     )
     comp = max(
         (c for c in smap.all_ordered() if c.family_id == "net_debt"),
@@ -1560,7 +1584,7 @@ def test_judgment_structure_passes_for_blank_and_alternative(tmp_path):
     wb_t.close()
     wb_a.close()
     summary = check_workbook(trainer_path)
-    assert summary.blank == 294
+    assert summary.blank == 312
 
 
 def test_prompt_modified_d_rejected_before_grading(tmp_path):

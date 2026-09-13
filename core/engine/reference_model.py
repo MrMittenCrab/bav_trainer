@@ -25,6 +25,10 @@ from ..model.fixed_asset import (
     compute_fixed_asset_series,
     fixed_asset_applicable,
 )
+from ..model.lease_liability import (
+    compute_lease_liability_series,
+    lease_liability_applicable,
+)
 from ..model.judgment import JudgmentCase, classification_judgment_cases
 from ..model.line_resolver import resolve_line, workbook_row_for
 from ..model.normalization import (
@@ -48,6 +52,7 @@ from .component_catalog import (
     DEFERRED_COMPONENT_SPECS,
     expand_fixed_asset_specs,
     expand_historical_specs,
+    expand_lease_liability_specs,
     expand_normalization_specs,
     expand_normalized_per_share_specs,
     expand_per_share_attribution_specs,
@@ -327,6 +332,33 @@ class ReferenceModelBuilder:
         else:
             self.fixed_asset_series = None
             self.fixed_asset_specs = ()
+        if lease_liability_applicable(self.fin):
+            self.lease_liability_series = compute_lease_liability_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.lease_liability_specs = expand_lease_liability_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + len(self.profitability_change_specs)
+                    + len(self.roe_attribution_specs)
+                    + len(self.quality_change_specs)
+                    + len(self.per_share_specs)
+                    + len(self.per_share_attribution_specs)
+                    + len(self.normalized_per_share_specs)
+                    + len(self.fixed_asset_specs)
+                    + 1
+                ),
+            )
+        else:
+            self.lease_liability_series = None
+            self.lease_liability_specs = ()
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
@@ -340,6 +372,7 @@ class ReferenceModelBuilder:
             + self.per_share_attribution_specs
             + self.normalized_per_share_specs
             + self.fixed_asset_specs
+            + self.lease_liability_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -379,6 +412,9 @@ class ReferenceModelBuilder:
         }
         self._fixed_asset_spec_index = {
             (s.family_id, s.period_index): s for s in self.fixed_asset_specs
+        }
+        self._lease_liability_spec_index = {
+            (s.family_id, s.period_index): s for s in self.lease_liability_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -722,6 +758,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._fixed_asset_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_lease_liability(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._lease_liability_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -1844,173 +1896,277 @@ class ReferenceModelBuilder:
         self.rowmap["dupont_driver_roe_change_row"] = driver_roe_change_row
         self.rowmap["dupont_roe_change_attribution_check_row"] = roe_change_check_row
 
-        if self.fixed_asset_series is None:
+        next_section_after = roe_change_check_row
+        if self.fixed_asset_series is not None:
+            series = self.fixed_asset_series
+            ppe_src = self._resolved_source_row(
+                self.fin.balance_sheet, "property_plant_equipment", required=True
+            )
+            da_src = self._resolved_source_row(
+                self.fin.cash_flow, "depreciation_amortization", required=True
+            )
+            assert ppe_src is not None and da_src is not None
+            rev_r = self.rowmap["condensed_revenue_row"]
+
+            fa_section_row = next_section_after + 2
+            ppe_row = fa_section_row + 1
+            da_row = fa_section_row + 2
+            avg_ppe_row = fa_section_row + 3
+            turnover_row = fa_section_row + 4
+            intensity_row = fa_section_row + 5
+            change_row = fa_section_row + 6
+            da_rev_row = fa_section_row + 7
+            da_avg_row = fa_section_row + 8
+            fa_check_row = fa_section_row + 9
+
+            ws.cell(
+                row=fa_section_row, column=1, value="FIXED-ASSET INTENSITY CONTEXT"
+            ).font = BOLD
+            ws.cell(row=ppe_row, column=1, value="Property, Plant & Equipment")
+            ws.cell(row=da_row, column=1, value="Depreciation & Amortisation")
+            ws.cell(row=avg_ppe_row, column=1, value="Average PP&E")
+            ws.cell(row=turnover_row, column=1, value="PP&E Turnover")
+            ws.cell(row=intensity_row, column=1, value="PP&E Intensity")
+            ws.cell(row=change_row, column=1, value="Change in PP&E")
+            ws.cell(row=da_rev_row, column=1, value="D&A / Revenue")
+            ws.cell(row=da_avg_row, column=1, value="D&A / Average PP&E")
+            ws.cell(
+                row=fa_check_row, column=1, value="FIXED-ASSET INTENSITY CHECK"
+            ).font = BOLD
+
+            for j in range(self._n):
+                out_col_idx = 2 + j
+                out_col = self._col(out_col_idx)
+                src_col = self._col(2 + j)
+
+                ppe_f = f"='Balance Sheet'!{src_col}{ppe_src}"
+                da_f = f"='Cash Flow Statement'!{src_col}{da_src}"
+                da_rev_f = (
+                    f"=IF('Condensed Financials'!{src_col}{rev_r}=0,NA(),"
+                    f"{out_col}{da_row}/'Condensed Financials'!{src_col}{rev_r})"
+                )
+
+                c = ws.cell(row=ppe_row, column=out_col_idx, value=ppe_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=da_row, column=out_col_idx, value=da_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=da_rev_row, column=out_col_idx, value=da_rev_f)
+                c.number_format = PCT_FMT
+
+                self._register_fixed_asset(
+                    "ppe_source_link",
+                    j,
+                    "ALT DuPont",
+                    ppe_row,
+                    out_col_idx,
+                    ppe_f,
+                    float(series.ppe[j]),
+                )
+                self._register_fixed_asset(
+                    "da_source_link",
+                    j,
+                    "ALT DuPont",
+                    da_row,
+                    out_col_idx,
+                    da_f,
+                    float(series.depreciation_amortization[j]),
+                )
+                self._register_fixed_asset(
+                    "da_to_revenue",
+                    j,
+                    "ALT DuPont",
+                    da_rev_row,
+                    out_col_idx,
+                    da_rev_f,
+                    series.da_to_revenue[j]
+                    if isinstance(series.da_to_revenue[j], str)
+                    else float(series.da_to_revenue[j]),
+                )
+
+                if j == 0:
+                    for row in (
+                        avg_ppe_row,
+                        turnover_row,
+                        intensity_row,
+                        change_row,
+                        da_avg_row,
+                        fa_check_row,
+                    ):
+                        ws.cell(row=row, column=out_col_idx, value=na)
+                    continue
+
+                prev_col = self._col(2 + j - 1)
+                avg_f = f"=({prev_col}{ppe_row}+{out_col}{ppe_row})/2"
+                turnover_f = (
+                    f"=IF({out_col}{avg_ppe_row}=0,NA(),"
+                    f"'Condensed Financials'!{src_col}{rev_r}/{out_col}{avg_ppe_row})"
+                )
+                intensity_f = (
+                    f"=IF('Condensed Financials'!{src_col}{rev_r}=0,NA(),"
+                    f"{out_col}{avg_ppe_row}/'Condensed Financials'!{src_col}{rev_r})"
+                )
+                change_f = f"={out_col}{ppe_row}-{prev_col}{ppe_row}"
+                da_avg_f = (
+                    f"=IF({out_col}{avg_ppe_row}=0,NA(),"
+                    f"{out_col}{da_row}/{out_col}{avg_ppe_row})"
+                )
+                check_f = (
+                    f'=IF(OR(ISNA({out_col}{turnover_row}),'
+                    f'ISNA({out_col}{intensity_row})),"N/A",'
+                    f'IF(ABS({out_col}{turnover_row}*{out_col}{intensity_row}-1)'
+                    f'<0.0000001,"OK","CHECK"))'
+                )
+
+                c = ws.cell(row=avg_ppe_row, column=out_col_idx, value=avg_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=turnover_row, column=out_col_idx, value=turnover_f)
+                c.number_format = "0.00x"
+                c = ws.cell(row=intensity_row, column=out_col_idx, value=intensity_f)
+                c.number_format = PCT_FMT
+                c = ws.cell(row=change_row, column=out_col_idx, value=change_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=da_avg_row, column=out_col_idx, value=da_avg_f)
+                c.number_format = PCT_FMT
+                ws.cell(row=fa_check_row, column=out_col_idx, value=check_f)
+
+                registrations = (
+                    ("average_ppe", avg_ppe_row, avg_f, series.average_ppe[j]),
+                    ("ppe_turnover", turnover_row, turnover_f, series.ppe_turnover[j]),
+                    ("ppe_intensity", intensity_row, intensity_f, series.ppe_intensity[j]),
+                    ("ppe_change", change_row, change_f, series.ppe_change[j]),
+                    (
+                        "da_to_average_ppe",
+                        da_avg_row,
+                        da_avg_f,
+                        series.da_to_average_ppe[j],
+                    ),
+                )
+                for family_id, row, formula, expected in registrations:
+                    assert expected is not None
+                    self._register_fixed_asset(
+                        family_id,
+                        j,
+                        "ALT DuPont",
+                        row,
+                        out_col_idx,
+                        formula,
+                        expected if isinstance(expected, str) else float(expected),
+                    )
+
+            self.rowmap["dupont_ppe_source_row"] = ppe_row
+            self.rowmap["dupont_da_source_row"] = da_row
+            self.rowmap["dupont_average_ppe_row"] = avg_ppe_row
+            self.rowmap["dupont_ppe_turnover_row"] = turnover_row
+            self.rowmap["dupont_ppe_intensity_row"] = intensity_row
+            self.rowmap["dupont_ppe_change_row"] = change_row
+            self.rowmap["dupont_da_to_revenue_row"] = da_rev_row
+            self.rowmap["dupont_da_to_average_ppe_row"] = da_avg_row
+            self.rowmap["dupont_fixed_asset_check_row"] = fa_check_row
+            next_section_after = fa_check_row
+
+        if self.lease_liability_series is None:
             return
 
-        series = self.fixed_asset_series
-        ppe_src = self._resolved_source_row(
-            self.fin.balance_sheet, "property_plant_equipment", required=True
+        lease_series = self.lease_liability_series
+        lease_src = self._resolved_source_row(
+            self.fin.balance_sheet, "lease_liability", required=True
         )
-        da_src = self._resolved_source_row(
-            self.fin.cash_flow, "depreciation_amortization", required=True
-        )
-        assert ppe_src is not None and da_src is not None
+        assert lease_src is not None
         rev_r = self.rowmap["condensed_revenue_row"]
 
-        fa_section_row = roe_change_check_row + 2
-        ppe_row = fa_section_row + 1
-        da_row = fa_section_row + 2
-        avg_ppe_row = fa_section_row + 3
-        turnover_row = fa_section_row + 4
-        intensity_row = fa_section_row + 5
-        change_row = fa_section_row + 6
-        da_rev_row = fa_section_row + 7
-        da_avg_row = fa_section_row + 8
-        fa_check_row = fa_section_row + 9
+        lease_section_row = next_section_after + 2
+        lease_row = lease_section_row + 1
+        lease_rev_row = lease_section_row + 2
+        lease_change_row = lease_section_row + 3
+        lease_growth_row = lease_section_row + 4
 
         ws.cell(
-            row=fa_section_row, column=1, value="FIXED-ASSET INTENSITY CONTEXT"
+            row=lease_section_row, column=1, value="LEASE LIABILITY CONTEXT"
         ).font = BOLD
-        ws.cell(row=ppe_row, column=1, value="Property, Plant & Equipment")
-        ws.cell(row=da_row, column=1, value="Depreciation & Amortisation")
-        ws.cell(row=avg_ppe_row, column=1, value="Average PP&E")
-        ws.cell(row=turnover_row, column=1, value="PP&E Turnover")
-        ws.cell(row=intensity_row, column=1, value="PP&E Intensity")
-        ws.cell(row=change_row, column=1, value="Change in PP&E")
-        ws.cell(row=da_rev_row, column=1, value="D&A / Revenue")
-        ws.cell(row=da_avg_row, column=1, value="D&A / Average PP&E")
-        ws.cell(
-            row=fa_check_row, column=1, value="FIXED-ASSET INTENSITY CHECK"
-        ).font = BOLD
+        ws.cell(row=lease_row, column=1, value="Lease Liability")
+        ws.cell(row=lease_rev_row, column=1, value="Lease Liability / Revenue")
+        ws.cell(row=lease_change_row, column=1, value="Change in Lease Liability")
+        ws.cell(row=lease_growth_row, column=1, value="Lease Liability Growth")
 
         for j in range(self._n):
             out_col_idx = 2 + j
             out_col = self._col(out_col_idx)
             src_col = self._col(2 + j)
 
-            ppe_f = f"='Balance Sheet'!{src_col}{ppe_src}"
-            da_f = f"='Cash Flow Statement'!{src_col}{da_src}"
-            da_rev_f = (
+            lease_f = f"='Balance Sheet'!{src_col}{lease_src}"
+            lease_rev_f = (
                 f"=IF('Condensed Financials'!{src_col}{rev_r}=0,NA(),"
-                f"{out_col}{da_row}/'Condensed Financials'!{src_col}{rev_r})"
+                f"{out_col}{lease_row}/'Condensed Financials'!{src_col}{rev_r})"
             )
 
-            c = ws.cell(row=ppe_row, column=out_col_idx, value=ppe_f)
+            c = ws.cell(row=lease_row, column=out_col_idx, value=lease_f)
             c.number_format = NUM_FMT
-            c = ws.cell(row=da_row, column=out_col_idx, value=da_f)
-            c.number_format = NUM_FMT
-            c = ws.cell(row=da_rev_row, column=out_col_idx, value=da_rev_f)
+            c = ws.cell(row=lease_rev_row, column=out_col_idx, value=lease_rev_f)
             c.number_format = PCT_FMT
 
-            self._register_fixed_asset(
-                "ppe_source_link",
+            self._register_lease_liability(
+                "lease_liability_source_link",
                 j,
                 "ALT DuPont",
-                ppe_row,
+                lease_row,
                 out_col_idx,
-                ppe_f,
-                float(series.ppe[j]),
+                lease_f,
+                float(lease_series.lease_liability[j]),
             )
-            self._register_fixed_asset(
-                "da_source_link",
+            self._register_lease_liability(
+                "lease_liability_to_revenue",
                 j,
                 "ALT DuPont",
-                da_row,
+                lease_rev_row,
                 out_col_idx,
-                da_f,
-                float(series.depreciation_amortization[j]),
-            )
-            self._register_fixed_asset(
-                "da_to_revenue",
-                j,
-                "ALT DuPont",
-                da_rev_row,
-                out_col_idx,
-                da_rev_f,
-                series.da_to_revenue[j]
-                if isinstance(series.da_to_revenue[j], str)
-                else float(series.da_to_revenue[j]),
+                lease_rev_f,
+                lease_series.lease_liability_to_revenue[j]
+                if isinstance(lease_series.lease_liability_to_revenue[j], str)
+                else float(lease_series.lease_liability_to_revenue[j]),
             )
 
             if j == 0:
-                for row in (
-                    avg_ppe_row,
-                    turnover_row,
-                    intensity_row,
-                    change_row,
-                    da_avg_row,
-                    fa_check_row,
-                ):
-                    ws.cell(row=row, column=out_col_idx, value=na)
+                ws.cell(row=lease_change_row, column=out_col_idx, value=na)
+                ws.cell(row=lease_growth_row, column=out_col_idx, value=na)
                 continue
 
             prev_col = self._col(2 + j - 1)
-            avg_f = f"=({prev_col}{ppe_row}+{out_col}{ppe_row})/2"
-            turnover_f = (
-                f"=IF({out_col}{avg_ppe_row}=0,NA(),"
-                f"'Condensed Financials'!{src_col}{rev_r}/{out_col}{avg_ppe_row})"
+            change_f = f"={out_col}{lease_row}-{prev_col}{lease_row}"
+            growth_f = (
+                f"=IF({prev_col}{lease_row}=0,NA(),"
+                f"{out_col}{lease_row}/{prev_col}{lease_row}-1)"
             )
-            intensity_f = (
-                f"=IF('Condensed Financials'!{src_col}{rev_r}=0,NA(),"
-                f"{out_col}{avg_ppe_row}/'Condensed Financials'!{src_col}{rev_r})"
-            )
-            change_f = f"={out_col}{ppe_row}-{prev_col}{ppe_row}"
-            da_avg_f = (
-                f"=IF({out_col}{avg_ppe_row}=0,NA(),"
-                f"{out_col}{da_row}/{out_col}{avg_ppe_row})"
-            )
-            check_f = (
-                f'=IF(OR(ISNA({out_col}{turnover_row}),'
-                f'ISNA({out_col}{intensity_row})),"N/A",'
-                f'IF(ABS({out_col}{turnover_row}*{out_col}{intensity_row}-1)'
-                f'<0.0000001,"OK","CHECK"))'
-            )
-
-            c = ws.cell(row=avg_ppe_row, column=out_col_idx, value=avg_f)
+            c = ws.cell(row=lease_change_row, column=out_col_idx, value=change_f)
             c.number_format = NUM_FMT
-            c = ws.cell(row=turnover_row, column=out_col_idx, value=turnover_f)
-            c.number_format = "0.00x"
-            c = ws.cell(row=intensity_row, column=out_col_idx, value=intensity_f)
+            c = ws.cell(row=lease_growth_row, column=out_col_idx, value=growth_f)
             c.number_format = PCT_FMT
-            c = ws.cell(row=change_row, column=out_col_idx, value=change_f)
-            c.number_format = NUM_FMT
-            c = ws.cell(row=da_avg_row, column=out_col_idx, value=da_avg_f)
-            c.number_format = PCT_FMT
-            ws.cell(row=fa_check_row, column=out_col_idx, value=check_f)
 
-            registrations = (
-                ("average_ppe", avg_ppe_row, avg_f, series.average_ppe[j]),
-                ("ppe_turnover", turnover_row, turnover_f, series.ppe_turnover[j]),
-                ("ppe_intensity", intensity_row, intensity_f, series.ppe_intensity[j]),
-                ("ppe_change", change_row, change_f, series.ppe_change[j]),
-                (
-                    "da_to_average_ppe",
-                    da_avg_row,
-                    da_avg_f,
-                    series.da_to_average_ppe[j],
-                ),
+            change_exp = lease_series.lease_liability_change[j]
+            growth_exp = lease_series.lease_liability_growth[j]
+            assert change_exp is not None and growth_exp is not None
+            self._register_lease_liability(
+                "lease_liability_change",
+                j,
+                "ALT DuPont",
+                lease_change_row,
+                out_col_idx,
+                change_f,
+                float(change_exp),
             )
-            for family_id, row, formula, expected in registrations:
-                assert expected is not None
-                self._register_fixed_asset(
-                    family_id,
-                    j,
-                    "ALT DuPont",
-                    row,
-                    out_col_idx,
-                    formula,
-                    expected if isinstance(expected, str) else float(expected),
-                )
+            self._register_lease_liability(
+                "lease_liability_growth",
+                j,
+                "ALT DuPont",
+                lease_growth_row,
+                out_col_idx,
+                growth_f,
+                growth_exp if isinstance(growth_exp, str) else float(growth_exp),
+            )
 
-        self.rowmap["dupont_ppe_source_row"] = ppe_row
-        self.rowmap["dupont_da_source_row"] = da_row
-        self.rowmap["dupont_average_ppe_row"] = avg_ppe_row
-        self.rowmap["dupont_ppe_turnover_row"] = turnover_row
-        self.rowmap["dupont_ppe_intensity_row"] = intensity_row
-        self.rowmap["dupont_ppe_change_row"] = change_row
-        self.rowmap["dupont_da_to_revenue_row"] = da_rev_row
-        self.rowmap["dupont_da_to_average_ppe_row"] = da_avg_row
-        self.rowmap["dupont_fixed_asset_check_row"] = fa_check_row
+        self.rowmap["dupont_lease_liability_row"] = lease_row
+        self.rowmap["dupont_lease_liability_to_revenue_row"] = lease_rev_row
+        self.rowmap["dupont_lease_liability_change_row"] = lease_change_row
+        self.rowmap["dupont_lease_liability_growth_row"] = lease_growth_row
 
     def _build_accounting_judgment(self, wb: Workbook) -> None:
         ws = wb.create_sheet(JUDGMENT_SHEET)

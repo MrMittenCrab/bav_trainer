@@ -103,6 +103,14 @@ _EXACT_ALIASES: dict[str, frozenset[str]] = {
             "depreciation and amortization",
         }
     ),
+    "lease_liability": frozenset(
+        {
+            "lease liability",
+            "lease liabilities",
+            "operating lease liability",
+            "operating lease liabilities",
+        }
+    ),
 }
 
 

@@ -229,21 +229,21 @@ def test_no_share_omits_attribution(tmp_path):
     assert builder.per_share_attribution_specs == ()
     trainer, answer = build_training_workbook(data, tmp_path / "NO_ATTR.xlsx")
     smap = load_semantic_map(answer)
-    assert len(smap.all_ordered()) == 294
-    assert len(group_components_by_family(smap)) == 70
+    assert len(smap.all_ordered()) == 312
+    assert len(group_components_by_family(smap)) == 74
     assert not any(c.category == "per_share_attribution" for c in smap.all_ordered())
     wb = load_workbook(answer)
     assert PER_SHARE_SHEET not in wb.sheetnames
     wb.close()
-    assert check_workbook(trainer).blank == 294
+    assert check_workbook(trainer).blank == 312
 
 
 def test_share_enabled_attribution_surface(tmp_path):
     data = _share_enabled_demo()
     trainer, answer = build_training_workbook(data, tmp_path / "ATTR_BASE.xlsx")
     smap = load_semantic_map(answer)
-    assert len(smap.all_ordered()) == 328
-    assert len(group_components_by_family(smap)) == 78
+    assert len(smap.all_ordered()) == 346
+    assert len(group_components_by_family(smap)) == 82
     attr = [c for c in smap.all_ordered() if c.category == "per_share_attribution"]
     ps = [c for c in smap.all_ordered() if c.category in ("per_share", "per_share_attribution")]
     assert len(attr) == 16
@@ -304,16 +304,16 @@ def test_share_enabled_attribution_surface(tmp_path):
     wb.close()
     wb_t.close()
 
-    assert check_workbook(trainer).blank == 328
+    assert check_workbook(trainer).blank == 346
 
     assumptions = json.loads(DEMO_ASSUMPTIONS.read_text(encoding="utf-8"))
     trainer_n, answer_n = build_training_workbook(
         data, tmp_path / "ATTR_NORM.xlsx", assumptions
     )
     smap_n = load_semantic_map(answer_n)
-    assert len(smap_n.all_ordered()) == 366
-    assert len(group_components_by_family(smap_n)) == 86
-    assert check_workbook(trainer_n).blank == 366
+    assert len(smap_n.all_ordered()) == 384
+    assert len(group_components_by_family(smap_n)) == 90
+    assert check_workbook(trainer_n).blank == 384
 
 
 def test_attribution_check_trust_and_colors(tmp_path):

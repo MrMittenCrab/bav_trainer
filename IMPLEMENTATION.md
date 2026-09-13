@@ -1,5 +1,7 @@
 # Step 9L.1 — Lease-Liability Diagnostics + Judgment-Selector Hardening
 
+**Status: COMPLETE** — `identity:` judgment selectors; aggregate lease-liability families 87–90 on ALT DuPont; surfaces 74/312, 78/332, 82/346, 90/384; manufacturer 74/311; GOOGL provenance repaired; no ROU/capex. See `RESULT.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > **For Cursor:** Read `TARGET.md` first, then `docs/GOOGL_HISTORICAL_REFERENCE.md`, then this plan in full. The accepted implementation base is commit `e81a04837176562c721f3b04f81e21a1bb381a0f` (`Step 9K.1`, fixed-asset diagnostics complete). Implement only Step 9L.1 below using red/green TDD. This remains **Step 9 historical convergence**. Do not begin forecasting, valuation, scenarios, or forward-model activation. Do not commit or push; the user owns the checkpoint commit.

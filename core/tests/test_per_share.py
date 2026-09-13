@@ -445,13 +445,13 @@ def test_gating_no_shares_omits_module(tmp_path):
 
     trainer, answer = build_training_workbook(data, tmp_path / "NO_SHARES.xlsx")
     smap = load_semantic_map(answer)
-    assert len(smap.all_ordered()) == 294
-    assert len(group_components_by_family(smap)) == 70
+    assert len(smap.all_ordered()) == 312
+    assert len(group_components_by_family(smap)) == 74
     assert not any(c.category == "per_share" for c in smap.all_ordered())
     wb = load_workbook(answer)
     assert PER_SHARE_SHEET not in wb.sheetnames
     wb.close()
-    assert check_workbook(trainer).blank == 294
+    assert check_workbook(trainer).blank == 312
 
 
 def test_fail_closed_build_incomplete_and_invalid(tmp_path):
@@ -481,8 +481,8 @@ def test_share_enabled_demo_surface(tmp_path):
     data = _share_enabled_demo()
     trainer, answer = build_training_workbook(data, tmp_path / "SHARE_BASE.xlsx")
     smap = load_semantic_map(answer)
-    assert len(smap.all_ordered()) == 328
-    assert len(group_components_by_family(smap)) == 78
+    assert len(smap.all_ordered()) == 346
+    assert len(group_components_by_family(smap)) == 82
     ps = [c for c in smap.all_ordered() if c.category == "per_share"]
     assert len(ps) == 18
     assert {c.family_id for c in ps} == {f.id for f in PER_SHARE_COMPONENT_CATALOG}
@@ -522,17 +522,17 @@ def test_share_enabled_demo_surface(tmp_path):
     wb_t.close()
 
     summary = check_workbook(trainer)
-    assert summary.total == 328
-    assert summary.blank == 328
+    assert summary.total == 346
+    assert summary.blank == 346
 
     assumptions = json.loads(DEMO_ASSUMPTIONS.read_text(encoding="utf-8"))
     trainer_n, answer_n = build_training_workbook(
         data, tmp_path / "SHARE_NORM.xlsx", assumptions
     )
     smap_n = load_semantic_map(answer_n)
-    assert len(smap_n.all_ordered()) == 366
-    assert len(group_components_by_family(smap_n)) == 86
-    assert check_workbook(trainer_n).blank == 366
+    assert len(smap_n.all_ordered()) == 384
+    assert len(group_components_by_family(smap_n)) == 90
+    assert check_workbook(trainer_n).blank == 384
 
 
 def test_per_share_check_trust_and_dynamic(tmp_path):

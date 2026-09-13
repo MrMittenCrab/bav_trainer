@@ -389,12 +389,12 @@ def test_semantic_formulas_have_no_blank_required_refs(tmp_path):
     _, answer = _build_pair(tmp_path)
     smap = load_semantic_map(answer)
     wb = load_workbook(answer, data_only=False)
-    assert len(smap.all_ordered()) == 294
+    assert len(smap.all_ordered()) == 312
     hist = expand_historical_specs(
         (_ingest_demo().fiscal_years() or _ingest_demo().period_dates())
     )
     assert len(hist) == 118
-    assert len(smap.all_ordered()) == 294
+    assert len(smap.all_ordered()) == 312
 
     def _labels(ws):
         return {ws.cell(row=r, column=1).value: r for r in range(1, (ws.max_row or 1) + 1)}
@@ -978,6 +978,7 @@ def test_dupont_chain_registers_all_six_latest_comparable_formulas(tmp_path):
 def test_multi_period_practice_surface_for_five_year_demo(tmp_path):
     from core.engine.component_catalog import (
         FIXED_ASSET_COMPONENT_CATALOG,
+        LEASE_LIABILITY_COMPONENT_CATALOG,
         QUALITY_COMPONENT_CATALOG,
         QUALITY_CHANGE_COMPONENT_CATALOG,
         WORKING_CAPITAL_COMPONENT_CATALOG,
@@ -988,7 +989,7 @@ def test_multi_period_practice_surface_for_five_year_demo(tmp_path):
 
     _, answer = _build_pair(tmp_path)
     smap = load_semantic_map(answer)
-    assert len(smap.all_ordered()) == 294
+    assert len(smap.all_ordered()) == 312
 
     families = {c.family_id for c in smap.all_ordered()}
     assert families == (
@@ -1000,6 +1001,7 @@ def test_multi_period_practice_surface_for_five_year_demo(tmp_path):
         | {f.id for f in PROFITABILITY_CHANGE_COMPONENT_CATALOG}
         | {f.id for f in ROE_ATTRIBUTION_COMPONENT_CATALOG}
         | {f.id for f in FIXED_ASSET_COMPONENT_CATALOG}
+        | {f.id for f in LEASE_LIABILITY_COMPONENT_CATALOG}
     )
 
     for family in COMPONENT_CATALOG:
@@ -1030,6 +1032,10 @@ def test_multi_period_practice_surface_for_five_year_demo(tmp_path):
             assert family.period_scope == "post_comparable"
             assert len(comps) == 3
     for family in FIXED_ASSET_COMPONENT_CATALOG:
+        comps = [c for c in smap.all_ordered() if c.family_id == family.id]
+        expected = 5 if family.period_scope == "all" else 4
+        assert len(comps) == expected
+    for family in LEASE_LIABILITY_COMPONENT_CATALOG:
         comps = [c for c in smap.all_ordered() if c.family_id == family.id]
         expected = 5 if family.period_scope == "all" else 4
         assert len(comps) == expected
@@ -1538,7 +1544,7 @@ def test_demo_has_one_lease_judgment_case_and_204_formula_components(tmp_path):
 
     _, answer = _build_pair(tmp_path)
     smap = load_semantic_map(answer)
-    assert len(smap.all_ordered()) == 294
+    assert len(smap.all_ordered()) == 312
     check_reformulation_integrity(builder.anchor.reformulation, builder.periods)
 
 
@@ -1584,7 +1590,7 @@ def test_demo_check_context_binding_and_no_answer_leakage(tmp_path):
     builder = ReferenceModelBuilder(data)
     assert len(builder.judgment_cases) == 1
     case = builder.judgment_cases[0]
-    assert case.override_selector == "concept:lease_liability"
+    assert case.override_selector.startswith("identity:concept=lease_liability|")
 
     context = build_check_context(
         data, builder.periods, builder.assumptions, builder.judgment_cases
@@ -1592,7 +1598,7 @@ def test_demo_check_context_binding_and_no_answer_leakage(tmp_path):
     assert len(context.judgment_bindings) == 1
     binding = context.judgment_bindings[0]
     assert binding.worksheet_row == 5
-    assert binding.override_selector == "concept:lease_liability"
+    assert binding.override_selector.startswith("identity:concept=lease_liability|")
     assert binding.reference_treatment == "Operating Long-Term Liability"
     assert binding.allowed_treatments == (
         "Operating Long-Term Liability",
@@ -1602,7 +1608,9 @@ def test_demo_check_context_binding_and_no_answer_leakage(tmp_path):
     trainer_path, answer_key_path = _build_pair(tmp_path)
     loaded = load_check_context(answer_key_path)
     assert loaded is not None
-    assert loaded.judgment_bindings[0].override_selector == "concept:lease_liability"
+    assert loaded.judgment_bindings[0].override_selector.startswith(
+        "identity:concept=lease_liability|"
+    )
 
     wb_a = load_workbook(answer_key_path, data_only=False)
     wb_t = load_workbook(trainer_path, data_only=False)
@@ -1637,13 +1645,13 @@ def test_demo_check_context_binding_and_no_answer_leakage(tmp_path):
     wb_t.close()
 
 
-def test_judgment_selector_uses_concept_when_present():
+def test_judgment_selector_uses_identity_when_present():
     from core.engine.reference_model import ReferenceModelBuilder
 
     data = _ingest_demo()
     builder = ReferenceModelBuilder(data)
     case = builder.judgment_cases[0]
-    assert case.override_selector == "concept:lease_liability"
+    assert case.override_selector.startswith("identity:concept=lease_liability|")
     assert case.line_identity.startswith("concept=lease_liability|")
 
 
@@ -1830,13 +1838,14 @@ def test_historical_expected_covers_catalog_and_matches_reference_components(tmp
 
     _, answer = _build_pair(tmp_path)
     smap = load_semantic_map(answer)
-    assert len(smap.all_ordered()) == 294
+    assert len(smap.all_ordered()) == 312
     for comp in smap.all_ordered():
         expected = expected_value_for_component(
             builder.anchor,
             comp,
             earnings_quality=quality,
             fixed_asset=builder.fixed_asset_series,
+            lease_liability=builder.lease_liability_series,
         )
         if isinstance(expected, (int, float)) and isinstance(comp.expected_value, (int, float)):
             assert expected == pytest.approx(comp.expected_value)

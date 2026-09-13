@@ -1,18 +1,18 @@
-Status: Step 9K.1 complete — PP&E / D&A asset-intensity diagnostics
+Status: Step 9L.1 complete — lease-liability diagnostics + judgment-selector hardening
 
 Implementation base:
-- 8b5df8b Step 9J.1 complete
-- c5a05ea Plan Step 9K.1
+- e81a048 Step 9K.1 complete
+- b82f2fe Plan Step 9L.1
 
-Fixed-asset evidence:
-- PP&E + D&A line resolution: yes
-- FixedAssetSeries + availability gate (both required): yes
-- eight families orders 79–86 on ALT DuPont: yes
-- no new user-facing worksheet: yes
-- average PP&E / turnover / intensity / change / D&A ratios: yes
-- D&A/Average PP&E labeled context-only (not pure depreciation rate): yes
-- capex not implemented or inferred: yes
-- Check validates new families; trusted tamper fails closed: yes
+Review fixes / evidence:
+- GOOGL provenance drift fixed: yes
+- stale Answer-Key hash removed from persistent reference doc: yes
+- identity: judgment selectors added: yes
+- split duplicate-concept lease case verified: yes
+- lease module orders 87–90: yes
+- aggregate-vs-split gating verified: yes
+- classification switch changes NOA/Net Debt but not raw lease ratio: yes
+- no ROU / payment / discount-rate / amortization inference: yes
 - canonical demos regenerated: yes
 - forecasting / valuation still deferred: yes
 - GOOGL workbook hash unchanged:
@@ -21,41 +21,37 @@ Fixed-asset evidence:
   88f69fb47d8464084d504b6e65be9742d5e4924ca78a2c3412156293b3fa2015
 
 Product surfaces:
-- active family orders 1..86
-- base demo: 70 / 294
-- normalization demo: 74 / 314
-- shares only: 78 / 328
-- shares + norm: 86 / 366
+- active family orders 1..90
+- base demo: 74 / 312
+- normalization demo: 78 / 332
+- shares only: 82 / 346
+- shares + norm: 90 / 384
 - services: 59 / 248
 - retail: 78 / 331
-- manufacturer: 70 / 293
+- manufacturer: 74 / 311
 - CLI: {ingest, build, check, list}
 - Step 9I.1 presentation intact: yes
 - deferred Model_*/Scenario_Summary remain hidden placeholders: yes
 
 Files changed:
-- Add: `core/model/fixed_asset.py`
-- Add: `core/tests/test_fixed_asset.py`
-- Modify: `core/model/line_resolver.py`
-- Modify: `core/engine/component_catalog.py`
-- Modify: `core/model/historical_expected.py`
-- Modify: `core/engine/reference_model.py`
-- Modify: `core/trainer/checker.py`
-- Modify: `core/trainer/workbook.py`
-- Modify: exit-gate / surface / integrity tests
+- Add: `core/model/lease_liability.py`
+- Add: `core/tests/test_lease_liability.py`
+- Modify: classification/judgment selectors, line_resolver, component_catalog, historical_expected
+- Modify: reference_model / checker / workbook
+- Modify: surface/exit-gate/integrity tests
 - Modify: `example/DEMO_HK_Trainer.xlsx`, `example/DEMO_HK_Answer_Key.xlsx`
-- Modify: `docs/GOOGL_HISTORICAL_REFERENCE.md`
-- Modify: `README.md`, `skills/bav-trainer/SKILL.md`, `RESULT.md`, `IMPLEMENTATION.md`
+- Modify: `docs/GOOGL_HISTORICAL_REFERENCE.md`, `README.md`, `skills/bav-trainer/SKILL.md`, `RESULT.md`, `IMPLEMENTATION.md`
 
 Tests (fresh, local verification — no attached GitHub CI):
-- `PYTHONPATH=. pytest core/tests/ -q` -> 304 passed
+- `PYTHONPATH=. pytest core/tests/ -q` -> 316 passed
 - CLI -> `{ingest,build,check,list}` only
-- Components resolved on canonical demo build: 314
+- Components resolved on canonical demo build: 332
 
 Known deferred limitations:
 - forecasting / valuation / scenarios remain deferred
+- ROU-asset diagnostics, split lease aggregation, lease payments/discount rates deferred
 - explicit capex / reinvestment bridge awaits source/sign contract (Priority B)
-- next historical candidate: lease intensity / lease-liability diagnostics (Priority A)
+- next historical candidate: goodwill / acquired intangibles / acquisition-cash diagnostics (Priority A)
 - synthetic fixtures are not real-company validation
 
-Unresolved: none on the PP&E / D&A asset-intensity diagnostics addressed by this checkpoint
+Unresolved: none on the lease-liability diagnostics / judgment-selector hardening addressed by this checkpoint

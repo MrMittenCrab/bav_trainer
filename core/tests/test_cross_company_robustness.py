@@ -399,6 +399,24 @@ def test_manufacturer_lease_and_falling_share_effects(tmp_path):
     assert alt_nd != pytest.approx(ref_nd)
     assert alt_eps == pytest.approx(ref_eps)
 
+    from core.engine.reference_model import ReferenceModelBuilder
+
+    builder = ReferenceModelBuilder(case.financials)
+    lease_ratio = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "lease_liability_to_revenue" and c.period_index == 4
+    )
+    ref_lease = float(lease_ratio.expected_value)
+    alt_lease = float(
+        expected_value_for_component(
+            alt_anchor,
+            lease_ratio,
+            lease_liability=builder.lease_liability_series,
+        )
+    )
+    assert alt_lease == pytest.approx(ref_lease)
+
 
 @pytest.mark.parametrize("case", _cases(), ids=lambda c: c.key)
 def test_trusted_source_tamper_before_recolor(case: RobustCompanyCase, tmp_path):
@@ -436,28 +454,28 @@ def test_ordinary_demo_and_share_enabled_surfaces_preserved(tmp_path):
     )
     trainer, answer = build_training_workbook(data, tmp_path / "DEMO_BASE.xlsx")
     smap = load_semantic_map(answer)
-    assert len(group_components_by_family(smap)) == 70
-    assert len(smap.all_ordered()) == 294
-    assert check_workbook(trainer).blank == 294
+    assert len(group_components_by_family(smap)) == 74
+    assert len(smap.all_ordered()) == 312
+    assert check_workbook(trainer).blank == 312
 
     assumptions = json.loads(DEMO_ASSUMPTIONS.read_text(encoding="utf-8"))
     trainer_n, answer_n = build_training_workbook(
         data, tmp_path / "DEMO_NORM.xlsx", assumptions
     )
     smap_n = load_semantic_map(answer_n)
-    assert len(group_components_by_family(smap_n)) == 74
-    assert len(smap_n.all_ordered()) == 314
-    assert check_workbook(trainer_n).blank == 314
+    assert len(group_components_by_family(smap_n)) == 78
+    assert len(smap_n.all_ordered()) == 332
+    assert check_workbook(trainer_n).blank == 332
 
     shares = _share_enabled_demo()
     trainer_s, answer_s = build_training_workbook(shares, tmp_path / "SHARE.xlsx")
     smap_s = load_semantic_map(answer_s)
-    assert len(group_components_by_family(smap_s)) == 78
-    assert len(smap_s.all_ordered()) == 328
+    assert len(group_components_by_family(smap_s)) == 82
+    assert len(smap_s.all_ordered()) == 346
 
     trainer_sn, answer_sn = build_training_workbook(
         shares, tmp_path / "SHARE_NORM.xlsx", assumptions
     )
     smap_sn = load_semantic_map(answer_sn)
-    assert len(group_components_by_family(smap_sn)) == 86
-    assert len(smap_sn.all_ordered()) == 366
+    assert len(group_components_by_family(smap_sn)) == 90
+    assert len(smap_sn.all_ordered()) == 384

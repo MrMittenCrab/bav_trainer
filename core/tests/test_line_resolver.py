@@ -182,3 +182,50 @@ def test_ppe_and_da_aliases_and_concepts():
         ).item
         is None
     )
+
+
+def test_lease_liability_aggregate_aliases_and_ambiguity():
+    lease = resolve_line(
+        [_item("Operating lease liabilities", 100, 120)],
+        "lease_liability",
+        required=True,
+    )
+    assert lease.item is not None
+    assert lease.item.label == "Operating lease liabilities"
+
+    by_concept = resolve_line(
+        [_item("Total lease balance", 100, 120, concept="lease_liability")],
+        "lease_liability",
+        required=True,
+    )
+    assert by_concept.item is not None
+    assert by_concept.item.label == "Total lease balance"
+
+    assert (
+        resolve_line(
+            [_item("Current lease liabilities", 40, 50)],
+            "lease_liability",
+            required=False,
+        ).item
+        is None
+    )
+    assert (
+        resolve_line(
+            [_item("Non-current lease liabilities", 60, 70)],
+            "lease_liability",
+            required=False,
+        ).item
+        is None
+    )
+
+    with pytest.raises(AmbiguousLineError):
+        resolve_line(
+            [
+                _item("Current lease liabilities", 40, 50, concept="lease_liability"),
+                _item(
+                    "Non-current lease liabilities", 60, 70, concept="lease_liability"
+                ),
+            ],
+            "lease_liability",
+            required=False,
+        )

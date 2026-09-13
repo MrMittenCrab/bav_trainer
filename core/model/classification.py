@@ -215,9 +215,11 @@ def _label_match_key(label: str) -> str:
 
 
 def _parse_override_selector(key: str) -> tuple[str, str]:
-    """Return (kind, value) where kind is concept|label."""
+    """Return (kind, value) where kind is identity|concept|label."""
     raw = key.strip()
     low = raw.lower()
+    if low.startswith("identity:"):
+        return "identity", raw.split(":", 1)[1].strip()
     if low.startswith("concept:"):
         return "concept", normalize_label(raw.split(":", 1)[1])
     if low.startswith("label:"):
@@ -237,6 +239,21 @@ def resolve_classification_overrides(
                 f"Invalid classification override {category!r} for selector {key!r}"
             )
         kind, value = _parse_override_selector(key)
+        if kind == "identity":
+            matches = [
+                item
+                for item in detail_items
+                if line_identity(item).key() == value
+            ]
+            if len(matches) == 0:
+                continue
+            if len(matches) > 1:
+                raise AmbiguousClassificationOverrideError(
+                    f"identity:{value!r} matches {len(matches)} detail rows; "
+                    f"duplicate full identities are not allowed"
+                )
+            resolved[line_identity(matches[0])] = category
+            continue
         if kind == "concept":
             matches = [
                 i

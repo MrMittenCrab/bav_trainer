@@ -2082,6 +2082,128 @@ def expand_fixed_asset_specs(
     return tuple(specs)
 
 
+LEASE_LIABILITY_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="lease_liability_source_link",
+        order=87,
+        title="Lease Liability",
+        short_hint="Link the reported aggregate lease-liability balance.",
+        semantic_key="lease_liability.lease_liability",
+        category="lease_liability",
+        tab_template="ALT DuPont",
+        hints=(
+            "Pull the reported aggregate lease-liability balance for the same fiscal period.",
+            "Classification as operating vs financial liability is a separate Accounting Judgment.",
+            "This is not an ROU asset, lease payment, commitment, or amortization schedule.",
+        ),
+    ),
+    ComponentFamily(
+        id="lease_liability_to_revenue",
+        order=88,
+        title="Lease Liability / Revenue",
+        short_hint="Reported lease liability divided by Revenue.",
+        semantic_key="lease_liability.lease_liability_to_revenue",
+        category="lease_liability",
+        tab_template="ALT DuPont",
+        depends_on_current=("lease_liability_source_link", "revenue_link"),
+        hints=(
+            "Lease Liability / Revenue = reported lease liability / Revenue.",
+            "A zero Revenue denominator makes the ratio undefined (#N/A).",
+            "The ratio uses the reported balance, not the reformulated classification treatment.",
+        ),
+    ),
+    ComponentFamily(
+        id="lease_liability_change",
+        order=89,
+        title="Change in Lease Liability",
+        short_hint="Current lease liability minus prior lease liability.",
+        semantic_key="lease_liability.lease_liability_change",
+        category="lease_liability",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("lease_liability_source_link",),
+        depends_on_previous=("lease_liability_source_link",),
+        hints=(
+            "Change in Lease Liability = Current − Prior reported lease liability.",
+            "Balance change is not rent growth, lease cash payments, or ROU-asset growth.",
+        ),
+    ),
+    ComponentFamily(
+        id="lease_liability_growth",
+        order=90,
+        title="Lease Liability Growth",
+        short_hint="Percentage change in reported lease liability.",
+        semantic_key="lease_liability.lease_liability_growth",
+        category="lease_liability",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("lease_liability_source_link",),
+        depends_on_previous=("lease_liability_source_link",),
+        hints=(
+            "Lease Liability Growth = Current / Prior − 1.",
+            "A zero prior lease-liability balance makes percentage growth undefined (#N/A).",
+            "Balance growth is not rent growth, lease cash payments, commitments, or ROU-asset growth.",
+        ),
+    ),
+)
+
+
+def expand_lease_liability_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+) -> tuple[ComponentSpec, ...]:
+    """Expand lease-liability families into period-specific concrete specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_lease_liability_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_lease_liability_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in LEASE_LIABILITY_COMPONENT_CATALOG:
+        if family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        else:
+            indices = range(len(periods))
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            if j > 0:
+                prev = periods[j - 1]
+                for dep_fam in family.depends_on_previous:
+                    deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 def _deferred(
     *,
     id: str,

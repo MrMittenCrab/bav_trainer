@@ -16,6 +16,7 @@ from ..model.normalization import NormalizationCase, compute_normalization_serie
 from ..model.period_axis import canonical_fiscal_periods
 from ..engine.component_catalog import (
     FIXED_ASSET_COMPONENT_CATALOG,
+    LEASE_LIABILITY_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
     PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG,
     PER_SHARE_COMPONENT_CATALOG,
@@ -23,6 +24,10 @@ from ..engine.component_catalog import (
     QUALITY_COMPONENT_CATALOG,
 )
 from ..model.fixed_asset import compute_fixed_asset_series, fixed_asset_applicable
+from ..model.lease_liability import (
+    compute_lease_liability_series,
+    lease_liability_applicable,
+)
 from ..model.per_share import compute_per_share_series
 from .check_context import (
     classification_overrides_for_check,
@@ -204,6 +209,17 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                         list(modeled_periods),
                         anchor,
                     )
+            lease_family_ids = {
+                family.id for family in LEASE_LIABILITY_COMPONENT_CATALOG
+            }
+            lease_liability = None
+            if any(comp.family_id in lease_family_ids for comp in comps):
+                if lease_liability_applicable(financials):
+                    lease_liability = compute_lease_liability_series(
+                        financials,
+                        list(modeled_periods),
+                        anchor,
+                    )
             dynamic_expected = {
                 comp.id: expected_value_for_component(
                     anchor,
@@ -212,6 +228,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     earnings_quality=earnings_quality,
                     per_share=per_share,
                     fixed_asset=fixed_asset,
+                    lease_liability=lease_liability,
                 )
                 for comp in comps
             }

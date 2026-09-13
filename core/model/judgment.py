@@ -153,11 +153,7 @@ def classification_judgment_cases(
             continue
         ident = line_identity(item)
         identity = ident.key()
-        override_selector = (
-            f"concept:{ident.concept}"
-            if ident.concept
-            else f"label:{item.label}"
-        )
+        override_selector = f"identity:{identity}"
         cases.append(
             JudgmentCase(
                 id=f"classification::{identity}",
