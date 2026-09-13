@@ -122,6 +122,24 @@ def test_matching_comparative_no_conflict(tmp_path: Path):
     assert reconciled.conflicts == ()
 
 
+def _assert_observation_fields(obs, *, filing_year, source_file, source_sha256, pdf_page, role, value):
+    assert obs.filing_year == filing_year
+    assert obs.source_file == source_file
+    assert obs.source_sha256 == source_sha256
+    assert obs.pdf_page == pdf_page
+    assert obs.presentation_role == role
+    assert obs.value == value
+
+
+def _assert_observation_payload(payload, *, filing_year, source_file, source_sha256, pdf_page, role, value):
+    assert payload["filing_year"] == filing_year
+    assert payload["source_file"] == source_file
+    assert payload["source_sha256"] == source_sha256
+    assert payload["pdf_page"] == pdf_page
+    assert payload["presentation_role"] == role
+    assert payload["value"] == value
+
+
 def test_later_comparative_conflict(tmp_path: Path):
     f2024 = _filing(
         year=2024,
@@ -138,16 +156,109 @@ def test_later_comparative_conflict(tmp_path: Path):
             date(2025, 12, 31): (110.0, PresentationRole.CURRENT_PERIOD),
         },
     )
-    reconciled = reconcile_filings(
-        [
-            _validated(tmp_path, f2024, b"2024"),
-            _validated(tmp_path, f2025, b"2025"),
-        ]
-    )
-    conflicts = [c for c in reconciled.conflicts if c.period == date(2024, 12, 31)]
-    assert len(conflicts) == 1
-    assert conflicts[0].selected.value == 101.0
-    assert conflicts[0].reason == "later_audited_presentation"
+    pair_2024 = _validated(tmp_path, f2024, b"2024")
+    pair_2025 = _validated(tmp_path, f2025, b"2025")
+    sha_2024 = pair_2024[1].computed_source_sha256
+    sha_2025 = pair_2025[1].computed_source_sha256
+
+    def _check(order):
+        reconciled = reconcile_filings(order)
+        conflict = next(c for c in reconciled.conflicts if c.period == date(2024, 12, 31))
+        assert conflict.selected.value == 101.0
+        assert conflict.reason == "later_audited_presentation"
+        assert len(conflict.observations) == 2
+        by_year = {o.filing_year: o for o in conflict.observations}
+        _assert_observation_fields(
+            by_year[2024],
+            filing_year=2024,
+            source_file="a2024.pdf",
+            source_sha256=sha_2024,
+            pdf_page=1,
+            role=PresentationRole.CURRENT_PERIOD,
+            value=100.0,
+        )
+        _assert_observation_fields(
+            by_year[2025],
+            filing_year=2025,
+            source_file="a2025.pdf",
+            source_sha256=sha_2025,
+            pdf_page=1,
+            role=PresentationRole.COMPARATIVE,
+            value=101.0,
+        )
+        _assert_observation_fields(
+            conflict.selected,
+            filing_year=2025,
+            source_file="a2025.pdf",
+            source_sha256=sha_2025,
+            pdf_page=1,
+            role=PresentationRole.COMPARATIVE,
+            value=101.0,
+        )
+
+        conflicts_payload = reconciliation_conflicts_payload(reconciled)
+        provenance = reconciliation_provenance_payload(reconciled)
+        conflict_json = next(
+            c for c in conflicts_payload["conflicts"] if c["period"] == "2024-12-31"
+        )
+        assert conflict_json["reason"] == "later_audited_presentation"
+        assert conflict_json["selected"]["value"] == 101
+        by_year_json = {o["filing_year"]: o for o in conflict_json["observations"]}
+        _assert_observation_payload(
+            by_year_json[2024],
+            filing_year=2024,
+            source_file="a2024.pdf",
+            source_sha256=sha_2024,
+            pdf_page=1,
+            role="current_period",
+            value=100,
+        )
+        _assert_observation_payload(
+            by_year_json[2025],
+            filing_year=2025,
+            source_file="a2025.pdf",
+            source_sha256=sha_2025,
+            pdf_page=1,
+            role="comparative",
+            value=101,
+        )
+        prov_key = next(
+            k
+            for k, v in provenance["values"].items()
+            if v.get("period") == "2024-12-31" and "revenue" in v.get("row_identity", "")
+        )
+        prov_row = provenance["values"][prov_key]
+        assert prov_row["selection_rule"] == "later_audited_presentation"
+        assert prov_row["selected"]["value"] == 101
+        assert len(prov_row["observations"]) == 2
+
+        conflicts_before = reconciled.conflicts
+        observations_before = next(
+            v.observations
+            for v in reconciled.values
+            if v.period == date(2024, 12, 31) and "revenue" in v.row_identity
+        )
+        fin = standardize_reconciled(reconciled)
+        revenue = next(item for item in fin.income_statement if item.concept == "revenue")
+        assert revenue.values[date(2024, 12, 31)] == 101.0
+        assert revenue.values[date(2025, 12, 31)] == 110.0
+        assert reconciled.conflicts == conflicts_before
+        assert (
+            next(
+                v.observations
+                for v in reconciled.values
+                if v.period == date(2024, 12, 31) and "revenue" in v.row_identity
+            )
+            == observations_before
+        )
+        return conflicts_payload, provenance, conflict.selected, conflict.observations
+
+    forward = _check([pair_2024, pair_2025])
+    reversed_order = _check([pair_2025, pair_2024])
+    assert forward[0] == reversed_order[0]
+    assert forward[1] == reversed_order[1]
+    assert forward[2] == reversed_order[2]
+    assert forward[3] == reversed_order[3]
 
 
 def test_restated_comparative_precedence(tmp_path: Path):
@@ -176,16 +287,120 @@ def test_restated_comparative_precedence(tmp_path: Path):
             date(2025, 12, 31): (110.0, PresentationRole.CURRENT_PERIOD),
         },
     )
-    reconciled = reconcile_filings(
-        [
-            _validated(tmp_path, f2024, b"2024"),
-            _validated(tmp_path, f2025, b"2025"),
-            _validated(tmp_path, f2025_restated, b"2025b"),
-        ]
-    )
-    conflict = next(c for c in reconciled.conflicts if c.period == date(2024, 12, 31))
-    assert conflict.selected.value == 99.0
-    assert conflict.reason == "restated_comparative_precedence"
+    pair_2024 = _validated(tmp_path, f2024, b"2024")
+    pair_2025 = _validated(tmp_path, f2025, b"2025")
+    pair_restated = _validated(tmp_path, f2025_restated, b"2025b")
+    sha_2024 = pair_2024[1].computed_source_sha256
+    sha_2025 = pair_2025[1].computed_source_sha256
+    sha_restated = pair_restated[1].computed_source_sha256
+
+    def _check(order):
+        reconciled = reconcile_filings(order)
+        conflict = next(c for c in reconciled.conflicts if c.period == date(2024, 12, 31))
+        assert conflict.selected.value == 99.0
+        assert conflict.reason == "restated_comparative_precedence"
+        assert len(conflict.observations) == 3
+        by_file = {(o.filing_year, o.source_file): o for o in conflict.observations}
+        _assert_observation_fields(
+            by_file[(2024, "a2024.pdf")],
+            filing_year=2024,
+            source_file="a2024.pdf",
+            source_sha256=sha_2024,
+            pdf_page=1,
+            role=PresentationRole.CURRENT_PERIOD,
+            value=100.0,
+        )
+        _assert_observation_fields(
+            by_file[(2025, "a2025.pdf")],
+            filing_year=2025,
+            source_file="a2025.pdf",
+            source_sha256=sha_2025,
+            pdf_page=1,
+            role=PresentationRole.COMPARATIVE,
+            value=101.0,
+        )
+        _assert_observation_fields(
+            by_file[(2025, "a2025b.pdf")],
+            filing_year=2025,
+            source_file="a2025b.pdf",
+            source_sha256=sha_restated,
+            pdf_page=1,
+            role=PresentationRole.RESTATED_COMPARATIVE,
+            value=99.0,
+        )
+        _assert_observation_fields(
+            conflict.selected,
+            filing_year=2025,
+            source_file="a2025b.pdf",
+            source_sha256=sha_restated,
+            pdf_page=1,
+            role=PresentationRole.RESTATED_COMPARATIVE,
+            value=99.0,
+        )
+
+        conflicts_payload = reconciliation_conflicts_payload(reconciled)
+        provenance = reconciliation_provenance_payload(reconciled)
+        conflict_json = next(
+            c for c in conflicts_payload["conflicts"] if c["period"] == "2024-12-31"
+        )
+        assert conflict_json["reason"] == "restated_comparative_precedence"
+        assert conflict_json["selected"]["value"] == 99
+        by_file_json = {
+            (o["filing_year"], o["source_file"]): o for o in conflict_json["observations"]
+        }
+        _assert_observation_payload(
+            by_file_json[(2024, "a2024.pdf")],
+            filing_year=2024,
+            source_file="a2024.pdf",
+            source_sha256=sha_2024,
+            pdf_page=1,
+            role="current_period",
+            value=100,
+        )
+        _assert_observation_payload(
+            by_file_json[(2025, "a2025.pdf")],
+            filing_year=2025,
+            source_file="a2025.pdf",
+            source_sha256=sha_2025,
+            pdf_page=1,
+            role="comparative",
+            value=101,
+        )
+        _assert_observation_payload(
+            by_file_json[(2025, "a2025b.pdf")],
+            filing_year=2025,
+            source_file="a2025b.pdf",
+            source_sha256=sha_restated,
+            pdf_page=1,
+            role="restated_comparative",
+            value=99,
+        )
+        prov_key = next(
+            k
+            for k, v in provenance["values"].items()
+            if v.get("period") == "2024-12-31" and "revenue" in v.get("row_identity", "")
+        )
+        prov_row = provenance["values"][prov_key]
+        assert prov_row["selection_rule"] == "restated_comparative_precedence"
+        assert prov_row["selected"]["value"] == 99
+        assert len(prov_row["observations"]) == 3
+
+        conflicts_before = reconciled.conflicts
+        values_before = reconciled.values
+        fin = standardize_reconciled(reconciled)
+        revenue = next(item for item in fin.income_statement if item.concept == "revenue")
+        assert revenue.values[date(2024, 12, 31)] == 99.0
+        assert revenue.values[date(2025, 12, 31)] == 110.0
+        assert reconciled.conflicts == conflicts_before
+        assert reconciled.values == values_before
+        return conflicts_payload, provenance, conflict.selected, conflict.observations
+
+    forward = _check([pair_2024, pair_2025, pair_restated])
+    reversed_order = _check([pair_restated, pair_2025, pair_2024])
+    assert forward[0] == reversed_order[0]
+    assert forward[1] == reversed_order[1]
+    assert forward[2] == reversed_order[2]
+    assert forward[3] == reversed_order[3]
 
 
 def test_prior_presentation_never_overrides(tmp_path: Path):

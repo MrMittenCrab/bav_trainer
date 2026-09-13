@@ -1,6 +1,6 @@
 # Fast Retailing Gap Queue
 
-Evidence basis for Step 9M.3C. Measurement only for remaining gaps — no speculative production redesign here.
+Evidence basis for Step 9M.3E. Measurement only for remaining gaps — no speculative production redesign here.
 
 Categories:
 - **A** source-extraction / provenance defect
@@ -9,17 +9,17 @@ Categories:
 - **D** optional-module input-contract gap
 - **E** comparative/restatement/share-basis conflict
 
-## Observed engine stages (Step 9M.3C)
+## Observed engine stages (Step 9M.3E)
 
 | Stage | Result |
 |---|---|
 | source fixture load | pass |
 | identity validation | pass |
 | financial reconciliation | **pass** (G1 closed) |
-| ReferenceModelBuilder | **pass** (346 specs; ownership_specs=34; lease_specs=18) |
+| ReferenceModelBuilder | **pass** (380 specs; ownership_specs=34; lease_specs=18; per_share_specs=18) |
 | workbook generation | **pass** |
-| blank Check | **pass** (0/346 correct; 346 blank) |
-| filled Check | **pass** (346/346 correct) |
+| blank Check | **pass** (0/380 correct; 380 blank) |
+| filled Check | **pass** (380/380 correct) |
 
 ## Gaps
 
@@ -157,26 +157,39 @@ Categories:
   `expected_specs=380`; FY2025 EPS ≈ `1409.32`.
 - **Preserved:** raw share facts; G7 overlap/supplemental conflicts unchanged (3 / 3).
 
-### G7 — Overlap conflicts from restated EPS after split
+### G7 — Overlap conflicts from restated EPS after split — **CLOSED in Step 9M.3E**
 
-- **Category:** E
+- **Category:** E → closed
 - **Stage:** cross-filing precedence
-- **Exact conflicts (3 remaining after correcting a 2021 NCI USD misparse):**
-  - FY2022 basic/diluted EPS yen amounts restated in CFS2023 vs CFS2022 presentation.
-  - FY2024 CF “Others, net” (financing) differs between CFS2024 and CFS2025 comparatives.
-- **Source facts:** recorded in `reconciled/conflicts.json` (and mirrored conflict count in provenance).
-- **Synthetic coverage:** none for audited restatement overlaps.
-- **Why generalizable:** Latest-audited-presentation must remain explicit; silent overwrites are forbidden.
-- **Note:** G6 consumes restatement observations as evidence but does not erase conflict artifacts.
+- **Resolution:** Deterministic selection with **retained disagreements**. Closure means
+  selected values and precedence reasons are verified and locked; it does **not** mean
+  source values agree or that conflict records disappear. Both observations remain in
+  reconciliation and serialized audit payloads (`conflicts.json` / provenance).
+- **Selected primary presentations (3 overlap conflicts):**
+  - FY2022 basic EPS: `2675.30 → 891.77` via `restated_comparative_precedence`
+    (CFS2022 current vs CFS2023 restated comparative).
+  - FY2022 diluted EPS: `2671.29 → 890.43` via `restated_comparative_precedence`
+    (CFS2022 current vs CFS2023 restated comparative).
+  - FY2024 CF financing “Others, net”: `85 → 63` via `later_audited_presentation`
+    (CFS2024 current vs CFS2025 comparative). No cause inferred for the cash-flow
+    difference beyond the recorded later audited presentation.
+- **Supplemental disagreements (3):** FY2022 `basic_weighted_average_shares`,
+  `diluted_eps`, and `dilutive_shares` remain source-bound after share-basis resolution
+  (`cross_filing_supplemental_disagreement`). Counts stay `overlap=3` /
+  `supplemental=3`.
+- **Share axis (G6, unchanged):** validated split-adjusted `historical_shares` model
+  axis is analytical; raw reported share facts and conflict artifacts are unchanged.
+- **Evidence:** Stages 1–7 pass; `expected_specs=380`; blank Check `0/0/380`; filled
+  Check `380/0/0`.
 
-## Post-9M.3D audit result
+## Post-9M.3E audit result
 
 - **Stages 1–7:** all **pass**
   - Stage 4: `expected_specs=380 lease_specs=18 ownership_specs=34 per_share_specs=18 per_share_attribution_specs=16 fixed_asset_specs=35`
   - Stage 6 blank Check: `correct=0 incorrect=0 blank=380 total=380`
   - Stage 7 filled Check: `correct=380 total=380`
 - **First failing stage / exception:** none
-- **Note:** G6 closed; G7 remains open (restatement conflicts preserved).
+- **Note:** G7 closed by verified retained-conflict policy; conflict records remain.
 
 ## Corrected extraction note (A — closed in 9M.0)
 
@@ -190,4 +203,4 @@ CFS2021 IS line `Non-controlling interests 40 5,836 53,109` was initially misrea
 4. Split lease diagnostics use an explicit aggregate-or-split source contract (G3 closed); do not silently invent aggregates from vague labels.
 5. Lease classification treatment and disclosed lease-interest income-side treatment are linked when a complete reported lease-interest axis exists (G4 closed).
 6. Multi-year per-share analysis uses an audited comparable share basis (G6 closed); the per-share numerator remains ownership-safe under G5.
-7. G7 restatement conflicts remain recorded until an explicit conflict-policy decision.
+7. Restatement / later-presentation conflicts remain recorded with both observations even after deterministic selection (G7 closed).

@@ -314,6 +314,7 @@ def test_audit_script_writes_baseline_and_stage_records():
         or "Step 9M.3B" in text
         or "Step 9M.3C" in text
         or "Step 9M.3D" in text
+        or "Step 9M.3E" in text
     )
     assert "pass" in completed.stdout or "fail" in completed.stdout
 
@@ -974,3 +975,176 @@ def test_fast_retailing_share_basis_and_per_share_g6():
         ws = wb[PER_SHARE_SHEET]
         assert ws.cell(8, 1).value == "Share Basis: Split-adjusted comparable basis"
         wb.close()
+
+
+def test_fast_retailing_g7_retained_conflict_policy():
+    """G7: deterministic selection with both disagreeing observations retained."""
+    from core.ingestion.filing_json import load_extracted_filing
+    from core.ingestion.filing_reconciler import reconcile_filings
+    from core.ingestion.filing_standardizer import (
+        reconciliation_conflicts_payload,
+        standardize_reconciled,
+    )
+    from core.ingestion.filing_validator import validate_extracted_filing
+    from core.ingestion.share_basis import resolve_historical_share_basis
+    from core.model.line_resolver import resolve_line
+    from core.model.source_values import required_period_value
+
+    committed_std = STD_JSON.read_bytes()
+    committed_prov = PROV_JSON.read_bytes()
+    committed_conflicts = CONFLICTS_JSON.read_bytes()
+    extracted_bytes = {
+        path.name: path.read_bytes() for path in sorted(EXTRACTED.glob("FY*.json"))
+    }
+
+    conflicts = _load_json(CONFLICTS_JSON)
+    assert conflicts["overlap_conflict_count"] == 3
+    assert conflicts["supplemental_conflict_count"] == 3
+    assert len(conflicts["conflicts"]) == 3
+    assert len(conflicts["supplemental_conflicts"]) == 3
+
+    def _primary(concept_suffix: str, period: str):
+        return next(
+            c
+            for c in conflicts["conflicts"]
+            if c["row_identity"].endswith(concept_suffix) and c["period"] == period
+        )
+
+    basic_eps = _primary("|basic_eps", "2022-08-31")
+    diluted_eps = _primary("|diluted_eps", "2022-08-31")
+    others_net = _primary("|others_net_financing", "2024-08-31")
+
+    assert basic_eps["reason"] == "restated_comparative_precedence"
+    assert diluted_eps["reason"] == "restated_comparative_precedence"
+    assert others_net["reason"] == "later_audited_presentation"
+
+    assert {o["value"] for o in basic_eps["observations"]} == {2675.3, 891.77}
+    assert basic_eps["selected"]["value"] == 891.77
+    assert basic_eps["selected"]["presentation_role"] == "restated_comparative"
+    assert len(basic_eps["observations"]) == 2
+    prior_basic = next(o for o in basic_eps["observations"] if o["filing_year"] == 2022)
+    selected_basic = next(o for o in basic_eps["observations"] if o["filing_year"] == 2023)
+    assert prior_basic["value"] == 2675.3
+    assert prior_basic["source_file"] == "Fastretailing_CFS2022.pdf"
+    assert prior_basic["source_sha256"]
+    assert prior_basic["pdf_page"] > 0
+    assert selected_basic["value"] == 891.77
+    assert selected_basic["source_file"] == "Fastretailing_CFS2023.pdf"
+    assert selected_basic["source_sha256"]
+    assert selected_basic["presentation_role"] == "restated_comparative"
+
+    assert {o["value"] for o in diluted_eps["observations"]} == {2671.29, 890.43}
+    assert diluted_eps["selected"]["value"] == 890.43
+    assert diluted_eps["selected"]["presentation_role"] == "restated_comparative"
+    assert len(diluted_eps["observations"]) == 2
+    prior_diluted = next(
+        o for o in diluted_eps["observations"] if o["filing_year"] == 2022
+    )
+    assert prior_diluted["value"] == 2671.29
+    assert prior_diluted["source_file"]
+    assert prior_diluted["source_sha256"]
+
+    assert {o["value"] for o in others_net["observations"]} == {85, 63}
+    assert others_net["selected"]["value"] == 63
+    assert others_net["selected"]["presentation_role"] == "comparative"
+    assert others_net["selected"]["filing_year"] == 2025
+    assert len(others_net["observations"]) == 2
+    prior_cf = next(o for o in others_net["observations"] if o["filing_year"] == 2024)
+    later_cf = next(o for o in others_net["observations"] if o["filing_year"] == 2025)
+    assert prior_cf["value"] == 85
+    assert prior_cf["presentation_role"] == "current_period"
+    assert prior_cf["source_file"] == "Fastretailing_CFS2024.pdf"
+    assert prior_cf["source_sha256"]
+    assert later_cf["value"] == 63
+    assert later_cf["source_file"] == "Fastretailing_CFS2025.pdf"
+    assert later_cf["source_sha256"]
+
+    supp_types = {c["fact_type"] for c in conflicts["supplemental_conflicts"]}
+    assert supp_types == {
+        "basic_weighted_average_shares",
+        "diluted_eps",
+        "dilutive_shares",
+    }
+    for supp in conflicts["supplemental_conflicts"]:
+        assert supp["period"] == "2022-08-31"
+        assert supp["reason"] == "cross_filing_supplemental_disagreement"
+        assert len(supp["observations"]) == 2
+        for obs in supp["observations"]:
+            assert obs["filing_year"] in {2022, 2023}
+            assert obs["source_file"]
+            assert obs["source_sha256"]
+            assert obs["source"]["page"] > 0
+            assert "value" in obs
+
+    validated = []
+    for path in sorted(EXTRACTED.glob("FY*.json")):
+        filing = load_extracted_filing(path)
+        report = validate_extracted_filing(filing, source_root=SOURCE)
+        assert report.ok
+        validated.append((filing, report))
+    reconciled = reconcile_filings(validated)
+    live_conflicts = reconciliation_conflicts_payload(reconciled)
+    assert live_conflicts["overlap_conflict_count"] == 3
+    assert live_conflicts["supplemental_conflict_count"] == 3
+    assert live_conflicts["conflicts"] == conflicts["conflicts"]
+    assert live_conflicts["supplemental_conflicts"] == conflicts["supplemental_conflicts"]
+
+    resolution = resolve_historical_share_basis(reconciled)
+    assert resolution is not None
+    assert resolution.basis == "split_adjusted"
+    # Share-basis resolution does not erase supplemental disagreements.
+    assert len(reconciled.supplemental_conflicts) == 3
+    assert reconciliation_conflicts_payload(reconciled)["supplemental_conflict_count"] == 3
+
+    fin = standardize_reconciled(reconciled)
+    assert fin.historical_shares is not None
+    assert fin.historical_shares.basis == "split_adjusted"
+    assert fin.historical_shares.diluted_weighted_average == {
+        date(2021, 8, 31): 306.871785,
+        date(2022, 8, 31): 306.969624,
+        date(2023, 8, 31): 307.13887,
+        date(2024, 8, 31): 307.231804,
+        date(2025, 8, 31): 307.247804,
+    }
+    basic_item = next(
+        item
+        for item in fin.income_statement
+        if (item.concept or "").strip() == "basic_eps"
+    )
+    diluted_item = next(
+        item
+        for item in fin.income_statement
+        if (item.concept or "").strip() == "diluted_eps"
+    )
+    others_item = next(
+        item
+        for item in fin.cash_flow
+        if (item.concept or "").strip() == "others_net_financing"
+    )
+    assert basic_item.values[date(2022, 8, 31)] == 891.77
+    assert diluted_item.values[date(2022, 8, 31)] == 890.43
+    assert others_item.values[date(2024, 8, 31)] == 63
+
+    committed = standardized_from_payload(_load_json(STD_JSON))
+    assert committed.historical_shares == fin.historical_shares
+    parent = resolve_line(
+        fin.income_statement, "profit_attributable_to_owners", required=True
+    ).item
+    assert parent is not None
+    assert required_period_value(parent, date(2025, 8, 31), field="parent") == 433_009
+    builder = ReferenceModelBuilder(fin)
+    assert builder.per_share_series is not None
+    assert builder.per_share_series.reported_diluted_eps[-1] == pytest.approx(
+        1409.32, abs=0.01
+    )
+    assert builder.per_share_series.reported_diluted_eps[1] == pytest.approx(
+        890.43, abs=0.01
+    )
+
+    # Extracted facts and committed reconciled artifacts remain unchanged.
+    assert {
+        path.name: path.read_bytes() for path in sorted(EXTRACTED.glob("FY*.json"))
+    } == extracted_bytes
+    assert STD_JSON.read_bytes() == committed_std
+    assert PROV_JSON.read_bytes() == committed_prov
+    assert CONFLICTS_JSON.read_bytes() == committed_conflicts

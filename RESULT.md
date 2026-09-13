@@ -1,14 +1,13 @@
-Status: Step 9M.3D Repair complete — same-period share presentations must agree with the audited split anchor
+Status: Step 9M.3E complete — G7 closed by verified retained conflict policy
 
 Implementation base:
-- afa5e3331ad6104f976fc8d38160d3ec810eb8cd
+- 10f5bbd67e71c5b341d261213f157fb8df0ec64a
 
-Step 9M.3D Repair status: complete
+Step 9M.3E status: complete
 
 Final verification:
-- focused suite: 92 passed
-  (`test_share_basis.py` + `test_filing_reconciler.py` + `test_fast_retailing_benchmark.py`)
-- full core tests: 525 passed
+- focused suite: 93 passed
+  (`test_filing_reconciler.py` + `test_share_basis.py` + `test_fast_retailing_benchmark.py`)
 - Fast Retailing Stages 1–7: all pass
   - expected_specs=380
   - blank Check: 0 correct / 0 incorrect / 380 blank
@@ -18,17 +17,16 @@ Final verification:
    `provenance.json`, `conflicts.json`)
 - statement overlap conflicts: 3
 - supplemental conflicts: 3
-- G7 remains open
+- G7 closed (conflicts retained; selections locked)
 
-Share-basis repair:
-- every eligible same-period presentation must agree within the pre-anchor
-  and post-anchor groups; when both exist, `post = pre × split_factor`
-- component checks validate all reported basic/dilutive presentations
-  (order-independent); zero/zero allowed; zero/nonzero rejected
-- contradictory additional presentations fail closed (`historical_shares=None`)
-  without mutating reconciliation observations/conflicts
-- Fast Retailing axis preserved:
-  306.871785, 306.969624, 307.138870, 307.231804, 307.247804
-  adjustment factors 3, 1, 1, 1, 1; parent-attributable per-share earnings
+Accepted conflict policy:
+- FY2022 basic EPS selected 891.77 over 2675.30
+  (`restated_comparative_precedence`)
+- FY2022 diluted EPS selected 890.43 over 2671.29
+  (`restated_comparative_precedence`)
+- FY2024 financing “Others, net” selected 63 over 85
+  (`later_audited_presentation`; no cause inferred)
+- both observations retained for every conflict
+- share-basis analytical axis unchanged; reported facts unchanged
 
 TARGET.md: unchanged by Cursor

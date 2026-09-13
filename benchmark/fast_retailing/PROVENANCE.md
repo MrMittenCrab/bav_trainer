@@ -33,21 +33,25 @@ filing-local; cross-filing precedence is applied by the generic reconciler into
 ## Cross-filing overlap conflicts
 
 After the closed 2021 NCI transcription correction, generic `reconciled/conflicts.json`
-records **3** explicit primary-statement conflicts:
+records **3** explicit primary-statement conflicts (Step 9M.3E accepted policy):
 
-- FY2022 basic/diluted EPS restated in CFS2023 after the 3-for-1 split disclosure
+- FY2022 basic EPS selected `891.77` over CFS2022 `2675.30`
   (`restated_comparative_precedence`).
-- FY2024 cash-flow financing “Others, net” comparative differs between CFS2024 and
-  CFS2025 (`later_audited_presentation`).
+- FY2022 diluted EPS selected `890.43` over CFS2022 `2671.29`
+  (`restated_comparative_precedence`).
+- FY2024 cash-flow financing “Others, net” selected `63` over CFS2024 `85`
+  (`later_audited_presentation`). No cause is inferred for the cash-flow difference
+  beyond the recorded later audited comparative presentation.
 
 Each conflict retains all observations plus the selected value; no silent overwrite.
+Closure of G7 means these selections and retained disagreements are verified — not that
+source values agree or that conflict records disappear.
 
 Step 9M.1.1 also records **3** supplemental share-fact conflicts for FY2022
 (`basic_weighted_average_shares`, `diluted_eps`, `dilutive_shares`) where pre-split
 and post-split reported values disagree across filings
 (`cross_filing_supplemental_disagreement`). Both observations remain source-bound in
-provenance; `historical_shares` stays omitted because no complete unambiguous diluted
-WAS axis exists.
+provenance. Share-basis resolution (G6 / Step 9M.3D) does not erase these records.
 
 Every reconciled `note_facts` / `share_facts` item carries `filing_year`,
 `source_file`, computed `source_sha256`, and page-level `source` metadata.
@@ -56,8 +60,13 @@ Every reconciled `note_facts` / `share_facts` item carries `filing_year`,
 
 Common stock was split **3-for-1 effective 1 March 2023**. Filings from FY2023 onward disclose restated per-share metrics / WAS on a post-split basis where the note says so.
 
-**Do not invent restated share counts for FY2021 / FY2022.** Those filings report pre-split weighted-average shares (~102 million). Capture them as reported; any post-split restatement belongs only where an audited filing explicitly provides it. The five-year model therefore keeps `historical_shares = null`.
-
+**Reported share facts are unchanged.** Pre-split FY2021 / FY2022 weighted-average
+shares (~102 million) remain as reported in extracted filings and provenance.
+Analytical model axis `historical_shares` is populated only after validated
+split-adjusted resolution (`basis=split_adjusted`, financial-statement units):
+`306.871785, 306.969624, 307.138870, 307.231804, 307.247804` with adjustment factors
+`3, 1, 1, 1, 1`. That model contract is distinct from the unchanged reported facts and
+retained supplemental conflicts.
 ## Duplicate labels
 
 Current vs non-current rows that share a display label keep the source label and use distinguishing `suggested_concept` values (e.g. `lease_liability_current` / `lease_liability_noncurrent`). Identity matching normalizes text only for keys; documentary strings remain verbatim.
