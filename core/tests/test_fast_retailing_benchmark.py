@@ -1,4 +1,4 @@
-"""Step 9M.1 — Fast Retailing generic filing-JSON migration acceptance."""
+"""Step 9M.1 / 9M.2A — Fast Retailing filing-JSON + build-unblocker acceptance."""
 
 from __future__ import annotations
 
@@ -11,6 +11,9 @@ from pathlib import Path
 from core.data.standardized_io import standardized_from_payload
 from core.ingestion.filing_json import load_extracted_filing
 from core.ingestion.filing_validator import validate_extracted_filing
+from core.ingestion.reconciler import reconcile_financials
+from core.model.classification import classify_balance_sheet_line
+from scripts.audit_fast_retailing_benchmark import run_audit
 
 ROOT = Path(__file__).resolve().parents[2]
 BENCH = ROOT / "benchmark" / "fast_retailing"
@@ -24,6 +27,27 @@ CONFLICTS_JSON = RECONCILED / "conflicts.json"
 BASELINE = BENCH / "BASELINE.md"
 GAPS = BENCH / "GAPS.md"
 AUDIT = ROOT / "scripts" / "audit_fast_retailing_benchmark.py"
+
+G2_CONCEPT_CODES = {
+    "other_financial_assets_current": "financial_asset_current_financial_vs_operating",
+    "financial_assets_noncurrent": "financial_asset_noncurrent_financial_vs_operating",
+    "derivative_financial_assets_current": "financial_asset_current_financial_vs_operating",
+    "derivative_financial_assets_noncurrent": "financial_asset_noncurrent_financial_vs_operating",
+    "other_financial_liabilities_current": "financial_liability_current_financial_vs_operating",
+    "financial_liabilities_noncurrent": "financial_liability_noncurrent_financial_vs_operating",
+    "derivative_financial_liabilities_current": "financial_liability_current_financial_vs_operating",
+    "derivative_financial_liabilities_noncurrent": "financial_liability_noncurrent_financial_vs_operating",
+}
+G2_DEFAULT_CATEGORY = {
+    "other_financial_assets_current": "Financial Asset",
+    "financial_assets_noncurrent": "Financial Asset",
+    "derivative_financial_assets_current": "Financial Asset",
+    "derivative_financial_assets_noncurrent": "Financial Asset",
+    "other_financial_liabilities_current": "Financial Liability",
+    "financial_liabilities_noncurrent": "Financial Liability",
+    "derivative_financial_liabilities_current": "Financial Liability",
+    "derivative_financial_liabilities_noncurrent": "Financial Liability",
+}
 
 
 def _load_json(path: Path) -> dict:
@@ -255,5 +279,58 @@ def test_audit_script_writes_baseline_and_stage_records():
         "7_filled_check",
     ):
         assert stage in text
-    assert "26f22b7" in text
+    assert "Step 9M.2A" in text
     assert "pass" in completed.stdout or "fail" in completed.stdout
+
+
+def test_fast_retailing_g1_balance_sheet_checksum_passes():
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    report = reconcile_financials(fin)
+    assert report.checksums["balance_sheet"] is True
+    assert "Balance sheet does not balance for one or more periods" not in report.warnings
+
+
+def test_fast_retailing_g2_generic_financial_rows_are_guided_judgments():
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    seen = set()
+    for item in fin.balance_sheet:
+        concept = (item.concept or "").strip()
+        if concept not in G2_CONCEPT_CODES:
+            continue
+        decision = classify_balance_sheet_line(item)
+        assert decision.category == G2_DEFAULT_CATEGORY[concept]
+        assert decision.ambiguous is True
+        assert decision.judgment_code == G2_CONCEPT_CODES[concept]
+        seen.add(concept)
+    assert seen, "expected at least one known G2 financial-instrument concept"
+
+
+def test_fast_retailing_audit_stages_pass_g1_and_no_longer_fail_on_g2():
+    result = run_audit()
+    stages = {stage.stage: stage for stage in result["stages"]}
+    assert stages["1_source_fixture_load"].status == "pass"
+    assert stages["2_identity_validation"].status == "pass"
+    assert stages["3_reconciliation"].status == "pass"
+
+    stage4 = stages["4_reference_model_builder"]
+    if stage4.status == "fail" and stage4.exception_type == "UnclassifiedBalanceSheetLineError":
+        message = stage4.message
+        for concept, label_hint in (
+            ("other_financial_assets_current", "Other financial assets"),
+            ("financial_assets_noncurrent", "Financial assets"),
+            ("derivative_financial_assets_current", "Derivative financial assets"),
+            ("derivative_financial_assets_noncurrent", "Derivative financial assets"),
+            ("other_financial_liabilities_current", "Other financial liabilities"),
+            ("financial_liabilities_noncurrent", "Financial liabilities"),
+            ("derivative_financial_liabilities_current", "Derivative financial liabilities"),
+            ("derivative_financial_liabilities_noncurrent", "Derivative financial liabilities"),
+        ):
+            assert label_hint not in message, (
+                f"Stage 4 still blocked by known G2 row {concept}: {message}"
+            )
+    elif stage4.status == "fail":
+        # Non-G2 failure is acceptable and recorded by the audit; just ensure it is not
+        # an UnclassifiedBalanceSheetLineError naming a known G2 concept label.
+        assert "financial assets" not in stage4.message.lower() or (
+            "Cannot safely classify" not in stage4.message
+        )

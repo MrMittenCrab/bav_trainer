@@ -1,6 +1,6 @@
-# Fast Retailing Step 9M.0 Gap Queue
+# Fast Retailing Gap Queue
 
-Evidence basis for Step 9M.1. Measurement only — no speculative production redesign here.
+Evidence basis for Step 9M.2A. Measurement only for remaining gaps — no speculative production redesign here.
 
 Categories:
 - **A** source-extraction / provenance defect
@@ -9,35 +9,31 @@ Categories:
 - **D** optional-module input-contract gap
 - **E** comparative/restatement/share-basis conflict
 
-## Observed engine stages (26f22b7)
+## Observed engine stages (Step 9M.2A)
 
 | Stage | Result |
 |---|---|
 | source fixture load | pass |
 | identity validation | pass |
-| financial reconciliation | **fail** — BS A ≠ L+E by 1 for FY2023 and FY2024 |
-| ReferenceModelBuilder | **fail** — unclassified `Other financial assets` |
+| financial reconciliation | **pass** (G1 closed — `<= 1.0` reporting-unit residual accepted) |
+| ReferenceModelBuilder | **fail** — unclassified `Other assets` (not a G2 financial-instrument row) |
 | workbook generation / Check | skipped |
 
 ## Gaps
 
-### G1 — Published BS totals off by one unit (FY2023, FY2024)
+### G1 — Published BS totals off by one unit (FY2023, FY2024) — **CLOSED in Step 9M.2A**
 
 - **Category:** A / C
 - **Stage:** `3_reconciliation`
-- **Exact mismatch:** `total_assets - (total_liabilities + total_equity) = 1` for `2023-08-31` and `2024-08-31` (FY2025 balances).
-- **Source facts:** audited statement totals in CFS2023/CFS2024/CFS2025 primary BS pages (JPY millions).
-- **Synthetic coverage:** DEMO/cross-company fixtures always balance; 1-unit published rounding is not covered.
-- **Why generalizable:** Real audited statements sometimes publish rounding residuals. The Trainer needs an explicit policy (strict fail vs documented rounding tolerance vs requiring detail-rollforward proof) without inventing balancing plugs.
+- **Resolution:** `validate_balance_sheet` now accepts an absolute residual of at most **1.0** reporting unit without plugs or source mutation. Residuals strictly above `1.0` still fail.
+- **Evidence:** Fast Retailing Stage 3 passes; standardized payload unchanged.
 
-### G2 — Unclassified generic financial-asset row blocks model construction
+### G2 — Unclassified generic financial-instrument rows — **CLOSED in Step 9M.2A**
 
 - **Category:** B
 - **Stage:** `4_reference_model_builder`
-- **Exact exception:** `UnclassifiedBalanceSheetLineError: Cannot safely classify balance-sheet line 'Other financial assets'; provide classificationOverrides['Other financial assets']`
-- **Source facts:** BS current `Other financial assets` (concept `other_financial_assets_current`) and related generic financial / derivative rows.
-- **Synthetic coverage:** DEMO lacks these ambiguous financial instrument rows.
-- **Why generalizable:** Many IFRS corporates present generic “other financial assets/liabilities” and derivatives that require guided classification rather than hard failure before any workbook exists.
+- **Resolution:** Explicit side-aware financial-instrument concepts (`other_financial_assets_current`, `financial_assets_noncurrent`, derivative asset/liability variants, etc.) now classify as guided Accounting Judgment cases (`ambiguous=True`, financial default + side-appropriate operating alternative). Vague labels without usable concept evidence still fail closed.
+- **Evidence:** known G2 rows no longer appear in Stage-4 failure messages; synthetic judgment cases generate for all four side-aware codes.
 
 ### G3 — Split lease liabilities omit lease diagnostic module (expected under 9L.1)
 
@@ -86,19 +82,23 @@ Categories:
 - **Synthetic coverage:** none for audited restatement overlaps.
 - **Why generalizable:** Latest-audited-presentation must remain explicit; silent overwrites are forbidden.
 
+## Post-9M.2A first remaining blocker
+
+- **Stage:** `4_reference_model_builder`
+- **Exception:** `UnclassifiedBalanceSheetLineError`
+- **Message:** `Cannot safely classify balance-sheet line 'Other assets'; provide classificationOverrides['Other assets']`
+- **Workbook generation / Check:** not reached (skipped after Stage 4)
+- **Note:** This is **not** one of the eight explicit G2 financial-instrument concepts. Left open for a later checkpoint; not fixed in 9M.2A.
+
 ## Corrected extraction note (A — closed in 9M.0)
 
 CFS2021 IS line `Non-controlling interests 40 5,836 53,109` was initially misread so that the USD thousands figure `53,109` was treated as JPY millions for FY2021. Corrected to JPY `40` / `5,836`. This was a transcription defect, not an engine defect.
 
-## Step 9M.1 guidance (non-prescriptive)
+## Guidance for later checkpoints
 
-Required invariants to preserve when planning fixes:
-
-1. Do not invent plugs to force BS identity when published totals disagree by rounding.
-2. Generic financial instrument rows must be classifiable via judgment/overrides rather than hard-stopping the whole model.
+1. Do not invent plugs to force BS identity when published totals disagree by rounding (G1 policy already encodes `<= 1.0` acceptance).
+2. Vague unsupported rows (e.g. bare `Other assets`) should remain fail-closed or receive an explicit guided contract — do not auto-classify from the word `other` alone.
 3. Parent vs NCI earnings and equity must be handled consistently when both are disclosed.
 4. Split lease diagnostics need an explicit aggregation contract; do not silently sum.
 5. Lease classification treatment and lease-interest income-side treatment must eventually be internally consistent when lease interest is disclosed.
 6. Multi-year per-share analysis requires an audited comparable share basis.
-
-Do not implement these fixes in Step 9M.0.

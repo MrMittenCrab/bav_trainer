@@ -13,6 +13,7 @@ from core.data.interface import (
     LineItem,
     StandardizedFinancials,
 )
+from core.data.validators import validate_balance_sheet
 from core.ingestion.manual_hk import HKManualDocumentAdapter
 from core.ingestion.reconciler import reconcile_financials
 from core.model.classification import (
@@ -25,6 +26,7 @@ from core.model.classification import (
     reformulate_balance_sheet,
 )
 from core.model.financial_math import compute_anchor
+from core.model.judgment import classification_judgment_cases
 from core.trainer.workbook import build_training_workbook
 
 ROOT = __import__("pathlib").Path(__file__).resolve().parents[2]
@@ -446,3 +448,258 @@ def test_classification_curly_apostrophe_equity_alias_consistent():
     )
     assert owners_straight.category == "Equity"
     assert owners_curly.category == "Equity"
+
+
+def _balance_sheet_identity_fin(residual: float) -> StandardizedFinancials:
+    assets = 100.0
+    liabilities = 60.0
+    equity = 40.0 - residual
+    return StandardizedFinancials(
+        ticker="ROUND",
+        company_name="Rounding Co",
+        currency="HKD",
+        units="HKD in Millions",
+        jurisdiction="HK",
+        periods=_periods(),
+        income_statement=[],
+        balance_sheet=[
+            _li("Total assets", assets, assets),
+            _li("Total liabilities", liabilities, liabilities),
+            _li("Total equity", equity, equity),
+        ],
+        cash_flow=[],
+    )
+
+
+@pytest.mark.parametrize(
+    ("residual", "expected"),
+    [
+        (0.0, True),
+        (0.5, True),
+        (1.0, True),
+        (1.01, False),
+    ],
+)
+def test_balance_sheet_rounding_tolerance(residual, expected):
+    fin = _balance_sheet_identity_fin(residual)
+    before = [dict(item.values) for item in fin.balance_sheet]
+    result = validate_balance_sheet(fin)
+    assert set(result.values()) == {expected}
+    assert [dict(item.values) for item in fin.balance_sheet] == before
+
+
+def test_reconciliation_accepts_one_unit_but_rejects_larger_residual():
+    accepted = reconcile_financials(_balance_sheet_identity_fin(1.0))
+    assert accepted.checksums["balance_sheet"] is True
+    assert "Balance sheet does not balance for one or more periods" not in accepted.warnings
+
+    rejected = reconcile_financials(_balance_sheet_identity_fin(1.01))
+    assert rejected.checksums["balance_sheet"] is False
+    assert "Balance sheet does not balance for one or more periods" in rejected.warnings
+
+
+@pytest.mark.parametrize(
+    ("label", "concept", "category", "code"),
+    [
+        (
+            "Other financial assets",
+            "other_financial_assets_current",
+            "Financial Asset",
+            "financial_asset_current_financial_vs_operating",
+        ),
+        (
+            "Financial assets",
+            "financial_assets_noncurrent",
+            "Financial Asset",
+            "financial_asset_noncurrent_financial_vs_operating",
+        ),
+        (
+            "Derivative financial assets",
+            "derivative_financial_assets_current",
+            "Financial Asset",
+            "financial_asset_current_financial_vs_operating",
+        ),
+        (
+            "Derivative financial assets",
+            "derivative_financial_assets_noncurrent",
+            "Financial Asset",
+            "financial_asset_noncurrent_financial_vs_operating",
+        ),
+        (
+            "Other financial liabilities",
+            "other_financial_liabilities_current",
+            "Financial Liability",
+            "financial_liability_current_financial_vs_operating",
+        ),
+        (
+            "Financial liabilities",
+            "financial_liabilities_noncurrent",
+            "Financial Liability",
+            "financial_liability_noncurrent_financial_vs_operating",
+        ),
+        (
+            "Derivative financial liabilities",
+            "derivative_financial_liabilities_current",
+            "Financial Liability",
+            "financial_liability_current_financial_vs_operating",
+        ),
+        (
+            "Derivative financial liabilities",
+            "derivative_financial_liabilities_noncurrent",
+            "Financial Liability",
+            "financial_liability_noncurrent_financial_vs_operating",
+        ),
+    ],
+)
+def test_generic_financial_concepts_become_guided_judgments(
+    label, concept, category, code
+):
+    decision = classify_balance_sheet_line(
+        LineItem(label=label, concept=concept, values={P1: 10, P2: 12})
+    )
+    assert decision.category == category
+    assert decision.ambiguous is True
+    assert decision.judgment_code == code
+    assert decision.reason
+
+
+def test_generic_financial_label_without_side_concept_still_fails_closed():
+    with pytest.raises(UnclassifiedBalanceSheetLineError):
+        classify_balance_sheet_line(
+            LineItem(
+                label="Other financial assets",
+                concept="",
+                values={P1: 10, P2: 12},
+            )
+        )
+
+
+def test_generic_financial_concept_does_not_override_specific_existing_rules():
+    cash = classify_balance_sheet_line(
+        LineItem(
+            label="Cash and cash equivalents",
+            concept="financial_assets_current",
+            values={P1: 10, P2: 12},
+        )
+    )
+    assert cash.category == "Financial Asset"
+    assert cash.ambiguous is False
+
+    debt = classify_balance_sheet_line(
+        LineItem(
+            label="Bank borrowings",
+            concept="financial_liabilities_noncurrent",
+            values={P1: 10, P2: 12},
+        )
+    )
+    assert debt.category == "Financial Liability"
+    assert debt.ambiguous is False
+
+    short_term_investment = classify_balance_sheet_line(
+        LineItem(
+            label="Short-term investments",
+            concept="financial_assets_current",
+            values={P1: 10, P2: 12},
+        )
+    )
+    assert short_term_investment.judgment_code == (
+        "short_term_investment_financial_vs_operating"
+    )
+
+
+def _generic_financial_judgment_fin() -> StandardizedFinancials:
+    return StandardizedFinancials(
+        ticker="GFIN",
+        company_name="Generic Financial Co",
+        currency="HKD",
+        units="HKD in Millions",
+        jurisdiction="HK",
+        periods=_periods(),
+        income_statement=[],
+        balance_sheet=[
+            LineItem(
+                label="Other financial assets",
+                concept="other_financial_assets_current",
+                values={P1: 10, P2: 11},
+            ),
+            LineItem(
+                label="Financial assets",
+                concept="financial_assets_noncurrent",
+                values={P1: 20, P2: 21},
+            ),
+            LineItem(
+                label="Other financial liabilities",
+                concept="other_financial_liabilities_current",
+                values={P1: 5, P2: 6},
+            ),
+            LineItem(
+                label="Financial liabilities",
+                concept="financial_liabilities_noncurrent",
+                values={P1: 7, P2: 8},
+            ),
+            LineItem(
+                label="Share capital and reserves",
+                concept="retained_earnings",
+                values={P1: 18, P2: 18},
+            ),
+        ],
+        cash_flow=[],
+    )
+
+
+def test_generic_financial_judgment_cases_and_override():
+    fin = _generic_financial_judgment_fin()
+    periods = [P1, P2]
+    reform = reformulate_balance_sheet(fin, periods)
+    cases = classification_judgment_cases(fin, periods, reform)
+    assert len(cases) == 4
+
+    expected = {
+        "Other financial assets": (
+            "Financial Asset",
+            ("Operating Working Capital Asset",),
+        ),
+        "Financial assets": (
+            "Financial Asset",
+            ("Operating Long-Term Asset",),
+        ),
+        "Other financial liabilities": (
+            "Financial Liability",
+            ("Operating Working Capital Liability",),
+        ),
+        "Financial liabilities": (
+            "Financial Liability",
+            ("Operating Long-Term Liability",),
+        ),
+    }
+    by_label = {case.label: case for case in cases}
+    assert set(by_label) == set(expected)
+    for label, (supplied, alts) in expected.items():
+        case = by_label[label]
+        assert case.supplied_treatment == supplied
+        assert case.alternatives == alts
+        assert case.override_selector.startswith("identity:")
+        assert case.line_identity == case.override_selector.removeprefix("identity:")
+        assert case.model_rationale
+        assert case.model_consequence
+
+    case = by_label["Other financial assets"]
+    before_values = [dict(item.values) for item in fin.balance_sheet]
+    reform_alt = reformulate_balance_sheet(
+        fin,
+        periods,
+        overrides={case.override_selector: case.alternatives[0]},
+    )
+    # Selected detail decision changes to the alternative category.
+    detail_idx = next(
+        idx
+        for idx in reform_alt.detail_indices
+        if fin.balance_sheet[idx].label == case.label
+    )
+    assert reform_alt.decisions[detail_idx].category == case.alternatives[0]
+    assert [dict(item.values) for item in fin.balance_sheet] == before_values
+    assert reform_alt.implied_equity == reform.implied_equity
+    # Financial-asset -> operating WC raises NOA and Net Debt together.
+    assert reform_alt.noa[0] > reform.noa[0]
+    assert reform_alt.net_debt[0] > reform.net_debt[0]
+

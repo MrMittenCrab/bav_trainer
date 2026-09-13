@@ -206,6 +206,68 @@ def _classify_by_concept(item: LineItem) -> ClassificationDecision | None:
     ):
         return ClassificationDecision("Equity")
 
+    return _generic_financial_concept_decision(item)
+
+
+def _generic_financial_concept_decision(
+    item: LineItem,
+) -> ClassificationDecision | None:
+    c = _concept_token(item.concept or "")
+    low = _norm(item.label)
+
+    # Concept is authoritative for nature/side/currentness; label is only a gate
+    # that this is genuinely a generic financial/derivative presentation row.
+    if "financial" not in c:
+        return None
+    if not _match_any(
+        low,
+        (
+            "financial asset",
+            "financial liab",
+            "derivative financial",
+        ),
+    ):
+        return None
+
+    if "noncurrent" in c:
+        horizon = "noncurrent"
+    elif "current" in c:
+        horizon = "current"
+    else:
+        return None
+
+    if "asset" in c and "liab" not in c:
+        code = (
+            "financial_asset_noncurrent_financial_vs_operating"
+            if horizon == "noncurrent"
+            else "financial_asset_current_financial_vs_operating"
+        )
+        return ClassificationDecision(
+            "Financial Asset",
+            ambiguous=True,
+            reason=(
+                "Generic financial-asset concept — financial vs operating "
+                "purpose/hedging judgment"
+            ),
+            judgment_code=code,
+        )
+
+    if "liab" in c:
+        code = (
+            "financial_liability_noncurrent_financial_vs_operating"
+            if horizon == "noncurrent"
+            else "financial_liability_current_financial_vs_operating"
+        )
+        return ClassificationDecision(
+            "Financial Liability",
+            ambiguous=True,
+            reason=(
+                "Generic financial-liability concept — financial vs operating "
+                "purpose/hedging judgment"
+            ),
+            judgment_code=code,
+        )
+
     return None
 
 

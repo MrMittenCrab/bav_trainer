@@ -1,5 +1,8 @@
 # Step 9M.2A — Real-Company Build Unblockers Implementation Plan
 
+**Status: Step 9M.2A complete** — focused 95 passed; full `core/tests/` 390 passed; G1 Stage 3 pass; G2 guided judgment (no hard stop on known financial-instrument rows); Stage 4 next blocker `UnclassifiedBalanceSheetLineError` on `Other assets`; overlap conflicts 3; supplemental conflicts 3; standardized payload unchanged; forecast/valuation isolation pass.
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > **For Cursor:** Read `TARGET.md`, then `docs/superpowers/specs/2026-09-13-step-9m2a-real-company-build-unblockers-design.md`, then `benchmark/fast_retailing/GAPS.md`, then this plan in full. The accepted code base is `a707408d109037f11e3677d67f29b157cf6fa026` (`Step 9M.1.1`); the approved design is commit `37c0b843fd4ab9e432b5e9cfd923f42fd0471903`. Implement only Step 9M.2A using red/green TDD. Do not begin G3–G7 fixes, PDF/AI extraction, forecasting, valuation, scenarios, or investment conclusions. Do not commit, push, reset, rebase, merge, clean, or delete branches; the user owns checkpoint commits.
@@ -45,7 +48,7 @@
 - Change `validate_balance_sheet` to accept keyword-only `tolerance: float = BALANCE_SHEET_TOLERANCE` and continue returning `dict[date, bool]`.
 - `reconcile_financials(data)` continues to call `validate_balance_sheet(data)` and therefore inherits the default tolerance without a new reconciler API.
 
-- [ ] **Step 1: Add a focused fixture for balance-sheet identity residuals**
+- [x] **Step 1: Add a focused fixture for balance-sheet identity residuals**
 
 In `core/tests/test_classification.py`, add a helper using the existing `P1`, `P2`, `_li()`, and `_periods()` helpers:
 
@@ -73,7 +76,7 @@ def _balance_sheet_identity_fin(residual: float) -> StandardizedFinancials:
 
 Take a value snapshot before validation so the test can prove validation does not mutate source numbers.
 
-- [ ] **Step 2: Add the four required tolerance cases**
+- [x] **Step 2: Add the four required tolerance cases**
 
 Import `validate_balance_sheet` and add:
 
@@ -95,7 +98,7 @@ def test_balance_sheet_rounding_tolerance(residual, expected):
     assert [dict(item.values) for item in fin.balance_sheet] == before
 ```
 
-- [ ] **Step 3: Add reconciler warning semantics**
+- [x] **Step 3: Add reconciler warning semantics**
 
 Require the accepted one-unit residual to produce a passing balance-sheet checksum and no generic balance-sheet warning, while `1.01` still fails and warns:
 
@@ -110,7 +113,7 @@ def test_reconciliation_accepts_one_unit_but_rejects_larger_residual():
     assert "Balance sheet does not balance for one or more periods" in rejected.warnings
 ```
 
-- [ ] **Step 4: Run the G1 tests red**
+- [x] **Step 4: Run the G1 tests red**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_classification.py -k "balance_sheet_rounding_tolerance or reconciliation_accepts_one_unit" -v
@@ -118,7 +121,7 @@ PYTHONPATH=. pytest core/tests/test_classification.py -k "balance_sheet_rounding
 
 Expected before implementation: the `1.0` residual case fails because the current checksum threshold is `0.5`.
 
-- [ ] **Step 5: Implement the explicit tolerance**
+- [x] **Step 5: Implement the explicit tolerance**
 
 In `core/data/validators.py`, add:
 
@@ -135,7 +138,7 @@ elif abs(float(a) - (float(l) + float(e))) > tolerance:
 
 Do not round, plug, rewrite, or normalize any values.
 
-- [ ] **Step 6: Run the G1 tests green**
+- [x] **Step 6: Run the G1 tests green**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_classification.py -k "balance_sheet_rounding_tolerance or reconciliation_accepts_one_unit" -v
@@ -163,7 +166,7 @@ financial_liability_current_financial_vs_operating
 financial_liability_noncurrent_financial_vs_operating
 ```
 
-- [ ] **Step 1: Add parameterized G2 classification tests**
+- [x] **Step 1: Add parameterized G2 classification tests**
 
 Add the following exact cases to `core/tests/test_classification.py`:
 
@@ -233,7 +236,7 @@ def test_generic_financial_concepts_become_guided_judgments(
     assert decision.reason
 ```
 
-- [ ] **Step 2: Add fail-closed and specificity regressions**
+- [x] **Step 2: Add fail-closed and specificity regressions**
 
 Require a generic label without usable concept evidence to remain unsupported:
 
@@ -285,7 +288,7 @@ def test_generic_financial_concept_does_not_override_specific_existing_rules():
     )
 ```
 
-- [ ] **Step 3: Run the G2 classifier tests red**
+- [x] **Step 3: Run the G2 classifier tests red**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_classification.py -k "generic_financial" -v
@@ -293,7 +296,7 @@ PYTHONPATH=. pytest core/tests/test_classification.py -k "generic_financial" -v
 
 Expected before implementation: the eight explicit generic financial rows raise `UnclassifiedBalanceSheetLineError` or do not carry the required judgment codes.
 
-- [ ] **Step 4: Implement a narrow concept-driven fallback**
+- [x] **Step 4: Implement a narrow concept-driven fallback**
 
 At the end of `_classify_by_concept(item)`, after the existing strong concept rules and before its final `return None`, add a small private helper or equivalent inline logic with this exact decision contract:
 
@@ -366,7 +369,7 @@ The `noncurrent` check must occur before `current`, because the normalized token
 
 Do not add any ticker/company checks. Do not broaden label-only classification.
 
-- [ ] **Step 5: Run the G2 classifier tests green**
+- [x] **Step 5: Run the G2 classifier tests green**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_classification.py -k "generic_financial" -v
@@ -387,7 +390,7 @@ Expected: all selected tests pass, including the fail-closed and specificity cas
 - Keep `ClassificationJudgmentTemplate`, `JudgmentCase`, and `classification_judgment_cases()` unchanged.
 - Add four entries to `CLASSIFICATION_JUDGMENT_TEMPLATES` keyed by the four judgment codes from Task 2.
 
-- [ ] **Step 1: Add the four exact registry templates**
+- [x] **Step 1: Add the four exact registry templates**
 
 The templates must use these exact option pairs:
 
@@ -456,7 +459,7 @@ The templates must use these exact option pairs:
 
 The first option must exactly equal the classifier's default category.
 
-- [ ] **Step 2: Add a four-case synthetic judgment fixture**
+- [x] **Step 2: Add a four-case synthetic judgment fixture**
 
 In `core/tests/test_classification.py`, create a two-period `StandardizedFinancials` with these non-zero detail rows:
 
@@ -470,7 +473,7 @@ Share capital and reserves / retained_earnings                       18, 18
 
 This gives assets `30/32`, liabilities `12/14`, and equity `18/18` without requiring reported total rows. Use `FinancialPeriod` objects for `P1/P2`; income statement and cash flow may be empty because this test exercises reformulation/judgment generation directly.
 
-- [ ] **Step 3: Add judgment-case assertions**
+- [x] **Step 3: Add judgment-case assertions**
 
 Import `classification_judgment_cases` and require four cases. For each expected label, require:
 
@@ -500,7 +503,7 @@ and require:
 - `implied_equity` is unchanged versus the reference classification;
 - NOA and/or Net Debt move in the direction described by the template.
 
-- [ ] **Step 4: Run the judgment tests red**
+- [x] **Step 4: Run the judgment tests red**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_classification.py -k "generic_financial or judgment_case" -v
@@ -508,11 +511,11 @@ PYTHONPATH=. pytest core/tests/test_classification.py -k "generic_financial or j
 
 Expected before Task 3 implementation: `classification_judgment_cases()` raises for unsupported new judgment codes or cannot produce the required cases.
 
-- [ ] **Step 5: Implement the registry entries**
+- [x] **Step 5: Implement the registry entries**
 
 Add only the four templates above to `CLASSIFICATION_JUDGMENT_TEMPLATES`. Do not add a new judgment engine or a second registry.
 
-- [ ] **Step 6: Add a builder-level integration regression**
+- [x] **Step 6: Add a builder-level integration regression**
 
 In `core/tests/test_reference_integrity.py`, create a minimal two-period `StandardizedFinancials` containing:
 
@@ -529,7 +532,7 @@ builder = ReferenceModelBuilder(fin)
 
 and require that `builder.judgment_cases` contains the four expected supplied treatments/alternatives. This proves the existing Accounting Judgment workflow receives the cases; do not create a parallel workbook mechanism.
 
-- [ ] **Step 7: Run Task 3 green**
+- [x] **Step 7: Run Task 3 green**
 
 ```bash
 PYTHONPATH=. pytest \
@@ -565,7 +568,7 @@ Expected: all selected tests pass.
 7_filled_check
 ```
 
-- [ ] **Step 1: Add the Fast Retailing G1 acceptance assertion**
+- [x] **Step 1: Add the Fast Retailing G1 acceptance assertion**
 
 In `core/tests/test_fast_retailing_benchmark.py`, load `reconciled/standardized.json` through `standardized_from_payload()`, call `reconcile_financials(fin)`, and require:
 
@@ -576,7 +579,7 @@ assert "Balance sheet does not balance for one or more periods" not in report.wa
 
 Do not change the standardized fixture to make this pass.
 
-- [ ] **Step 2: Add the Fast Retailing G2 row assertions**
+- [x] **Step 2: Add the Fast Retailing G2 row assertions**
 
 For each Fast Retailing balance-sheet row whose concept is one of:
 
@@ -595,7 +598,7 @@ require `classify_balance_sheet_line(item)` to return the financial default, `am
 
 This test is the direct proof that the known G2 rows no longer hard-fail even if a later unrelated row becomes the next blocker.
 
-- [ ] **Step 3: Add an audit-stage regression**
+- [x] **Step 3: Add an audit-stage regression**
 
 Call `run_audit()` and build:
 
@@ -613,7 +616,7 @@ assert stages["3_reconciliation"].status == "pass"
 
 For Stage 4, do **not** pre-assume the whole builder now succeeds. Instead require that any Stage-4 `UnclassifiedBalanceSheetLineError` message no longer names any of the known G2 financial-instrument rows above. If Stage 4 passes, allow later stages to reveal the next blocker.
 
-- [ ] **Step 4: Run the Fast Retailing acceptance tests**
+- [x] **Step 4: Run the Fast Retailing acceptance tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
@@ -621,7 +624,7 @@ PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
 
 Expected after Tasks 1–3: G1 assertions pass and G2-specific hard failures disappear. A newly exposed unrelated failure is acceptable only if recorded in the next steps.
 
-- [ ] **Step 5: Run the real stage audit and capture the exact next blocker**
+- [x] **Step 5: Run the real stage audit and capture the exact next blocker**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
@@ -639,7 +642,7 @@ whether workbook generation/check stages were reached
 
 Do not fix the newly exposed failure in this checkpoint unless it is demonstrably still G1 or one of the eight explicit G2 financial-instrument concepts.
 
-- [ ] **Step 6: Remove stale audit-version wording**
+- [x] **Step 6: Remove stale audit-version wording**
 
 `scripts/audit_fast_retailing_benchmark.py` currently describes the audited accounting engine using the old Step 9L.1 commit constant. Replace that stale claim with phase wording that does not pretend to know the user's future checkpoint SHA:
 
@@ -655,7 +658,7 @@ Update the generated baseline heading to:
 
 Do not add Git subprocess/version discovery solely for documentation.
 
-- [ ] **Step 7: Re-run the audit after metadata cleanup**
+- [x] **Step 7: Re-run the audit after metadata cleanup**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
@@ -677,7 +680,7 @@ Expected: same stage behavior and same measured next blocker as Step 5; only ben
 - Do not change `TARGET.md`.
 - Do not change the filing-JSON design/spec in this task.
 
-- [ ] **Step 1: Update the gap queue from measured evidence**
+- [x] **Step 1: Update the gap queue from measured evidence**
 
 In `benchmark/fast_retailing/GAPS.md`:
 
@@ -687,7 +690,7 @@ In `benchmark/fast_retailing/GAPS.md`:
 - add a short **Post-9M.2A first remaining blocker** subsection containing the exact stage/exception/message observed in Task 4, or state that no blocker remained if all stages passed;
 - do not implement or speculate a fix for that next blocker here.
 
-- [ ] **Step 2: Update RESULT.md with actual evidence only**
+- [x] **Step 2: Update RESULT.md with actual evidence only**
 
 Record these fields using the literal output from the final commands rather than guessed values:
 
@@ -706,7 +709,7 @@ focused tests: exact pass count from Task 5 Step 3
 full core tests: exact pass count from Task 5 Step 4
 ```
 
-- [ ] **Step 3: Run the focused Step 9M.2A suite**
+- [x] **Step 3: Run the focused Step 9M.2A suite**
 
 ```bash
 PYTHONPATH=. pytest \
@@ -718,7 +721,7 @@ PYTHONPATH=. pytest \
 
 Expected: all pass. Record the actual pass count.
 
-- [ ] **Step 4: Run the full historical regression suite**
+- [x] **Step 4: Run the full historical regression suite**
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
@@ -726,7 +729,7 @@ PYTHONPATH=. pytest core/tests/ -q
 
 Expected: all pass. Record the actual pass count.
 
-- [ ] **Step 5: Verify source/reconciliation artifacts did not drift**
+- [x] **Step 5: Verify source/reconciliation artifacts did not drift**
 
 Run:
 
@@ -759,7 +762,7 @@ overlap 3
 supplemental 3
 ```
 
-- [ ] **Step 6: Verify unrelated workbook/source artifacts remain untouched**
+- [x] **Step 6: Verify unrelated workbook/source artifacts remain untouched**
 
 ```bash
 git diff -- example/DEMO_HK_Trainer.xlsx
@@ -768,7 +771,7 @@ git diff -- benchmark/fast_retailing/extracted benchmark/fast_retailing/source
 
 Expected: no output.
 
-- [ ] **Step 7: Re-run the Fast Retailing audit as the final behavioral gate**
+- [x] **Step 7: Re-run the Fast Retailing audit as the final behavioral gate**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
@@ -785,7 +788,7 @@ known G2 financial-instrument rows no longer block Stage 4
 
 If a later failure remains, it must exactly match the one recorded in `GAPS.md` / `RESULT.md`. Do not fix it in this checkpoint.
 
-- [ ] **Step 8: Verify forecast/valuation isolation remains intact**
+- [x] **Step 8: Verify forecast/valuation isolation remains intact**
 
 The full suite must still include the existing regression that normal historical builds do not call `run_scenario`. Also run the focused test explicitly:
 
@@ -797,13 +800,13 @@ PYTHONPATH=. pytest \
 
 Expected: PASS.
 
-- [ ] **Step 9: Mark Step 9M.2A complete only with fresh evidence**
+- [x] **Step 9: Mark Step 9M.2A complete only with fresh evidence**
 
 At the top of `IMPLEMENTATION.md`, add a concise status line containing the actual focused/full test counts, Fast Retailing Stage 3/4 outcome, next measured blocker, unchanged conflict counts, unchanged standardized payload, and forecast/valuation isolation result.
 
 Check every completed step `[x]` only after its command/test has actually run successfully.
 
-- [ ] **Step 10: Stop**
+- [x] **Step 10: Stop**
 
 Do not begin G3/G4 lease work, G5 NCI work, G6 share-basis work, G7 reconciliation changes, extraction automation, forecasting, valuation, or scenarios.
 

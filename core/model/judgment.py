@@ -102,6 +102,66 @@ CLASSIFICATION_JUDGMENT_TEMPLATES: dict[str, ClassificationJudgmentTemplate] = {
             "classification switch alone, but RNOA and leverage interpretation change."
         ),
     ),
+    "financial_asset_current_financial_vs_operating": ClassificationJudgmentTemplate(
+        topic="Current financial asset: financial vs operating",
+        options=("Financial Asset", "Operating Working Capital Asset"),
+        model_rationale=(
+            "The reference model treats a generically disclosed current financial "
+            "instrument as a financial asset absent evidence that it is integral to "
+            "normal operations or an operating hedge."
+        ),
+        consequence_prompt=CONSEQUENCE_PROMPT,
+        model_consequence=(
+            "Financial-asset treatment lowers Net Debt; operating-WC treatment raises "
+            "NOWC/NOA by the same balance. Implied equity is unchanged by the "
+            "classification switch alone."
+        ),
+    ),
+    "financial_asset_noncurrent_financial_vs_operating": ClassificationJudgmentTemplate(
+        topic="Non-current financial asset: financial vs operating",
+        options=("Financial Asset", "Operating Long-Term Asset"),
+        model_rationale=(
+            "The reference model treats a generically disclosed non-current financial "
+            "instrument as a financial asset absent evidence that it is strategically "
+            "or operationally required."
+        ),
+        consequence_prompt=CONSEQUENCE_PROMPT,
+        model_consequence=(
+            "Financial-asset treatment lowers Net Debt; operating-LT treatment raises "
+            "NOLA/NOA by the same balance. Implied equity is unchanged by the "
+            "classification switch alone."
+        ),
+    ),
+    "financial_liability_current_financial_vs_operating": ClassificationJudgmentTemplate(
+        topic="Current financial liability: financial vs operating",
+        options=("Financial Liability", "Operating Working Capital Liability"),
+        model_rationale=(
+            "The reference model treats a generically disclosed current financial "
+            "instrument as a financial liability absent evidence that it is an "
+            "operating payable or operating hedge."
+        ),
+        consequence_prompt=CONSEQUENCE_PROMPT,
+        model_consequence=(
+            "Financial-liability treatment raises Net Debt; operating-WC-liability "
+            "treatment lowers NOWC/NOA by the same balance. Implied equity is unchanged "
+            "by the classification switch alone."
+        ),
+    ),
+    "financial_liability_noncurrent_financial_vs_operating": ClassificationJudgmentTemplate(
+        topic="Non-current financial liability: financial vs operating",
+        options=("Financial Liability", "Operating Long-Term Liability"),
+        model_rationale=(
+            "The reference model treats a generically disclosed non-current financial "
+            "instrument as a financial liability absent evidence that it is an "
+            "operating long-term obligation or operating hedge."
+        ),
+        consequence_prompt=CONSEQUENCE_PROMPT,
+        model_consequence=(
+            "Financial-liability treatment raises Net Debt; operating-LT-liability "
+            "treatment lowers NOLA/NOA by the same balance. Implied equity is unchanged "
+            "by the classification switch alone."
+        ),
+    ),
 }
 
 

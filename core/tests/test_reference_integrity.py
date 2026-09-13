@@ -1353,8 +1353,8 @@ def test_guided_classification_judgment_cases_and_suppressions():
     )
     from core.model.period_axis import canonical_fiscal_periods
 
-    assert len(CLASSIFICATION_JUDGMENT_TEMPLATES) == 4
-    assert len(set(CLASSIFICATION_JUDGMENT_TEMPLATES)) == 4
+    assert len(CLASSIFICATION_JUDGMENT_TEMPLATES) == 8
+    assert len(set(CLASSIFICATION_JUDGMENT_TEMPLATES)) == 8
     for code, template in CLASSIFICATION_JUDGMENT_TEMPLATES.items():
         assert len(template.options) >= 2
         assert len(set(template.options)) == len(template.options)
@@ -1535,7 +1535,7 @@ def test_demo_has_one_lease_judgment_case_and_204_formula_components(tmp_path):
 
     data = _ingest_demo()
     builder = ReferenceModelBuilder(data)
-    assert len(CLASSIFICATION_JUDGMENT_TEMPLATES) == 4
+    assert len(CLASSIFICATION_JUDGMENT_TEMPLATES) == 8
     assert len(builder.judgment_cases) == 1
     case = builder.judgment_cases[0]
     assert case.label == "Operating lease liabilities"
@@ -2485,3 +2485,83 @@ def test_condensed_etr_niat_formulas_and_check_na(tmp_path):
             cached_value=0.0,
         )
         assert check_workbook(trainer).incorrect >= 1
+
+
+def test_generic_financial_judgment_cases_reach_reference_builder():
+    from core.data.interface import StandardizedFinancials
+    from core.engine.reference_model import ReferenceModelBuilder
+
+    periods = _synth_periods()
+    fin = StandardizedFinancials(
+        ticker="GFIN",
+        company_name="Generic Financial Co",
+        currency="HKD",
+        units="HKD in Millions",
+        jurisdiction="HK",
+        periods=periods,
+        income_statement=[
+            _li("Revenue", 100, 110),
+            _li("Finance costs", -4, -5),
+            _li("Finance income", 1, 1),
+            _li("Profit before tax", 20, 22),
+            _li("Income tax expense", -3, -3),
+            _li("Profit for the year", 17, 19),
+        ],
+        balance_sheet=[
+            _li(
+                "Other financial assets",
+                10,
+                11,
+                concept="other_financial_assets_current",
+            ),
+            _li(
+                "Financial assets",
+                20,
+                21,
+                concept="financial_assets_noncurrent",
+            ),
+            _li(
+                "Other financial liabilities",
+                5,
+                6,
+                concept="other_financial_liabilities_current",
+            ),
+            _li(
+                "Financial liabilities",
+                7,
+                8,
+                concept="financial_liabilities_noncurrent",
+            ),
+            _li(
+                "Share capital and reserves",
+                18,
+                18,
+                concept="retained_earnings",
+            ),
+        ],
+        cash_flow=[],
+    )
+    builder = ReferenceModelBuilder(fin)
+    by_label = {case.label: case for case in builder.judgment_cases}
+    assert set(by_label) == {
+        "Other financial assets",
+        "Financial assets",
+        "Other financial liabilities",
+        "Financial liabilities",
+    }
+    assert by_label["Other financial assets"].supplied_treatment == "Financial Asset"
+    assert by_label["Other financial assets"].alternatives == (
+        "Operating Working Capital Asset",
+    )
+    assert by_label["Financial assets"].supplied_treatment == "Financial Asset"
+    assert by_label["Financial assets"].alternatives == ("Operating Long-Term Asset",)
+    assert by_label["Other financial liabilities"].supplied_treatment == (
+        "Financial Liability"
+    )
+    assert by_label["Other financial liabilities"].alternatives == (
+        "Operating Working Capital Liability",
+    )
+    assert by_label["Financial liabilities"].supplied_treatment == "Financial Liability"
+    assert by_label["Financial liabilities"].alternatives == (
+        "Operating Long-Term Liability",
+    )

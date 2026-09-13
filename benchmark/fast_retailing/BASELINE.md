@@ -1,8 +1,8 @@
-# Fast Retailing Benchmark Baseline (Step 9M.1.1)
+# Fast Retailing Benchmark Baseline (Step 9M.2A)
 
-- Model commit audited: `26f22b7` (Step 9L.1 accounting engine)
+- Accounting engine phase: Step 9M.2A (G1/G2 implementation on accepted Step 9M.1.1 base)
 - Input path: generic `extracted/` → `validate-source` → `reconcile` → `reconciled/`
-- Benchmark phase: measurement only — no production accounting fixes applied
+- Benchmark phase: measurement only — G1/G2 closed; G3–G7 remain open
 - Five fiscal periods: 2021-08-31 … 2025-08-31
 
 ## Source hashes
@@ -19,7 +19,7 @@
 - Supplemental provenance source-bound: yes
 - Portable source-path validation: yes
 - Silent repeated-share overwrite removed: yes
-- G1–G7 accounting gaps preserved for 9M.2: yes
+- G1 closed in 9M.2A; G2 closed in 9M.2A; G3–G7 remain open
 
 ## Stage results
 
@@ -27,18 +27,18 @@
 |---|---|---|
 | 1_source_fixture_load | pass | loaded |
 | 2_identity_validation | pass |  |
-| 3_reconciliation | fail | reconciliation checksums={'income_statement': True, 'balance_sheet': False, 'cash_flow': True} warnings=['Balance sheet does not balance for one or more periods'] |
-| 4_reference_model_builder | fail | Cannot safely classify balance-sheet line 'Derivative financial assets'; provide classificationOverrides['Derivative financial assets'] |
+| 3_reconciliation | pass |  |
+| 4_reference_model_builder | fail | Cannot safely classify balance-sheet line 'Other assets'; provide classificationOverrides['Other assets'] |
 | 5_workbook_generation | skipped | prior stage failed |
 | 6_blank_check | skipped | prior stage failed |
 | 7_filled_check | skipped | prior stage failed |
 
 ## First failure
 
-- Stage: `3_reconciliation`
+- Stage: `4_reference_model_builder`
 - Status: `fail`
-- Exception: `ValueError`
-- Message: reconciliation checksums={'income_statement': True, 'balance_sheet': False, 'cash_flow': True} warnings=['Balance sheet does not balance for one or more periods']
+- Exception: `UnclassifiedBalanceSheetLineError`
+- Message: Cannot safely classify balance-sheet line 'Other assets'; provide classificationOverrides['Other assets']
 
 ## Module applicability (source fixture)
 

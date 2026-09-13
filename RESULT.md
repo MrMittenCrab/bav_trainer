@@ -1,47 +1,43 @@
-Status: Step 9M.1.1 complete — filing-JSON provenance + validation hardening
+Status: Step 9M.2A complete — real-company build unblockers (G1 + G2)
 
 Implementation base:
-- e5fa7b8 Step 9M.1 generic filing-JSON input + Fast Retailing migration
-- Target/spec: TARGET.md source-data architecture + filing-JSON design
+- a707408 Step 9M.1.1 filing-JSON provenance + validation hardening
+- Design: 37c0b84 Step 9M.2A real-company build unblockers
 
-Final verification (Task 6):
-- focused input suite: 54 passed
-- full `core/tests/`: 370 passed
-- CLI: `{ingest, validate-source, reconcile, build, check, list}` (no `extract`)
-- family orders: 1..90 unchanged
-- Fast Retailing `historical_shares`: omitted (no complete unambiguous diluted WAS axis)
-- forecasting / valuation: still deferred
-- TARGET.md unchanged by Cursor
+Step 9M.2A scope: G1 + G2 only
 
-Step 9M.1.1 evidence:
-- supplemental provenance source-bound: yes
-- portable source-path validation: yes
-- silent repeated-share overwrite removed: yes
+Final verification:
+- focused tests: 95 passed
+  (`test_classification.py` + `test_reference_integrity.py` + `test_fast_retailing_benchmark.py`)
+- full core tests: 390 passed
+- forecast/valuation activation: no
+  (`test_normal_v1_build_does_not_call_run_scenario` PASS)
+- Fast Retailing standardized source payload changed: no
 - statement overlap conflicts: 3
-- supplemental conflict count: 3
-- G1–G7 accounting gaps preserved for 9M.2: yes
-- `standardized.json` byte-identical to Step 9M.1: yes
-- reconcile deterministic across two temp dirs: yes
+- supplemental conflicts: 3
 
-Review defects closed:
-1. note/share facts retain filing_year + source_file + computed SHA-256 after reconcile
-2. disagreeing repeated diluted WAS observations create supplemental conflicts and block promotion
-3. blank required metadata and absolute/`..` source paths are rejected before hashing
+G1 one-unit BS tolerance: pass
+- `BALANCE_SHEET_TOLERANCE = 1.0`
+- residual `<= 1.0` accepted without plugs; `> 1.0` still fails
+- Fast Retailing Stage 3: pass
 
-Files touched:
-- `core/ingestion/filing_json.py`
-- `core/ingestion/filing_validator.py`
-- `core/ingestion/filing_reconciler.py`
-- `core/ingestion/filing_standardizer.py`
-- `core/tests/test_filing_json.py`
-- `core/tests/test_filing_cli.py`
-- `core/tests/test_filing_reconciler.py`
-- `core/tests/test_fast_retailing_benchmark.py`
-- `scripts/audit_fast_retailing_benchmark.py`
-- `benchmark/fast_retailing/reconciled/{provenance,conflicts}.json`
-- `benchmark/fast_retailing/PROVENANCE.md` / `BASELINE.md`
+G2 generic financial rows: guided judgment, no hard stop
+- four side-aware judgment codes registered
+- known G2 concepts classify as financial default + `ambiguous=True`
+- vague label without concept still fails closed
+- Fast Retailing Stage 4: fail
+  - exception: `UnclassifiedBalanceSheetLineError`
+  - message: `Cannot safely classify balance-sheet line 'Other assets'; provide classificationOverrides['Other assets']`
+  - known G2 financial-instrument rows no longer block Stage 4
+
+next blocker:
+- stage `4_reference_model_builder`
+- `UnclassifiedBalanceSheetLineError`
+- `Cannot safely classify balance-sheet line 'Other assets'; provide classificationOverrides['Other assets']`
+- workbook generation / Check not reached
+
+G3–G7: remain open
+TARGET.md: unchanged by Cursor
 
 Next checkpoint:
-- Step 9M.2 accounting-engine gap queue from `benchmark/fast_retailing/GAPS.md`
-
-Unresolved on 9M.1.1 scope: none — G1–G7 remain intentionally open for 9M.2
+- address post-9M.2A `Other assets` classifier gap / remaining G3–G7 queue

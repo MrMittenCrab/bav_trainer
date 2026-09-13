@@ -27,7 +27,14 @@ def validate_income_statement(data: StandardizedFinancials) -> dict[date, bool]:
     return results
 
 
-def validate_balance_sheet(data: StandardizedFinancials) -> dict[date, bool]:
+BALANCE_SHEET_TOLERANCE = 1.0
+
+
+def validate_balance_sheet(
+    data: StandardizedFinancials,
+    *,
+    tolerance: float = BALANCE_SHEET_TOLERANCE,
+) -> dict[date, bool]:
     results: dict[date, bool] = {}
     ta = resolve_line(data.balance_sheet, "total_assets", required=False).item
     tl = resolve_line(data.balance_sheet, "total_liabilities", required=False).item
@@ -40,7 +47,7 @@ def validate_balance_sheet(data: StandardizedFinancials) -> dict[date, bool]:
             e = _val_item(te, period)
             if None in (a, l, e):
                 ok = False
-            elif abs(float(a) - (float(l) + float(e))) > 0.5:
+            elif abs(float(a) - (float(l) + float(e))) > tolerance:
                 ok = False
         results[period] = ok
     return results

@@ -22,7 +22,6 @@ PROV_JSON = RECONCILED / "provenance.json"
 CONFLICTS_JSON = RECONCILED / "conflicts.json"
 MANIFEST = BENCH / "source_manifest.json"
 BASELINE = BENCH / "BASELINE.md"
-MODEL_COMMIT = "26f22b7"
 
 
 @dataclass
@@ -307,11 +306,11 @@ def write_baseline(result: dict[str, Any]) -> None:
         provenance.get("supplemental_conflict_count", 0),
     )
     lines = [
-        "# Fast Retailing Benchmark Baseline (Step 9M.1.1)",
+        "# Fast Retailing Benchmark Baseline (Step 9M.2A)",
         "",
-        f"- Model commit audited: `{MODEL_COMMIT}` (Step 9L.1 accounting engine)",
+        "- Accounting engine phase: Step 9M.2A (G1/G2 implementation on accepted Step 9M.1.1 base)",
         "- Input path: generic `extracted/` → `validate-source` → `reconcile` → `reconciled/`",
-        "- Benchmark phase: measurement only — no production accounting fixes applied",
+        "- Benchmark phase: measurement only — G1/G2 closed; G3–G7 remain open",
         "- Five fiscal periods: 2021-08-31 … 2025-08-31",
         "",
         "## Source hashes",
@@ -330,7 +329,7 @@ def write_baseline(result: dict[str, Any]) -> None:
             "- Supplemental provenance source-bound: yes",
             "- Portable source-path validation: yes",
             "- Silent repeated-share overwrite removed: yes",
-            "- G1–G7 accounting gaps preserved for 9M.2: yes",
+            "- G1 closed in 9M.2A; G2 closed in 9M.2A; G3–G7 remain open",
             "",
             "## Stage results",
             "",
