@@ -1,521 +1,597 @@
-**Status:** Step 9M.2D complete — count-derived reformulation rounding envelope; Fast Retailing Stages 1–7 all pass. Stopped for user checkpoint.
+# Step 9M.3A — Split Lease-Liability Aggregation Contract Implementation Plan
 
-# Step 9M.2D — Reporting-Unit Rounding Envelope for Reformulation Integrity
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
+> **For Cursor:** Read `TARGET.md`, then `benchmark/fast_retailing/GAPS.md`, then this plan in full. The accepted implementation base is commit `d4911261febcb88aa7d33503b1ef3d597367f98c` (`Step 9M.2D`). Implement only Step 9M.3A using red/green TDD. Do not begin G4 lease-interest reclassification, G5 NCI attribution, G6 share-basis/per-share work, G7 reconciliation-policy changes, PDF/AI extraction, forecasting, valuation, scenarios, or investment conclusions. Do not commit, push, reset, rebase, merge, clean, or delete branches; the user owns checkpoint commits.
 
-> **For Cursor:** Read `TARGET.md`, then `benchmark/fast_retailing/GAPS.md`, then this plan in full. The accepted implementation base is commit `290361d34348c730293f3c7a339ff5332eba4626` (`Step 9M.2C`). Implement only Step 9M.2D using red/green TDD. Do not begin G3–G7 accounting-policy work, PDF/AI extraction, forecasting, valuation, scenarios, or investment conclusions. Do not commit, push, reset, rebase, merge, clean, or delete branches; the user owns checkpoint commits.
+**Goal:** Close G3 by making the existing lease-liability diagnostic work for companies that report lease liabilities as separate current and non-current balance-sheet lines, without inventing a source total or changing any accounting treatment.
 
-**Goal:** Replace the fixed one-unit reformulation-detail tolerance with a mathematically bounded reporting-unit rounding envelope so rounded statement detail can reconcile to rounded published totals without plugs, while material omissions and classification errors still fail closed.
+**Architecture:** Keep `StandardizedFinancials` and filing/reconciliation artifacts unchanged. Add one lease-specific source resolver that prefers one explicit aggregate lease-liability line when it exists, otherwise accepts exactly one `lease_liability_current` plus one `lease_liability_noncurrent` line and treats their period-by-period sum as the analytical balance-sheet lease-liability total. Python expected values and workbook formulas must use the same resolved source rows. Duplicate/partial/unclear presentations remain fail-closed. Note 17's separately reported aggregate stays documentary evidence; this step does not promote note facts into the model or use the note total to overwrite the balance-sheet split.
 
-**Architecture:** Keep reported and reconciled source values immutable. `reformulate_balance_sheet()` continues to classify and sum detail exactly as today; only `check_reformulation_integrity()` changes its acceptance boundary. Derive separate asset, liability, and equity tolerances from the number of classified detail observations that contribute to each aggregate: if each displayed amount and its reported total can be rounded by at most half a reporting unit, the worst-case detail-vs-total difference is `0.5 * (detail_count + 1)`. The existing explicit `tolerance` remains a floor, not a replacement. Then rerun the real-company audit and stop at the first new blocker.
+**Tech Stack:** Python, pytest, existing `StandardizedFinancials`, `LineItem`, lease-liability diagnostics, `ReferenceModelBuilder`, semantic component map, Trainer/Answer-Key/Check workflow, Fast Retailing benchmark audit.
 
-**Tech Stack:** Python, pytest, existing `StandardizedFinancials`, `BalanceSheetReformulation`, `reformulate_balance_sheet()`, `check_reformulation_integrity()`, `ReferenceModelBuilder`, Fast Retailing staged audit.
-
-**Spec:** `TARGET.md` historical consistency/audit requirements plus the measured post-9M.2C `ReformulationIntegrityError` in `benchmark/fast_retailing/GAPS.md`. This is a bounded correction to the existing integrity policy; no new design document is required.
+**Spec:** `TARGET.md` historical lease-analysis / no-invented-input requirements plus G3 in `benchmark/fast_retailing/GAPS.md`. This is a bounded extension of the existing Step 9L.1 lease-liability module; no new design document is required.
 
 ## Why this is the next step
 
-Step 9M.2C proves every Fast Retailing non-subtotal balance-sheet row is now classifiable. The next failure is no longer classification; it is the integrity check comparing sums of independently rounded detail lines with independently rounded published totals.
+Step 9M.2D leaves no execution blocker: Fast Retailing Stages 1–7 all pass, with 294 active historical components and no thrown exception. The remaining work is therefore substantive historical-product convergence rather than integration repair.
 
-The committed Fast Retailing evidence is systematic:
-
-```text
-period   asset detail gap   liability detail gap   equity gap
-FY2021   -4                 -6                     +2
-FY2022   -8                 -5                     -3
-FY2023   -8                 -6                     -1
-FY2024   -7                 -5                     -1
-FY2025   -8                 -6                     -2
-```
-
-The standardized balance sheet contains **16 asset detail rows** and **13 liability detail rows**. Under integer reporting-unit rounding, the theoretical worst-case envelopes are therefore:
+Among G3–G7, G3 is the narrowest next step with the clearest source contract:
 
 ```text
-assets:      0.5 * (16 + 1) = 8.5 reporting units
-liabilities: 0.5 * (13 + 1) = 7.0 reporting units
-equity bridge (NOA - Net Debt vs reported equity):
-             0.5 * (16 + 13 + 1) = 15.0 reporting units
+Fast Retailing FY2025 balance sheet
+current lease liabilities      126,830
+non-current lease liabilities  386,670
+sum                            513,500
+
+Note 17 reported aggregate      513,501
 ```
 
-The observed Fast Retailing gaps sit inside those bounds. A fixed tolerance of `1.0` is appropriate for a single published identity such as `Assets = Liabilities + Equity`, but is too strict when many rounded detail observations are summed. Increasing the tolerance to a magic constant such as `8` would be company-specific and would scale poorly; changing source values or adding balancing plugs would violate the project’s source-grounding requirements.
+The one-unit difference is presentation rounding evidence, not a reason to insert a plug or rewrite either source. The lease diagnostic is a balance-sheet intensity/trend schedule, so its model-facing source should remain the balance sheet. For a valid split presentation, the analytical lease balance is therefore the sum of the two reported balance-sheet components. The note aggregate remains separate provenance and is not silently substituted.
 
-This step therefore introduces a **count-derived rounding envelope**, not a Fast Retailing exception and not a balancing adjustment.
+The existing module intentionally omits split presentations because Step 9L.1 allowed only one uniquely resolvable aggregate line. The current Fast Retailing standardized payload already gives stronger semantic identities:
+
+```text
+lease_liability_current
+lease_liability_noncurrent
+```
+
+This step teaches the module to consume that explicit split structure while preserving all existing ambiguity safeguards.
 
 ## Global Constraints
 
 - `TARGET.md` is read-only for Cursor.
 - Preserve the Step 9M.1.1 filing-JSON schema, source binding, provenance, and conflict semantics.
-- Preserve all Fast Retailing source/extracted/reconciled values; do not edit `benchmark/fast_retailing/reconciled/standardized.json` to make integrity pass.
-- Preserve Step 9M.2A Stage-3 balance-sheet identity policy exactly: `validate_balance_sheet()` accepts absolute `Assets - (Liabilities + Equity) <= 1.0` reporting unit and rejects larger residuals.
-- Do not add balancing plugs, hidden residual rows, synthetic “rounding” line items, or source mutations.
-- Do not weaken classification rules added in Steps 9M.2A–9M.2C.
-- `check_reformulation_integrity()` must continue to fail on materially missing asset/liability detail even when the reported top-level balance sheet equation balances.
-- Rounding tolerance is derived from detail count, never from ticker/company, observed Fast Retailing residuals, percentage-of-assets thresholds, or a hard-coded `8`/`10`-unit exception.
-- Count only detail rows that actually contribute to the relevant reformulation side. `Equity` and `Exclude` rows do not count as asset or liability observations.
-- Keep the public signature `check_reformulation_integrity(reform, periods, *, tolerance=DEFAULT_TOLERANCE)` unchanged.
-- Existing explicit `tolerance` remains a minimum accepted tolerance; callers that request a larger tolerance retain that behavior.
-- Preserve the three Fast Retailing primary-statement overlap conflicts and three supplemental conflicts.
-- Preserve G3–G7 behavior. Do not aggregate split leases, alter lease-interest treatment, implement parent/NCI attribution, restate historical shares, or change cross-filing precedence in this checkpoint.
-- No forecast/valuation/scenario activation.
-- No new workbook formula family.
-- Cursor stops after implementation/tests, records the first newly exposed audit blocker, and lets the user run `checkpoint`.
+- Preserve Step 9M.2A–9M.2D classification and rounding policies exactly.
+- Do not edit Fast Retailing extracted/reconciled source numbers to make the lease module appear.
+- Do not promote `note_facts` into `StandardizedFinancials` in this step.
+- Do not replace the balance-sheet split sum with Note 17's aggregate.
+- Do not add a balancing adjustment for the 513,500 vs 513,501 one-unit difference.
+- One unique aggregate `lease_liability` source remains supported and is preferred when directly reported.
+- A split source is valid only when exactly one current and exactly one non-current lease-liability component are explicitly identified.
+- Partial split presentations do not imply zero for the missing side.
+- Duplicate aggregate/current/non-current identities remain ambiguous and fail closed.
+- Existing ambiguous duplicate generic `lease_liability` rows remain fail-closed; do not infer current/non-current solely from row order.
+- Lease diagnostics remain raw historical balance-sheet diagnostics and do not change when the learner chooses operating vs financial classification.
+- Preserve the existing two separate lease Accounting Judgment cases for Fast Retailing current/non-current rows.
+- G4 remains open: do not reclassify lease interest or alter `compute_anchor()` net interest in this checkpoint.
+- Preserve G5 NCI attribution behavior, G6 historical-share/per-share omission, and G7 conflict precedence.
+- Preserve three primary-statement overlap conflicts and three supplemental conflicts.
+- No company-specific `6288.HK`, Fast Retailing, or filename checks in production code.
+- No forecasting/valuation activation.
+- Cursor stops after implementation/tests and reports literal results; the user runs `checkpoint`.
 
 ---
 
-### Task 1: Codify the reporting-unit rounding envelope in focused integrity tests
+### Task 1: Define one shared aggregate-or-split lease source resolver
 
 **Files:**
-- Modify: `core/tests/test_classification.py`
-- Modify: `core/model/classification.py`
+- Modify: `core/model/lease_liability.py`
+- Test: `core/tests/test_lease_liability.py`
 
 **Interfaces:**
-- Existing production entry points remain:
+
+Add one source descriptor shared by Python calculation and workbook construction:
 
 ```python
-def reformulate_balance_sheet(
-    fin: StandardizedFinancials,
-    periods: list[date],
-    *,
-    overrides: dict[str, str] | None = None,
-) -> BalanceSheetReformulation: ...
+@dataclass(frozen=True)
+class LeaseLiabilitySource:
+    mode: str  # "aggregate" | "split"
+    items: tuple[LineItem, ...]
+    indices: tuple[int, ...]
 
 
-def check_reformulation_integrity(
-    reform: BalanceSheetReformulation,
-    periods: list[date],
-    *,
-    tolerance: float = DEFAULT_TOLERANCE,
-) -> None: ...
+def resolve_lease_liability_source(
+    financials: StandardizedFinancials,
+) -> LeaseLiabilitySource | None:
+    ...
 ```
 
-- Add no new public API.
-- A small private helper for count-derived tolerance is allowed.
-
-- [x] **Step 1: Add an asset-side rounding-envelope acceptance test**
-
-Use four independently reported asset detail rows and one reported total. Four detail rows imply a rounding envelope of:
-
-```text
-0.5 * (4 + 1) = 2.5
-```
-
-Add a fixture/test equivalent to:
+Keep these existing public functions:
 
 ```python
-def _asset_rounding_fin(total_assets: float) -> StandardizedFinancials:
-    return StandardizedFinancials(
-        ticker="ROUND-A",
-        company_name="Rounded Assets",
-        currency="HKD",
-        units="HKD in Millions",
-        jurisdiction="HK",
-        periods=_periods(),
-        income_statement=[],
-        balance_sheet=[
-            _li("Cash and cash equivalents", 10, 10),
-            _li("Trade receivables", 10, 10),
-            _li("Inventories", 10, 10),
-            _li("Prepaid expenses", 10, 10),
-            _li("Total assets", total_assets, total_assets, concept="total_assets"),
-        ],
-        cash_flow=[],
-    )
-
-
-def test_reformulation_integrity_accepts_count_bounded_asset_rounding():
-    periods = [P1, P2]
-    reform = reformulate_balance_sheet(_asset_rounding_fin(42), periods)
-    assert reform.asset_detail_gap == (-2.0, -2.0)
-    check_reformulation_integrity(reform, periods)
+lease_liability_availability(financials) -> LeaseLiabilityAvailability
+lease_liability_applicable(financials) -> bool
+compute_lease_liability_series(financials, periods, anchor) -> LeaseLiabilitySeries
 ```
 
-This must fail before the implementation because the current fixed `1.0` tolerance rejects a two-unit gap.
+`LeaseLiabilityAvailability` may keep its existing two fields; do not add workbook-specific state to it.
 
-- [x] **Step 2: Add the immediate outside-envelope rejection case**
+- [ ] **Step 1: Preserve the existing aggregate-source contract**
 
-Using the same four asset rows:
+Add/retain a focused test showing one direct aggregate source still resolves exactly as before:
 
 ```python
-def test_reformulation_integrity_rejects_asset_gap_above_rounding_envelope():
-    periods = [P1, P2]
-    reform = reformulate_balance_sheet(_asset_rounding_fin(43), periods)
-    assert reform.asset_detail_gap == (-3.0, -3.0)
-    with pytest.raises(ReformulationIntegrityError, match="asset-detail gap"):
-        check_reformulation_integrity(reform, periods)
+fin = _tiny(split=False)
+source = resolve_lease_liability_source(fin)
+assert source is not None
+assert source.mode == "aggregate"
+assert len(source.items) == 1
+assert len(source.indices) == 1
+assert lease_liability_applicable(fin)
 ```
 
-`3.0 > 2.5`, so it must remain a hard failure.
+The ordinary `Operating lease liabilities` demo path must remain model-equivalent.
 
-- [x] **Step 3: Add liability-side boundary tests**
+- [ ] **Step 2: Add a valid standardized split fixture**
 
-Create four liability detail rows whose labels are already supported by the classifier:
+Extend the test helper or add a small fixture whose two balance-sheet rows are explicitly:
 
 ```text
-Trade payables
-Accrued expenses
-Bank borrowings
-Lease liabilities
+Current lease liabilities      concept=lease_liability_current
+Non-current lease liabilities  concept=lease_liability_noncurrent
 ```
 
-Each is `10` in both periods. With `Total liabilities = 42`, require a `-2` liability-detail gap to pass. With `Total liabilities = 43`, require a `-3` gap to fail because the four-row envelope is `2.5`.
-
-Use `concept="total_liabilities"` on the total row. Do not add Total Assets or Total Equity to this focused fixture so the test isolates the liability check.
-
-- [x] **Step 4: Add the equity-bridge rounding-envelope boundary test**
-
-Create a fixture with two asset and two liability detail rows, no reported Total Assets / Total Liabilities, and a reported `Total equity` only. The four contributing asset/liability observations imply:
+Use two periods with values:
 
 ```text
-0.5 * (2 + 2 + 1) = 2.5
+current:      40, 50
+non-current:  60, 70
+expected sum: 100, 120
 ```
-
-Set detail values so `NOA - Net Debt = 20`.
 
 Require:
 
-```text
-Total equity = 18  -> equity gap = +2 -> pass
-Total equity = 17  -> equity gap = +3 -> fail
+```python
+source = resolve_lease_liability_source(fin)
+assert source is not None
+assert source.mode == "split"
+assert len(source.items) == 2
+assert lease_liability_availability(fin).lease_liability is True
+assert lease_liability_availability(fin).ambiguous is False
+assert lease_liability_applicable(fin) is True
 ```
 
-Use ordinary supported labels, for example:
+- [ ] **Step 3: Add split fail-closed cases**
+
+Require no usable lease source for each incomplete presentation:
 
 ```text
-Trade receivables 10
-Property, plant and equipment 20
-Trade payables 5
-Bank borrowings 5
+current only
+non-current only
 ```
 
-The implied equity is `10 + 20 - 5 - 5 = 20`.
+Require `ambiguous=True` and no applicable module for:
 
-- [x] **Step 5: Preserve the existing material-omission regression**
+```text
+two lease_liability_current rows + one non-current row
+one current row + two lease_liability_noncurrent rows
+multiple explicit aggregate lease_liability rows
+```
 
-Do not change `test_reformulation_detects_equal_asset_liability_omissions()` except, if necessary, strengthen it to assert the omission remains far outside the new count-derived envelope.
+Retain the existing Step 9L.1 regression in which two rows both use generic concept `lease_liability`: that remains ambiguous and omitted. Do not reinterpret duplicate generic concepts as a split pair.
 
-Its missing asset and liability detail are `30` each. The test must continue to raise `ReformulationIntegrityError`; this is the key proof that the new policy is not “ignore detail-to-total gaps.”
+- [ ] **Step 4: Add aggregate-precedence regression**
 
-- [x] **Step 6: Run the focused tests red**
+Construct a fixture containing:
+
+```text
+one unique explicit aggregate lease_liability
+one explicit lease_liability_current
+one explicit lease_liability_noncurrent
+```
+
+Require the resolver to use the directly reported aggregate source only:
+
+```python
+assert source.mode == "aggregate"
+assert len(source.items) == 1
+```
+
+Rationale: when the balance sheet already reports a unique aggregate, do not synthesize a second competing total.
+
+- [ ] **Step 5: Run the resolver tests red**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_classification.py \
-  -k "rounding_envelope or equal_asset_liability_omissions" -v
+PYTHONPATH=. pytest core/tests/test_lease_liability.py \
+  -k "aggregate_source or standardized_split or split_source or split_fail or aggregate_precedence" \
+  -v
 ```
 
-Expected before implementation:
-- the new `-2` acceptance cases fail under the fixed one-unit tolerance;
-- the `-3` rejection cases and the 30-unit omission regression remain failures as intended.
+Expected before implementation: the standardized split pair remains unavailable/ambiguous because Step 9L.1 only resolves a single aggregate lease line.
+
+- [ ] **Step 6: Implement the minimal resolver**
+
+Use concept identity before label fallback. The decision order must be:
+
+```text
+1. Count exact concept == lease_liability.
+   - exactly 1 -> aggregate source
+   - more than 1 -> ambiguous/fail closed
+
+2. If no explicit aggregate, count exact:
+   - lease_liability_current
+   - lease_liability_noncurrent
+   Exactly one of each -> split source.
+   Duplicate either side -> ambiguous/fail closed.
+   Only one side -> unavailable, not zero-filled.
+
+3. If none of those explicit concepts exist, preserve the existing aggregate label-alias resolver path for legacy/manual inputs.
+```
+
+Do not add generic current/non-current word parsing to `line_resolver.py`. Split aggregation is a lease-module contract, not a new universal one-line resolver behavior.
+
+Store the original balance-sheet indices in the descriptor so workbook formulas can use exactly the same sources as Python expected values.
+
+- [ ] **Step 7: Run Task 1 green**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_lease_liability.py \
+  -k "availability or aggregate_source or standardized_split or split_source or split_fail or aggregate_precedence" \
+  -v
+```
 
 ---
 
-### Task 2: Implement count-derived integrity tolerances without changing reformulation arithmetic
+### Task 2: Compute lease diagnostics from one aggregate or the exact split sum
 
 **Files:**
-- Modify: `core/model/classification.py`
-- Test: `core/tests/test_classification.py`
+- Modify: `core/model/lease_liability.py`
+- Test: `core/tests/test_lease_liability.py`
 
 **Interfaces:**
-- `BalanceSheetReformulation` shape remains unchanged.
-- Derive counts from `reform.decisions`; do not add source/company metadata to the reformulation object.
+- `compute_lease_liability_series()` consumes `resolve_lease_liability_source()`.
+- `LeaseLiabilitySeries.lease_liability` remains one total series; do not change component-catalog IDs or public workbook semantics.
 
-- [x] **Step 1: Add explicit side-category constants near the integrity logic**
+- [ ] **Step 1: Add split-math regression**
 
-Use the existing category names exactly:
-
-```python
-_ASSET_REFORMULATION_CATEGORIES = frozenset(
-    {
-        "Operating Working Capital Asset",
-        "Operating Long-Term Asset",
-        "Financial Asset",
-    }
-)
-
-_LIABILITY_REFORMULATION_CATEGORIES = frozenset(
-    {
-        "Operating Working Capital Liability",
-        "Operating Long-Term Liability",
-        "Financial Liability",
-    }
-)
-```
-
-Do not include `Equity` or `Exclude`.
-
-- [x] **Step 2: Add one private rounding-envelope helper**
-
-Implement:
+For the valid split fixture from Task 1 require:
 
 ```python
-def _reporting_rounding_tolerance(
-    detail_count: int,
-    *,
-    base_tolerance: float,
-) -> float:
-    if detail_count < 0:
-        raise ValueError("detail_count must be non-negative")
-    if base_tolerance < 0:
-        raise ValueError("base_tolerance must be non-negative")
-    return max(base_tolerance, 0.5 * (detail_count + 1))
+periods = list(canonical_fiscal_periods(fin))
+anchor = compute_anchor(fin, periods)
+series = compute_lease_liability_series(fin, periods, anchor)
+assert series.lease_liability == (100.0, 120.0)
+assert series.lease_liability_change == (None, 20.0)
+assert series.lease_liability_growth[0] is None
+assert series.lease_liability_growth[1] == pytest.approx(0.20)
+assert series.lease_liability_to_revenue[0] == pytest.approx(0.10)
 ```
 
-Rationale encoded by the formula:
-- each of `detail_count` displayed detail values may differ from its unrounded value by at most `0.5` reporting unit;
-- the independently displayed total may differ by another `0.5`;
-- therefore `abs(sum(displayed_details) - displayed_total)` can legitimately reach `0.5 * (detail_count + 1)`.
+- [ ] **Step 2: Add period-completeness regression for each split side**
 
-Do not round the derived tolerance to an integer and do not inspect Fast Retailing residuals.
+Delete the second period from only the current component, then only the non-current component. In both cases require `MissingHistoricalValueError` from `compute_lease_liability_series()`.
 
-- [x] **Step 3: Derive counts from actual contributing decisions**
+The missing side/period must never be treated as zero.
 
-Inside `check_reformulation_integrity()` compute:
-
-```python
-asset_detail_count = sum(
-    1
-    for decision in reform.decisions.values()
-    if decision.category in _ASSET_REFORMULATION_CATEGORIES
-)
-liability_detail_count = sum(
-    1
-    for decision in reform.decisions.values()
-    if decision.category in _LIABILITY_REFORMULATION_CATEGORIES
-)
-
-asset_tolerance = _reporting_rounding_tolerance(
-    asset_detail_count,
-    base_tolerance=tolerance,
-)
-liability_tolerance = _reporting_rounding_tolerance(
-    liability_detail_count,
-    base_tolerance=tolerance,
-)
-equity_tolerance = _reporting_rounding_tolerance(
-    asset_detail_count + liability_detail_count,
-    base_tolerance=tolerance,
-)
-```
-
-Use those three tolerances only for their corresponding integrity checks.
-
-- [x] **Step 4: Replace only the comparison thresholds**
-
-The existing gap calculations remain untouched. Change only:
-
-```text
-abs(asset_detail_gap) > tolerance
-abs(liability_detail_gap) > tolerance
-abs(equity_gap) > tolerance
-```
-
-to use `asset_tolerance`, `liability_tolerance`, and `equity_tolerance` respectively.
-
-Keep failure messages’ existing gap text. Add the applicable tolerance to each failure message so future audits are self-diagnosing, for example:
-
-```text
-2025-08-31: asset-detail gap=-12 (classified assets vs Total Assets; allowed rounding envelope=8.5)
-```
-
-Do not change values, category totals, NOA, Net Debt, or implied equity.
-
-- [x] **Step 5: Preserve explicit caller tolerance as a floor**
-
-Add a focused test showing that a caller-supplied larger tolerance still works:
-
-```python
-def test_reformulation_integrity_explicit_tolerance_remains_floor():
-    periods = [P1, P2]
-    reform = reformulate_balance_sheet(_asset_rounding_fin(46), periods)
-    assert reform.asset_detail_gap == (-6.0, -6.0)
-    with pytest.raises(ReformulationIntegrityError):
-        check_reformulation_integrity(reform, periods)
-    check_reformulation_integrity(reform, periods, tolerance=6.0)
-```
-
-This prevents the new helper from unexpectedly overriding an explicit caller contract.
-
-- [x] **Step 6: Run Task 1–2 tests green**
+- [ ] **Step 3: Run split math red**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_classification.py \
-  -k "rounding_envelope or equal_asset_liability_omissions or explicit_tolerance" -v
+PYTHONPATH=. pytest core/tests/test_lease_liability.py \
+  -k "split_math or split_period or missing_period" \
+  -v
 ```
 
-Expected: all selected tests pass.
+- [ ] **Step 4: Implement period-by-period source summation**
 
-- [x] **Step 7: Run the full classification test file**
+Use the resolver source:
+
+```python
+source = resolve_lease_liability_source(financials)
+if source is None:
+    raise MissingLineError("lease liability source not available")
+
+lease_vals = tuple(
+    sum(
+        required_period_value(item, period, field="lease_liability")
+        for item in source.items
+    )
+    for period in periods
+)
+```
+
+Use the repository's existing line-resolution error class rather than inventing a second error hierarchy. Keep all existing ratio/change/growth logic unchanged.
+
+- [ ] **Step 5: Prove aggregate behavior is unchanged**
+
+Run the existing ordinary, zero-denominator, sign-preservation, and canonical-demo tests together with the new split tests:
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_classification.py -v
+PYTHONPATH=. pytest core/tests/test_lease_liability.py \
+  -k "ordinary_two_period_math or zero_denominator or sign_preservation or canonical_demo or split_math or split_period" \
+  -v
 ```
 
-Expected: all pass, including Steps 9M.2A–9M.2C classification/judgment regressions.
+Expected: aggregate fixtures produce the same numbers as before; standardized split fixtures now produce the component sum.
 
 ---
 
-### Task 3: Prove Fast Retailing fits the mathematical envelope without source changes
+### Task 3: Make workbook lease source-link formulas use the same resolved source rows
+
+**Files:**
+- Modify: `core/engine/reference_model.py`
+- Test: `core/tests/test_lease_liability.py`
+- Test: `core/tests/test_reference_integrity.py`
+
+**Interfaces:**
+- `ReferenceModelBuilder` must import and use `resolve_lease_liability_source()`.
+- Do not change the lease component catalog or semantic component IDs.
+- `lease_liability_source_link` remains the learner-facing total lease-liability source-link family.
+
+- [ ] **Step 1: Add split-builder applicability regression**
+
+Build a workbook from the valid standardized split fixture and require lease components to exist:
+
+```python
+builder = ReferenceModelBuilder(fin)
+assert builder.lease_liability_series is not None
+assert builder.lease_liability_specs
+```
+
+For a two-period fixture, require all four existing lease families to be present in the semantic map; do not create current/non-current learner families in this step.
+
+- [ ] **Step 2: Add exact split source-link formula regression**
+
+Open the Answer Key/semantic map and locate `lease_liability_source_link` for each modeled period. Require its formula to reference both exact Balance Sheet source rows and add them, for example semantically:
+
+```text
+='Balance Sheet'!B<current_row>+'Balance Sheet'!B<noncurrent_row>
+```
+
+Do not hard-code row numbers in the production implementation; derive them from `LeaseLiabilitySource.indices` using the existing Balance Sheet start-row convention / workbook-row helper.
+
+For a direct aggregate source, retain the existing one-cell link formula.
+
+- [ ] **Step 3: Add split trusted-source tamper regression**
+
+For a split-source Trainer:
+
+1. fill one lease diagnostic practice formula correctly;
+2. modify the current lease source cell and require Check to fail trusted-source validation;
+3. rebuild, modify the non-current lease source cell and require the same failure.
+
+Both balance-sheet components are trusted source cells. The aggregate diagnostic formula is derived from them; no hidden pasted total is allowed.
+
+- [ ] **Step 4: Run builder tests red**
+
+```bash
+PYTHONPATH=. pytest \
+  core/tests/test_lease_liability.py \
+  core/tests/test_reference_integrity.py \
+  -k "split_builder or split_source_link or split_trusted or lease_liability" \
+  -v
+```
+
+Expected before implementation: Python may resolve the split after Task 2, but workbook construction still assumes one `_resolved_source_row(..., "lease_liability")` and cannot emit the correct two-row formula.
+
+- [ ] **Step 5: Implement one formula path for one-or-many lease source rows**
+
+Replace the single-row lease source lookup in the lease-context builder with the shared resolver.
+
+Equivalent behavior:
+
+```python
+source = resolve_lease_liability_source(self.fin)
+assert source is not None
+source_rows = [SOURCE_START_ROW + idx for idx in source.indices]
+
+if len(source_rows) == 1:
+    lease_f = f"='Balance Sheet'!{src_col}{source_rows[0]}"
+else:
+    refs = [f"'Balance Sheet'!{src_col}{row}" for row in source_rows]
+    lease_f = "=" + "+".join(refs)
+```
+
+Prefer the existing `workbook_row_for()` helper if it can be reused cleanly with the source descriptor; do not duplicate row-coordinate logic unnecessarily.
+
+The Python series and Excel formula must be based on the same source descriptor so they cannot diverge.
+
+- [ ] **Step 6: Run Task 3 green**
+
+```bash
+PYTHONPATH=. pytest \
+  core/tests/test_lease_liability.py \
+  core/tests/test_reference_integrity.py \
+  -k "split_builder or split_source_link or split_trusted or lease_liability" \
+  -v
+```
+
+---
+
+### Task 4: Prove the aggregation contract on Fast Retailing without changing source facts
 
 **Files:**
 - Modify: `core/tests/test_fast_retailing_benchmark.py`
+- Modify: `core/tests/test_lease_liability.py`
 - Read only: `benchmark/fast_retailing/reconciled/standardized.json`
 - Read only: `benchmark/fast_retailing/reconciled/provenance.json`
 - Read only: `benchmark/fast_retailing/reconciled/conflicts.json`
 
 **Interfaces:**
-- Use existing standardized loader, `reformulate_balance_sheet()`, and `check_reformulation_integrity()`.
-- Do not create a Fast Retailing-specific tolerance API.
+- Use the canonical Fast Retailing standardized payload already committed.
+- Do not add a Fast Retailing-specific source resolver.
 
-- [x] **Step 1: Add exact committed gap assertions before calling integrity check**
+- [ ] **Step 1: Assert the canonical split identities and FY2025 values**
 
-For the five Fast Retailing periods require the current documentary/reformulation gaps to remain exactly:
-
-```python
-assert reform.asset_detail_gap == (-4.0, -8.0, -8.0, -7.0, -8.0)
-assert reform.liability_detail_gap == (-6.0, -5.0, -6.0, -5.0, -6.0)
-assert reform.equity_gap == (2.0, -3.0, -1.0, -1.0, -2.0)
-```
-
-These assertions prove Step 9M.2D accepts the existing reported arithmetic rather than altering it.
-
-- [x] **Step 2: Assert the contributing detail inventory is stable**
-
-From `reform.decisions`, count categories using the same semantic sets as production and require:
+Locate by `LineItem.concept`, not row order, and require:
 
 ```text
-asset detail count = 16
-liability detail count = 13
+lease_liability_current     FY2025 = 126830
+lease_liability_noncurrent  FY2025 = 386670
 ```
 
-Do not count Equity or Exclude rows.
-
-This yields theoretical envelopes:
-
-```text
-asset = 8.5
-liability = 7.0
-equity bridge = 15.0
-```
-
-Do not hard-code those tolerances in production code; they are acceptance evidence for this fixture only.
-
-- [x] **Step 3: Require Fast Retailing reformulation integrity to pass without overrides**
+Then require:
 
 ```python
-check_reformulation_integrity(reform, periods)
+assert lease_liability_applicable(fin) is True
+series = compute_lease_liability_series(fin, periods, compute_anchor(fin, periods))
+assert series.lease_liability[-1] == pytest.approx(513500.0)
 ```
 
-No `classificationOverrides`, plugs, or fixture edits are allowed.
+Do not alter standardized.json to make this pass.
 
-- [x] **Step 4: Run Fast Retailing acceptance tests**
+- [ ] **Step 2: Assert Note 17 remains separate evidence**
+
+Read the committed Fast Retailing provenance artifact in the acceptance test and locate the FY2025 reported `lease_liability_total` note fact. Require its value to remain `513501` and require the standardized balance-sheet diagnostic total to remain `513500`.
+
+The test must state the contract explicitly:
+
+```text
+balance-sheet diagnostic source = current + non-current BS components
+note aggregate = independent documentary fact
+one-unit difference is preserved, not plugged or silently substituted
+```
+
+Do not add provenance-reading behavior to production `ReferenceModelBuilder` in this step; this comparison is benchmark/audit evidence only.
+
+- [ ] **Step 3: Assert Fast Retailing workbook lease module activation**
+
+Build `ReferenceModelBuilder(fin)` and require:
+
+```python
+assert builder.lease_liability_series is not None
+assert len(builder.lease_liability_specs) == 18
+```
+
+Because Step 9M.2D has 294 active specs with lease specs omitted and the five-period lease catalog contributes 18 components, the expected post-G3 active total is 312 **if no unrelated family changes**. Add an assertion only if the implementation makes no other intended surface change:
+
+```python
+assert len(builder.expected_specs) == 312
+```
+
+If this arithmetic does not hold, stop and inspect the family inventory rather than updating the number blindly.
+
+- [ ] **Step 4: Preserve separate lease judgment cases**
+
+Require Fast Retailing still produces two distinct lease classification judgment cases, one for the current row and one for the non-current row, with different identity selectors.
+
+The raw diagnostic total must remain `513500` regardless of whether the learner later classifies either row as operating or financial; the diagnostic reports the obligation amount, not its reformulation category.
+
+- [ ] **Step 5: Run Fast Retailing acceptance tests**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
+PYTHONPATH=. pytest \
+  core/tests/test_fast_retailing_benchmark.py \
+  core/tests/test_lease_liability.py \
+  -v
 ```
 
-Expected after Task 2: the previous Stage-4 integrity condition is accepted by the generic rule while source/reconciled values stay identical.
+Expected after Tasks 1–3: the Fast Retailing lease module is now present, source evidence remains unchanged, and G4 behavior is still untouched.
 
 ---
 
-### Task 4: Re-run the staged real-company audit and stop at the first newly exposed blocker
+### Task 5: Run the full workbook/Check acceptance gate and capture the new measured state
 
 **Files:**
-- Modify only tests/docs required by the measured result.
+- Modify tests only if required to assert the intended G3 behavior.
 - Read: `scripts/audit_fast_retailing_benchmark.py`
-- Do not change benchmark source/extracted/reconciled JSON.
+- Do not change G4–G7 production behavior.
 
 **Interfaces:**
-- Existing `run_audit()` remains the integration gate.
+- Existing `run_audit()` remains the integration acceptance path.
+- The Step 9M.2D audit already proves Stages 1–7 pass with 294 components and no lease module.
 
-- [x] **Step 1: Update the audit-stage regression**
+- [ ] **Step 1: Update the Fast Retailing audit regression for G3 activation**
 
-In `core/tests/test_fast_retailing_benchmark.py`, require:
+Require Stages 1–7 to continue passing. At Stage 4 require lease specs to be present. At blank/filled Check require totals to include the newly active lease components.
 
-```python
-stages = {stage.name: stage for stage in run_audit().stages}
-assert stages["1_source_fixture_load"].status == "pass"
-assert stages["2_identity_validation"].status == "pass"
-assert stages["3_reconciliation"].status == "pass"
+Do not hard-code counts before confirming the builder inventory from Task 4. If no unrelated surface changed, expected values are:
+
+```text
+expected_specs = 312
+lease_specs = 18
+blank Check:  correct=0 incorrect=0 blank=312 total=312
+filled Check: correct=312 incorrect=0 blank=0 total=312
 ```
 
-For Stage 4:
-- it must no longer fail with the Step 9M.2C classified-detail `ReformulationIntegrityError`;
-- if Stage 4 passes, allow Stage 5+ to expose the next issue;
-- if Stage 4 fails for a different reason, record it literally and stop.
-
-Do not pre-assume workbook/Check success.
-
-- [x] **Step 2: Run the staged audit**
+- [ ] **Step 2: Run the staged audit**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
 ```
 
-Capture exactly:
+Record literally:
 
 ```text
-first failing stage
-exception class
-full exception message
-whether ReferenceModelBuilder completed
-whether workbook generation was reached
-whether blank Check was reached
-whether filled Check was reached
+all stage statuses
+expected_specs
+lease_specs
+blank Check counts
+filled Check counts
+first failing stage/exception, if any
 ```
 
-- [x] **Step 3: Stop instead of fixing the newly exposed issue**
+- [ ] **Step 3: Stop on any newly exposed execution defect**
 
-If the audit reveals a new blocker, do not fix it in Step 9M.2D unless it is demonstrably an implementation error in the rounding-envelope logic above.
+If the newly active lease formulas expose a workbook/Check bug, fix it only if it is directly caused by the aggregate-or-split source contract in this checkpoint.
 
-In particular, do not opportunistically begin:
-
-```text
-G3 split-lease aggregation
-G4 lease-interest treatment conditioning
-G5 parent/NCI attribution
-G6 share-basis restatement/per-share activation
-G7 reconciliation-precedence changes
-```
-
-The next checkpoint must be selected from measured post-9M.2D evidence.
+Do not use this checkpoint to begin G4 lease-interest accounting, G5 parent/NCI attribution, G6 share restatement, or G7 conflict-policy changes.
 
 ---
 
-### Task 5: Preserve source, workbook, and historical-product isolation
+### Task 6: Update gap evidence and run final regression gates
 
 **Files:**
-- Test: `core/tests/test_reference_integrity.py`
-- Test: `core/tests/test_fast_retailing_benchmark.py`
-- Read only: benchmark and example artifacts
+- Modify: `benchmark/fast_retailing/GAPS.md`
+- Modify: `benchmark/fast_retailing/BASELINE.md`
+- Modify: `RESULT.md`
+- Modify: `IMPLEMENTATION.md` status line only after final verification
 
-- [x] **Step 1: Prove classification decisions are unchanged**
+**Interfaces:**
+- Documentation reports literal measured results only.
+- Source/reconciliation artifacts remain read-only.
 
-The Step 9M.2D production diff must not modify `classify_balance_sheet_line()` behavior. Run the existing focused classifier/judgment tests covering:
+- [ ] **Step 1: Update G3 from measured evidence**
+
+If all Task 4/5 acceptance criteria pass, mark G3 closed and document:
 
 ```text
-G2 generic financial-instrument judgments
-G2B residual other-balance judgments
-G2C deterministic tax/provision/equity concepts
-lease / associate / pension / short-term investment judgments
-unknown-row fail-closed behavior
+unique aggregate source still supported
+exact current + non-current standardized split supported
+split analytical total = sum of BS components
+Fast Retailing FY2025 diagnostic total = 513500
+Note 17 aggregate remains 513501 independent provenance
+no plug / no note substitution / no source mutation
 ```
 
-Use:
+Keep G4 explicitly open. State that this step changes only the historical liability diagnostic source contract; it does not condition interest expense/income on lease classification treatment.
+
+- [ ] **Step 2: Update BASELINE.md from the real audit**
+
+Record the actual Stage 1–7 state, active component counts, and lease module applicability after the change. Do not copy expected counts from this plan unless the final command output confirms them.
+
+- [ ] **Step 3: Update RESULT.md with literal verification evidence**
+
+Record:
+
+```text
+focused tests: actual pass count
+full core tests: actual pass count
+Fast Retailing lease source mode: split
+FY2025 computed BS lease total: 513500
+FY2025 reported Note 17 total: 513501
+lease specs: actual count
+full expected specs: actual count
+blank/filled Check: actual counts
+G3: closed or still open based on evidence
+G4–G7: open
+forecast/valuation isolation: pass/fail
+```
+
+- [ ] **Step 4: Run the focused G3 suite**
 
 ```bash
 PYTHONPATH=. pytest \
-  core/tests/test_classification.py \
+  core/tests/test_lease_liability.py \
   core/tests/test_reference_integrity.py \
+  core/tests/test_fast_retailing_benchmark.py \
   -q
 ```
 
-- [x] **Step 2: Prove source/reconciliation artifacts did not drift**
+Expected: all pass. Record the actual count.
 
-Run:
+- [ ] **Step 5: Run the full historical regression suite**
+
+```bash
+PYTHONPATH=. pytest core/tests/ -q
+```
+
+Expected: all pass. Record the actual count.
+
+- [ ] **Step 6: Verify source/reconciliation artifacts did not drift**
 
 ```bash
 git diff -- \
-  benchmark/fast_retailing/source \
   benchmark/fast_retailing/extracted \
   benchmark/fast_retailing/reconciled/standardized.json \
   benchmark/fast_retailing/reconciled/provenance.json \
@@ -524,14 +600,14 @@ git diff -- \
 
 Expected: no output.
 
-Also confirm the committed conflict counts remain:
+Also verify the committed conflict counts remain:
 
 ```text
 primary-statement overlap conflicts = 3
 supplemental conflicts = 3
 ```
 
-- [x] **Step 3: Prove unrelated example workbook fixtures did not drift**
+- [ ] **Step 7: Verify no unrelated workbook fixture drift**
 
 ```bash
 git diff -- \
@@ -540,105 +616,29 @@ git diff -- \
   example/DEMO_HK_Standardized.json
 ```
 
-Expected: no output.
+Expected: no output. Do not regenerate committed demo workbooks merely because the real-company active component count increases.
 
-- [x] **Step 4: Verify forecast/valuation isolation**
+- [ ] **Step 8: Verify forecasting/valuation isolation**
 
-Run the existing normal-v1 isolation regression used in Steps 9M.2A–9M.2C. Require:
+Run the existing historical isolation regression used in prior checkpoints. Normal Step 9 builds must not call scenario/forecast/valuation paths.
 
-```text
-normal historical build does not call scenario execution
-active historical family orders remain 1..90
-no DCF/residual-income/valuation activation
-```
-
-Do not add a new formula family for this integrity-policy change.
-
----
-
-### Task 6: Update the measured gap record and final verification evidence
-
-**Files:**
-- Modify: `benchmark/fast_retailing/GAPS.md`
-- Modify: `benchmark/fast_retailing/BASELINE.md`
-- Modify: `RESULT.md`
-- Modify: `IMPLEMENTATION.md` status line only after verification
-
-- [x] **Step 1: Record the integrity-policy resolution separately from G1**
-
-Add a new closed subsection, for example:
-
-```text
-G1B — Rounded detail-to-total accumulation — CLOSED in Step 9M.2D
-```
-
-Record:
-- the old fixed `1.0` reformulation-detail threshold;
-- the count-derived formula `max(base_tolerance, 0.5 * (detail_count + 1))`;
-- separate asset/liability/equity contributor counts;
-- no source mutation or balancing plugs;
-- the existing top-level `Assets = Liabilities + Equity <= 1.0` G1 rule remains unchanged.
-
-Do not mark G3–G7 closed.
-
-- [x] **Step 2: Replace the post-9M.2C blocker section with literal audit evidence**
-
-Use the exact final audit result from Task 4. If all stages pass, state that explicitly and list every reached stage. If another blocker appears, record its exact stage/class/message without proposing its fix inside the evidence section.
-
-- [x] **Step 3: Update `BASELINE.md` from the regenerated audit**
-
-Run the existing audit script if it writes the baseline automatically; otherwise copy only literal stage output. Do not edit benchmark numerical source facts.
-
-- [x] **Step 4: Run the focused Step 9M.2D suite**
-
-```bash
-PYTHONPATH=. pytest \
-  core/tests/test_classification.py \
-  core/tests/test_reference_integrity.py \
-  core/tests/test_fast_retailing_benchmark.py \
-  -q
-```
-
-Record the exact pass count.
-
-- [x] **Step 5: Run the full historical regression suite**
-
-```bash
-PYTHONPATH=. pytest core/tests/ -q
-```
-
-Record the exact pass count.
-
-- [x] **Step 6: Re-run source/workbook no-drift checks**
-
-Repeat Task 5 Steps 2–3 after all documentation/audit generation. Source/extracted/reconciled JSON and example workbook files must remain unchanged.
-
-- [x] **Step 7: Run the Fast Retailing audit as the final behavioral gate**
+- [ ] **Step 9: Run the Fast Retailing audit as the final behavioral gate**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
 ```
 
-Require the same stage/result as Task 4. If the first blocker changes without code/data changes, stop and investigate nondeterminism instead of recording either result.
+Require deterministic agreement with Task 5. If stage/count behavior changes without code/data changes, stop and investigate rather than documenting either run.
 
-- [x] **Step 8: Mark Step 9M.2D complete only with fresh evidence**
+- [ ] **Step 10: Mark Step 9M.3A complete only with fresh evidence**
 
-Only after Steps 4–7 succeed, add a compact status line at the top of this file and update `RESULT.md` with:
+Only after Steps 4–9 succeed:
 
 ```text
-focused test count
-full core test count
-Fast Retailing Stage 1–4 status
-first newly exposed blocker/stage, if any
-asset/liability detail counts and rounding envelopes
-source/reconciliation artifact drift: none
-conflict counts: 3 / 3
-family orders: 1..90
-forecast/valuation isolation: pass
+add a compact status line at the top of IMPLEMENTATION.md
+update RESULT.md / GAPS.md / BASELINE.md with literal results
 ```
 
-Do not pre-state counts before the commands run.
+- [ ] **Step 11: Stop**
 
-- [x] **Step 9: Stop**
-
-Do not implement the next blocker. Return the implementation/test summary so the user can run `checkpoint`; ChatGPT should then review that checkpoint and select the next step from measured evidence.
+Do not implement G4 in this checkpoint. Return the implementation/test summary to the user so they can run `checkpoint`. ChatGPT should then review the checkpoint and decide whether G4 lease-interest consistency or G5 NCI attribution is the next highest-value historical step.
