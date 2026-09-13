@@ -1,278 +1,358 @@
-**Status:** Step 9M.2C complete — seven deterministic tax/provision/equity concepts; Stage 4 now fails on ReformulationIntegrityError (classified detail vs totals). Stopped for user checkpoint.
+# Step 9M.2D — Reporting-Unit Rounding Envelope for Reformulation Integrity
 
-# Step 9M.2C — Deterministic Balance-Sheet Concept Completion Implementation Plan
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
+> **For Cursor:** Read `TARGET.md`, then `benchmark/fast_retailing/GAPS.md`, then this plan in full. The accepted implementation base is commit `290361d34348c730293f3c7a339ff5332eba4626` (`Step 9M.2C`). Implement only Step 9M.2D using red/green TDD. Do not begin G3–G7 accounting-policy work, PDF/AI extraction, forecasting, valuation, scenarios, or investment conclusions. Do not commit, push, reset, rebase, merge, clean, or delete branches; the user owns checkpoint commits.
 
-> **For Cursor:** Read `TARGET.md`, then `benchmark/fast_retailing/GAPS.md`, then this plan in full. The accepted implementation base is commit `894c525cd81689c27b08cc0f05e1a3eb5d5efa20` (`Step 9M.2B`). Implement only Step 9M.2C using red/green TDD. Do not begin G3–G7 accounting-policy work, PDF/AI extraction, forecasting, valuation, scenarios, or investment conclusions. Do not commit, push, reset, rebase, merge, clean, or delete branches; the user owns checkpoint commits.
+**Goal:** Replace the fixed one-unit reformulation-detail tolerance with a mathematically bounded reporting-unit rounding envelope so rounded statement detail can reconcile to rounded published totals without plugs, while material omissions and classification errors still fail closed.
 
-**Goal:** Finish the remaining structurally deterministic Fast Retailing balance-sheet classifications so Stage 4 is no longer blocked by ordinary standardized concepts, while preserving fail-closed behavior for genuinely ambiguous or unknown rows and leaving G3–G7 substantive accounting work untouched.
+**Architecture:** Keep reported and reconciled source values immutable. `reformulate_balance_sheet()` continues to classify and sum detail exactly as today; only `check_reformulation_integrity()` changes its acceptance boundary. Derive separate asset, liability, and equity tolerances from the number of classified detail observations that contribute to each aggregate: if each displayed amount and its reported total can be rounded by at most half a reporting unit, the worst-case detail-vs-total difference is `0.5 * (detail_count + 1)`. The existing explicit `tolerance` remains a floor, not a replacement. Then rerun the real-company audit and stop at the first new blocker.
 
-**Architecture:** Extend the existing concept-first classifier with one narrow exact-concept mapping for standard tax/provision/equity presentation rows already present in the reconciled Fast Retailing payload. These rows receive deterministic BAV categories and no new Accounting Judgment cases because their balance-sheet nature is already encoded by the standardized concept. Add one real-company inventory test that requires every Fast Retailing non-subtotal balance-sheet row to be classifiable, then rerun the staged audit and stop at the first genuinely new blocker or substantive gap.
+**Tech Stack:** Python, pytest, existing `StandardizedFinancials`, `BalanceSheetReformulation`, `reformulate_balance_sheet()`, `check_reformulation_integrity()`, `ReferenceModelBuilder`, Fast Retailing staged audit.
 
-**Tech Stack:** Python, pytest, existing `StandardizedFinancials`, `core/model/classification.py`, `ReferenceModelBuilder`, Fast Retailing benchmark audit.
-
-**Spec:** `TARGET.md` historical reformulation/accounting-judgment requirements plus the measured post-9M.2B blocker in `benchmark/fast_retailing/GAPS.md`. This is a bounded continuation of the existing classification architecture; no new design document is required.
+**Spec:** `TARGET.md` historical consistency/audit requirements plus the measured post-9M.2C `ReformulationIntegrityError` in `benchmark/fast_retailing/GAPS.md`. This is a bounded correction to the existing integrity policy; no new design document is required.
 
 ## Why this is the next step
 
-Step 9M.2B is complete. The committed audit reports:
+Step 9M.2C proves every Fast Retailing non-subtotal balance-sheet row is now classifiable. The next failure is no longer classification; it is the integrity check comparing sums of independently rounded detail lines with independently rounded published totals.
+
+The committed Fast Retailing evidence is systematic:
 
 ```text
-Stage 3: pass
-Stage 4: fail
-UnclassifiedBalanceSheetLineError: Current tax liabilities
+period   asset detail gap   liability detail gap   equity gap
+FY2021   -4                 -6                     +2
+FY2022   -8                 -5                     -3
+FY2023   -8                 -6                     -1
+FY2024   -7                 -5                     -1
+FY2025   -8                 -6                     -2
 ```
 
-A review of the committed Fast Retailing standardized balance sheet shows that the remaining ordinary rows that the current classifier cannot classify from either exact concept or existing label rules are a small, explicit set:
+The standardized balance sheet contains **16 asset detail rows** and **13 liability detail rows**. Under integer reporting-unit rounding, the theoretical worst-case envelopes are therefore:
 
 ```text
-current_tax_liabilities
-provisions_current
-provisions_noncurrent
-capital_stock
-capital_surplus
-other_components_of_equity
-noncontrolling_interests
+assets:      0.5 * (16 + 1) = 8.5 reporting units
+liabilities: 0.5 * (13 + 1) = 7.0 reporting units
+equity bridge (NOA - Net Debt vs reported equity):
+             0.5 * (16 + 13 + 1) = 15.0 reporting units
 ```
 
-These are not another “other” family and should not be turned into broad label heuristics. Their standardized concepts already encode enough accounting identity to assign a structural BAV category:
+The observed Fast Retailing gaps sit inside those bounds. A fixed tolerance of `1.0` is appropriate for a single published identity such as `Assets = Liabilities + Equity`, but is too strict when many rounded detail observations are summed. Increasing the tolerance to a magic constant such as `8` would be company-specific and would scale poorly; changing source values or adding balancing plugs would violate the project’s source-grounding requirements.
 
-```text
-current tax liabilities      -> Operating Working Capital Liability
-current provisions           -> Operating Working Capital Liability
-non-current provisions       -> Operating Long-Term Liability
-capital stock                -> Equity
-capital surplus              -> Equity
-other components of equity   -> Equity
-non-controlling interests    -> Equity
-```
-
-Classifying `noncontrolling_interests` as Equity is only a balance-sheet classification decision. It does **not** solve G5 parent-vs-NCI attribution, parent ROE, per-share attribution, or income-statement ownership logic; those remain separate substantive work.
+This step therefore introduces a **count-derived rounding envelope**, not a Fast Retailing exception and not a balancing adjustment.
 
 ## Global Constraints
 
 - `TARGET.md` is read-only for Cursor.
 - Preserve the Step 9M.1.1 filing-JSON schema, source binding, provenance, and conflict semantics.
-- Preserve all Fast Retailing source and reconciled values; do not edit `benchmark/fast_retailing/reconciled/standardized.json` to make the builder pass.
-- Preserve Step 9M.2A balance-sheet tolerance exactly: absolute residual `<= 1.0` reporting unit is accepted; larger residuals fail.
-- Preserve all Step 9M.2A G2 financial-instrument judgments and Step 9M.2B residual `other_*` judgments unchanged.
-- Add no broad rule based only on words such as `tax`, `provision`, `capital`, `equity`, or `interest`.
-- New recognition in this checkpoint must require one of the exact standardized concepts listed in this plan plus a compatible label-family guard.
-- The seven concepts in this step are deterministic classifications: `ambiguous=False`, `judgment_code=None`, and no new Accounting Judgment template.
-- Do not create company/ticker/Fast Retailing branches in production code.
-- Do not change lease classification or aggregation behavior (G3/G4).
-- Do not change parent/NCI attribution logic (G5); NCI may classify as Equity only for consolidated balance-sheet reformulation.
-- Do not restate or synthesize share history (G6).
-- Do not alter reconciliation/restatement precedence or the three statement + three supplemental conflicts (G7/input boundary).
-- Do not add forecast/valuation/scenario activation.
-- Do not add a new historical formula family merely because Stage 4 progresses farther.
-- Cursor stops after the final audit, reports the exact next blocker/stage, and lets the user run `checkpoint`.
+- Preserve all Fast Retailing source/extracted/reconciled values; do not edit `benchmark/fast_retailing/reconciled/standardized.json` to make integrity pass.
+- Preserve Step 9M.2A Stage-3 balance-sheet identity policy exactly: `validate_balance_sheet()` accepts absolute `Assets - (Liabilities + Equity) <= 1.0` reporting unit and rejects larger residuals.
+- Do not add balancing plugs, hidden residual rows, synthetic “rounding” line items, or source mutations.
+- Do not weaken classification rules added in Steps 9M.2A–9M.2C.
+- `check_reformulation_integrity()` must continue to fail on materially missing asset/liability detail even when the reported top-level balance sheet equation balances.
+- Rounding tolerance is derived from detail count, never from ticker/company, observed Fast Retailing residuals, percentage-of-assets thresholds, or a hard-coded `8`/`10`-unit exception.
+- Count only detail rows that actually contribute to the relevant reformulation side. `Equity` and `Exclude` rows do not count as asset or liability observations.
+- Keep the public signature `check_reformulation_integrity(reform, periods, *, tolerance=DEFAULT_TOLERANCE)` unchanged.
+- Existing explicit `tolerance` remains a minimum accepted tolerance; callers that request a larger tolerance retain that behavior.
+- Preserve the three Fast Retailing primary-statement overlap conflicts and three supplemental conflicts.
+- Preserve G3–G7 behavior. Do not aggregate split leases, alter lease-interest treatment, implement parent/NCI attribution, restate historical shares, or change cross-filing precedence in this checkpoint.
+- No forecast/valuation/scenario activation.
+- No new workbook formula family.
+- Cursor stops after implementation/tests, records the first newly exposed audit blocker, and lets the user run `checkpoint`.
 
 ---
 
-### Task 1: Lock the exact deterministic concept contract with red tests
+### Task 1: Codify the reporting-unit rounding envelope in focused integrity tests
 
 **Files:**
 - Modify: `core/tests/test_classification.py`
-- Modify later in this task: `core/model/classification.py`
+- Modify: `core/model/classification.py`
 
 **Interfaces:**
-- Existing public entry point remains:
+- Existing production entry points remain:
 
 ```python
-classify_balance_sheet_line(
-    item: LineItem,
+def reformulate_balance_sheet(
+    fin: StandardizedFinancials,
+    periods: list[date],
     *,
-    override: str | None = None,
-) -> ClassificationDecision
+    overrides: dict[str, str] | None = None,
+) -> BalanceSheetReformulation: ...
+
+
+def check_reformulation_integrity(
+    reform: BalanceSheetReformulation,
+    periods: list[date],
+    *,
+    tolerance: float = DEFAULT_TOLERANCE,
+) -> None: ...
 ```
 
-- Add no public classifier API.
-- Prefer one small private helper called from `_classify_by_concept()` if it keeps the existing function readable.
+- Add no new public API.
+- A small private helper for count-derived tolerance is allowed.
 
-- [x] **Step 1: Add the seven exact positive classification cases**
+- [ ] **Step 1: Add an asset-side rounding-envelope acceptance test**
 
-Add a parameterized test equivalent to:
-
-```python
-@pytest.mark.parametrize(
-    ("label", "concept", "expected_category"),
-    [
-        (
-            "Current tax liabilities",
-            "current_tax_liabilities",
-            "Operating Working Capital Liability",
-        ),
-        (
-            "Provisions",
-            "provisions_current",
-            "Operating Working Capital Liability",
-        ),
-        (
-            "Provisions",
-            "provisions_noncurrent",
-            "Operating Long-Term Liability",
-        ),
-        (
-            "Capital stock",
-            "capital_stock",
-            "Equity",
-        ),
-        (
-            "Capital surplus",
-            "capital_surplus",
-            "Equity",
-        ),
-        (
-            "Other components of equity",
-            "other_components_of_equity",
-            "Equity",
-        ),
-        (
-            "Non-controlling interests",
-            "noncontrolling_interests",
-            "Equity",
-        ),
-    ],
-)
-def test_exact_standard_accounting_concepts_classify_deterministically(
-    label, concept, expected_category
-):
-    decision = classify_balance_sheet_line(_li(label, concept=concept))
-    assert decision.category == expected_category
-    assert decision.ambiguous is False
-    assert decision.judgment_code is None
-    assert decision.reason
-```
-
-Use the existing `_li()` helper rather than adding a duplicate `LineItem` fixture.
-
-- [x] **Step 2: Add concept/label mismatch fail-closed tests**
-
-Require the new helper not to activate when the concept and documentary label family contradict each other. Use neutral labels that are not independently handled by another existing rule:
-
-```python
-@pytest.mark.parametrize(
-    ("label", "concept"),
-    [
-        ("Miscellaneous balance", "current_tax_liabilities"),
-        ("Miscellaneous balance", "provisions_current"),
-        ("Miscellaneous balance", "provisions_noncurrent"),
-        ("Miscellaneous balance", "capital_stock"),
-        ("Miscellaneous balance", "capital_surplus"),
-        ("Miscellaneous balance", "other_components_of_equity"),
-        ("Miscellaneous balance", "noncontrolling_interests"),
-    ],
-)
-def test_exact_standard_accounting_concepts_require_compatible_labels(label, concept):
-    with pytest.raises(UnclassifiedBalanceSheetLineError):
-        classify_balance_sheet_line(_li(label, concept=concept))
-```
-
-Also keep existing rules authoritative. Add at least these regressions:
+Use four independently reported asset detail rows and one reported total. Four detail rows imply a rounding envelope of:
 
 ```text
-Cash and cash equivalents / cash -> Financial Asset
-Trade and other payables / trade_and_other_payables -> Operating Working Capital Liability
-Deferred tax liabilities / deferred_tax_liabilities -> existing deferred-tax treatment
-Lease liabilities / lease_liability_current -> existing lease judgment
+0.5 * (4 + 1) = 2.5
 ```
 
-- [x] **Step 3: Run the focused tests red**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_classification.py \
-  -k "standard_accounting_concepts or current_tax_liabilities or provisions or capital_surplus or noncontrolling" \
-  -v
-```
-
-Expected before implementation: the seven new positive cases are unsupported by the Step 9M.2B classifier; the existing specificity regressions remain green.
-
-- [x] **Step 4: Implement one exact-concept helper**
-
-Add a private helper with an explicit mapping. Equivalent contract:
+Add a fixture/test equivalent to:
 
 ```python
-def _deterministic_accounting_concept_decision(
-    item: LineItem,
-) -> ClassificationDecision | None:
-    c = _concept_token(item.concept or "")
-    low = _norm(item.label)
-
-    mapping = {
-        "currenttaxliabilities": (
-            "Operating Working Capital Liability",
-            lambda text: "tax" in text and "liab" in text,
-        ),
-        "provisionscurrent": (
-            "Operating Working Capital Liability",
-            lambda text: "provision" in text,
-        ),
-        "provisionsnoncurrent": (
-            "Operating Long-Term Liability",
-            lambda text: "provision" in text,
-        ),
-        "capitalstock": (
-            "Equity",
-            lambda text: "capital stock" in text,
-        ),
-        "capitalsurplus": (
-            "Equity",
-            lambda text: "capital surplus" in text,
-        ),
-        "othercomponentsofequity": (
-            "Equity",
-            lambda text: "component" in text and "equity" in text,
-        ),
-        "noncontrollinginterests": (
-            "Equity",
-            lambda text: (
-                ("non-controlling" in text or "noncontrolling" in text)
-                and "interest" in text
-            ),
-        ),
-    }
-
-    spec = mapping.get(c)
-    if spec is None:
-        return None
-    category, label_ok = spec
-    if not label_ok(low):
-        return None
-    return ClassificationDecision(
-        category,
-        ambiguous=False,
-        reason="Exact standardized accounting concept",
+def _asset_rounding_fin(total_assets: float) -> StandardizedFinancials:
+    return StandardizedFinancials(
+        ticker="ROUND-A",
+        company_name="Rounded Assets",
+        currency="HKD",
+        units="HKD in Millions",
+        jurisdiction="HK",
+        periods=_periods(),
+        income_statement=[],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 10, 10),
+            _li("Trade receivables", 10, 10),
+            _li("Inventories", 10, 10),
+            _li("Prepaid expenses", 10, 10),
+            _li("Total assets", total_assets, total_assets, concept="total_assets"),
+        ],
+        cash_flow=[],
     )
+
+
+def test_reformulation_integrity_accepts_count_bounded_asset_rounding():
+    periods = [P1, P2]
+    reform = reformulate_balance_sheet(_asset_rounding_fin(42), periods)
+    assert reform.asset_detail_gap == (-2.0, -2.0)
+    check_reformulation_integrity(reform, periods)
 ```
 
-The exact implementation may avoid lambdas if a clearer structure is preferable, but preserve these semantics exactly:
+This must fail before the implementation because the current fixed `1.0` tolerance rejects a two-unit gap.
+
+- [ ] **Step 2: Add the immediate outside-envelope rejection case**
+
+Using the same four asset rows:
+
+```python
+def test_reformulation_integrity_rejects_asset_gap_above_rounding_envelope():
+    periods = [P1, P2]
+    reform = reformulate_balance_sheet(_asset_rounding_fin(43), periods)
+    assert reform.asset_detail_gap == (-3.0, -3.0)
+    with pytest.raises(ReformulationIntegrityError, match="asset-detail gap"):
+        check_reformulation_integrity(reform, periods)
+```
+
+`3.0 > 2.5`, so it must remain a hard failure.
+
+- [ ] **Step 3: Add liability-side boundary tests**
+
+Create four liability detail rows whose labels are already supported by the classifier:
 
 ```text
-exact concept required
-compatible label family required
-deterministic category
-ambiguous=False
-judgment_code=None
-no company-specific checks
+Trade payables
+Accrued expenses
+Bank borrowings
+Lease liabilities
 ```
 
-Call this helper from `_classify_by_concept()` **after** more-specific existing concept policies (deferred tax, lease, associate, cash/debt/equity specifics) and before falling through to label heuristics. Do not weaken the existing G2/G2B helpers.
+Each is `10` in both periods. With `Total liabilities = 42`, require a `-2` liability-detail gap to pass. With `Total liabilities = 43`, require a `-3` gap to fail because the four-row envelope is `2.5`.
 
-- [x] **Step 5: Run Task 1 green plus prior classifier regressions**
+Use `concept="total_liabilities"` on the total row. Do not add Total Assets or Total Equity to this focused fixture so the test isolates the liability check.
+
+- [ ] **Step 4: Add the equity-bridge rounding-envelope boundary test**
+
+Create a fixture with two asset and two liability detail rows, no reported Total Assets / Total Liabilities, and a reported `Total equity` only. The four contributing asset/liability observations imply:
+
+```text
+0.5 * (2 + 2 + 1) = 2.5
+```
+
+Set detail values so `NOA - Net Debt = 20`.
+
+Require:
+
+```text
+Total equity = 18  -> equity gap = +2 -> pass
+Total equity = 17  -> equity gap = +3 -> fail
+```
+
+Use ordinary supported labels, for example:
+
+```text
+Trade receivables 10
+Property, plant and equipment 20
+Trade payables 5
+Bank borrowings 5
+```
+
+The implied equity is `10 + 20 - 5 - 5 = 20`.
+
+- [ ] **Step 5: Preserve the existing material-omission regression**
+
+Do not change `test_reformulation_detects_equal_asset_liability_omissions()` except, if necessary, strengthen it to assert the omission remains far outside the new count-derived envelope.
+
+Its missing asset and liability detail are `30` each. The test must continue to raise `ReformulationIntegrityError`; this is the key proof that the new policy is not “ignore detail-to-total gaps.”
+
+- [ ] **Step 6: Run the focused tests red**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_classification.py \
-  -k "standard_accounting_concepts or current_tax_liabilities or provisions or capital_surplus or noncontrolling or generic_financial or other_balance" \
-  -v
+  -k "rounding_envelope or equal_asset_liability_omissions" -v
+```
+
+Expected before implementation:
+- the new `-2` acceptance cases fail under the fixed one-unit tolerance;
+- the `-3` rejection cases and the 30-unit omission regression remain failures as intended.
+
+---
+
+### Task 2: Implement count-derived integrity tolerances without changing reformulation arithmetic
+
+**Files:**
+- Modify: `core/model/classification.py`
+- Test: `core/tests/test_classification.py`
+
+**Interfaces:**
+- `BalanceSheetReformulation` shape remains unchanged.
+- Derive counts from `reform.decisions`; do not add source/company metadata to the reformulation object.
+
+- [ ] **Step 1: Add explicit side-category constants near the integrity logic**
+
+Use the existing category names exactly:
+
+```python
+_ASSET_REFORMULATION_CATEGORIES = frozenset(
+    {
+        "Operating Working Capital Asset",
+        "Operating Long-Term Asset",
+        "Financial Asset",
+    }
+)
+
+_LIABILITY_REFORMULATION_CATEGORIES = frozenset(
+    {
+        "Operating Working Capital Liability",
+        "Operating Long-Term Liability",
+        "Financial Liability",
+    }
+)
+```
+
+Do not include `Equity` or `Exclude`.
+
+- [ ] **Step 2: Add one private rounding-envelope helper**
+
+Implement:
+
+```python
+def _reporting_rounding_tolerance(
+    detail_count: int,
+    *,
+    base_tolerance: float,
+) -> float:
+    if detail_count < 0:
+        raise ValueError("detail_count must be non-negative")
+    if base_tolerance < 0:
+        raise ValueError("base_tolerance must be non-negative")
+    return max(base_tolerance, 0.5 * (detail_count + 1))
+```
+
+Rationale encoded by the formula:
+- each of `detail_count` displayed detail values may differ from its unrounded value by at most `0.5` reporting unit;
+- the independently displayed total may differ by another `0.5`;
+- therefore `abs(sum(displayed_details) - displayed_total)` can legitimately reach `0.5 * (detail_count + 1)`.
+
+Do not round the derived tolerance to an integer and do not inspect Fast Retailing residuals.
+
+- [ ] **Step 3: Derive counts from actual contributing decisions**
+
+Inside `check_reformulation_integrity()` compute:
+
+```python
+asset_detail_count = sum(
+    1
+    for decision in reform.decisions.values()
+    if decision.category in _ASSET_REFORMULATION_CATEGORIES
+)
+liability_detail_count = sum(
+    1
+    for decision in reform.decisions.values()
+    if decision.category in _LIABILITY_REFORMULATION_CATEGORIES
+)
+
+asset_tolerance = _reporting_rounding_tolerance(
+    asset_detail_count,
+    base_tolerance=tolerance,
+)
+liability_tolerance = _reporting_rounding_tolerance(
+    liability_detail_count,
+    base_tolerance=tolerance,
+)
+equity_tolerance = _reporting_rounding_tolerance(
+    asset_detail_count + liability_detail_count,
+    base_tolerance=tolerance,
+)
+```
+
+Use those three tolerances only for their corresponding integrity checks.
+
+- [ ] **Step 4: Replace only the comparison thresholds**
+
+The existing gap calculations remain untouched. Change only:
+
+```text
+abs(asset_detail_gap) > tolerance
+abs(liability_detail_gap) > tolerance
+abs(equity_gap) > tolerance
+```
+
+to use `asset_tolerance`, `liability_tolerance`, and `equity_tolerance` respectively.
+
+Keep failure messages’ existing gap text. Add the applicable tolerance to each failure message so future audits are self-diagnosing, for example:
+
+```text
+2025-08-31: asset-detail gap=-12 (classified assets vs Total Assets; allowed rounding envelope=8.5)
+```
+
+Do not change values, category totals, NOA, Net Debt, or implied equity.
+
+- [ ] **Step 5: Preserve explicit caller tolerance as a floor**
+
+Add a focused test showing that a caller-supplied larger tolerance still works:
+
+```python
+def test_reformulation_integrity_explicit_tolerance_remains_floor():
+    periods = [P1, P2]
+    reform = reformulate_balance_sheet(_asset_rounding_fin(46), periods)
+    assert reform.asset_detail_gap == (-6.0, -6.0)
+    with pytest.raises(ReformulationIntegrityError):
+        check_reformulation_integrity(reform, periods)
+    check_reformulation_integrity(reform, periods, tolerance=6.0)
+```
+
+This prevents the new helper from unexpectedly overriding an explicit caller contract.
+
+- [ ] **Step 6: Run Task 1–2 tests green**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_classification.py \
+  -k "rounding_envelope or equal_asset_liability_omissions or explicit_tolerance" -v
 ```
 
 Expected: all selected tests pass.
 
+- [ ] **Step 7: Run the full classification test file**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_classification.py -v
+```
+
+Expected: all pass, including Steps 9M.2A–9M.2C classification/judgment regressions.
+
 ---
 
-### Task 2: Prove the complete Fast Retailing balance-sheet classification inventory
+### Task 3: Prove Fast Retailing fits the mathematical envelope without source changes
 
 **Files:**
 - Modify: `core/tests/test_fast_retailing_benchmark.py`
@@ -281,175 +361,153 @@ Expected: all selected tests pass.
 - Read only: `benchmark/fast_retailing/reconciled/conflicts.json`
 
 **Interfaces:**
-- Use existing `standardized_from_payload()` and `classify_balance_sheet_line()`.
-- Use existing `is_balance_sheet_subtotal()` to exclude subtotal/total rows.
-- Do not add Fast Retailing-specific production behavior.
+- Use existing standardized loader, `reformulate_balance_sheet()`, and `check_reformulation_integrity()`.
+- Do not create a Fast Retailing-specific tolerance API.
 
-- [x] **Step 1: Add one real-company inventory acceptance test**
+- [ ] **Step 1: Add exact committed gap assertions before calling integrity check**
 
-Add a test that classifies every non-subtotal Fast Retailing balance-sheet row and reports all unsupported rows together rather than stopping on the first:
-
-```python
-def test_fast_retailing_all_balance_sheet_detail_rows_are_classifiable():
-    fin = standardized_from_payload(
-        json.loads(STANDARDIZED.read_text(encoding="utf-8"))
-    )
-    unsupported = []
-    for item in fin.balance_sheet:
-        if is_balance_sheet_subtotal(item):
-            continue
-        try:
-            classify_balance_sheet_line(item)
-        except UnclassifiedBalanceSheetLineError as exc:
-            unsupported.append((item.label, item.concept, str(exc)))
-    assert unsupported == []
-```
-
-Import the existing classifier exception and subtotal helper rather than duplicating their logic.
-
-Before production implementation, this test should expose the current committed residual set. Based on the Step 9M.2B code + committed standardized payload, the expected unsupported concepts are:
-
-```text
-current_tax_liabilities
-provisions_current
-provisions_noncurrent
-capital_stock
-capital_surplus
-other_components_of_equity
-noncontrolling_interests
-```
-
-If the red test shows an additional concept not in that list, stop before widening production rules and report the discrepancy to the user. Do not silently add another mapping.
-
-- [x] **Step 2: Add exact Fast Retailing category assertions for the seven rows**
-
-Locate by `item.concept`, not row position, and require:
-
-```text
-current_tax_liabilities    -> Operating Working Capital Liability
-provisions_current         -> Operating Working Capital Liability
-provisions_noncurrent      -> Operating Long-Term Liability
-capital_stock              -> Equity
-capital_surplus            -> Equity
-other_components_of_equity -> Equity
-noncontrolling_interests   -> Equity
-```
-
-For each require:
-
-```text
-ambiguous == False
-judgment_code is None
-```
-
-- [x] **Step 3: Add NCI boundary regression**
-
-The test should make explicit that NCI balance-sheet classification does not close G5. Require only the structural classification:
+For the five Fast Retailing periods require the current documentary/reformulation gaps to remain exactly:
 
 ```python
-decision = classify_balance_sheet_line(nci_item)
-assert decision.category == "Equity"
+assert reform.asset_detail_gap == (-4.0, -8.0, -8.0, -7.0, -8.0)
+assert reform.liability_detail_gap == (-6.0, -5.0, -6.0, -5.0, -6.0)
+assert reform.equity_gap == (2.0, -3.0, -1.0, -1.0, -2.0)
 ```
 
-Do **not** add or alter assertions for parent-attributable ROE, parent earnings, per-share attribution, or NCI profit allocation in this task.
+These assertions prove Step 9M.2D accepts the existing reported arithmetic rather than altering it.
 
-- [x] **Step 4: Run Fast Retailing acceptance tests green**
+- [ ] **Step 2: Assert the contributing detail inventory is stable**
+
+From `reform.decisions`, count categories using the same semantic sets as production and require:
+
+```text
+asset detail count = 16
+liability detail count = 13
+```
+
+Do not count Equity or Exclude rows.
+
+This yields theoretical envelopes:
+
+```text
+asset = 8.5
+liability = 7.0
+equity bridge = 15.0
+```
+
+Do not hard-code those tolerances in production code; they are acceptance evidence for this fixture only.
+
+- [ ] **Step 3: Require Fast Retailing reformulation integrity to pass without overrides**
+
+```python
+check_reformulation_integrity(reform, periods)
+```
+
+No `classificationOverrides`, plugs, or fixture edits are allowed.
+
+- [ ] **Step 4: Run Fast Retailing acceptance tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
 ```
 
-Expected after Task 1 implementation: the full balance-sheet detail inventory is classifiable; existing source/provenance/conflict checks still pass.
+Expected after Task 2: the previous Stage-4 integrity condition is accepted by the generic rule while source/reconciled values stay identical.
 
 ---
 
-### Task 3: Re-run Stage 4 and capture the next real blocker without widening scope
+### Task 4: Re-run the staged real-company audit and stop at the first newly exposed blocker
 
 **Files:**
-- Modify tests only if required for the acceptance assertion: `core/tests/test_fast_retailing_benchmark.py`
-- Read/execute: `scripts/audit_fast_retailing_benchmark.py`
-- Do not modify source or reconciled benchmark JSON.
+- Modify only tests/docs required by the measured result.
+- Read: `scripts/audit_fast_retailing_benchmark.py`
+- Do not change benchmark source/extracted/reconciled JSON.
 
 **Interfaces:**
-- Existing `run_audit()` remains the behavioral acceptance path.
-- `ReferenceModelBuilder` remains the real integration gate.
+- Existing `run_audit()` remains the integration gate.
 
-- [x] **Step 1: Add/update the audit-stage regression**
+- [ ] **Step 1: Update the audit-stage regression**
 
-Require:
+In `core/tests/test_fast_retailing_benchmark.py`, require:
 
 ```python
 stages = {stage.name: stage for stage in run_audit().stages}
+assert stages["1_source_fixture_load"].status == "pass"
+assert stages["2_identity_validation"].status == "pass"
 assert stages["3_reconciliation"].status == "pass"
 ```
 
 For Stage 4:
+- it must no longer fail with the Step 9M.2C classified-detail `ReformulationIntegrityError`;
+- if Stage 4 passes, allow Stage 5+ to expose the next issue;
+- if Stage 4 fails for a different reason, record it literally and stop.
 
-```text
-- it must no longer fail on Current tax liabilities;
-- it must no longer fail on any of the seven concepts closed in this step;
-- if it fails on a different row or exception, accept that as the next measured blocker;
-- if Stage 4 passes, allow Stage 5+ to reveal the next blocker.
-```
+Do not pre-assume workbook/Check success.
 
-Do not assert complete workbook success in advance.
-
-- [x] **Step 2: Run the staged audit**
+- [ ] **Step 2: Run the staged audit**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
 ```
 
-Record exactly:
+Capture exactly:
 
 ```text
 first failing stage
 exception class
-exception message
+full exception message
 whether ReferenceModelBuilder completed
 whether workbook generation was reached
 whether blank Check was reached
 whether filled Check was reached
 ```
 
-- [x] **Step 3: Stop on the first new blocker**
+- [ ] **Step 3: Stop instead of fixing the newly exposed issue**
 
-Do not fix the newly exposed issue in Step 9M.2C unless the audit shows that one of the seven exact mappings above was implemented incorrectly. In particular, do not use this checkpoint to begin:
+If the audit reveals a new blocker, do not fix it in Step 9M.2D unless it is demonstrably an implementation error in the rounding-envelope logic above.
+
+In particular, do not opportunistically begin:
 
 ```text
 G3 split-lease aggregation
 G4 lease-interest treatment conditioning
 G5 parent/NCI attribution
-G6 split-adjusted share history
-G7 reconciliation/restatement changes
+G6 share-basis restatement/per-share activation
+G7 reconciliation-precedence changes
 ```
 
-The purpose of this task is to finish deterministic Stage-4 classification convergence and measure what comes next.
+The next checkpoint must be selected from measured post-9M.2D evidence.
 
 ---
 
-### Task 4: Preserve model semantics and source artifacts
+### Task 5: Preserve source, workbook, and historical-product isolation
 
 **Files:**
-- Test: `core/tests/test_classification.py`
 - Test: `core/tests/test_reference_integrity.py`
 - Test: `core/tests/test_fast_retailing_benchmark.py`
-- Read only: benchmark source/extracted/reconciled artifacts
+- Read only: benchmark and example artifacts
 
-- [x] **Step 1: Prove no new Accounting Judgment cases are created by the seven deterministic rows**
+- [ ] **Step 1: Prove classification decisions are unchanged**
 
-Add a minimal integration assertion using the existing builder/judgment machinery. For a fixture containing the seven new exact concepts, require that none of their identities appears as a new `JudgmentCase` solely because of Step 9M.2C:
+The Step 9M.2D production diff must not modify `classify_balance_sheet_line()` behavior. Run the existing focused classifier/judgment tests covering:
 
 ```text
-current tax liability: no new judgment case
-provisions current/non-current: no new judgment case
-capital stock/surplus/components: no new judgment case
-NCI: no new judgment case in this step
+G2 generic financial-instrument judgments
+G2B residual other-balance judgments
+G2C deterministic tax/provision/equity concepts
+lease / associate / pension / short-term investment judgments
+unknown-row fail-closed behavior
 ```
 
-Existing lease, G2 financial-instrument, and G2B residual-other judgment cases must remain unchanged.
+Use:
 
-- [x] **Step 2: Prove source/reconciliation artifacts are unchanged**
+```bash
+PYTHONPATH=. pytest \
+  core/tests/test_classification.py \
+  core/tests/test_reference_integrity.py \
+  -q
+```
+
+- [ ] **Step 2: Prove source/reconciliation artifacts did not drift**
 
 Run:
 
@@ -464,90 +522,72 @@ git diff -- \
 
 Expected: no output.
 
-Also retain the existing benchmark assertions:
+Also confirm the committed conflict counts remain:
 
 ```text
-primary-statement overlap conflicts == 3
-supplemental conflicts == 3
+primary-statement overlap conflicts = 3
+supplemental conflicts = 3
 ```
 
-- [x] **Step 3: Prove workbook fixtures did not drift**
+- [ ] **Step 3: Prove unrelated example workbook fixtures did not drift**
 
 ```bash
 git diff -- \
   example/DEMO_HK_Trainer.xlsx \
-  example/DEMO_HK_Answer_Key.xlsx
+  example/DEMO_HK_Answer_Key.xlsx \
+  example/DEMO_HK_Standardized.json
 ```
 
 Expected: no output.
 
-Do not regenerate example workbooks in this step.
+- [ ] **Step 4: Verify forecast/valuation isolation**
+
+Run the existing normal-v1 isolation regression used in Steps 9M.2A–9M.2C. Require:
+
+```text
+normal historical build does not call scenario execution
+active historical family orders remain 1..90
+no DCF/residual-income/valuation activation
+```
+
+Do not add a new formula family for this integrity-policy change.
 
 ---
 
-### Task 5: Update measured gap documentation only after the audit
+### Task 6: Update the measured gap record and final verification evidence
 
 **Files:**
 - Modify: `benchmark/fast_retailing/GAPS.md`
-- Modify: `benchmark/fast_retailing/BASELINE.md` only if its stage table is regenerated by the existing audit workflow
+- Modify: `benchmark/fast_retailing/BASELINE.md`
 - Modify: `RESULT.md`
-- Modify: `IMPLEMENTATION.md` status line only after final verification
+- Modify: `IMPLEMENTATION.md` status line only after verification
 
-- [x] **Step 1: Add a Step 9M.2C classifier-resolution entry to `GAPS.md`**
+- [ ] **Step 1: Record the integrity-policy resolution separately from G1**
 
-Record a new classifier subsection (for example `G2C`) stating exactly:
+Add a new closed subsection, for example:
 
 ```text
-exact standardized concepts covered:
-- current_tax_liabilities
-- provisions_current
-- provisions_noncurrent
-- capital_stock
-- capital_surplus
-- other_components_of_equity
-- noncontrolling_interests
-
-classification is concept-driven, not company-driven
-no broad label fallback added
-no new judgment templates added
-G5 remains open despite NCI -> Equity structural classification
+G1B — Rounded detail-to-total accumulation — CLOSED in Step 9M.2D
 ```
-
-Do not rename or mark G3–G7 closed unless the audit independently proves their underlying product problem no longer exists.
-
-- [x] **Step 2: Replace the post-9M.2B blocker section with literal Step 9M.2C audit evidence**
-
-Use the exact Stage/exception/message from Task 3. If all stages pass, state that explicitly and list the workbook/Check stages reached. Do not speculate about the next implementation.
-
-- [x] **Step 3: Update `RESULT.md` from literal command output**
 
 Record:
+- the old fixed `1.0` reformulation-detail threshold;
+- the count-derived formula `max(base_tolerance, 0.5 * (detail_count + 1))`;
+- separate asset/liability/equity contributor counts;
+- no source mutation or balancing plugs;
+- the existing top-level `Assets = Liabilities + Equity <= 1.0` G1 rule remains unchanged.
 
-```text
-Step 9M.2C status
-focused test pass count
-full core test pass count
-Fast Retailing Stage 3 status
-Fast Retailing Stage 4 status
-first next blocker, if any
-all Fast Retailing BS detail rows classifiable: yes/no
-new Step 9M.2C judgment cases: 0
-statement conflicts: 3
-supplemental conflicts: 3
-standardized/source artifact drift: no
-forecast/valuation isolation: pass/fail
-```
+Do not mark G3–G7 closed.
 
-Do not pre-fill test counts before running them.
+- [ ] **Step 2: Replace the post-9M.2C blocker section with literal audit evidence**
 
----
+Use the exact final audit result from Task 4. If all stages pass, state that explicitly and list every reached stage. If another blocker appears, record its exact stage/class/message without proposing its fix inside the evidence section.
 
-### Task 6: Full regression gate and stop
+- [ ] **Step 3: Update `BASELINE.md` from the regenerated audit**
 
-**Files:**
-- Modify only final status/docs listed in Task 5 after all checks pass.
+Run the existing audit script if it writes the baseline automatically; otherwise copy only literal stage output. Do not edit benchmark numerical source facts.
 
-- [x] **Step 1: Run the focused Step 9M.2C suite**
+- [ ] **Step 4: Run the focused Step 9M.2D suite**
 
 ```bash
 PYTHONPATH=. pytest \
@@ -557,42 +597,46 @@ PYTHONPATH=. pytest \
   -q
 ```
 
-Expected: all pass. Record the literal pass count.
+Record the exact pass count.
 
-- [x] **Step 2: Run the full historical regression suite**
+- [ ] **Step 5: Run the full historical regression suite**
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
 ```
 
-Expected: all pass. Record the literal pass count.
+Record the exact pass count.
 
-- [x] **Step 3: Verify forecast/valuation isolation**
+- [ ] **Step 6: Re-run source/workbook no-drift checks**
 
-Run the existing isolation regression used in Step 9M.2A/9M.2B. Normal historical execution must not call scenario, forecast, DCF, residual-income, or valuation paths. Active historical family orders remain `1..90`; this checkpoint adds no formula family.
+Repeat Task 5 Steps 2–3 after all documentation/audit generation. Source/extracted/reconciled JSON and example workbook files must remain unchanged.
 
-- [x] **Step 4: Re-run the source/workbook no-drift commands from Task 4**
-
-Expected: no output for source/reconciled/example-workbook paths.
-
-- [x] **Step 5: Run the Fast Retailing audit as the final behavioral gate**
+- [ ] **Step 7: Run the Fast Retailing audit as the final behavioral gate**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
 ```
 
-Require the same stage/result measured in Task 3. If the first blocker changes without code/data changes, stop and investigate nondeterminism rather than documenting either run.
+Require the same stage/result as Task 4. If the first blocker changes without code/data changes, stop and investigate nondeterminism instead of recording either result.
 
-- [x] **Step 6: Mark Step 9M.2C complete only with fresh evidence**
+- [ ] **Step 8: Mark Step 9M.2D complete only with fresh evidence**
 
-Only after Steps 1–5 succeed:
+Only after Steps 4–7 succeed, add a compact status line at the top of this file and update `RESULT.md` with:
 
 ```text
-- add a compact status line at the top of IMPLEMENTATION.md;
-- update RESULT.md with literal counts/results;
-- update GAPS.md with the measured next blocker/stage.
+focused test count
+full core test count
+Fast Retailing Stage 1–4 status
+first newly exposed blocker/stage, if any
+asset/liability detail counts and rounding envelopes
+source/reconciliation artifact drift: none
+conflict counts: 3 / 3
+family orders: 1..90
+forecast/valuation isolation: pass
 ```
 
-- [x] **Step 7: Stop**
+Do not pre-state counts before the commands run.
 
-Do not implement the next blocker. Return the implementation/test summary to the user so they can run `checkpoint`. ChatGPT should then review that checkpoint and decide whether the next step is a substantive G3/G4/G5 accounting-policy step or another measured integration defect.
+- [ ] **Step 9: Stop**
+
+Do not implement the next blocker. Return the implementation/test summary so the user can run `checkpoint`; ChatGPT should then review that checkpoint and select the next step from measured evidence.
