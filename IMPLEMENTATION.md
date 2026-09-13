@@ -1,337 +1,494 @@
-**Status:** Step 9M.3C complete — G5 parent/NCI attribution + parent ROE; FR Stages 1–7 pass with expected_specs=346. Stopped for user checkpoint.
+# Step 9M.3D — Split-Adjusted Historical Share Basis and Per-Share Activation Implementation Plan
 
-# Step 9M.3C — Parent / NCI Attribution and Parent ROE Implementation Plan
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
+> **For Cursor:** Read `TARGET.md`, then `benchmark/fast_retailing/GAPS.md`, then this plan in full. The accepted implementation base is commit `f15a01ac4733a9290c238f621a993e722f524032` (`Step 9M.3C`). Implement only Step 9M.3D using red/green TDD. Do not begin G7 conflict-policy redesign, PDF/AI extraction, forecasting, valuation, scenarios, or investment conclusions. Do not commit, push, reset, rebase, merge, clean, or delete branches; the user owns checkpoint commits.
 
-> **For Cursor:** Read `TARGET.md`, then `benchmark/fast_retailing/GAPS.md`, then this plan in full. The accepted implementation base is commit `9f3c4b0f35b50fd885e68849fe12ec71b5899a0e` (`Step 9M.3B`). Implement only Step 9M.3C using red/green TDD. Do not begin G6 share-basis restatement, G7 conflict-policy changes, PDF/AI extraction, forecasting, valuation, scenarios, or investment conclusions. Do not commit, push, reset, rebase, merge, clean, or delete branches; the user owns checkpoint commits.
+**Goal:** Close G6 by constructing a complete, source-grounded, split-adjusted diluted weighted-average share axis for Fast Retailing and companies with the same audited-restatement pattern, then activate the existing diluted per-share and earnings/share-count attribution modules on that comparable basis.
 
-**Goal:** Close G5 by making parent-attributable profit, parent equity, and NCI explicit historical analytical inputs; add a source-grounded parent-ROE attribution schedule; and ensure any future diluted-EPS calculation uses parent-attributable earnings rather than consolidated profit when NCI is present.
+**Architecture:** Preserve all raw extracted share facts and conflicts. Add one deterministic share-basis resolver upstream of `HistoricalShareData`: accept reported diluted-WAS facts directly, or validated derived diluted-WAS facts whose derivation is exactly `basic_weighted_average_shares + dilutive_shares`. When the same historical period is later restated after a stock split, infer one integer split factor only from source-grounded overlapping share observations that are anchored by an audited `RESTATED_COMPARATIVE` diluted-EPS selection; use that factor to analytically restate earlier periods that have no later restated share presentation. The model payload stores the resulting comparable share axis in financial-statement units and explicitly records which periods were adjusted. Existing per-share math then consumes that axis with the Step 9M.3C parent-attributable earnings numerator. G7 conflicts remain recorded and unchanged.
 
-**Architecture:** Do not add another ingestion payload when the required facts already exist as standardized statement rows. Extend the canonical line resolver for four explicit attribution concepts, then add one optional `OwnershipAttributionSeries` computed only when the full parent/NCI profit-and-equity set is present. Keep the consolidated BAV reformulation and decomposed ROE unchanged: those remain enterprise/consolidated diagnostics. Add a separate parent/NCI schedule so the workbook does not pretend parent ROE is identical to consolidated decomposed ROE. Finally, harden the existing per-share engine so its earnings numerator is parent-attributable profit when a complete ownership-attribution set exists, while preserving total-net-income behavior for companies with no NCI evidence.
+**Tech Stack:** Python dataclasses, pytest, existing filing reconciler/standardizer, `HistoricalShareData`, `StandardizedFinancials` JSON IO, existing per-share/per-share-attribution engine, `ReferenceModelBuilder`, semantic map / Check workflow, Fast Retailing benchmark audit.
 
-**Tech Stack:** Python, pytest, existing `StandardizedFinancials`, canonical line resolver, `AnchorMetrics`, `ReferenceModelBuilder`, semantic component map, per-share diagnostics, Fast Retailing benchmark audit.
-
-**Spec:** `TARGET.md` minority/NCI, ROE, per-share, source-grounding, optional-module, and no-invented-input requirements plus G5 in `benchmark/fast_retailing/GAPS.md`.
+**Spec:** `TARGET.md` no-invented-input, source-grounding, historical-share-count, dilution, per-share, optional-module, and auditability requirements plus G6 in `benchmark/fast_retailing/GAPS.md`.
 
 ## Why this is the next step
 
-Step 9M.3B closes G4 and leaves Fast Retailing Stages 1–7 passing with 312 active historical components. The remaining substantive gaps are G5–G7. G5 should precede G6 because the current per-share engine still uses consolidated `net_income` as its numerator, but Fast Retailing explicitly reports profit attributable to owners and NCI. Building the share-basis fix first would preserve the wrong shareholder numerator.
+Step 9M.3C closes G5 and leaves Fast Retailing Stages 1–7 passing with `expected_specs=346`. G6 is now the only missing input contract preventing the already-built per-share curriculum from activating.
 
-Fast Retailing already supplies the required five-year statement concepts:
-
-```text
-profit_attributable_to_owners
-profit_attributable_to_nci
-equity_attributable_to_owners
-noncontrolling_interests
-```
-
-FY2025 evidence:
+The documentary evidence is sufficient to establish a comparable basis without silently rewriting source facts:
 
 ```text
-Total profit                     459,153
-Profit attributable to owners    433,009
-Profit attributable to NCI        26,143
-owners + NCI                     459,152   (1-unit presentation difference)
+FY2022 filing diluted WAS (derived from reported basic + dilutive): 102,323,208
+FY2023 filing FY2022 comparative diluted WAS:                   306,969,624
+ratio:                                                           3.0x
 
-Total equity                   2,327,501
-Equity attributable to owners  2,273,115
-NCI equity                        54,385
-owners + NCI                   2,327,500   (1-unit presentation difference)
+FY2022 diluted EPS as originally presented:                    2,671.29
+FY2023 filing FY2022 diluted EPS, RESTATED_COMPARATIVE:          890.43
+inverse ratio:                                                    3.0x
 ```
 
-These differences are compatible with independently rounded presentation. Do not plug either bridge.
+The same FY2022 basic and dilutive share components are also exactly tripled in the later filing. That gives a source-grounded split-restatement anchor. For FY2021, there is no later audited comparative share row, so the model may not call an adjusted FY2021 share count “reported”; it may, however, apply the established 3-for-1 factor as an explicit analytical restatement for comparability. The raw FY2021 reported share facts remain untouched in provenance.
+
+The intended Fast Retailing comparable diluted-WAS axis in actual shares is:
+
+```text
+FY2021  306,871,785   = 102,290,595 × 3  (analytically split-adjusted)
+FY2022  306,969,624   = later audited restated comparative
+FY2023  307,138,870   = reported/derived on post-split basis
+FY2024  307,231,804   = reported/derived on post-split basis
+FY2025  307,247,804   = reported/derived on post-split basis
+```
+
+Because Fast Retailing statements are in JPY millions, `HistoricalShareData` must expose these as `306.871785`, `306.969624`, `307.138870`, `307.231804`, `307.247804` with `scale_basis="financial_statement_units"`; otherwise JPY-million earnings divided by raw shares would be dimensionally wrong.
 
 ## Global Constraints
 
 - `TARGET.md` is read-only for Cursor.
-- Preserve all Step 9M.3B lease treatment behavior and tests.
-- Preserve source/extracted/provenance/conflict artifacts; no source mutation or invented attribution values.
-- Do not derive parent profit as `total - NCI` when the parent line is missing; require the reported parent line for the optional attribution module.
-- Do not derive NCI profit/equity from differences when reported components are missing.
-- Do not replace consolidated BAV `NOA`, `Net Debt`, `NOPAT`, `RNOA`, `Spread`, `FLEV`, or decomposed ROE with parent-only quantities in this checkpoint.
-- Parent ROE is a separate shareholder-attribution diagnostic: current parent profit divided by average reported parent equity.
-- Parent/NCI presentation bridge tolerances must reflect reporting-unit rounding only: for two displayed components against one displayed total, accept absolute gap `<= 1.5` reporting units; larger discrepancies fail closed.
-- A company with no parent/NCI attribution lines keeps all existing behavior and should not receive the new optional module.
-- A partial/ambiguous ownership presentation must not silently fall back to a parent-specific analysis.
-- Do not activate Fast Retailing per-share analysis yet; G6 remains responsible for its split-adjusted comparable share axis.
-- Forecast/valuation isolation remains mandatory.
+- Preserve all source PDFs, source hashes, extracted filing JSON, and raw supplemental share facts.
+- Preserve all existing statement and supplemental conflicts; do not delete or overwrite G7 evidence to obtain a clean share axis.
+- Preserve overlap conflict count `3` and supplemental conflict count `3` unless a test proves the existing artifacts themselves are wrong; this step is not allowed to change conflict policy.
+- Do not add a Fast Retailing ticker/name branch to production code.
+- Do not infer a split merely because adjacent yearly share counts differ.
+- A split factor may be inferred only from two audited presentations of the **same historical period**, with an explicit `RESTATED_COMPARATIVE` diluted-EPS selection anchoring the later presentation.
+- The inferred factor must be a positive integer greater than `1` and must reconcile the overlapping diluted-WAS observations; supporting basic/dilutive components must not contradict it.
+- Only one split/restatement event is supported in Step 9M.3D. Multiple distinct factors/events must fail closed rather than being chained speculatively.
+- Earlier periods adjusted by the factor are analytical comparable-basis values, not newly reported source facts.
+- Accept a derived diluted-WAS observation only when its derivation is exactly `basic_weighted_average_shares + dilutive_shares` and the same filing/period contains reported component facts that sum to it.
+- `HistoricalShareData` emitted by filing standardization must use `scale_basis="financial_statement_units"`.
+- Step 9M.3C ownership logic remains authoritative: per-share earnings use parent-attributable profit when complete ownership attribution exists.
+- Consolidated BAV reformulation, leases, ownership attribution, formula family meanings, and forecast isolation remain unchanged.
+- Existing per-share family IDs remain stable. Do not create a second per-share module.
+- Cursor stops after implementation/tests/documentation and returns control for user `checkpoint`.
 
 ---
 
-### Task 1: Add canonical ownership-attribution resolution and integrity math
+### Task 1: Build a deterministic share-basis resolver
 
 **Files:**
-- Modify: `core/model/line_resolver.py`
-- Create: `core/model/ownership_attribution.py`
-- Create: `core/tests/test_ownership_attribution.py`
-- Modify: `core/tests/test_line_resolver.py`
+- Create: `core/ingestion/share_basis.py`
+- Create: `core/tests/test_share_basis.py`
+- Read: `core/data/filing.py`
+- Read: `core/ingestion/filing_reconciler.py`
 
 **Interfaces:**
-- Extend `resolve_line()` to recognize these canonical concepts:
-  - `profit_attributable_to_owners`
-  - `profit_attributable_to_nci`
-  - `equity_attributable_to_owners`
-  - `noncontrolling_interests`
-- New module API:
+
+Add one immutable result type and one resolver:
 
 ```python
 @dataclass(frozen=True)
-class OwnershipAttributionAvailability:
-    available: bool
-    partial: bool
-    ambiguous: bool
+class HistoricalShareBasisResolution:
+    diluted_weighted_average_actual_shares: dict[date, float]
+    applied_adjustment_factors: dict[date, float]
+    basis: str  # "reported" | "split_adjusted"
+    restatement_anchor_period: date | None
+    restatement_filing_year: int | None
+    split_factor: float | None
 
-@dataclass(frozen=True)
-class OwnershipAttributionSeries:
-    parent_profit: tuple[float, ...]
-    nci_profit: tuple[float, ...]
-    profit_attribution_gap: tuple[float, ...]
-    parent_equity: tuple[float, ...]
-    nci_equity: tuple[float, ...]
-    equity_attribution_gap: tuple[float, ...]
-    parent_roe: tuple[float | str | None, ...]
 
-class OwnershipAttributionIntegrityError(ValueError): ...
-
-ownership_attribution_availability(financials) -> OwnershipAttributionAvailability
-compute_ownership_attribution_series(financials, periods) -> OwnershipAttributionSeries
+def resolve_historical_share_basis(
+    reconciled: ReconciledCompanyData,
+) -> HistoricalShareBasisResolution | None:
+    ...
 ```
 
-- [x] **Step 1: Write resolver tests for all four exact concepts**
+Do not expose source file paths through this model-facing result; audit artifacts already preserve observations.
 
-Require exact `LineItem.concept` resolution first. Add narrow exact-label aliases only for conventional parent/NCI labels such as `Owners of the Parent`, `Profit attributable to owners of the Parent`, `Non-controlling interests`, and `Equity attributable to owners of the Parent`. Do not use broad `owner`, `minority`, or `interest` substring matching.
+- [ ] **Step 1: Add a no-split reported-axis test**
 
-- [x] **Step 2: Write availability tests**
+Construct a synthetic `ReconciledCompanyData` with a complete period axis where each period has one `diluted_weighted_average_shares` observation with `status="reported"`. Require:
 
-Cover:
+```python
+result = resolve_historical_share_basis(reconciled)
+assert result is not None
+assert result.basis == "reported"
+assert result.split_factor is None
+assert result.applied_adjustment_factors == {p1: 1.0, p2: 1.0}
+assert result.diluted_weighted_average_actual_shares == {p1: 100.0, p2: 110.0}
+```
+
+- [ ] **Step 2: Add valid derived-WAS validation**
+
+For one filing/period supply:
 
 ```text
-no attribution lines                  -> available=False, partial=False
-all four unique lines                 -> available=True
-one/more lines missing                -> available=False, partial=True
-duplicate same-priority parent/NCI row -> available=False, ambiguous=True
+basic_weighted_average_shares = 100 (reported)
+dilutive_shares               =   5 (reported)
+diluted_weighted_average_shares = 105 (derived)
+derivation = "basic_weighted_average_shares + dilutive_shares"
 ```
 
-- [x] **Step 3: Write the core series and rounding-bound tests**
+Require the resolver to accept `105`. Then parameterize failures for:
 
-Use a two-period fixture with complete reported total profit/equity and all four attribution lines. Require:
+```text
+wrong derivation string
+missing basic component
+missing dilutive component
+component status != reported
+derived total != basic + dilutive
+```
+
+Each unsupported case must return `None` for a required complete axis rather than inventing a correction.
+
+- [ ] **Step 3: Add one valid audited-restatement anchor test**
+
+Use three model periods. For period 2 supply two audited share presentations:
+
+```text
+filing 2022: diluted WAS = 100
+filing 2023: diluted WAS = 300
+```
+
+Also add the canonical income-statement `diluted_eps` reconciliation conflict for period 2:
+
+```text
+old current-period EPS = 30.00
+selected later EPS     = 10.00
+selected.presentation_role = RESTATED_COMPARATIVE
+selected.filing_year = 2023
+```
+
+For period 1, only a pre-restatement diluted WAS of `90` exists. For period 3, a post-restatement WAS of `330` exists. Require:
 
 ```python
-series.profit_attribution_gap[i] == pytest.approx(
-    series.parent_profit[i] + series.nci_profit[i] - total_profit[i]
-)
-series.equity_attribution_gap[i] == pytest.approx(
-    series.parent_equity[i] + series.nci_equity[i] - total_equity[i]
-)
-series.parent_roe[0] is None
-series.parent_roe[1] == pytest.approx(
-    series.parent_profit[1] / ((series.parent_equity[0] + series.parent_equity[1]) / 2)
+result.basis == "split_adjusted"
+result.split_factor == 3.0
+result.restatement_anchor_period == p2
+result.restatement_filing_year == 2023
+result.diluted_weighted_average_actual_shares == {
+    p1: 270.0,
+    p2: 300.0,
+    p3: 330.0,
+}
+result.applied_adjustment_factors == {p1: 3.0, p2: 1.0, p3: 1.0}
+```
+
+- [ ] **Step 4: Add fail-closed restatement tests**
+
+Require `None` for each unsupported contract:
+
+```text
+same-period share disagreement but no RESTATED_COMPARATIVE EPS evidence
+share ratio 2.7 rather than an integer factor
+later EPS does not approximately invert the share factor
+basic/dilutive component evidence contradicts the diluted-WAS factor
+more than one distinct split factor across the model axis
+restatement evidence exists but one modeled period has no usable share observation
+later selected share observation does not come from the restatement filing or later
+```
+
+For the EPS inverse-factor check, use a rounding-aware comparison suitable for two-decimal EPS presentation; do not demand bitwise equality. Keep the tolerance local and documented.
+
+- [ ] **Step 5: Run Task 1 red**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_share_basis.py -v
+```
+
+Expected before implementation: import/behavior failures because the resolver does not exist.
+
+- [ ] **Step 6: Implement the minimal resolver**
+
+Implementation order:
+
+```text
+1. collect eligible diluted-WAS observations by filing_year + period
+2. validate every derived observation against reported basic + dilutive components
+3. identify same-period diluted-WAS disagreements
+4. require the matching diluted-EPS ReconciledValue to select RESTATED_COMPARATIVE
+5. infer one integer factor from the old/new same-period diluted-WAS values
+6. corroborate with basic/dilutive components when non-zero
+7. corroborate with inverse diluted-EPS ratio within presentation-rounding tolerance
+8. choose the later/restated share presentation for the anchor period
+9. multiply only earlier periods lacking a post-restatement presentation
+10. require one complete positive model-period axis
+```
+
+Do not mutate `reconciled.share_facts`, `reconciled.values`, or conflicts.
+
+- [ ] **Step 7: Run Task 1 green**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_share_basis.py -v
+```
+
+---
+
+### Task 2: Emit an explicit comparable share basis in StandardizedFinancials
+
+**Files:**
+- Modify: `core/data/interface.py`
+- Modify: `core/data/standardized_io.py`
+- Modify: `core/ingestion/filing_standardizer.py`
+- Modify: `core/tests/test_filing_reconciler.py`
+- Modify or create focused standardized-IO tests following existing repository placement
+
+**Interfaces:**
+
+Extend `HistoricalShareData` backwards-compatibly:
+
+```python
+@dataclass
+class HistoricalShareData:
+    scale_basis: str = ""
+    diluted_weighted_average: dict[date, float | None] = field(default_factory=dict)
+    basis: str = "reported"
+    adjustment_factors: dict[date, float] = field(default_factory=dict)
+```
+
+Older payloads without `basis` / `adjustment_factors` must deserialize with the defaults above.
+
+- [ ] **Step 1: Add JSON round-trip tests**
+
+Require the new fields to survive:
+
+```text
+StandardizedFinancials -> standardized_to_payload -> standardized_from_payload
+```
+
+Also load a legacy payload containing only `scale_basis` + `diluted_weighted_average` and require `basis="reported"`, empty `adjustment_factors`.
+
+- [ ] **Step 2: Add unit-scale conversion tests**
+
+Parameterize filing unit scales:
+
+```text
+ones      -> divisor 1
+thousands -> divisor 1_000
+millions  -> divisor 1_000_000
+billions  -> divisor 1_000_000_000
+```
+
+Given `307_247_804` actual shares and `unit_scale="millions"`, require standardized diluted WAS `307.247804` and:
+
+```python
+shares.scale_basis == "financial_statement_units"
+```
+
+This is a dimensional contract, not display formatting.
+
+- [ ] **Step 3: Replace the current `_historical_shares()` selection logic**
+
+`filing_standardizer.py` currently requires `status="reported"` diluted-WAS facts and therefore rejects the Fast Retailing axis even though the extraction already contains explicitly derived diluted WAS. Replace that behavior with `resolve_historical_share_basis(reconciled)`.
+
+If resolution returns `None`, keep `historical_shares=None` exactly as today.
+
+If it returns a basis, emit:
+
+```python
+HistoricalShareData(
+    scale_basis="financial_statement_units",
+    diluted_weighted_average={
+        period: actual_shares / unit_scale_divisor
+        for period, actual_shares in resolution.diluted_weighted_average_actual_shares.items()
+    },
+    basis=resolution.basis,
+    adjustment_factors=resolution.applied_adjustment_factors,
 )
 ```
 
-Accept bridge gaps exactly at `1.5`; reject `> 1.5` with `OwnershipAttributionIntegrityError`.
+Do not put source paths or page numbers into `StandardizedFinancials`.
 
-- [x] **Step 4: Run Task 1 red**
+- [ ] **Step 4: Prove unsupported share data remains optional**
+
+Add regressions that incomplete/unresolved share facts still produce `historical_shares=None` while the rest of `StandardizedFinancials` is emitted normally. G6 must not make share data mandatory for companies without a reliable basis.
+
+- [ ] **Step 5: Run Task 2 tests**
 
 ```bash
 PYTHONPATH=. pytest \
-  core/tests/test_line_resolver.py \
-  core/tests/test_ownership_attribution.py \
+  core/tests/test_share_basis.py \
+  core/tests/test_filing_reconciler.py \
+  -k "share or historical_shares or standardized" \
   -v
 ```
 
-- [x] **Step 5: Implement the minimal resolver/module**
-
-Use `required_period_value()` / `required_period_series()` for full-axis completeness. Do not derive a missing component from the bridge. Keep the 1.5 reporting-unit tolerance local and explicit (`0.5 * (2 + 1)`).
-
-- [x] **Step 6: Run Task 1 green**
-
-Run the same command; require all selected tests pass.
+Then run the repository's existing standardized-IO round-trip tests containing `HistoricalShareData`.
 
 ---
 
-### Task 2: Add the optional Ownership Attribution learning schedule
+### Task 3: Make the learner-facing per-share surface semantically honest on an adjusted basis
 
 **Files:**
 - Modify: `core/engine/component_catalog.py`
 - Modify: `core/engine/reference_model.py`
-- Modify: `core/model/historical_expected.py`
-- Modify: `core/tests/test_reference_integrity.py`
-- Modify: `core/tests/test_ownership_attribution.py`
-
-**Interfaces:**
-- Add `OWNERSHIP_ATTRIBUTION_COMPONENT_CATALOG` with family orders `91..97`:
-
-```text
-91 parent_profit_source_link      all periods
-92 nci_profit_source_link         all periods
-93 profit_attribution_gap         all periods
-94 parent_equity_source_link      all periods
-95 nci_equity_source_link         all periods
-96 equity_attribution_gap         all periods
-97 parent_roe                     comparable periods
-```
-
-- Add `expand_ownership_attribution_specs(periods, start_order=...)`.
-- `ReferenceModelBuilder` exposes:
-
-```python
-self.ownership_attribution_series
-self.ownership_attribution_specs
-```
-
-- [x] **Step 1: Write catalog-expansion tests**
-
-For five periods require `6 * 5 + 1 * 4 = 34` concrete ownership specs and family orders exactly `91..97`.
-
-- [x] **Step 2: Write builder applicability tests**
-
-Complete attribution fixture -> module/specs present. No attribution evidence -> `ownership_attribution_series is None` and specs empty. Partial/ambiguous presentation -> module omitted; the existing historical model still builds, because this remains an optional module.
-
-- [x] **Step 3: Write workbook-formula tests**
-
-Add one visible `Ownership Attribution` sheet. Formula contract:
-
-```text
-Parent Profit            -> exact Income Statement parent-profit source row
-NCI Profit               -> exact Income Statement NCI-profit source row
-Total Profit             -> existing Net Income source row (display context; non-practice)
-Profit Attribution Gap   -> Parent Profit + NCI Profit - Total Profit
-Parent Equity            -> exact Balance Sheet parent-equity source row
-NCI Equity               -> exact Balance Sheet NCI-equity source row
-Total Equity             -> exact reported Total Equity source row (display context; non-practice)
-Equity Attribution Gap   -> Parent Equity + NCI Equity - Total Equity
-Parent ROE               -> Parent Profit / average current+prior Parent Equity
-```
-
-The first Parent ROE period is display-only `N/A`/blank, not a comparable practice cell.
-
-- [x] **Step 4: Register semantic expected values and Check behavior**
-
-The 34 new components must use the same Python `OwnershipAttributionSeries` values as workbook formulas. Trainer cells are blank yellow; Answer Key formulas/Notes are populated; Check grades all 34.
-
-- [x] **Step 5: Run Task 2 tests**
-
-```bash
-PYTHONPATH=. pytest \
-  core/tests/test_ownership_attribution.py \
-  core/tests/test_reference_integrity.py \
-  -k "ownership or parent_roe or nci" \
-  -v
-```
-
----
-
-### Task 3: Make the existing per-share earnings numerator ownership-safe
-
-**Files:**
-- Modify: `core/model/per_share.py`
-- Modify: `core/model/per_share_attribution.py`
+- Modify: `core/model/per_share.py` only if required for basis validation/message clarity; do not change its existing parent-earnings numerator contract
 - Modify: `core/tests/test_per_share.py`
 - Modify: `core/tests/test_per_share_attribution.py`
-- Reuse: `core/model/ownership_attribution.py`
+- Modify: `core/tests/test_reference_integrity.py`
 
 **Interfaces:**
-- Add to `PerShareSeries`:
+- Keep existing family IDs `reported_diluted_eps`, `nopat_per_diluted_share`, `diluted_eps_change`, `diluted_share_count_change` and existing attribution IDs stable.
+- Keep Step 9M.3C `PerShareSeries.earnings_numerator` behavior unchanged.
 
-```python
-earnings_numerator: tuple[float, ...]
-```
+- [ ] **Step 1: Add split-adjusted per-share math regression**
 
-- Add helper in `ownership_attribution.py`:
+Use parent-attributable earnings in financial-statement units and a `HistoricalShareData` object with `basis="split_adjusted"`, `scale_basis="financial_statement_units"`. Require exact computation from the adjusted share axis and require share-count change to use adjusted values, not raw pre-split counts.
 
-```python
-per_share_earnings_numerator(financials, periods, fallback_total_profit) -> tuple[float, ...]
-```
+- [ ] **Step 2: Preserve whole-owned / already-comparable behavior**
 
-Contract:
+Existing fixtures with `basis="reported"` and `scale_basis="financial_statement_units"` must produce unchanged numbers.
+
+- [ ] **Step 3: Correct learner-facing terminology**
+
+The current family title/hint says “Reported Diluted EPS” even when the earliest period can be analytically split-adjusted. Keep the stable internal family ID but change visible title/hints to the equivalent of:
 
 ```text
-complete ownership attribution -> reported parent_profit
-no ownership/NCI evidence       -> existing consolidated net_income behavior
-partial/ambiguous evidence      -> fail closed if per-share computation is requested
+Diluted EPS (Comparable Basis)
+Earnings numerator / diluted weighted-average shares on the supplied comparable share basis.
+When the supplied basis is split-adjusted, this is an analytical comparable figure and may differ from the originally printed pre-split EPS.
 ```
 
-- [x] **Step 1: Add whole-owned regression**
+Likewise, change attribution display text that says “Reported Net Income” to “Per-Share Earnings Numerator” (or equivalent), because Step 9M.3C may use parent-attributable profit. Keep internal IDs stable.
 
-Existing share-enabled fixtures with no ownership evidence must produce exactly the same EPS as before.
+- [ ] **Step 4: Expose the share basis without adding a practice answer**
 
-- [x] **Step 2: Add NCI fixture with shares**
+On `Per Share Analysis`, keep supplied share counts populated. Add a small non-practice basis label such as:
 
-With total profit `110`, parent profit `100`, NCI profit `10`, and diluted shares `10`, require reported diluted EPS = `10.0`, not `11.0`.
+```text
+Share Basis: Split-adjusted comparable basis
+```
 
-- [x] **Step 3: Update per-share attribution to use the same numerator**
+when `historical_shares.basis == "split_adjusted"`; use `Reported basis` otherwise. Do not make this a yellow cell and do not create a new semantic practice family.
 
-`compute_per_share_attribution_series()` must use `per_share.earnings_numerator`, not `anchor.historical.net_income`, so the level and change bridge cannot disagree.
+- [ ] **Step 5: Prove module/spec counts**
 
-- [x] **Step 4: Add partial-attribution fail-closed test**
+For five periods, existing per-share families contribute:
 
-If NCI/parent attribution evidence is present but incomplete and historical shares are supplied, `compute_per_share_series()` must raise a specific ownership-attribution error rather than silently using consolidated profit.
+```text
+Per-share level/change specs: 18
+Per-share attribution specs:  16
+Total newly active specs:      34
+```
 
-- [x] **Step 5: Run Task 3 tests**
+With the Fast Retailing Step 9M.3C base of `346`, G6 activation should therefore produce `380` active specs if no unrelated optional module becomes active. Add an assertion against the catalog arithmetic; if the measured count differs, inspect rather than changing `380` blindly.
+
+- [ ] **Step 6: Run Task 3 tests**
 
 ```bash
 PYTHONPATH=. pytest \
   core/tests/test_per_share.py \
   core/tests/test_per_share_attribution.py \
-  core/tests/test_ownership_attribution.py \
+  core/tests/test_reference_integrity.py \
   -v
 ```
 
-Do not activate Fast Retailing per-share in this task; `historical_shares` remains null until G6 supplies a defensible comparable axis.
-
 ---
 
-### Task 4: Prove the Fast Retailing G5 contract on real statements
+### Task 4: Prove Fast Retailing uses the source-grounded 3-for-1 comparable basis
 
 **Files:**
 - Modify: `core/tests/test_fast_retailing_benchmark.py`
-- Read only: `benchmark/fast_retailing/reconciled/standardized.json`
+- Modify only the model output generated from unchanged extracted facts: `benchmark/fast_retailing/reconciled/standardized.json`
+- Read only: `benchmark/fast_retailing/extracted/*.json`
 - Read only: `benchmark/fast_retailing/reconciled/provenance.json`
-- Modify after measured verification: `benchmark/fast_retailing/GAPS.md`
-- Modify after measured verification: `benchmark/fast_retailing/BASELINE.md`
-- Modify after measured verification: `RESULT.md`
+- Read only: `benchmark/fast_retailing/reconciled/conflicts.json`
 
-- [x] **Step 1: Assert all four five-year attribution concepts exist**
+**Interfaces:**
+- Use the normal filing validation/reconciliation/standardization path; do not hand-edit `standardized.json` values.
 
-Locate by concept, not row position. Require complete 2021–2025 values for parent profit, NCI profit, parent equity, and NCI equity.
+- [ ] **Step 1: Add documentary anchor assertions**
 
-- [x] **Step 2: Assert FY2025 literal facts and bridges**
+Require the benchmark evidence already committed:
+
+```text
+FY2022 diluted WAS, 2022 filing = 102323208
+FY2022 diluted WAS, 2023 filing = 306969624
+ratio = 3
+FY2022 selected diluted EPS = 890.43
+selected EPS presentation role = RESTATED_COMPARATIVE
+prior diluted EPS = 2671.29
+```
+
+Also require the later FY2022 reported basic and dilutive components to be exactly 3× the earlier components where both are non-zero.
+
+- [ ] **Step 2: Assert the five-year resolved actual-share axis**
+
+Require:
+
+```python
+{
+    date(2021, 8, 31): 306_871_785.0,
+    date(2022, 8, 31): 306_969_624.0,
+    date(2023, 8, 31): 307_138_870.0,
+    date(2024, 8, 31): 307_231_804.0,
+    date(2025, 8, 31): 307_247_804.0,
+}
+```
+
+Require basis metadata:
+
+```text
+basis = split_adjusted
+split_factor = 3
+FY2021 applied adjustment factor = 3
+FY2022–FY2025 applied factor = 1
+```
+
+- [ ] **Step 3: Assert standardized financial-statement-unit values**
+
+After normal standardization require:
+
+```text
+scale_basis = financial_statement_units
+FY2021 306.871785
+FY2022 306.969624
+FY2023 307.138870
+FY2024 307.231804
+FY2025 307.247804
+```
+
+The only intentional `standardized.json` change in this checkpoint should be `historical_shares: null -> populated comparable-basis object` (plus its new basis metadata). Income statement, balance sheet, cash flow, historical lease, and all source-grounded statement values must remain unchanged.
+
+- [ ] **Step 4: Assert per-share economics against ownership-safe numerators**
+
+Fast Retailing per-share computation must use Step 9M.3C parent-attributable profit. Require FY2022–FY2025 computed diluted EPS to agree with the later audited/restated EPS presentation within the existing numerical tolerance. For FY2021, require the computed comparable EPS to equal the originally reported pre-split EPS divided by `3` within two-decimal presentation rounding; do not relabel that analytically adjusted value as a newly reported source fact.
+
+Require FY2025 approximately:
+
+```text
+433009 / 307.247804 ≈ 1409.32
+```
+
+- [ ] **Step 5: Assert module activation and Check totals**
 
 Require:
 
 ```text
-Total profit                     459153
-Parent profit                    433009
-NCI profit                        26143
-profit bridge gap                    -1
-
-Total equity                    2327501
-Parent equity                   2273115
-NCI equity                        54385
-equity bridge gap                    -1
+per_share applicable = True
+per_share_specs = 18
+per_share_attribution_specs = 16
+ownership_specs = 34
+lease_specs = 18
+expected_specs = 380
 ```
 
-Both gaps must be accepted without mutation because they are inside the 1.5-unit reporting envelope.
-
-- [x] **Step 3: Assert parent ROE is separate from consolidated DuPont ROE**
-
-Require the ownership schedule to compute parent ROE from reported parent profit/equity. Do not require equality to `anchor.dupont["ROE (decomposed)"]`; add a regression explicitly preventing production code from replacing consolidated NOA/Net Debt/NOPAT with parent-only quantities.
-
-- [x] **Step 4: Assert module count**
-
-Step 9M.3B has `expected_specs=312`. With complete Fast Retailing ownership attribution, Step 9M.3C should add 34 specs:
+Run workbook generation and require:
 
 ```text
-ownership_attribution_specs = 34
-expected_specs = 346
+blank Check:  correct=0 incorrect=0 blank=380 total=380
+filled Check: correct=380 incorrect=0 blank=0 total=380
 ```
 
-If the measured catalog count differs, stop and inspect the family inventory rather than changing the expected number blindly.
+- [ ] **Step 6: Prove G7 evidence is untouched**
 
-- [x] **Step 5: Run the benchmark acceptance test**
+Require:
+
+```text
+primary-statement overlap conflicts = 3
+supplemental conflicts = 3
+FY2022 EPS conflict still records both original and restated observations
+FY2022 basic-WAS conflict still records both observations
+FY2022 dilutive-share conflict still records both observations
+```
+
+G6 may consume those observations as evidence; it must not erase or “resolve away” the conflict artifact.
+
+- [ ] **Step 7: Regenerate standardized output through production code**
+
+Use the same validated extraction → reconciliation → `standardize_reconciled()` path already used by the benchmark tests/scripts. Do not edit JSON by hand. Then inspect the diff and require the narrow `historical_shares` change described above.
+
+- [ ] **Step 8: Run Fast Retailing acceptance tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
@@ -339,27 +496,30 @@ PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
 
 ---
 
-### Task 5: Run the full real-company audit and regression gates
+### Task 5: Full regression, audit, documentation, and stop
 
 **Files:**
-- Test only except measured documentation/status updates.
+- Modify after measured verification: `benchmark/fast_retailing/GAPS.md`
+- Modify after measured verification: `benchmark/fast_retailing/BASELINE.md`
+- Modify after measured verification: `RESULT.md`
+- Modify status/check boxes in `IMPLEMENTATION.md` only after fresh verification
 
-- [x] **Step 1: Run the focused Step 9M.3C suite**
+- [ ] **Step 1: Run the focused G6 suite**
 
 ```bash
 PYTHONPATH=. pytest \
-  core/tests/test_ownership_attribution.py \
-  core/tests/test_line_resolver.py \
+  core/tests/test_share_basis.py \
+  core/tests/test_filing_reconciler.py \
   core/tests/test_per_share.py \
   core/tests/test_per_share_attribution.py \
   core/tests/test_reference_integrity.py \
   core/tests/test_fast_retailing_benchmark.py \
-  -q
+  -v
 ```
 
-Record the literal pass count.
+Record the literal pass count; do not pre-fill it.
 
-- [x] **Step 2: Run the full historical regression suite**
+- [ ] **Step 2: Run the full historical suite**
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
@@ -367,53 +527,63 @@ PYTHONPATH=. pytest core/tests/ -q
 
 Record the literal pass count.
 
-- [x] **Step 3: Run the staged Fast Retailing audit**
+- [ ] **Step 3: Run the staged benchmark audit**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
 ```
 
-Require Stages 1–7 to pass. Expected if the measured component count matches Task 4:
+Require Stages 1–7 all pass. Record literal Stage-4 module/spec counts and Stage-6/7 Check totals. Expected catalog arithmetic is `380`, but measured output is authoritative.
 
-```text
-Stage 4 expected_specs=346
-blank Check:  correct=0 incorrect=0 blank=346 total=346
-filled Check: correct=346 incorrect=0 blank=0 total=346
-```
-
-- [x] **Step 4: Verify source/provenance/conflict artifacts did not drift**
+- [ ] **Step 4: Verify source and audit artifacts did not drift**
 
 ```bash
 git diff -- \
-  benchmark/fast_retailing/source \
-  benchmark/fast_retailing/extracted \
+  benchmark/fast_retailing/source/ \
+  benchmark/fast_retailing/extracted/ \
   benchmark/fast_retailing/reconciled/provenance.json \
   benchmark/fast_retailing/reconciled/conflicts.json
 ```
 
-Expected: no output. Preserve overlap conflicts = 3 and supplemental conflicts = 3.
+Expected: no output.
 
-`standardized.json` should not need a schema change for G5 because the four attribution concepts already exist as statement rows.
+Then inspect:
 
-- [x] **Step 5: Verify forecast/valuation isolation and existing lease behavior**
-
-Run the existing normal-build scenario/forecast isolation regression plus Step 9M.3B lease-treatment tests. Family orders below the new ownership range remain unchanged; new ownership family orders are exactly `91..97`.
-
-- [x] **Step 6: Update documentation from literal evidence**
-
-If all acceptance criteria pass:
-
-```text
-G5 -> CLOSED in Step 9M.3C
-G6/G7 -> remain open
+```bash
+git diff -- benchmark/fast_retailing/reconciled/standardized.json
 ```
 
-Document that parent ROE is a separate shareholder-attribution diagnostic and that consolidated BAV DuPont remains unchanged. Document that the per-share engine is now ownership-safe but Fast Retailing per-share remains omitted until G6 establishes a comparable post-split share axis.
+Require only the intended `historical_shares` comparable-basis activation.
 
-- [x] **Step 7: Mark Step 9M.3C complete only after fresh evidence, then stop**
+- [ ] **Step 5: Verify prior accounting behavior and forecast isolation**
 
-At the top of `IMPLEMENTATION.md` and in `RESULT.md`, record actual focused/full test counts, ownership spec count, Fast Retailing Stage 1–7 state, and Check totals. Do not begin G6 in the same checkpoint.
+Run the existing Step 9M.3B lease-treatment regressions, Step 9M.3C ownership-attribution regressions, and normal-build scenario/forecast isolation regression. Family IDs/orders remain unchanged; G6 activates existing per-share families rather than adding new family orders.
 
-## Stop condition
+- [ ] **Step 6: Update measured documentation**
 
-After Step 9M.3C, stop. The next review should decide G6 (audited split-adjusted share basis and per-share activation) using the newly correct parent-attributable earnings numerator. G7 restatement/conflict policy remains separate.
+If the acceptance criteria pass, update:
+
+```text
+G6 -> CLOSED in Step 9M.3D
+G7 -> remains OPEN
+```
+
+Document explicitly:
+
+```text
+raw extracted share facts preserved
+one 3-for-1 factor inferred from an audited same-period restatement anchor
+FY2021 comparable share count analytically adjusted, not falsely labeled reported
+FY2022 later audited restated share presentation selected
+historical_shares emitted in financial-statement units
+per-share numerator remains parent-attributable under G5
+G7 conflicts preserved unchanged
+```
+
+Update `BASELINE.md` with actual per-share applicability, spec counts, Check totals, and the five-year comparable share axis. Update `RESULT.md` with literal test/audit evidence.
+
+- [ ] **Step 7: Mark complete only after fresh evidence, then stop**
+
+At the top of `IMPLEMENTATION.md`, record actual focused/full test counts and actual benchmark stage/count results. Mark checkboxes complete only for steps actually run.
+
+Do not begin G7 in this checkpoint. Return the implementation/test summary to the user so they can run `checkpoint`; ChatGPT will then review whether G7 requires a code change, an audit/presentation improvement, or should remain an intentionally preserved conflict state.
