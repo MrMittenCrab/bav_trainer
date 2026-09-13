@@ -16,6 +16,7 @@ from ..model.normalization import NormalizationCase, compute_normalization_serie
 from ..model.period_axis import canonical_fiscal_periods
 from ..engine.component_catalog import (
     FIXED_ASSET_COMPONENT_CATALOG,
+    GOODWILL_INTANGIBLES_COMPONENT_CATALOG,
     LEASE_LIABILITY_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
     OWNERSHIP_ATTRIBUTION_COMPONENT_CATALOG,
@@ -25,6 +26,11 @@ from ..engine.component_catalog import (
     QUALITY_COMPONENT_CATALOG,
 )
 from ..model.fixed_asset import compute_fixed_asset_series, fixed_asset_applicable
+from ..model.goodwill_intangibles import (
+    compute_goodwill_intangibles_series,
+    goodwill_intangibles_applicable,
+    goodwill_intangibles_availability,
+)
 from ..model.lease_liability import (
     compute_lease_liability_series,
     lease_liability_applicable,
@@ -235,6 +241,19 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                         financials,
                         list(modeled_periods),
                     )
+            gi_family_ids = {
+                family.id for family in GOODWILL_INTANGIBLES_COMPONENT_CATALOG
+            }
+            goodwill_intangibles = None
+            gi_availability = None
+            if any(comp.family_id in gi_family_ids for comp in comps):
+                if goodwill_intangibles_applicable(financials):
+                    gi_availability = goodwill_intangibles_availability(financials)
+                    goodwill_intangibles = compute_goodwill_intangibles_series(
+                        financials,
+                        list(modeled_periods),
+                        anchor,
+                    )
             dynamic_expected = {
                 comp.id: expected_value_for_component(
                     anchor,
@@ -245,6 +264,8 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     fixed_asset=fixed_asset,
                     lease_liability=lease_liability,
                     ownership_attribution=ownership_attribution,
+                    goodwill_intangibles=goodwill_intangibles,
+                    goodwill_intangibles_availability=gi_availability,
                 )
                 for comp in comps
             }

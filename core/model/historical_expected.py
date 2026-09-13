@@ -5,6 +5,7 @@ from __future__ import annotations
 from ..engine.component_catalog import (
     COMPONENT_CATALOG,
     FIXED_ASSET_COMPONENT_CATALOG,
+    GOODWILL_INTANGIBLES_COMPONENT_CATALOG,
     LEASE_LIABILITY_COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
@@ -23,6 +24,10 @@ from .earnings_quality import EarningsQualitySeries
 from .earnings_quality_change import compute_earnings_quality_change_series
 from .financial_math import AnchorMetrics
 from .fixed_asset import FixedAssetSeries
+from .goodwill_intangibles import (
+    GoodwillIntangiblesAvailability,
+    GoodwillIntangiblesSeries,
+)
 from .lease_liability import LeaseLiabilitySeries
 from .normalization import NormalizationSeries
 from .normalized_per_share import compute_normalized_per_share_series
@@ -131,6 +136,23 @@ _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
     "nci_equity_source_link",
     "equity_attribution_gap",
     "parent_roe",
+)
+
+_GOODWILL_INTANGIBLES_FAMILY_SERIES = (
+    "goodwill_change",
+    "goodwill_growth",
+    "average_goodwill",
+    "goodwill_to_revenue",
+    "intangible_assets_change",
+    "intangible_assets_growth",
+    "average_intangible_assets",
+    "intangible_assets_to_revenue",
+    "goodwill_and_intangibles_change",
+    "goodwill_and_intangibles_growth",
+    "average_goodwill_and_intangibles",
+    "goodwill_and_intangibles_to_revenue",
+    "intangible_payments",
+    "intangible_payments_to_revenue",
 )
 
 _WORKING_CAPITAL_FAMILY_SERIES = (
@@ -556,6 +578,76 @@ def ownership_attribution_expected_series(
     }
 
 
+def goodwill_intangibles_expected_series(
+    goodwill_intangibles: GoodwillIntangiblesSeries,
+    availability: GoodwillIntangiblesAvailability,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map available goodwill/intangibles families from a series + availability."""
+    series: dict[str, tuple[float | str | None, ...]] = {}
+    if availability.goodwill and goodwill_intangibles.goodwill is not None:
+        gw = goodwill_intangibles.goodwill
+        series.update(
+            {
+                "goodwill_change": gw.change,
+                "goodwill_growth": gw.growth,
+                "average_goodwill": gw.average,
+                "goodwill_to_revenue": gw.to_revenue,
+            }
+        )
+    if (
+        availability.intangible_assets
+        and goodwill_intangibles.intangible_assets is not None
+    ):
+        ia = goodwill_intangibles.intangible_assets
+        series.update(
+            {
+                "intangible_assets_change": ia.change,
+                "intangible_assets_growth": ia.growth,
+                "average_intangible_assets": ia.average,
+                "intangible_assets_to_revenue": ia.to_revenue,
+            }
+        )
+    if (
+        availability.goodwill_and_intangibles
+        and goodwill_intangibles.goodwill_and_intangibles is not None
+    ):
+        comb = goodwill_intangibles.goodwill_and_intangibles
+        series.update(
+            {
+                "goodwill_and_intangibles_change": comb.change,
+                "goodwill_and_intangibles_growth": comb.growth,
+                "average_goodwill_and_intangibles": comb.average,
+                "goodwill_and_intangibles_to_revenue": comb.to_revenue,
+            }
+        )
+    if (
+        availability.payments_for_intangible_assets
+        and goodwill_intangibles.intangible_payments is not None
+        and goodwill_intangibles.intangible_payments_to_revenue is not None
+    ):
+        series.update(
+            {
+                "intangible_payments": goodwill_intangibles.intangible_payments,
+                "intangible_payments_to_revenue": (
+                    goodwill_intangibles.intangible_payments_to_revenue
+                ),
+            }
+        )
+
+    catalog_ids = {family.id for family in GOODWILL_INTANGIBLES_COMPONENT_CATALOG}
+    if not set(series).issubset(catalog_ids):
+        extra = sorted(set(series) - catalog_ids)
+        raise ValueError(
+            "goodwill_intangibles_expected_series family mismatch; "
+            f"extra={extra}"
+        )
+    return {
+        family_id: series[family_id]
+        for family_id in _GOODWILL_INTANGIBLES_FAMILY_SERIES
+        if family_id in series
+    }
+
+
 def expected_value_for_component(
     anchor: AnchorMetrics,
     component: ResolvedComponent,
@@ -566,6 +658,8 @@ def expected_value_for_component(
     fixed_asset: FixedAssetSeries | None = None,
     lease_liability: LeaseLiabilitySeries | None = None,
     ownership_attribution: OwnershipAttributionSeries | None = None,
+    goodwill_intangibles: GoodwillIntangiblesSeries | None = None,
+    goodwill_intangibles_availability: GoodwillIntangiblesAvailability | None = None,
 ) -> float | str | None:
     """Return the treatment-conditioned expected value for one practice component."""
     family_id = component.family_id
@@ -577,7 +671,16 @@ def expected_value_for_component(
             f"Component {component.id!r} (family {family_id}) has no period_index"
         )
 
-    if family_id in _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES:
+    if family_id in _GOODWILL_INTANGIBLES_FAMILY_SERIES:
+        if goodwill_intangibles is None or goodwill_intangibles_availability is None:
+            raise ValueError(
+                f"Goodwill/intangibles family {family_id!r} requires a "
+                "GoodwillIntangiblesSeries and availability"
+            )
+        series = goodwill_intangibles_expected_series(
+            goodwill_intangibles, goodwill_intangibles_availability
+        )
+    elif family_id in _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES:
         if ownership_attribution is None:
             raise ValueError(
                 f"Ownership-attribution family {family_id!r} requires an "

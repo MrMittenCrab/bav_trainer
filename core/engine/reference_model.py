@@ -25,6 +25,12 @@ from ..model.fixed_asset import (
     compute_fixed_asset_series,
     fixed_asset_applicable,
 )
+from ..model.goodwill_intangibles import (
+    compute_goodwill_intangibles_series,
+    goodwill_intangibles_applicable,
+    goodwill_intangibles_availability,
+    resolve_goodwill_intangibles_sources,
+)
 from ..model.lease_liability import (
     compute_lease_liability_series,
     lease_liability_applicable,
@@ -56,6 +62,7 @@ from ..model.working_capital import (
 from .component_catalog import (
     DEFERRED_COMPONENT_SPECS,
     expand_fixed_asset_specs,
+    expand_goodwill_intangibles_specs,
     expand_historical_specs,
     expand_lease_liability_specs,
     expand_ownership_attribution_specs,
@@ -393,6 +400,39 @@ class ReferenceModelBuilder:
         else:
             self.ownership_attribution_series = None
             self.ownership_attribution_specs = ()
+        self.goodwill_intangibles_availability = goodwill_intangibles_availability(
+            self.fin
+        )
+        if goodwill_intangibles_applicable(self.fin):
+            self.goodwill_intangibles_series = compute_goodwill_intangibles_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.goodwill_intangibles_specs = expand_goodwill_intangibles_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + len(self.profitability_change_specs)
+                    + len(self.roe_attribution_specs)
+                    + len(self.quality_change_specs)
+                    + len(self.per_share_specs)
+                    + len(self.per_share_attribution_specs)
+                    + len(self.normalized_per_share_specs)
+                    + len(self.fixed_asset_specs)
+                    + len(self.lease_liability_specs)
+                    + len(self.ownership_attribution_specs)
+                    + 1
+                ),
+                availability=self.goodwill_intangibles_availability,
+            )
+        else:
+            self.goodwill_intangibles_series = None
+            self.goodwill_intangibles_specs = ()
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
@@ -408,6 +448,7 @@ class ReferenceModelBuilder:
             + self.fixed_asset_specs
             + self.lease_liability_specs
             + self.ownership_attribution_specs
+            + self.goodwill_intangibles_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -453,6 +494,9 @@ class ReferenceModelBuilder:
         }
         self._ownership_attribution_spec_index = {
             (s.family_id, s.period_index): s for s in self.ownership_attribution_specs
+        }
+        self._goodwill_intangibles_spec_index = {
+            (s.family_id, s.period_index): s for s in self.goodwill_intangibles_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -830,6 +874,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._ownership_attribution_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_goodwill_intangibles(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._goodwill_intangibles_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -2187,112 +2247,356 @@ class ReferenceModelBuilder:
             self.rowmap["dupont_fixed_asset_check_row"] = fa_check_row
             next_section_after = fa_check_row
 
-        if self.lease_liability_series is None:
+        if self.lease_liability_series is not None:
+            lease_series = self.lease_liability_series
+            lease_source = resolve_lease_liability_source(self.fin)
+            assert lease_source is not None
+            source_rows = [SOURCE_START_ROW + idx for idx in lease_source.indices]
+            rev_r = self.rowmap["condensed_revenue_row"]
+
+            lease_section_row = next_section_after + 2
+            lease_row = lease_section_row + 1
+            lease_rev_row = lease_section_row + 2
+            lease_change_row = lease_section_row + 3
+            lease_growth_row = lease_section_row + 4
+
+            ws.cell(
+                row=lease_section_row, column=1, value="LEASE LIABILITY CONTEXT"
+            ).font = BOLD
+            ws.cell(row=lease_row, column=1, value="Lease Liability")
+            ws.cell(row=lease_rev_row, column=1, value="Lease Liability / Revenue")
+            ws.cell(row=lease_change_row, column=1, value="Change in Lease Liability")
+            ws.cell(row=lease_growth_row, column=1, value="Lease Liability Growth")
+
+            for j in range(self._n):
+                out_col_idx = 2 + j
+                out_col = self._col(out_col_idx)
+                src_col = self._col(2 + j)
+
+                if len(source_rows) == 1:
+                    lease_f = f"='Balance Sheet'!{src_col}{source_rows[0]}"
+                else:
+                    refs = [f"'Balance Sheet'!{src_col}{row}" for row in source_rows]
+                    lease_f = "=" + "+".join(refs)
+                lease_rev_f = (
+                    f"=IF('Condensed Financials'!{src_col}{rev_r}=0,NA(),"
+                    f"{out_col}{lease_row}/'Condensed Financials'!{src_col}{rev_r})"
+                )
+
+                c = ws.cell(row=lease_row, column=out_col_idx, value=lease_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=lease_rev_row, column=out_col_idx, value=lease_rev_f)
+                c.number_format = PCT_FMT
+
+                self._register_lease_liability(
+                    "lease_liability_source_link",
+                    j,
+                    "ALT DuPont",
+                    lease_row,
+                    out_col_idx,
+                    lease_f,
+                    float(lease_series.lease_liability[j]),
+                )
+                self._register_lease_liability(
+                    "lease_liability_to_revenue",
+                    j,
+                    "ALT DuPont",
+                    lease_rev_row,
+                    out_col_idx,
+                    lease_rev_f,
+                    lease_series.lease_liability_to_revenue[j]
+                    if isinstance(lease_series.lease_liability_to_revenue[j], str)
+                    else float(lease_series.lease_liability_to_revenue[j]),
+                )
+
+                if j == 0:
+                    ws.cell(row=lease_change_row, column=out_col_idx, value=na)
+                    ws.cell(row=lease_growth_row, column=out_col_idx, value=na)
+                    continue
+
+                prev_col = self._col(2 + j - 1)
+                change_f = f"={out_col}{lease_row}-{prev_col}{lease_row}"
+                growth_f = (
+                    f"=IF({prev_col}{lease_row}=0,NA(),"
+                    f"{out_col}{lease_row}/{prev_col}{lease_row}-1)"
+                )
+                c = ws.cell(row=lease_change_row, column=out_col_idx, value=change_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=lease_growth_row, column=out_col_idx, value=growth_f)
+                c.number_format = PCT_FMT
+
+                change_exp = lease_series.lease_liability_change[j]
+                growth_exp = lease_series.lease_liability_growth[j]
+                assert change_exp is not None and growth_exp is not None
+                self._register_lease_liability(
+                    "lease_liability_change",
+                    j,
+                    "ALT DuPont",
+                    lease_change_row,
+                    out_col_idx,
+                    change_f,
+                    float(change_exp),
+                )
+                self._register_lease_liability(
+                    "lease_liability_growth",
+                    j,
+                    "ALT DuPont",
+                    lease_growth_row,
+                    out_col_idx,
+                    growth_f,
+                    growth_exp if isinstance(growth_exp, str) else float(growth_exp),
+                )
+
+            self.rowmap["dupont_lease_liability_row"] = lease_row
+            self.rowmap["dupont_lease_liability_to_revenue_row"] = lease_rev_row
+            self.rowmap["dupont_lease_liability_change_row"] = lease_change_row
+            self.rowmap["dupont_lease_liability_growth_row"] = lease_growth_row
+            next_section_after = lease_growth_row
+
+        if self.goodwill_intangibles_series is None:
             return
 
-        lease_series = self.lease_liability_series
-        lease_source = resolve_lease_liability_source(self.fin)
-        assert lease_source is not None
-        source_rows = [SOURCE_START_ROW + idx for idx in lease_source.indices]
+        series = self.goodwill_intangibles_series
+        avail = self.goodwill_intangibles_availability
+        sources = resolve_goodwill_intangibles_sources(self.fin)
         rev_r = self.rowmap["condensed_revenue_row"]
 
-        lease_section_row = next_section_after + 2
-        lease_row = lease_section_row + 1
-        lease_rev_row = lease_section_row + 2
-        lease_change_row = lease_section_row + 3
-        lease_growth_row = lease_section_row + 4
-
+        gi_section_row = next_section_after + 2
+        row_cursor = gi_section_row + 1
         ws.cell(
-            row=lease_section_row, column=1, value="LEASE LIABILITY CONTEXT"
+            row=gi_section_row, column=1, value="GOODWILL & INTANGIBLES CONTEXT"
         ).font = BOLD
-        ws.cell(row=lease_row, column=1, value="Lease Liability")
-        ws.cell(row=lease_rev_row, column=1, value="Lease Liability / Revenue")
-        ws.cell(row=lease_change_row, column=1, value="Change in Lease Liability")
-        ws.cell(row=lease_growth_row, column=1, value="Lease Liability Growth")
 
-        for j in range(self._n):
-            out_col_idx = 2 + j
-            out_col = self._col(out_col_idx)
-            src_col = self._col(2 + j)
+        def _populate_balance_block(
+            *,
+            label: str,
+            family_prefix: str,
+            balance,
+            source_row: int | None,
+            combined_left_row: int | None = None,
+            combined_right_row: int | None = None,
+        ) -> int:
+            nonlocal row_cursor
+            level_row = row_cursor
+            change_row = row_cursor + 1
+            growth_row = row_cursor + 2
+            avg_row = row_cursor + 3
+            intensity_row = row_cursor + 4
+            row_cursor += 5
 
-            if len(source_rows) == 1:
-                lease_f = f"='Balance Sheet'!{src_col}{source_rows[0]}"
-            else:
-                refs = [f"'Balance Sheet'!{src_col}{row}" for row in source_rows]
-                lease_f = "=" + "+".join(refs)
-            lease_rev_f = (
-                f"=IF('Condensed Financials'!{src_col}{rev_r}=0,NA(),"
-                f"{out_col}{lease_row}/'Condensed Financials'!{src_col}{rev_r})"
+            ws.cell(row=level_row, column=1, value=label)
+            ws.cell(row=change_row, column=1, value=f"Change in {label}")
+            ws.cell(row=growth_row, column=1, value=f"{label} Growth")
+            ws.cell(row=avg_row, column=1, value=f"Average {label}")
+            ws.cell(row=intensity_row, column=1, value=f"Average {label} / Revenue")
+
+            for j in range(self._n):
+                out_col_idx = 2 + j
+                out_col = self._col(out_col_idx)
+                src_col = self._col(2 + j)
+                if source_row is not None:
+                    level_f = f"='Balance Sheet'!{src_col}{source_row}"
+                else:
+                    assert (
+                        combined_left_row is not None
+                        and combined_right_row is not None
+                    )
+                    level_f = (
+                        f"={out_col}{combined_left_row}+{out_col}{combined_right_row}"
+                    )
+                c = ws.cell(row=level_row, column=out_col_idx, value=level_f)
+                c.number_format = NUM_FMT
+
+                if j == 0:
+                    for r in (change_row, growth_row, avg_row, intensity_row):
+                        ws.cell(row=r, column=out_col_idx, value=na)
+                    continue
+
+                prev_col = self._col(2 + j - 1)
+                change_f = f"={out_col}{level_row}-{prev_col}{level_row}"
+                growth_f = (
+                    f"=IF({prev_col}{level_row}=0,NA(),"
+                    f"{out_col}{level_row}/{prev_col}{level_row}-1)"
+                )
+                avg_f = f"=({prev_col}{level_row}+{out_col}{level_row})/2"
+                intensity_f = (
+                    f"=IF('Condensed Financials'!{src_col}{rev_r}=0,NA(),"
+                    f"{out_col}{avg_row}/'Condensed Financials'!{src_col}{rev_r})"
+                )
+                c = ws.cell(row=change_row, column=out_col_idx, value=change_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=growth_row, column=out_col_idx, value=growth_f)
+                c.number_format = PCT_FMT
+                c = ws.cell(row=avg_row, column=out_col_idx, value=avg_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=intensity_row, column=out_col_idx, value=intensity_f)
+                c.number_format = PCT_FMT
+
+                change_exp = balance.change[j]
+                growth_exp = balance.growth[j]
+                avg_exp = balance.average[j]
+                intensity_exp = balance.to_revenue[j]
+                assert change_exp is not None and growth_exp is not None
+                assert avg_exp is not None and intensity_exp is not None
+                self._register_goodwill_intangibles(
+                    f"{family_prefix}_change",
+                    j,
+                    "ALT DuPont",
+                    change_row,
+                    out_col_idx,
+                    change_f,
+                    float(change_exp),
+                )
+                self._register_goodwill_intangibles(
+                    f"{family_prefix}_growth",
+                    j,
+                    "ALT DuPont",
+                    growth_row,
+                    out_col_idx,
+                    growth_f,
+                    growth_exp if isinstance(growth_exp, str) else float(growth_exp),
+                )
+                self._register_goodwill_intangibles(
+                    f"average_{family_prefix}",
+                    j,
+                    "ALT DuPont",
+                    avg_row,
+                    out_col_idx,
+                    avg_f,
+                    float(avg_exp),
+                )
+                self._register_goodwill_intangibles(
+                    f"{family_prefix}_to_revenue",
+                    j,
+                    "ALT DuPont",
+                    intensity_row,
+                    out_col_idx,
+                    intensity_f,
+                    intensity_exp
+                    if isinstance(intensity_exp, str)
+                    else float(intensity_exp),
+                )
+            return level_row
+
+        gw_level_row = None
+        ia_level_row = None
+        if avail.goodwill and series.goodwill is not None and sources.goodwill is not None:
+            gw_src = self._resolved_source_row(
+                self.fin.balance_sheet, "goodwill", required=True
+            )
+            assert gw_src is not None
+            gw_level_row = _populate_balance_block(
+                label="Goodwill",
+                family_prefix="goodwill",
+                balance=series.goodwill,
+                source_row=gw_src,
+            )
+            self.rowmap["dupont_goodwill_row"] = gw_level_row
+
+        if (
+            avail.intangible_assets
+            and series.intangible_assets is not None
+            and sources.intangible_assets is not None
+        ):
+            ia_src = self._resolved_source_row(
+                self.fin.balance_sheet, "intangible_assets", required=True
+            )
+            assert ia_src is not None
+            ia_level_row = _populate_balance_block(
+                label="Intangible Assets",
+                family_prefix="intangible_assets",
+                balance=series.intangible_assets,
+                source_row=ia_src,
+            )
+            self.rowmap["dupont_intangible_assets_row"] = ia_level_row
+
+        if (
+            avail.goodwill_and_intangibles
+            and series.goodwill_and_intangibles is not None
+            and gw_level_row is not None
+            and ia_level_row is not None
+        ):
+            comb_level = _populate_balance_block(
+                label="Goodwill & Intangibles",
+                family_prefix="goodwill_and_intangibles",
+                balance=series.goodwill_and_intangibles,
+                source_row=None,
+                combined_left_row=gw_level_row,
+                combined_right_row=ia_level_row,
+            )
+            self.rowmap["dupont_goodwill_and_intangibles_row"] = comb_level
+
+        if (
+            avail.payments_for_intangible_assets
+            and series.intangible_payments is not None
+            and series.intangible_payments_to_revenue is not None
+            and series.payments_reported is not None
+            and sources.payments_for_intangible_assets is not None
+        ):
+            pay_src = self._resolved_source_row(
+                self.fin.cash_flow, "payments_for_intangible_assets", required=True
+            )
+            assert pay_src is not None
+            reported_row = row_cursor
+            payments_row = row_cursor + 1
+            payments_rev_row = row_cursor + 2
+            row_cursor += 3
+
+            ws.cell(
+                row=reported_row,
+                column=1,
+                value="Payments for Intangible Assets (reported)",
+            )
+            ws.cell(row=payments_row, column=1, value="Intangible Payments (−reported)")
+            ws.cell(
+                row=payments_rev_row, column=1, value="Intangible Payments / Revenue"
             )
 
-            c = ws.cell(row=lease_row, column=out_col_idx, value=lease_f)
-            c.number_format = NUM_FMT
-            c = ws.cell(row=lease_rev_row, column=out_col_idx, value=lease_rev_f)
-            c.number_format = PCT_FMT
+            for j in range(self._n):
+                out_col_idx = 2 + j
+                out_col = self._col(out_col_idx)
+                src_col = self._col(2 + j)
+                reported_f = f"='Cash Flow Statement'!{src_col}{pay_src}"
+                payments_f = f"=-{out_col}{reported_row}"
+                payments_rev_f = (
+                    f"=IF('Condensed Financials'!{src_col}{rev_r}=0,NA(),"
+                    f"{out_col}{payments_row}/'Condensed Financials'!{src_col}{rev_r})"
+                )
+                c = ws.cell(row=reported_row, column=out_col_idx, value=reported_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=payments_row, column=out_col_idx, value=payments_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(
+                    row=payments_rev_row, column=out_col_idx, value=payments_rev_f
+                )
+                c.number_format = PCT_FMT
 
-            self._register_lease_liability(
-                "lease_liability_source_link",
-                j,
-                "ALT DuPont",
-                lease_row,
-                out_col_idx,
-                lease_f,
-                float(lease_series.lease_liability[j]),
-            )
-            self._register_lease_liability(
-                "lease_liability_to_revenue",
-                j,
-                "ALT DuPont",
-                lease_rev_row,
-                out_col_idx,
-                lease_rev_f,
-                lease_series.lease_liability_to_revenue[j]
-                if isinstance(lease_series.lease_liability_to_revenue[j], str)
-                else float(lease_series.lease_liability_to_revenue[j]),
-            )
+                pay_exp = series.intangible_payments[j]
+                pay_rev_exp = series.intangible_payments_to_revenue[j]
+                self._register_goodwill_intangibles(
+                    "intangible_payments",
+                    j,
+                    "ALT DuPont",
+                    payments_row,
+                    out_col_idx,
+                    payments_f,
+                    float(pay_exp),
+                )
+                self._register_goodwill_intangibles(
+                    "intangible_payments_to_revenue",
+                    j,
+                    "ALT DuPont",
+                    payments_rev_row,
+                    out_col_idx,
+                    payments_rev_f,
+                    pay_rev_exp
+                    if isinstance(pay_rev_exp, str)
+                    else float(pay_rev_exp),
+                )
 
-            if j == 0:
-                ws.cell(row=lease_change_row, column=out_col_idx, value=na)
-                ws.cell(row=lease_growth_row, column=out_col_idx, value=na)
-                continue
-
-            prev_col = self._col(2 + j - 1)
-            change_f = f"={out_col}{lease_row}-{prev_col}{lease_row}"
-            growth_f = (
-                f"=IF({prev_col}{lease_row}=0,NA(),"
-                f"{out_col}{lease_row}/{prev_col}{lease_row}-1)"
-            )
-            c = ws.cell(row=lease_change_row, column=out_col_idx, value=change_f)
-            c.number_format = NUM_FMT
-            c = ws.cell(row=lease_growth_row, column=out_col_idx, value=growth_f)
-            c.number_format = PCT_FMT
-
-            change_exp = lease_series.lease_liability_change[j]
-            growth_exp = lease_series.lease_liability_growth[j]
-            assert change_exp is not None and growth_exp is not None
-            self._register_lease_liability(
-                "lease_liability_change",
-                j,
-                "ALT DuPont",
-                lease_change_row,
-                out_col_idx,
-                change_f,
-                float(change_exp),
-            )
-            self._register_lease_liability(
-                "lease_liability_growth",
-                j,
-                "ALT DuPont",
-                lease_growth_row,
-                out_col_idx,
-                growth_f,
-                growth_exp if isinstance(growth_exp, str) else float(growth_exp),
-            )
-
-        self.rowmap["dupont_lease_liability_row"] = lease_row
-        self.rowmap["dupont_lease_liability_to_revenue_row"] = lease_rev_row
-        self.rowmap["dupont_lease_liability_change_row"] = lease_change_row
-        self.rowmap["dupont_lease_liability_growth_row"] = lease_growth_row
+            self.rowmap["dupont_intangible_payments_reported_row"] = reported_row
+            self.rowmap["dupont_intangible_payments_row"] = payments_row
+            self.rowmap["dupont_intangible_payments_to_revenue_row"] = payments_rev_row
 
     def _build_accounting_judgment(self, wb: Workbook) -> None:
         ws = wb.create_sheet(JUDGMENT_SHEET)

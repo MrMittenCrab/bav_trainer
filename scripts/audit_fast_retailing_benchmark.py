@@ -7,6 +7,7 @@ Writes BASELINE.md. Does not patch production accounting logic.
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
 import traceback
 from dataclasses import asdict, dataclass
@@ -15,6 +16,8 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 BENCH = ROOT / "benchmark" / "fast_retailing"
 RECONCILED = BENCH / "reconciled"
 STD_JSON = RECONCILED / "standardized.json"
@@ -39,6 +42,10 @@ def _load_payload() -> dict[str, Any]:
 def _module_applicability(fin, anchor=None) -> dict[str, Any]:
     from core.model.earnings_quality import earnings_quality_availability
     from core.model.fixed_asset import fixed_asset_applicable
+    from core.model.goodwill_intangibles import (
+        goodwill_intangibles_applicable,
+        goodwill_intangibles_availability,
+    )
     from core.model.lease_liability import (
         lease_liability_applicable,
         lease_liability_availability,
@@ -52,6 +59,7 @@ def _module_applicability(fin, anchor=None) -> dict[str, Any]:
 
     lease_avail = lease_liability_availability(fin)
     ownership_avail = ownership_attribution_availability(fin)
+    gi_avail = goodwill_intangibles_availability(fin)
     eq = earnings_quality_availability(fin)
     wc_applicable: bool | None
     if anchor is None:
@@ -77,6 +85,10 @@ def _module_applicability(fin, anchor=None) -> dict[str, Any]:
         "ownership_attribution": {
             "applicable": ownership_attribution_applicable(fin),
             "availability": asdict(ownership_avail),
+        },
+        "goodwill_intangibles": {
+            "applicable": goodwill_intangibles_applicable(fin),
+            "availability": asdict(gi_avail),
         },
         "per_share": {"applicable": per_share_available(fin)},
         "normalization": {
@@ -191,7 +203,8 @@ def run_audit() -> dict[str, Any]:
                     f"ownership_specs={len(builder.ownership_attribution_specs)} "
                     f"per_share_specs={len(builder.per_share_specs)} "
                     f"per_share_attribution_specs={len(builder.per_share_attribution_specs)} "
-                    f"fixed_asset_specs={len(builder.fixed_asset_specs)}"
+                    f"fixed_asset_specs={len(builder.fixed_asset_specs)} "
+                    f"goodwill_intangibles_specs={len(builder.goodwill_intangibles_specs)}"
                 ),
             )
         )
@@ -318,9 +331,9 @@ def write_baseline(result: dict[str, Any]) -> None:
         provenance.get("supplemental_conflict_count", 0),
     )
     lines = [
-        "# Fast Retailing Benchmark Baseline (Step 9M.3E)",
+        "# Fast Retailing Benchmark Baseline (Step 9M.5)",
         "",
-        "- Accounting engine phase: Step 9M.3E (retained conflict policy verified on 9M.3D base)",
+        "- Accounting engine phase: Step 9M.5 (goodwill / intangible-asset diagnostics on 9M.3E base)",
         "- Input path: generic `extracted/` → `validate-source` → `reconcile` → `reconciled/`",
         "- Benchmark phase: measurement only — G1/G1B/G2/G2B/G2C/G3/G4/G5/G6/G7 closed",
         "- Five fiscal periods: 2021-08-31 … 2025-08-31",
@@ -379,6 +392,15 @@ def write_baseline(result: dict[str, Any]) -> None:
             lines.append(
                 f"  - availability: available={avail.get('available')} "
                 f"partial={avail.get('partial')} ambiguous={avail.get('ambiguous')}"
+            )
+        if name == "goodwill_intangibles":
+            avail = info.get("availability") or {}
+            lines.append(
+                "  - availability: "
+                f"goodwill={avail.get('goodwill')} "
+                f"intangible_assets={avail.get('intangible_assets')} "
+                f"goodwill_and_intangibles={avail.get('goodwill_and_intangibles')} "
+                f"payments={avail.get('payments_for_intangible_assets')}"
             )
 
     lines.extend(

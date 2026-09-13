@@ -5,7 +5,7 @@ Internal development reference for Step 9 historical convergence. Evidence is li
 Audit tool: `scripts/audit_reference_workbook.py`  
 GOOGL SHA-256 (pre/post inspection): `81faf2882d0df07ecf5def45695431c1935b4f7a94c1e017367596a063063896`  
 
-**Coverage refresh (Step 9M.4):** Inventory, gap matrix, and queue below incorporate Fast Retailing G1–G7 closure evidence recorded in `benchmark/fast_retailing/` (`BASELINE.md`, `GAPS.md`, reconciled artifacts). That evidence is **not** a newly rerun audit in this step.
+**Coverage refresh (Step 9M.5):** Inventory, gap matrix, and queue below incorporate Fast Retailing G1–G7 closure evidence and measured Step 9M.5 goodwill/intangibles activation (`expected_specs=438`).
 
 ## Role of the reference
 
@@ -66,9 +66,9 @@ Ordinary / share / cross-company DEMO surfaces (recorded regression counts): `74
 
 Distinct from DEMO counts. Post–G1–G7 recorded Stage 4/Check surface:
 
-- **`expected_specs=380`** (blank Check `0/0/380`; filled Check `380/0/0`)
-- Module specs (recorded): `lease_specs=18`, `ownership_specs=34`, `per_share_specs=18`, `per_share_attribution_specs=16`, `fixed_asset_specs=35`
-- Added vs illustrative DEMO when facts resolve: split lease-liability diagnostics, Ownership Attribution (parent/NCI), split-adjusted Per Share Analysis + attribution
+- **`expected_specs=438`** (blank Check `0/0/438`; filled Check `438/0/0`)
+- Module specs (recorded): `lease_specs=18`, `ownership_specs=34`, `per_share_specs=18`, `per_share_attribution_specs=16`, `fixed_asset_specs=35`, `goodwill_intangibles_specs=58`
+- Added vs illustrative DEMO when facts resolve: split lease-liability diagnostics, Ownership Attribution (parent/NCI), split-adjusted Per Share Analysis + attribution, goodwill/intangibles intensity context
 
 ### Implemented since prior inventory (G3–G6 / related)
 
@@ -78,6 +78,7 @@ Distinct from DEMO counts. Post–G1–G7 recorded Stage 4/Check surface:
 | Treatment-conditioned lease interest | **implemented** | Optional `historical_lease.lease_interest_expense`; operating treatment excludes disclosed lease interest from financing net interest; mixed treatment fails closed (G4 / 9M.3B) |
 | Parent / NCI attribution + parent ROE | **implemented** | Ownership Attribution schedule when four ownership concepts resolve; per-share numerator uses parent profit when ownership complete (G5 / 9M.3C) |
 | Split-adjusted per-share analysis | **implemented** | `historical_shares` with `basis=split_adjusted` drives diluted WAS / EPS practice when share axis resolves (G6 / 9M.3D) |
+| Goodwill / intangible intensity & change | **implemented** | ALT DuPont `GOODWILL & INTANGIBLES CONTEXT` when unique BS `goodwill` and/or `intangible_assets` resolve; optional CF `payments_for_intangible_assets` as −reported; no acquisition/impairment narrative (9M.5) |
 
 ## Historical capability gap matrix
 
@@ -98,7 +99,7 @@ Distinct from DEMO counts. Post–G1–G7 recorded Stage 4/Check surface:
 | capex / reinvestment bridge | CF **Purchases of property and equipment** | Absent as dedicated practice module (PPE/D&A context only) | missing-needs-new-explicit-data | Explicit `payments_for_ppe` / purchases-of-PP&E source + sign contract | Optional gated module; do not infer from investing CF or ΔPPE+D&A | Priority B — contract can be defined from explicit CF concept; still separate from next candidate |
 | leases (liability) | BS Operating lease liabilities; Condensed classification rows | Accounting Judgment + ALT DuPont lease-liability families; aggregate **or** split current/non-current sum; treatment-conditioned lease interest when complete note axis exists | implemented-differently | Aggregate `lease_liability` **or** unique `lease_liability_current` + `lease_liability_noncurrent`; optional `lease_interest_expense` note axis; Revenue | Guided classification + intensity/trend; financing net interest conditioned on uniform lease treatment | Maintain |
 | leases (ROU / payments) | BS Operating lease assets | ROU BS line may classify as OLTA; **no** ROU intensity schedule; **no** lease-payment / discount-rate diagnostics | missing-current-data-supported | Explicit `right_of_use_assets`; optional lease-payment CF lines when present | Optional gated module after liability foundation (now done) | Priority A remaining lease gap |
-| goodwill / acquired intangibles / acquisitions | BS Goodwill; Intangible assets; CF acquisitions line | Often classified as OLTA; no goodwill/intangibles diagnostic schedule; no acquisition bridge | missing-current-data-supported | Unique `goodwill` / `intangible_assets` (and optional intangible-payment CF) when present; acquisition CF only when explicitly supplied | Optional gated intensity/change module; never invent acquisition or GW-impairment stories | **Next candidate** (bounded; see below) |
+| goodwill / acquired intangibles / acquisitions | BS Goodwill; Intangible assets; CF acquisitions line | ALT DuPont goodwill/intangibles intensity & change when concepts resolve; optional intangible-payments (−reported); **no** acquisition-cash / GW-impairment bridge | implemented-differently (bounded) | Unique `goodwill` / `intangible_assets` (and optional intangible-payment CF) when present; acquisition CF only when explicitly supplied | Optional gated intensity/change module; never invent acquisition or GW-impairment stories | Maintain bounded module; acquisition-cash remains deferred until explicit facts |
 | deferred taxes / unusual tax rates | BS Deferred income taxes; CF Deferred income taxes; IS Core bridge tax notes | Effective tax rate + pretax norm tax convention; no DTA/DTL diagnostic schedule | missing-current-data-supported | Deferred tax BS/CF lines and/or explicit tax-adjustment candidates | Optional tax-quality / balance diagnostics; do not invent | Priority A after next candidate / when contracted |
 | minority / non-controlling interests | Not evidenced in inspected workbook | Ownership Attribution + parent ROE + parent-safe per-share numerator when ownership concepts resolve | implemented-differently | `profit_attributable_to_owners`, `profit_attributable_to_nci`, `equity_attributable_to_owners`, `noncontrolling_interests` | Optional gated schedule; consolidated DuPont unchanged | Maintain (Fast Retailing supplies NCI; GOOGL demo did not evidence it) |
 | segment economics | Not evidenced as structured segment schedules (only scenario narrative mentions) | Absent | not-evidenced-in-GOOGL | Explicit segment revenue/opex/assets disclosures | Optional module; never invent segments | Priority C / B when segment inputs are designed |
@@ -133,11 +134,11 @@ Forward GOOGL sheets (Guidance & Consensus, Model_*, Scenario_Summary, Implied C
 
 ### Priority A — historically useful and current-data-supported
 
-1. **Next:** Bounded goodwill / intangible-asset intensity & change diagnostics (and optional intangible-payments bridge) after explicit concept registration for `goodwill` / `intangible_assets` / optional `payments_for_intangible_assets` (not yet in `resolve_line`) — **without** acquisition-cash or GW-impairment narratives unless those lines are separately supplied.
-2. Lease ROU-asset intensity / trend diagnostics when unique `right_of_use_assets` resolves (liability aggregation foundation is done).
-3. SBC expense bridge into dilution / per-share interpretation when CF SBC + share history are supplied (not present on Fast Retailing or ordinary DEMO today).
-4. Deferred-tax balance / net-position diagnostics when unique DTA/DTL (and/or explicit tax-adjustment candidates) are supplied.
-5. Further structured historical interpretation prompts on modules already taught.
+1. Lease ROU-asset intensity / trend diagnostics when unique `right_of_use_assets` resolves (liability aggregation foundation is done).
+2. SBC expense bridge into dilution / per-share interpretation when CF SBC + share history are supplied (not present on Fast Retailing or ordinary DEMO today).
+3. Deferred-tax balance / net-position diagnostics when unique DTA/DTL (and/or explicit tax-adjustment candidates) are supplied.
+4. Further structured historical interpretation prompts on modules already taught.
+5. Acquisition-cash / GW-impairment attribution only when those facts are separately and explicitly supplied (not present on Fast Retailing today).
 
 ### Priority B — historically useful but needs explicit new historical inputs
 
@@ -162,10 +163,9 @@ Forward GOOGL sheets (Guidance & Consensus, Model_*, Scenario_Summary, Implied C
 
 ### Resolvers / classification today
 
-- `resolve_line(..., "goodwill"|"intangible_assets"|"payments_for_intangible_assets")` does **not** resolve today. All three raise `ValueError("Unknown financial concept: ...")` because `core/model/line_resolver.py` rejects unregistered concepts before matching `LineItem.concept`, including when `required=False`.
-- Supplied concept-tagged BS/CF facts (e.g. Fast Retailing `reconciled/standardized.json`) are source identity only — they are not implemented `resolve_line` support.
+- `resolve_line(..., "goodwill"|"intangible_assets"|"payments_for_intangible_assets")` resolves via **exact `LineItem.concept` only** (no label-alias or safe-pattern fallback). Missing/ambiguous inputs follow the omission rules below.
 - Classification may treat goodwill/intangible label tokens as operating long-term asset family material; that is structural classification only, not concept resolution and not an acquisition bridge.
-- No dedicated goodwill/intangibles diagnostic module exists.
+- Bounded goodwill/intangibles diagnostic module is implemented on ALT DuPont (Step 9M.5).
 - No resolver invents business-acquisition cash, goodwill impairment allocation, or acquired-vs-internally-developed splits.
 
 ### Fast Retailing supplied facts (`reconciled/standardized.json`)
@@ -191,79 +191,38 @@ The **full** “goodwill / acquired intangibles / acquisition-cash” package **
 
 The **bounded** balance + optional intangible-payments intensity module **is** source-supported and remains the single next implementation candidate.
 
-### Resolution prerequisite (required future work — not current behavior)
+### Resolution prerequisite (completed in Step 9M.5)
 
-Before the candidate module can gate on resolved lines, register and implement **explicit concept resolution** in `core/model/line_resolver.py` for:
+Explicit concept resolution is registered in `core/model/line_resolver.py` for:
 
 1. BS `goodwill`
 2. BS `intangible_assets`
 3. optional CF `payments_for_intangible_assets`
 
-**Proposed matching rule:** unique exact `LineItem.concept` match only — **no** label-alias or safe-pattern fallback for these three. Missing or ambiguous inputs follow the candidate’s omission rules below.
-
-The minimum input contract and omission behavior in this section are **proposed requirements** for that future work. They do **not** describe current `resolve_line` behavior (which still rejects all three as unknown).
+**Matching rule:** unique exact `LineItem.concept` match only — **no** label-alias or safe-pattern fallback for these three.
 
 ---
 
 ## Next historical implementation candidate (exactly one)
 
-**Name:** Goodwill & intangible-asset intensity / change diagnostics (optional intangible-payments bridge)
+**Name:** Lease ROU-asset intensity / trend diagnostics
 
 ### Minimum input contract
 
-*(Proposed — requires the resolution prerequisite above; not current resolver behavior.)*
-
-Module applicable when **at least one** of the following resolves uniquely on the balance sheet via explicit concept match:
-
-1. `goodwill`
-2. `intangible_assets`
-
-Optional enhancement (same module, additional families only when present):
-
-3. Unique CF `payments_for_intangible_assets` with an explicit sign convention: reported negatives are cash outflows; practice formulas may present outflow magnitude as `−payments` or keep the reported signed cash-flow value — pick one convention in implementation and document it in Answer-Key Notes; do not flip signs silently per period.
-
-Revenue for intensity ratios comes from existing anchor revenue (already required elsewhere). No new market or forecast inputs.
+Unique explicit BS `right_of_use_assets` (no label fallback). Revenue from existing anchor. Optional payment/discount-rate lines remain deferred until separately contracted.
 
 ### Missing / ambiguous-input behavior
 
-*(Proposed — requires the resolution prerequisite above; not current resolver behavior.)*
-
-- Neither `goodwill` nor `intangible_assets` unique → **omit entire module** (fail closed; no label fallback).
-- Only one of GW / intangibles resolves → emit families only for the resolving line(s).
-- Duplicate/ambiguous concept matches → omit (same fail-closed posture as lease/fixed-asset resolvers).
-- `payments_for_intangible_assets` absent or ambiguous → omit payment families only; keep balance diagnostics if BS lines resolve.
-- Never read `impairment_losses`, investing “others”, or Δgoodwill plugs as acquisition/impairment evidence.
-- Never activate forecasting/valuation sheets.
-
-### Proposed historical calculations (mechanical; no causal claims)
-
-For each resolving BS line `X` ∈ {goodwill, intangible_assets}, period index `j`:
-
-- source link / populated level `X[j]`
-- `X_change[j] = X[j] − X[j−1]` (first period blank)
-- `X_growth[j] = X_change[j] / X[j−1]` when prior ≠ 0 else `NA()`
-- `avg_X[j] = (X[j−1] + X[j]) / 2` (first period blank)
-- `X_to_revenue[j] = avg_X[j] / revenue[j]` (or level/revenue — match fixed-asset intensity style already used on ALT DuPont)
-- optional combined `goodwill_and_intangibles` total **only if both** resolve uniquely (sum of the two source lines; no other intangibles inferred)
-
-If payments resolve:
-
-- `intangible_payments[j]` per sign convention above
-- `intangible_payments_to_revenue[j]`
-- do **not** title families as “acquisitions” or “capex substitute”
-
-### Trainer / Answer Key / Check scope
-
-- New optional practice families (ALT DuPont context block or a small dedicated historical sheet — implementation chooses the smaller surface consistent with fixed-asset/lease patterns).
-- Trainer: blank yellow formula cells; source BS/CF levels remain populated; no Notes.
-- Answer Key: matching formulas + concise Notes stating mechanical meaning and explicitly warning that flat goodwill ≠ “no impairment disclosure elsewhere” and that intangible payments ≠ business acquisitions.
-- Check: include new families in workbook-wide Check when the module is applicable; non-disclosing counts only.
-- DEMO without resolving concepts: surface unchanged (`74/312`, `78/332`, …). Fast Retailing expected to gain families when implemented (current recorded baseline remains **380** until that later step).
+- No unique ROU concept → omit module (fail closed).
+- Do not invent ROU from lease liability or note totals.
 
 ### Explicitly out of scope for this candidate
 
-- Acquisition-cash diagnostics, PPA, bargain purchase, GW impairment allocation
-- SBC, deferred-tax schedule, ROU schedule, capex bridge, segments, forecasting/valuation
+- Lease-payment / discount-rate schedules
+- Acquisition-cash / GW-impairment narratives
+- Capex bridge, SBC, deferred-tax schedule, segments, forecasting/valuation
+
+**Step 9M.5 note:** Goodwill / intangible-asset intensity & change diagnostics (optional intangible-payments as −reported) are implemented on ALT DuPont when explicit concepts resolve. DEMO label-only goodwill remains omitted. Fast Retailing activates 58 practice cells (`expected_specs=438`). Acquisition-cash and GW-impairment storytelling remain deferred.
 
 **Step 9K.1 note:** PP&E / D&A asset-intensity diagnostics are implemented-differently on ALT DuPont. Capex remains Priority B until the dedicated module/contract is implemented.
 

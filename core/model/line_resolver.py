@@ -139,6 +139,10 @@ _EXACT_ALIASES: dict[str, frozenset[str]] = {
             "non-controlling interests",
         }
     ),
+    # Explicit-concept only — no label-alias or safe-pattern fallback.
+    "goodwill": frozenset(),
+    "intangible_assets": frozenset(),
+    "payments_for_intangible_assets": frozenset(),
 }
 
 

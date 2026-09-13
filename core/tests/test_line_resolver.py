@@ -229,3 +229,42 @@ def test_lease_liability_aggregate_aliases_and_ambiguity():
             "lease_liability",
             required=False,
         )
+
+
+@pytest.mark.parametrize(
+    "concept",
+    ("goodwill", "intangible_assets", "payments_for_intangible_assets"),
+)
+def test_goodwill_intangible_explicit_concept_only(concept):
+    by_concept = resolve_line(
+        [_item("Unrelated label", 10, 12, concept=concept)],
+        concept,
+        required=True,
+    )
+    assert by_concept.item is not None
+    assert by_concept.item.label == "Unrelated label"
+    assert by_concept.index == 0
+
+    label_only = resolve_line(
+        [_item(concept.replace("_", " ").title(), 10, 12)],
+        concept,
+        required=False,
+    )
+    assert label_only.item is None and label_only.index is None
+
+    with pytest.raises(MissingLineError):
+        resolve_line(
+            [_item(concept.replace("_", " ").title(), 10, 12)],
+            concept,
+            required=True,
+        )
+
+    with pytest.raises(AmbiguousLineError):
+        resolve_line(
+            [
+                _item("First", 1, 2, concept=concept),
+                _item("Second", 3, 4, concept=concept),
+            ],
+            concept,
+            required=False,
+        )

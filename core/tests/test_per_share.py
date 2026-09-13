@@ -373,7 +373,7 @@ def test_split_adjusted_share_basis_drives_per_share_math():
     five = [date(2021 + i, 8, 31) for i in range(5)]
     assert len(expand_per_share_specs(five, start_order=1)) == 18
     assert len(expand_per_share_attribution_specs(five, start_order=19)) == 16
-    assert 346 + 18 + 16 == 380
+    assert 346 + 18 + 16 + 58 == 438
 
 
 def test_ordinary_per_share_series_negative_and_empty_edges():

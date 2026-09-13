@@ -2377,6 +2377,329 @@ def expand_ownership_attribution_specs(
     return tuple(specs)
 
 
+GOODWILL_INTANGIBLES_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="goodwill_change",
+        order=98,
+        title="Change in Goodwill",
+        short_hint=(
+            "Current goodwill − prior goodwill. Flat goodwill does not establish "
+            "absence of impairment disclosed elsewhere."
+        ),
+        semantic_key="goodwill_intangibles.goodwill_change",
+        category="goodwill_intangibles",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        hints=(
+            "Change in Goodwill = Current Goodwill − Prior Goodwill.",
+            "Flat goodwill does not establish absence of impairment disclosed elsewhere.",
+        ),
+    ),
+    ComponentFamily(
+        id="goodwill_growth",
+        order=99,
+        title="Goodwill Growth",
+        short_hint="Percentage change in reported goodwill.",
+        semantic_key="goodwill_intangibles.goodwill_growth",
+        category="goodwill_intangibles",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("goodwill_change",),
+        hints=(
+            "Goodwill Growth = Change in Goodwill / Prior Goodwill.",
+            "A zero prior goodwill balance makes percentage growth undefined (#N/A).",
+            "Flat goodwill does not establish absence of impairment disclosed elsewhere.",
+        ),
+    ),
+    ComponentFamily(
+        id="average_goodwill",
+        order=100,
+        title="Average Goodwill",
+        short_hint="Average beginning and ending goodwill.",
+        semantic_key="goodwill_intangibles.average_goodwill",
+        category="goodwill_intangibles",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        hints=(
+            "Average Goodwill = (Prior Goodwill + Current Goodwill) / 2.",
+        ),
+    ),
+    ComponentFamily(
+        id="goodwill_to_revenue",
+        order=101,
+        title="Average Goodwill / Revenue",
+        short_hint=(
+            "Average goodwill divided by Revenue (average-balance intensity)."
+        ),
+        semantic_key="goodwill_intangibles.goodwill_to_revenue",
+        category="goodwill_intangibles",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("average_goodwill", "revenue_link"),
+        hints=(
+            "Average Goodwill / Revenue uses the average balance, not the ending level alone.",
+            "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        ),
+    ),
+    ComponentFamily(
+        id="intangible_assets_change",
+        order=102,
+        title="Change in Intangible Assets",
+        short_hint="Current intangible assets − prior intangible assets.",
+        semantic_key="goodwill_intangibles.intangible_assets_change",
+        category="goodwill_intangibles",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        hints=(
+            "Change in Intangible Assets = Current − Prior reported intangible assets.",
+        ),
+    ),
+    ComponentFamily(
+        id="intangible_assets_growth",
+        order=103,
+        title="Intangible Assets Growth",
+        short_hint="Percentage change in reported intangible assets.",
+        semantic_key="goodwill_intangibles.intangible_assets_growth",
+        category="goodwill_intangibles",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("intangible_assets_change",),
+        hints=(
+            "Intangible Assets Growth = Change / Prior intangible assets.",
+            "A zero prior balance makes percentage growth undefined (#N/A).",
+        ),
+    ),
+    ComponentFamily(
+        id="average_intangible_assets",
+        order=104,
+        title="Average Intangible Assets",
+        short_hint="Average beginning and ending intangible assets.",
+        semantic_key="goodwill_intangibles.average_intangible_assets",
+        category="goodwill_intangibles",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        hints=(
+            "Average Intangible Assets = (Prior + Current) / 2.",
+        ),
+    ),
+    ComponentFamily(
+        id="intangible_assets_to_revenue",
+        order=105,
+        title="Average Intangible Assets / Revenue",
+        short_hint=(
+            "Average intangible assets divided by Revenue (average-balance intensity)."
+        ),
+        semantic_key="goodwill_intangibles.intangible_assets_to_revenue",
+        category="goodwill_intangibles",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("average_intangible_assets", "revenue_link"),
+        hints=(
+            "Average Intangible Assets / Revenue uses the average balance.",
+            "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        ),
+    ),
+    ComponentFamily(
+        id="goodwill_and_intangibles_change",
+        order=106,
+        title="Change in Goodwill & Intangibles",
+        short_hint="Current combined total − prior combined total.",
+        semantic_key="goodwill_intangibles.goodwill_and_intangibles_change",
+        category="goodwill_intangibles",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        hints=(
+            "Combined total is the sum of uniquely resolved goodwill and intangible assets only.",
+        ),
+    ),
+    ComponentFamily(
+        id="goodwill_and_intangibles_growth",
+        order=107,
+        title="Goodwill & Intangibles Growth",
+        short_hint="Percentage change in the combined goodwill and intangibles total.",
+        semantic_key="goodwill_intangibles.goodwill_and_intangibles_growth",
+        category="goodwill_intangibles",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("goodwill_and_intangibles_change",),
+        hints=(
+            "Growth = Change / Prior combined total.",
+            "A zero prior combined total makes percentage growth undefined (#N/A).",
+        ),
+    ),
+    ComponentFamily(
+        id="average_goodwill_and_intangibles",
+        order=108,
+        title="Average Goodwill & Intangibles",
+        short_hint="Average beginning and ending combined goodwill and intangibles.",
+        semantic_key="goodwill_intangibles.average_goodwill_and_intangibles",
+        category="goodwill_intangibles",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        hints=(
+            "Average = (Prior combined + Current combined) / 2.",
+        ),
+    ),
+    ComponentFamily(
+        id="goodwill_and_intangibles_to_revenue",
+        order=109,
+        title="Average Goodwill & Intangibles / Revenue",
+        short_hint=(
+            "Average combined goodwill and intangibles divided by Revenue."
+        ),
+        semantic_key="goodwill_intangibles.goodwill_and_intangibles_to_revenue",
+        category="goodwill_intangibles",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("average_goodwill_and_intangibles", "revenue_link"),
+        hints=(
+            "Uses the average combined balance (average-balance intensity).",
+            "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        ),
+    ),
+    ComponentFamily(
+        id="intangible_payments",
+        order=110,
+        title="Intangible Payments",
+        short_hint=(
+            "Presented as −reported payments for intangible assets. "
+            "Intangible payments are not business acquisitions."
+        ),
+        semantic_key="goodwill_intangibles.intangible_payments",
+        category="goodwill_intangibles",
+        tab_template="ALT DuPont",
+        hints=(
+            "Intangible Payments = −(reported payments for intangible assets).",
+            "Do not apply absolute value; keep the −reported sign convention consistently.",
+            "Intangible payments are not business acquisitions.",
+        ),
+    ),
+    ComponentFamily(
+        id="intangible_payments_to_revenue",
+        order=111,
+        title="Intangible Payments / Revenue",
+        short_hint=(
+            "Presented intangible payments divided by Revenue. "
+            "Intangible payments are not business acquisitions."
+        ),
+        semantic_key="goodwill_intangibles.intangible_payments_to_revenue",
+        category="goodwill_intangibles",
+        tab_template="ALT DuPont",
+        depends_on_current=("intangible_payments", "revenue_link"),
+        hints=(
+            "Intangible Payments / Revenue uses the −reported payment presentation.",
+            "A zero Revenue denominator makes the ratio undefined (#N/A).",
+            "Intangible payments are not business acquisitions.",
+        ),
+    ),
+)
+
+
+_GOODWILL_FAMILY_GROUPS: dict[str, frozenset[str]] = {
+    "goodwill": frozenset(
+        {
+            "goodwill_change",
+            "goodwill_growth",
+            "average_goodwill",
+            "goodwill_to_revenue",
+        }
+    ),
+    "intangible_assets": frozenset(
+        {
+            "intangible_assets_change",
+            "intangible_assets_growth",
+            "average_intangible_assets",
+            "intangible_assets_to_revenue",
+        }
+    ),
+    "goodwill_and_intangibles": frozenset(
+        {
+            "goodwill_and_intangibles_change",
+            "goodwill_and_intangibles_growth",
+            "average_goodwill_and_intangibles",
+            "goodwill_and_intangibles_to_revenue",
+        }
+    ),
+    "payments_for_intangible_assets": frozenset(
+        {
+            "intangible_payments",
+            "intangible_payments_to_revenue",
+        }
+    ),
+}
+
+
+def expand_goodwill_intangibles_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    availability: object,
+) -> tuple[ComponentSpec, ...]:
+    """Expand available goodwill/intangibles families into period-specific specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_goodwill_intangibles_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_goodwill_intangibles_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    enabled: set[str] = set()
+    if getattr(availability, "goodwill", False):
+        enabled |= _GOODWILL_FAMILY_GROUPS["goodwill"]
+    if getattr(availability, "intangible_assets", False):
+        enabled |= _GOODWILL_FAMILY_GROUPS["intangible_assets"]
+    if getattr(availability, "goodwill_and_intangibles", False):
+        enabled |= _GOODWILL_FAMILY_GROUPS["goodwill_and_intangibles"]
+    if getattr(availability, "payments_for_intangible_assets", False):
+        enabled |= _GOODWILL_FAMILY_GROUPS["payments_for_intangible_assets"]
+    if not enabled:
+        return ()
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in GOODWILL_INTANGIBLES_COMPONENT_CATALOG:
+        if family.id not in enabled:
+            continue
+        if family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        else:
+            indices = range(len(periods))
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            if j > 0:
+                prev = periods[j - 1]
+                for dep_fam in family.depends_on_previous:
+                    deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 def _deferred(
     *,
     id: str,
