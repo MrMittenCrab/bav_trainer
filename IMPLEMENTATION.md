@@ -1,29 +1,50 @@
-# Step 9M.4 — Resolver Capability Documentation Repair
+# Step 9M.5 — Goodwill & Intangible-Asset Diagnostics
 
-**Base:** `d6b44989b4fd9fd04940d3f885e536980f540215`
+**Base:** `f68db107064326fc50a9241d192d322f02fd62b5`
 
-**Goal:** Correct current resolver capabilities and document explicit concept resolution as required work for the proposed goodwill/intangibles module.
+**Goal:** Add source-gated historical balance, change, and intensity diagnostics with optional intangible-payment ratios.
 
-### Task 1: Correct the capability statement
+### Task 1: Enable explicit concept resolution
 
-**File:** `docs/GOOGL_HISTORICAL_REFERENCE.md`
+**Files:** `core/model/line_resolver.py`, `core/tests/test_line_resolver.py`
 
-- [x] Replace the claim that `resolve_line` supports `goodwill`, `intangible_assets`, and `payments_for_intangible_assets`.
-- [x] State that all three currently raise `ValueError("Unknown financial concept: ...")` because `core/model/line_resolver.py` rejects unregistered concepts before matching `LineItem.concept`, including when `required=False`.
-- [x] Distinguish supplied concept-tagged facts and operating long-term asset classification from implemented resolver support.
+- [ ] Register `goodwill`, `intangible_assets`, and `payments_for_intangible_assets` using existing normalized explicit-concept matching, without label or pattern fallback.
+- [ ] Preserve missing/required and ambiguity exceptions, existing concept behavior, and unknown-concept rejection.
+- [ ] Test unique, missing, duplicate, and label-only inputs for all three concepts.
 
-### Task 2: Record the candidate’s resolution prerequisite
+### Task 2: Implement gated historical calculations
 
-**File:** `docs/GOOGL_HISTORICAL_REFERENCE.md`
+**Files:** new `core/model/goodwill_intangibles.py`, new `core/tests/test_goodwill_intangibles.py`
 
-- [x] Identify explicit concept resolution for BS `goodwill` / `intangible_assets` and optional CF `payments_for_intangible_assets` as required future implementation work.
-- [x] Specify unique explicit concept matching without label fallback, with missing or ambiguous inputs following the candidate’s existing omission rules.
-- [x] Clarify that the minimum input contract and omission behavior are proposed requirements, not current resolver behavior.
-- [x] Retain the single source-supported candidate, reported facts, proposed calculations, and Trainer/Answer Key/Check scope.
+- [ ] Resolve BS balances and optional CF payments through the shared resolver; treat ambiguous concepts as unavailable independently.
+- [ ] Omit the module unless at least one BS concept resolves; emit only available balance families and omit unavailable payment families.
+- [ ] Read supplied period values using existing strict source-value helpers; never substitute zero for missing facts.
+- [ ] For each available balance, calculate change, growth, average balance, and average balance/revenue. Leave first-period derived values blank; use existing `NA()` conventions for zero denominators.
+- [ ] Include `goodwill_and_intangibles` only when both BS concepts resolve.
+- [ ] Present intangible payments as `−reported payments` consistently across periods, plus payments/revenue; never apply absolute value.
+- [ ] Test partial availability, duplicates, missing periods, zero denominators, flat balances, and mixed payment signs.
+
+### Task 3: Integrate the historical practice surface
+
+**Files:** `core/engine/reference_model.py`, `core/engine/component_catalog.py`, `core/model/historical_expected.py`, `core/trainer/checker.py`
+
+- [ ] Add one optional ALT DuPont block using existing semantic family IDs, period expansion, dependency mapping, and registration conventions.
+- [ ] Keep linked source balances and signed CF facts populated; register derived calculations as practice cells.
+- [ ] Wire the same availability contract and calculations into Excel formulas, Python expected values, and workbook-wide Check.
+- [ ] Produce blank yellow Trainer practice cells without Notes and matching Answer-Key formulas with concise Notes.
+- [ ] Notes explain average-balance intensity and payment signs; state that flat goodwill does not establish absence of impairment and intangible payments are not business acquisitions.
+
+### Task 4: Validate integration and update evidence
+
+**Files:** `core/tests/test_trainer.py`, `core/tests/test_fast_retailing_benchmark.py`, `scripts/audit_fast_retailing_benchmark.py`, `benchmark/fast_retailing/BASELINE.md`, `docs/GOOGL_HISTORICAL_REFERENCE.md`
+
+- [ ] Test omitted and partially available surfaces, semantic mapping, formula/value agreement, pair parity, and blank/correct/incorrect non-disclosing Check results.
+- [ ] Validate Fast Retailing against supplied balances and payments; derive updated practice counts from the registered families and retain explicit regression assertions.
+- [ ] Run the benchmark audit and update its baseline and capability documentation from measured results.
 
 ### Validation and acceptance
 
-- [x] Capability statements agree with the registration guard and matching order in `core/model/line_resolver.py`.
-- [x] No statement implies these three concepts currently resolve through `resolve_line`.
-- [x] Only `docs/GOOGL_HISTORICAL_REFERENCE.md` changes; resolver and module implementation remain deferred.
-- [x] `git diff --check` passes; no new tests, workbook regeneration, or benchmark audit is required.
+- [ ] Resolver, module, Trainer, reference-integrity, historical-v1 exit-gate, and Fast Retailing benchmark tests pass; `git diff --check` passes.
+- [ ] Label-only DEMO retains existing practice counts; Fast Retailing activates the supported families and passes blank/filled Check.
+- [ ] Benchmark G1–G7 remain closed; provenance and overlap/supplemental conflicts remain unchanged at 3/3.
+- [ ] No acquisition or impairment attribution, forecasting, valuation, or TARGET progression is introduced.
