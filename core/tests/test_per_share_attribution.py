@@ -65,6 +65,7 @@ def _per_share(
         diluted_share_count_change=tuple(
             None if i == 0 else shares[i] - shares[i - 1] for i in range(len(shares))
         ),
+        earnings_numerator=net_income,
     )
 
 
@@ -161,6 +162,7 @@ def test_attribution_edge_cases():
         nopat_per_diluted_share=(1.0, 1.1),
         diluted_eps_change=(None, 0.1),
         diluted_share_count_change=(None, 10.0),
+        earnings_numerator=(100.0,),
     )
     with pytest.raises(ValueError, match="length mismatch"):
         compute_per_share_attribution_series(_anchor((100.0, 120.0)), bad)
@@ -173,6 +175,7 @@ def test_attribution_edge_cases():
         nopat_per_diluted_share=bad_eps.nopat_per_diluted_share,
         diluted_eps_change=bad_eps.diluted_eps_change,
         diluted_share_count_change=bad_eps.diluted_share_count_change,
+        earnings_numerator=bad_eps.earnings_numerator,
     )
     with pytest.raises(ValueError, match="does not reconcile before attribution"):
         compute_per_share_attribution_series(_anchor((100.0, 120.0)), bad_eps)
@@ -185,6 +188,7 @@ def test_attribution_edge_cases():
         nopat_per_diluted_share=good.nopat_per_diluted_share,
         diluted_eps_change=(None, 99.0),
         diluted_share_count_change=good.diluted_share_count_change,
+        earnings_numerator=good.earnings_numerator,
     )
     with pytest.raises(ValueError, match="does not reconcile"):
         compute_per_share_attribution_series(_anchor((100.0, 120.0)), bad_chg)

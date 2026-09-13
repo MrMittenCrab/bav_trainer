@@ -71,6 +71,9 @@ def _ps(*, shares, reported_eps, eps_change=None):
             None if i == 0 else shares[i] - shares[i - 1]
             for i in range(len(shares))
         ),
+        earnings_numerator=tuple(
+            reported_eps[i] * shares[i] for i in range(len(shares))
+        ),
     )
 
 
@@ -172,6 +175,7 @@ def test_normalized_per_share_edge_cases():
         nopat_per_diluted_share=(1.0, 1.2),
         diluted_eps_change=(None, 0.2),
         diluted_share_count_change=(None, 0.0),
+        earnings_numerator=(100.0, 120.0),
     )
     with pytest.raises(ValueError, match="level bridge"):
         compute_normalized_per_share_series(

@@ -21,7 +21,7 @@ def compute_per_share_attribution_series(
     per_share: PerShareSeries,
 ) -> PerShareAttributionSeries:
     """Attribute diluted EPS change to earnings vs share-count midpoint effects."""
-    net_income = tuple(float(v) for v in anchor.historical.net_income)
+    net_income = tuple(float(v) for v in per_share.earnings_numerator)
     shares = tuple(float(v) for v in per_share.diluted_weighted_average_shares)
     direct_eps = tuple(float(v) for v in per_share.reported_diluted_eps)
     direct_eps_change = tuple(per_share.diluted_eps_change)

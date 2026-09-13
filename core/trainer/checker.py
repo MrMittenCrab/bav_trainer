@@ -18,6 +18,7 @@ from ..engine.component_catalog import (
     FIXED_ASSET_COMPONENT_CATALOG,
     LEASE_LIABILITY_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
+    OWNERSHIP_ATTRIBUTION_COMPONENT_CATALOG,
     PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG,
     PER_SHARE_COMPONENT_CATALOG,
     QUALITY_CHANGE_COMPONENT_CATALOG,
@@ -27,6 +28,10 @@ from ..model.fixed_asset import compute_fixed_asset_series, fixed_asset_applicab
 from ..model.lease_liability import (
     compute_lease_liability_series,
     lease_liability_applicable,
+)
+from ..model.ownership_attribution import (
+    compute_ownership_attribution_series,
+    ownership_attribution_applicable,
 )
 from ..model.per_share import compute_per_share_series
 from .check_context import (
@@ -220,6 +225,16 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                         list(modeled_periods),
                         anchor,
                     )
+            ownership_family_ids = {
+                family.id for family in OWNERSHIP_ATTRIBUTION_COMPONENT_CATALOG
+            }
+            ownership_attribution = None
+            if any(comp.family_id in ownership_family_ids for comp in comps):
+                if ownership_attribution_applicable(financials):
+                    ownership_attribution = compute_ownership_attribution_series(
+                        financials,
+                        list(modeled_periods),
+                    )
             dynamic_expected = {
                 comp.id: expected_value_for_component(
                     anchor,
@@ -229,6 +244,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     per_share=per_share,
                     fixed_asset=fixed_asset,
                     lease_liability=lease_liability,
+                    ownership_attribution=ownership_attribution,
                 )
                 for comp in comps
             }

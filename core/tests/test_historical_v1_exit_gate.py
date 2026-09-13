@@ -16,6 +16,7 @@ from core.engine.component_catalog import (
     LEASE_LIABILITY_COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
+    OWNERSHIP_ATTRIBUTION_COMPONENT_CATALOG,
     PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG,
     PER_SHARE_COMPONENT_CATALOG,
     PROFITABILITY_CHANGE_COMPONENT_CATALOG,
@@ -53,6 +54,7 @@ ACTIVE_CATALOGS = (
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
     FIXED_ASSET_COMPONENT_CATALOG,
     LEASE_LIABILITY_COMPONENT_CATALOG,
+    OWNERSHIP_ATTRIBUTION_COMPONENT_CATALOG,
 )
 
 
@@ -97,7 +99,7 @@ def test_historical_v1_active_catalog_namespace_is_frozen():
 
     assert len(ids) == len(set(ids))
     assert len(orders) == len(set(orders))
-    assert sorted(orders) == list(range(1, 91))
+    assert sorted(orders) == list(range(1, 98))
 
     deferred_ids = {spec.id for spec in DEFERRED_COMPONENT_SPECS}
     assert deferred_ids.isdisjoint(ids)

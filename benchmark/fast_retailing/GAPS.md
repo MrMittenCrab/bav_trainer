@@ -1,6 +1,6 @@
 # Fast Retailing Gap Queue
 
-Evidence basis for Step 9M.3B. Measurement only for remaining gaps — no speculative production redesign here.
+Evidence basis for Step 9M.3C. Measurement only for remaining gaps — no speculative production redesign here.
 
 Categories:
 - **A** source-extraction / provenance defect
@@ -9,17 +9,17 @@ Categories:
 - **D** optional-module input-contract gap
 - **E** comparative/restatement/share-basis conflict
 
-## Observed engine stages (Step 9M.3B)
+## Observed engine stages (Step 9M.3C)
 
 | Stage | Result |
 |---|---|
 | source fixture load | pass |
 | identity validation | pass |
 | financial reconciliation | **pass** (G1 closed) |
-| ReferenceModelBuilder | **pass** (312 specs; lease_specs=18; G4 lease-interest treatment) |
+| ReferenceModelBuilder | **pass** (346 specs; ownership_specs=34; lease_specs=18) |
 | workbook generation | **pass** |
-| blank Check | **pass** (0/312 correct; 312 blank) |
-| filled Check | **pass** (312/312 correct) |
+| blank Check | **pass** (0/346 correct; 346 blank) |
+| filled Check | **pass** (346/346 correct) |
 
 ## Gaps
 
@@ -127,14 +127,22 @@ Categories:
   lease total remains `513500` vs Note 17 `513501`. Stages 1–7 pass with
   `expected_specs=312` (no new practice family).
 
-### G5 — NCI / parent attribution vs total profit and equity
+### G5 — Parent / NCI attribution and parent ROE — **CLOSED in Step 9M.3C**
 
 - **Category:** C
-- **Stage:** conceptual probe
-- **Exact facts:** total profit `459,153` vs parent `433,009` + NCI `26,143` (= `459,152`, one-unit residual); total equity `2,327,501` vs parent equity `2,273,115` + NCI equity `54,385`.
-- **Source facts:** CFS2025 IS page 3 and BS page 2.
-- **Synthetic coverage:** DEMO has no NCI.
-- **Why generalizable:** Parent-attributable earnings/equity must be first-class when NCI is material; totals alone are insufficient for ROE/per-share bridges.
+- **Stage:** optional Ownership Attribution schedule / per-share numerator
+- **Resolution:** Four canonical concepts
+  (`profit_attributable_to_owners`, `profit_attributable_to_nci`,
+  `equity_attributable_to_owners`, `noncontrolling_interests`) resolve uniquely.
+  Optional module computes bridges (tolerance `1.5` reporting units) and Parent ROE
+  = parent profit / average parent equity. Consolidated BAV DuPont / NOA / Net Debt /
+  NOPAT unchanged. Per-share earnings numerator uses parent profit when ownership is
+  complete; partial/ambiguous ownership fails closed; no ownership → consolidated NI.
+- **Fast Retailing evidence:** FY2025 profit bridge gap `-1`, equity bridge gap `-1`
+  (accepted); `ownership_specs=34`; `expected_specs=346`. Per-share module still
+  omitted (`historical_shares=null`) until G6 supplies a comparable post-split axis.
+- **Synthetic coverage:** whole-owned companies retain prior EPS; NCI+shares fixtures
+  use parent profit numerator.
 
 ### G6 — Five-year diluted share basis omitted after 3-for-1 split
 
@@ -156,16 +164,16 @@ Categories:
 - **Synthetic coverage:** none for audited restatement overlaps.
 - **Why generalizable:** Latest-audited-presentation must remain explicit; silent overwrites are forbidden.
 
-## Post-9M.3B audit result
+## Post-9M.3C audit result
 
 - **Stages 1–7:** all **pass**
-  - Stage 4: `expected_specs=312 lease_specs=18 fixed_asset_specs=35`
-  - Stage 6 blank Check: `correct=0 incorrect=0 blank=312 total=312`
-  - Stage 7 filled Check: `correct=312 total=312`
+  - Stage 4: `expected_specs=346 lease_specs=18 ownership_specs=34 fixed_asset_specs=35`
+  - Stage 6 blank Check: `correct=0 incorrect=0 blank=346 total=346`
+  - Stage 7 filled Check: `correct=346 total=346`
 - **First failing stage / exception:** none
-- **Note:** G5–G7 remain open (NCI attribution, share-basis / per-share omission,
-  restatement conflicts). G4 closed without inventing lease-interest values or
-  allocating aggregate interest across split maturities.
+- **Note:** G6–G7 remain open (share-basis / per-share activation after split,
+  restatement conflicts). Per-share engine is ownership-safe but FR per-share stays
+  omitted until G6.
 
 ## Corrected extraction note (A — closed in 9M.0)
 
@@ -175,7 +183,7 @@ CFS2021 IS line `Non-controlling interests 40 5,836 53,109` was initially misrea
 
 1. Do not invent plugs to force BS identity when published totals disagree by rounding (G1 policy already encodes `<= 1.0` acceptance).
 2. Vague unsupported rows (e.g. bare `Other assets`) should remain fail-closed or receive an explicit guided contract — do not auto-classify from the word `other` alone.
-3. Parent vs NCI earnings and equity must be handled consistently when both are disclosed.
+3. Parent vs NCI earnings and equity are first-class when both are disclosed (G5 closed); parent ROE is separate from consolidated DuPont ROE.
 4. Split lease diagnostics use an explicit aggregate-or-split source contract (G3 closed); do not silently invent aggregates from vague labels.
 5. Lease classification treatment and disclosed lease-interest income-side treatment are linked when a complete reported lease-interest axis exists (G4 closed).
-6. Multi-year per-share analysis requires an audited comparable share basis.
+6. Multi-year per-share analysis requires an audited comparable share basis (G6 open); the per-share numerator is already ownership-safe.

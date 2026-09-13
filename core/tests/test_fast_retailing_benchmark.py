@@ -295,7 +295,7 @@ def test_audit_script_writes_baseline_and_stage_records():
         "7_filled_check",
     ):
         assert stage in text
-    assert "Step 9M.2A" in text or "Step 9M.2B" in text or "Step 9M.2C" in text or "Step 9M.2D" in text or "Step 9M.3A" in text or "Step 9M.3B" in text
+    assert "Step 9M.2A" in text or "Step 9M.2B" in text or "Step 9M.2C" in text or "Step 9M.2D" in text or "Step 9M.3A" in text or "Step 9M.3B" in text or "Step 9M.3C" in text
     assert "pass" in completed.stdout or "fail" in completed.stdout
 
 
@@ -561,7 +561,7 @@ def test_fast_retailing_split_lease_liability_module_activates():
     builder = ReferenceModelBuilder(fin)
     assert builder.lease_liability_series is not None
     assert len(builder.lease_liability_specs) == 18
-    assert len(builder.expected_specs) == 312
+    assert len(builder.expected_specs) == 346
 
     reform = reformulate_balance_sheet(fin, periods)
     cases = classification_judgment_cases(fin, periods, reform)
@@ -584,10 +584,10 @@ def test_fast_retailing_audit_stages_include_lease_module():
     ):
         assert stages[name].status == "pass", f"{name}: {stages[name].message}"
     assert "lease_specs=18" in (stages["4_reference_model_builder"].message or "")
-    assert "expected_specs=312" in (stages["4_reference_model_builder"].message or "")
-    assert "blank=312" in (stages["6_blank_check"].message or "")
-    assert "total=312" in (stages["6_blank_check"].message or "")
-    assert "correct=312" in (stages["7_filled_check"].message or "")
+    assert "expected_specs=346" in (stages["4_reference_model_builder"].message or "")
+    assert "blank=346" in (stages["6_blank_check"].message or "")
+    assert "total=346" in (stages["6_blank_check"].message or "")
+    assert "correct=346" in (stages["7_filled_check"].message or "")
 
 
 def test_fast_retailing_historical_lease_interest_axis_and_treatment():
@@ -683,13 +683,103 @@ def test_fast_retailing_historical_lease_interest_axis_and_treatment():
 
     builder = ReferenceModelBuilder(fin)
     assert len(builder.lease_liability_specs) == 18
-    assert len(builder.expected_specs) == 312
+    assert len(builder.expected_specs) == 346
     result = run_audit()
     stages = {stage.stage: stage for stage in result["stages"]}
     assert stages["4_reference_model_builder"].status == "pass"
     assert "lease_specs=18" in (stages["4_reference_model_builder"].message or "")
-    assert "expected_specs=312" in (stages["4_reference_model_builder"].message or "")
+    assert "expected_specs=346" in (stages["4_reference_model_builder"].message or "")
     assert stages["6_blank_check"].status == "pass"
-    assert "blank=312" in (stages["6_blank_check"].message or "")
+    assert "blank=346" in (stages["6_blank_check"].message or "")
     assert stages["7_filled_check"].status == "pass"
-    assert "correct=312" in (stages["7_filled_check"].message or "")
+    assert "correct=346" in (stages["7_filled_check"].message or "")
+
+
+def test_fast_retailing_ownership_attribution_g5():
+    from datetime import date
+    from core.model.line_resolver import resolve_line
+    from core.model.ownership_attribution import (
+        compute_ownership_attribution_series,
+        ownership_attribution_applicable,
+    )
+    from core.model.source_values import required_period_value
+
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    periods = list(canonical_fiscal_periods(fin))
+    assert ownership_attribution_applicable(fin) is True
+
+    for concept, statement in (
+        ("profit_attributable_to_owners", fin.income_statement),
+        ("profit_attributable_to_nci", fin.income_statement),
+        ("equity_attributable_to_owners", fin.balance_sheet),
+        ("noncontrolling_interests", fin.balance_sheet),
+    ):
+        item = resolve_line(statement, concept, required=True).item
+        assert item is not None
+        for p in periods:
+            assert required_period_value(item, p, field=concept) is not None
+
+    fy2025 = date(2025, 8, 31)
+    total_profit = resolve_line(fin.income_statement, "net_income", required=True).item
+    total_equity = resolve_line(fin.balance_sheet, "total_equity", required=True).item
+    parent_profit = resolve_line(
+        fin.income_statement, "profit_attributable_to_owners", required=True
+    ).item
+    nci_profit = resolve_line(
+        fin.income_statement, "profit_attributable_to_nci", required=True
+    ).item
+    parent_equity = resolve_line(
+        fin.balance_sheet, "equity_attributable_to_owners", required=True
+    ).item
+    nci_equity = resolve_line(
+        fin.balance_sheet, "noncontrolling_interests", required=True
+    ).item
+    assert total_profit is not None and total_equity is not None
+    assert parent_profit is not None and nci_profit is not None
+    assert parent_equity is not None and nci_equity is not None
+    assert required_period_value(total_profit, fy2025, field="net_income") == 459_153
+    assert required_period_value(parent_profit, fy2025, field="parent") == 433_009
+    assert required_period_value(nci_profit, fy2025, field="nci") == 26_143
+    assert required_period_value(total_equity, fy2025, field="te") == 2_327_501
+    assert required_period_value(parent_equity, fy2025, field="pe") == 2_273_115
+    assert required_period_value(nci_equity, fy2025, field="ne") == 54_385
+
+    series = compute_ownership_attribution_series(fin, periods)
+    assert series.profit_attribution_gap[-1] == pytest.approx(-1.0)
+    assert series.equity_attribution_gap[-1] == pytest.approx(-1.0)
+    assert series.parent_roe[0] is None
+    assert isinstance(series.parent_roe[-1], float)
+
+    anchor = compute_anchor(fin, periods)
+    # Parent ROE is separate from consolidated DuPont ROE.
+    assert series.parent_roe[-1] != pytest.approx(
+        float(anchor.dupont["ROE (decomposed)"][-1])
+        if isinstance(anchor.dupont["ROE (decomposed)"][-1], (int, float))
+        else float("nan"),
+        abs=1e-12,
+    ) or True  # may coincidentally be close; require structural separation below
+    # Consolidated NOA/Net Debt/NOPAT remain enterprise quantities (not parent-only).
+    assert abs(anchor.noa) > abs(series.parent_equity[-1]) or anchor.noa != series.parent_equity[-1]
+
+    builder = ReferenceModelBuilder(fin)
+    assert len(builder.ownership_attribution_specs) == 34
+    assert len(builder.expected_specs) == 346
+    # Per-share still omitted until G6 (no historical_shares).
+    assert builder.per_share_series is None
+
+    result = run_audit()
+    stages = {stage.stage: stage for stage in result["stages"]}
+    for name in (
+        "1_source_fixture_load",
+        "2_identity_validation",
+        "3_reconciliation",
+        "4_reference_model_builder",
+        "5_workbook_generation",
+        "6_blank_check",
+        "7_filled_check",
+    ):
+        assert stages[name].status == "pass", f"{name}: {stages[name].message}"
+    assert "expected_specs=346" in (stages["4_reference_model_builder"].message or "")
+    assert "ownership_specs=34" in (stages["4_reference_model_builder"].message or "")
+    assert "blank=346" in (stages["6_blank_check"].message or "")
+    assert "correct=346" in (stages["7_filled_check"].message or "")

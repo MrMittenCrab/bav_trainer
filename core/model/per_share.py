@@ -19,6 +19,7 @@ class PerShareSeries:
     nopat_per_diluted_share: tuple[float | str, ...]
     diluted_eps_change: tuple[float | None, ...]
     diluted_share_count_change: tuple[float | None, ...]
+    earnings_numerator: tuple[float, ...]
 
 
 def per_share_available(financials: StandardizedFinancials) -> bool:
@@ -70,16 +71,23 @@ def compute_per_share_series(
     anchor: AnchorMetrics,
 ) -> PerShareSeries:
     """Compute diluted EPS / NOPAT-per-share and their period changes."""
+    from .ownership_attribution import per_share_earnings_numerator
+
     shares = _required_diluted_share_series(financials, periods)
-    net_income = tuple(float(v) for v in anchor.historical.net_income)
+    fallback_total_profit = tuple(float(v) for v in anchor.historical.net_income)
+    earnings_numerator = per_share_earnings_numerator(
+        financials,
+        periods,
+        fallback_total_profit,
+    )
     nopat = tuple(anchor.historical.nopat)
 
-    if len(net_income) != len(periods) or len(nopat) != len(periods):
+    if len(earnings_numerator) != len(periods) or len(nopat) != len(periods):
         raise ValueError(
             "per-share period axis must match AnchorMetrics historical series length"
         )
 
-    eps = tuple(net_income[i] / shares[i] for i in range(len(periods)))
+    eps = tuple(earnings_numerator[i] / shares[i] for i in range(len(periods)))
     nopat_per_share = tuple(
         ratio_or_na(nopat[i], shares[i]) for i in range(len(periods))
     )
@@ -96,4 +104,5 @@ def compute_per_share_series(
         nopat_per_diluted_share=nopat_per_share,
         diluted_eps_change=tuple(eps_change),
         diluted_share_count_change=tuple(share_change),
+        earnings_numerator=earnings_numerator,
     )

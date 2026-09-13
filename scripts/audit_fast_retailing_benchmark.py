@@ -43,10 +43,15 @@ def _module_applicability(fin, anchor=None) -> dict[str, Any]:
         lease_liability_applicable,
         lease_liability_availability,
     )
+    from core.model.ownership_attribution import (
+        ownership_attribution_applicable,
+        ownership_attribution_availability,
+    )
     from core.model.per_share import per_share_available
     from core.model.working_capital import working_capital_applicable
 
     lease_avail = lease_liability_availability(fin)
+    ownership_avail = ownership_attribution_availability(fin)
     eq = earnings_quality_availability(fin)
     wc_applicable: bool | None
     if anchor is None:
@@ -68,6 +73,10 @@ def _module_applicability(fin, anchor=None) -> dict[str, Any]:
         "lease_liability": {
             "applicable": lease_liability_applicable(fin),
             "availability": asdict(lease_avail),
+        },
+        "ownership_attribution": {
+            "applicable": ownership_attribution_applicable(fin),
+            "availability": asdict(ownership_avail),
         },
         "per_share": {"applicable": per_share_available(fin)},
         "normalization": {
@@ -179,6 +188,7 @@ def run_audit() -> dict[str, Any]:
                 message=(
                     f"expected_specs={len(builder.expected_specs)} "
                     f"lease_specs={len(builder.lease_liability_specs)} "
+                    f"ownership_specs={len(builder.ownership_attribution_specs)} "
                     f"fixed_asset_specs={len(builder.fixed_asset_specs)}"
                 ),
             )
@@ -306,11 +316,11 @@ def write_baseline(result: dict[str, Any]) -> None:
         provenance.get("supplemental_conflict_count", 0),
     )
     lines = [
-        "# Fast Retailing Benchmark Baseline (Step 9M.3B)",
+        "# Fast Retailing Benchmark Baseline (Step 9M.3C)",
         "",
-        "- Accounting engine phase: Step 9M.3B (treatment-conditioned lease interest on 9M.3A base)",
+        "- Accounting engine phase: Step 9M.3C (ownership attribution on 9M.3B base)",
         "- Input path: generic `extracted/` → `validate-source` → `reconcile` → `reconciled/`",
-        "- Benchmark phase: measurement only — G1/G1B/G2/G2B/G2C/G3/G4 closed; G5–G7 remain open",
+        "- Benchmark phase: measurement only — G1/G1B/G2/G2B/G2C/G3/G4/G5 closed; G6–G7 remain open",
         "- Five fiscal periods: 2021-08-31 … 2025-08-31",
         "",
         "## Source hashes",
@@ -329,7 +339,7 @@ def write_baseline(result: dict[str, Any]) -> None:
             "- Supplemental provenance source-bound: yes",
             "- Portable source-path validation: yes",
             "- Silent repeated-share overwrite removed: yes",
-            "- G1/G1B/G2/G2B/G2C/G3/G4 closed; G5–G7 remain open",
+            "- G1/G1B/G2/G2B/G2C/G3/G4/G5 closed; G6–G7 remain open",
             "",
             "## Stage results",
             "",
@@ -361,6 +371,12 @@ def write_baseline(result: dict[str, Any]) -> None:
             lines.append(
                 f"  - availability: lease_liability={avail.get('lease_liability')} "
                 f"ambiguous={avail.get('ambiguous')}"
+            )
+        if name == "ownership_attribution":
+            avail = info.get("availability") or {}
+            lines.append(
+                f"  - availability: available={avail.get('available')} "
+                f"partial={avail.get('partial')} ambiguous={avail.get('ambiguous')}"
             )
 
     lines.extend(

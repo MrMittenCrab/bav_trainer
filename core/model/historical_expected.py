@@ -8,6 +8,7 @@ from ..engine.component_catalog import (
     LEASE_LIABILITY_COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
+    OWNERSHIP_ATTRIBUTION_COMPONENT_CATALOG,
     PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG,
     PER_SHARE_COMPONENT_CATALOG,
     PROFITABILITY_CHANGE_COMPONENT_CATALOG,
@@ -25,6 +26,7 @@ from .fixed_asset import FixedAssetSeries
 from .lease_liability import LeaseLiabilitySeries
 from .normalization import NormalizationSeries
 from .normalized_per_share import compute_normalized_per_share_series
+from .ownership_attribution import OwnershipAttributionSeries
 from .per_share import PerShareSeries
 from .per_share_attribution import compute_per_share_attribution_series
 from .profitability_change import compute_profitability_change_series
@@ -119,6 +121,16 @@ _LEASE_LIABILITY_FAMILY_SERIES = (
     "lease_liability_to_revenue",
     "lease_liability_change",
     "lease_liability_growth",
+)
+
+_OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
+    "parent_profit_source_link",
+    "nci_profit_source_link",
+    "profit_attribution_gap",
+    "parent_equity_source_link",
+    "nci_equity_source_link",
+    "equity_attribution_gap",
+    "parent_roe",
 )
 
 _WORKING_CAPITAL_FAMILY_SERIES = (
@@ -517,6 +529,33 @@ def lease_liability_expected_series(
     }
 
 
+def ownership_attribution_expected_series(
+    ownership_attribution: OwnershipAttributionSeries,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map ownership-attribution diagnostic families from an OwnershipAttributionSeries."""
+    series = {
+        "parent_profit_source_link": ownership_attribution.parent_profit,
+        "nci_profit_source_link": ownership_attribution.nci_profit,
+        "profit_attribution_gap": ownership_attribution.profit_attribution_gap,
+        "parent_equity_source_link": ownership_attribution.parent_equity,
+        "nci_equity_source_link": ownership_attribution.nci_equity,
+        "equity_attribution_gap": ownership_attribution.equity_attribution_gap,
+        "parent_roe": ownership_attribution.parent_roe,
+    }
+    expected_ids = {family.id for family in OWNERSHIP_ATTRIBUTION_COMPONENT_CATALOG}
+    if set(series) != expected_ids:
+        missing = sorted(expected_ids - set(series))
+        extra = sorted(set(series) - expected_ids)
+        raise ValueError(
+            "ownership_attribution_expected_series family mismatch; "
+            f"missing={missing} extra={extra}"
+        )
+    return {
+        family_id: series[family_id]
+        for family_id in _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES
+    }
+
+
 def expected_value_for_component(
     anchor: AnchorMetrics,
     component: ResolvedComponent,
@@ -526,6 +565,7 @@ def expected_value_for_component(
     per_share: PerShareSeries | None = None,
     fixed_asset: FixedAssetSeries | None = None,
     lease_liability: LeaseLiabilitySeries | None = None,
+    ownership_attribution: OwnershipAttributionSeries | None = None,
 ) -> float | str | None:
     """Return the treatment-conditioned expected value for one practice component."""
     family_id = component.family_id
@@ -537,7 +577,14 @@ def expected_value_for_component(
             f"Component {component.id!r} (family {family_id}) has no period_index"
         )
 
-    if family_id in _LEASE_LIABILITY_FAMILY_SERIES:
+    if family_id in _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES:
+        if ownership_attribution is None:
+            raise ValueError(
+                f"Ownership-attribution family {family_id!r} requires an "
+                "OwnershipAttributionSeries"
+            )
+        series = ownership_attribution_expected_series(ownership_attribution)
+    elif family_id in _LEASE_LIABILITY_FAMILY_SERIES:
         if lease_liability is None:
             raise ValueError(
                 f"Lease-liability family {family_id!r} requires a LeaseLiabilitySeries"

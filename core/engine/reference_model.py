@@ -30,6 +30,10 @@ from ..model.lease_liability import (
     lease_liability_applicable,
     resolve_lease_liability_source,
 )
+from ..model.ownership_attribution import (
+    compute_ownership_attribution_series,
+    ownership_attribution_applicable,
+)
 from ..model.judgment import JudgmentCase, classification_judgment_cases
 from ..model.line_resolver import resolve_line, workbook_row_for
 from ..model.normalization import (
@@ -54,6 +58,7 @@ from .component_catalog import (
     expand_fixed_asset_specs,
     expand_historical_specs,
     expand_lease_liability_specs,
+    expand_ownership_attribution_specs,
     expand_normalization_specs,
     expand_normalized_per_share_specs,
     expand_per_share_attribution_specs,
@@ -87,6 +92,7 @@ EARNINGS_NORMALIZATION_SHEET = "Earnings Normalization"
 EARNINGS_QUALITY_SHEET = "Earnings Quality"
 WORKING_CAPITAL_SHEET = "Working Capital Analysis"
 PER_SHARE_SHEET = "Per Share Analysis"
+OWNERSHIP_ATTRIBUTION_SHEET = "Ownership Attribution"
 JUDGMENT_INSTRUCTION = (
     "The supplied treatment is the model's reference treatment, not a universal "
     "accounting truth. Compare it with the listed alternative(s), choose the "
@@ -360,6 +366,33 @@ class ReferenceModelBuilder:
         else:
             self.lease_liability_series = None
             self.lease_liability_specs = ()
+        if ownership_attribution_applicable(self.fin):
+            self.ownership_attribution_series = compute_ownership_attribution_series(
+                self.fin,
+                self.periods,
+            )
+            self.ownership_attribution_specs = expand_ownership_attribution_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + len(self.profitability_change_specs)
+                    + len(self.roe_attribution_specs)
+                    + len(self.quality_change_specs)
+                    + len(self.per_share_specs)
+                    + len(self.per_share_attribution_specs)
+                    + len(self.normalized_per_share_specs)
+                    + len(self.fixed_asset_specs)
+                    + len(self.lease_liability_specs)
+                    + 1
+                ),
+            )
+        else:
+            self.ownership_attribution_series = None
+            self.ownership_attribution_specs = ()
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
@@ -374,6 +407,7 @@ class ReferenceModelBuilder:
             + self.normalized_per_share_specs
             + self.fixed_asset_specs
             + self.lease_liability_specs
+            + self.ownership_attribution_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -416,6 +450,9 @@ class ReferenceModelBuilder:
         }
         self._lease_liability_spec_index = {
             (s.family_id, s.period_index): s for s in self.lease_liability_specs
+        }
+        self._ownership_attribution_spec_index = {
+            (s.family_id, s.period_index): s for s in self.ownership_attribution_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -520,6 +557,8 @@ class ReferenceModelBuilder:
         self._build_condensed(wb)
         self._build_dupont(wb)
         self._build_accounting_judgment(wb)
+        if self.ownership_attribution_series is not None:
+            self._build_ownership_attribution(wb)
         if self.normalization_cases:
             self._build_normalization_judgment(wb)
             self._build_earnings_normalization(wb)
@@ -775,6 +814,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._lease_liability_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_ownership_attribution(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._ownership_attribution_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -2296,6 +2351,207 @@ class ReferenceModelBuilder:
             ws.add_data_validation(dv)
             dv.add(treatment)
 
+    def _build_ownership_attribution(self, wb: Workbook) -> None:
+        if self.ownership_attribution_series is None:
+            raise RuntimeError(
+                "ownership_attribution_series required when building Ownership Attribution"
+            )
+
+        series = self.ownership_attribution_series
+        parent_profit_src = self._resolved_source_row(
+            self.fin.income_statement,
+            "profit_attributable_to_owners",
+            required=True,
+        )
+        nci_profit_src = self._resolved_source_row(
+            self.fin.income_statement,
+            "profit_attributable_to_nci",
+            required=True,
+        )
+        total_profit_src = self._resolved_source_row(
+            self.fin.income_statement,
+            "net_income",
+            required=True,
+        )
+        parent_equity_src = self._resolved_source_row(
+            self.fin.balance_sheet,
+            "equity_attributable_to_owners",
+            required=True,
+        )
+        nci_equity_src = self._resolved_source_row(
+            self.fin.balance_sheet,
+            "noncontrolling_interests",
+            required=True,
+        )
+        total_equity_src = self._resolved_source_row(
+            self.fin.balance_sheet,
+            "total_equity",
+            required=True,
+        )
+        assert parent_profit_src is not None
+        assert nci_profit_src is not None
+        assert total_profit_src is not None
+        assert parent_equity_src is not None
+        assert nci_equity_src is not None
+        assert total_equity_src is not None
+
+        ws = wb.create_sheet(OWNERSHIP_ATTRIBUTION_SHEET)
+        ws["A1"] = f"{self.fin.company_name} — Ownership Attribution"
+        ws["A1"].font = BOLD
+        ws["A2"] = (
+            "Parent / NCI profit and equity bridges and parent ROE. Consolidated "
+            "DuPont / NOA / Net Debt remain unchanged; parent ROE is a separate "
+            "shareholder-attribution diagnostic."
+        )
+        ws.column_dimensions["A"].width = 40
+
+        header_row = 4
+        ws.cell(row=header_row, column=1, value="Metric").font = BOLD
+        for j, pd in enumerate(self.periods):
+            cell = ws.cell(row=header_row, column=2 + j, value=pd)
+            cell.number_format = "mmm dd, yyyy"
+            cell.font = BOLD
+            ws.column_dimensions[self._col(2 + j)].width = 14
+
+        parent_profit_row = 5
+        nci_profit_row = 6
+        total_profit_row = 7
+        profit_gap_row = 8
+        parent_equity_row = 10
+        nci_equity_row = 11
+        total_equity_row = 12
+        equity_gap_row = 13
+        parent_roe_row = 15
+
+        ws.cell(row=parent_profit_row, column=1, value="Parent Profit")
+        ws.cell(row=nci_profit_row, column=1, value="NCI Profit")
+        ws.cell(row=total_profit_row, column=1, value="Total Profit")
+        ws.cell(row=profit_gap_row, column=1, value="Profit Attribution Gap")
+        ws.cell(row=parent_equity_row, column=1, value="Parent Equity")
+        ws.cell(row=nci_equity_row, column=1, value="NCI Equity")
+        ws.cell(row=total_equity_row, column=1, value="Total Equity")
+        ws.cell(row=equity_gap_row, column=1, value="Equity Attribution Gap")
+        ws.cell(row=parent_roe_row, column=1, value="Parent ROE")
+
+        for j in range(self._n):
+            col = self._col(2 + j)
+            out_col_idx = 2 + j
+
+            parent_profit_f = f"='Income Statement'!{col}{parent_profit_src}"
+            nci_profit_f = f"='Income Statement'!{col}{nci_profit_src}"
+            total_profit_f = f"='Income Statement'!{col}{total_profit_src}"
+            profit_gap_f = (
+                f"={col}{parent_profit_row}+{col}{nci_profit_row}-{col}{total_profit_row}"
+            )
+            parent_equity_f = f"='Balance Sheet'!{col}{parent_equity_src}"
+            nci_equity_f = f"='Balance Sheet'!{col}{nci_equity_src}"
+            total_equity_f = f"='Balance Sheet'!{col}{total_equity_src}"
+            equity_gap_f = (
+                f"={col}{parent_equity_row}+{col}{nci_equity_row}-{col}{total_equity_row}"
+            )
+
+            for row, formula in (
+                (parent_profit_row, parent_profit_f),
+                (nci_profit_row, nci_profit_f),
+                (total_profit_row, total_profit_f),
+                (profit_gap_row, profit_gap_f),
+                (parent_equity_row, parent_equity_f),
+                (nci_equity_row, nci_equity_f),
+                (total_equity_row, total_equity_f),
+                (equity_gap_row, equity_gap_f),
+            ):
+                c = ws.cell(row=row, column=out_col_idx, value=formula)
+                c.number_format = NUM_FMT
+
+            self._register_ownership_attribution(
+                "parent_profit_source_link",
+                j,
+                OWNERSHIP_ATTRIBUTION_SHEET,
+                parent_profit_row,
+                out_col_idx,
+                parent_profit_f,
+                float(series.parent_profit[j]),
+            )
+            self._register_ownership_attribution(
+                "nci_profit_source_link",
+                j,
+                OWNERSHIP_ATTRIBUTION_SHEET,
+                nci_profit_row,
+                out_col_idx,
+                nci_profit_f,
+                float(series.nci_profit[j]),
+            )
+            self._register_ownership_attribution(
+                "profit_attribution_gap",
+                j,
+                OWNERSHIP_ATTRIBUTION_SHEET,
+                profit_gap_row,
+                out_col_idx,
+                profit_gap_f,
+                float(series.profit_attribution_gap[j]),
+            )
+            self._register_ownership_attribution(
+                "parent_equity_source_link",
+                j,
+                OWNERSHIP_ATTRIBUTION_SHEET,
+                parent_equity_row,
+                out_col_idx,
+                parent_equity_f,
+                float(series.parent_equity[j]),
+            )
+            self._register_ownership_attribution(
+                "nci_equity_source_link",
+                j,
+                OWNERSHIP_ATTRIBUTION_SHEET,
+                nci_equity_row,
+                out_col_idx,
+                nci_equity_f,
+                float(series.nci_equity[j]),
+            )
+            self._register_ownership_attribution(
+                "equity_attribution_gap",
+                j,
+                OWNERSHIP_ATTRIBUTION_SHEET,
+                equity_gap_row,
+                out_col_idx,
+                equity_gap_f,
+                float(series.equity_attribution_gap[j]),
+            )
+
+            if j == 0:
+                ws.cell(row=parent_roe_row, column=out_col_idx, value="N/A")
+                continue
+
+            prev_col = self._col(2 + j - 1)
+            parent_roe_f = (
+                f"=IF(({col}{parent_equity_row}+{prev_col}{parent_equity_row})=0,NA(),"
+                f"{col}{parent_profit_row}/"
+                f"(({col}{parent_equity_row}+{prev_col}{parent_equity_row})/2))"
+            )
+            c = ws.cell(row=parent_roe_row, column=out_col_idx, value=parent_roe_f)
+            c.number_format = PCT_FMT
+            roe_exp = series.parent_roe[j]
+            assert roe_exp is not None
+            self._register_ownership_attribution(
+                "parent_roe",
+                j,
+                OWNERSHIP_ATTRIBUTION_SHEET,
+                parent_roe_row,
+                out_col_idx,
+                parent_roe_f,
+                roe_exp if isinstance(roe_exp, str) else float(roe_exp),
+            )
+
+        self.rowmap["ownership_parent_profit_row"] = parent_profit_row
+        self.rowmap["ownership_nci_profit_row"] = nci_profit_row
+        self.rowmap["ownership_total_profit_row"] = total_profit_row
+        self.rowmap["ownership_profit_gap_row"] = profit_gap_row
+        self.rowmap["ownership_parent_equity_row"] = parent_equity_row
+        self.rowmap["ownership_nci_equity_row"] = nci_equity_row
+        self.rowmap["ownership_total_equity_row"] = total_equity_row
+        self.rowmap["ownership_equity_gap_row"] = equity_gap_row
+        self.rowmap["ownership_parent_roe_row"] = parent_roe_row
+
     def _build_normalization_judgment(self, wb: Workbook) -> None:
         ws = wb.create_sheet(NORMALIZATION_JUDGMENT_SHEET)
         ws["A1"] = "Normalization Judgment"
@@ -3117,6 +3373,15 @@ class ReferenceModelBuilder:
         ni_src = self.rowmap["condensed_ni_row"]
         nopat_src = self.rowmap["condensed_nopat_row"]
         series = self.per_share_series
+        use_parent_profit = self.ownership_attribution_series is not None
+        parent_profit_src: int | None = None
+        if use_parent_profit:
+            parent_profit_src = self._resolved_source_row(
+                self.fin.income_statement,
+                "profit_attributable_to_owners",
+                required=True,
+            )
+            assert parent_profit_src is not None
 
         ni_row = 5
         nopat_row = 6
@@ -3129,7 +3394,15 @@ class ReferenceModelBuilder:
         share_fmt = "#,##0.0;(#,##0.0)"
         per_share_fmt = "0.000"
 
-        ws.cell(row=ni_row, column=1, value="Reported Net Income")
+        ws.cell(
+            row=ni_row,
+            column=1,
+            value=(
+                "Parent-Attributable Profit"
+                if use_parent_profit
+                else "Reported Net Income"
+            ),
+        )
         ws.cell(row=nopat_row, column=1, value="NOPAT")
         ws.cell(row=shares_row, column=1, value="Diluted Weighted-Average Shares")
         ws.cell(row=eps_row, column=1, value="Reported Diluted EPS")
@@ -3143,10 +3416,15 @@ class ReferenceModelBuilder:
 
         for j in range(self._n):
             col = self._col(2 + j)
-            for row, src in ((ni_row, ni_src), (nopat_row, nopat_src)):
-                formula = f"='Condensed Financials'!{col}{src}"
-                c = ws.cell(row=row, column=2 + j, value=formula)
-                c.number_format = NUM_FMT
+            if use_parent_profit:
+                ni_formula = f"='Income Statement'!{col}{parent_profit_src}"
+            else:
+                ni_formula = f"='Condensed Financials'!{col}{ni_src}"
+            c = ws.cell(row=ni_row, column=2 + j, value=ni_formula)
+            c.number_format = NUM_FMT
+            nopat_formula = f"='Condensed Financials'!{col}{nopat_src}"
+            c = ws.cell(row=nopat_row, column=2 + j, value=nopat_formula)
+            c.number_format = NUM_FMT
 
             share_val = series.diluted_weighted_average_shares[j]
             c = ws.cell(row=shares_row, column=2 + j, value=float(share_val))

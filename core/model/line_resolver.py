@@ -111,6 +111,34 @@ _EXACT_ALIASES: dict[str, frozenset[str]] = {
             "operating lease liabilities",
         }
     ),
+    "profit_attributable_to_owners": frozenset(
+        {
+            "owners of the parent",
+            "profit attributable to owners of the parent",
+            "profit attributable to owners of the parent company",
+            "equity holders of the parent",
+        }
+    ),
+    "profit_attributable_to_nci": frozenset(
+        {
+            "non controlling interests",
+            "non-controlling interests",
+            "profit attributable to non controlling interests",
+            "profit attributable to non-controlling interests",
+        }
+    ),
+    "equity_attributable_to_owners": frozenset(
+        {
+            "equity attributable to owners of the parent",
+            "equity attributable to owners of the parent company",
+        }
+    ),
+    "noncontrolling_interests": frozenset(
+        {
+            "non controlling interests",
+            "non-controlling interests",
+        }
+    ),
 }
 
 

@@ -1,6 +1,8 @@
+**Status:** Step 9M.3C complete — G5 parent/NCI attribution + parent ROE; FR Stages 1–7 pass with expected_specs=346. Stopped for user checkpoint.
+
 # Step 9M.3C — Parent / NCI Attribution and Parent ROE Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 > **For Cursor:** Read `TARGET.md`, then `benchmark/fast_retailing/GAPS.md`, then this plan in full. The accepted implementation base is commit `9f3c4b0f35b50fd885e68849fe12ec71b5899a0e` (`Step 9M.3B`). Implement only Step 9M.3C using red/green TDD. Do not begin G6 share-basis restatement, G7 conflict-policy changes, PDF/AI extraction, forecasting, valuation, scenarios, or investment conclusions. Do not commit, push, reset, rebase, merge, clean, or delete branches; the user owns checkpoint commits.
 
@@ -97,11 +99,11 @@ ownership_attribution_availability(financials) -> OwnershipAttributionAvailabili
 compute_ownership_attribution_series(financials, periods) -> OwnershipAttributionSeries
 ```
 
-- [ ] **Step 1: Write resolver tests for all four exact concepts**
+- [x] **Step 1: Write resolver tests for all four exact concepts**
 
 Require exact `LineItem.concept` resolution first. Add narrow exact-label aliases only for conventional parent/NCI labels such as `Owners of the Parent`, `Profit attributable to owners of the Parent`, `Non-controlling interests`, and `Equity attributable to owners of the Parent`. Do not use broad `owner`, `minority`, or `interest` substring matching.
 
-- [ ] **Step 2: Write availability tests**
+- [x] **Step 2: Write availability tests**
 
 Cover:
 
@@ -112,7 +114,7 @@ one/more lines missing                -> available=False, partial=True
 duplicate same-priority parent/NCI row -> available=False, ambiguous=True
 ```
 
-- [ ] **Step 3: Write the core series and rounding-bound tests**
+- [x] **Step 3: Write the core series and rounding-bound tests**
 
 Use a two-period fixture with complete reported total profit/equity and all four attribution lines. Require:
 
@@ -131,7 +133,7 @@ series.parent_roe[1] == pytest.approx(
 
 Accept bridge gaps exactly at `1.5`; reject `> 1.5` with `OwnershipAttributionIntegrityError`.
 
-- [ ] **Step 4: Run Task 1 red**
+- [x] **Step 4: Run Task 1 red**
 
 ```bash
 PYTHONPATH=. pytest \
@@ -140,11 +142,11 @@ PYTHONPATH=. pytest \
   -v
 ```
 
-- [ ] **Step 5: Implement the minimal resolver/module**
+- [x] **Step 5: Implement the minimal resolver/module**
 
 Use `required_period_value()` / `required_period_series()` for full-axis completeness. Do not derive a missing component from the bridge. Keep the 1.5 reporting-unit tolerance local and explicit (`0.5 * (2 + 1)`).
 
-- [ ] **Step 6: Run Task 1 green**
+- [x] **Step 6: Run Task 1 green**
 
 Run the same command; require all selected tests pass.
 
@@ -180,15 +182,15 @@ self.ownership_attribution_series
 self.ownership_attribution_specs
 ```
 
-- [ ] **Step 1: Write catalog-expansion tests**
+- [x] **Step 1: Write catalog-expansion tests**
 
 For five periods require `6 * 5 + 1 * 4 = 34` concrete ownership specs and family orders exactly `91..97`.
 
-- [ ] **Step 2: Write builder applicability tests**
+- [x] **Step 2: Write builder applicability tests**
 
 Complete attribution fixture -> module/specs present. No attribution evidence -> `ownership_attribution_series is None` and specs empty. Partial/ambiguous presentation -> module omitted; the existing historical model still builds, because this remains an optional module.
 
-- [ ] **Step 3: Write workbook-formula tests**
+- [x] **Step 3: Write workbook-formula tests**
 
 Add one visible `Ownership Attribution` sheet. Formula contract:
 
@@ -206,11 +208,11 @@ Parent ROE               -> Parent Profit / average current+prior Parent Equity
 
 The first Parent ROE period is display-only `N/A`/blank, not a comparable practice cell.
 
-- [ ] **Step 4: Register semantic expected values and Check behavior**
+- [x] **Step 4: Register semantic expected values and Check behavior**
 
 The 34 new components must use the same Python `OwnershipAttributionSeries` values as workbook formulas. Trainer cells are blank yellow; Answer Key formulas/Notes are populated; Check grades all 34.
 
-- [ ] **Step 5: Run Task 2 tests**
+- [x] **Step 5: Run Task 2 tests**
 
 ```bash
 PYTHONPATH=. pytest \
@@ -252,23 +254,23 @@ no ownership/NCI evidence       -> existing consolidated net_income behavior
 partial/ambiguous evidence      -> fail closed if per-share computation is requested
 ```
 
-- [ ] **Step 1: Add whole-owned regression**
+- [x] **Step 1: Add whole-owned regression**
 
 Existing share-enabled fixtures with no ownership evidence must produce exactly the same EPS as before.
 
-- [ ] **Step 2: Add NCI fixture with shares**
+- [x] **Step 2: Add NCI fixture with shares**
 
 With total profit `110`, parent profit `100`, NCI profit `10`, and diluted shares `10`, require reported diluted EPS = `10.0`, not `11.0`.
 
-- [ ] **Step 3: Update per-share attribution to use the same numerator**
+- [x] **Step 3: Update per-share attribution to use the same numerator**
 
 `compute_per_share_attribution_series()` must use `per_share.earnings_numerator`, not `anchor.historical.net_income`, so the level and change bridge cannot disagree.
 
-- [ ] **Step 4: Add partial-attribution fail-closed test**
+- [x] **Step 4: Add partial-attribution fail-closed test**
 
 If NCI/parent attribution evidence is present but incomplete and historical shares are supplied, `compute_per_share_series()` must raise a specific ownership-attribution error rather than silently using consolidated profit.
 
-- [ ] **Step 5: Run Task 3 tests**
+- [x] **Step 5: Run Task 3 tests**
 
 ```bash
 PYTHONPATH=. pytest \
@@ -292,11 +294,11 @@ Do not activate Fast Retailing per-share in this task; `historical_shares` remai
 - Modify after measured verification: `benchmark/fast_retailing/BASELINE.md`
 - Modify after measured verification: `RESULT.md`
 
-- [ ] **Step 1: Assert all four five-year attribution concepts exist**
+- [x] **Step 1: Assert all four five-year attribution concepts exist**
 
 Locate by concept, not row position. Require complete 2021–2025 values for parent profit, NCI profit, parent equity, and NCI equity.
 
-- [ ] **Step 2: Assert FY2025 literal facts and bridges**
+- [x] **Step 2: Assert FY2025 literal facts and bridges**
 
 Require:
 
@@ -314,11 +316,11 @@ equity bridge gap                    -1
 
 Both gaps must be accepted without mutation because they are inside the 1.5-unit reporting envelope.
 
-- [ ] **Step 3: Assert parent ROE is separate from consolidated DuPont ROE**
+- [x] **Step 3: Assert parent ROE is separate from consolidated DuPont ROE**
 
 Require the ownership schedule to compute parent ROE from reported parent profit/equity. Do not require equality to `anchor.dupont["ROE (decomposed)"]`; add a regression explicitly preventing production code from replacing consolidated NOA/Net Debt/NOPAT with parent-only quantities.
 
-- [ ] **Step 4: Assert module count**
+- [x] **Step 4: Assert module count**
 
 Step 9M.3B has `expected_specs=312`. With complete Fast Retailing ownership attribution, Step 9M.3C should add 34 specs:
 
@@ -329,7 +331,7 @@ expected_specs = 346
 
 If the measured catalog count differs, stop and inspect the family inventory rather than changing the expected number blindly.
 
-- [ ] **Step 5: Run the benchmark acceptance test**
+- [x] **Step 5: Run the benchmark acceptance test**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
@@ -342,7 +344,7 @@ PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
 **Files:**
 - Test only except measured documentation/status updates.
 
-- [ ] **Step 1: Run the focused Step 9M.3C suite**
+- [x] **Step 1: Run the focused Step 9M.3C suite**
 
 ```bash
 PYTHONPATH=. pytest \
@@ -357,7 +359,7 @@ PYTHONPATH=. pytest \
 
 Record the literal pass count.
 
-- [ ] **Step 2: Run the full historical regression suite**
+- [x] **Step 2: Run the full historical regression suite**
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
@@ -365,7 +367,7 @@ PYTHONPATH=. pytest core/tests/ -q
 
 Record the literal pass count.
 
-- [ ] **Step 3: Run the staged Fast Retailing audit**
+- [x] **Step 3: Run the staged Fast Retailing audit**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
@@ -379,7 +381,7 @@ blank Check:  correct=0 incorrect=0 blank=346 total=346
 filled Check: correct=346 incorrect=0 blank=0 total=346
 ```
 
-- [ ] **Step 4: Verify source/provenance/conflict artifacts did not drift**
+- [x] **Step 4: Verify source/provenance/conflict artifacts did not drift**
 
 ```bash
 git diff -- \
@@ -393,11 +395,11 @@ Expected: no output. Preserve overlap conflicts = 3 and supplemental conflicts =
 
 `standardized.json` should not need a schema change for G5 because the four attribution concepts already exist as statement rows.
 
-- [ ] **Step 5: Verify forecast/valuation isolation and existing lease behavior**
+- [x] **Step 5: Verify forecast/valuation isolation and existing lease behavior**
 
 Run the existing normal-build scenario/forecast isolation regression plus Step 9M.3B lease-treatment tests. Family orders below the new ownership range remain unchanged; new ownership family orders are exactly `91..97`.
 
-- [ ] **Step 6: Update documentation from literal evidence**
+- [x] **Step 6: Update documentation from literal evidence**
 
 If all acceptance criteria pass:
 
@@ -408,7 +410,7 @@ G6/G7 -> remain open
 
 Document that parent ROE is a separate shareholder-attribution diagnostic and that consolidated BAV DuPont remains unchanged. Document that the per-share engine is now ownership-safe but Fast Retailing per-share remains omitted until G6 establishes a comparable post-split share axis.
 
-- [ ] **Step 7: Mark Step 9M.3C complete only after fresh evidence, then stop**
+- [x] **Step 7: Mark Step 9M.3C complete only after fresh evidence, then stop**
 
 At the top of `IMPLEMENTATION.md` and in `RESULT.md`, record actual focused/full test counts, ownership spec count, Fast Retailing Stage 1–7 state, and Check totals. Do not begin G6 in the same checkpoint.
 
