@@ -1,8 +1,8 @@
-# Fast Retailing Benchmark Baseline (Step 9M.2A)
+# Fast Retailing Benchmark Baseline (Step 9M.2B)
 
-- Accounting engine phase: Step 9M.2A (G1/G2 implementation on accepted Step 9M.1.1 base)
+- Accounting engine phase: Step 9M.2B (residual other-balance guided classification on 9M.2A base)
 - Input path: generic `extracted/` → `validate-source` → `reconcile` → `reconciled/`
-- Benchmark phase: measurement only — G1/G2 closed; G3–G7 remain open
+- Benchmark phase: measurement only — G1/G2/G2B closed; G3–G7 remain open
 - Five fiscal periods: 2021-08-31 … 2025-08-31
 
 ## Source hashes
@@ -19,7 +19,7 @@
 - Supplemental provenance source-bound: yes
 - Portable source-path validation: yes
 - Silent repeated-share overwrite removed: yes
-- G1 closed in 9M.2A; G2 closed in 9M.2A; G3–G7 remain open
+- G1 closed in 9M.2A; G2 closed in 9M.2A; G2B residual other-balance closed in 9M.2B; G3–G7 remain open
 
 ## Stage results
 
@@ -28,7 +28,7 @@
 | 1_source_fixture_load | pass | loaded |
 | 2_identity_validation | pass |  |
 | 3_reconciliation | pass |  |
-| 4_reference_model_builder | fail | Cannot safely classify balance-sheet line 'Other assets'; provide classificationOverrides['Other assets'] |
+| 4_reference_model_builder | fail | Cannot safely classify balance-sheet line 'Current tax liabilities'; provide classificationOverrides['Current tax liabilities'] |
 | 5_workbook_generation | skipped | prior stage failed |
 | 6_blank_check | skipped | prior stage failed |
 | 7_filled_check | skipped | prior stage failed |
@@ -38,7 +38,7 @@
 - Stage: `4_reference_model_builder`
 - Status: `fail`
 - Exception: `UnclassifiedBalanceSheetLineError`
-- Message: Cannot safely classify balance-sheet line 'Other assets'; provide classificationOverrides['Other assets']
+- Message: Cannot safely classify balance-sheet line 'Current tax liabilities'; provide classificationOverrides['Current tax liabilities']
 
 ## Module applicability (source fixture)
 

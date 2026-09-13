@@ -162,6 +162,66 @@ CLASSIFICATION_JUDGMENT_TEMPLATES: dict[str, ClassificationJudgmentTemplate] = {
             "by the classification switch alone."
         ),
     ),
+    "other_current_asset_operating_vs_financial": ClassificationJudgmentTemplate(
+        topic="Other current asset: operating vs financial",
+        options=("Operating Working Capital Asset", "Financial Asset"),
+        model_rationale=(
+            "The residual current-asset concept proves balance-sheet side and horizon "
+            "but not whether the balance is operating working capital or a financial "
+            "asset in economic substance."
+        ),
+        consequence_prompt=CONSEQUENCE_PROMPT,
+        model_consequence=(
+            "Operating-WC treatment raises NOWC/NOA; financial-asset treatment lowers "
+            "Net Debt by the same balance. Implied equity is unchanged by the "
+            "classification switch alone."
+        ),
+    ),
+    "other_noncurrent_asset_operating_vs_financial": ClassificationJudgmentTemplate(
+        topic="Other non-current asset: operating vs financial",
+        options=("Operating Long-Term Asset", "Financial Asset"),
+        model_rationale=(
+            "The residual non-current-asset concept proves balance-sheet side and "
+            "horizon but not whether the balance is an operating long-term asset or a "
+            "financial asset in economic substance."
+        ),
+        consequence_prompt=CONSEQUENCE_PROMPT,
+        model_consequence=(
+            "Operating-LT treatment raises NOLA/NOA; financial-asset treatment lowers "
+            "Net Debt by the same balance. Implied equity is unchanged by the "
+            "classification switch alone."
+        ),
+    ),
+    "other_current_liability_operating_vs_financial": ClassificationJudgmentTemplate(
+        topic="Other current liability: operating vs financial",
+        options=("Operating Working Capital Liability", "Financial Liability"),
+        model_rationale=(
+            "The residual current-liability concept proves balance-sheet side and "
+            "horizon but not whether the balance is an operating working-capital "
+            "liability or a financial liability in economic substance."
+        ),
+        consequence_prompt=CONSEQUENCE_PROMPT,
+        model_consequence=(
+            "Operating-WC-liability treatment lowers NOWC/NOA; financial-liability "
+            "treatment raises Net Debt by the same balance. Implied equity is unchanged "
+            "by the classification switch alone."
+        ),
+    ),
+    "other_noncurrent_liability_operating_vs_financial": ClassificationJudgmentTemplate(
+        topic="Other non-current liability: operating vs financial",
+        options=("Operating Long-Term Liability", "Financial Liability"),
+        model_rationale=(
+            "The residual non-current-liability concept proves balance-sheet side and "
+            "horizon but not whether the balance is an operating long-term liability or "
+            "a financial liability in economic substance."
+        ),
+        consequence_prompt=CONSEQUENCE_PROMPT,
+        model_consequence=(
+            "Operating-LT-liability treatment lowers NOLA/NOA; financial-liability "
+            "treatment raises Net Debt by the same balance. Implied equity is unchanged "
+            "by the classification switch alone."
+        ),
+    ),
 }
 
 

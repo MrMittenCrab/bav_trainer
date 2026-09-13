@@ -36,8 +36,8 @@ P1 = date(2024, 12, 31)
 P2 = date(2025, 12, 31)
 
 
-def _li(label: str, v1: float, v2: float) -> LineItem:
-    return LineItem(label=label, values={P1: v1, P2: v2})
+def _li(label: str, v1: float, v2: float, *, concept: str = "") -> LineItem:
+    return LineItem(label=label, concept=concept, values={P1: v1, P2: v2})
 
 
 def _periods() -> list[FinancialPeriod]:
@@ -702,4 +702,157 @@ def test_generic_financial_judgment_cases_and_override():
     # Financial-asset -> operating WC raises NOA and Net Debt together.
     assert reform_alt.noa[0] > reform.noa[0]
     assert reform_alt.net_debt[0] > reform.net_debt[0]
+
+
+@pytest.mark.parametrize(
+    ("label", "concept", "category", "judgment_code"),
+    [
+        (
+            "Other assets",
+            "other_current_assets",
+            "Operating Working Capital Asset",
+            "other_current_asset_operating_vs_financial",
+        ),
+        (
+            "Other assets",
+            "other_noncurrent_assets",
+            "Operating Long-Term Asset",
+            "other_noncurrent_asset_operating_vs_financial",
+        ),
+        (
+            "Other liabilities",
+            "other_current_liabilities",
+            "Operating Working Capital Liability",
+            "other_current_liability_operating_vs_financial",
+        ),
+        (
+            "Other liabilities",
+            "other_noncurrent_liabilities",
+            "Operating Long-Term Liability",
+            "other_noncurrent_liability_operating_vs_financial",
+        ),
+    ],
+)
+def test_explicit_other_balance_concepts_become_guided_judgments(
+    label, concept, category, judgment_code
+):
+    item = _li(label, 10, 12, concept=concept)
+    decision = classify_balance_sheet_line(item)
+    assert decision.category == category
+    assert decision.ambiguous is True
+    assert decision.judgment_code == judgment_code
+    assert decision.reason
+
+
+@pytest.mark.parametrize(
+    ("label", "concept"),
+    [
+        ("Other assets", ""),
+        ("Other liabilities", ""),
+        ("Other assets", "other_assets"),
+        ("Other liabilities", "other_liabilities"),
+        ("Other assets", "miscellaneous_current_asset"),
+        ("Other liabilities", "miscellaneous_noncurrent_liability"),
+    ],
+)
+def test_other_balance_without_explicit_side_concept_still_fails_closed(label, concept):
+    with pytest.raises(UnclassifiedBalanceSheetLineError):
+        classify_balance_sheet_line(_li(label, 10, 12, concept=concept))
+
+
+def test_other_balance_concept_does_not_override_specific_cash_label():
+    decision = classify_balance_sheet_line(
+        _li("Cash and cash equivalents", 10, 12, concept="other_current_assets")
+    )
+    assert decision.category == "Financial Asset"
+    assert decision.judgment_code != "other_current_asset_operating_vs_financial"
+    assert decision.ambiguous is False
+
+
+def _residual_other_balance_fin() -> StandardizedFinancials:
+    return StandardizedFinancials(
+        ticker="OTHER",
+        company_name="Other Balance Co",
+        currency="HKD",
+        units="HKD in Millions",
+        jurisdiction="HK",
+        periods=_periods(),
+        income_statement=[],
+        balance_sheet=[
+            _li("Other current assets", 10, 11, concept="other_current_assets"),
+            _li("Other non-current assets", 20, 21, concept="other_noncurrent_assets"),
+            _li(
+                "Other current liabilities",
+                5,
+                6,
+                concept="other_current_liabilities",
+            ),
+            _li(
+                "Other non-current liabilities",
+                7,
+                8,
+                concept="other_noncurrent_liabilities",
+            ),
+            _li("Share capital and reserves", 18, 18, concept="retained_earnings"),
+        ],
+        cash_flow=[],
+    )
+
+
+def test_other_balance_judgment_cases_and_consequence_directions():
+    fin = _residual_other_balance_fin()
+    periods = [P1, P2]
+    reform = reformulate_balance_sheet(fin, periods)
+    cases = classification_judgment_cases(fin, periods, reform)
+    assert {case.label for case in cases} >= {
+        "Other current assets",
+        "Other non-current assets",
+        "Other current liabilities",
+        "Other non-current liabilities",
+    }
+
+    expected = {
+        "Other current assets": (
+            "Operating Working Capital Asset",
+            "Financial Asset",
+            "down",
+        ),
+        "Other non-current assets": (
+            "Operating Long-Term Asset",
+            "Financial Asset",
+            "down",
+        ),
+        "Other current liabilities": (
+            "Operating Working Capital Liability",
+            "Financial Liability",
+            "up",
+        ),
+        "Other non-current liabilities": (
+            "Operating Long-Term Liability",
+            "Financial Liability",
+            "up",
+        ),
+    }
+    by_label = {case.label: case for case in cases}
+    for label, (supplied, alt, direction) in expected.items():
+        case = by_label[label]
+        assert case.supplied_treatment == supplied
+        assert case.alternatives == (alt,)
+        assert case.model_rationale
+        assert case.consequence_prompt
+        assert case.model_consequence
+        assert case.override_selector.startswith("identity:")
+
+        reform_alt = reformulate_balance_sheet(
+            fin,
+            periods,
+            overrides={case.override_selector: case.alternatives[0]},
+        )
+        assert reform_alt.implied_equity == reform.implied_equity
+        if direction == "down":
+            assert reform_alt.noa[0] < reform.noa[0]
+            assert reform_alt.net_debt[0] < reform.net_debt[0]
+        else:
+            assert reform_alt.noa[0] > reform.noa[0]
+            assert reform_alt.net_debt[0] > reform.net_debt[0]
 

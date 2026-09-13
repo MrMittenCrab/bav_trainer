@@ -206,7 +206,9 @@ def _classify_by_concept(item: LineItem) -> ClassificationDecision | None:
     ):
         return ClassificationDecision("Equity")
 
-    return _generic_financial_concept_decision(item)
+    return _generic_financial_concept_decision(item) or _generic_other_balance_concept_decision(
+        item
+    )
 
 
 def _generic_financial_concept_decision(
@@ -269,6 +271,57 @@ def _generic_financial_concept_decision(
         )
 
     return None
+
+
+def _generic_other_balance_concept_decision(
+    item: LineItem,
+) -> ClassificationDecision | None:
+    c = _concept_token(item.concept or "")
+    low = _norm(item.label)
+
+    mapping = {
+        "othercurrentassets": (
+            "asset",
+            "Operating Working Capital Asset",
+            "other_current_asset_operating_vs_financial",
+        ),
+        "othernoncurrentassets": (
+            "asset",
+            "Operating Long-Term Asset",
+            "other_noncurrent_asset_operating_vs_financial",
+        ),
+        "othercurrentliabilities": (
+            "liability",
+            "Operating Working Capital Liability",
+            "other_current_liability_operating_vs_financial",
+        ),
+        "othernoncurrentliabilities": (
+            "liability",
+            "Operating Long-Term Liability",
+            "other_noncurrent_liability_operating_vs_financial",
+        ),
+    }
+    spec = mapping.get(c)
+    if spec is None:
+        return None
+
+    side, category, judgment_code = spec
+    if side == "asset":
+        if "other" not in low or "asset" not in low or "liab" in low:
+            return None
+    else:
+        if "other" not in low or "liabil" not in low:
+            return None
+
+    return ClassificationDecision(
+        category,
+        ambiguous=True,
+        reason=(
+            "Explicit residual balance-sheet concept identifies side/horizon but "
+            "not economic nature — operating vs financial judgment"
+        ),
+        judgment_code=judgment_code,
+    )
 
 
 def _label_match_key(label: str) -> str:

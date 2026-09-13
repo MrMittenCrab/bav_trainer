@@ -1,6 +1,6 @@
 # Fast Retailing Gap Queue
 
-Evidence basis for Step 9M.2A. Measurement only for remaining gaps — no speculative production redesign here.
+Evidence basis for Step 9M.2B. Measurement only for remaining gaps — no speculative production redesign here.
 
 Categories:
 - **A** source-extraction / provenance defect
@@ -9,14 +9,14 @@ Categories:
 - **D** optional-module input-contract gap
 - **E** comparative/restatement/share-basis conflict
 
-## Observed engine stages (Step 9M.2A)
+## Observed engine stages (Step 9M.2B)
 
 | Stage | Result |
 |---|---|
 | source fixture load | pass |
 | identity validation | pass |
-| financial reconciliation | **pass** (G1 closed — `<= 1.0` reporting-unit residual accepted) |
-| ReferenceModelBuilder | **fail** — unclassified `Other assets` (not a G2 financial-instrument row) |
+| financial reconciliation | **pass** (G1 closed) |
+| ReferenceModelBuilder | **fail** — unclassified `Current tax liabilities` |
 | workbook generation / Check | skipped |
 
 ## Gaps
@@ -34,6 +34,18 @@ Categories:
 - **Stage:** `4_reference_model_builder`
 - **Resolution:** Explicit side-aware financial-instrument concepts (`other_financial_assets_current`, `financial_assets_noncurrent`, derivative asset/liability variants, etc.) now classify as guided Accounting Judgment cases (`ambiguous=True`, financial default + side-appropriate operating alternative). Vague labels without usable concept evidence still fail closed.
 - **Evidence:** known G2 rows no longer appear in Stage-4 failure messages; synthetic judgment cases generate for all four side-aware codes.
+
+### G2B — Residual other asset/liability concepts — **CLOSED in Step 9M.2B**
+
+- **Category:** B
+- **Stage:** `4_reference_model_builder`
+- **Resolution:** Exact current/non-current residual concepts
+  (`other_current_assets`, `other_noncurrent_assets`, `other_current_liabilities`,
+  `other_noncurrent_liabilities`) now produce guided operating-vs-financial Accounting
+  Judgment cases (operating default). Bare labels `Other assets` / `Other liabilities`
+  without those concepts still fail closed. No company-specific production rule.
+- **Evidence:** Fast Retailing residual rows classify with the four new judgment codes;
+  Stage 4 no longer fails on `Other assets` / `Other liabilities`.
 
 ### G3 — Split lease liabilities omit lease diagnostic module (expected under 9L.1)
 
@@ -82,13 +94,13 @@ Categories:
 - **Synthetic coverage:** none for audited restatement overlaps.
 - **Why generalizable:** Latest-audited-presentation must remain explicit; silent overwrites are forbidden.
 
-## Post-9M.2A first remaining blocker
+## Post-9M.2B first remaining blocker
 
 - **Stage:** `4_reference_model_builder`
 - **Exception:** `UnclassifiedBalanceSheetLineError`
-- **Message:** `Cannot safely classify balance-sheet line 'Other assets'; provide classificationOverrides['Other assets']`
+- **Message:** `Cannot safely classify balance-sheet line 'Current tax liabilities'; provide classificationOverrides['Current tax liabilities']`
 - **Workbook generation / Check:** not reached (skipped after Stage 4)
-- **Note:** This is **not** one of the eight explicit G2 financial-instrument concepts. Left open for a later checkpoint; not fixed in 9M.2A.
+- **Note:** This is **not** one of the four residual `other_*` concepts closed in 9M.2B. Left open for a later checkpoint; not fixed here.
 
 ## Corrected extraction note (A — closed in 9M.0)
 

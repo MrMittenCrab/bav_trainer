@@ -279,7 +279,7 @@ def test_audit_script_writes_baseline_and_stage_records():
         "7_filled_check",
     ):
         assert stage in text
-    assert "Step 9M.2A" in text
+    assert "Step 9M.2A" in text or "Step 9M.2B" in text
     assert "pass" in completed.stdout or "fail" in completed.stdout
 
 
@@ -303,6 +303,42 @@ def test_fast_retailing_g2_generic_financial_rows_are_guided_judgments():
         assert decision.judgment_code == G2_CONCEPT_CODES[concept]
         seen.add(concept)
     assert seen, "expected at least one known G2 financial-instrument concept"
+
+
+OTHER_BALANCE_CONCEPT_CODES = {
+    "other_current_assets": (
+        "Operating Working Capital Asset",
+        "other_current_asset_operating_vs_financial",
+    ),
+    "other_noncurrent_assets": (
+        "Operating Long-Term Asset",
+        "other_noncurrent_asset_operating_vs_financial",
+    ),
+    "other_current_liabilities": (
+        "Operating Working Capital Liability",
+        "other_current_liability_operating_vs_financial",
+    ),
+    "other_noncurrent_liabilities": (
+        "Operating Long-Term Liability",
+        "other_noncurrent_liability_operating_vs_financial",
+    ),
+}
+
+
+def test_fast_retailing_other_balance_rows_are_guided_judgments():
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    seen = set()
+    for item in fin.balance_sheet:
+        concept = (item.concept or "").strip()
+        if concept not in OTHER_BALANCE_CONCEPT_CODES:
+            continue
+        category, code = OTHER_BALANCE_CONCEPT_CODES[concept]
+        decision = classify_balance_sheet_line(item)
+        assert decision.category == category
+        assert decision.ambiguous is True
+        assert decision.judgment_code == code
+        seen.add(concept)
+    assert seen == set(OTHER_BALANCE_CONCEPT_CODES)
 
 
 def test_fast_retailing_audit_stages_pass_g1_and_no_longer_fail_on_g2():
@@ -334,3 +370,14 @@ def test_fast_retailing_audit_stages_pass_g1_and_no_longer_fail_on_g2():
         assert "financial assets" not in stage4.message.lower() or (
             "Cannot safely classify" not in stage4.message
         )
+
+
+def test_fast_retailing_audit_no_longer_fails_on_other_assets_or_liabilities():
+    result = run_audit()
+    stages = {stage.stage: stage for stage in result["stages"]}
+    assert stages["3_reconciliation"].status == "pass"
+    stage4 = stages["4_reference_model_builder"]
+    if stage4.status == "fail" and stage4.exception_type == "UnclassifiedBalanceSheetLineError":
+        message = stage4.message
+        assert "Other assets" not in message
+        assert "Other liabilities" not in message
