@@ -233,9 +233,90 @@ Step 9 should proceed in this order:
 
 Do not jump from the release-gated historical-v1 baseline directly into forecasting merely because the baseline is technically complete.
 
+## Autonomous progression policy
+
+Step 9 remains the highest priority. Autonomous planning should continue historical work while there is a material, source-supported gap in the Step 9 roadmap. Do not advance merely because a convenient implementation milestone has been reached.
+
+However, Step 9 is not open-ended. Do not create low-value historical work merely to remain in Step 9.
+
+### Step 9 exit gate
+
+Step 9 is complete when all of the following are true:
+
+- the GOOGL historical reference audit has no unresolved high-value historical gap;
+- historically material modules supported by available source facts are implemented, tested, or explicitly deferred with a documented reason;
+- the source-document → filing JSON → reconciliation → `StandardizedFinancials` → reference-model → Trainer/Answer-Key path has been demonstrated on real-company data;
+- optional historical modules fail closed when required evidence is missing or contradictory;
+- historical analytical schedules, learner practice surfaces, Check behavior, provenance, and workbook generation pass their required regression and benchmark tests;
+- no known historical defect or missing module materially limits the learner's ability to analyze an unfamiliar non-financial company.
+
+Once this gate is satisfied, the next plan must advance to Step 10 rather than inventing additional historical polish.
+
+A completed roadmap item should not be reopened unless a later regression, benchmark, or new source-supported requirement exposes a concrete defect.
+
+### Step 10 — Driver-based forecasting
+
+Build forecasting only after Step 9 passes its exit gate.
+
+The forecasting system should:
+
+- begin from the verified historical analytical model;
+- forecast explicit operating drivers rather than extrapolating outputs mechanically;
+- link revenue, margins, working capital, capex, depreciation, taxes, financing, and share-count assumptions to the relevant historical diagnostics;
+- distinguish supplied assumptions, learner assumptions, and calculated outputs;
+- preserve accounting identities and historical/forecast continuity;
+- make key assumptions auditable and suitable for learner practice;
+- support a coherent base case before introducing alternative scenarios.
+
+Step 10 is complete when an unfamiliar supported company can move from verified historical analysis to an internally coherent, driver-based forecast with tested formulas, assumptions, and accounting links.
+
+### Step 11 — Valuation and scenarios
+
+Only after Step 10 is verified, add valuation and scenario analysis.
+
+The valuation system should:
+
+- consume the verified historical and forecast model rather than duplicate it;
+- implement BAV-consistent valuation methods and appropriate cross-checks;
+- make cost-of-capital, terminal-value, and other material valuation assumptions explicit;
+- support disciplined Bear / Base / Bull scenarios by changing economically meaningful drivers;
+- expose major sensitivities without creating arbitrary scenario complexity;
+- reconcile valuation outputs to per-share equity value and relevant market inputs.
+
+Step 11 is complete when valuation is internally reconciled, scenario differences can be traced to explicit assumptions, and major sensitivities are visible and testable.
+
+### Step 12 — Investment interpretation
+
+Only after historical analysis, forecasting, and valuation are verified, build the final research interpretation layer.
+
+The learner should be able to:
+
+- identify the principal historical and forecast value drivers;
+- distinguish operating improvement from financing, accounting, tax, acquisition, and dilution effects;
+- state the assumptions on which valuation depends;
+- identify material risks and variant views;
+- connect scenario and sensitivity results to the investment thesis;
+- produce a concise, evidence-based investment conclusion.
+
+Prefer structured analytical prompts and verifiable outputs before introducing unrestricted free-form grading.
+
+### Autonomous planning rule
+
+For unattended development, always work on the lowest-numbered incomplete stage:
+
+Step 9 → Step 10 → Step 11 → Step 12.
+
+Within a stage, choose the highest-value unresolved dependency or defect, not cosmetic polish.
+
+Advance to the next stage only when the current stage's exit conditions are supported by repository evidence and tests.
+
+If the broader end-state is reached before the requested autocycle count is exhausted, return `DONE` and stop rather than manufacturing additional work.
+
 ## Forecast / valuation boundary
 
 Forecasting, residual-income valuation, DCF/cross-check valuation, terminal value, Bear/Base/Bull scenarios, and forward valuation multiples remain deferred during the current Step 9 stage.
+
+This deferral ends automatically when the Step 9 exit gate above is satisfied; no separate product-direction decision is required to begin Step 10.
 
 The repository may retain dormant forecast/valuation scaffolding, but normal historical builds must not execute it or depend on forecast outputs.
 
