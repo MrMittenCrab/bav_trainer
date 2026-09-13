@@ -15,6 +15,7 @@ from ..model.historical_expected import expected_value_for_component
 from ..model.normalization import NormalizationCase, compute_normalization_series
 from ..model.period_axis import canonical_fiscal_periods
 from ..engine.component_catalog import (
+    DEFERRED_TAX_COMPONENT_CATALOG,
     FIXED_ASSET_COMPONENT_CATALOG,
     GOODWILL_INTANGIBLES_COMPONENT_CATALOG,
     LEASE_LIABILITY_COMPONENT_CATALOG,
@@ -27,6 +28,10 @@ from ..engine.component_catalog import (
     QUALITY_COMPONENT_CATALOG,
 )
 from ..model.fixed_asset import compute_fixed_asset_series, fixed_asset_applicable
+from ..model.deferred_tax import (
+    compute_deferred_tax_series,
+    deferred_tax_applicable,
+)
 from ..model.goodwill_intangibles import (
     compute_goodwill_intangibles_series,
     goodwill_intangibles_applicable,
@@ -247,6 +252,16 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                         list(modeled_periods),
                         anchor,
                     )
+            deferred_tax_family_ids = {
+                family.id for family in DEFERRED_TAX_COMPONENT_CATALOG
+            }
+            deferred_tax = None
+            if any(comp.family_id in deferred_tax_family_ids for comp in comps):
+                if deferred_tax_applicable(financials):
+                    deferred_tax = compute_deferred_tax_series(
+                        financials,
+                        list(modeled_periods),
+                    )
             ownership_family_ids = {
                 family.id for family in OWNERSHIP_ATTRIBUTION_COMPONENT_CATALOG
             }
@@ -280,6 +295,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     fixed_asset=fixed_asset,
                     lease_liability=lease_liability,
                     lease_rou=lease_rou,
+                    deferred_tax=deferred_tax,
                     ownership_attribution=ownership_attribution,
                     goodwill_intangibles=goodwill_intangibles,
                     goodwill_intangibles_availability=gi_availability,

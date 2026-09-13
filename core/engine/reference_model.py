@@ -36,6 +36,11 @@ from ..model.lease_liability import (
     lease_liability_applicable,
     resolve_lease_liability_source,
 )
+from ..model.deferred_tax import (
+    compute_deferred_tax_series,
+    deferred_tax_applicable,
+    resolve_deferred_tax_sources,
+)
 from ..model.lease_rou import (
     compute_lease_rou_series,
     lease_rou_applicable,
@@ -70,6 +75,7 @@ from .component_catalog import (
     expand_goodwill_intangibles_specs,
     expand_historical_specs,
     expand_lease_liability_specs,
+    expand_deferred_tax_specs,
     expand_lease_rou_specs,
     expand_ownership_attribution_specs,
     expand_normalization_specs,
@@ -469,6 +475,36 @@ class ReferenceModelBuilder:
         else:
             self.lease_rou_series = None
             self.lease_rou_specs = ()
+        if deferred_tax_applicable(self.fin):
+            self.deferred_tax_series = compute_deferred_tax_series(
+                self.fin,
+                self.periods,
+            )
+            self.deferred_tax_specs = expand_deferred_tax_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + len(self.profitability_change_specs)
+                    + len(self.roe_attribution_specs)
+                    + len(self.quality_change_specs)
+                    + len(self.per_share_specs)
+                    + len(self.per_share_attribution_specs)
+                    + len(self.normalized_per_share_specs)
+                    + len(self.fixed_asset_specs)
+                    + len(self.lease_liability_specs)
+                    + len(self.ownership_attribution_specs)
+                    + len(self.goodwill_intangibles_specs)
+                    + len(self.lease_rou_specs)
+                    + 1
+                ),
+            )
+        else:
+            self.deferred_tax_series = None
+            self.deferred_tax_specs = ()
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
@@ -486,6 +522,7 @@ class ReferenceModelBuilder:
             + self.ownership_attribution_specs
             + self.goodwill_intangibles_specs
             + self.lease_rou_specs
+            + self.deferred_tax_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -537,6 +574,9 @@ class ReferenceModelBuilder:
         }
         self._lease_rou_spec_index = {
             (s.family_id, s.period_index): s for s in self.lease_rou_specs
+        }
+        self._deferred_tax_spec_index = {
+            (s.family_id, s.period_index): s for s in self.deferred_tax_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -946,6 +986,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._lease_rou_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_deferred_tax(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._deferred_tax_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -2521,6 +2577,126 @@ class ReferenceModelBuilder:
             self.rowmap["dupont_average_rou_assets_row"] = rou_avg_row
             self.rowmap["dupont_rou_assets_to_revenue_row"] = rou_intensity_row
             next_section_after = rou_intensity_row
+
+        if self.deferred_tax_series is not None:
+            dt_series = self.deferred_tax_series
+            dt_sources = resolve_deferred_tax_sources(self.fin)
+            assert dt_sources is not None
+            dta_src = self._resolved_source_row(
+                self.fin.balance_sheet, "deferred_tax_assets", required=True
+            )
+            dtl_src = self._resolved_source_row(
+                self.fin.balance_sheet, "deferred_tax_liabilities", required=True
+            )
+            assert dta_src is not None and dtl_src is not None
+
+            dt_section_row = next_section_after + 2
+            dta_level_row = dt_section_row + 1
+            dtl_level_row = dt_section_row + 2
+            net_row = dt_section_row + 3
+            dta_change_row = dt_section_row + 4
+            dtl_change_row = dt_section_row + 5
+            net_change_row = dt_section_row + 6
+
+            ws.cell(
+                row=dt_section_row, column=1, value="DEFERRED-TAX BALANCE CONTEXT"
+            ).font = BOLD
+            ws.cell(row=dta_level_row, column=1, value="Deferred Tax Assets")
+            ws.cell(row=dtl_level_row, column=1, value="Deferred Tax Liabilities")
+            ws.cell(
+                row=net_row,
+                column=1,
+                value="Net Deferred-Tax Asset Position (DTA − DTL)",
+            )
+            ws.cell(row=dta_change_row, column=1, value="Change in Deferred Tax Assets")
+            ws.cell(
+                row=dtl_change_row, column=1, value="Change in Deferred Tax Liabilities"
+            )
+            ws.cell(
+                row=net_change_row,
+                column=1,
+                value="Change in Net Deferred-Tax Asset Position",
+            )
+
+            for j in range(self._n):
+                out_col_idx = 2 + j
+                out_col = self._col(out_col_idx)
+                src_col = self._col(2 + j)
+                dta_f = f"='Balance Sheet'!{src_col}{dta_src}"
+                dtl_f = f"='Balance Sheet'!{src_col}{dtl_src}"
+                c = ws.cell(row=dta_level_row, column=out_col_idx, value=dta_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=dtl_level_row, column=out_col_idx, value=dtl_f)
+                c.number_format = NUM_FMT
+
+                net_f = f"={out_col}{dta_level_row}-{out_col}{dtl_level_row}"
+                c = ws.cell(row=net_row, column=out_col_idx, value=net_f)
+                c.number_format = NUM_FMT
+                self._register_deferred_tax(
+                    "net_deferred_tax_position",
+                    j,
+                    "ALT DuPont",
+                    net_row,
+                    out_col_idx,
+                    net_f,
+                    float(dt_series.net_deferred_tax_position[j]),
+                )
+
+                if j == 0:
+                    continue
+
+                prev_col = self._col(2 + j - 1)
+                dta_change_f = f"={out_col}{dta_level_row}-{prev_col}{dta_level_row}"
+                dtl_change_f = f"={out_col}{dtl_level_row}-{prev_col}{dtl_level_row}"
+                net_change_f = f"={out_col}{net_row}-{prev_col}{net_row}"
+                c = ws.cell(row=dta_change_row, column=out_col_idx, value=dta_change_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=dtl_change_row, column=out_col_idx, value=dtl_change_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=net_change_row, column=out_col_idx, value=net_change_f)
+                c.number_format = NUM_FMT
+
+                dta_change_exp = dt_series.deferred_tax_assets_change[j]
+                dtl_change_exp = dt_series.deferred_tax_liabilities_change[j]
+                net_change_exp = dt_series.net_deferred_tax_position_change[j]
+                assert dta_change_exp is not None
+                assert dtl_change_exp is not None
+                assert net_change_exp is not None
+                self._register_deferred_tax(
+                    "deferred_tax_assets_change",
+                    j,
+                    "ALT DuPont",
+                    dta_change_row,
+                    out_col_idx,
+                    dta_change_f,
+                    float(dta_change_exp),
+                )
+                self._register_deferred_tax(
+                    "deferred_tax_liabilities_change",
+                    j,
+                    "ALT DuPont",
+                    dtl_change_row,
+                    out_col_idx,
+                    dtl_change_f,
+                    float(dtl_change_exp),
+                )
+                self._register_deferred_tax(
+                    "net_deferred_tax_position_change",
+                    j,
+                    "ALT DuPont",
+                    net_change_row,
+                    out_col_idx,
+                    net_change_f,
+                    float(net_change_exp),
+                )
+
+            self.rowmap["dupont_deferred_tax_assets_row"] = dta_level_row
+            self.rowmap["dupont_deferred_tax_liabilities_row"] = dtl_level_row
+            self.rowmap["dupont_net_deferred_tax_position_row"] = net_row
+            self.rowmap["dupont_deferred_tax_assets_change_row"] = dta_change_row
+            self.rowmap["dupont_deferred_tax_liabilities_change_row"] = dtl_change_row
+            self.rowmap["dupont_net_deferred_tax_position_change_row"] = net_change_row
+            next_section_after = net_change_row
 
         if self.goodwill_intangibles_series is None:
             return

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ..engine.component_catalog import (
     COMPONENT_CATALOG,
+    DEFERRED_TAX_COMPONENT_CATALOG,
     FIXED_ASSET_COMPONENT_CATALOG,
     GOODWILL_INTANGIBLES_COMPONENT_CATALOG,
     LEASE_LIABILITY_COMPONENT_CATALOG,
@@ -23,6 +24,7 @@ from ..engine.component_catalog import (
 from ..engine.semantic_map import ResolvedComponent
 from .earnings_quality import EarningsQualitySeries
 from .earnings_quality_change import compute_earnings_quality_change_series
+from .deferred_tax import DeferredTaxSeries
 from .financial_math import AnchorMetrics
 from .fixed_asset import FixedAssetSeries
 from .goodwill_intangibles import (
@@ -135,6 +137,13 @@ _LEASE_ROU_FAMILY_SERIES = (
     "rou_assets_growth",
     "average_rou_assets",
     "rou_assets_to_revenue",
+)
+
+_DEFERRED_TAX_FAMILY_SERIES = (
+    "net_deferred_tax_position",
+    "deferred_tax_assets_change",
+    "deferred_tax_liabilities_change",
+    "net_deferred_tax_position_change",
 )
 
 _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
@@ -581,6 +590,33 @@ def lease_rou_expected_series(
     return {family_id: series[family_id] for family_id in _LEASE_ROU_FAMILY_SERIES}
 
 
+def deferred_tax_expected_series(
+    deferred_tax: DeferredTaxSeries,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map deferred-tax diagnostic families from a DeferredTaxSeries."""
+    series = {
+        "net_deferred_tax_position": deferred_tax.net_deferred_tax_position,
+        "deferred_tax_assets_change": deferred_tax.deferred_tax_assets_change,
+        "deferred_tax_liabilities_change": (
+            deferred_tax.deferred_tax_liabilities_change
+        ),
+        "net_deferred_tax_position_change": (
+            deferred_tax.net_deferred_tax_position_change
+        ),
+    }
+    expected_ids = {family.id for family in DEFERRED_TAX_COMPONENT_CATALOG}
+    if set(series) != expected_ids:
+        missing = sorted(expected_ids - set(series))
+        extra = sorted(set(series) - expected_ids)
+        raise ValueError(
+            "deferred_tax_expected_series family mismatch; "
+            f"missing={missing} extra={extra}"
+        )
+    return {
+        family_id: series[family_id] for family_id in _DEFERRED_TAX_FAMILY_SERIES
+    }
+
+
 def ownership_attribution_expected_series(
     ownership_attribution: OwnershipAttributionSeries,
 ) -> dict[str, tuple[float | str | None, ...]]:
@@ -688,6 +724,7 @@ def expected_value_for_component(
     fixed_asset: FixedAssetSeries | None = None,
     lease_liability: LeaseLiabilitySeries | None = None,
     lease_rou: LeaseRouSeries | None = None,
+    deferred_tax: DeferredTaxSeries | None = None,
     ownership_attribution: OwnershipAttributionSeries | None = None,
     goodwill_intangibles: GoodwillIntangiblesSeries | None = None,
     goodwill_intangibles_availability: GoodwillIntangiblesAvailability | None = None,
@@ -730,6 +767,12 @@ def expected_value_for_component(
                 f"Lease-ROU family {family_id!r} requires a LeaseRouSeries"
             )
         series = lease_rou_expected_series(lease_rou)
+    elif family_id in _DEFERRED_TAX_FAMILY_SERIES:
+        if deferred_tax is None:
+            raise ValueError(
+                f"Deferred-tax family {family_id!r} requires a DeferredTaxSeries"
+            )
+        series = deferred_tax_expected_series(deferred_tax)
     elif family_id in _FIXED_ASSET_FAMILY_SERIES:
         if fixed_asset is None:
             raise ValueError(

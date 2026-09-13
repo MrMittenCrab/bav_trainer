@@ -41,6 +41,10 @@ def _load_payload() -> dict[str, Any]:
 
 def _module_applicability(fin, anchor=None) -> dict[str, Any]:
     from core.model.earnings_quality import earnings_quality_availability
+    from core.model.deferred_tax import (
+        deferred_tax_applicable,
+        deferred_tax_availability,
+    )
     from core.model.fixed_asset import fixed_asset_applicable
     from core.model.goodwill_intangibles import (
         goodwill_intangibles_applicable,
@@ -65,6 +69,7 @@ def _module_applicability(fin, anchor=None) -> dict[str, Any]:
     lease_rou_avail = lease_rou_availability(fin)
     ownership_avail = ownership_attribution_availability(fin)
     gi_avail = goodwill_intangibles_availability(fin)
+    deferred_tax_avail = deferred_tax_availability(fin)
     eq = earnings_quality_availability(fin)
     wc_applicable: bool | None
     if anchor is None:
@@ -98,6 +103,10 @@ def _module_applicability(fin, anchor=None) -> dict[str, Any]:
         "goodwill_intangibles": {
             "applicable": goodwill_intangibles_applicable(fin),
             "availability": asdict(gi_avail),
+        },
+        "deferred_tax": {
+            "applicable": deferred_tax_applicable(fin),
+            "availability": asdict(deferred_tax_avail),
         },
         "per_share": {"applicable": per_share_available(fin)},
         "normalization": {
@@ -214,7 +223,8 @@ def run_audit() -> dict[str, Any]:
                     f"per_share_specs={len(builder.per_share_specs)} "
                     f"per_share_attribution_specs={len(builder.per_share_attribution_specs)} "
                     f"fixed_asset_specs={len(builder.fixed_asset_specs)} "
-                    f"goodwill_intangibles_specs={len(builder.goodwill_intangibles_specs)}"
+                    f"goodwill_intangibles_specs={len(builder.goodwill_intangibles_specs)} "
+                    f"deferred_tax_specs={len(builder.deferred_tax_specs)}"
                 ),
             )
         )
@@ -341,9 +351,9 @@ def write_baseline(result: dict[str, Any]) -> None:
         provenance.get("supplemental_conflict_count", 0),
     )
     lines = [
-        "# Fast Retailing Benchmark Baseline (Step 9M.6)",
+        "# Fast Retailing Benchmark Baseline (Step 9M.7)",
         "",
-        "- Accounting engine phase: Step 9M.6 (lease ROU-asset diagnostics on 9M.5 base)",
+        "- Accounting engine phase: Step 9M.7 (deferred-tax balance diagnostics on 9M.6 base)",
         "- Input path: generic `extracted/` → `validate-source` → `reconcile` → `reconciled/`",
         "- Benchmark phase: measurement only — G1/G1B/G2/G2B/G2C/G3/G4/G5/G6/G7 closed",
         "- Five fiscal periods: 2021-08-31 … 2025-08-31",
@@ -417,6 +427,14 @@ def write_baseline(result: dict[str, Any]) -> None:
                 f"intangible_assets={avail.get('intangible_assets')} "
                 f"goodwill_and_intangibles={avail.get('goodwill_and_intangibles')} "
                 f"payments={avail.get('payments_for_intangible_assets')}"
+            )
+        if name == "deferred_tax":
+            avail = info.get("availability") or {}
+            lines.append(
+                "  - availability: "
+                f"deferred_tax_assets={avail.get('deferred_tax_assets')} "
+                f"deferred_tax_liabilities={avail.get('deferred_tax_liabilities')} "
+                f"ambiguous={avail.get('ambiguous')}"
             )
 
     lines.extend(

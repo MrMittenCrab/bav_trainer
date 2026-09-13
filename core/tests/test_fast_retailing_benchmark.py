@@ -317,6 +317,7 @@ def test_audit_script_writes_baseline_and_stage_records():
         or "Step 9M.3E" in text
         or "Step 9M.5" in text
         or "Step 9M.6" in text
+        or "Step 9M.7" in text
     )
     assert "pass" in completed.stdout or "fail" in completed.stdout
 
@@ -585,7 +586,8 @@ def test_fast_retailing_split_lease_liability_module_activates():
     assert len(builder.lease_liability_specs) == 18
     assert len(builder.lease_rou_specs) == 16
     assert len(builder.goodwill_intangibles_specs) == 58
-    assert len(builder.expected_specs) == 454
+    assert len(builder.deferred_tax_specs) == 17
+    assert len(builder.expected_specs) == 471
 
     reform = reformulate_balance_sheet(fin, periods)
     cases = classification_judgment_cases(fin, periods, reform)
@@ -612,10 +614,11 @@ def test_fast_retailing_audit_stages_include_lease_module():
     assert "goodwill_intangibles_specs=58" in (
         stages["4_reference_model_builder"].message or ""
     )
-    assert "expected_specs=454" in (stages["4_reference_model_builder"].message or "")
-    assert "blank=454" in (stages["6_blank_check"].message or "")
-    assert "total=454" in (stages["6_blank_check"].message or "")
-    assert "correct=454" in (stages["7_filled_check"].message or "")
+    assert "deferred_tax_specs=17" in (stages["4_reference_model_builder"].message or "")
+    assert "expected_specs=471" in (stages["4_reference_model_builder"].message or "")
+    assert "blank=471" in (stages["6_blank_check"].message or "")
+    assert "total=471" in (stages["6_blank_check"].message or "")
+    assert "correct=471" in (stages["7_filled_check"].message or "")
 
 
 def test_fast_retailing_lease_rou_module_activates():
@@ -639,7 +642,7 @@ def test_fast_retailing_lease_rou_module_activates():
     builder = ReferenceModelBuilder(fin)
     assert builder.lease_rou_series is not None
     assert len(builder.lease_rou_specs) == 16
-    assert len(builder.expected_specs) == 454
+    assert len(builder.expected_specs) == 471
 
 
 def test_fast_retailing_goodwill_intangibles_module_activates():
@@ -681,7 +684,42 @@ def test_fast_retailing_goodwill_intangibles_module_activates():
     builder = ReferenceModelBuilder(fin)
     assert builder.goodwill_intangibles_series is not None
     assert len(builder.goodwill_intangibles_specs) == 58
-    assert len(builder.expected_specs) == 454
+    assert len(builder.expected_specs) == 471
+
+
+def test_fast_retailing_deferred_tax_module_activates():
+    from core.model.deferred_tax import (
+        compute_deferred_tax_series,
+        deferred_tax_applicable,
+        resolve_deferred_tax_sources,
+    )
+    from core.model.source_values import required_period_value
+
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    periods = list(canonical_fiscal_periods(fin))
+    fy2025 = periods[-1]
+    assert deferred_tax_applicable(fin) is True
+    sources = resolve_deferred_tax_sources(fin)
+    assert sources is not None
+    assert (
+        required_period_value(
+            sources.deferred_tax_assets, fy2025, field="deferred_tax_assets"
+        )
+        == 40889
+    )
+    assert (
+        required_period_value(
+            sources.deferred_tax_liabilities, fy2025, field="deferred_tax_liabilities"
+        )
+        == 22539
+    )
+    series = compute_deferred_tax_series(fin, periods)
+    assert series.net_deferred_tax_position[-1] == pytest.approx(18350.0)
+    assert series.net_deferred_tax_position_change[-1] == pytest.approx(17814.0)
+    builder = ReferenceModelBuilder(fin)
+    assert builder.deferred_tax_series is not None
+    assert len(builder.deferred_tax_specs) == 17
+    assert len(builder.expected_specs) == 471
 
 
 def test_fast_retailing_historical_lease_interest_axis_and_treatment():
@@ -777,16 +815,16 @@ def test_fast_retailing_historical_lease_interest_axis_and_treatment():
     builder = ReferenceModelBuilder(fin)
     assert len(builder.lease_liability_specs) == 18
     assert len(builder.goodwill_intangibles_specs) == 58
-    assert len(builder.expected_specs) == 454
+    assert len(builder.expected_specs) == 471
     result = run_audit()
     stages = {stage.stage: stage for stage in result["stages"]}
     assert stages["4_reference_model_builder"].status == "pass"
     assert "lease_specs=18" in (stages["4_reference_model_builder"].message or "")
-    assert "expected_specs=454" in (stages["4_reference_model_builder"].message or "")
+    assert "expected_specs=471" in (stages["4_reference_model_builder"].message or "")
     assert stages["6_blank_check"].status == "pass"
-    assert "blank=454" in (stages["6_blank_check"].message or "")
+    assert "blank=471" in (stages["6_blank_check"].message or "")
     assert stages["7_filled_check"].status == "pass"
-    assert "correct=454" in (stages["7_filled_check"].message or "")
+    assert "correct=471" in (stages["7_filled_check"].message or "")
 
 
 def test_fast_retailing_ownership_attribution_g5():
@@ -856,7 +894,7 @@ def test_fast_retailing_ownership_attribution_g5():
 
     builder = ReferenceModelBuilder(fin)
     assert len(builder.ownership_attribution_specs) == 34
-    assert len(builder.expected_specs) == 454
+    assert len(builder.expected_specs) == 471
     assert builder.per_share_series is not None
 
     result = run_audit()
@@ -871,10 +909,10 @@ def test_fast_retailing_ownership_attribution_g5():
         "7_filled_check",
     ):
         assert stages[name].status == "pass", f"{name}: {stages[name].message}"
-    assert "expected_specs=454" in (stages["4_reference_model_builder"].message or "")
+    assert "expected_specs=471" in (stages["4_reference_model_builder"].message or "")
     assert "ownership_specs=34" in (stages["4_reference_model_builder"].message or "")
-    assert "blank=454" in (stages["6_blank_check"].message or "")
-    assert "correct=454" in (stages["7_filled_check"].message or "")
+    assert "blank=471" in (stages["6_blank_check"].message or "")
+    assert "correct=471" in (stages["7_filled_check"].message or "")
 
 
 def test_fast_retailing_share_basis_and_per_share_g6():
@@ -986,7 +1024,7 @@ def test_fast_retailing_share_basis_and_per_share_g6():
     assert len(builder.ownership_attribution_specs) == 34
     assert len(builder.lease_liability_specs) == 18
     assert len(builder.goodwill_intangibles_specs) == 58
-    assert len(builder.expected_specs) == 454
+    assert len(builder.expected_specs) == 471
 
     parent = resolve_line(
         fin.income_statement, "profit_attributable_to_owners", required=True
@@ -1030,8 +1068,8 @@ def test_fast_retailing_share_basis_and_per_share_g6():
         assert (blank.correct, blank.incorrect, blank.blank, blank.total) == (
             0,
             0,
-            454,
-            454,
+            471,
+            471,
         )
         smap = load_semantic_map(answer)
         wb = load_workbook(trainer, data_only=False)
@@ -1042,10 +1080,10 @@ def test_fast_retailing_share_basis_and_per_share_g6():
         wb.close()
         filled = check_workbook(trainer)
         assert (filled.correct, filled.incorrect, filled.blank, filled.total) == (
-            454,
+            471,
             0,
             0,
-            454,
+            471,
         )
         wb = load_workbook(answer)
         ws = wb[PER_SHARE_SHEET]

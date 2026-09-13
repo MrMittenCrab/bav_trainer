@@ -97,11 +97,11 @@ Distinct from DEMO counts. Post–G1–G7 recorded Stage 4/Check surface:
 | historical per-share / diluted-share bridge | IS Basic/Diluted EPS & diluted shares outstanding | Optional Per Share Analysis + norm bridge; split-adjusted WAS when share-basis resolver emits `basis=split_adjusted` | implemented-differently | Explicit diluted WAS (+ optional norm); optional audited split restatement for comparable axis | Gate on share history; analytical axis must not overwrite raw share facts | Maintain |
 | stock-based compensation / dilution | CF **Stock-based compensation expense**; IS share counts; EQ dilution signal | Diluted-share modules only; no SBC schedule | missing-current-data-supported | CF SBC line and/or SBC disclosure + share history when present | Optional module; omit if absent | Priority A when SBC facts exist; Fast Retailing / DEMO currently lack SBC lines |
 | PP&E / D&A / asset intensity | BS Property and equipment; CF depreciation; CF Purchases of property and equipment | ALT DuPont fixed-asset families when both PP&E and D&A resolve (`FIXED-ASSET INTENSITY CONTEXT`) | implemented-differently | Explicit PP&E (BS) + D&A (CF) + Revenue | Practice formulas on ALT DuPont; gated; no capex inference; D&A/Average PP&E is context only | Maintain; do not claim pure depreciation rate |
-| capex / reinvestment bridge | CF **Purchases of property and equipment** | Absent as dedicated practice module (PPE/D&A context only) | missing-needs-new-explicit-data | Explicit `payments_for_ppe` / purchases-of-PP&E source + sign contract | Optional gated module; do not infer from investing CF or ΔPPE+D&A | Priority B — contract can be defined from explicit CF concept; still separate from next candidate |
+| capex / reinvestment bridge | CF **Purchases of property and equipment** | Absent as dedicated practice module (PPE/D&A context only) | missing-needs-new-explicit-data | Explicit `payments_for_ppe` / purchases-of-PP&E source + sign contract | Optional gated module; do not infer from investing CF or ΔPPE+D&A | Priority A next — Fast Retailing already supplies `payments_for_ppe` |
 | leases (liability) | BS Operating lease liabilities; Condensed classification rows | Accounting Judgment + ALT DuPont lease-liability families; aggregate **or** split current/non-current sum; treatment-conditioned lease interest when complete note axis exists | implemented-differently | Aggregate `lease_liability` **or** unique `lease_liability_current` + `lease_liability_noncurrent`; optional `lease_interest_expense` note axis; Revenue | Guided classification + intensity/trend; financing net interest conditioned on uniform lease treatment | Maintain |
 | leases (ROU / payments) | BS Operating lease assets | ALT DuPont ROU intensity/trend when unique `right_of_use_assets` resolves; **no** lease-payment / discount-rate diagnostics | implemented-differently (bounded) | Explicit `right_of_use_assets`; optional lease-payment CF lines when present | Optional gated ROU balance context (done); payments/rates remain deferred | Maintain ROU module; Priority B for payment/rate contract |
 | goodwill / acquired intangibles / acquisitions | BS Goodwill; Intangible assets; CF acquisitions line | ALT DuPont goodwill/intangibles intensity & change when concepts resolve; optional intangible-payments (−reported); **no** acquisition-cash / GW-impairment bridge | implemented-differently (bounded) | Unique `goodwill` / `intangible_assets` (and optional intangible-payment CF) when present; acquisition CF only when explicitly supplied | Optional gated intensity/change module; never invent acquisition or GW-impairment stories | Maintain bounded module; acquisition-cash remains deferred until explicit facts |
-| deferred taxes / unusual tax rates | BS Deferred income taxes; CF Deferred income taxes; IS Core bridge tax notes | Effective tax rate + pretax norm tax convention; no DTA/DTL diagnostic schedule | missing-current-data-supported | Deferred tax BS/CF lines and/or explicit tax-adjustment candidates | Optional tax-quality / balance diagnostics; do not invent | Priority A after next candidate / when contracted |
+| deferred taxes / unusual tax rates | BS Deferred income taxes; CF Deferred income taxes; IS Core bridge tax notes | ALT DuPont deferred-tax balance context when unique DTA+DTL resolve; ETR + pretax norm tax convention remain separate | implemented-differently (bounded) | Unique `deferred_tax_assets` + `deferred_tax_liabilities` (both required) | Optional gated net-position / balance-change practice; no expense or cash-tax inference | Maintain; unusual-rate / CF deferred-tax expense remain deferred |
 | minority / non-controlling interests | Not evidenced in inspected workbook | Ownership Attribution + parent ROE + parent-safe per-share numerator when ownership concepts resolve | implemented-differently | `profit_attributable_to_owners`, `profit_attributable_to_nci`, `equity_attributable_to_owners`, `noncontrolling_interests` | Optional gated schedule; consolidated DuPont unchanged | Maintain (Fast Retailing supplies NCI; GOOGL demo did not evidence it) |
 | segment economics | Not evidenced as structured segment schedules (only scenario narrative mentions) | Absent | not-evidenced-in-GOOGL | Explicit segment revenue/opex/assets disclosures | Optional module; never invent segments | Priority C / B when segment inputs are designed |
 | accounting consistency / reconciliation checks | Source statement arithmetic; EQ screens (Beneish/Piotroski/Benford) | `reconcile_financials` / identity validators; trusted-cell checks; retained cross-filing conflicts | implemented-differently | Existing standardized facts | Keep blocking integrity; forensic screens optional later | Priority B for forensic screens (Benford needs XBRL population — likely not-trainer-target) |
@@ -135,18 +135,17 @@ Forward GOOGL sheets (Guidance & Consensus, Model_*, Scenario_Summary, Implied C
 
 ### Priority A — historically useful and current-data-supported
 
-1. SBC expense bridge into dilution / per-share interpretation when CF SBC + share history are supplied (not present on Fast Retailing or ordinary DEMO today).
-2. Deferred-tax balance / net-position diagnostics when unique DTA/DTL (and/or explicit tax-adjustment candidates) are supplied.
-3. Further structured historical interpretation prompts on modules already taught.
-4. Acquisition-cash / GW-impairment attribution only when those facts are separately and explicitly supplied (not present on Fast Retailing today).
+1. Capex / reinvestment bridge when explicit `payments_for_ppe` resolves (Fast Retailing already supplies the CF concept).
+2. Further structured historical interpretation prompts on modules already taught.
+3. Acquisition-cash / GW-impairment attribution only when those facts are separately and explicitly supplied (not present on Fast Retailing today).
+4. SBC expense bridge into dilution / per-share interpretation when CF SBC + share history are supplied (not present on Fast Retailing or ordinary DEMO today).
 
 ### Priority B — historically useful but needs explicit new historical inputs
 
-1. Capex / reinvestment bridge (requires explicit purchases-of-PP&E / `payments_for_ppe` source and sign contract; not inferred from investing cash flow or PP&E change + D&A). Fast Retailing already discloses `payments_for_ppe`, but the Trainer module/contract is not yet implemented.
-2. Formal segment-economics input contract + optional module.
-3. Richer tax-adjustment candidate schema beyond current normalization scopes.
-4. Optional Beneish/Piotroski-style screens only if pedagogically justified and computable from standardized facts (not XBRL scrapes).
-5. Lease-payment / discount-rate analysis only with an explicit payment and rate contract (do not invent from ROU + liability).
+1. Formal segment-economics input contract + optional module.
+2. Richer tax-adjustment candidate schema beyond current normalization scopes / deferred-tax balance context.
+3. Optional Beneish/Piotroski-style screens only if pedagogically justified and computable from standardized facts (not XBRL scrapes).
+4. Lease-payment / discount-rate analysis only with an explicit payment and rate contract (do not invent from ROU + liability).
 
 ### Priority C — TARGET-required historical topic not evidenced by GOOGL
 
@@ -205,28 +204,32 @@ Explicit concept resolution is registered in `core/model/line_resolver.py` for:
 
 ## Next historical implementation candidate (exactly one)
 
-**Name:** SBC expense bridge into dilution / per-share interpretation
+**Name:** Capex / reinvestment bridge
 
 ### Minimum input contract
 
-Explicit CF stock-based-compensation expense line plus diluted share history (and optional SBC disclosure). Not present on Fast Retailing or ordinary DEMO today.
+Explicit CF `payments_for_ppe` (purchases of property and equipment) with a defined sign presentation contract, plus Revenue (and existing PP&E context when present). Fast Retailing already supplies `payments_for_ppe`.
 
 ### Missing / ambiguous-input behavior
 
-- Missing SBC and/or share history → omit module (fail closed).
-- Do not invent SBC from diluted-share movements alone.
+- Missing or ambiguous `payments_for_ppe` → omit module (fail closed).
+- Do not infer capex from investing cash flow totals or from ΔPP&E + D&A.
 
 ### Explicitly out of scope for this candidate
 
 - Lease-payment / discount-rate schedules
 - Acquisition-cash / GW-impairment narratives
-- Capex bridge, deferred-tax schedule, segments, forecasting/valuation
+- SBC expense bridge (still deferred — no Fast Retailing / DEMO SBC line)
+- Unusual deferred-tax expense / cash-tax diagnostics beyond the implemented balance module
+- Segments, forecasting/valuation
 
-**Step 9M.6 note:** Lease ROU-asset intensity / trend diagnostics are implemented on ALT DuPont when unique exact-concept `right_of_use_assets` resolves. DEMO remains unchanged (no ROU concept). Fast Retailing activates 16 practice cells (`expected_specs=454`). Lease-payment / discount-rate analysis remains deferred.
+**Step 9M.7 note:** Deferred-tax balance diagnostics are implemented on ALT DuPont when unique exact-concept `deferred_tax_assets` and `deferred_tax_liabilities` both resolve. DEMO remains unchanged. Fast Retailing activates 17 practice cells (`deferred_tax_specs=17`, `expected_specs=471`). Deferred-tax expense / cash-tax inference remains deferred.
+
+**Step 9M.6 note:** Lease ROU-asset intensity / trend diagnostics are implemented on ALT DuPont when unique exact-concept `right_of_use_assets` resolves. DEMO remains unchanged (no ROU concept). Fast Retailing activates 16 practice cells. Lease-payment / discount-rate analysis remains deferred.
 
 **Step 9M.5 note:** Goodwill / intangible-asset intensity & change diagnostics (optional intangible-payments as −reported) are implemented on ALT DuPont when explicit concepts resolve. DEMO label-only goodwill remains omitted. Acquisition-cash and GW-impairment storytelling remain deferred.
 
-**Step 9K.1 note:** PP&E / D&A asset-intensity diagnostics are implemented-differently on ALT DuPont. Capex remains Priority B until the dedicated module/contract is implemented.
+**Step 9K.1 note:** PP&E / D&A asset-intensity diagnostics are implemented-differently on ALT DuPont. Capex is the next candidate now that deferred-tax balance context is implemented.
 
 **Step 9L.1 / 9M.3A–B note:** Lease-liability intensity/trend diagnostics support aggregate **or** split summation; treatment-conditioned lease interest is implemented when a complete reported lease-interest axis exists.
 

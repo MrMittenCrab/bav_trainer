@@ -144,6 +144,8 @@ _EXACT_ALIASES: dict[str, frozenset[str]] = {
     "intangible_assets": frozenset(),
     "payments_for_intangible_assets": frozenset(),
     "right_of_use_assets": frozenset(),
+    "deferred_tax_assets": frozenset(),
+    "deferred_tax_liabilities": frozenset(),
 }
 
 

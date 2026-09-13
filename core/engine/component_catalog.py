@@ -2823,6 +2823,126 @@ def expand_lease_rou_specs(
     return tuple(specs)
 
 
+DEFERRED_TAX_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="net_deferred_tax_position",
+        order=116,
+        title="Net Deferred-Tax Asset Position (DTA − DTL)",
+        short_hint="Analytical net position = Deferred tax assets − Deferred tax liabilities.",
+        semantic_key="deferred_tax.net_deferred_tax_position",
+        category="deferred_tax",
+        tab_template="ALT DuPont",
+        hints=(
+            "Net Deferred-Tax Asset Position = Deferred tax assets − Deferred tax "
+            "liabilities (same period).",
+            "Analytical DTA less DTL only — not deferred-tax expense, cash taxes, "
+            "recoverability, or legal offset eligibility.",
+        ),
+    ),
+    ComponentFamily(
+        id="deferred_tax_assets_change",
+        order=117,
+        title="Change in Deferred Tax Assets",
+        short_hint="Current DTA − prior DTA.",
+        semantic_key="deferred_tax.deferred_tax_assets_change",
+        category="deferred_tax",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        hints=(
+            "Change in Deferred Tax Assets = Current DTA − Prior DTA.",
+            "Balance movement only — not deferred-tax expense or cash taxes.",
+        ),
+    ),
+    ComponentFamily(
+        id="deferred_tax_liabilities_change",
+        order=118,
+        title="Change in Deferred Tax Liabilities",
+        short_hint="Current DTL − prior DTL.",
+        semantic_key="deferred_tax.deferred_tax_liabilities_change",
+        category="deferred_tax",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        hints=(
+            "Change in Deferred Tax Liabilities = Current DTL − Prior DTL.",
+            "Balance movement only — not deferred-tax expense or cash taxes.",
+        ),
+    ),
+    ComponentFamily(
+        id="net_deferred_tax_position_change",
+        order=119,
+        title="Change in Net Deferred-Tax Asset Position",
+        short_hint="Current net position − prior net position.",
+        semantic_key="deferred_tax.net_deferred_tax_position_change",
+        category="deferred_tax",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("net_deferred_tax_position",),
+        depends_on_previous=("net_deferred_tax_position",),
+        hints=(
+            "Change in Net Deferred-Tax Asset Position = Current net − Prior net.",
+            "Net-position change is a balance movement — not deferred-tax expense "
+            "or cash taxes.",
+        ),
+    ),
+)
+
+
+def expand_deferred_tax_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+) -> tuple[ComponentSpec, ...]:
+    """Expand deferred-tax families into period-specific concrete specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_deferred_tax_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_deferred_tax_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in DEFERRED_TAX_COMPONENT_CATALOG:
+        if family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        else:
+            indices = range(len(periods))
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            if j > 0:
+                prev = periods[j - 1]
+                for dep_fam in family.depends_on_previous:
+                    deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 def _deferred(
     *,
     id: str,
