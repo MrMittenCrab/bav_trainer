@@ -22,7 +22,34 @@ from ..data.filing import (
 )
 
 
-def _parse_date(value: object) -> date:
+def _required_nonempty_str(payload: dict, key: str, *, context: str) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{context}.{key} is required")
+    return value
+
+
+def _optional_str(payload: dict, key: str, *, context: str) -> str:
+    value = payload.get(key, "")
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise ValueError(f"{context}.{key} must be a string")
+    return value
+
+
+def _required_positive_int(payload: dict, key: str, *, context: str) -> int:
+    if key not in payload:
+        raise ValueError(f"{context}.{key} is required")
+    value = payload[key]
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        raise ValueError(f"{context}.{key} must be a positive integer")
+    return value
+
+
+def _parse_date(value: object, *, context: str = "date") -> date:
+    if value is None:
+        raise ValueError(f"{context} is required")
     if not isinstance(value, str):
         raise ValueError(f"invalid date: {value!r}")
     try:
@@ -109,7 +136,7 @@ def _parse_supplemental(payload: object) -> SupplementalFact:
         raise ValueError("supplemental value must be numeric")
     return SupplementalFact(
         fact_type=fact_type,
-        period=_parse_date(payload.get("period")),
+        period=_parse_date(payload.get("period"), context="supplemental.period"),
         value=float(raw_value),
         status=status,
         source=_parse_source(payload.get("source")),
@@ -141,10 +168,15 @@ def load_extracted_filing(path: Path) -> ExtractedFiling:
     if unit_scale not in ALLOWED_UNIT_SCALES:
         raise ValueError(f"unknown unit_scale: {unit_scale!r}")
 
-    source_file = str(filing_raw.get("source_file") or "")
-    if not source_file:
-        raise ValueError("filing.source_file is required")
-    source_sha256 = str(filing_raw.get("source_sha256") or "")
+    company_name = _required_nonempty_str(company, "name", context="company")
+    ticker = _required_nonempty_str(company, "ticker", context="company")
+    stock_code = _optional_str(company, "stock_code", context="company")
+    jurisdiction = _required_nonempty_str(company, "jurisdiction", context="company")
+    fiscal_year = _required_positive_int(filing_raw, "fiscal_year", context="filing")
+    period_end = _parse_date(filing_raw.get("period_end"), context="filing.period_end")
+    currency = _required_nonempty_str(filing_raw, "currency", context="filing")
+    source_file = _required_nonempty_str(filing_raw, "source_file", context="filing")
+    source_sha256 = _optional_str(filing_raw, "source_sha256", context="filing")
 
     statements = payload.get("statements")
     if not isinstance(statements, dict):
@@ -163,15 +195,15 @@ def load_extracted_filing(path: Path) -> ExtractedFiling:
 
     return ExtractedFiling(
         schema_version=schema_version,
-        company_name=str(company.get("name") or ""),
-        ticker=str(company.get("ticker") or ""),
-        stock_code=str(company.get("stock_code") or ""),
-        jurisdiction=str(company.get("jurisdiction") or ""),
+        company_name=company_name,
+        ticker=ticker,
+        stock_code=stock_code,
+        jurisdiction=jurisdiction,
         filing=FilingMetadata(
             document_type=document_type,
-            fiscal_year=int(filing_raw["fiscal_year"]),
-            period_end=_parse_date(filing_raw.get("period_end")),
-            currency=str(filing_raw.get("currency") or ""),
+            fiscal_year=fiscal_year,
+            period_end=period_end,
+            currency=currency,
             unit_scale=unit_scale,
             source_file=source_file,
             source_sha256=source_sha256,

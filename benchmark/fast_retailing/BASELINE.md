@@ -1,4 +1,4 @@
-# Fast Retailing Benchmark Baseline (Step 9M.1)
+# Fast Retailing Benchmark Baseline (Step 9M.1.1)
 
 - Model commit audited: `26f22b7` (Step 9L.1 accounting engine)
 - Input path: generic `extracted/` → `validate-source` → `reconcile` → `reconciled/`
@@ -14,7 +14,12 @@
 - FY2025: `25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f` (868396 bytes)
 
 - Overlap conflicts recorded in conflicts.json: **3**
+- Supplemental conflicts recorded in conflicts.json: **3**
 - Standardized payload: `benchmark/fast_retailing/reconciled/standardized.json`
+- Supplemental provenance source-bound: yes
+- Portable source-path validation: yes
+- Silent repeated-share overwrite removed: yes
+- G1–G7 accounting gaps preserved for 9M.2: yes
 
 ## Stage results
 

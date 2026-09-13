@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
 
@@ -53,6 +54,24 @@ class ReconciliationConflict:
 
 
 @dataclass(frozen=True)
+class SupplementalObservation:
+    kind: str  # "note" | "share"
+    filing_year: int
+    source_file: str
+    source_sha256: str
+    fact: SupplementalFact
+
+
+@dataclass(frozen=True)
+class SupplementalConflict:
+    kind: str
+    fact_type: str
+    period: date
+    observations: tuple[SupplementalObservation, ...]
+    reason: str
+
+
+@dataclass(frozen=True)
 class ReconciledCompanyData:
     company_name: str
     ticker: str
@@ -63,8 +82,9 @@ class ReconciledCompanyData:
     periods: tuple[date, ...]
     values: tuple[ReconciledValue, ...]
     conflicts: tuple[ReconciliationConflict, ...]
-    note_facts: tuple[SupplementalFact, ...]
-    share_facts: tuple[SupplementalFact, ...]
+    note_facts: tuple[SupplementalObservation, ...]
+    share_facts: tuple[SupplementalObservation, ...]
+    supplemental_conflicts: tuple[SupplementalConflict, ...] = ()
     omitted_incomplete_axis: tuple[dict, ...] = ()
 
 
@@ -87,6 +107,47 @@ def _select_observation(
         # selected should still be non-prior if available
         return selected, "later_audited_presentation"
     return selected, "later_audited_presentation"
+
+
+def _supplemental_sort_key(obs: SupplementalObservation) -> tuple:
+    return (
+        obs.kind,
+        obs.fact.fact_type,
+        obs.fact.period.isoformat(),
+        obs.filing_year,
+        obs.source_file,
+        obs.fact.source.page,
+    )
+
+
+def _group_supplemental_conflicts(
+    observations: tuple[SupplementalObservation, ...],
+) -> tuple[SupplementalConflict, ...]:
+    buckets: dict[tuple[str, str, date], list[SupplementalObservation]] = defaultdict(list)
+    for obs in observations:
+        if obs.fact.status != "reported":
+            continue
+        buckets[(obs.kind, obs.fact.fact_type, obs.fact.period)].append(obs)
+
+    conflicts: list[SupplementalConflict] = []
+    for (kind, fact_type, period), items in sorted(
+        buckets.items(),
+        key=lambda item: (item[0][0], item[0][1], item[0][2].isoformat()),
+    ):
+        distinct = {float(item.fact.value) for item in items}
+        if len(distinct) <= 1:
+            continue
+        ordered = tuple(sorted(items, key=_supplemental_sort_key))
+        conflicts.append(
+            SupplementalConflict(
+                kind=kind,
+                fact_type=fact_type,
+                period=period,
+                observations=ordered,
+                reason="cross_filing_supplemental_disagreement",
+            )
+        )
+    return tuple(conflicts)
 
 
 def reconcile_filings(
@@ -214,11 +275,38 @@ def reconcile_filings(
                 )
             )
 
-    note_facts: list[SupplementalFact] = []
-    share_facts: list[SupplementalFact] = []
-    for filing, _ in sorted(filings, key=lambda pair: pair[0].filing.fiscal_year):
-        note_facts.extend(filing.note_facts)
-        share_facts.extend(filing.share_facts)
+    note_facts: list[SupplementalObservation] = []
+    share_facts: list[SupplementalObservation] = []
+    for filing, report in sorted(filings, key=lambda pair: pair[0].filing.fiscal_year):
+        sha = report.computed_source_sha256 or ""
+        year = filing.filing.fiscal_year
+        source_file = filing.filing.source_file
+        for fact in filing.note_facts:
+            note_facts.append(
+                SupplementalObservation(
+                    kind="note",
+                    filing_year=year,
+                    source_file=source_file,
+                    source_sha256=sha,
+                    fact=fact,
+                )
+            )
+        for fact in filing.share_facts:
+            share_facts.append(
+                SupplementalObservation(
+                    kind="share",
+                    filing_year=year,
+                    source_file=source_file,
+                    source_sha256=sha,
+                    fact=fact,
+                )
+            )
+
+    note_facts_t = tuple(sorted(note_facts, key=_supplemental_sort_key))
+    share_facts_t = tuple(sorted(share_facts, key=_supplemental_sort_key))
+    supplemental_conflicts = _group_supplemental_conflicts(
+        (*note_facts_t, *share_facts_t)
+    )
 
     return ReconciledCompanyData(
         company_name=company_name,
@@ -230,6 +318,7 @@ def reconcile_filings(
         periods=model_periods,
         values=tuple(values),
         conflicts=tuple(conflicts),
-        note_facts=tuple(note_facts),
-        share_facts=tuple(share_facts),
+        note_facts=note_facts_t,
+        share_facts=share_facts_t,
+        supplemental_conflicts=supplemental_conflicts,
     )

@@ -302,8 +302,12 @@ def write_baseline(result: dict[str, Any]) -> None:
     overlap = conflicts.get(
         "overlap_conflict_count", provenance.get("overlap_conflict_count", 0)
     )
+    supplemental = conflicts.get(
+        "supplemental_conflict_count",
+        provenance.get("supplemental_conflict_count", 0),
+    )
     lines = [
-        "# Fast Retailing Benchmark Baseline (Step 9M.1)",
+        "# Fast Retailing Benchmark Baseline (Step 9M.1.1)",
         "",
         f"- Model commit audited: `{MODEL_COMMIT}` (Step 9L.1 accounting engine)",
         "- Input path: generic `extracted/` → `validate-source` → `reconcile` → `reconciled/`",
@@ -321,7 +325,12 @@ def write_baseline(result: dict[str, Any]) -> None:
         [
             "",
             f"- Overlap conflicts recorded in conflicts.json: **{overlap}**",
+            f"- Supplemental conflicts recorded in conflicts.json: **{supplemental}**",
             f"- Standardized payload: `{STD_JSON.relative_to(ROOT)}`",
+            "- Supplemental provenance source-bound: yes",
+            "- Portable source-path validation: yes",
+            "- Silent repeated-share overwrite removed: yes",
+            "- G1–G7 accounting gaps preserved for 9M.2: yes",
             "",
             "## Stage results",
             "",

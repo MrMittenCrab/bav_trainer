@@ -279,3 +279,88 @@ def test_current_period_consistency(tmp_path: Path):
     assert filing.income_statement[0].values[
         date(2024, 8, 31)
     ].presentation_role == PresentationRole.COMPARATIVE
+
+
+@pytest.mark.parametrize(
+    "mutate,match",
+    [
+        (lambda p: p.__setitem__("company", "not-an-object"), "company"),
+        (lambda p: p["company"].__setitem__("name", ""), r"company\.name"),
+        (lambda p: p["company"].__setitem__("name", "   "), r"company\.name"),
+        (lambda p: p["company"].__setitem__("ticker", ""), "ticker"),
+        (lambda p: p["company"].__setitem__("jurisdiction", ""), "jurisdiction"),
+        (lambda p: p["filing"].__delitem__("fiscal_year"), "fiscal_year"),
+        (lambda p: p["filing"].__setitem__("fiscal_year", True), "fiscal_year"),
+        (lambda p: p["filing"].__setitem__("fiscal_year", 0), "fiscal_year"),
+        (lambda p: p["filing"].__setitem__("fiscal_year", "2025"), "fiscal_year"),
+        (lambda p: p["filing"].__delitem__("period_end"), "period_end"),
+        (lambda p: p["filing"].__setitem__("currency", ""), "currency"),
+        (lambda p: p["filing"].__setitem__("source_file", ""), "source_file"),
+        (lambda p: p["filing"].__setitem__("source_file", "   "), "source_file"),
+    ],
+)
+def test_parser_rejects_missing_required_fields(tmp_path: Path, mutate, match):
+    payload = _minimal_filing_payload()
+    mutate(payload)
+    if isinstance(payload.get("company"), dict):
+        # Empty stock_code remains allowed.
+        payload["company"]["stock_code"] = ""
+    path = tmp_path / "required.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(ValueError, match=match):
+        load_extracted_filing(path)
+
+
+def test_parser_allows_empty_stock_code(tmp_path: Path):
+    payload = _minimal_filing_payload()
+    payload["company"]["stock_code"] = ""
+    path = tmp_path / "ticker_only.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    filing = load_extracted_filing(path)
+    assert filing.stock_code == ""
+    assert filing.ticker == "6288.HK"
+
+
+@pytest.mark.parametrize(
+    "source_file",
+    [
+        "/Users/name/report.pdf",
+        "../report.pdf",
+        "subdir/../../report.pdf",
+    ],
+)
+def test_validate_rejects_escaping_source_paths(tmp_path: Path, source_file: str):
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    # Place a file outside the root that a naive join might still reach.
+    outside = tmp_path / "report.pdf"
+    outside.write_bytes(b"%PDF-outside")
+    nested = source_root / "subdir"
+    nested.mkdir()
+
+    payload = _minimal_filing_payload()
+    payload["filing"]["source_file"] = source_file
+    path = tmp_path / "escape.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    filing = load_extracted_filing(path)
+    report = validate_extracted_filing(filing, source_root=source_root)
+    assert not report.ok
+    assert any(i.code == "invalid_source_path" for i in report.errors)
+    assert report.computed_source_sha256 is None
+
+
+def test_validate_allows_nested_relative_source_path(tmp_path: Path):
+    source_root = tmp_path / "source"
+    nested = source_root / "annual"
+    nested.mkdir(parents=True)
+    blob = b"%PDF-nested"
+    (nested / "FY2025.pdf").write_bytes(blob)
+
+    payload = _minimal_filing_payload()
+    payload["filing"]["source_file"] = "annual/FY2025.pdf"
+    path = tmp_path / "nested.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    filing = load_extracted_filing(path)
+    report = validate_extracted_filing(filing, source_root=source_root)
+    assert report.ok
+    assert report.computed_source_sha256 == hashlib.sha256(blob).hexdigest()

@@ -388,3 +388,327 @@ def test_historical_share_gating(tmp_path: Path):
     assert fin.historical_shares is None
     conflicts = reconciliation_conflicts_payload(reconciled)
     assert conflicts["overlap_conflict_count"] == 0
+
+
+def test_supplemental_observations_retain_source_binding(tmp_path: Path):
+    note = SupplementalFact(
+        fact_type="lease_liability_total",
+        period=date(2025, 12, 31),
+        value=500.0,
+        status="reported",
+        source=SourceRef(page=14, note="17 Leases", label="Total"),
+    )
+    share = SupplementalFact(
+        fact_type="diluted_weighted_average_shares",
+        period=date(2025, 12, 31),
+        value=100.0,
+        status="reported",
+        source=SourceRef(page=18, note="EPS", label="Diluted WAS"),
+    )
+    derived = SupplementalFact(
+        fact_type="lease_liability_total_derived",
+        period=date(2025, 12, 31),
+        value=501.0,
+        status="derived",
+        source=SourceRef(page=14, note="17 Leases"),
+        derivation="current + noncurrent",
+    )
+    f2024 = _filing(
+        year=2024,
+        source_file="a2024.pdf",
+        revenue_values={date(2024, 12, 31): (100.0, PresentationRole.CURRENT_PERIOD)},
+        note_facts=(
+            SupplementalFact(
+                fact_type="lease_liability_total",
+                period=date(2024, 12, 31),
+                value=400.0,
+                status="reported",
+                source=SourceRef(page=12, note="17 Leases"),
+            ),
+        ),
+    )
+    f2025 = _filing(
+        year=2025,
+        source_file="a2025.pdf",
+        revenue_values={
+            date(2024, 12, 31): (100.0, PresentationRole.COMPARATIVE),
+            date(2025, 12, 31): (110.0, PresentationRole.CURRENT_PERIOD),
+        },
+        note_facts=(note, derived),
+        share_facts=(share,),
+    )
+    pair_2024 = _validated(tmp_path, f2024, b"2024")
+    pair_2025 = _validated(tmp_path, f2025, b"2025")
+    reconciled = reconcile_filings([pair_2024, pair_2025])
+
+    assert len(reconciled.note_facts) == 3
+    assert len(reconciled.share_facts) == 1
+    for obs in (*reconciled.note_facts, *reconciled.share_facts):
+        assert obs.filing_year in {2024, 2025}
+        assert obs.source_file in {"a2024.pdf", "a2025.pdf"}
+        assert obs.source_sha256
+        assert obs.fact.source.page > 0
+    sha_2025 = pair_2025[1].computed_source_sha256
+    share_obs = reconciled.share_facts[0]
+    assert share_obs.filing_year == 2025
+    assert share_obs.source_file == "a2025.pdf"
+    assert share_obs.source_sha256 == sha_2025
+    assert share_obs.fact.source.page == 18
+    assert share_obs.fact.source.note == "EPS"
+
+    provenance = reconciliation_provenance_payload(reconciled)
+    for section in ("note_facts", "share_facts"):
+        assert provenance[section]
+        for item in provenance[section]:
+            assert item["filing_year"]
+            assert item["source_file"]
+            assert item["source_sha256"]
+            assert item["fact_type"]
+            assert item["period"]
+            assert "value" in item
+            assert item["status"]
+            assert item["source"]["page"] > 0
+    derived_payload = next(
+        n
+        for n in provenance["note_facts"]
+        if n["fact_type"] == "lease_liability_total_derived"
+    )
+    assert derived_payload["derivation"] == "current + noncurrent"
+    assert derived_payload["source_file"] == "a2025.pdf"
+    assert derived_payload["source_sha256"] == sha_2025
+
+
+def test_equal_repeated_share_facts_agree(tmp_path: Path):
+    share_2024 = SupplementalFact(
+        fact_type="diluted_weighted_average_shares",
+        period=date(2024, 12, 31),
+        value=90.0,
+        status="reported",
+        source=SourceRef(page=18, note="EPS"),
+    )
+    share_2024_cmp = SupplementalFact(
+        fact_type="diluted_weighted_average_shares",
+        period=date(2024, 12, 31),
+        value=90.0,
+        status="reported",
+        source=SourceRef(page=19, note="EPS"),
+    )
+    share_2025 = SupplementalFact(
+        fact_type="diluted_weighted_average_shares",
+        period=date(2025, 12, 31),
+        value=100.0,
+        status="reported",
+        source=SourceRef(page=19, note="EPS"),
+    )
+    f2024 = _filing(
+        year=2024,
+        source_file="a2024.pdf",
+        revenue_values={date(2024, 12, 31): (100.0, PresentationRole.CURRENT_PERIOD)},
+        share_facts=(share_2024,),
+    )
+    f2025 = _filing(
+        year=2025,
+        source_file="a2025.pdf",
+        revenue_values={
+            date(2024, 12, 31): (100.0, PresentationRole.COMPARATIVE),
+            date(2025, 12, 31): (110.0, PresentationRole.CURRENT_PERIOD),
+        },
+        share_facts=(share_2024_cmp, share_2025),
+    )
+    reconciled = reconcile_filings(
+        [
+            _validated(tmp_path, f2024, b"2024"),
+            _validated(tmp_path, f2025, b"2025"),
+        ]
+    )
+    assert len(reconciled.share_facts) == 3
+    assert reconciled.supplemental_conflicts == ()
+    fin = standardize_reconciled(reconciled)
+    assert fin.historical_shares is not None
+    assert fin.historical_shares.diluted_weighted_average == {
+        date(2024, 12, 31): 90.0,
+        date(2025, 12, 31): 100.0,
+    }
+
+
+def test_disagreeing_repeated_share_facts_block_promotion(tmp_path: Path):
+    share_2024 = SupplementalFact(
+        fact_type="diluted_weighted_average_shares",
+        period=date(2024, 12, 31),
+        value=90.0,
+        status="reported",
+        source=SourceRef(page=18, note="EPS"),
+    )
+    share_2024_cmp = SupplementalFact(
+        fact_type="diluted_weighted_average_shares",
+        period=date(2024, 12, 31),
+        value=91.0,
+        status="reported",
+        source=SourceRef(page=19, note="EPS"),
+    )
+    share_2025 = SupplementalFact(
+        fact_type="diluted_weighted_average_shares",
+        period=date(2025, 12, 31),
+        value=100.0,
+        status="reported",
+        source=SourceRef(page=19, note="EPS"),
+    )
+    f2024 = _filing(
+        year=2024,
+        source_file="a2024.pdf",
+        revenue_values={date(2024, 12, 31): (100.0, PresentationRole.CURRENT_PERIOD)},
+        share_facts=(share_2024,),
+    )
+    f2025 = _filing(
+        year=2025,
+        source_file="a2025.pdf",
+        revenue_values={
+            date(2024, 12, 31): (100.0, PresentationRole.COMPARATIVE),
+            date(2025, 12, 31): (110.0, PresentationRole.CURRENT_PERIOD),
+        },
+        share_facts=(share_2024_cmp, share_2025),
+    )
+    reconciled = reconcile_filings(
+        [
+            _validated(tmp_path, f2024, b"2024"),
+            _validated(tmp_path, f2025, b"2025"),
+        ]
+    )
+    assert len(reconciled.share_facts) == 3
+    assert len(reconciled.supplemental_conflicts) == 1
+    conflict = reconciled.supplemental_conflicts[0]
+    assert conflict.kind == "share"
+    assert conflict.fact_type == "diluted_weighted_average_shares"
+    assert conflict.period == date(2024, 12, 31)
+    assert conflict.reason == "cross_filing_supplemental_disagreement"
+    assert len(conflict.observations) == 2
+    fin = standardize_reconciled(reconciled)
+    assert fin.historical_shares is None
+
+
+def test_complete_axis_share_promotion_ignores_derived(tmp_path: Path):
+    shares_2024 = (
+        SupplementalFact(
+            fact_type="diluted_weighted_average_shares",
+            period=date(2024, 12, 31),
+            value=90.0,
+            status="reported",
+            source=SourceRef(page=18, note="EPS"),
+        ),
+    )
+    shares_2025 = (
+        SupplementalFact(
+            fact_type="diluted_weighted_average_shares",
+            period=date(2025, 12, 31),
+            value=100.0,
+            status="reported",
+            source=SourceRef(page=19, note="EPS"),
+        ),
+        SupplementalFact(
+            fact_type="diluted_weighted_average_shares",
+            period=date(2024, 12, 31),
+            value=999.0,
+            status="derived",
+            source=SourceRef(page=19, note="EPS"),
+            derivation="invented for test",
+        ),
+    )
+    f2024 = _filing(
+        year=2024,
+        source_file="a2024.pdf",
+        revenue_values={date(2024, 12, 31): (100.0, PresentationRole.CURRENT_PERIOD)},
+        share_facts=shares_2024,
+    )
+    f2025 = _filing(
+        year=2025,
+        source_file="a2025.pdf",
+        revenue_values={
+            date(2024, 12, 31): (100.0, PresentationRole.COMPARATIVE),
+            date(2025, 12, 31): (110.0, PresentationRole.CURRENT_PERIOD),
+        },
+        share_facts=shares_2025,
+    )
+    reconciled = reconcile_filings(
+        [
+            _validated(tmp_path, f2024, b"2024"),
+            _validated(tmp_path, f2025, b"2025"),
+        ]
+    )
+    assert reconciled.supplemental_conflicts == ()
+    fin = standardize_reconciled(reconciled)
+    assert fin.historical_shares is not None
+    assert fin.historical_shares.diluted_weighted_average[date(2024, 12, 31)] == 90.0
+    assert fin.historical_shares.diluted_weighted_average[date(2025, 12, 31)] == 100.0
+
+
+def test_note_fact_disagreement_is_recorded_not_promoted(tmp_path: Path):
+    note_a = SupplementalFact(
+        fact_type="lease_liability_total",
+        period=date(2025, 12, 31),
+        value=500.0,
+        status="reported",
+        source=SourceRef(page=14, note="17 Leases"),
+    )
+    note_b = SupplementalFact(
+        fact_type="lease_liability_total",
+        period=date(2025, 12, 31),
+        value=501.0,
+        status="reported",
+        source=SourceRef(page=15, note="17 Leases"),
+    )
+    f2024 = _filing(
+        year=2024,
+        source_file="a2024.pdf",
+        revenue_values={date(2024, 12, 31): (100.0, PresentationRole.CURRENT_PERIOD)},
+    )
+    f2025a = _filing(
+        year=2025,
+        source_file="a2025.pdf",
+        revenue_values={
+            date(2024, 12, 31): (100.0, PresentationRole.COMPARATIVE),
+            date(2025, 12, 31): (110.0, PresentationRole.CURRENT_PERIOD),
+        },
+        note_facts=(note_a,),
+    )
+    f2025b = _filing(
+        year=2025,
+        source_file="a2025b.pdf",
+        revenue_values={
+            date(2024, 12, 31): (100.0, PresentationRole.COMPARATIVE),
+            date(2025, 12, 31): (110.0, PresentationRole.CURRENT_PERIOD),
+        },
+        note_facts=(note_b,),
+    )
+    reconciled = reconcile_filings(
+        [
+            _validated(tmp_path, f2024, b"2024"),
+            _validated(tmp_path, f2025a, b"2025"),
+            _validated(tmp_path, f2025b, b"2025b"),
+        ]
+    )
+    conflicts = [
+        c
+        for c in reconciled.supplemental_conflicts
+        if c.fact_type == "lease_liability_total" and c.period == date(2025, 12, 31)
+    ]
+    assert len(conflicts) == 1
+    assert conflicts[0].kind == "note"
+    assert conflicts[0].reason == "cross_filing_supplemental_disagreement"
+    assert len(conflicts[0].observations) == 2
+    fin = standardize_reconciled(reconciled)
+    assert fin.balance_sheet == []
+    payload = reconciliation_conflicts_payload(reconciled)
+    assert "supplemental_conflicts" in payload
+    assert payload["supplemental_conflict_count"] == len(reconciled.supplemental_conflicts)
+    assert payload["overlap_conflict_count"] == len(reconciled.conflicts)
+    supp = next(
+        c
+        for c in payload["supplemental_conflicts"]
+        if c["fact_type"] == "lease_liability_total"
+    )
+    assert supp["reason"] == "cross_filing_supplemental_disagreement"
+    for obs in supp["observations"]:
+        assert obs["filing_year"]
+        assert obs["source_file"]
+        assert obs["source_sha256"]
+        assert obs["source"]["page"] > 0

@@ -6,14 +6,19 @@ from collections import defaultdict
 from datetime import date
 from typing import Any
 
-from ..data.filing import PresentationRole, SupplementalFact
+from ..data.filing import PresentationRole
 from ..data.interface import (
     FinancialPeriod,
     HistoricalShareData,
     LineItem,
     StandardizedFinancials,
 )
-from .filing_reconciler import ReconciledCompanyData, ReconciledValue
+from .filing_reconciler import (
+    ReconciledCompanyData,
+    ReconciledValue,
+    SupplementalConflict,
+    SupplementalObservation,
+)
 
 _UNIT_SCALE_LABEL = {
     "ones": "Ones",
@@ -48,6 +53,10 @@ def _selection_rule(value: ReconciledValue) -> str:
     return "later_audited_presentation"
 
 
+def _num(value: float) -> int | float:
+    return int(value) if float(value).is_integer() else float(value)
+
+
 def _observation_payload(obs) -> dict[str, Any]:
     return {
         "filing_year": obs.filing_year,
@@ -55,8 +64,36 @@ def _observation_payload(obs) -> dict[str, Any]:
         "source_sha256": obs.source_sha256,
         "pdf_page": obs.pdf_page,
         "presentation_role": obs.presentation_role.value,
-        "value": obs.value if not float(obs.value).is_integer() else int(obs.value),
+        "value": _num(obs.value),
     }
+
+
+def _source_payload(obs: SupplementalObservation) -> dict[str, Any]:
+    src = obs.fact.source
+    out: dict[str, Any] = {"page": src.page}
+    if src.statement:
+        out["statement"] = src.statement
+    if src.note:
+        out["note"] = src.note
+    if src.label:
+        out["label"] = src.label
+    return out
+
+
+def _supplemental_observation_payload(obs: SupplementalObservation) -> dict[str, Any]:
+    out: dict[str, Any] = {
+        "filing_year": obs.filing_year,
+        "source_file": obs.source_file,
+        "source_sha256": obs.source_sha256,
+        "fact_type": obs.fact.fact_type,
+        "period": obs.fact.period.isoformat(),
+        "value": _num(obs.fact.value),
+        "status": obs.fact.status,
+        "source": _source_payload(obs),
+    }
+    if obs.fact.derivation:
+        out["derivation"] = obs.fact.derivation
+    return out
 
 
 def standardize_reconciled(
@@ -110,26 +147,28 @@ def standardize_reconciled(
 def _historical_shares(
     reconciled: ReconciledCompanyData,
 ) -> HistoricalShareData | None:
-    """Emit historical shares only for a complete reported diluted WAS axis."""
+    """Emit historical shares only for a complete unambiguous reported diluted WAS axis."""
     period_set = set(reconciled.periods)
     series: dict[date, float] = {}
-    scale_bases: set[str] = set()
-    for fact in reconciled.share_facts:
-        if fact.fact_type != "diluted_weighted_average_shares":
-            continue
-        if fact.status != "reported":
-            continue
-        if fact.period not in period_set:
-            continue
-        series[fact.period] = float(fact.value)
-        # Optional scale hint lives only in source label text for now.
-        scale_bases.add("shares")
+    for period in reconciled.periods:
+        observations = [
+            obs
+            for obs in reconciled.share_facts
+            if obs.kind == "share"
+            and obs.fact.status == "reported"
+            and obs.fact.fact_type == "diluted_weighted_average_shares"
+            and obs.fact.period == period
+        ]
+        if not observations:
+            return None
+        distinct = {float(obs.fact.value) for obs in observations}
+        if len(distinct) != 1:
+            return None
+        series[period] = next(iter(distinct))
     if set(series) != period_set:
         return None
-    if len(scale_bases) != 1:
-        return None
     return HistoricalShareData(
-        scale_basis=next(iter(scale_bases)),
+        scale_basis="shares",
         diluted_weighted_average={period: series[period] for period in reconciled.periods},
     )
 
@@ -230,9 +269,14 @@ def reconciliation_provenance_payload(
         ],
         "values": values,
         "omitted_incomplete_axis": omitted,
-        "note_facts": [_fact_payload(fact) for fact in reconciled.note_facts],
-        "share_facts": [_fact_payload(fact) for fact in reconciled.share_facts],
+        "note_facts": [
+            _supplemental_observation_payload(obs) for obs in reconciled.note_facts
+        ],
+        "share_facts": [
+            _supplemental_observation_payload(obs) for obs in reconciled.share_facts
+        ],
         "overlap_conflict_count": len(reconciled.conflicts),
+        "supplemental_conflict_count": len(reconciled.supplemental_conflicts),
     }
 
 
@@ -257,31 +301,37 @@ def reconciliation_conflicts_payload(
                 "reason": conflict.reason,
             }
         )
+
+    supplemental_conflicts = [
+        _supplemental_conflict_payload(conflict)
+        for conflict in sorted(
+            reconciled.supplemental_conflicts,
+            key=lambda c: (c.kind, c.fact_type, c.period.isoformat()),
+        )
+    ]
     return {
         "company_name": reconciled.company_name,
         "ticker": reconciled.ticker,
         "conflicts": conflicts,
         "overlap_conflict_count": len(conflicts),
+        "supplemental_conflicts": supplemental_conflicts,
+        "supplemental_conflict_count": len(supplemental_conflicts),
     }
 
 
-def _fact_payload(fact: SupplementalFact) -> dict[str, Any]:
-    out: dict[str, Any] = {
-        "fact_type": fact.fact_type,
-        "period": fact.period.isoformat(),
-        "value": fact.value if not float(fact.value).is_integer() else int(fact.value),
-        "status": fact.status,
-        "source": {
-            "page": fact.source.page,
-            **(
-                {"statement": fact.source.statement}
-                if fact.source.statement
-                else {}
-            ),
-            **({"note": fact.source.note} if fact.source.note else {}),
-            **({"label": fact.source.label} if fact.source.label else {}),
-        },
+def _supplemental_conflict_payload(conflict: SupplementalConflict) -> dict[str, Any]:
+    ordered = sorted(
+        conflict.observations,
+        key=lambda obs: (
+            obs.filing_year,
+            obs.source_file,
+            obs.fact.source.page,
+        ),
+    )
+    return {
+        "kind": conflict.kind,
+        "fact_type": conflict.fact_type,
+        "period": conflict.period.isoformat(),
+        "observations": [_supplemental_observation_payload(obs) for obs in ordered],
+        "reason": conflict.reason,
     }
-    if fact.derivation:
-        out["derivation"] = fact.derivation
-    return out

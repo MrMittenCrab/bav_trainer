@@ -4,1104 +4,1404 @@
   "jurisdiction": "JP",
   "note_facts": [
     {
-      "fact_type": "lease_liability_total",
-      "period": "2020-08-31",
-      "source": {
-        "label": "Total present value of lease liabilities",
-        "note": "17 Leases",
-        "page": 13
-      },
-      "status": "reported",
-      "value": 466179
-    },
-    {
-      "fact_type": "lease_liability_total",
-      "period": "2021-08-31",
-      "source": {
-        "label": "Total present value of lease liabilities",
-        "note": "17 Leases",
-        "page": 13
-      },
-      "status": "reported",
-      "value": 460658
-    },
-    {
-      "fact_type": "lease_interest_expense",
-      "period": "2020-08-31",
-      "source": {
-        "label": "Interest expenses on lease liabilities",
-        "note": "17 Leases",
-        "page": 13
-      },
-      "status": "reported",
-      "value": 4763
-    },
-    {
-      "fact_type": "lease_interest_expense",
-      "period": "2021-08-31",
-      "source": {
-        "label": "Interest expenses on lease liabilities",
-        "note": "17 Leases",
-        "page": 13
-      },
-      "status": "reported",
-      "value": 4847
-    },
-    {
-      "fact_type": "right_of_use_assets",
-      "period": "2020-08-31",
-      "source": {
-        "label": "Right-of-use assets",
-        "note": "17 Leases",
-        "page": 13
-      },
-      "status": "reported",
-      "value": 399944
-    },
-    {
-      "fact_type": "right_of_use_assets",
-      "period": "2021-08-31",
-      "source": {
-        "label": "Right-of-use assets",
-        "note": "17 Leases",
-        "page": 13
-      },
-      "status": "reported",
-      "value": 390537
-    },
-    {
-      "fact_type": "ppe_capex_payments",
-      "period": "2020-08-31",
-      "source": {
-        "label": "Payments for property, plant and equipment",
-        "note": "Consolidated Statement of Cash Flows",
-        "page": 5
-      },
-      "status": "reported",
-      "value": -46500
-    },
-    {
-      "fact_type": "ppe_capex_payments",
-      "period": "2021-08-31",
-      "source": {
-        "label": "Payments for property, plant and equipment",
-        "note": "Consolidated Statement of Cash Flows",
-        "page": 5
-      },
-      "status": "reported",
-      "value": -56500
-    },
-    {
       "fact_type": "depreciation_amortization",
+      "filing_year": 2021,
       "period": "2020-08-31",
       "source": {
         "label": "Depreciation and amortization",
         "note": "Consolidated Statement of Cash Flows",
         "page": 5
       },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
       "status": "reported",
       "value": 177848
     },
     {
       "fact_type": "depreciation_amortization",
+      "filing_year": 2021,
       "period": "2021-08-31",
       "source": {
         "label": "Depreciation and amortization",
         "note": "Consolidated Statement of Cash Flows",
         "page": 5
       },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
       "status": "reported",
       "value": 177910
     },
     {
-      "fact_type": "profit_attributable_to_owners",
-      "period": "2020-08-31",
-      "source": {
-        "label": "Profit attributable to owners of the Parent",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 90357
-    },
-    {
-      "fact_type": "profit_attributable_to_owners",
+      "fact_type": "depreciation_amortization",
+      "filing_year": 2022,
       "period": "2021-08-31",
       "source": {
-        "label": "Profit attributable to owners of the Parent",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
+        "label": "Depreciation and amortization",
+        "note": "Consolidated Statement of Cash Flows",
+        "page": 5
       },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
       "status": "reported",
-      "value": 169847
+      "value": 177910
     },
     {
-      "fact_type": "profit_attributable_to_nci",
-      "period": "2020-08-31",
+      "fact_type": "depreciation_amortization",
+      "filing_year": 2022,
+      "period": "2022-08-31",
       "source": {
-        "label": "Profit attributable to non-controlling interests",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
+        "label": "Depreciation and amortization",
+        "note": "Consolidated Statement of Cash Flows",
+        "page": 5
       },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
       "status": "reported",
-      "value": 40
+      "value": 180275
     },
     {
-      "fact_type": "profit_attributable_to_nci",
-      "period": "2021-08-31",
+      "fact_type": "depreciation_amortization",
+      "filing_year": 2023,
+      "period": "2022-08-31",
       "source": {
-        "label": "Profit attributable to non-controlling interests",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
+        "label": "Depreciation and amortization",
+        "note": "Consolidated Statement of Cash Flows",
+        "page": 5
       },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
       "status": "reported",
-      "value": 5836
+      "value": 180275
+    },
+    {
+      "fact_type": "depreciation_amortization",
+      "filing_year": 2023,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Depreciation and amortization",
+        "note": "Consolidated Statement of Cash Flows",
+        "page": 5
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": 186872
+    },
+    {
+      "fact_type": "depreciation_amortization",
+      "filing_year": 2024,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Depreciation and amortization",
+        "note": "Consolidated Statement of Cash Flows",
+        "page": 5
+      },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "reported",
+      "value": 186872
+    },
+    {
+      "fact_type": "depreciation_amortization",
+      "filing_year": 2024,
+      "period": "2024-08-31",
+      "source": {
+        "label": "Depreciation and amortization",
+        "note": "Consolidated Statement of Cash Flows",
+        "page": 5
+      },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "reported",
+      "value": 204388
+    },
+    {
+      "fact_type": "depreciation_amortization",
+      "filing_year": 2025,
+      "period": "2024-08-31",
+      "source": {
+        "label": "Depreciation and amortization",
+        "note": "Consolidated Statement of Cash Flows",
+        "page": 5
+      },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
+      "status": "reported",
+      "value": 204388
+    },
+    {
+      "fact_type": "depreciation_amortization",
+      "filing_year": 2025,
+      "period": "2025-08-31",
+      "source": {
+        "label": "Depreciation and amortization",
+        "note": "Consolidated Statement of Cash Flows",
+        "page": 5
+      },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
+      "status": "reported",
+      "value": 216492
     },
     {
       "fact_type": "equity_attributable_to_owners",
+      "filing_year": 2021,
       "period": "2020-08-31",
       "source": {
         "label": "Equity attributable to owners of the Parent",
         "note": "Consolidated Statement of Financial Position",
         "page": 2
       },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
       "status": "reported",
       "value": 956562
     },
     {
       "fact_type": "equity_attributable_to_owners",
+      "filing_year": 2021,
       "period": "2021-08-31",
       "source": {
         "label": "Equity attributable to owners of the Parent",
         "note": "Consolidated Statement of Financial Position",
         "page": 2
       },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
       "status": "reported",
       "value": 1116484
     },
     {
-      "fact_type": "noncontrolling_interests_equity",
-      "period": "2020-08-31",
-      "source": {
-        "label": "Non-controlling interests",
-        "note": "Consolidated Statement of Financial Position",
-        "page": 2
-      },
-      "status": "reported",
-      "value": 39516
-    },
-    {
-      "fact_type": "noncontrolling_interests_equity",
+      "fact_type": "equity_attributable_to_owners",
+      "filing_year": 2022,
       "period": "2021-08-31",
       "source": {
-        "label": "Non-controlling interests",
+        "label": "Equity attributable to owners of the Parent",
         "note": "Consolidated Statement of Financial Position",
         "page": 2
       },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
       "status": "reported",
-      "value": 45813
+      "value": 1116484
+    },
+    {
+      "fact_type": "equity_attributable_to_owners",
+      "filing_year": 2022,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Equity attributable to owners of the Parent",
+        "note": "Consolidated Statement of Financial Position",
+        "page": 2
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": 1561652
+    },
+    {
+      "fact_type": "equity_attributable_to_owners",
+      "filing_year": 2023,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Equity attributable to owners of the Parent",
+        "note": "Consolidated Statement of Financial Position",
+        "page": 2
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": 1561652
+    },
+    {
+      "fact_type": "equity_attributable_to_owners",
+      "filing_year": 2023,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Equity attributable to owners of the Parent",
+        "note": "Consolidated Statement of Financial Position",
+        "page": 2
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": 1821405
+    },
+    {
+      "fact_type": "equity_attributable_to_owners",
+      "filing_year": 2024,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Equity attributable to owners of the Parent",
+        "note": "Consolidated Statement of Financial Position",
+        "page": 2
+      },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "reported",
+      "value": 1821405
+    },
+    {
+      "fact_type": "equity_attributable_to_owners",
+      "filing_year": 2024,
+      "period": "2024-08-31",
+      "source": {
+        "label": "Equity attributable to owners of the Parent",
+        "note": "Consolidated Statement of Financial Position",
+        "page": 2
+      },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "reported",
+      "value": 2016535
+    },
+    {
+      "fact_type": "equity_attributable_to_owners",
+      "filing_year": 2025,
+      "period": "2024-08-31",
+      "source": {
+        "label": "Equity attributable to owners of the Parent",
+        "note": "Consolidated Statement of Financial Position",
+        "page": 2
+      },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
+      "status": "reported",
+      "value": 2016535
+    },
+    {
+      "fact_type": "equity_attributable_to_owners",
+      "filing_year": 2025,
+      "period": "2025-08-31",
+      "source": {
+        "label": "Equity attributable to owners of the Parent",
+        "note": "Consolidated Statement of Financial Position",
+        "page": 2
+      },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
+      "status": "reported",
+      "value": 2273115
     },
     {
       "fact_type": "interest_expense",
+      "filing_year": 2021,
       "period": "2020-08-31",
       "source": {
         "label": "Finance costs (primary statement)",
         "note": "Consolidated Statement of Profit or Loss",
         "page": 3
       },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
       "status": "reported",
       "value": -7707
     },
     {
       "fact_type": "interest_expense",
+      "filing_year": 2021,
       "period": "2021-08-31",
       "source": {
         "label": "Finance costs (primary statement)",
         "note": "Consolidated Statement of Profit or Loss",
         "page": 3
       },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
       "status": "reported",
       "value": -6998
     },
     {
-      "fact_type": "lease_liability_total",
+      "fact_type": "interest_expense",
+      "filing_year": 2022,
       "period": "2021-08-31",
       "source": {
-        "label": "Total present value of lease liabilities",
-        "note": "17 Leases",
-        "page": 13
+        "label": "Finance costs (primary statement)",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
       },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
       "status": "reported",
-      "value": 460658
+      "value": -6998
     },
     {
-      "fact_type": "lease_liability_total",
+      "fact_type": "interest_expense",
+      "filing_year": 2022,
       "period": "2022-08-31",
       "source": {
-        "label": "Total present value of lease liabilities",
-        "note": "17 Leases",
-        "page": 13
+        "label": "Finance costs (primary statement)",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
       },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
       "status": "reported",
-      "value": 480725
+      "value": -7560
+    },
+    {
+      "fact_type": "interest_expense",
+      "filing_year": 2023,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Finance costs (primary statement)",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": -7560
+    },
+    {
+      "fact_type": "interest_expense",
+      "filing_year": 2023,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Finance costs (primary statement)",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": -9888
+    },
+    {
+      "fact_type": "interest_expense",
+      "filing_year": 2024,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Finance costs (primary statement)",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "reported",
+      "value": -9888
+    },
+    {
+      "fact_type": "interest_expense",
+      "filing_year": 2024,
+      "period": "2024-08-31",
+      "source": {
+        "label": "Finance costs (primary statement)",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "reported",
+      "value": -11101
+    },
+    {
+      "fact_type": "interest_expense",
+      "filing_year": 2025,
+      "period": "2024-08-31",
+      "source": {
+        "label": "Finance costs (primary statement)",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
+      "status": "reported",
+      "value": -11101
+    },
+    {
+      "fact_type": "interest_expense",
+      "filing_year": 2025,
+      "period": "2025-08-31",
+      "source": {
+        "label": "Finance costs (primary statement)",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
+      "status": "reported",
+      "value": -12834
     },
     {
       "fact_type": "lease_interest_expense",
+      "filing_year": 2021,
+      "period": "2020-08-31",
+      "source": {
+        "label": "Interest expenses on lease liabilities",
+        "note": "17 Leases",
+        "page": 13
+      },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
+      "status": "reported",
+      "value": 4763
+    },
+    {
+      "fact_type": "lease_interest_expense",
+      "filing_year": 2021,
       "period": "2021-08-31",
       "source": {
         "label": "Interest expenses on lease liabilities",
         "note": "17 Leases",
         "page": 13
       },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
       "status": "reported",
       "value": 4847
     },
     {
       "fact_type": "lease_interest_expense",
+      "filing_year": 2022,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Interest expenses on lease liabilities",
+        "note": "17 Leases",
+        "page": 13
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": 4847
+    },
+    {
+      "fact_type": "lease_interest_expense",
+      "filing_year": 2022,
       "period": "2022-08-31",
       "source": {
         "label": "Interest expenses on lease liabilities",
         "note": "17 Leases",
         "page": 13
       },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
       "status": "reported",
       "value": 4757
     },
     {
-      "fact_type": "right_of_use_assets",
-      "period": "2021-08-31",
+      "fact_type": "lease_interest_expense",
+      "filing_year": 2023,
+      "period": "2022-08-31",
       "source": {
-        "label": "Right-of-use assets",
+        "label": "Interest expenses on lease liabilities",
         "note": "17 Leases",
         "page": 13
       },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
       "status": "reported",
-      "value": 390537
+      "value": 4757
     },
     {
-      "fact_type": "right_of_use_assets",
-      "period": "2022-08-31",
+      "fact_type": "lease_interest_expense",
+      "filing_year": 2023,
+      "period": "2023-08-31",
       "source": {
-        "label": "Right-of-use assets",
+        "label": "Interest expenses on lease liabilities",
         "note": "17 Leases",
         "page": 13
       },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
       "status": "reported",
-      "value": 395634
+      "value": 5187
     },
     {
-      "fact_type": "ppe_capex_payments",
-      "period": "2021-08-31",
+      "fact_type": "lease_interest_expense",
+      "filing_year": 2024,
+      "period": "2023-08-31",
       "source": {
-        "label": "Payments for property, plant and equipment",
-        "note": "Consolidated Statement of Cash Flows",
-        "page": 5
+        "label": "Interest expenses on lease liabilities",
+        "note": "17 Leases",
+        "page": 14
       },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
       "status": "reported",
-      "value": -56500
+      "value": 5187
     },
     {
-      "fact_type": "ppe_capex_payments",
-      "period": "2022-08-31",
+      "fact_type": "lease_interest_expense",
+      "filing_year": 2024,
+      "period": "2024-08-31",
       "source": {
-        "label": "Payments for property, plant and equipment",
-        "note": "Consolidated Statement of Cash Flows",
-        "page": 5
+        "label": "Interest expenses on lease liabilities",
+        "note": "17 Leases",
+        "page": 14
       },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
       "status": "reported",
-      "value": -51271
+      "value": 6507
     },
     {
-      "fact_type": "depreciation_amortization",
-      "period": "2021-08-31",
+      "fact_type": "lease_interest_expense",
+      "filing_year": 2025,
+      "period": "2024-08-31",
       "source": {
-        "label": "Depreciation and amortization",
-        "note": "Consolidated Statement of Cash Flows",
-        "page": 5
+        "label": "Interest expenses on lease liabilities",
+        "note": "17 Leases",
+        "page": 14
       },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
       "status": "reported",
-      "value": 177910
+      "value": 6507
     },
     {
-      "fact_type": "depreciation_amortization",
-      "period": "2022-08-31",
+      "fact_type": "lease_interest_expense",
+      "filing_year": 2025,
+      "period": "2025-08-31",
       "source": {
-        "label": "Depreciation and amortization",
-        "note": "Consolidated Statement of Cash Flows",
-        "page": 5
+        "label": "Interest expenses on lease liabilities",
+        "note": "17 Leases",
+        "page": 14
       },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
       "status": "reported",
-      "value": 180275
-    },
-    {
-      "fact_type": "profit_attributable_to_owners",
-      "period": "2021-08-31",
-      "source": {
-        "label": "Profit attributable to owners of the Parent",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 169847
-    },
-    {
-      "fact_type": "profit_attributable_to_owners",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Profit attributable to owners of the Parent",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 273335
-    },
-    {
-      "fact_type": "profit_attributable_to_nci",
-      "period": "2021-08-31",
-      "source": {
-        "label": "Profit attributable to non-controlling interests",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 5836
-    },
-    {
-      "fact_type": "profit_attributable_to_nci",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Profit attributable to non-controlling interests",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 11415
-    },
-    {
-      "fact_type": "equity_attributable_to_owners",
-      "period": "2021-08-31",
-      "source": {
-        "label": "Equity attributable to owners of the Parent",
-        "note": "Consolidated Statement of Financial Position",
-        "page": 2
-      },
-      "status": "reported",
-      "value": 1116484
-    },
-    {
-      "fact_type": "equity_attributable_to_owners",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Equity attributable to owners of the Parent",
-        "note": "Consolidated Statement of Financial Position",
-        "page": 2
-      },
-      "status": "reported",
-      "value": 1561652
-    },
-    {
-      "fact_type": "noncontrolling_interests_equity",
-      "period": "2021-08-31",
-      "source": {
-        "label": "Non-controlling interests",
-        "note": "Consolidated Statement of Financial Position",
-        "page": 2
-      },
-      "status": "reported",
-      "value": 45813
-    },
-    {
-      "fact_type": "noncontrolling_interests_equity",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Non-controlling interests",
-        "note": "Consolidated Statement of Financial Position",
-        "page": 2
-      },
-      "status": "reported",
-      "value": 53750
-    },
-    {
-      "fact_type": "interest_expense",
-      "period": "2021-08-31",
-      "source": {
-        "label": "Finance costs (primary statement)",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": -6998
-    },
-    {
-      "fact_type": "interest_expense",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Finance costs (primary statement)",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": -7560
+      "value": 8464
     },
     {
       "fact_type": "lease_liability_total",
+      "filing_year": 2021,
+      "period": "2020-08-31",
+      "source": {
+        "label": "Total present value of lease liabilities",
+        "note": "17 Leases",
+        "page": 13
+      },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
+      "status": "reported",
+      "value": 466179
+    },
+    {
+      "fact_type": "lease_liability_total",
+      "filing_year": 2021,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Total present value of lease liabilities",
+        "note": "17 Leases",
+        "page": 13
+      },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
+      "status": "reported",
+      "value": 460658
+    },
+    {
+      "fact_type": "lease_liability_total",
+      "filing_year": 2022,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Total present value of lease liabilities",
+        "note": "17 Leases",
+        "page": 13
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": 460658
+    },
+    {
+      "fact_type": "lease_liability_total",
+      "filing_year": 2022,
       "period": "2022-08-31",
       "source": {
         "label": "Total present value of lease liabilities",
         "note": "17 Leases",
         "page": 13
       },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
       "status": "reported",
       "value": 480725
     },
     {
       "fact_type": "lease_liability_total",
+      "filing_year": 2023,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Total present value of lease liabilities",
+        "note": "17 Leases",
+        "page": 13
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": 480725
+    },
+    {
+      "fact_type": "lease_liability_total",
+      "filing_year": 2023,
       "period": "2023-08-31",
       "source": {
         "label": "Total present value of lease liabilities",
         "note": "17 Leases",
         "page": 13
       },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
       "status": "reported",
       "value": 465650
     },
     {
-      "fact_type": "lease_interest_expense",
-      "period": "2022-08-31",
+      "fact_type": "lease_liability_total",
+      "filing_year": 2024,
+      "period": "2023-08-31",
       "source": {
-        "label": "Interest expenses on lease liabilities",
+        "label": "Total present value of lease liabilities",
         "note": "17 Leases",
-        "page": 13
+        "page": 14
       },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
       "status": "reported",
-      "value": 4757
+      "value": 465650
     },
     {
-      "fact_type": "lease_interest_expense",
-      "period": "2023-08-31",
+      "fact_type": "lease_liability_total",
+      "filing_year": 2024,
+      "period": "2024-08-31",
       "source": {
-        "label": "Interest expenses on lease liabilities",
+        "label": "Total present value of lease liabilities",
         "note": "17 Leases",
-        "page": 13
+        "page": 14
       },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
       "status": "reported",
-      "value": 5187
+      "value": 478062
     },
     {
-      "fact_type": "right_of_use_assets",
-      "period": "2022-08-31",
+      "fact_type": "lease_liability_total",
+      "filing_year": 2025,
+      "period": "2024-08-31",
       "source": {
-        "label": "Right-of-use assets",
+        "label": "Total present value of lease liabilities",
         "note": "17 Leases",
-        "page": 13
+        "page": 14
       },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
       "status": "reported",
-      "value": 395634
+      "value": 478062
     },
     {
-      "fact_type": "right_of_use_assets",
-      "period": "2023-08-31",
+      "fact_type": "lease_liability_total",
+      "filing_year": 2025,
+      "period": "2025-08-31",
       "source": {
-        "label": "Right-of-use assets",
+        "label": "Total present value of lease liabilities",
         "note": "17 Leases",
-        "page": 13
+        "page": 14
       },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
       "status": "reported",
-      "value": 389183
-    },
-    {
-      "fact_type": "ppe_capex_payments",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Payments for property, plant and equipment",
-        "note": "Consolidated Statement of Cash Flows",
-        "page": 5
-      },
-      "status": "reported",
-      "value": -51271
-    },
-    {
-      "fact_type": "ppe_capex_payments",
-      "period": "2023-08-31",
-      "source": {
-        "label": "Payments for property, plant and equipment",
-        "note": "Consolidated Statement of Cash Flows",
-        "page": 5
-      },
-      "status": "reported",
-      "value": -61764
-    },
-    {
-      "fact_type": "depreciation_amortization",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Depreciation and amortization",
-        "note": "Consolidated Statement of Cash Flows",
-        "page": 5
-      },
-      "status": "reported",
-      "value": 180275
-    },
-    {
-      "fact_type": "depreciation_amortization",
-      "period": "2023-08-31",
-      "source": {
-        "label": "Depreciation and amortization",
-        "note": "Consolidated Statement of Cash Flows",
-        "page": 5
-      },
-      "status": "reported",
-      "value": 186872
-    },
-    {
-      "fact_type": "profit_attributable_to_owners",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Profit attributable to owners of the Parent",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 273335
-    },
-    {
-      "fact_type": "profit_attributable_to_owners",
-      "period": "2023-08-31",
-      "source": {
-        "label": "Profit attributable to owners of the Parent",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 296229
-    },
-    {
-      "fact_type": "profit_attributable_to_nci",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Profit attributable to non-controlling interests",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 11415
-    },
-    {
-      "fact_type": "profit_attributable_to_nci",
-      "period": "2023-08-31",
-      "source": {
-        "label": "Profit attributable to non-controlling interests",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 18941
-    },
-    {
-      "fact_type": "equity_attributable_to_owners",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Equity attributable to owners of the Parent",
-        "note": "Consolidated Statement of Financial Position",
-        "page": 2
-      },
-      "status": "reported",
-      "value": 1561652
-    },
-    {
-      "fact_type": "equity_attributable_to_owners",
-      "period": "2023-08-31",
-      "source": {
-        "label": "Equity attributable to owners of the Parent",
-        "note": "Consolidated Statement of Financial Position",
-        "page": 2
-      },
-      "status": "reported",
-      "value": 1821405
+      "value": 513501
     },
     {
       "fact_type": "noncontrolling_interests_equity",
+      "filing_year": 2021,
+      "period": "2020-08-31",
+      "source": {
+        "label": "Non-controlling interests",
+        "note": "Consolidated Statement of Financial Position",
+        "page": 2
+      },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
+      "status": "reported",
+      "value": 39516
+    },
+    {
+      "fact_type": "noncontrolling_interests_equity",
+      "filing_year": 2021,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Non-controlling interests",
+        "note": "Consolidated Statement of Financial Position",
+        "page": 2
+      },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
+      "status": "reported",
+      "value": 45813
+    },
+    {
+      "fact_type": "noncontrolling_interests_equity",
+      "filing_year": 2022,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Non-controlling interests",
+        "note": "Consolidated Statement of Financial Position",
+        "page": 2
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": 45813
+    },
+    {
+      "fact_type": "noncontrolling_interests_equity",
+      "filing_year": 2022,
       "period": "2022-08-31",
       "source": {
         "label": "Non-controlling interests",
         "note": "Consolidated Statement of Financial Position",
         "page": 2
       },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
       "status": "reported",
       "value": 53750
     },
     {
       "fact_type": "noncontrolling_interests_equity",
+      "filing_year": 2023,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Non-controlling interests",
+        "note": "Consolidated Statement of Financial Position",
+        "page": 2
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": 53750
+    },
+    {
+      "fact_type": "noncontrolling_interests_equity",
+      "filing_year": 2023,
       "period": "2023-08-31",
       "source": {
         "label": "Non-controlling interests",
         "note": "Consolidated Statement of Financial Position",
         "page": 2
       },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
       "status": "reported",
       "value": 51955
     },
     {
-      "fact_type": "interest_expense",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Finance costs (primary statement)",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": -7560
-    },
-    {
-      "fact_type": "interest_expense",
+      "fact_type": "noncontrolling_interests_equity",
+      "filing_year": 2024,
       "period": "2023-08-31",
       "source": {
-        "label": "Finance costs (primary statement)",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
+        "label": "Non-controlling interests",
+        "note": "Consolidated Statement of Financial Position",
+        "page": 2
       },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
       "status": "reported",
-      "value": -9888
+      "value": 51955
     },
     {
-      "fact_type": "lease_liability_total",
-      "period": "2023-08-31",
-      "source": {
-        "label": "Total present value of lease liabilities",
-        "note": "17 Leases",
-        "page": 14
-      },
-      "status": "reported",
-      "value": 465650
-    },
-    {
-      "fact_type": "lease_liability_total",
+      "fact_type": "noncontrolling_interests_equity",
+      "filing_year": 2024,
       "period": "2024-08-31",
       "source": {
-        "label": "Total present value of lease liabilities",
-        "note": "17 Leases",
-        "page": 14
+        "label": "Non-controlling interests",
+        "note": "Consolidated Statement of Financial Position",
+        "page": 2
       },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
       "status": "reported",
-      "value": 478062
+      "value": 51718
     },
     {
-      "fact_type": "lease_interest_expense",
-      "period": "2023-08-31",
-      "source": {
-        "label": "Interest expenses on lease liabilities",
-        "note": "17 Leases",
-        "page": 14
-      },
-      "status": "reported",
-      "value": 5187
-    },
-    {
-      "fact_type": "lease_interest_expense",
+      "fact_type": "noncontrolling_interests_equity",
+      "filing_year": 2025,
       "period": "2024-08-31",
       "source": {
-        "label": "Interest expenses on lease liabilities",
-        "note": "17 Leases",
-        "page": 14
+        "label": "Non-controlling interests",
+        "note": "Consolidated Statement of Financial Position",
+        "page": 2
       },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
       "status": "reported",
-      "value": 6507
+      "value": 51718
     },
     {
-      "fact_type": "right_of_use_assets",
-      "period": "2023-08-31",
+      "fact_type": "noncontrolling_interests_equity",
+      "filing_year": 2025,
+      "period": "2025-08-31",
       "source": {
-        "label": "Right-of-use assets",
-        "note": "17 Leases",
-        "page": 14
+        "label": "Non-controlling interests",
+        "note": "Consolidated Statement of Financial Position",
+        "page": 2
       },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
       "status": "reported",
-      "value": 389183
-    },
-    {
-      "fact_type": "right_of_use_assets",
-      "period": "2024-08-31",
-      "source": {
-        "label": "Right-of-use assets",
-        "note": "17 Leases",
-        "page": 14
-      },
-      "status": "reported",
-      "value": 416712
+      "value": 54385
     },
     {
       "fact_type": "ppe_capex_payments",
+      "filing_year": 2021,
+      "period": "2020-08-31",
+      "source": {
+        "label": "Payments for property, plant and equipment",
+        "note": "Consolidated Statement of Cash Flows",
+        "page": 5
+      },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
+      "status": "reported",
+      "value": -46500
+    },
+    {
+      "fact_type": "ppe_capex_payments",
+      "filing_year": 2021,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Payments for property, plant and equipment",
+        "note": "Consolidated Statement of Cash Flows",
+        "page": 5
+      },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
+      "status": "reported",
+      "value": -56500
+    },
+    {
+      "fact_type": "ppe_capex_payments",
+      "filing_year": 2022,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Payments for property, plant and equipment",
+        "note": "Consolidated Statement of Cash Flows",
+        "page": 5
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": -56500
+    },
+    {
+      "fact_type": "ppe_capex_payments",
+      "filing_year": 2022,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Payments for property, plant and equipment",
+        "note": "Consolidated Statement of Cash Flows",
+        "page": 5
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": -51271
+    },
+    {
+      "fact_type": "ppe_capex_payments",
+      "filing_year": 2023,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Payments for property, plant and equipment",
+        "note": "Consolidated Statement of Cash Flows",
+        "page": 5
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": -51271
+    },
+    {
+      "fact_type": "ppe_capex_payments",
+      "filing_year": 2023,
       "period": "2023-08-31",
       "source": {
         "label": "Payments for property, plant and equipment",
         "note": "Consolidated Statement of Cash Flows",
         "page": 5
       },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
       "status": "reported",
       "value": -61764
     },
     {
       "fact_type": "ppe_capex_payments",
+      "filing_year": 2024,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Payments for property, plant and equipment",
+        "note": "Consolidated Statement of Cash Flows",
+        "page": 5
+      },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "reported",
+      "value": -61764
+    },
+    {
+      "fact_type": "ppe_capex_payments",
+      "filing_year": 2024,
       "period": "2024-08-31",
       "source": {
         "label": "Payments for property, plant and equipment",
         "note": "Consolidated Statement of Cash Flows",
         "page": 5
       },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
       "status": "reported",
       "value": -73728
     },
     {
-      "fact_type": "depreciation_amortization",
-      "period": "2023-08-31",
+      "fact_type": "ppe_capex_payments",
+      "filing_year": 2025,
+      "period": "2024-08-31",
       "source": {
-        "label": "Depreciation and amortization",
+        "label": "Payments for property, plant and equipment",
         "note": "Consolidated Statement of Cash Flows",
         "page": 5
       },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
       "status": "reported",
-      "value": 186872
+      "value": -73728
     },
     {
-      "fact_type": "depreciation_amortization",
-      "period": "2024-08-31",
+      "fact_type": "ppe_capex_payments",
+      "filing_year": 2025,
+      "period": "2025-08-31",
       "source": {
-        "label": "Depreciation and amortization",
+        "label": "Payments for property, plant and equipment",
         "note": "Consolidated Statement of Cash Flows",
         "page": 5
       },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
       "status": "reported",
-      "value": 204388
-    },
-    {
-      "fact_type": "profit_attributable_to_owners",
-      "period": "2023-08-31",
-      "source": {
-        "label": "Profit attributable to owners of the Parent",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 296229
-    },
-    {
-      "fact_type": "profit_attributable_to_owners",
-      "period": "2024-08-31",
-      "source": {
-        "label": "Profit attributable to owners of the Parent",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 371999
+      "value": -135535
     },
     {
       "fact_type": "profit_attributable_to_nci",
+      "filing_year": 2021,
+      "period": "2020-08-31",
+      "source": {
+        "label": "Profit attributable to non-controlling interests",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
+      "status": "reported",
+      "value": 40
+    },
+    {
+      "fact_type": "profit_attributable_to_nci",
+      "filing_year": 2021,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Profit attributable to non-controlling interests",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
+      "status": "reported",
+      "value": 5836
+    },
+    {
+      "fact_type": "profit_attributable_to_nci",
+      "filing_year": 2022,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Profit attributable to non-controlling interests",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": 5836
+    },
+    {
+      "fact_type": "profit_attributable_to_nci",
+      "filing_year": 2022,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Profit attributable to non-controlling interests",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": 11415
+    },
+    {
+      "fact_type": "profit_attributable_to_nci",
+      "filing_year": 2023,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Profit attributable to non-controlling interests",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": 11415
+    },
+    {
+      "fact_type": "profit_attributable_to_nci",
+      "filing_year": 2023,
       "period": "2023-08-31",
       "source": {
         "label": "Profit attributable to non-controlling interests",
         "note": "Consolidated Statement of Profit or Loss",
         "page": 3
       },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
       "status": "reported",
       "value": 18941
     },
     {
       "fact_type": "profit_attributable_to_nci",
+      "filing_year": 2024,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Profit attributable to non-controlling interests",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "reported",
+      "value": 18941
+    },
+    {
+      "fact_type": "profit_attributable_to_nci",
+      "filing_year": 2024,
       "period": "2024-08-31",
       "source": {
         "label": "Profit attributable to non-controlling interests",
         "note": "Consolidated Statement of Profit or Loss",
         "page": 3
       },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
       "status": "reported",
       "value": 21605
     },
     {
-      "fact_type": "equity_attributable_to_owners",
-      "period": "2023-08-31",
-      "source": {
-        "label": "Equity attributable to owners of the Parent",
-        "note": "Consolidated Statement of Financial Position",
-        "page": 2
-      },
-      "status": "reported",
-      "value": 1821405
-    },
-    {
-      "fact_type": "equity_attributable_to_owners",
+      "fact_type": "profit_attributable_to_nci",
+      "filing_year": 2025,
       "period": "2024-08-31",
       "source": {
-        "label": "Equity attributable to owners of the Parent",
-        "note": "Consolidated Statement of Financial Position",
-        "page": 2
-      },
-      "status": "reported",
-      "value": 2016535
-    },
-    {
-      "fact_type": "noncontrolling_interests_equity",
-      "period": "2023-08-31",
-      "source": {
-        "label": "Non-controlling interests",
-        "note": "Consolidated Statement of Financial Position",
-        "page": 2
-      },
-      "status": "reported",
-      "value": 51955
-    },
-    {
-      "fact_type": "noncontrolling_interests_equity",
-      "period": "2024-08-31",
-      "source": {
-        "label": "Non-controlling interests",
-        "note": "Consolidated Statement of Financial Position",
-        "page": 2
-      },
-      "status": "reported",
-      "value": 51718
-    },
-    {
-      "fact_type": "interest_expense",
-      "period": "2023-08-31",
-      "source": {
-        "label": "Finance costs (primary statement)",
+        "label": "Profit attributable to non-controlling interests",
         "note": "Consolidated Statement of Profit or Loss",
         "page": 3
       },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
       "status": "reported",
-      "value": -9888
+      "value": 21605
     },
     {
-      "fact_type": "interest_expense",
-      "period": "2024-08-31",
+      "fact_type": "profit_attributable_to_nci",
+      "filing_year": 2025,
+      "period": "2025-08-31",
       "source": {
-        "label": "Finance costs (primary statement)",
+        "label": "Profit attributable to non-controlling interests",
         "note": "Consolidated Statement of Profit or Loss",
         "page": 3
       },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
       "status": "reported",
-      "value": -11101
-    },
-    {
-      "fact_type": "lease_liability_total",
-      "period": "2024-08-31",
-      "source": {
-        "label": "Total present value of lease liabilities",
-        "note": "17 Leases",
-        "page": 14
-      },
-      "status": "reported",
-      "value": 478062
-    },
-    {
-      "fact_type": "lease_liability_total",
-      "period": "2025-08-31",
-      "source": {
-        "label": "Total present value of lease liabilities",
-        "note": "17 Leases",
-        "page": 14
-      },
-      "status": "reported",
-      "value": 513501
-    },
-    {
-      "fact_type": "lease_interest_expense",
-      "period": "2024-08-31",
-      "source": {
-        "label": "Interest expenses on lease liabilities",
-        "note": "17 Leases",
-        "page": 14
-      },
-      "status": "reported",
-      "value": 6507
-    },
-    {
-      "fact_type": "lease_interest_expense",
-      "period": "2025-08-31",
-      "source": {
-        "label": "Interest expenses on lease liabilities",
-        "note": "17 Leases",
-        "page": 14
-      },
-      "status": "reported",
-      "value": 8464
-    },
-    {
-      "fact_type": "right_of_use_assets",
-      "period": "2024-08-31",
-      "source": {
-        "label": "Right-of-use assets",
-        "note": "17 Leases",
-        "page": 14
-      },
-      "status": "reported",
-      "value": 416712
-    },
-    {
-      "fact_type": "right_of_use_assets",
-      "period": "2025-08-31",
-      "source": {
-        "label": "Right-of-use assets",
-        "note": "17 Leases",
-        "page": 14
-      },
-      "status": "reported",
-      "value": 477111
-    },
-    {
-      "fact_type": "ppe_capex_payments",
-      "period": "2024-08-31",
-      "source": {
-        "label": "Payments for property, plant and equipment",
-        "note": "Consolidated Statement of Cash Flows",
-        "page": 5
-      },
-      "status": "reported",
-      "value": -73728
-    },
-    {
-      "fact_type": "ppe_capex_payments",
-      "period": "2025-08-31",
-      "source": {
-        "label": "Payments for property, plant and equipment",
-        "note": "Consolidated Statement of Cash Flows",
-        "page": 5
-      },
-      "status": "reported",
-      "value": -135535
-    },
-    {
-      "fact_type": "depreciation_amortization",
-      "period": "2024-08-31",
-      "source": {
-        "label": "Depreciation and amortization",
-        "note": "Consolidated Statement of Cash Flows",
-        "page": 5
-      },
-      "status": "reported",
-      "value": 204388
-    },
-    {
-      "fact_type": "depreciation_amortization",
-      "period": "2025-08-31",
-      "source": {
-        "label": "Depreciation and amortization",
-        "note": "Consolidated Statement of Cash Flows",
-        "page": 5
-      },
-      "status": "reported",
-      "value": 216492
+      "value": 26143
     },
     {
       "fact_type": "profit_attributable_to_owners",
+      "filing_year": 2021,
+      "period": "2020-08-31",
+      "source": {
+        "label": "Profit attributable to owners of the Parent",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
+      "status": "reported",
+      "value": 90357
+    },
+    {
+      "fact_type": "profit_attributable_to_owners",
+      "filing_year": 2021,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Profit attributable to owners of the Parent",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
+      "status": "reported",
+      "value": 169847
+    },
+    {
+      "fact_type": "profit_attributable_to_owners",
+      "filing_year": 2022,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Profit attributable to owners of the Parent",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": 169847
+    },
+    {
+      "fact_type": "profit_attributable_to_owners",
+      "filing_year": 2022,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Profit attributable to owners of the Parent",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": 273335
+    },
+    {
+      "fact_type": "profit_attributable_to_owners",
+      "filing_year": 2023,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Profit attributable to owners of the Parent",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": 273335
+    },
+    {
+      "fact_type": "profit_attributable_to_owners",
+      "filing_year": 2023,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Profit attributable to owners of the Parent",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": 296229
+    },
+    {
+      "fact_type": "profit_attributable_to_owners",
+      "filing_year": 2024,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Profit attributable to owners of the Parent",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "reported",
+      "value": 296229
+    },
+    {
+      "fact_type": "profit_attributable_to_owners",
+      "filing_year": 2024,
       "period": "2024-08-31",
       "source": {
         "label": "Profit attributable to owners of the Parent",
         "note": "Consolidated Statement of Profit or Loss",
         "page": 3
       },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
       "status": "reported",
       "value": 371999
     },
     {
       "fact_type": "profit_attributable_to_owners",
+      "filing_year": 2025,
+      "period": "2024-08-31",
+      "source": {
+        "label": "Profit attributable to owners of the Parent",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
+      "status": "reported",
+      "value": 371999
+    },
+    {
+      "fact_type": "profit_attributable_to_owners",
+      "filing_year": 2025,
       "period": "2025-08-31",
       "source": {
         "label": "Profit attributable to owners of the Parent",
         "note": "Consolidated Statement of Profit or Loss",
         "page": 3
       },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
       "status": "reported",
       "value": 433009
     },
     {
-      "fact_type": "profit_attributable_to_nci",
+      "fact_type": "right_of_use_assets",
+      "filing_year": 2021,
+      "period": "2020-08-31",
+      "source": {
+        "label": "Right-of-use assets",
+        "note": "17 Leases",
+        "page": 13
+      },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
+      "status": "reported",
+      "value": 399944
+    },
+    {
+      "fact_type": "right_of_use_assets",
+      "filing_year": 2021,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Right-of-use assets",
+        "note": "17 Leases",
+        "page": 13
+      },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
+      "status": "reported",
+      "value": 390537
+    },
+    {
+      "fact_type": "right_of_use_assets",
+      "filing_year": 2022,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Right-of-use assets",
+        "note": "17 Leases",
+        "page": 13
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": 390537
+    },
+    {
+      "fact_type": "right_of_use_assets",
+      "filing_year": 2022,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Right-of-use assets",
+        "note": "17 Leases",
+        "page": 13
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": 395634
+    },
+    {
+      "fact_type": "right_of_use_assets",
+      "filing_year": 2023,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Right-of-use assets",
+        "note": "17 Leases",
+        "page": 13
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": 395634
+    },
+    {
+      "fact_type": "right_of_use_assets",
+      "filing_year": 2023,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Right-of-use assets",
+        "note": "17 Leases",
+        "page": 13
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": 389183
+    },
+    {
+      "fact_type": "right_of_use_assets",
+      "filing_year": 2024,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Right-of-use assets",
+        "note": "17 Leases",
+        "page": 14
+      },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "reported",
+      "value": 389183
+    },
+    {
+      "fact_type": "right_of_use_assets",
+      "filing_year": 2024,
       "period": "2024-08-31",
       "source": {
-        "label": "Profit attributable to non-controlling interests",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
+        "label": "Right-of-use assets",
+        "note": "17 Leases",
+        "page": 14
       },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
       "status": "reported",
-      "value": 21605
+      "value": 416712
     },
     {
-      "fact_type": "profit_attributable_to_nci",
-      "period": "2025-08-31",
-      "source": {
-        "label": "Profit attributable to non-controlling interests",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 26143
-    },
-    {
-      "fact_type": "equity_attributable_to_owners",
+      "fact_type": "right_of_use_assets",
+      "filing_year": 2025,
       "period": "2024-08-31",
       "source": {
-        "label": "Equity attributable to owners of the Parent",
-        "note": "Consolidated Statement of Financial Position",
-        "page": 2
+        "label": "Right-of-use assets",
+        "note": "17 Leases",
+        "page": 14
       },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
       "status": "reported",
-      "value": 2016535
+      "value": 416712
     },
     {
-      "fact_type": "equity_attributable_to_owners",
+      "fact_type": "right_of_use_assets",
+      "filing_year": 2025,
       "period": "2025-08-31",
       "source": {
-        "label": "Equity attributable to owners of the Parent",
-        "note": "Consolidated Statement of Financial Position",
-        "page": 2
+        "label": "Right-of-use assets",
+        "note": "17 Leases",
+        "page": 14
       },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
       "status": "reported",
-      "value": 2273115
-    },
-    {
-      "fact_type": "noncontrolling_interests_equity",
-      "period": "2024-08-31",
-      "source": {
-        "label": "Non-controlling interests",
-        "note": "Consolidated Statement of Financial Position",
-        "page": 2
-      },
-      "status": "reported",
-      "value": 51718
-    },
-    {
-      "fact_type": "noncontrolling_interests_equity",
-      "period": "2025-08-31",
-      "source": {
-        "label": "Non-controlling interests",
-        "note": "Consolidated Statement of Financial Position",
-        "page": 2
-      },
-      "status": "reported",
-      "value": 54385
-    },
-    {
-      "fact_type": "interest_expense",
-      "period": "2024-08-31",
-      "source": {
-        "label": "Finance costs (primary statement)",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": -11101
-    },
-    {
-      "fact_type": "interest_expense",
-      "period": "2025-08-31",
-      "source": {
-        "label": "Finance costs (primary statement)",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": -12834
+      "value": 477111
     }
   ],
   "omitted_incomplete_axis": [
@@ -1153,541 +1453,685 @@
   "share_facts": [
     {
       "fact_type": "basic_weighted_average_shares",
+      "filing_year": 2021,
       "period": "2020-08-31",
       "source": {
         "label": "Average number of common stock during the year",
         "note": "27 Earnings per Share",
         "page": 17
       },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
       "status": "reported",
       "value": 102081609
     },
     {
       "fact_type": "basic_weighted_average_shares",
+      "filing_year": 2021,
       "period": "2021-08-31",
       "source": {
         "label": "Average number of common stock during the year",
         "note": "27 Earnings per Share",
         "page": 17
       },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
       "status": "reported",
       "value": 102125851
     },
     {
-      "fact_type": "dilutive_shares",
-      "period": "2020-08-31",
-      "source": {
-        "label": "Increase in number of common stock (share subscription rights)",
-        "note": "27 Earnings per Share",
-        "page": 17
-      },
-      "status": "reported",
-      "value": 177082
-    },
-    {
-      "fact_type": "dilutive_shares",
+      "fact_type": "basic_weighted_average_shares",
+      "filing_year": 2022,
       "period": "2021-08-31",
       "source": {
-        "label": "Increase in number of common stock (share subscription rights)",
+        "label": "Average number of common stock during the year",
         "note": "27 Earnings per Share",
         "page": 17
       },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
       "status": "reported",
-      "value": 164744
+      "value": 102125851
+    },
+    {
+      "fact_type": "basic_weighted_average_shares",
+      "filing_year": 2022,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Average number of common stock during the year",
+        "note": "27 Earnings per Share",
+        "page": 17
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": 102170095
+    },
+    {
+      "fact_type": "basic_weighted_average_shares",
+      "filing_year": 2023,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Average number of common stock during the year",
+        "note": "27 Earnings per Share",
+        "page": 18
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": 306510285
+    },
+    {
+      "fact_type": "basic_weighted_average_shares",
+      "filing_year": 2023,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Average number of common stock during the year",
+        "note": "27 Earnings per Share",
+        "page": 18
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": 306628124
+    },
+    {
+      "fact_type": "basic_weighted_average_shares",
+      "filing_year": 2024,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Average number of common stock during the year",
+        "note": "27 Earnings per Share",
+        "page": 18
+      },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "reported",
+      "value": 306628124
+    },
+    {
+      "fact_type": "basic_weighted_average_shares",
+      "filing_year": 2024,
+      "period": "2024-08-31",
+      "source": {
+        "label": "Average number of common stock during the year",
+        "note": "27 Earnings per Share",
+        "page": 18
+      },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "reported",
+      "value": 306707010
+    },
+    {
+      "fact_type": "basic_weighted_average_shares",
+      "filing_year": 2025,
+      "period": "2024-08-31",
+      "source": {
+        "label": "Average number of common stock during the year",
+        "note": "27 Earnings per Share",
+        "page": 18
+      },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
+      "status": "reported",
+      "value": 306707010
+    },
+    {
+      "fact_type": "basic_weighted_average_shares",
+      "filing_year": 2025,
+      "period": "2025-08-31",
+      "source": {
+        "label": "Average number of common stock during the year",
+        "note": "27 Earnings per Share",
+        "page": 18
+      },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
+      "status": "reported",
+      "value": 306786602
     },
     {
       "fact_type": "diluted_eps",
+      "filing_year": 2021,
       "period": "2020-08-31",
       "source": {
         "label": "Diluted earnings per share for the year",
         "note": "Consolidated Statement of Profit or Loss",
         "page": 3
       },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
       "status": "reported",
       "value": 883.62
     },
     {
       "fact_type": "diluted_eps",
+      "filing_year": 2021,
       "period": "2021-08-31",
       "source": {
         "label": "Diluted earnings per share for the year",
         "note": "Consolidated Statement of Profit or Loss",
         "page": 3
       },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
       "status": "reported",
       "value": 1660.44
     },
     {
+      "fact_type": "diluted_eps",
+      "filing_year": 2022,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Diluted earnings per share for the year",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": 1660.44
+    },
+    {
+      "fact_type": "diluted_eps",
+      "filing_year": 2022,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Diluted earnings per share for the year",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": 2671.29
+    },
+    {
+      "fact_type": "diluted_eps",
+      "filing_year": 2023,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Diluted earnings per share for the year",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": 890.43
+    },
+    {
+      "fact_type": "diluted_eps",
+      "filing_year": 2023,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Diluted earnings per share for the year",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": 964.48
+    },
+    {
+      "fact_type": "diluted_eps",
+      "filing_year": 2024,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Diluted earnings per share for the year",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "reported",
+      "value": 964.48
+    },
+    {
+      "fact_type": "diluted_eps",
+      "filing_year": 2024,
+      "period": "2024-08-31",
+      "source": {
+        "label": "Diluted earnings per share for the year",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "reported",
+      "value": 1210.81
+    },
+    {
+      "fact_type": "diluted_eps",
+      "filing_year": 2025,
+      "period": "2024-08-31",
+      "source": {
+        "label": "Diluted earnings per share for the year",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
+      "status": "reported",
+      "value": 1210.81
+    },
+    {
+      "fact_type": "diluted_eps",
+      "filing_year": 2025,
+      "period": "2025-08-31",
+      "source": {
+        "label": "Diluted earnings per share for the year",
+        "note": "Consolidated Statement of Profit or Loss",
+        "page": 3
+      },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
+      "status": "reported",
+      "value": 1409.32
+    },
+    {
       "fact_type": "diluted_eps_note",
+      "filing_year": 2021,
       "period": "2020-08-31",
       "source": {
         "label": "Diluted earnings per share for the year",
         "note": "27 Earnings per Share",
         "page": 17
       },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
       "status": "reported",
       "value": 883.62
     },
     {
       "fact_type": "diluted_eps_note",
+      "filing_year": 2021,
       "period": "2021-08-31",
       "source": {
         "label": "Diluted earnings per share for the year",
         "note": "27 Earnings per Share",
         "page": 17
       },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
       "status": "reported",
       "value": 1660.44
+    },
+    {
+      "fact_type": "diluted_eps_note",
+      "filing_year": 2022,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Diluted earnings per share for the year",
+        "note": "27 Earnings per Share",
+        "page": 17
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": 1660.44
+    },
+    {
+      "fact_type": "diluted_eps_note",
+      "filing_year": 2022,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Diluted earnings per share for the year",
+        "note": "27 Earnings per Share",
+        "page": 17
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": 2671.29
+    },
+    {
+      "fact_type": "diluted_eps_note",
+      "filing_year": 2024,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Diluted earnings per share for the year",
+        "note": "27 Earnings per Share",
+        "page": 18
+      },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "reported",
+      "value": 964.48
+    },
+    {
+      "fact_type": "diluted_eps_note",
+      "filing_year": 2024,
+      "period": "2024-08-31",
+      "source": {
+        "label": "Diluted earnings per share for the year",
+        "note": "27 Earnings per Share",
+        "page": 18
+      },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "reported",
+      "value": 1210.81
+    },
+    {
+      "fact_type": "diluted_eps_note",
+      "filing_year": 2025,
+      "period": "2024-08-31",
+      "source": {
+        "label": "Diluted earnings per share for the year",
+        "note": "27 Earnings per Share",
+        "page": 18
+      },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
+      "status": "reported",
+      "value": 1210.81
+    },
+    {
+      "fact_type": "diluted_eps_note",
+      "filing_year": 2025,
+      "period": "2025-08-31",
+      "source": {
+        "label": "Diluted earnings per share for the year",
+        "note": "27 Earnings per Share",
+        "page": 18
+      },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
+      "status": "reported",
+      "value": 1409.32
     },
     {
       "derivation": "basic_weighted_average_shares + dilutive_shares",
       "fact_type": "diluted_weighted_average_shares",
+      "filing_year": 2021,
       "period": "2020-08-31",
       "source": {
         "label": "Diluted weighted-average shares (basic + dilutive)",
         "note": "27 Earnings per Share",
         "page": 17
       },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
       "status": "derived",
       "value": 102258691
     },
     {
       "derivation": "basic_weighted_average_shares + dilutive_shares",
       "fact_type": "diluted_weighted_average_shares",
+      "filing_year": 2021,
       "period": "2021-08-31",
       "source": {
         "label": "Diluted weighted-average shares (basic + dilutive)",
         "note": "27 Earnings per Share",
         "page": 17
       },
-      "status": "derived",
-      "value": 102290595
-    },
-    {
-      "fact_type": "basic_weighted_average_shares",
-      "period": "2021-08-31",
-      "source": {
-        "label": "Average number of common stock during the year",
-        "note": "27 Earnings per Share",
-        "page": 17
-      },
-      "status": "reported",
-      "value": 102125851
-    },
-    {
-      "fact_type": "basic_weighted_average_shares",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Average number of common stock during the year",
-        "note": "27 Earnings per Share",
-        "page": 17
-      },
-      "status": "reported",
-      "value": 102170095
-    },
-    {
-      "fact_type": "dilutive_shares",
-      "period": "2021-08-31",
-      "source": {
-        "label": "Increase in number of common stock (share subscription rights)",
-        "note": "27 Earnings per Share",
-        "page": 17
-      },
-      "status": "reported",
-      "value": 164744
-    },
-    {
-      "fact_type": "dilutive_shares",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Increase in number of common stock (share subscription rights)",
-        "note": "27 Earnings per Share",
-        "page": 17
-      },
-      "status": "reported",
-      "value": 153113
-    },
-    {
-      "fact_type": "diluted_eps",
-      "period": "2021-08-31",
-      "source": {
-        "label": "Diluted earnings per share for the year",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 1660.44
-    },
-    {
-      "fact_type": "diluted_eps",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Diluted earnings per share for the year",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 2671.29
-    },
-    {
-      "fact_type": "diluted_eps_note",
-      "period": "2021-08-31",
-      "source": {
-        "label": "Diluted earnings per share for the year",
-        "note": "27 Earnings per Share",
-        "page": 17
-      },
-      "status": "reported",
-      "value": 1660.44
-    },
-    {
-      "fact_type": "diluted_eps_note",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Diluted earnings per share for the year",
-        "note": "27 Earnings per Share",
-        "page": 17
-      },
-      "status": "reported",
-      "value": 2671.29
-    },
-    {
-      "derivation": "basic_weighted_average_shares + dilutive_shares",
-      "fact_type": "diluted_weighted_average_shares",
-      "period": "2021-08-31",
-      "source": {
-        "label": "Diluted weighted-average shares (basic + dilutive)",
-        "note": "27 Earnings per Share",
-        "page": 17
-      },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
       "status": "derived",
       "value": 102290595
     },
     {
       "derivation": "basic_weighted_average_shares + dilutive_shares",
       "fact_type": "diluted_weighted_average_shares",
+      "filing_year": 2022,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Diluted weighted-average shares (basic + dilutive)",
+        "note": "27 Earnings per Share",
+        "page": 17
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "derived",
+      "value": 102290595
+    },
+    {
+      "derivation": "basic_weighted_average_shares + dilutive_shares",
+      "fact_type": "diluted_weighted_average_shares",
+      "filing_year": 2022,
       "period": "2022-08-31",
       "source": {
         "label": "Diluted weighted-average shares (basic + dilutive)",
         "note": "27 Earnings per Share",
         "page": 17
       },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
       "status": "derived",
       "value": 102323208
     },
     {
-      "fact_type": "basic_weighted_average_shares",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Average number of common stock during the year",
-        "note": "27 Earnings per Share",
-        "page": 18
-      },
-      "status": "reported",
-      "value": 306510285
-    },
-    {
-      "fact_type": "basic_weighted_average_shares",
-      "period": "2023-08-31",
-      "source": {
-        "label": "Average number of common stock during the year",
-        "note": "27 Earnings per Share",
-        "page": 18
-      },
-      "status": "reported",
-      "value": 306628124
-    },
-    {
-      "fact_type": "dilutive_shares",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Increase in number of common stock (share subscription rights)",
-        "note": "27 Earnings per Share",
-        "page": 18
-      },
-      "status": "reported",
-      "value": 459339
-    },
-    {
-      "fact_type": "dilutive_shares",
-      "period": "2023-08-31",
-      "source": {
-        "label": "Increase in number of common stock (share subscription rights)",
-        "note": "27 Earnings per Share",
-        "page": 18
-      },
-      "status": "reported",
-      "value": 510746
-    },
-    {
-      "fact_type": "diluted_eps",
-      "period": "2022-08-31",
-      "source": {
-        "label": "Diluted earnings per share for the year",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 890.43
-    },
-    {
-      "fact_type": "diluted_eps",
-      "period": "2023-08-31",
-      "source": {
-        "label": "Diluted earnings per share for the year",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 964.48
-    },
-    {
       "derivation": "basic_weighted_average_shares + dilutive_shares",
       "fact_type": "diluted_weighted_average_shares",
+      "filing_year": 2023,
       "period": "2022-08-31",
       "source": {
         "label": "Diluted weighted-average shares (basic + dilutive)",
         "note": "27 Earnings per Share",
         "page": 18
       },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
       "status": "derived",
       "value": 306969624
     },
     {
       "derivation": "basic_weighted_average_shares + dilutive_shares",
       "fact_type": "diluted_weighted_average_shares",
+      "filing_year": 2023,
       "period": "2023-08-31",
       "source": {
         "label": "Diluted weighted-average shares (basic + dilutive)",
         "note": "27 Earnings per Share",
         "page": 18
       },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
       "status": "derived",
       "value": 307138870
     },
     {
-      "fact_type": "basic_weighted_average_shares",
+      "derivation": "basic_weighted_average_shares + dilutive_shares",
+      "fact_type": "diluted_weighted_average_shares",
+      "filing_year": 2024,
       "period": "2023-08-31",
       "source": {
-        "label": "Average number of common stock during the year",
+        "label": "Diluted weighted-average shares (basic + dilutive)",
         "note": "27 Earnings per Share",
         "page": 18
       },
-      "status": "reported",
-      "value": 306628124
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "derived",
+      "value": 307138870
     },
     {
-      "fact_type": "basic_weighted_average_shares",
+      "derivation": "basic_weighted_average_shares + dilutive_shares",
+      "fact_type": "diluted_weighted_average_shares",
+      "filing_year": 2024,
       "period": "2024-08-31",
       "source": {
-        "label": "Average number of common stock during the year",
+        "label": "Diluted weighted-average shares (basic + dilutive)",
         "note": "27 Earnings per Share",
         "page": 18
       },
-      "status": "reported",
-      "value": 306707010
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "derived",
+      "value": 307231804
+    },
+    {
+      "derivation": "basic_weighted_average_shares + dilutive_shares",
+      "fact_type": "diluted_weighted_average_shares",
+      "filing_year": 2025,
+      "period": "2024-08-31",
+      "source": {
+        "label": "Diluted weighted-average shares (basic + dilutive)",
+        "note": "27 Earnings per Share",
+        "page": 18
+      },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
+      "status": "derived",
+      "value": 307231804
+    },
+    {
+      "derivation": "basic_weighted_average_shares + dilutive_shares",
+      "fact_type": "diluted_weighted_average_shares",
+      "filing_year": 2025,
+      "period": "2025-08-31",
+      "source": {
+        "label": "Diluted weighted-average shares (basic + dilutive)",
+        "note": "27 Earnings per Share",
+        "page": 18
+      },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
+      "status": "derived",
+      "value": 307247804
     },
     {
       "fact_type": "dilutive_shares",
+      "filing_year": 2021,
+      "period": "2020-08-31",
+      "source": {
+        "label": "Increase in number of common stock (share subscription rights)",
+        "note": "27 Earnings per Share",
+        "page": 17
+      },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
+      "status": "reported",
+      "value": 177082
+    },
+    {
+      "fact_type": "dilutive_shares",
+      "filing_year": 2021,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Increase in number of common stock (share subscription rights)",
+        "note": "27 Earnings per Share",
+        "page": 17
+      },
+      "source_file": "Fastretailing_CFS2021.pdf",
+      "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798",
+      "status": "reported",
+      "value": 164744
+    },
+    {
+      "fact_type": "dilutive_shares",
+      "filing_year": 2022,
+      "period": "2021-08-31",
+      "source": {
+        "label": "Increase in number of common stock (share subscription rights)",
+        "note": "27 Earnings per Share",
+        "page": 17
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": 164744
+    },
+    {
+      "fact_type": "dilutive_shares",
+      "filing_year": 2022,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Increase in number of common stock (share subscription rights)",
+        "note": "27 Earnings per Share",
+        "page": 17
+      },
+      "source_file": "Fastretailing_CFS2022.pdf",
+      "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+      "status": "reported",
+      "value": 153113
+    },
+    {
+      "fact_type": "dilutive_shares",
+      "filing_year": 2023,
+      "period": "2022-08-31",
+      "source": {
+        "label": "Increase in number of common stock (share subscription rights)",
+        "note": "27 Earnings per Share",
+        "page": 18
+      },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+      "status": "reported",
+      "value": 459339
+    },
+    {
+      "fact_type": "dilutive_shares",
+      "filing_year": 2023,
       "period": "2023-08-31",
       "source": {
         "label": "Increase in number of common stock (share subscription rights)",
         "note": "27 Earnings per Share",
         "page": 18
       },
+      "source_file": "Fastretailing_CFS2023.pdf",
+      "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
       "status": "reported",
       "value": 510746
     },
     {
       "fact_type": "dilutive_shares",
+      "filing_year": 2024,
+      "period": "2023-08-31",
+      "source": {
+        "label": "Increase in number of common stock (share subscription rights)",
+        "note": "27 Earnings per Share",
+        "page": 18
+      },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+      "status": "reported",
+      "value": 510746
+    },
+    {
+      "fact_type": "dilutive_shares",
+      "filing_year": 2024,
       "period": "2024-08-31",
       "source": {
         "label": "Increase in number of common stock (share subscription rights)",
         "note": "27 Earnings per Share",
         "page": 18
       },
+      "source_file": "Fastretailing_CFS2024.pdf",
+      "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
       "status": "reported",
       "value": 524794
     },
     {
-      "fact_type": "diluted_eps",
-      "period": "2023-08-31",
-      "source": {
-        "label": "Diluted earnings per share for the year",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 964.48
-    },
-    {
-      "fact_type": "diluted_eps",
-      "period": "2024-08-31",
-      "source": {
-        "label": "Diluted earnings per share for the year",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 1210.81
-    },
-    {
-      "fact_type": "diluted_eps_note",
-      "period": "2023-08-31",
-      "source": {
-        "label": "Diluted earnings per share for the year",
-        "note": "27 Earnings per Share",
-        "page": 18
-      },
-      "status": "reported",
-      "value": 964.48
-    },
-    {
-      "fact_type": "diluted_eps_note",
-      "period": "2024-08-31",
-      "source": {
-        "label": "Diluted earnings per share for the year",
-        "note": "27 Earnings per Share",
-        "page": 18
-      },
-      "status": "reported",
-      "value": 1210.81
-    },
-    {
-      "derivation": "basic_weighted_average_shares + dilutive_shares",
-      "fact_type": "diluted_weighted_average_shares",
-      "period": "2023-08-31",
-      "source": {
-        "label": "Diluted weighted-average shares (basic + dilutive)",
-        "note": "27 Earnings per Share",
-        "page": 18
-      },
-      "status": "derived",
-      "value": 307138870
-    },
-    {
-      "derivation": "basic_weighted_average_shares + dilutive_shares",
-      "fact_type": "diluted_weighted_average_shares",
-      "period": "2024-08-31",
-      "source": {
-        "label": "Diluted weighted-average shares (basic + dilutive)",
-        "note": "27 Earnings per Share",
-        "page": 18
-      },
-      "status": "derived",
-      "value": 307231804
-    },
-    {
-      "fact_type": "basic_weighted_average_shares",
-      "period": "2024-08-31",
-      "source": {
-        "label": "Average number of common stock during the year",
-        "note": "27 Earnings per Share",
-        "page": 18
-      },
-      "status": "reported",
-      "value": 306707010
-    },
-    {
-      "fact_type": "basic_weighted_average_shares",
-      "period": "2025-08-31",
-      "source": {
-        "label": "Average number of common stock during the year",
-        "note": "27 Earnings per Share",
-        "page": 18
-      },
-      "status": "reported",
-      "value": 306786602
-    },
-    {
       "fact_type": "dilutive_shares",
+      "filing_year": 2025,
       "period": "2024-08-31",
       "source": {
         "label": "Increase in number of common stock (share subscription rights)",
         "note": "27 Earnings per Share",
         "page": 18
       },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
       "status": "reported",
       "value": 524794
     },
     {
       "fact_type": "dilutive_shares",
+      "filing_year": 2025,
       "period": "2025-08-31",
       "source": {
         "label": "Increase in number of common stock (share subscription rights)",
         "note": "27 Earnings per Share",
         "page": 18
       },
+      "source_file": "Fastretailing_CFS2025.pdf",
+      "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
       "status": "reported",
       "value": 461202
-    },
-    {
-      "fact_type": "diluted_eps",
-      "period": "2024-08-31",
-      "source": {
-        "label": "Diluted earnings per share for the year",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 1210.81
-    },
-    {
-      "fact_type": "diluted_eps",
-      "period": "2025-08-31",
-      "source": {
-        "label": "Diluted earnings per share for the year",
-        "note": "Consolidated Statement of Profit or Loss",
-        "page": 3
-      },
-      "status": "reported",
-      "value": 1409.32
-    },
-    {
-      "fact_type": "diluted_eps_note",
-      "period": "2024-08-31",
-      "source": {
-        "label": "Diluted earnings per share for the year",
-        "note": "27 Earnings per Share",
-        "page": 18
-      },
-      "status": "reported",
-      "value": 1210.81
-    },
-    {
-      "fact_type": "diluted_eps_note",
-      "period": "2025-08-31",
-      "source": {
-        "label": "Diluted earnings per share for the year",
-        "note": "27 Earnings per Share",
-        "page": 18
-      },
-      "status": "reported",
-      "value": 1409.32
-    },
-    {
-      "derivation": "basic_weighted_average_shares + dilutive_shares",
-      "fact_type": "diluted_weighted_average_shares",
-      "period": "2024-08-31",
-      "source": {
-        "label": "Diluted weighted-average shares (basic + dilutive)",
-        "note": "27 Earnings per Share",
-        "page": 18
-      },
-      "status": "derived",
-      "value": 307231804
-    },
-    {
-      "derivation": "basic_weighted_average_shares + dilutive_shares",
-      "fact_type": "diluted_weighted_average_shares",
-      "period": "2025-08-31",
-      "source": {
-        "label": "Diluted weighted-average shares (basic + dilutive)",
-        "note": "27 Earnings per Share",
-        "page": 18
-      },
-      "status": "derived",
-      "value": 307247804
     }
   ],
   "source_files": [
@@ -1713,6 +2157,7 @@
     }
   ],
   "stock_code": "6288.HK",
+  "supplemental_conflict_count": 3,
   "ticker": "6288.HK",
   "unit_scale": "millions",
   "values": {

@@ -190,6 +190,18 @@ def test_migration_reproduces_fy2025_anchors_and_conflict_parity():
     assert conflicts["overlap_conflict_count"] == 3
     assert provenance["overlap_conflict_count"] == 3
     assert len(conflicts["conflicts"]) == 3
+    assert "supplemental_conflicts" in conflicts
+    assert "supplemental_conflict_count" in conflicts
+    assert conflicts["supplemental_conflict_count"] == len(
+        conflicts["supplemental_conflicts"]
+    )
+
+    for section in ("note_facts", "share_facts"):
+        for item in provenance[section]:
+            assert item["source_file"]
+            assert item["source_sha256"]
+            assert item["filing_year"]
+            assert item["source"]["page"] > 0
 
     notes = provenance["note_facts"]
     lease_total = next(
@@ -204,6 +216,9 @@ def test_migration_reproduces_fy2025_anchors_and_conflict_parity():
     )
     assert lease_total["value"] == 513_501
     assert lease_interest["value"] == 8_464
+    assert lease_total["source_file"]
+    assert lease_total["source_sha256"]
+    assert lease_total["filing_year"]
     assert 126_830 + 386_670 == 513_500
     assert 459_153 == 433_009 + 26_143 + 1
 

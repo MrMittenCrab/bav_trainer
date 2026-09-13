@@ -33,7 +33,7 @@ filing-local; cross-filing precedence is applied by the generic reconciler into
 ## Cross-filing overlap conflicts
 
 After the closed 2021 NCI transcription correction, generic `reconciled/conflicts.json`
-records **3** explicit conflicts:
+records **3** explicit primary-statement conflicts:
 
 - FY2022 basic/diluted EPS restated in CFS2023 after the 3-for-1 split disclosure
   (`restated_comparative_precedence`).
@@ -41,6 +41,16 @@ records **3** explicit conflicts:
   CFS2025 (`later_audited_presentation`).
 
 Each conflict retains all observations plus the selected value; no silent overwrite.
+
+Step 9M.1.1 also records **3** supplemental share-fact conflicts for FY2022
+(`basic_weighted_average_shares`, `diluted_eps`, `dilutive_shares`) where pre-split
+and post-split reported values disagree across filings
+(`cross_filing_supplemental_disagreement`). Both observations remain source-bound in
+provenance; `historical_shares` stays omitted because no complete unambiguous diluted
+WAS axis exists.
+
+Every reconciled `note_facts` / `share_facts` item carries `filing_year`,
+`source_file`, computed `source_sha256`, and page-level `source` metadata.
 
 ## Stock split
 

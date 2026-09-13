@@ -50,6 +50,15 @@ class FilingValidationReport:
         return not self.errors
 
 
+def _is_within_source_root(root: Path, candidate: Path) -> bool:
+    """Return True when candidate resolves inside root (or equals root)."""
+    try:
+        candidate.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
 def validate_extracted_filing(
     filing: ExtractedFiling,
     *,
@@ -60,26 +69,47 @@ def validate_extracted_filing(
     computed: str | None = None
 
     if source_root is not None:
-        source_path = Path(source_root) / filing.filing.source_file
-        if not source_path.is_file():
+        source_file = filing.filing.source_file
+        root = Path(source_root).resolve()
+        raw = Path(source_file)
+        if raw.is_absolute() or ".." in raw.parts:
             issues.append(
                 FilingValidationIssue(
                     "error",
-                    "source_file_missing",
-                    f"source file missing: {source_path}",
+                    "invalid_source_path",
+                    f"source_file must be a portable relative path inside "
+                    f"source_root: {source_file!r}",
                 )
             )
         else:
-            computed = hashlib.sha256(source_path.read_bytes()).hexdigest()
-            declared = filing.filing.source_sha256.strip()
-            if declared and declared != computed:
+            candidate = (root / source_file).resolve()
+            if not _is_within_source_root(root, candidate):
                 issues.append(
                     FilingValidationIssue(
                         "error",
-                        "source_hash_mismatch",
-                        f"declared source_sha256 {declared} != computed {computed}",
+                        "invalid_source_path",
+                        f"source_file escapes source_root: {source_file!r}",
                     )
                 )
+            elif not candidate.is_file():
+                issues.append(
+                    FilingValidationIssue(
+                        "error",
+                        "source_file_missing",
+                        f"source file missing: {candidate}",
+                    )
+                )
+            else:
+                computed = hashlib.sha256(candidate.read_bytes()).hexdigest()
+                declared = filing.filing.source_sha256.strip()
+                if declared and declared != computed:
+                    issues.append(
+                        FilingValidationIssue(
+                            "error",
+                            "source_hash_mismatch",
+                            f"declared source_sha256 {declared} != computed {computed}",
+                        )
+                    )
 
     statements = {
         "income_statement": filing.income_statement,

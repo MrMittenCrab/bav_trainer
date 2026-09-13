@@ -121,3 +121,35 @@ def test_reconcile_writes_three_artifacts(tmp_path: Path):
     std = json.loads((out / "standardized.json").read_text(encoding="utf-8"))
     assert std["ticker"] == "DEMO"
     assert std["income_statement"][0]["concept"] == "revenue"
+
+
+def test_validate_and_reconcile_reject_invalid_source_path(tmp_path: Path):
+    extracted, source_root = _write_fixture(tmp_path)
+    outside = tmp_path / "escaped.pdf"
+    outside.write_bytes(b"%PDF-escaped-should-not-be-read")
+
+    payload = json.loads((extracted / "FY2025.json").read_text(encoding="utf-8"))
+    payload["filing"]["source_file"] = "../escaped.pdf"
+    (extracted / "FY2025.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    bad_validate = _run(
+        "validate-source",
+        str(extracted),
+        "--source-root",
+        str(source_root),
+    )
+    assert bad_validate.returncode != 0
+    assert "invalid_source_path" in bad_validate.stdout
+
+    out = tmp_path / "reconciled"
+    bad_reconcile = _run(
+        "reconcile",
+        str(extracted),
+        "--source-root",
+        str(source_root),
+        "-o",
+        str(out),
+    )
+    assert bad_reconcile.returncode != 0
+    assert "invalid_source_path" in bad_reconcile.stdout
+    assert not out.exists() or not any(out.iterdir())
