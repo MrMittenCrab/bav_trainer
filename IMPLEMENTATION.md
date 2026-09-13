@@ -2,112 +2,103 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **For Cursor:** Read `TARGET.md`, then `docs/superpowers/specs/2026-09-13-filing-json-input-design.md`, then `benchmark/fast_retailing/GAPS.md`, then this plan in full. The accepted implementation base is commit `e5fa7b87110a3a03c06349a35af6d662a880f88f` (`Step 9M.1`). Implement only Step 9M.1.1 using red/green TDD. Do not begin Step 9M.2 accounting fixes, OpenAI API extraction, forecasting, valuation, scenarios, or investment conclusions. Do not commit, push, reset, rebase, merge, clean, or delete branches; the user owns checkpoint commits.
+> **For Cursor:** Read `TARGET.md`, then `docs/superpowers/specs/2026-09-13-filing-json-input-design.md`, then `benchmark/fast_retailing/GAPS.md`, then this plan in full. The accepted implementation base is commit `e5fa7b87110a3a03c06349a35af6d662a880f88f` (`Step 9M.1`). Implement only Step 9M.1.1 using red/green TDD. Do not begin Step 9M.2 accounting fixes, OpenAI/API extraction, forecasting, valuation, scenarios, or investment conclusions. Do not commit, push, reset, rebase, merge, clean, or delete branches; the user owns checkpoint commits.
 
-**Goal:** Close the review defects in the new filing-JSON boundary so every documentary fact remains source-bound after reconciliation, malformed source metadata cannot escape validation, and share facts cannot be silently overwritten across filings.
+**Goal:** Harden the new filing-JSON boundary so malformed source metadata fails closed, every reconciled documentary fact remains source-bound, repeated supplemental facts cannot silently overwrite each other, and Step 9M.1 introduces no unrelated workbook drift.
 
-**Architecture:** Keep `ExtractedFiling` as the immutable documentary contract and `StandardizedFinancials` as the model-only contract. Harden the boundary in three places: (1) validate required metadata and relative source-file paths, (2) wrap reconciled supplemental facts with filing/year/hash provenance instead of dropping their origin, and (3) treat repeated share/note facts as cross-filing observations with explicit disagreement records rather than last-write-wins behavior. Do not change BAV accounting formulas or the Fast Retailing G1–G7 engine gap queue.
+**Architecture:** Keep `ExtractedFiling` as the immutable documentary contract and `StandardizedFinancials` as the model-only contract. Harden the boundary in four places: strict parsing/path containment, explicit bound-source provenance, source-bound supplemental observations with deterministic conflict handling, and regression protection for unrelated synthetic workbook artifacts. Do not change BAV accounting formulas or the Fast Retailing G1–G7 engine gap queue.
 
-**Tech Stack:** Python stdlib (`dataclasses`, `json`, `hashlib`, `pathlib`, `datetime`), pytest, existing `ExtractedFiling`, filing validator/reconciler/standardizer, existing CLI, Fast Retailing benchmark fixtures.
+**Tech Stack:** Python stdlib (`dataclasses`, `json`, `hashlib`, `pathlib`, `datetime`), pytest, existing filing JSON/validator/reconciler/standardizer modules, existing CLI, Fast Retailing benchmark fixtures.
 
 **Spec:** `docs/superpowers/specs/2026-09-13-filing-json-input-design.md`
 
-## Review findings that this step must close
+## Review findings this step must close
 
-1. `reconciliation_provenance_payload()` currently serializes `note_facts` / `share_facts` with page/note/label only. Their source filing, filing year, and computed SHA-256 are lost after `reconcile_filings()`, even though the architecture requires source-bound provenance for every extracted fact.
-2. `_historical_shares()` currently iterates concatenated share facts into a dict keyed by period. Two filings can therefore report different diluted weighted-average share values for the same period and the later iteration silently overwrites the earlier value without a conflict record.
-3. The v1 design requires non-empty required metadata and a portable relative `source_file`, but current parsing/validation allows blank company/currency/jurisdiction fields and allows an absolute or `..` source path to escape `source_root`.
+1. `reconciliation_provenance_payload()` serializes `note_facts` / `share_facts` without filing year, source filename, or computed SHA-256, so supplemental evidence loses its source binding after reconciliation.
+2. `_historical_shares()` writes repeated share facts into a dict keyed only by period. Conflicting cross-filing values can therefore be selected by iteration order without a conflict record.
+3. Required metadata parsing is not fail-closed: company/ticker/jurisdiction/currency can become empty strings, `fiscal_year` uses a permissive cast, and `_parse_date()` truncates strings to the first 10 characters before parsing.
+4. `source_file` is joined directly to `source_root`; an absolute path or `..` traversal can escape the intended source directory.
+5. The top-level provenance `source_files` list is derived only from selected statement observations. A bound filing must remain represented even if all of its overlapping statement observations lose selection precedence or it contributes only supplemental evidence.
+6. `example/DEMO_HK_Trainer.xlsx` changed in Step 9M.1 although the step was an input-pipeline migration and synthetic workbook surfaces were supposed to remain unchanged. Unless a reproducible reason is found, restore the pre-9M.1 workbook bytes.
 
-## Global Constraints
+## Global constraints
 
-- `TARGET.md` already records the stable source-data architecture; Cursor treats it as read-only.
-- Preserve one JSON file per source filing.
-- Preserve original documentary labels, sections, signs, units, page references, and values.
+- `TARGET.md` is read-only for Cursor.
+- Preserve one extracted JSON file per source filing.
+- Preserve original documentary labels, sections, signs, units, page references, and numeric values.
 - `suggested_concept` remains advisory only.
 - `StandardizedFinancials` remains model-only; do not add source/provenance fields to it.
 - No PDF parsing or AI/API calls in this step.
 - Do not infer unit conversions, stock-split multipliers, balancing plugs, missing facts, or accounting classifications.
 - Cross-filing numeric disagreements must never be silently overwritten.
-- Statement conflict behavior and the existing three Fast Retailing statement overlap conflicts must remain intact.
-- Fast Retailing historical shares must remain omitted unless a complete, unambiguous reported diluted-WAS axis exists.
+- Preserve existing primary-statement precedence semantics and the three Fast Retailing statement overlap conflicts.
+- Fast Retailing `historical_shares` remains omitted unless a complete, unambiguous reported diluted-WAS axis exists.
 - Preserve Step 9M.0/9M.1 accounting gaps G1–G7 for Step 9M.2.
 - Preserve CLI commands `{ingest, validate-source, reconcile, build, check, list}`; do not add `extract`.
-- Preserve synthetic trainer family orders `1..90` and existing workbook surfaces.
-- Cursor must stop after implementation/tests and let the user run `checkpoint`.
+- Preserve active family orders `1..90` and all synthetic workbook surfaces.
+- Cursor stops after implementation/tests and reports results; the user runs `checkpoint`.
 
 ---
 
-### Task 1: Enforce required filing metadata and portable source paths
+### Task 1: Make filing metadata parsing strict and exact
 
 **Files:**
 - Modify: `core/ingestion/filing_json.py`
-- Modify: `core/ingestion/filing_validator.py`
 - Test: `core/tests/test_filing_json.py`
-- Test: `core/tests/test_filing_cli.py`
 
 **Interfaces:**
-- `load_extracted_filing(path) -> ExtractedFiling` remains the loader.
-- `validate_extracted_filing(filing, source_root=...) -> FilingValidationReport` remains the semantic/source-binding validator.
-- Add no new public CLI command.
+- `load_extracted_filing(path: Path) -> ExtractedFiling` remains unchanged.
+- `extracted_filing_to_payload(filing: ExtractedFiling) -> dict` remains unchanged.
 
-- [ ] **Step 1: Add parser tests for required typed fields**
+- [ ] **Step 1: Add failing tests for required metadata**
 
-Require clean `ValueError` (not `KeyError` / raw `TypeError`) for missing or malformed:
-
-```text
-company object
-company.name
-ticker
-jurisdiction
-filing.fiscal_year
-filing.period_end
-filing.currency
-filing.source_file
-```
-
-`stock_code` may remain empty because some future source projects may use ticker-only identity.
-
-`fiscal_year` must be an integer value, not `bool`, and must be positive. Do not infer it from `period_end`.
-
-- [ ] **Step 2: Add validator tests for portable source-file paths**
-
-Reject with hard validation issue code:
+Create parameterized cases requiring clean `ValueError` rather than `KeyError`, raw `TypeError`, or permissive coercion for:
 
 ```text
-invalid_source_path
+missing company object
+blank company.name
+blank company.ticker
+blank company.jurisdiction
+missing filing.fiscal_year
+filing.fiscal_year = true
+filing.fiscal_year = "2025"
+filing.fiscal_year = 0
+blank filing.currency
+blank filing.source_file
 ```
 
-for:
+`stock_code` may remain empty because ticker-only identities are allowed.
+
+- [ ] **Step 2: Add failing exact-date tests**
+
+Require `ValueError` for all of:
 
 ```text
-/Users/name/report.pdf
-../report.pdf
-subdir/../../report.pdf
+"2025-08-31junk"
+"2025-08-31T00:00:00"
+"2025/08/31"
+"2025-02-30"
 ```
 
-Allow a safe relative nested path such as:
+Require exact acceptance of:
 
 ```text
-annual/FY2025.pdf
+"2025-08-31"
 ```
 
-The resolved path must remain inside `source_root` after `.resolve()`.
+The parser must not slice or truncate date strings before validation.
 
-- [ ] **Step 3: Add CLI regression for invalid source path**
-
-`python -m core validate-source ... --source-root ...` must exit nonzero and print `invalid_source_path` without reading the escaped file.
-
-`reconcile` with the same invalid filing must exit nonzero before writing artifacts.
-
-- [ ] **Step 4: Run focused tests red**
+- [ ] **Step 3: Run the parser tests red**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_filing_json.py core/tests/test_filing_cli.py -v
+PYTHONPATH=. pytest core/tests/test_filing_json.py -v
 ```
 
-- [ ] **Step 5: Implement strict required-field parsing**
+Expected: the new strict-metadata/date cases fail on the Step 9M.1 implementation.
 
-Use small explicit helpers instead of direct casts that leak `KeyError`/`TypeError`, e.g.:
+- [ ] **Step 4: Implement explicit required-field helpers**
+
+Use helpers with strict types rather than `str(...)` / `int(...)` coercion:
 
 ```python
 def _required_nonempty_str(payload: dict, key: str, *, context: str) -> str:
@@ -115,26 +106,140 @@ def _required_nonempty_str(payload: dict, key: str, *, context: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{context}.{key} is required")
     return value
+
+
+def _required_positive_int(payload: dict, key: str, *, context: str) -> int:
+    value = payload.get(key)
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        raise ValueError(f"{context}.{key} must be a positive integer")
+    return value
 ```
 
-For `fiscal_year`, require `isinstance(value, int) and not isinstance(value, bool) and value > 0`.
+Required non-empty strings in v1.0:
 
-Preserve documentary strings; validation may test `.strip()` for emptiness but must not rewrite stored text.
+```text
+company.name
+company.ticker
+company.jurisdiction
+filing.currency
+filing.source_file
+```
 
-- [ ] **Step 6: Implement source-root containment validation**
+Keep existing enum validation for `document_type` and `unit_scale`.
 
-Before reading bytes, reject absolute `source_file` paths. Resolve:
+Preserve accepted documentary strings verbatim; `.strip()` is only an emptiness test.
+
+- [ ] **Step 5: Implement exact ISO date parsing**
+
+Replace truncation logic with exact parsing:
 
 ```python
-root = Path(source_root).resolve()
-candidate = (root / filing.filing.source_file).resolve()
+def _parse_date(value: object) -> date:
+    if not isinstance(value, str) or len(value) != 10:
+        raise ValueError(f"invalid date: {value!r}")
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError(f"invalid date: {value!r}") from exc
+    if parsed.isoformat() != value:
+        raise ValueError(f"invalid date: {value!r}")
+    return parsed
 ```
 
-Require `candidate` to be `root` itself or a descendant of `root`; because `source_file` names a file, normal valid inputs will be descendants. If containment fails, emit `invalid_source_path` and do not hash/read the escaped path.
+- [ ] **Step 6: Run parser tests green**
 
-Do not rely only on string-prefix checks.
+```bash
+PYTHONPATH=. pytest core/tests/test_filing_json.py -v
+```
 
-- [ ] **Step 7: Run focused tests green**
+---
+
+### Task 2: Enforce portable source paths before reading source bytes
+
+**Files:**
+- Modify: `core/ingestion/filing_validator.py`
+- Test: `core/tests/test_filing_json.py`
+- Test: `core/tests/test_filing_cli.py`
+
+**Interfaces:**
+- `validate_extracted_filing(filing, source_root=...) -> FilingValidationReport` remains unchanged.
+- Add hard issue code `invalid_source_path`.
+
+- [ ] **Step 1: Add validator traversal tests**
+
+Reject with `invalid_source_path`:
+
+```text
+/Users/name/report.pdf
+../report.pdf
+subdir/../../report.pdf
+```
+
+Also reject Windows-style absolute input even when tests run on macOS/Linux:
+
+```text
+C:\Users\name\report.pdf
+```
+
+Allow a safe nested relative path:
+
+```text
+annual/FY2025.pdf
+```
+
+- [ ] **Step 2: Add a no-read escape regression**
+
+Create a real file outside `source_root` and point the filing at `../outside.pdf`. Require:
+
+```text
+report.ok == False
+issue code == invalid_source_path
+report.computed_source_sha256 is None
+```
+
+The validator must reject containment before calling `is_file()`, `read_bytes()`, or hashing the escaped candidate.
+
+- [ ] **Step 3: Add CLI regression**
+
+For both commands:
+
+```bash
+python -m core validate-source <extracted> --source-root <root>
+python -m core reconcile <extracted-dir> --source-root <root> -o <out>
+```
+
+require nonzero exit for an escaped path, visible `invalid_source_path`, and no reconciled artifacts written.
+
+- [ ] **Step 4: Run focused tests red**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_filing_json.py core/tests/test_filing_cli.py -v
+```
+
+- [ ] **Step 5: Implement cross-platform path validation**
+
+Before source access:
+
+```python
+from pathlib import Path, PureWindowsPath
+
+raw = filing.filing.source_file
+if Path(raw).is_absolute() or PureWindowsPath(raw).is_absolute():
+    # invalid_source_path
+
+root = Path(source_root).resolve()
+candidate = (root / raw).resolve()
+try:
+    candidate.relative_to(root)
+except ValueError:
+    # invalid_source_path
+```
+
+Only after containment succeeds may the validator test file existence and compute SHA-256.
+
+Do not use string-prefix containment checks.
+
+- [ ] **Step 6: Run focused tests green**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_filing_json.py core/tests/test_filing_cli.py -v
@@ -142,7 +247,7 @@ PYTHONPATH=. pytest core/tests/test_filing_json.py core/tests/test_filing_cli.py
 
 ---
 
-### Task 2: Preserve source binding for every supplemental fact
+### Task 3: Preserve an explicit registry of every validated bound source
 
 **Files:**
 - Modify: `core/ingestion/filing_reconciler.py`
@@ -151,7 +256,78 @@ PYTHONPATH=. pytest core/tests/test_filing_json.py core/tests/test_filing_cli.py
 
 **Interfaces:**
 
-Add a reconciled wrapper rather than changing the immutable extraction schema:
+Add:
+
+```python
+@dataclass(frozen=True)
+class BoundSourceFile:
+    filing_year: int
+    source_file: str
+    source_sha256: str
+```
+
+Add to `ReconciledCompanyData`:
+
+```python
+source_files: tuple[BoundSourceFile, ...]
+```
+
+- [ ] **Step 1: Write a failing complete-source-registry test**
+
+Create two validated filings for the same company where the later filing wins all overlapping statement selections. Require both source files to remain in `reconciled.source_files`.
+
+- [ ] **Step 2: Write provenance payload regression**
+
+Require `reconciliation_provenance_payload()` top-level `source_files` to contain every bound filing exactly once with:
+
+```json
+{
+  "filing_year": 2025,
+  "source_file": "FY2025.pdf",
+  "source_sha256": "..."
+}
+```
+
+The registry must not be reconstructed only from selected statement observations.
+
+- [ ] **Step 3: Run reconciler tests red**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_filing_reconciler.py -v
+```
+
+- [ ] **Step 4: Populate source registry directly from validated filing/report pairs**
+
+In `reconcile_filings()`, build one `BoundSourceFile` for each input pair using `report.computed_source_sha256`. Sort deterministically by:
+
+```text
+filing_year, source_file, source_sha256
+```
+
+Do not derive this registry from selected values.
+
+- [ ] **Step 5: Serialize the explicit registry**
+
+Make `reconciliation_provenance_payload()` use `reconciled.source_files` directly.
+
+- [ ] **Step 6: Run reconciler tests green**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_filing_reconciler.py -v
+```
+
+---
+
+### Task 4: Preserve source binding for every supplemental fact
+
+**Files:**
+- Modify: `core/ingestion/filing_reconciler.py`
+- Modify: `core/ingestion/filing_standardizer.py`
+- Test: `core/tests/test_filing_reconciler.py`
+
+**Interfaces:**
+
+Add a reconciled wrapper without changing the extraction schema:
 
 ```python
 @dataclass(frozen=True)
@@ -163,39 +339,46 @@ class SupplementalObservation:
     fact: SupplementalFact
 ```
 
-Change `ReconciledCompanyData.note_facts` and `.share_facts` to tuples of `SupplementalObservation`.
+Change:
+
+```python
+ReconciledCompanyData.note_facts: tuple[SupplementalObservation, ...]
+ReconciledCompanyData.share_facts: tuple[SupplementalObservation, ...]
+```
 
 - [ ] **Step 1: Write source-provenance regression**
 
-Create FY2024 and FY2025 filings containing note/share facts. After reconciliation, require every supplemental observation to retain:
+Create FY2024/FY2025 filings containing note/share facts. After reconciliation require every supplemental observation to retain:
 
 ```text
+kind
 filing_year
 source_file
 computed source SHA-256
-fact source page/note/label
+fact source page
+fact source note/label/statement where present
 ```
 
-The SHA must come from `FilingValidationReport.computed_source_sha256`, never from a model-generated guess.
+The SHA comes from `FilingValidationReport.computed_source_sha256`, never from the extracted JSON unless validation confirms that declaration.
 
-- [ ] **Step 2: Write provenance-payload regression**
+- [ ] **Step 2: Write provenance serializer regression**
 
-Require each item in `provenance.json` `note_facts` and `share_facts` to include:
+Require each `note_facts` / `share_facts` entry in `provenance.json` to include filing provenance and fact provenance:
 
 ```json
 {
   "filing_year": 2025,
   "source_file": "FY2025.pdf",
   "source_sha256": "...",
-  "fact_type": "...",
-  "period": "...",
+  "fact_type": "lease_liability_total",
+  "period": "2025-08-31",
   "value": 123,
   "status": "reported",
   "source": {"page": 10}
 }
 ```
 
-Derived facts keep their `derivation` field and the same filing provenance.
+Derived facts retain their `derivation` string.
 
 - [ ] **Step 3: Run reconciler tests red**
 
@@ -203,19 +386,19 @@ Derived facts keep their `derivation` field and the same filing provenance.
 PYTHONPATH=. pytest core/tests/test_filing_reconciler.py -v
 ```
 
-- [ ] **Step 4: Implement `SupplementalObservation` wrapping**
+- [ ] **Step 4: Wrap supplemental facts while filing/report context still exists**
 
-In `reconcile_filings()`, wrap note/share facts while the filing/report pair is still available. Do not concatenate naked `SupplementalFact` objects after source binding has been lost.
+Do not concatenate naked `SupplementalFact` objects after source context has been lost.
 
 Sort supplemental observations deterministically by:
 
 ```text
-kind, fact_type, period, filing_year, source_file, page
+kind, fact_type, period, filing_year, source_file, source.page
 ```
 
-- [ ] **Step 5: Update provenance serialization**
+- [ ] **Step 5: Update supplemental provenance serialization**
 
-Replace `_fact_payload(fact)` with a serializer that consumes `SupplementalObservation` and emits both filing-level and fact-level provenance.
+Replace `_fact_payload(fact)` with a serializer consuming `SupplementalObservation`.
 
 Do not promote note facts into statements.
 
@@ -227,7 +410,7 @@ PYTHONPATH=. pytest core/tests/test_filing_reconciler.py -v
 
 ---
 
-### Task 3: Eliminate silent cross-filing overwrite of share facts
+### Task 5: Eliminate silent cross-filing overwrite of supplemental facts
 
 **Files:**
 - Modify: `core/ingestion/filing_reconciler.py`
@@ -248,16 +431,20 @@ class SupplementalConflict:
     reason: str
 ```
 
-Add `supplemental_conflicts: tuple[SupplementalConflict, ...]` to `ReconciledCompanyData`.
+Add:
 
-- [ ] **Step 1: Write equal repeated-share test**
+```python
+ReconciledCompanyData.supplemental_conflicts: tuple[SupplementalConflict, ...]
+```
 
-FY2024 and FY2025 filings may both report the same FY2024 `diluted_weighted_average_shares`. Require:
+- [ ] **Step 1: Write agreeing repeated-share test**
+
+FY2024 and FY2025 may both report the same FY2024 `diluted_weighted_average_shares`. Require:
 
 ```text
-both observations retained in provenance
+both observations retained
 no supplemental conflict
-one unambiguous FY2024 value available for share-axis gating
+one unambiguous numeric FY2024 value available for share-axis gating
 ```
 
 - [ ] **Step 2: Write disagreeing repeated-share test**
@@ -267,21 +454,21 @@ If the two filings report different FY2024 diluted WAS values, require:
 ```text
 both observations retained
 one SupplementalConflict(kind="share", ...)
-no silent selected share value
+no iteration-order selection
 historical_shares is None
 ```
 
-Do not choose the later filing because supplemental facts v1.0 do not carry `presentation_role`; conservatively require agreement until a future schema explicitly supports supplemental restatement precedence.
+Do not select the later filing: supplemental v1.0 facts have no `presentation_role`. Agreement is required until a future supplemental-restatement contract exists.
 
 - [ ] **Step 3: Write complete-axis share promotion test**
 
-For a two-period model axis where every period has at least one `reported` diluted-WAS observation and all repeated observations agree, require `HistoricalShareData` to be emitted exactly once per period.
+For a two-period axis, emit `HistoricalShareData` only when each period has at least one `reported` `diluted_weighted_average_shares` observation and all reported observations for that period agree numerically.
 
-Derived share facts do not satisfy the reported-axis requirement.
+Derived share facts do not satisfy the axis requirement.
 
-- [ ] **Step 4: Write generic note-fact disagreement test**
+- [ ] **Step 4: Write note-fact disagreement test**
 
-Two reported `lease_liability_total` facts for the same period with different values must produce a supplemental conflict and retain both source-bound observations. They remain audit evidence and are not promoted into `StandardizedFinancials`.
+Two reported `lease_liability_total` observations for the same period with different values must create one supplemental conflict and retain both source-bound observations. Neither value is promoted into `StandardizedFinancials`.
 
 - [ ] **Step 5: Run reconciler tests red**
 
@@ -291,31 +478,33 @@ PYTHONPATH=. pytest core/tests/test_filing_reconciler.py -v
 
 - [ ] **Step 6: Implement deterministic supplemental conflict grouping**
 
-Group reported supplemental observations by:
+Group only `reported` supplemental observations by:
 
 ```text
 (kind, fact_type, period)
 ```
 
-If the distinct numeric-value set has size > 1, create one `SupplementalConflict` with reason:
+If the distinct numeric-value set has more than one member, create one conflict with:
 
 ```text
-cross_filing_supplemental_disagreement
+reason = cross_filing_supplemental_disagreement
 ```
 
-Do not treat `derived` facts as authoritative observations for reported-value agreement.
+Derived facts remain provenance but do not determine reported-value agreement.
 
-- [ ] **Step 7: Make historical-share gating conflict-aware**
+- [ ] **Step 7: Make `_historical_shares()` agreement-based**
 
 For each model period:
 
-1. collect only `kind="share"`, `status="reported"`, `fact_type="diluted_weighted_average_shares"`;
-2. require at least one observation;
-3. require exactly one distinct numeric value across observations;
-4. use that value;
-5. if any period is missing or disagreeing, return `None` for `historical_shares`.
+```text
+collect reported share observations of fact_type diluted_weighted_average_shares
+require at least one observation
+compute distinct numeric values
+require exactly one distinct value
+use that value
+```
 
-Do not use iteration order to select a value.
+If any model period is missing or disagreeing, return `None`.
 
 - [ ] **Step 8: Run reconciler tests green**
 
@@ -325,7 +514,7 @@ PYTHONPATH=. pytest core/tests/test_filing_reconciler.py -v
 
 ---
 
-### Task 4: Extend `conflicts.json` without changing statement-conflict semantics
+### Task 6: Extend `conflicts.json` without changing statement-conflict semantics
 
 **Files:**
 - Modify: `core/ingestion/filing_standardizer.py`
@@ -334,7 +523,7 @@ PYTHONPATH=. pytest core/tests/test_filing_reconciler.py -v
 
 **Interfaces:**
 
-Keep existing statement fields and add:
+Keep existing primary-statement fields and add:
 
 ```json
 {
@@ -345,21 +534,32 @@ Keep existing statement fields and add:
 }
 ```
 
-`overlap_conflict_count` continues to mean primary-statement numeric overlap conflicts, preserving Step 9M.0/9M.1 semantics.
+`overlap_conflict_count` continues to mean primary-statement numeric overlap conflicts.
 
-- [ ] **Step 1: Write payload-shape test**
+- [ ] **Step 1: Write supplemental-conflict payload test**
 
-Require `reconciliation_conflicts_payload()` to serialize supplemental conflicts with all source-bound observations, including SHA/page/file/year, and a deterministic reason.
+Require every supplemental-conflict observation to include:
 
-- [ ] **Step 2: Preserve existing statement-count contract**
+```text
+filing_year
+source_file
+source_sha256
+source.page
+fact_type
+period
+value
+status
+```
 
-For the Fast Retailing benchmark, require:
+- [ ] **Step 2: Preserve Fast Retailing primary statement count**
+
+Require:
 
 ```text
 overlap_conflict_count == 3
 ```
 
-Do not pre-state a Fast Retailing supplemental conflict count; compute and record what the source evidence actually produces.
+Do not pre-state the Fast Retailing supplemental conflict count. Measure it from the source evidence after implementation.
 
 - [ ] **Step 3: Run tests red**
 
@@ -367,15 +567,21 @@ Do not pre-state a Fast Retailing supplemental conflict count; compute and recor
 PYTHONPATH=. pytest core/tests/test_filing_reconciler.py core/tests/test_fast_retailing_benchmark.py -v
 ```
 
-- [ ] **Step 4: Implement deterministic supplemental-conflict serialization**
+- [ ] **Step 4: Implement deterministic serialization**
 
-Sort by:
+Sort supplemental conflicts by:
 
 ```text
 kind, fact_type, period
 ```
 
-Within each conflict, sort observations by filing year/source file/page. Do not discard agreeing duplicate observations from provenance.
+Sort observations within each conflict by:
+
+```text
+filing_year, source_file, source.page, value
+```
+
+Agreeing duplicate observations remain in provenance and are not conflicts.
 
 - [ ] **Step 5: Run tests green**
 
@@ -385,20 +591,60 @@ PYTHONPATH=. pytest core/tests/test_filing_reconciler.py core/tests/test_fast_re
 
 ---
 
-### Task 5: Regenerate and audit the Fast Retailing reconciled artifacts
+### Task 7: Remove unrelated synthetic workbook drift
+
+**Files:**
+- Restore if no justified reproducible change exists: `example/DEMO_HK_Trainer.xlsx`
+- Test: existing synthetic trainer/workbook tests
+
+**Baseline:** Step 9M.1 implementation commit `e5fa7b87` changed this binary workbook even though the accepted implementation base immediately before Step 9M.1 was `1f4bdfd6a39898d0f368e81318560cd0fe3d0c59` and Step 9M.1 did not intentionally alter trainer workbook behavior.
+
+- [ ] **Step 1: Verify the workbook change is unrelated**
+
+Run:
+
+```bash
+git diff --stat 1f4bdfd6a39898d0f368e81318560cd0fe3d0c59..e5fa7b87110a3a03c06349a35af6d662a880f88f -- example/DEMO_HK_Trainer.xlsx
+git diff --name-only 1f4bdfd6a39898d0f368e81318560cd0fe3d0c59..e5fa7b87110a3a03c06349a35af6d662a880f88f -- example/DEMO_HK_Trainer.xlsx
+```
+
+Expected: the file is reported as changed even though Step 9M.1 added no intended workbook feature.
+
+- [ ] **Step 2: Restore the pre-9M.1 workbook bytes**
+
+Unless Cursor can identify and document a deterministic Step 9M.1 requirement for this binary change, restore only this file:
+
+```bash
+git restore --source=1f4bdfd6a39898d0f368e81318560cd0fe3d0c59 -- example/DEMO_HK_Trainer.xlsx
+```
+
+This restores one file only; it is not a branch reset.
+
+- [ ] **Step 3: Verify no other example workbook changed in this hardening step**
+
+```bash
+git status --short example/
+```
+
+Expected: only the intentional restoration of `DEMO_HK_Trainer.xlsx` may appear as a working-tree change relative to the current branch head.
+
+- [ ] **Step 4: Run existing synthetic workbook tests**
+
+Use the existing relevant trainer/workbook tests already in `core/tests/`; do not regenerate example workbooks merely to make hashes change.
+
+---
+
+### Task 8: Regenerate and audit Fast Retailing artifacts
 
 **Files:**
 - Modify generated artifacts only as required:
   - `benchmark/fast_retailing/reconciled/provenance.json`
   - `benchmark/fast_retailing/reconciled/conflicts.json`
+- `benchmark/fast_retailing/reconciled/standardized.json` should remain model-equivalent and normally byte-identical.
 - Modify: `benchmark/fast_retailing/PROVENANCE.md`
 - Modify: `benchmark/fast_retailing/BASELINE.md`
 - Modify: `RESULT.md`
 - Test: `core/tests/test_fast_retailing_benchmark.py`
-
-**Interfaces:**
-- Generic pipeline remains the only reconciliation path.
-- `standardized.json` should remain byte-identical unless a review fix legitimately changes only previously silent share promotion; Fast Retailing currently has no complete comparable diluted-share axis, so it should remain model-equivalent.
 
 - [ ] **Step 1: Add Fast Retailing provenance assertions**
 
@@ -411,9 +657,11 @@ filing_year
 source.page
 ```
 
-Continue to require the FY2025 primary-statement anchors and three statement overlap conflicts from Step 9M.1.
+Require top-level `source_files` to contain all five Fast Retailing filings with non-empty computed hashes.
 
-- [ ] **Step 2: Run the generic pipeline twice**
+Continue to require FY2025 statement anchors and exactly three primary-statement overlap conflicts.
+
+- [ ] **Step 2: Run generic reconciliation twice**
 
 ```bash
 rm -rf /tmp/fr-hardening-1 /tmp/fr-hardening-2
@@ -422,38 +670,55 @@ PYTHONPATH=. python -m core reconcile benchmark/fast_retailing/extracted --sourc
 diff -ru /tmp/fr-hardening-1 /tmp/fr-hardening-2
 ```
 
-Expected: no diff.
+Expected: no differences.
 
-- [ ] **Step 3: Copy only canonical generic artifacts back**
+- [ ] **Step 3: Compare standardized payload before replacement**
 
-Copy `/tmp/fr-hardening-1/provenance.json` and `/tmp/fr-hardening-1/conflicts.json` into `benchmark/fast_retailing/reconciled/`.
+```bash
+diff -u benchmark/fast_retailing/reconciled/standardized.json /tmp/fr-hardening-1/standardized.json
+```
 
-Before replacing `standardized.json`, compare it against the committed file. Because this step must not fix G1–G7, investigate any model-payload difference before accepting it.
+Expected: no model-payload difference. If a difference appears, stop and explain it before copying anything because Step 9M.1.1 must not fix G1–G7 through input manipulation.
 
-- [ ] **Step 4: Re-run Fast Retailing audit**
+- [ ] **Step 4: Copy canonical audit artifacts**
+
+After deterministic equality is proven:
+
+```bash
+cp /tmp/fr-hardening-1/provenance.json benchmark/fast_retailing/reconciled/provenance.json
+cp /tmp/fr-hardening-1/conflicts.json benchmark/fast_retailing/reconciled/conflicts.json
+```
+
+Do not replace `standardized.json` if it is already identical.
+
+- [ ] **Step 5: Re-run Fast Retailing audit**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
 ```
 
-The first accounting-engine failures should remain the documented G1/G2 path rather than disappearing through input manipulation.
+Expected: source/reconciliation stages remain valid; the documented downstream accounting-engine G1–G7 queue remains open.
 
-- [ ] **Step 5: Update benchmark docs and RESULT**
+- [ ] **Step 6: Update benchmark docs and RESULT with measured evidence**
 
-Record:
+Record actual results:
 
 ```text
-supplemental provenance source-bound: yes
+strict metadata/date parsing: yes
 portable source-path validation: yes
+all 5 bound source files retained in provenance: yes
+supplemental provenance source-bound: yes
 silent repeated-share overwrite removed: yes
 statement overlap conflicts: 3
-supplemental conflict count: <actual measured count>
-G1–G7 accounting gaps preserved for 9M.2: yes
+supplemental conflict count: <actual deterministic count>
+Fast Retailing historical_shares: omitted unless complete/unambiguous
+G1–G7 preserved for 9M.2: yes
+DEMO_HK_Trainer unrelated drift removed: yes
 ```
 
-In the actual document, replace `<actual measured count>` with the number produced by the deterministic run; do not guess it beforehand.
+Replace `<actual deterministic count>` with the measured value; never guess it.
 
-- [ ] **Step 6: Run benchmark tests green**
+- [ ] **Step 7: Run benchmark tests green**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
@@ -461,13 +726,13 @@ PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
 
 ---
 
-### Task 6: Full regression gate and stop before Step 9M.2
+### Task 9: Full regression gate and stop before Step 9M.2
 
 **Files:**
 - Modify: `IMPLEMENTATION.md` status line only after all verification succeeds.
-- Modify: `RESULT.md` with final test evidence.
+- Modify: `RESULT.md` with final measured evidence.
 
-- [ ] **Step 1: Run the focused input suite**
+- [ ] **Step 1: Run focused filing pipeline tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_filing_json.py core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py core/tests/test_fast_retailing_benchmark.py -q
@@ -489,7 +754,7 @@ Expected: all pass.
 PYTHONPATH=. python -m core --help
 ```
 
-Require commands exactly include:
+Require the existing commands:
 
 ```text
 ingest
@@ -500,22 +765,51 @@ check
 list
 ```
 
-and still no `extract` command.
+Require no `extract` command.
 
-- [ ] **Step 4: Verify no accounting-feature drift**
+- [ ] **Step 4: Verify no feature drift**
 
 Require:
 
 ```text
-family orders remain 1..90
-synthetic demo surfaces unchanged
-Fast Retailing historical_shares remains omitted unless the source data now proves a complete unambiguous series
-no forecasting/valuation activation
+active family orders remain 1..90
+synthetic demo/component surfaces unchanged
+Fast Retailing standardized model payload unchanged
+Fast Retailing historical_shares omitted unless source evidence proves a complete unambiguous axis
+no forecasting/valuation/scenario activation
 G1–G7 remain queued for Step 9M.2
 ```
 
-- [ ] **Step 5: Mark Step 9M.1.1 complete**
+- [ ] **Step 5: Verify working-tree scope before handoff**
 
-Only after the focused and full suites pass, add a concise status line to this file and update `RESULT.md` with actual counts/results.
+Run:
 
-Do not create or implement the Step 9M.2 plan. Stop and let the user run `checkpoint`, then ChatGPT reviews this hardening commit and prepares Step 9M.2.
+```bash
+git status --short
+git diff --stat
+```
+
+Expected changes are limited to Step 9M.1.1 source/validation/reconciliation code, tests, regenerated Fast Retailing provenance/conflict artifacts/docs, `RESULT.md`, `IMPLEMENTATION.md`, and the intentional restoration of `example/DEMO_HK_Trainer.xlsx`.
+
+No other example workbook, source PDF, `TARGET.md`, forecasting module, valuation module, or scenario module should change.
+
+- [ ] **Step 6: Mark Step 9M.1.1 complete only with actual evidence**
+
+At the top of this file add one concise status line containing:
+
+```text
+focused test count
+full core test count
+Fast Retailing statement overlap conflict count
+Fast Retailing supplemental conflict count
+5/5 source files retained/bound
+standardized payload unchanged
+DEMO_HK_Trainer restored
+G1–G7 still open
+```
+
+Do not prestate counts before running the commands.
+
+- [ ] **Step 7: Stop**
+
+Do not begin Step 9M.2. Return the implementation/test summary to the user so they can inspect the diff and run `checkpoint`.
