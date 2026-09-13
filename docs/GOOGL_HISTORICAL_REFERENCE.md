@@ -5,7 +5,7 @@ Internal development reference for Step 9 historical convergence. Evidence is li
 Audit tool: `scripts/audit_reference_workbook.py`  
 GOOGL SHA-256 (pre/post inspection): `81faf2882d0df07ecf5def45695431c1935b4f7a94c1e017367596a063063896`  
 
-**Coverage refresh (Step 9M.5):** Inventory, gap matrix, and queue below incorporate Fast Retailing G1–G7 closure evidence and measured Step 9M.5 goodwill/intangibles activation (`expected_specs=438`).
+**Coverage refresh (Step 9M.6):** Inventory, gap matrix, and queue below incorporate Fast Retailing G1–G7 closure evidence and measured Step 9M.6 lease ROU-asset activation (`expected_specs=454`).
 
 ## Role of the reference
 
@@ -50,7 +50,7 @@ Canonical normalization-enabled demo (`DEMO_HK_Answer_Key.xlsx`, **78 families /
 |---|---|
 | Income Statement / Balance Sheet / Cash Flow Statement | Populated historical source facts |
 | Condensed Financials | Reformulation schedules (practice formulas) |
-| ALT DuPont | RNOA / Spread / FLEV / ROE + FIXED-ASSET INTENSITY CONTEXT + LEASE LIABILITY CONTEXT when inputs resolve |
+| ALT DuPont | RNOA / Spread / FLEV / ROE + FIXED-ASSET INTENSITY CONTEXT + LEASE LIABILITY CONTEXT + LEASE ROU-ASSET CONTEXT when inputs resolve |
 | Accounting Judgment | Guided operating/financing treatment (`identity:` selectors) |
 | Normalization Judgment + Earnings Normalization | Recurring / non-recurring bridge |
 | Earnings Quality | Cash conversion, accruals, optional asset-scaled ratios + trend diagnostics |
@@ -66,9 +66,9 @@ Ordinary / share / cross-company DEMO surfaces (recorded regression counts): `74
 
 Distinct from DEMO counts. Post–G1–G7 recorded Stage 4/Check surface:
 
-- **`expected_specs=438`** (blank Check `0/0/438`; filled Check `438/0/0`)
-- Module specs (recorded): `lease_specs=18`, `ownership_specs=34`, `per_share_specs=18`, `per_share_attribution_specs=16`, `fixed_asset_specs=35`, `goodwill_intangibles_specs=58`
-- Added vs illustrative DEMO when facts resolve: split lease-liability diagnostics, Ownership Attribution (parent/NCI), split-adjusted Per Share Analysis + attribution, goodwill/intangibles intensity context
+- **`expected_specs=454`** (blank Check `0/0/454`; filled Check `454/0/0`)
+- Module specs (recorded): `lease_specs=18`, `lease_rou_specs=16`, `ownership_specs=34`, `per_share_specs=18`, `per_share_attribution_specs=16`, `fixed_asset_specs=35`, `goodwill_intangibles_specs=58`
+- Added vs illustrative DEMO when facts resolve: split lease-liability diagnostics, lease ROU-asset intensity, Ownership Attribution (parent/NCI), split-adjusted Per Share Analysis + attribution, goodwill/intangibles intensity context
 
 ### Implemented since prior inventory (G3–G6 / related)
 
@@ -79,6 +79,7 @@ Distinct from DEMO counts. Post–G1–G7 recorded Stage 4/Check surface:
 | Parent / NCI attribution + parent ROE | **implemented** | Ownership Attribution schedule when four ownership concepts resolve; per-share numerator uses parent profit when ownership complete (G5 / 9M.3C) |
 | Split-adjusted per-share analysis | **implemented** | `historical_shares` with `basis=split_adjusted` drives diluted WAS / EPS practice when share axis resolves (G6 / 9M.3D) |
 | Goodwill / intangible intensity & change | **implemented** | ALT DuPont `GOODWILL & INTANGIBLES CONTEXT` when unique BS `goodwill` and/or `intangible_assets` resolve; optional CF `payments_for_intangible_assets` as −reported; no acquisition/impairment narrative (9M.5) |
+| Lease ROU-asset intensity / trend | **implemented** | ALT DuPont `LEASE ROU-ASSET CONTEXT` when unique BS `right_of_use_assets` resolves; average-balance intensity; independent of lease liability (9M.6) |
 
 ## Historical capability gap matrix
 
@@ -98,7 +99,7 @@ Distinct from DEMO counts. Post–G1–G7 recorded Stage 4/Check surface:
 | PP&E / D&A / asset intensity | BS Property and equipment; CF depreciation; CF Purchases of property and equipment | ALT DuPont fixed-asset families when both PP&E and D&A resolve (`FIXED-ASSET INTENSITY CONTEXT`) | implemented-differently | Explicit PP&E (BS) + D&A (CF) + Revenue | Practice formulas on ALT DuPont; gated; no capex inference; D&A/Average PP&E is context only | Maintain; do not claim pure depreciation rate |
 | capex / reinvestment bridge | CF **Purchases of property and equipment** | Absent as dedicated practice module (PPE/D&A context only) | missing-needs-new-explicit-data | Explicit `payments_for_ppe` / purchases-of-PP&E source + sign contract | Optional gated module; do not infer from investing CF or ΔPPE+D&A | Priority B — contract can be defined from explicit CF concept; still separate from next candidate |
 | leases (liability) | BS Operating lease liabilities; Condensed classification rows | Accounting Judgment + ALT DuPont lease-liability families; aggregate **or** split current/non-current sum; treatment-conditioned lease interest when complete note axis exists | implemented-differently | Aggregate `lease_liability` **or** unique `lease_liability_current` + `lease_liability_noncurrent`; optional `lease_interest_expense` note axis; Revenue | Guided classification + intensity/trend; financing net interest conditioned on uniform lease treatment | Maintain |
-| leases (ROU / payments) | BS Operating lease assets | ROU BS line may classify as OLTA; **no** ROU intensity schedule; **no** lease-payment / discount-rate diagnostics | missing-current-data-supported | Explicit `right_of_use_assets`; optional lease-payment CF lines when present | Optional gated module after liability foundation (now done) | Priority A remaining lease gap |
+| leases (ROU / payments) | BS Operating lease assets | ALT DuPont ROU intensity/trend when unique `right_of_use_assets` resolves; **no** lease-payment / discount-rate diagnostics | implemented-differently (bounded) | Explicit `right_of_use_assets`; optional lease-payment CF lines when present | Optional gated ROU balance context (done); payments/rates remain deferred | Maintain ROU module; Priority B for payment/rate contract |
 | goodwill / acquired intangibles / acquisitions | BS Goodwill; Intangible assets; CF acquisitions line | ALT DuPont goodwill/intangibles intensity & change when concepts resolve; optional intangible-payments (−reported); **no** acquisition-cash / GW-impairment bridge | implemented-differently (bounded) | Unique `goodwill` / `intangible_assets` (and optional intangible-payment CF) when present; acquisition CF only when explicitly supplied | Optional gated intensity/change module; never invent acquisition or GW-impairment stories | Maintain bounded module; acquisition-cash remains deferred until explicit facts |
 | deferred taxes / unusual tax rates | BS Deferred income taxes; CF Deferred income taxes; IS Core bridge tax notes | Effective tax rate + pretax norm tax convention; no DTA/DTL diagnostic schedule | missing-current-data-supported | Deferred tax BS/CF lines and/or explicit tax-adjustment candidates | Optional tax-quality / balance diagnostics; do not invent | Priority A after next candidate / when contracted |
 | minority / non-controlling interests | Not evidenced in inspected workbook | Ownership Attribution + parent ROE + parent-safe per-share numerator when ownership concepts resolve | implemented-differently | `profit_attributable_to_owners`, `profit_attributable_to_nci`, `equity_attributable_to_owners`, `noncontrolling_interests` | Optional gated schedule; consolidated DuPont unchanged | Maintain (Fast Retailing supplies NCI; GOOGL demo did not evidence it) |
@@ -134,11 +135,10 @@ Forward GOOGL sheets (Guidance & Consensus, Model_*, Scenario_Summary, Implied C
 
 ### Priority A — historically useful and current-data-supported
 
-1. Lease ROU-asset intensity / trend diagnostics when unique `right_of_use_assets` resolves (liability aggregation foundation is done).
-2. SBC expense bridge into dilution / per-share interpretation when CF SBC + share history are supplied (not present on Fast Retailing or ordinary DEMO today).
-3. Deferred-tax balance / net-position diagnostics when unique DTA/DTL (and/or explicit tax-adjustment candidates) are supplied.
-4. Further structured historical interpretation prompts on modules already taught.
-5. Acquisition-cash / GW-impairment attribution only when those facts are separately and explicitly supplied (not present on Fast Retailing today).
+1. SBC expense bridge into dilution / per-share interpretation when CF SBC + share history are supplied (not present on Fast Retailing or ordinary DEMO today).
+2. Deferred-tax balance / net-position diagnostics when unique DTA/DTL (and/or explicit tax-adjustment candidates) are supplied.
+3. Further structured historical interpretation prompts on modules already taught.
+4. Acquisition-cash / GW-impairment attribution only when those facts are separately and explicitly supplied (not present on Fast Retailing today).
 
 ### Priority B — historically useful but needs explicit new historical inputs
 
@@ -205,28 +205,30 @@ Explicit concept resolution is registered in `core/model/line_resolver.py` for:
 
 ## Next historical implementation candidate (exactly one)
 
-**Name:** Lease ROU-asset intensity / trend diagnostics
+**Name:** SBC expense bridge into dilution / per-share interpretation
 
 ### Minimum input contract
 
-Unique explicit BS `right_of_use_assets` (no label fallback). Revenue from existing anchor. Optional payment/discount-rate lines remain deferred until separately contracted.
+Explicit CF stock-based-compensation expense line plus diluted share history (and optional SBC disclosure). Not present on Fast Retailing or ordinary DEMO today.
 
 ### Missing / ambiguous-input behavior
 
-- No unique ROU concept → omit module (fail closed).
-- Do not invent ROU from lease liability or note totals.
+- Missing SBC and/or share history → omit module (fail closed).
+- Do not invent SBC from diluted-share movements alone.
 
 ### Explicitly out of scope for this candidate
 
 - Lease-payment / discount-rate schedules
 - Acquisition-cash / GW-impairment narratives
-- Capex bridge, SBC, deferred-tax schedule, segments, forecasting/valuation
+- Capex bridge, deferred-tax schedule, segments, forecasting/valuation
 
-**Step 9M.5 note:** Goodwill / intangible-asset intensity & change diagnostics (optional intangible-payments as −reported) are implemented on ALT DuPont when explicit concepts resolve. DEMO label-only goodwill remains omitted. Fast Retailing activates 58 practice cells (`expected_specs=438`). Acquisition-cash and GW-impairment storytelling remain deferred.
+**Step 9M.6 note:** Lease ROU-asset intensity / trend diagnostics are implemented on ALT DuPont when unique exact-concept `right_of_use_assets` resolves. DEMO remains unchanged (no ROU concept). Fast Retailing activates 16 practice cells (`expected_specs=454`). Lease-payment / discount-rate analysis remains deferred.
+
+**Step 9M.5 note:** Goodwill / intangible-asset intensity & change diagnostics (optional intangible-payments as −reported) are implemented on ALT DuPont when explicit concepts resolve. DEMO label-only goodwill remains omitted. Acquisition-cash and GW-impairment storytelling remain deferred.
 
 **Step 9K.1 note:** PP&E / D&A asset-intensity diagnostics are implemented-differently on ALT DuPont. Capex remains Priority B until the dedicated module/contract is implemented.
 
-**Step 9L.1 / 9M.3A–B note:** Lease-liability intensity/trend diagnostics support aggregate **or** split summation; treatment-conditioned lease interest is implemented when a complete reported lease-interest axis exists. ROU-asset diagnostics and lease-payment/discount-rate analysis remain deferred.
+**Step 9L.1 / 9M.3A–B note:** Lease-liability intensity/trend diagnostics support aggregate **or** split summation; treatment-conditioned lease interest is implemented when a complete reported lease-interest axis exists.
 
 **Step 9M.3C–D note:** Parent/NCI Ownership Attribution and split-adjusted per-share analysis are implemented when their input contracts resolve.
 

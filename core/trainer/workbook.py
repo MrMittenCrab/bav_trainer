@@ -13,6 +13,7 @@ from ..engine.component_catalog import (
     COMPONENT_CATALOG,
     FIXED_ASSET_COMPONENT_CATALOG,
     LEASE_LIABILITY_COMPONENT_CATALOG,
+    LEASE_ROU_COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
     OWNERSHIP_ATTRIBUTION_COMPONENT_CATALOG,
@@ -280,6 +281,7 @@ def group_components_by_family(smap: SemanticMap) -> list[dict]:
     family_meta.update({f.id: f for f in NORMALIZED_PER_SHARE_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in FIXED_ASSET_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in LEASE_LIABILITY_COMPONENT_CATALOG})
+    family_meta.update({f.id: f for f in LEASE_ROU_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in OWNERSHIP_ATTRIBUTION_COMPONENT_CATALOG})
     groups: list[dict] = []
     for family_id, comps in by_family.items():

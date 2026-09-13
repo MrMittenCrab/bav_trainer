@@ -50,6 +50,10 @@ def _module_applicability(fin, anchor=None) -> dict[str, Any]:
         lease_liability_applicable,
         lease_liability_availability,
     )
+    from core.model.lease_rou import (
+        lease_rou_applicable,
+        lease_rou_availability,
+    )
     from core.model.ownership_attribution import (
         ownership_attribution_applicable,
         ownership_attribution_availability,
@@ -58,6 +62,7 @@ def _module_applicability(fin, anchor=None) -> dict[str, Any]:
     from core.model.working_capital import working_capital_applicable
 
     lease_avail = lease_liability_availability(fin)
+    lease_rou_avail = lease_rou_availability(fin)
     ownership_avail = ownership_attribution_availability(fin)
     gi_avail = goodwill_intangibles_availability(fin)
     eq = earnings_quality_availability(fin)
@@ -81,6 +86,10 @@ def _module_applicability(fin, anchor=None) -> dict[str, Any]:
         "lease_liability": {
             "applicable": lease_liability_applicable(fin),
             "availability": asdict(lease_avail),
+        },
+        "lease_rou": {
+            "applicable": lease_rou_applicable(fin),
+            "availability": asdict(lease_rou_avail),
         },
         "ownership_attribution": {
             "applicable": ownership_attribution_applicable(fin),
@@ -200,6 +209,7 @@ def run_audit() -> dict[str, Any]:
                 message=(
                     f"expected_specs={len(builder.expected_specs)} "
                     f"lease_specs={len(builder.lease_liability_specs)} "
+                    f"lease_rou_specs={len(builder.lease_rou_specs)} "
                     f"ownership_specs={len(builder.ownership_attribution_specs)} "
                     f"per_share_specs={len(builder.per_share_specs)} "
                     f"per_share_attribution_specs={len(builder.per_share_attribution_specs)} "
@@ -331,9 +341,9 @@ def write_baseline(result: dict[str, Any]) -> None:
         provenance.get("supplemental_conflict_count", 0),
     )
     lines = [
-        "# Fast Retailing Benchmark Baseline (Step 9M.5)",
+        "# Fast Retailing Benchmark Baseline (Step 9M.6)",
         "",
-        "- Accounting engine phase: Step 9M.5 (goodwill / intangible-asset diagnostics on 9M.3E base)",
+        "- Accounting engine phase: Step 9M.6 (lease ROU-asset diagnostics on 9M.5 base)",
         "- Input path: generic `extracted/` → `validate-source` → `reconcile` → `reconciled/`",
         "- Benchmark phase: measurement only — G1/G1B/G2/G2B/G2C/G3/G4/G5/G6/G7 closed",
         "- Five fiscal periods: 2021-08-31 … 2025-08-31",
@@ -385,6 +395,12 @@ def write_baseline(result: dict[str, Any]) -> None:
             avail = info.get("availability") or {}
             lines.append(
                 f"  - availability: lease_liability={avail.get('lease_liability')} "
+                f"ambiguous={avail.get('ambiguous')}"
+            )
+        if name == "lease_rou":
+            avail = info.get("availability") or {}
+            lines.append(
+                f"  - availability: right_of_use_assets={avail.get('right_of_use_assets')} "
                 f"ambiguous={avail.get('ambiguous')}"
             )
         if name == "ownership_attribution":

@@ -36,6 +36,11 @@ from ..model.lease_liability import (
     lease_liability_applicable,
     resolve_lease_liability_source,
 )
+from ..model.lease_rou import (
+    compute_lease_rou_series,
+    lease_rou_applicable,
+    resolve_lease_rou_source,
+)
 from ..model.ownership_attribution import (
     compute_ownership_attribution_series,
     ownership_attribution_applicable,
@@ -65,6 +70,7 @@ from .component_catalog import (
     expand_goodwill_intangibles_specs,
     expand_historical_specs,
     expand_lease_liability_specs,
+    expand_lease_rou_specs,
     expand_ownership_attribution_specs,
     expand_normalization_specs,
     expand_normalized_per_share_specs,
@@ -433,6 +439,36 @@ class ReferenceModelBuilder:
         else:
             self.goodwill_intangibles_series = None
             self.goodwill_intangibles_specs = ()
+        if lease_rou_applicable(self.fin):
+            self.lease_rou_series = compute_lease_rou_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.lease_rou_specs = expand_lease_rou_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + len(self.profitability_change_specs)
+                    + len(self.roe_attribution_specs)
+                    + len(self.quality_change_specs)
+                    + len(self.per_share_specs)
+                    + len(self.per_share_attribution_specs)
+                    + len(self.normalized_per_share_specs)
+                    + len(self.fixed_asset_specs)
+                    + len(self.lease_liability_specs)
+                    + len(self.ownership_attribution_specs)
+                    + len(self.goodwill_intangibles_specs)
+                    + 1
+                ),
+            )
+        else:
+            self.lease_rou_series = None
+            self.lease_rou_specs = ()
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
@@ -449,6 +485,7 @@ class ReferenceModelBuilder:
             + self.lease_liability_specs
             + self.ownership_attribution_specs
             + self.goodwill_intangibles_specs
+            + self.lease_rou_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -497,6 +534,9 @@ class ReferenceModelBuilder:
         }
         self._goodwill_intangibles_spec_index = {
             (s.family_id, s.period_index): s for s in self.goodwill_intangibles_specs
+        }
+        self._lease_rou_spec_index = {
+            (s.family_id, s.period_index): s for s in self.lease_rou_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -890,6 +930,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._goodwill_intangibles_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_lease_rou(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._lease_rou_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -2352,6 +2408,119 @@ class ReferenceModelBuilder:
             self.rowmap["dupont_lease_liability_change_row"] = lease_change_row
             self.rowmap["dupont_lease_liability_growth_row"] = lease_growth_row
             next_section_after = lease_growth_row
+
+        if self.lease_rou_series is not None:
+            rou_series = self.lease_rou_series
+            rou_item = resolve_lease_rou_source(self.fin)
+            assert rou_item is not None
+            rou_src = self._resolved_source_row(
+                self.fin.balance_sheet, "right_of_use_assets", required=True
+            )
+            assert rou_src is not None
+            rev_r = self.rowmap["condensed_revenue_row"]
+
+            rou_section_row = next_section_after + 2
+            rou_level_row = rou_section_row + 1
+            rou_change_row = rou_section_row + 2
+            rou_growth_row = rou_section_row + 3
+            rou_avg_row = rou_section_row + 4
+            rou_intensity_row = rou_section_row + 5
+
+            ws.cell(
+                row=rou_section_row, column=1, value="LEASE ROU-ASSET CONTEXT"
+            ).font = BOLD
+            ws.cell(row=rou_level_row, column=1, value="Right-of-use Assets")
+            ws.cell(row=rou_change_row, column=1, value="Change in Right-of-use Assets")
+            ws.cell(row=rou_growth_row, column=1, value="Right-of-use Assets Growth")
+            ws.cell(row=rou_avg_row, column=1, value="Average Right-of-use Assets")
+            ws.cell(
+                row=rou_intensity_row,
+                column=1,
+                value="Average Right-of-use Assets / Revenue",
+            )
+
+            for j in range(self._n):
+                out_col_idx = 2 + j
+                out_col = self._col(out_col_idx)
+                src_col = self._col(2 + j)
+                level_f = f"='Balance Sheet'!{src_col}{rou_src}"
+                c = ws.cell(row=rou_level_row, column=out_col_idx, value=level_f)
+                c.number_format = NUM_FMT
+
+                if j == 0:
+                    continue
+
+                prev_col = self._col(2 + j - 1)
+                change_f = f"={out_col}{rou_level_row}-{prev_col}{rou_level_row}"
+                growth_f = (
+                    f"=IF({prev_col}{rou_level_row}=0,NA(),"
+                    f"{out_col}{rou_level_row}/{prev_col}{rou_level_row}-1)"
+                )
+                avg_f = f"=({prev_col}{rou_level_row}+{out_col}{rou_level_row})/2"
+                intensity_f = (
+                    f"=IF('Condensed Financials'!{src_col}{rev_r}=0,NA(),"
+                    f"{out_col}{rou_avg_row}/'Condensed Financials'!{src_col}{rev_r})"
+                )
+                c = ws.cell(row=rou_change_row, column=out_col_idx, value=change_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=rou_growth_row, column=out_col_idx, value=growth_f)
+                c.number_format = PCT_FMT
+                c = ws.cell(row=rou_avg_row, column=out_col_idx, value=avg_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=rou_intensity_row, column=out_col_idx, value=intensity_f)
+                c.number_format = PCT_FMT
+
+                change_exp = rou_series.rou_assets_change[j]
+                growth_exp = rou_series.rou_assets_growth[j]
+                avg_exp = rou_series.average_rou_assets[j]
+                intensity_exp = rou_series.rou_assets_to_revenue[j]
+                assert change_exp is not None and growth_exp is not None
+                assert avg_exp is not None and intensity_exp is not None
+                self._register_lease_rou(
+                    "rou_assets_change",
+                    j,
+                    "ALT DuPont",
+                    rou_change_row,
+                    out_col_idx,
+                    change_f,
+                    float(change_exp),
+                )
+                self._register_lease_rou(
+                    "rou_assets_growth",
+                    j,
+                    "ALT DuPont",
+                    rou_growth_row,
+                    out_col_idx,
+                    growth_f,
+                    growth_exp if isinstance(growth_exp, str) else float(growth_exp),
+                )
+                self._register_lease_rou(
+                    "average_rou_assets",
+                    j,
+                    "ALT DuPont",
+                    rou_avg_row,
+                    out_col_idx,
+                    avg_f,
+                    float(avg_exp),
+                )
+                self._register_lease_rou(
+                    "rou_assets_to_revenue",
+                    j,
+                    "ALT DuPont",
+                    rou_intensity_row,
+                    out_col_idx,
+                    intensity_f,
+                    intensity_exp
+                    if isinstance(intensity_exp, str)
+                    else float(intensity_exp),
+                )
+
+            self.rowmap["dupont_rou_assets_row"] = rou_level_row
+            self.rowmap["dupont_rou_assets_change_row"] = rou_change_row
+            self.rowmap["dupont_rou_assets_growth_row"] = rou_growth_row
+            self.rowmap["dupont_average_rou_assets_row"] = rou_avg_row
+            self.rowmap["dupont_rou_assets_to_revenue_row"] = rou_intensity_row
+            next_section_after = rou_intensity_row
 
         if self.goodwill_intangibles_series is None:
             return

@@ -7,6 +7,7 @@ from ..engine.component_catalog import (
     FIXED_ASSET_COMPONENT_CATALOG,
     GOODWILL_INTANGIBLES_COMPONENT_CATALOG,
     LEASE_LIABILITY_COMPONENT_CATALOG,
+    LEASE_ROU_COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
     OWNERSHIP_ATTRIBUTION_COMPONENT_CATALOG,
@@ -29,6 +30,7 @@ from .goodwill_intangibles import (
     GoodwillIntangiblesSeries,
 )
 from .lease_liability import LeaseLiabilitySeries
+from .lease_rou import LeaseRouSeries
 from .normalization import NormalizationSeries
 from .normalized_per_share import compute_normalized_per_share_series
 from .ownership_attribution import OwnershipAttributionSeries
@@ -126,6 +128,13 @@ _LEASE_LIABILITY_FAMILY_SERIES = (
     "lease_liability_to_revenue",
     "lease_liability_change",
     "lease_liability_growth",
+)
+
+_LEASE_ROU_FAMILY_SERIES = (
+    "rou_assets_change",
+    "rou_assets_growth",
+    "average_rou_assets",
+    "rou_assets_to_revenue",
 )
 
 _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
@@ -551,6 +560,27 @@ def lease_liability_expected_series(
     }
 
 
+def lease_rou_expected_series(
+    lease_rou: LeaseRouSeries,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map lease-ROU diagnostic families from a LeaseRouSeries."""
+    series = {
+        "rou_assets_change": lease_rou.rou_assets_change,
+        "rou_assets_growth": lease_rou.rou_assets_growth,
+        "average_rou_assets": lease_rou.average_rou_assets,
+        "rou_assets_to_revenue": lease_rou.rou_assets_to_revenue,
+    }
+    expected_ids = {family.id for family in LEASE_ROU_COMPONENT_CATALOG}
+    if set(series) != expected_ids:
+        missing = sorted(expected_ids - set(series))
+        extra = sorted(set(series) - expected_ids)
+        raise ValueError(
+            "lease_rou_expected_series family mismatch; "
+            f"missing={missing} extra={extra}"
+        )
+    return {family_id: series[family_id] for family_id in _LEASE_ROU_FAMILY_SERIES}
+
+
 def ownership_attribution_expected_series(
     ownership_attribution: OwnershipAttributionSeries,
 ) -> dict[str, tuple[float | str | None, ...]]:
@@ -657,6 +687,7 @@ def expected_value_for_component(
     per_share: PerShareSeries | None = None,
     fixed_asset: FixedAssetSeries | None = None,
     lease_liability: LeaseLiabilitySeries | None = None,
+    lease_rou: LeaseRouSeries | None = None,
     ownership_attribution: OwnershipAttributionSeries | None = None,
     goodwill_intangibles: GoodwillIntangiblesSeries | None = None,
     goodwill_intangibles_availability: GoodwillIntangiblesAvailability | None = None,
@@ -693,6 +724,12 @@ def expected_value_for_component(
                 f"Lease-liability family {family_id!r} requires a LeaseLiabilitySeries"
             )
         series = lease_liability_expected_series(lease_liability)
+    elif family_id in _LEASE_ROU_FAMILY_SERIES:
+        if lease_rou is None:
+            raise ValueError(
+                f"Lease-ROU family {family_id!r} requires a LeaseRouSeries"
+            )
+        series = lease_rou_expected_series(lease_rou)
     elif family_id in _FIXED_ASSET_FAMILY_SERIES:
         if fixed_asset is None:
             raise ValueError(

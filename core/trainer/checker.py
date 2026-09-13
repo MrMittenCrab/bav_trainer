@@ -18,6 +18,7 @@ from ..engine.component_catalog import (
     FIXED_ASSET_COMPONENT_CATALOG,
     GOODWILL_INTANGIBLES_COMPONENT_CATALOG,
     LEASE_LIABILITY_COMPONENT_CATALOG,
+    LEASE_ROU_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
     OWNERSHIP_ATTRIBUTION_COMPONENT_CATALOG,
     PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG,
@@ -34,6 +35,10 @@ from ..model.goodwill_intangibles import (
 from ..model.lease_liability import (
     compute_lease_liability_series,
     lease_liability_applicable,
+)
+from ..model.lease_rou import (
+    compute_lease_rou_series,
+    lease_rou_applicable,
 )
 from ..model.ownership_attribution import (
     compute_ownership_attribution_series,
@@ -231,6 +236,17 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                         list(modeled_periods),
                         anchor,
                     )
+            lease_rou_family_ids = {
+                family.id for family in LEASE_ROU_COMPONENT_CATALOG
+            }
+            lease_rou = None
+            if any(comp.family_id in lease_rou_family_ids for comp in comps):
+                if lease_rou_applicable(financials):
+                    lease_rou = compute_lease_rou_series(
+                        financials,
+                        list(modeled_periods),
+                        anchor,
+                    )
             ownership_family_ids = {
                 family.id for family in OWNERSHIP_ATTRIBUTION_COMPONENT_CATALOG
             }
@@ -263,6 +279,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     per_share=per_share,
                     fixed_asset=fixed_asset,
                     lease_liability=lease_liability,
+                    lease_rou=lease_rou,
                     ownership_attribution=ownership_attribution,
                     goodwill_intangibles=goodwill_intangibles,
                     goodwill_intangibles_availability=gi_availability,

@@ -2700,6 +2700,129 @@ def expand_goodwill_intangibles_specs(
     return tuple(specs)
 
 
+LEASE_ROU_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="rou_assets_change",
+        order=112,
+        title="Change in Right-of-use Assets",
+        short_hint="Current ROU assets − prior ROU assets.",
+        semantic_key="lease_rou.rou_assets_change",
+        category="lease_rou",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        hints=(
+            "Change in Right-of-use Assets = Current − Prior reported ROU assets.",
+            "Balance change is not lease cash payments, amortization, or liability change.",
+        ),
+    ),
+    ComponentFamily(
+        id="rou_assets_growth",
+        order=113,
+        title="Right-of-use Assets Growth",
+        short_hint="Percentage change in reported ROU assets.",
+        semantic_key="lease_rou.rou_assets_growth",
+        category="lease_rou",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("rou_assets_change",),
+        hints=(
+            "Right-of-use Assets Growth = Change in ROU assets / Prior ROU assets.",
+            "A zero prior ROU-asset balance makes percentage growth undefined (#N/A).",
+            "Balance growth is not rent growth, lease cash payments, or liability growth.",
+        ),
+    ),
+    ComponentFamily(
+        id="average_rou_assets",
+        order=114,
+        title="Average Right-of-use Assets",
+        short_hint="Average beginning and ending ROU assets.",
+        semantic_key="lease_rou.average_rou_assets",
+        category="lease_rou",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        hints=(
+            "Average Right-of-use Assets = (Prior ROU assets + Current ROU assets) / 2.",
+        ),
+    ),
+    ComponentFamily(
+        id="rou_assets_to_revenue",
+        order=115,
+        title="Average Right-of-use Assets / Revenue",
+        short_hint=(
+            "Average ROU assets divided by current Revenue (balance intensity)."
+        ),
+        semantic_key="lease_rou.rou_assets_to_revenue",
+        category="lease_rou",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("average_rou_assets", "revenue_link"),
+        hints=(
+            "Average Right-of-use Assets / Revenue uses the average balance, not "
+            "the ending level alone.",
+            "Intensity is balance context only — not lease payments, discount rates, "
+            "amortization, or liability reconciliation.",
+            "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        ),
+    ),
+)
+
+
+def expand_lease_rou_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+) -> tuple[ComponentSpec, ...]:
+    """Expand lease-ROU families into period-specific concrete specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_lease_rou_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_lease_rou_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in LEASE_ROU_COMPONENT_CATALOG:
+        if family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        else:
+            indices = range(len(periods))
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            if j > 0:
+                prev = periods[j - 1]
+                for dep_fam in family.depends_on_previous:
+                    deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 def _deferred(
     *,
     id: str,
