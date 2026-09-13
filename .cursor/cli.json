@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(*)",
+      "Read(**/*)",
+      "Write(**/*)"
+    ],
+    "deny": [
+      "Shell(git:commit*)",
+      "Shell(git:push*)",
+      "Shell(git:reset*)",
+      "Shell(git:rebase*)",
+      "Shell(git:merge*)",
+      "Shell(git:branch -d*)",
+      "Shell(git:branch -D*)",
+      "Shell(git:clean*)"
+    ]
+  }
+}

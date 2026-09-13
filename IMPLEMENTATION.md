@@ -1,5 +1,7 @@
 # Step 9M.0 — Fast Retailing Real-Company Historical Benchmark Baseline
 
+**Status: COMPLETE** — five-year source-grounded Fast Retailing fixture + provenance + stage audit; engine fails measured in BASELINE/GAPS; no production accounting fixes; synthetic surfaces unchanged. See `RESULT.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > **For Cursor:** Read `TARGET.md`, then `docs/FAST_RETAILING_BENCHMARK.md`, then this plan in full. The accepted implementation base is commit `26f22b7e739045a176b9e63012001818a8823fb7` (`Step 9L.1`) plus commit `19c8aad9b10fcd4aea76fd6c86ff2522ed2d1fd0` containing the five Fast Retailing CFS PDFs. Implement only Step 9M.0. This is a **real-company benchmark baseline/audit**, not another historical feature expansion. Do not begin forecasting, valuation, scenarios, or Step 9M.1 fixes. Do not commit or push; the user owns the checkpoint commit.

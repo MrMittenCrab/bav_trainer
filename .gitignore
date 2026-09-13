@@ -15,3 +15,6 @@ example/*_Answer_Key.component_map.json
 example/*_Answer_Key.assumptions.json
 example/*_Trainer.component_map.json
 example/*_Trainer.trainer.json
+
+# Fast Retailing PDF text cache (regenerable)
+benchmark/fast_retailing/_extract/

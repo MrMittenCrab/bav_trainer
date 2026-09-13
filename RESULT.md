@@ -1,26 +1,34 @@
-Status: Step 9L.1 complete — lease-liability diagnostics + judgment-selector hardening
+Status: Step 9M.0 complete — Fast Retailing real-company historical benchmark baseline
 
 Implementation base:
-- e81a048 Step 9K.1 complete
-- b82f2fe Plan Step 9L.1
+- 26f22b7 Step 9L.1 complete
+- 19c8aad Fast Retailing CFS PDF sources
+- 56a9d00 Plan Step 9M.0
 
-Review fixes / evidence:
-- GOOGL provenance drift fixed: yes
-- stale Answer-Key hash removed from persistent reference doc: yes
-- identity: judgment selectors added: yes
-- split duplicate-concept lease case verified: yes
-- lease module orders 87–90: yes
-- aggregate-vs-split gating verified: yes
-- classification switch changes NOA/Net Debt but not raw lease ratio: yes
-- no ROU / payment / discount-rate / amortization inference: yes
-- canonical demos regenerated: yes
+Step 9L.1 review accepted / findings measured:
+- identity: judgment selectors remain accepted
+- split-lease diagnostic omission confirmed on Fast Retailing primary BS
+- lease interest income-side inconsistency recorded as Gap G4 (not fixed)
+
+Benchmark evidence:
+- five source hashes verified: yes
+- five-period source_facts.json with page provenance: yes
+- latest-audited-presentation precedence applied: yes
+- overlap conflicts/restatements recorded: 3
+- FY2025 independent anchors passed: yes
+- engine audit stage results: load pass; identity pass; reconciliation fail (1-unit BS); builder fail (Other financial assets); workbook/Check skipped
+- applicable modules (pre-fix): earnings_quality yes; fixed_asset yes; lease_liability omitted (ambiguous split); per_share omitted; normalization omitted
+- gaps classified in GAPS.md: 7 open (+ 1 closed transcription fix)
+- no production Fast Retailing-specific branches: yes
+- no committed Fast Retailing Trainer/Answer Key: yes
+- no new historical formula families: yes
 - forecasting / valuation still deferred: yes
 - GOOGL workbook hash unchanged:
   81faf2882d0df07ecf5def45695431c1935b4f7a94c1e017367596a063063896
 - TARGET.md unchanged by Cursor:
   88f69fb47d8464084d504b6e65be9742d5e4924ca78a2c3412156293b3fa2015
 
-Product surfaces:
+Synthetic surfaces unchanged (Step 9L.1):
 - active family orders 1..90
 - base demo: 74 / 312
 - normalization demo: 78 / 332
@@ -30,28 +38,29 @@ Product surfaces:
 - retail: 78 / 331
 - manufacturer: 74 / 311
 - CLI: {ingest, build, check, list}
-- Step 9I.1 presentation intact: yes
-- deferred Model_*/Scenario_Summary remain hidden placeholders: yes
 
-Files changed:
-- Add: `core/model/lease_liability.py`
-- Add: `core/tests/test_lease_liability.py`
-- Modify: classification/judgment selectors, line_resolver, component_catalog, historical_expected
-- Modify: reference_model / checker / workbook
-- Modify: surface/exit-gate/integrity tests
-- Modify: `example/DEMO_HK_Trainer.xlsx`, `example/DEMO_HK_Answer_Key.xlsx`
-- Modify: `docs/GOOGL_HISTORICAL_REFERENCE.md`, `README.md`, `skills/bav-trainer/SKILL.md`, `RESULT.md`, `IMPLEMENTATION.md`
+Files added/updated (benchmark + tests/scripts only):
+- `benchmark/fast_retailing/source_manifest.json`
+- `benchmark/fast_retailing/source_facts.json`
+- `benchmark/fast_retailing/FastRetailing_Standardized.json`
+- `benchmark/fast_retailing/provenance.json`
+- `benchmark/fast_retailing/PROVENANCE.md`
+- `benchmark/fast_retailing/BASELINE.md`
+- `benchmark/fast_retailing/GAPS.md`
+- `scripts/build_fast_retailing_benchmark.py`
+- `scripts/audit_fast_retailing_benchmark.py`
+- `scripts/extract_benchmark_pdf_text.py`
+- `scripts/build_fast_retailing_source_facts.py` (if present)
+- `requirements-benchmark.txt`
+- `core/tests/test_fast_retailing_benchmark.py`
+- `RESULT.md` / `IMPLEMENTATION.md` status
 
 Tests (fresh, local verification — no attached GitHub CI):
-- `PYTHONPATH=. pytest core/tests/ -q` -> 316 passed
-- CLI -> `{ingest,build,check,list}` only
-- Components resolved on canonical demo build: 332
+- `PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v` -> 5 passed
+- `PYTHONPATH=. pytest core/tests/ -q` -> 321 passed
+- `PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py` -> BASELINE written
 
-Known deferred limitations:
-- forecasting / valuation / scenarios remain deferred
-- ROU-asset diagnostics, split lease aggregation, lease payments/discount rates deferred
-- explicit capex / reinvestment bridge awaits source/sign contract (Priority B)
-- next historical candidate: goodwill / acquired intangibles / acquisition-cash diagnostics (Priority A)
-- synthetic fixtures are not real-company validation
+Next checkpoint:
+- Step 9M.1 must be planned from `benchmark/fast_retailing/GAPS.md` only
 
-Unresolved: none on the lease-liability diagnostics / judgment-selector hardening addressed by this checkpoint
+Unresolved on 9M.0 measurement scope: none — production gaps intentionally open for 9M.1
