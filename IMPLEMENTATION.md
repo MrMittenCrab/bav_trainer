@@ -1,524 +1,822 @@
-# Step 9M.1.1 — Filing-JSON Provenance + Validation Hardening
-
-**Status: Step 9M.1.1 complete** — focused input suite 54 passed; full `core/tests/` 370 passed; portable source-path validation yes; supplemental provenance source-bound yes; silent repeated-share overwrite removed; statement overlap conflicts 3; supplemental conflicts 3; `standardized.json` unchanged; G1–G7 preserved for 9M.2; CLI `{ingest, validate-source, reconcile, build, check, list}` (no `extract`); family orders `1..90` unchanged.
-
+# Step 9M.2A — Real-Company Build Unblockers Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **For Cursor:** Read `TARGET.md`, then `docs/superpowers/specs/2026-09-13-filing-json-input-design.md`, then `benchmark/fast_retailing/GAPS.md`, then this plan in full. The accepted implementation base is commit `e5fa7b87110a3a03c06349a35af6d662a880f88f` (`Step 9M.1`). Implement only Step 9M.1.1 using red/green TDD. Do not begin Step 9M.2 accounting fixes, OpenAI API extraction, forecasting, valuation, scenarios, or investment conclusions. Do not commit, push, reset, rebase, merge, clean, or delete branches; the user owns checkpoint commits.
+> **For Cursor:** Read `TARGET.md`, then `docs/superpowers/specs/2026-09-13-step-9m2a-real-company-build-unblockers-design.md`, then `benchmark/fast_retailing/GAPS.md`, then this plan in full. The accepted code base is `a707408d109037f11e3677d67f29b157cf6fa026` (`Step 9M.1.1`); the approved design is commit `37c0b843fd4ab9e432b5e9cfd923f42fd0471903`. Implement only Step 9M.2A using red/green TDD. Do not begin G3–G7 fixes, PDF/AI extraction, forecasting, valuation, scenarios, or investment conclusions. Do not commit, push, reset, rebase, merge, clean, or delete branches; the user owns checkpoint commits.
 
-**Goal:** Close the review defects in the new filing-JSON boundary so every documentary fact remains source-bound after reconciliation, malformed source metadata cannot escape validation, and share facts cannot be silently overwritten across filings.
+**Goal:** Close Fast Retailing G1 and G2 only: accept audited one-unit balance-sheet rounding residuals without plugs, and route clearly identified generic financial-instrument rows into the existing Accounting Judgment workflow instead of hard-failing classification.
 
-**Architecture:** Keep `ExtractedFiling` as the immutable documentary contract and `StandardizedFinancials` as the model-only contract. Harden the boundary in three places: (1) validate required metadata and relative source-file paths, (2) wrap reconciled supplemental facts with filing/year/hash provenance instead of dropping their origin, and (3) treat repeated share/note facts as cross-filing observations with explicit disagreement records rather than last-write-wins behavior. Do not change BAV accounting formulas or the Fast Retailing G1–G7 engine gap queue.
+**Architecture:** Keep source/reconciliation inputs immutable. G1 is a validator policy change: one reporting-unit balance-sheet residual is acceptable, anything larger still fails. G2 is a narrow concept-driven classification extension: explicit current/non-current financial asset/liability concepts receive a financial default plus a side-appropriate operating alternative through the existing judgment registry. Then rerun the real-company audit and stop at the next genuine blocker.
 
-**Tech Stack:** Python stdlib (`dataclasses`, `json`, `hashlib`, `pathlib`, `datetime`), pytest, existing `ExtractedFiling`, filing validator/reconciler/standardizer, existing CLI, Fast Retailing benchmark fixtures.
+**Tech Stack:** Python, pytest, existing `StandardizedFinancials`, arithmetic validators/reconciler, balance-sheet classifier, judgment registry, `ReferenceModelBuilder`, Fast Retailing benchmark audit.
 
-**Spec:** `docs/superpowers/specs/2026-09-13-filing-json-input-design.md`
-
-## Review findings that this step must close
-
-1. `reconciliation_provenance_payload()` currently serializes `note_facts` / `share_facts` with page/note/label only. Their source filing, filing year, and computed SHA-256 are lost after `reconcile_filings()`, even though the architecture requires source-bound provenance for every extracted fact.
-2. `_historical_shares()` currently iterates concatenated share facts into a dict keyed by period. Two filings can therefore report different diluted weighted-average share values for the same period and the later iteration silently overwrites the earlier value without a conflict record.
-3. The v1 design requires non-empty required metadata and a portable relative `source_file`, but current parsing/validation allows blank company/currency/jurisdiction fields and allows an absolute or `..` source path to escape `source_root`.
+**Spec:** `docs/superpowers/specs/2026-09-13-step-9m2a-real-company-build-unblockers-design.md`
 
 ## Global Constraints
 
-- `TARGET.md` already records the stable source-data architecture; Cursor treats it as read-only.
-- Preserve one JSON file per source filing.
-- Preserve original documentary labels, sections, signs, units, page references, and values.
-- `suggested_concept` remains advisory only.
-- `StandardizedFinancials` remains model-only; do not add source/provenance fields to it.
-- No PDF parsing or AI/API calls in this step.
-- Do not infer unit conversions, stock-split multipliers, balancing plugs, missing facts, or accounting classifications.
-- Cross-filing numeric disagreements must never be silently overwritten.
-- Statement conflict behavior and the existing three Fast Retailing statement overlap conflicts must remain intact.
-- Fast Retailing historical shares must remain omitted unless a complete, unambiguous reported diluted-WAS axis exists.
-- Preserve Step 9M.0/9M.1 accounting gaps G1–G7 for Step 9M.2.
-- Preserve CLI commands `{ingest, validate-source, reconcile, build, check, list}`; do not add `extract`.
-- Preserve synthetic trainer family orders `1..90` and existing workbook surfaces.
-- Cursor must stop after implementation/tests and let the user run `checkpoint`.
+- `TARGET.md` is read-only for Cursor.
+- Preserve the Step 9M.1.1 filing-JSON schema, source binding, provenance, and conflict semantics.
+- Preserve all Fast Retailing reported/reconciled source values; do not change `benchmark/fast_retailing/reconciled/standardized.json` to make the engine pass.
+- Do not add balancing plugs or mutate reported assets, liabilities, or equity.
+- Accept only an absolute balance-sheet identity residual of at most **1.0 reporting unit**; values strictly above `1.0` fail.
+- Keep the classifier fail-closed for vague unsupported lines.
+- Generic financial-instrument recognition must require explicit standardized concept evidence for financial nature plus asset/liability side plus current/non-current status.
+- Do not classify merely because a label contains the word `financial`.
+- Preserve more-specific existing treatments for cash, borrowings/debt, leases, deferred tax, short-term investments, equity-method investments, pensions, and other already-supported categories.
+- New generic financial-instrument decisions must be `ambiguous=True` and must enter the existing Accounting Judgment mechanism.
+- Preserve the three Fast Retailing primary-statement overlap conflicts and three supplemental conflicts.
+- Preserve existing lease behavior (G3/G4), NCI behavior (G5), share/per-share gating (G6), and reconciliation precedence (G7).
+- No company-specific `6288.HK` / Fast Retailing branch in production code.
+- No new forecast/valuation activation.
+- No new active historical formula family solely because G1/G2 are unblocked; Accounting Judgment rows may increase only through the existing judgment-case mechanism.
+- Cursor stops after implementation/tests and reports results; the user runs `checkpoint`.
 
 ---
 
-### Task 1: Enforce required filing metadata and portable source paths
+### Task 1: Make one-unit balance-sheet rounding an explicit accepted tolerance (G1)
 
 **Files:**
-- Modify: `core/ingestion/filing_json.py`
-- Modify: `core/ingestion/filing_validator.py`
-- Test: `core/tests/test_filing_json.py`
-- Test: `core/tests/test_filing_cli.py`
+- Modify: `core/data/validators.py`
+- Test: `core/tests/test_classification.py`
+- Read only unless a test proves otherwise: `core/ingestion/reconciler.py`
 
 **Interfaces:**
-- `load_extracted_filing(path) -> ExtractedFiling` remains the loader.
-- `validate_extracted_filing(filing, source_root=...) -> FilingValidationReport` remains the semantic/source-binding validator.
-- Add no new public CLI command.
-
-- [x] **Step 1: Add parser tests for required typed fields**
-
-Require clean `ValueError` (not `KeyError` / raw `TypeError`) for missing or malformed:
-
-```text
-company object
-company.name
-ticker
-jurisdiction
-filing.fiscal_year
-filing.period_end
-filing.currency
-filing.source_file
-```
-
-`stock_code` may remain empty because some future source projects may use ticker-only identity.
-
-`fiscal_year` must be an integer value, not `bool`, and must be positive. Do not infer it from `period_end`.
-
-- [x] **Step 2: Add validator tests for portable source-file paths**
-
-Reject with hard validation issue code:
-
-```text
-invalid_source_path
-```
-
-for:
-
-```text
-/Users/name/report.pdf
-../report.pdf
-subdir/../../report.pdf
-```
-
-Allow a safe relative nested path such as:
-
-```text
-annual/FY2025.pdf
-```
-
-The resolved path must remain inside `source_root` after `.resolve()`.
-
-- [x] **Step 3: Add CLI regression for invalid source path**
-
-`python -m core validate-source ... --source-root ...` must exit nonzero and print `invalid_source_path` without reading the escaped file.
-
-`reconcile` with the same invalid filing must exit nonzero before writing artifacts.
-
-- [x] **Step 4: Run focused tests red**
-
-```bash
-PYTHONPATH=. pytest core/tests/test_filing_json.py core/tests/test_filing_cli.py -v
-```
-
-- [x] **Step 5: Implement strict required-field parsing**
-
-Use small explicit helpers instead of direct casts that leak `KeyError`/`TypeError`, e.g.:
+- Add `BALANCE_SHEET_TOLERANCE = 1.0` in `core/data/validators.py`.
+- Change the validator signature to:
 
 ```python
-def _required_nonempty_str(payload: dict, key: str, *, context: str) -> str:
-    value = payload.get(key)
-    if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"{context}.{key} is required")
-    return value
+def validate_balance_sheet(
+    data: StandardizedFinancials,
+    *,
+    tolerance: float = BALANCE_SHEET_TOLERANCE,
+) -> dict[date, bool]:
+    ...
 ```
 
-For `fiscal_year`, require `isinstance(value, int) and not isinstance(value, bool) and value > 0`.
+- `reconcile_financials(data)` continues to call `validate_balance_sheet(data)` and therefore inherits the default tolerance without a new reconciler API.
 
-Preserve documentary strings; validation may test `.strip()` for emptiness but must not rewrite stored text.
+- [ ] **Step 1: Add a focused fixture for balance-sheet identity residuals**
 
-- [x] **Step 6: Implement source-root containment validation**
-
-Before reading bytes, reject absolute `source_file` paths. Resolve:
+In `core/tests/test_classification.py`, add a helper using the existing `P1`, `P2`, `_li()`, and `_periods()` helpers:
 
 ```python
-root = Path(source_root).resolve()
-candidate = (root / filing.filing.source_file).resolve()
+def _balance_sheet_identity_fin(residual: float) -> StandardizedFinancials:
+    assets = 100.0
+    liabilities = 60.0
+    equity = 40.0 - residual
+    return StandardizedFinancials(
+        ticker="ROUND",
+        company_name="Rounding Co",
+        currency="HKD",
+        units="HKD in Millions",
+        jurisdiction="HK",
+        periods=_periods(),
+        income_statement=[],
+        balance_sheet=[
+            _li("Total assets", assets, assets),
+            _li("Total liabilities", liabilities, liabilities),
+            _li("Total equity", equity, equity),
+        ],
+        cash_flow=[],
+    )
 ```
 
-Require `candidate` to be `root` itself or a descendant of `root`; because `source_file` names a file, normal valid inputs will be descendants. If containment fails, emit `invalid_source_path` and do not hash/read the escaped path.
+Take a value snapshot before validation so the test can prove validation does not mutate source numbers.
 
-Do not rely only on string-prefix checks.
+- [ ] **Step 2: Add the four required tolerance cases**
 
-- [x] **Step 7: Run focused tests green**
+Import `validate_balance_sheet` and add:
+
+```python
+@pytest.mark.parametrize(
+    ("residual", "expected"),
+    [
+        (0.0, True),
+        (0.5, True),
+        (1.0, True),
+        (1.01, False),
+    ],
+)
+def test_balance_sheet_rounding_tolerance(residual, expected):
+    fin = _balance_sheet_identity_fin(residual)
+    before = [dict(item.values) for item in fin.balance_sheet]
+    result = validate_balance_sheet(fin)
+    assert set(result.values()) == {expected}
+    assert [dict(item.values) for item in fin.balance_sheet] == before
+```
+
+- [ ] **Step 3: Add reconciler warning semantics**
+
+Require the accepted one-unit residual to produce a passing balance-sheet checksum and no generic balance-sheet warning, while `1.01` still fails and warns:
+
+```python
+def test_reconciliation_accepts_one_unit_but_rejects_larger_residual():
+    accepted = reconcile_financials(_balance_sheet_identity_fin(1.0))
+    assert accepted.checksums["balance_sheet"] is True
+    assert "Balance sheet does not balance for one or more periods" not in accepted.warnings
+
+    rejected = reconcile_financials(_balance_sheet_identity_fin(1.01))
+    assert rejected.checksums["balance_sheet"] is False
+    assert "Balance sheet does not balance for one or more periods" in rejected.warnings
+```
+
+- [ ] **Step 4: Run the G1 tests red**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_filing_json.py core/tests/test_filing_cli.py -v
+PYTHONPATH=. pytest core/tests/test_classification.py -k "balance_sheet_rounding_tolerance or reconciliation_accepts_one_unit" -v
 ```
+
+Expected before implementation: the `1.0` residual case fails because the current checksum threshold is `0.5`.
+
+- [ ] **Step 5: Implement the explicit tolerance**
+
+In `core/data/validators.py`, add:
+
+```python
+BALANCE_SHEET_TOLERANCE = 1.0
+```
+
+and change the identity test from the hard-coded `0.5` to:
+
+```python
+elif abs(float(a) - (float(l) + float(e))) > tolerance:
+    ok = False
+```
+
+Do not round, plug, rewrite, or normalize any values.
+
+- [ ] **Step 6: Run the G1 tests green**
+
+```bash
+PYTHONPATH=. pytest core/tests/test_classification.py -k "balance_sheet_rounding_tolerance or reconciliation_accepts_one_unit" -v
+```
+
+Expected: all selected tests pass.
 
 ---
 
-### Task 2: Preserve source binding for every supplemental fact
+### Task 2: Recognize only explicit generic financial-instrument concepts (G2 classifier)
 
 **Files:**
-- Modify: `core/ingestion/filing_reconciler.py`
-- Modify: `core/ingestion/filing_standardizer.py`
-- Test: `core/tests/test_filing_reconciler.py`
+- Modify: `core/model/classification.py`
+- Test: `core/tests/test_classification.py`
 
 **Interfaces:**
+- Preserve `classify_balance_sheet_line(item, *, override=None) -> ClassificationDecision`.
+- Add no new public classification API.
+- Introduce four exact judgment codes:
 
-Add a reconciled wrapper rather than changing the immutable extraction schema:
+```text
+financial_asset_current_financial_vs_operating
+financial_asset_noncurrent_financial_vs_operating
+financial_liability_current_financial_vs_operating
+financial_liability_noncurrent_financial_vs_operating
+```
+
+- [ ] **Step 1: Add parameterized G2 classification tests**
+
+Add the following exact cases to `core/tests/test_classification.py`:
 
 ```python
-@dataclass(frozen=True)
-class SupplementalObservation:
-    kind: str  # "note" | "share"
-    filing_year: int
-    source_file: str
-    source_sha256: str
-    fact: SupplementalFact
+@pytest.mark.parametrize(
+    ("label", "concept", "category", "code"),
+    [
+        (
+            "Other financial assets",
+            "other_financial_assets_current",
+            "Financial Asset",
+            "financial_asset_current_financial_vs_operating",
+        ),
+        (
+            "Financial assets",
+            "financial_assets_noncurrent",
+            "Financial Asset",
+            "financial_asset_noncurrent_financial_vs_operating",
+        ),
+        (
+            "Derivative financial assets",
+            "derivative_financial_assets_current",
+            "Financial Asset",
+            "financial_asset_current_financial_vs_operating",
+        ),
+        (
+            "Derivative financial assets",
+            "derivative_financial_assets_noncurrent",
+            "Financial Asset",
+            "financial_asset_noncurrent_financial_vs_operating",
+        ),
+        (
+            "Other financial liabilities",
+            "other_financial_liabilities_current",
+            "Financial Liability",
+            "financial_liability_current_financial_vs_operating",
+        ),
+        (
+            "Financial liabilities",
+            "financial_liabilities_noncurrent",
+            "Financial Liability",
+            "financial_liability_noncurrent_financial_vs_operating",
+        ),
+        (
+            "Derivative financial liabilities",
+            "derivative_financial_liabilities_current",
+            "Financial Liability",
+            "financial_liability_current_financial_vs_operating",
+        ),
+        (
+            "Derivative financial liabilities",
+            "derivative_financial_liabilities_noncurrent",
+            "Financial Liability",
+            "financial_liability_noncurrent_financial_vs_operating",
+        ),
+    ],
+)
+def test_generic_financial_concepts_become_guided_judgments(
+    label, concept, category, code
+):
+    decision = classify_balance_sheet_line(
+        LineItem(label=label, concept=concept, values={P1: 10, P2: 12})
+    )
+    assert decision.category == category
+    assert decision.ambiguous is True
+    assert decision.judgment_code == code
+    assert decision.reason
 ```
 
-Change `ReconciledCompanyData.note_facts` and `.share_facts` to tuples of `SupplementalObservation`.
+- [ ] **Step 2: Add fail-closed and specificity regressions**
 
-- [x] **Step 1: Write source-provenance regression**
+Require a generic label without usable concept evidence to remain unsupported:
 
-Create FY2024 and FY2025 filings containing note/share facts. After reconciliation, require every supplemental observation to retain:
-
-```text
-filing_year
-source_file
-computed source SHA-256
-fact source page/note/label
+```python
+def test_generic_financial_label_without_side_concept_still_fails_closed():
+    with pytest.raises(UnclassifiedBalanceSheetLineError):
+        classify_balance_sheet_line(
+            LineItem(
+                label="Other financial assets",
+                concept="",
+                values={P1: 10, P2: 12},
+            )
+        )
 ```
 
-The SHA must come from `FilingValidationReport.computed_source_sha256`, never from a model-generated guess.
+Also require more-specific existing label behavior not to be displaced by a broad generic concept fallback:
 
-- [x] **Step 2: Write provenance-payload regression**
+```python
+def test_generic_financial_concept_does_not_override_specific_existing_rules():
+    cash = classify_balance_sheet_line(
+        LineItem(
+            label="Cash and cash equivalents",
+            concept="financial_assets_current",
+            values={P1: 10, P2: 12},
+        )
+    )
+    assert cash.category == "Financial Asset"
+    assert cash.ambiguous is False
 
-Require each item in `provenance.json` `note_facts` and `share_facts` to include:
+    debt = classify_balance_sheet_line(
+        LineItem(
+            label="Bank borrowings",
+            concept="financial_liabilities_noncurrent",
+            values={P1: 10, P2: 12},
+        )
+    )
+    assert debt.category == "Financial Liability"
+    assert debt.ambiguous is False
 
-```json
-{
-  "filing_year": 2025,
-  "source_file": "FY2025.pdf",
-  "source_sha256": "...",
-  "fact_type": "...",
-  "period": "...",
-  "value": 123,
-  "status": "reported",
-  "source": {"page": 10}
-}
+    short_term_investment = classify_balance_sheet_line(
+        LineItem(
+            label="Short-term investments",
+            concept="financial_assets_current",
+            values={P1: 10, P2: 12},
+        )
+    )
+    assert short_term_investment.judgment_code == (
+        "short_term_investment_financial_vs_operating"
+    )
 ```
 
-Derived facts keep their `derivation` field and the same filing provenance.
-
-- [x] **Step 3: Run reconciler tests red**
+- [ ] **Step 3: Run the G2 classifier tests red**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_filing_reconciler.py -v
+PYTHONPATH=. pytest core/tests/test_classification.py -k "generic_financial" -v
 ```
 
-- [x] **Step 4: Implement `SupplementalObservation` wrapping**
+Expected before implementation: the eight explicit generic financial rows raise `UnclassifiedBalanceSheetLineError` or do not carry the required judgment codes.
 
-In `reconcile_filings()`, wrap note/share facts while the filing/report pair is still available. Do not concatenate naked `SupplementalFact` objects after source binding has been lost.
+- [ ] **Step 4: Implement a narrow concept-driven fallback**
 
-Sort supplemental observations deterministically by:
+At the end of `_classify_by_concept(item)`, after the existing strong concept rules and before `return None`, add a small private helper or equivalent inline logic with this behavior:
 
-```text
-kind, fact_type, period, filing_year, source_file, page
+```python
+def _generic_financial_concept_decision(
+    item: LineItem,
+) -> ClassificationDecision | None:
+    c = _concept_token(item.concept or "")
+    low = _norm(item.label)
+
+    # Concept is authoritative for nature/side/currentness; label is only a gate
+    # that this is genuinely a generic financial/derivative presentation row.
+    if "financial" not in c:
+        return None
+    if not _match_any(
+        low,
+        (
+            "financial asset",
+            "financial liab",
+            "derivative financial",
+        ),
+    ):
+        return None
+
+    if "noncurrent" in c:
+        horizon = "noncurrent"
+    elif "current" in c:
+        horizon = "current"
+    else:
+        return None
+
+    if "asset" in c and "liab" not in c:
+        code = (
+            "financial_asset_noncurrent_financial_vs_operating"
+            if horizon == "noncurrent"
+            else "financial_asset_current_financial_vs_operating"
+        )
+        return ClassificationDecision(
+            "Financial Asset",
+            ambiguous=True,
+            reason=(
+                "Generic financial-asset concept — financial vs operating "
+                "purpose/hedging judgment"
+            ),
+            judgment_code=code,
+        )
+
+    if "liab" in c:
+        code = (
+            "financial_liability_noncurrent_financial_vs_operating"
+            if horizon == "noncurrent"
+            else "financial_liability_current_financial_vs_operating"
+        )
+        return ClassificationDecision(
+            "Financial Liability",
+            ambiguous=True,
+            reason=(
+                "Generic financial-liability concept — financial vs operating "
+                "purpose/hedging judgment"
+            ),
+            judgment_code=code,
+        )
+
+    return None
 ```
 
-- [x] **Step 5: Update provenance serialization**
+Then have `_classify_by_concept()` return this fallback only after the existing more-specific concept rules.
 
-Replace `_fact_payload(fact)` with a serializer that consumes `SupplementalObservation` and emits both filing-level and fact-level provenance.
+The `noncurrent` check must occur before `current`, because the normalized token `noncurrent` contains the substring `current`.
 
-Do not promote note facts into statements.
+Do not add any ticker/company checks. Do not broaden label-only classification.
 
-- [x] **Step 6: Run reconciler tests green**
+- [ ] **Step 5: Run the G2 classifier tests green**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_filing_reconciler.py -v
+PYTHONPATH=. pytest core/tests/test_classification.py -k "generic_financial" -v
 ```
+
+Expected: all selected tests pass, including the fail-closed and specificity cases.
 
 ---
 
-### Task 3: Eliminate silent cross-filing overwrite of share facts
+### Task 3: Register side-aware Accounting Judgment templates and prove case generation
 
 **Files:**
-- Modify: `core/ingestion/filing_reconciler.py`
-- Modify: `core/ingestion/filing_standardizer.py`
-- Test: `core/tests/test_filing_reconciler.py`
+- Modify: `core/model/judgment.py`
+- Test: `core/tests/test_classification.py`
+- Test: `core/tests/test_reference_integrity.py`
 
 **Interfaces:**
+- Keep `ClassificationJudgmentTemplate`, `JudgmentCase`, and `classification_judgment_cases()` unchanged.
+- Add four entries to `CLASSIFICATION_JUDGMENT_TEMPLATES` keyed by the four judgment codes from Task 2.
 
-Add:
+- [ ] **Step 1: Add the four exact registry templates**
+
+The templates must use these exact option pairs:
 
 ```python
-@dataclass(frozen=True)
-class SupplementalConflict:
-    kind: str
-    fact_type: str
-    period: date
-    observations: tuple[SupplementalObservation, ...]
-    reason: str
+"financial_asset_current_financial_vs_operating": ClassificationJudgmentTemplate(
+    topic="Current financial asset: financial vs operating",
+    options=("Financial Asset", "Operating Working Capital Asset"),
+    model_rationale=(
+        "The reference model treats a generically disclosed current financial "
+        "instrument as a financial asset absent evidence that it is integral to "
+        "normal operations or an operating hedge."
+    ),
+    consequence_prompt=CONSEQUENCE_PROMPT,
+    model_consequence=(
+        "Financial-asset treatment lowers Net Debt; operating-WC treatment raises "
+        "NOWC/NOA by the same balance. Implied equity is unchanged by the "
+        "classification switch alone."
+    ),
+),
+"financial_asset_noncurrent_financial_vs_operating": ClassificationJudgmentTemplate(
+    topic="Non-current financial asset: financial vs operating",
+    options=("Financial Asset", "Operating Long-Term Asset"),
+    model_rationale=(
+        "The reference model treats a generically disclosed non-current financial "
+        "instrument as a financial asset absent evidence that it is strategically "
+        "or operationally required."
+    ),
+    consequence_prompt=CONSEQUENCE_PROMPT,
+    model_consequence=(
+        "Financial-asset treatment lowers Net Debt; operating-LT treatment raises "
+        "NOLA/NOA by the same balance. Implied equity is unchanged by the "
+        "classification switch alone."
+    ),
+),
+"financial_liability_current_financial_vs_operating": ClassificationJudgmentTemplate(
+    topic="Current financial liability: financial vs operating",
+    options=("Financial Liability", "Operating Working Capital Liability"),
+    model_rationale=(
+        "The reference model treats a generically disclosed current financial "
+        "instrument as a financial liability absent evidence that it is an "
+        "operating payable or operating hedge."
+    ),
+    consequence_prompt=CONSEQUENCE_PROMPT,
+    model_consequence=(
+        "Financial-liability treatment raises Net Debt; operating-WC-liability "
+        "treatment lowers NOWC/NOA by the same balance. Implied equity is unchanged "
+        "by the classification switch alone."
+    ),
+),
+"financial_liability_noncurrent_financial_vs_operating": ClassificationJudgmentTemplate(
+    topic="Non-current financial liability: financial vs operating",
+    options=("Financial Liability", "Operating Long-Term Liability"),
+    model_rationale=(
+        "The reference model treats a generically disclosed non-current financial "
+        "instrument as a financial liability absent evidence that it is an "
+        "operating long-term obligation or operating hedge."
+    ),
+    consequence_prompt=CONSEQUENCE_PROMPT,
+    model_consequence=(
+        "Financial-liability treatment raises Net Debt; operating-LT-liability "
+        "treatment lowers NOLA/NOA by the same balance. Implied equity is unchanged "
+        "by the classification switch alone."
+    ),
+),
 ```
 
-Add `supplemental_conflicts: tuple[SupplementalConflict, ...]` to `ReconciledCompanyData`.
+The first option must exactly equal the classifier's default category.
 
-- [x] **Step 1: Write equal repeated-share test**
+- [ ] **Step 2: Add a four-case synthetic judgment fixture**
 
-FY2024 and FY2025 filings may both report the same FY2024 `diluted_weighted_average_shares`. Require:
+In `core/tests/test_classification.py`, create a two-period `StandardizedFinancials` with these non-zero detail rows:
 
 ```text
-both observations retained in provenance
-no supplemental conflict
-one unambiguous FY2024 value available for share-axis gating
+Other financial assets / other_financial_assets_current             10, 11
+Financial assets / financial_assets_noncurrent                      20, 21
+Other financial liabilities / other_financial_liabilities_current    5,  6
+Financial liabilities / financial_liabilities_noncurrent              7,  8
+Share capital and reserves / retained_earnings                       18, 18
 ```
 
-- [x] **Step 2: Write disagreeing repeated-share test**
+This gives assets `30/32`, liabilities `12/14`, and equity `18/18` without requiring reported total rows. Use `FinancialPeriod` objects for `P1/P2`; income statement and cash flow may be empty because this test exercises reformulation/judgment generation directly.
 
-If the two filings report different FY2024 diluted WAS values, require:
+- [ ] **Step 3: Add judgment-case assertions**
+
+Import `classification_judgment_cases` and require four cases. For each expected label, require:
 
 ```text
-both observations retained
-one SupplementalConflict(kind="share", ...)
-no silent selected share value
-historical_shares is None
+supplied_treatment = financial default
+alternatives = exactly one side-appropriate operating category
+override_selector starts with "identity:"
+line_identity equals the identity suffix used by override_selector
+model_rationale is non-empty
+model_consequence is non-empty
 ```
 
-Do not choose the later filing because supplemental facts v1.0 do not carry `presentation_role`; conservatively require agreement until a future schema explicitly supports supplemental restatement precedence.
+Also apply one case's alternative via:
 
-- [x] **Step 3: Write complete-axis share promotion test**
+```python
+reform_alt = reformulate_balance_sheet(
+    fin,
+    [P1, P2],
+    overrides={case.override_selector: case.alternatives[0]},
+)
+```
 
-For a two-period model axis where every period has at least one `reported` diluted-WAS observation and all repeated observations agree, require `HistoricalShareData` to be emitted exactly once per period.
+and require:
 
-Derived share facts do not satisfy the reported-axis requirement.
+- the selected detail decision changes to the alternative category;
+- the underlying `LineItem.values` remain byte-for-byte/numerically unchanged;
+- `implied_equity` is unchanged versus the reference classification;
+- NOA and/or Net Debt move in the direction described by the template.
 
-- [x] **Step 4: Write generic note-fact disagreement test**
-
-Two reported `lease_liability_total` facts for the same period with different values must produce a supplemental conflict and retain both source-bound observations. They remain audit evidence and are not promoted into `StandardizedFinancials`.
-
-- [x] **Step 5: Run reconciler tests red**
+- [ ] **Step 4: Run the judgment tests red**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_filing_reconciler.py -v
+PYTHONPATH=. pytest core/tests/test_classification.py -k "generic_financial or judgment_case" -v
 ```
 
-- [x] **Step 6: Implement deterministic supplemental conflict grouping**
+Expected before Task 3 implementation: `classification_judgment_cases()` raises for unsupported new judgment codes or cannot produce the required cases.
 
-Group reported supplemental observations by:
+- [ ] **Step 5: Implement the registry entries**
 
-```text
-(kind, fact_type, period)
+Add only the four templates above to `CLASSIFICATION_JUDGMENT_TEMPLATES`. Do not add a new judgment engine or a second registry.
+
+- [ ] **Step 6: Add a builder-level integration regression**
+
+In `core/tests/test_reference_integrity.py`, create a minimal two-period `StandardizedFinancials` containing:
+
+- the four generic financial-instrument rows from the synthetic fixture;
+- one balancing equity row;
+- required income-statement concepts for `revenue`, `net_income`, `pretax_income`, `tax_expense`, `interest_expense`, and `interest_income`;
+- no optional cash-flow rows unless needed by the existing builder.
+
+Instantiate:
+
+```python
+builder = ReferenceModelBuilder(fin)
 ```
 
-If the distinct numeric-value set has size > 1, create one `SupplementalConflict` with reason:
+and require that `builder.judgment_cases` contains the four expected supplied treatments/alternatives. This proves the existing Accounting Judgment workflow receives the cases; do not create a parallel workbook mechanism.
 
-```text
-cross_filing_supplemental_disagreement
-```
-
-Do not treat `derived` facts as authoritative observations for reported-value agreement.
-
-- [x] **Step 7: Make historical-share gating conflict-aware**
-
-For each model period:
-
-1. collect only `kind="share"`, `status="reported"`, `fact_type="diluted_weighted_average_shares"`;
-2. require at least one observation;
-3. require exactly one distinct numeric value across observations;
-4. use that value;
-5. if any period is missing or disagreeing, return `None` for `historical_shares`.
-
-Do not use iteration order to select a value.
-
-- [x] **Step 8: Run reconciler tests green**
+- [ ] **Step 7: Run Task 3 green**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_filing_reconciler.py -v
+PYTHONPATH=. pytest \
+  core/tests/test_classification.py \
+  core/tests/test_reference_integrity.py \
+  -k "generic_financial or judgment_case" -v
 ```
+
+Expected: all selected tests pass.
 
 ---
 
-### Task 4: Extend `conflicts.json` without changing statement-conflict semantics
+### Task 4: Prove Fast Retailing G1/G2 are unblocked and measure the next blocker
 
 **Files:**
-- Modify: `core/ingestion/filing_standardizer.py`
-- Test: `core/tests/test_filing_reconciler.py`
 - Test: `core/tests/test_fast_retailing_benchmark.py`
+- Modify: `scripts/audit_fast_retailing_benchmark.py`
+- Generated by audit: `benchmark/fast_retailing/BASELINE.md`
+- Read only: `benchmark/fast_retailing/reconciled/standardized.json`
+- Read only: `benchmark/fast_retailing/reconciled/conflicts.json`
 
 **Interfaces:**
-
-Keep existing statement fields and add:
-
-```json
-{
-  "conflicts": [...],
-  "overlap_conflict_count": 3,
-  "supplemental_conflicts": [...],
-  "supplemental_conflict_count": 0
-}
-```
-
-`overlap_conflict_count` continues to mean primary-statement numeric overlap conflicts, preserving Step 9M.0/9M.1 semantics.
-
-- [x] **Step 1: Write payload-shape test**
-
-Require `reconciliation_conflicts_payload()` to serialize supplemental conflicts with all source-bound observations, including SHA/page/file/year, and a deterministic reason.
-
-- [x] **Step 2: Preserve existing statement-count contract**
-
-For the Fast Retailing benchmark, require:
+- `run_audit()` remains the benchmark stage runner.
+- Stage names remain:
 
 ```text
-overlap_conflict_count == 3
+1_source_fixture_load
+2_identity_validation
+3_reconciliation
+4_reference_model_builder
+5_workbook_generation
+6_blank_check
+7_filled_check
 ```
 
-Do not pre-state a Fast Retailing supplemental conflict count; compute and record what the source evidence actually produces.
+- [ ] **Step 1: Add the Fast Retailing G1 acceptance assertion**
 
-- [x] **Step 3: Run tests red**
+In `core/tests/test_fast_retailing_benchmark.py`, load `reconciled/standardized.json` through `standardized_from_payload()`, call `reconcile_financials(fin)`, and require:
 
-```bash
-PYTHONPATH=. pytest core/tests/test_filing_reconciler.py core/tests/test_fast_retailing_benchmark.py -v
+```python
+assert report.checksums["balance_sheet"] is True
+assert "Balance sheet does not balance for one or more periods" not in report.warnings
 ```
 
-- [x] **Step 4: Implement deterministic supplemental-conflict serialization**
+Do not change the standardized fixture to make this pass.
 
-Sort by:
+- [ ] **Step 2: Add the Fast Retailing G2 row assertions**
+
+For each Fast Retailing balance-sheet row whose concept is one of:
 
 ```text
-kind, fact_type, period
+other_financial_assets_current
+financial_assets_noncurrent
+derivative_financial_assets_current
+derivative_financial_assets_noncurrent
+other_financial_liabilities_current
+financial_liabilities_noncurrent
+derivative_financial_liabilities_current
+derivative_financial_liabilities_noncurrent
 ```
 
-Within each conflict, sort observations by filing year/source file/page. Do not discard agreeing duplicate observations from provenance.
+require `classify_balance_sheet_line(item)` to return the financial default, `ambiguous=True`, and the correct side-aware judgment code from Task 2.
 
-- [x] **Step 5: Run tests green**
+This test is the direct proof that the known G2 rows no longer hard-fail even if a later unrelated row becomes the next blocker.
 
-```bash
-PYTHONPATH=. pytest core/tests/test_filing_reconciler.py core/tests/test_fast_retailing_benchmark.py -v
+- [ ] **Step 3: Add an audit-stage regression**
+
+Call `run_audit()` and build:
+
+```python
+stages = {stage.stage: stage for stage in result["stages"]}
 ```
 
----
+Require:
 
-### Task 5: Regenerate and audit the Fast Retailing reconciled artifacts
-
-**Files:**
-- Modify generated artifacts only as required:
-  - `benchmark/fast_retailing/reconciled/provenance.json`
-  - `benchmark/fast_retailing/reconciled/conflicts.json`
-- Modify: `benchmark/fast_retailing/PROVENANCE.md`
-- Modify: `benchmark/fast_retailing/BASELINE.md`
-- Modify: `RESULT.md`
-- Test: `core/tests/test_fast_retailing_benchmark.py`
-
-**Interfaces:**
-- Generic pipeline remains the only reconciliation path.
-- `standardized.json` should remain byte-identical unless a review fix legitimately changes only previously silent share promotion; Fast Retailing currently has no complete comparable diluted-share axis, so it should remain model-equivalent.
-
-- [x] **Step 1: Add Fast Retailing provenance assertions**
-
-For every reconciled `note_facts` and `share_facts` item require non-empty:
-
-```text
-source_file
-source_sha256
-filing_year
-source.page
+```python
+assert stages["1_source_fixture_load"].status == "pass"
+assert stages["2_identity_validation"].status == "pass"
+assert stages["3_reconciliation"].status == "pass"
 ```
 
-Continue to require the FY2025 primary-statement anchors and three statement overlap conflicts from Step 9M.1.
+For Stage 4, do **not** pre-assume the whole builder now succeeds. Instead require that any Stage-4 `UnclassifiedBalanceSheetLineError` message no longer names any of the known G2 financial-instrument rows above. If Stage 4 passes, allow later stages to reveal the next blocker.
 
-- [x] **Step 2: Run the generic pipeline twice**
-
-```bash
-rm -rf /tmp/fr-hardening-1 /tmp/fr-hardening-2
-PYTHONPATH=. python -m core reconcile benchmark/fast_retailing/extracted --source-root benchmark/fast_retailing/source -o /tmp/fr-hardening-1
-PYTHONPATH=. python -m core reconcile benchmark/fast_retailing/extracted --source-root benchmark/fast_retailing/source -o /tmp/fr-hardening-2
-diff -ru /tmp/fr-hardening-1 /tmp/fr-hardening-2
-```
-
-Expected: no diff.
-
-- [x] **Step 3: Copy only canonical generic artifacts back**
-
-Copy `/tmp/fr-hardening-1/provenance.json` and `/tmp/fr-hardening-1/conflicts.json` into `benchmark/fast_retailing/reconciled/`.
-
-Before replacing `standardized.json`, compare it against the committed file. Because this step must not fix G1–G7, investigate any model-payload difference before accepting it.
-
-- [x] **Step 4: Re-run Fast Retailing audit**
-
-```bash
-PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
-```
-
-The first accounting-engine failures should remain the documented G1/G2 path rather than disappearing through input manipulation.
-
-- [x] **Step 5: Update benchmark docs and RESULT**
-
-Record:
-
-```text
-supplemental provenance source-bound: yes
-portable source-path validation: yes
-silent repeated-share overwrite removed: yes
-statement overlap conflicts: 3
-supplemental conflict count: <actual measured count>
-G1–G7 accounting gaps preserved for 9M.2: yes
-```
-
-In the actual document, replace `<actual measured count>` with the number produced by the deterministic run; do not guess it beforehand.
-
-- [x] **Step 6: Run benchmark tests green**
+- [ ] **Step 4: Run the Fast Retailing acceptance tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
 ```
 
----
+Expected after Tasks 1–3: G1 assertions pass and G2-specific hard failures disappear. A newly exposed unrelated failure is acceptable only if recorded in the next steps.
 
-### Task 6: Full regression gate and stop before Step 9M.2
-
-**Files:**
-- Modify: `IMPLEMENTATION.md` status line only after all verification succeeds.
-- Modify: `RESULT.md` with final test evidence.
-
-- [x] **Step 1: Run the focused input suite**
+- [ ] **Step 5: Run the real stage audit and capture the exact next blocker**
 
 ```bash
-PYTHONPATH=. pytest core/tests/test_filing_json.py core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py core/tests/test_fast_retailing_benchmark.py -q
+PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
 ```
 
-Expected: all pass.
+Read the entire stage output, not only the first line. Record exactly:
 
-- [x] **Step 2: Run the full core suite**
+```text
+first failing stage
+exception type
+full first-failure message
+whether Stage 4 passed
+whether workbook generation/check stages were reached
+```
+
+Do not fix the newly exposed failure in this checkpoint unless it is demonstrably still G1 or one of the eight explicit G2 financial-instrument concepts.
+
+- [ ] **Step 6: Remove stale audit-version wording**
+
+`scripts/audit_fast_retailing_benchmark.py` currently describes the audited accounting engine using the old Step 9L.1 commit constant. Replace that stale claim with phase wording that does not pretend to know the user's future checkpoint SHA, for example:
+
+```text
+- Accounting engine phase: Step 9M.2A (G1/G2 implementation on accepted Step 9M.1.1 base)
+```
+
+Update the generated baseline heading to:
+
+```text
+# Fast Retailing Benchmark Baseline (Step 9M.2A)
+```
+
+Do not add Git subprocess/version discovery solely for documentation.
+
+- [ ] **Step 7: Re-run the audit after metadata cleanup**
+
+```bash
+PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
+```
+
+Expected: same stage behavior and same measured next blocker as Step 5; only benchmark metadata wording changes.
+
+---
+
+### Task 5: Close G1/G2 documentation, run full regression, and stop
+
+**Files:**
+- Modify: `benchmark/fast_retailing/GAPS.md`
+- Modify/generated: `benchmark/fast_retailing/BASELINE.md`
+- Modify: `RESULT.md`
+- Modify: `IMPLEMENTATION.md` status/checkmarks only after verification
+
+**Interfaces:**
+- Do not change `TARGET.md`.
+- Do not change the filing-JSON design/spec in this task.
+
+- [ ] **Step 1: Update the gap queue from measured evidence**
+
+In `benchmark/fast_retailing/GAPS.md`:
+
+- mark **G1 closed in Step 9M.2A** and state that `<= 1.0` reporting-unit residuals are accepted without plugs while `> 1.0` still fails;
+- mark **G2 closed in Step 9M.2A** and state that explicit generic financial-instrument concepts now produce guided side-aware classification judgments while vague rows still fail closed;
+- leave G3–G7 open unless the new audit proves that a listed item was already non-blocking by existing behavior;
+- add a short **Post-9M.2A first remaining blocker** subsection containing the exact stage/exception/message observed in Task 4, or state that no blocker remained if all stages passed;
+- do not implement or speculate a fix for that next blocker here.
+
+- [ ] **Step 2: Update RESULT.md with actual evidence only**
+
+Record the final observed values, including:
+
+```text
+Step 9M.2A scope: G1 + G2 only
+G1 one-unit BS tolerance: pass
+G2 generic financial rows: guided judgment, no hard stop
+Fast Retailing Stage 3: <actual status>
+Fast Retailing Stage 4: <actual status>
+next blocker: <exact measured stage/type/message, or none>
+statement overlap conflicts: 3
+supplemental conflicts: 3
+Fast Retailing standardized source payload changed: no
+forecast/valuation activation: no
+focused tests: <actual count>
+full core tests: <actual count>
+```
+
+Replace the angle-bracket descriptions with the actual command output before marking the step complete; do not guess counts.
+
+- [ ] **Step 3: Run the focused Step 9M.2A suite**
+
+```bash
+PYTHONPATH=. pytest \
+  core/tests/test_classification.py \
+  core/tests/test_reference_integrity.py \
+  core/tests/test_fast_retailing_benchmark.py \
+  -q
+```
+
+Expected: all pass. Record the actual pass count.
+
+- [ ] **Step 4: Run the full historical regression suite**
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
 ```
 
-Expected: all pass.
+Expected: all pass. Record the actual pass count.
 
-- [x] **Step 3: Verify CLI surface**
+- [ ] **Step 5: Verify source/reconciliation artifacts did not drift**
+
+Run:
 
 ```bash
-PYTHONPATH=. python -m core --help
+git diff -- benchmark/fast_retailing/reconciled/standardized.json
+git diff -- benchmark/fast_retailing/reconciled/conflicts.json
 ```
 
-Require commands exactly include:
+Expected:
 
-```text
-ingest
-validate-source
-reconcile
-build
-check
-list
+- no diff for `standardized.json`;
+- no diff for `conflicts.json` unless the only change is benchmark formatting produced by code explicitly in scope (normally there should be no change at all because G1/G2 are downstream engine changes).
+
+Then verify conflict counts from the committed artifact:
+
+```bash
+python - <<'PY'
+import json
+from pathlib import Path
+p = json.loads(Path("benchmark/fast_retailing/reconciled/conflicts.json").read_text())
+print("overlap", p["overlap_conflict_count"])
+print("supplemental", p["supplemental_conflict_count"])
+PY
 ```
-
-and still no `extract` command.
-
-- [x] **Step 4: Verify no accounting-feature drift**
 
 Require:
 
 ```text
-family orders remain 1..90
-synthetic demo surfaces unchanged
-Fast Retailing historical_shares remains omitted unless the source data now proves a complete unambiguous series
-no forecasting/valuation activation
-G1–G7 remain queued for Step 9M.2
+overlap 3
+supplemental 3
 ```
 
-- [x] **Step 5: Mark Step 9M.1.1 complete**
+- [ ] **Step 6: Verify unrelated workbook/source artifacts remain untouched**
 
-Only after the focused and full suites pass, add a concise status line to this file and update `RESULT.md` with actual counts/results.
+```bash
+git diff -- example/DEMO_HK_Trainer.xlsx
+git diff -- benchmark/fast_retailing/extracted benchmark/fast_retailing/source
+```
 
-Do not create or implement the Step 9M.2 plan. Stop and let the user run `checkpoint`, then ChatGPT reviews this hardening commit and prepares Step 9M.2.
+Expected: no output.
+
+- [ ] **Step 7: Re-run the Fast Retailing audit as the final behavioral gate**
+
+```bash
+PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
+```
+
+Require:
+
+```text
+Stage 1 pass
+Stage 2 pass
+Stage 3 pass
+known G2 financial-instrument rows no longer block Stage 4
+```
+
+If a later failure remains, it must exactly match the one recorded in `GAPS.md` / `RESULT.md`. Do not fix it in this checkpoint.
+
+- [ ] **Step 8: Verify forecast/valuation isolation remains intact**
+
+The full suite must still include the existing regression that normal historical builds do not call `run_scenario`. Also run the focused test explicitly:
+
+```bash
+PYTHONPATH=. pytest \
+  core/tests/test_reference_integrity.py::test_normal_v1_build_does_not_call_run_scenario \
+  -v
+```
+
+Expected: PASS.
+
+- [ ] **Step 9: Mark Step 9M.2A complete only with fresh evidence**
+
+At the top of `IMPLEMENTATION.md`, add a concise status line containing the actual focused/full test counts, Fast Retailing Stage 3/4 outcome, next measured blocker, unchanged conflict counts, unchanged standardized payload, and forecast/valuation isolation result.
+
+Check every completed step `[x]` only after its command/test has actually run successfully.
+
+- [ ] **Step 10: Stop**
+
+Do not begin G3/G4 lease work, G5 NCI work, G6 share-basis work, G7 reconciliation changes, extraction automation, forecasting, valuation, or scenarios.
+
+Return the implementation/test/audit summary to the user so they can inspect it and run `checkpoint` themselves.
