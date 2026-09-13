@@ -1,20 +1,30 @@
-# Step 9M.3E — Repair G7 Closure Reporting
+# Step 9M.4 — Historical Convergence Checkpoint
 
-**Base:** `fbc50c790d8333e88340b01d7918cab4b01b8311`
+**Base:** `280599a0f25dcdf32cee6f928a595f3bc75cd7c4`
 
-**Goal:** Consistently record G7 closed with disagreements retained in the audit generator and generated baseline.
+**Goal:** Refresh historical coverage and select one source-supported implementation candidate after Fast Retailing G1–G7 closure.
 
-### Task 1: Correct generated closure text
+### Task 1: Refresh historical coverage
 
-**File:** `scripts/audit_fast_retailing_benchmark.py`
+**File:** `docs/GOOGL_HISTORICAL_REFERENCE.md`
 
-- [x] Replace “G1/G1B/G2/G2B/G2C/G3/G4/G5/G6 closed; G7 remains open” in `write_baseline()` with “G1/G1B/G2/G2B/G2C/G3/G4/G5/G6/G7 closed; G7 disagreements retained with verified deterministic selection and provenance.”
+- [ ] Update the Trainer inventory, gap matrix, and queue for implemented split lease-liability aggregation, treatment-conditioned lease interest, parent/NCI attribution, and split-adjusted per-share analysis.
+- [ ] Distinguish implemented capabilities from remaining ROU, lease-payment, SBC, goodwill/acquisition, deferred-tax, capex, and segment gaps.
+- [ ] Preserve GOOGL observations and distinguish demo practice counts from Fast Retailing’s 380-cell surface.
 
-### Task 2: Regenerate and verify the baseline
+### Task 2: Select one bounded historical module
 
-**File:** `benchmark/fast_retailing/BASELINE.md`
+**File:** `docs/GOOGL_HISTORICAL_REFERENCE.md`
 
-- [x] Run `PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py` to regenerate the baseline with the corrected closure statement.
-- [x] Require Stages 1–7 passing, `expected_specs=380`, blank Check `0 correct / 0 incorrect / 380 blank`, and filled Check `380 correct / 0 incorrect / 0 blank`.
-- [x] Verify both files contain no “G7 remains open” claim and consistently report G7 closed with disagreements retained.
-- [x] Verify overlap/supplemental conflict counts remain `3/3`, extracted facts and reconciled artifacts are unchanged, and the diff contains only the two closure-text replacements.
+- [ ] Evaluate the existing first-priority goodwill/intangibles/acquisition candidate against relevant resolvers and supplied Fast Retailing filing JSON; consult source PDFs only where provenance needs verification.
+- [ ] Record available concepts, periods, units, signs, and source references; distinguish reported balances and cash flows from unsupported acquisition or impairment explanations.
+- [ ] Name one next implementation candidate with its minimum input contract, missing/ambiguous-input behavior, proposed historical calculations, and Trainer/Answer Key/Check scope. If the first candidate lacks sufficient facts, select the next supported queue item.
+
+### Acceptance
+
+- [ ] Coverage statements agree with current implementation and recorded benchmark evidence; historical evidence is not presented as a newly rerun audit.
+- [ ] Exactly one next implementation candidate is specified with source-supported inputs and concrete expected behavior.
+- [ ] G1–G7 remain closed with overlap/supplemental disagreements retained at `3/3`.
+- [ ] Only `docs/GOOGL_HISTORICAL_REFERENCE.md` changes; production code, fixtures, benchmark artifacts, and workbooks remain unchanged.
+- [ ] `git diff --check` passes; no workbook regeneration or full audit is required.
+- [ ] Forecasting and valuation remain deferred.
