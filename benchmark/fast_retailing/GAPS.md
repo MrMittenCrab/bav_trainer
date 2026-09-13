@@ -139,19 +139,23 @@ Categories:
   NOPAT unchanged. Per-share earnings numerator uses parent profit when ownership is
   complete; partial/ambiguous ownership fails closed; no ownership → consolidated NI.
 - **Fast Retailing evidence:** FY2025 profit bridge gap `-1`, equity bridge gap `-1`
-  (accepted); `ownership_specs=34`; `expected_specs=346`. Per-share module still
-  omitted (`historical_shares=null`) until G6 supplies a comparable post-split axis.
+  (accepted); `ownership_specs=34`; parent-attributable per-share numerator active under G6.
 - **Synthetic coverage:** whole-owned companies retain prior EPS; NCI+shares fixtures
   use parent profit numerator.
 
-### G6 — Five-year diluted share basis omitted after 3-for-1 split
+### G6 — Five-year diluted share basis omitted after 3-for-1 split — CLOSED in Step 9M.3D
 
-- **Category:** E / D
-- **Stage:** fixture construction / module applicability
-- **Exact behavior:** `historical_shares = null` on the five-year model payload; per-share module omitted.
-- **Source facts:** 3-for-1 split effective 1 March 2023; FY2025 basic WAS `306,786,602` + dilutive `461,202` → derived diluted WAS `307,247,804`; pre-split WAS in FY2021/FY2022 filings not treated as restated without invention.
-- **Synthetic coverage:** share-enabled fixtures assume a comparable series.
-- **Why generalizable:** Stock splits require audited restated comparatives (or an explicit restatement contract) before multi-year per-share diagnostics.
+- **Category:** E / D → closed
+- **Stage:** fixture construction / module applicability → resolved by share-basis resolver
+- **Resolution:** Accept validated derived diluted WAS (`basic + dilutive`); infer one
+  integer 3-for-1 factor from the audited FY2022 same-period restatement anchored by
+  `RESTATED_COMPARATIVE` diluted EPS; analytically restate FY2021 only; emit
+  `historical_shares` in financial-statement units with `basis=split_adjusted`.
+- **Fast Retailing evidence:** actual-share axis
+  `306871785, 306969624, 307138870, 307231804, 307247804` → statement units
+  `306.871785 … 307.247804`; `per_share_specs=18`; `per_share_attribution_specs=16`;
+  `expected_specs=380`; FY2025 EPS ≈ `1409.32`.
+- **Preserved:** raw share facts; G7 overlap/supplemental conflicts unchanged (3 / 3).
 
 ### G7 — Overlap conflicts from restated EPS after split
 
@@ -163,17 +167,16 @@ Categories:
 - **Source facts:** recorded in `reconciled/conflicts.json` (and mirrored conflict count in provenance).
 - **Synthetic coverage:** none for audited restatement overlaps.
 - **Why generalizable:** Latest-audited-presentation must remain explicit; silent overwrites are forbidden.
+- **Note:** G6 consumes restatement observations as evidence but does not erase conflict artifacts.
 
-## Post-9M.3C audit result
+## Post-9M.3D audit result
 
 - **Stages 1–7:** all **pass**
-  - Stage 4: `expected_specs=346 lease_specs=18 ownership_specs=34 fixed_asset_specs=35`
-  - Stage 6 blank Check: `correct=0 incorrect=0 blank=346 total=346`
-  - Stage 7 filled Check: `correct=346 total=346`
+  - Stage 4: `expected_specs=380 lease_specs=18 ownership_specs=34 per_share_specs=18 per_share_attribution_specs=16 fixed_asset_specs=35`
+  - Stage 6 blank Check: `correct=0 incorrect=0 blank=380 total=380`
+  - Stage 7 filled Check: `correct=380 total=380`
 - **First failing stage / exception:** none
-- **Note:** G6–G7 remain open (share-basis / per-share activation after split,
-  restatement conflicts). Per-share engine is ownership-safe but FR per-share stays
-  omitted until G6.
+- **Note:** G6 closed; G7 remains open (restatement conflicts preserved).
 
 ## Corrected extraction note (A — closed in 9M.0)
 
@@ -186,4 +189,5 @@ CFS2021 IS line `Non-controlling interests 40 5,836 53,109` was initially misrea
 3. Parent vs NCI earnings and equity are first-class when both are disclosed (G5 closed); parent ROE is separate from consolidated DuPont ROE.
 4. Split lease diagnostics use an explicit aggregate-or-split source contract (G3 closed); do not silently invent aggregates from vague labels.
 5. Lease classification treatment and disclosed lease-interest income-side treatment are linked when a complete reported lease-interest axis exists (G4 closed).
-6. Multi-year per-share analysis requires an audited comparable share basis (G6 open); the per-share numerator is already ownership-safe.
+6. Multi-year per-share analysis uses an audited comparable share basis (G6 closed); the per-share numerator remains ownership-safe under G5.
+7. G7 restatement conflicts remain recorded until an explicit conflict-policy decision.

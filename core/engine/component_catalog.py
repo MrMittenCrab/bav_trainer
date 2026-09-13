@@ -1521,15 +1521,20 @@ PER_SHARE_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
     ComponentFamily(
         id="reported_diluted_eps",
         order=67,
-        title="Reported Diluted EPS",
-        short_hint="Reported Net Income divided by diluted weighted-average shares.",
+        title="Diluted EPS (Comparable Basis)",
+        short_hint=(
+            "Earnings numerator / diluted weighted-average shares on the "
+            "supplied comparable share basis."
+        ),
         semantic_key="per_share.reported_diluted_eps",
         category="per_share",
         tab_template="Per Share Analysis",
         depends_on_current=("net_income_link",),
         hints=(
-            "Diluted EPS = Reported Net Income / Diluted Weighted-Average Shares.",
+            "Diluted EPS = Per-Share Earnings Numerator / Diluted Weighted-Average Shares.",
             "Share count is a supplied historical input and remains populated.",
+            "When the supplied basis is split-adjusted, this is an analytical "
+            "comparable figure and may differ from the originally printed pre-split EPS.",
         ),
     ),
     ComponentFamily(
@@ -1550,7 +1555,7 @@ PER_SHARE_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         id="diluted_eps_change",
         order=69,
         title="Change in Diluted EPS",
-        short_hint="Current Reported Diluted EPS minus prior EPS.",
+        short_hint="Current comparable-basis Diluted EPS minus prior EPS.",
         semantic_key="per_share.diluted_eps_change",
         category="per_share",
         tab_template="Per Share Analysis",
@@ -1643,8 +1648,10 @@ PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
     ComponentFamily(
         id="reported_net_income_change",
         order=71,
-        title="Change in Reported Net Income",
-        short_hint="Current Reported Net Income minus prior Reported Net Income.",
+        title="Change in Per-Share Earnings Numerator",
+        short_hint=(
+            "Current per-share earnings numerator minus prior per-share earnings numerator."
+        ),
         semantic_key="per_share_attribution.reported_net_income_change",
         category="per_share_attribution",
         tab_template="Per Share Analysis",
@@ -1652,7 +1659,7 @@ PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         depends_on_current=("net_income_link",),
         depends_on_previous=("net_income_link",),
         hints=(
-            "Change in Reported Net Income = Current Net Income - Prior Net Income.",
+            "Change in Per-Share Earnings Numerator = Current Numerator - Prior Numerator.",
             "This is the earnings-numerator movement used in diluted-EPS attribution.",
         ),
     ),
@@ -1660,14 +1667,16 @@ PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         id="earnings_effect_on_diluted_eps_change",
         order=72,
         title="Earnings Effect on Change in Diluted EPS",
-        short_hint="Change in Net Income multiplied by midpoint inverse diluted shares.",
+        short_hint=(
+            "Change in per-share earnings numerator multiplied by midpoint inverse diluted shares."
+        ),
         semantic_key="per_share_attribution.earnings_effect",
         category="per_share_attribution",
         tab_template="Per Share Analysis",
         period_scope="comparable",
         depends_on_current=("reported_net_income_change",),
         hints=(
-            "Earnings Effect = Change in Net Income × average of current and prior inverse diluted shares.",
+            "Earnings Effect = Change in Per-Share Earnings Numerator × average of current and prior inverse diluted shares.",
             "Inverse diluted shares means 1 / diluted weighted-average shares.",
             "This is an arithmetic numerator effect, not a causal explanation of why earnings changed.",
         ),
@@ -1676,7 +1685,9 @@ PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         id="share_count_effect_on_diluted_eps_change",
         order=73,
         title="Share-Count Effect on Change in Diluted EPS",
-        short_hint="Change in inverse diluted shares multiplied by midpoint Reported Net Income.",
+        short_hint=(
+            "Change in inverse diluted shares multiplied by midpoint per-share earnings numerator."
+        ),
         semantic_key="per_share_attribution.share_count_effect",
         category="per_share_attribution",
         tab_template="Per Share Analysis",

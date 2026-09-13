@@ -1,8 +1,8 @@
-# Fast Retailing Benchmark Baseline (Step 9M.3C)
+# Fast Retailing Benchmark Baseline (Step 9M.3D)
 
-- Accounting engine phase: Step 9M.3C (ownership attribution on 9M.3B base)
+- Accounting engine phase: Step 9M.3D (split-adjusted share basis / per-share on 9M.3C base)
 - Input path: generic `extracted/` → `validate-source` → `reconcile` → `reconciled/`
-- Benchmark phase: measurement only — G1/G1B/G2/G2B/G2C/G3/G4/G5 closed; G6–G7 remain open
+- Benchmark phase: measurement only — G1/G1B/G2/G2B/G2C/G3/G4/G5/G6 closed; G7 remains open
 - Five fiscal periods: 2021-08-31 … 2025-08-31
 
 ## Source hashes
@@ -19,7 +19,7 @@
 - Supplemental provenance source-bound: yes
 - Portable source-path validation: yes
 - Silent repeated-share overwrite removed: yes
-- G1/G1B/G2/G2B/G2C/G3/G4/G5 closed; G6–G7 remain open
+- G1/G1B/G2/G2B/G2C/G3/G4/G5/G6 closed; G7 remains open
 
 ## Stage results
 
@@ -28,10 +28,10 @@
 | 1_source_fixture_load | pass | loaded |
 | 2_identity_validation | pass |  |
 | 3_reconciliation | pass |  |
-| 4_reference_model_builder | pass | expected_specs=346 lease_specs=18 ownership_specs=34 fixed_asset_specs=35 |
+| 4_reference_model_builder | pass | expected_specs=380 lease_specs=18 ownership_specs=34 per_share_specs=18 per_share_attribution_specs=16 fixed_asset_specs=35 |
 | 5_workbook_generation | pass |  |
-| 6_blank_check | pass | correct=0 incorrect=0 blank=346 total=346 |
-| 7_filled_check | pass | correct=346 total=346 |
+| 6_blank_check | pass | correct=0 incorrect=0 blank=380 total=380 |
+| 7_filled_check | pass | correct=380 total=380 |
 
 ## First failure
 
@@ -46,7 +46,7 @@ None — all stages passed.
   - availability: lease_liability=True ambiguous=False
 - **ownership_attribution**: applicable
   - availability: available=True partial=False ambiguous=False
-- **per_share**: omitted/not applicable
+- **per_share**: applicable
 - **normalization**: omitted/not applicable
 
 ## Notes
@@ -54,3 +54,5 @@ None — all stages passed.
 - Temporary Trainer/Answer Key artifacts are not committed.
 - Synthetic DEMO / cross-company surfaces remain unchanged.
 - Forecasting / valuation remain deferred.
+- Comparable diluted-WAS axis (financial-statement units): 306.871785, 306.969624, 307.13887, 307.231804, 307.247804 (basis=split_adjusted; FY2021 factor=3; FY2022–FY2025 factor=1).
+- Raw extracted share facts and G7 conflicts preserved unchanged.

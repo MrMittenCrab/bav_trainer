@@ -134,6 +134,11 @@ def test_historical_shares_round_trip_and_legacy():
             date(2024, 12, 31): 1000.0,
             date(2025, 12, 31): 1025.0,
         },
+        basis="split_adjusted",
+        adjustment_factors={
+            date(2024, 12, 31): 3.0,
+            date(2025, 12, 31): 1.0,
+        },
     )
     fin = _tiny_fin()
     fin.historical_shares = shares
@@ -141,6 +146,11 @@ def test_historical_shares_round_trip_and_legacy():
     restored = standardized_from_payload(payload)
     assert restored.historical_shares is not None
     assert restored.historical_shares.scale_basis == SUPPORTED_SHARE_SCALE_BASIS
+    assert restored.historical_shares.basis == "split_adjusted"
+    assert restored.historical_shares.adjustment_factors == {
+        date(2024, 12, 31): 3.0,
+        date(2025, 12, 31): 1.0,
+    }
     assert restored.historical_shares.diluted_weighted_average == {
         date(2024, 12, 31): 1000.0,
         date(2025, 12, 31): 1025.0,
@@ -151,6 +161,27 @@ def test_historical_shares_round_trip_and_legacy():
     assert legacy_payload.get("historical_shares") is None
     restored_legacy = standardized_from_payload(legacy_payload)
     assert restored_legacy.historical_shares is None
+
+    # Legacy historical_shares object without basis / adjustment_factors.
+    legacy_shares_payload = {
+        "ticker": "LEG",
+        "company_name": "Legacy Co",
+        "currency": "HKD",
+        "units": "HKD in Millions",
+        "jurisdiction": "HK",
+        "periods": [{"end_date": "2025-12-31", "label": "FY2025"}],
+        "income_statement": [],
+        "balance_sheet": [],
+        "cash_flow": [],
+        "historical_shares": {
+            "scale_basis": SUPPORTED_SHARE_SCALE_BASIS,
+            "diluted_weighted_average": {"2025-12-31": 100.0},
+        },
+    }
+    from_legacy = standardized_from_payload(legacy_shares_payload)
+    assert from_legacy.historical_shares is not None
+    assert from_legacy.historical_shares.basis == "reported"
+    assert from_legacy.historical_shares.adjustment_factors == {}
 
 
 def test_structured_json_ingest_historical_shares(tmp_path):
@@ -315,6 +346,37 @@ def test_ordinary_per_share_series_and_edges():
                 float(nopat) / series.diluted_weighted_average_shares[i]
             )
 
+
+def test_split_adjusted_share_basis_drives_per_share_math():
+    """Comparable-basis shares (not raw pre-split counts) drive diluted EPS."""
+    from core.engine.component_catalog import (
+        expand_per_share_attribution_specs,
+        expand_per_share_specs,
+    )
+
+    d0, d1, d2 = date(2023, 12, 31), date(2024, 12, 31), date(2025, 12, 31)
+    fin = _tiny_fin(
+        shares={d0: 300.0, d1: 330.0, d2: 360.0},
+    )
+    assert fin.historical_shares is not None
+    fin.historical_shares.basis = "split_adjusted"
+    fin.historical_shares.adjustment_factors = {d0: 3.0, d1: 1.0, d2: 1.0}
+    periods = list(canonical_fiscal_periods(fin))
+    series = compute_per_share_series(fin, periods, compute_anchor(fin, periods))
+    assert series.diluted_weighted_average_shares == (300.0, 330.0, 360.0)
+    assert series.reported_diluted_eps[0] == pytest.approx(170.0 / 300.0)
+    assert series.reported_diluted_eps[1] == pytest.approx(187.0 / 330.0)
+    assert series.reported_diluted_eps[2] == pytest.approx(204.0 / 360.0)
+    assert series.diluted_share_count_change[1] == pytest.approx(30.0)
+    assert series.diluted_share_count_change[2] == pytest.approx(30.0)
+
+    five = [date(2021 + i, 8, 31) for i in range(5)]
+    assert len(expand_per_share_specs(five, start_order=1)) == 18
+    assert len(expand_per_share_attribution_specs(five, start_order=19)) == 16
+    assert 346 + 18 + 16 == 380
+
+
+def test_ordinary_per_share_series_negative_and_empty_edges():
     # Unchanged shares -> 0.0 change; negatives retained on NI/EPS
     d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
     fin_neg = StandardizedFinancials(
@@ -495,7 +557,8 @@ def test_share_enabled_demo_surface(tmp_path):
     assert ws.cell(5, 1).value == "Reported Net Income"
     assert ws.cell(6, 1).value == "NOPAT"
     assert ws.cell(7, 1).value == "Diluted Weighted-Average Shares"
-    assert ws.cell(9, 1).value == "Reported Diluted EPS"
+    assert ws.cell(9, 1).value == "Diluted EPS (Comparable Basis)"
+    assert ws.cell(8, 1).value == "Share Basis: Reported basis"
     assert ws.cell(10, 1).value == "NOPAT per Diluted Share"
     assert ws.cell(12, 1).value == "Change in Diluted EPS"
     assert ws.cell(13, 1).value == "Change in Diluted Weighted-Average Shares"

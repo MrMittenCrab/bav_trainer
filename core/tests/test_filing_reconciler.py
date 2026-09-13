@@ -503,12 +503,14 @@ def test_equal_repeated_share_facts_agree(tmp_path: Path):
     f2024 = _filing(
         year=2024,
         source_file="a2024.pdf",
+        unit_scale="ones",
         revenue_values={date(2024, 12, 31): (100.0, PresentationRole.CURRENT_PERIOD)},
         share_facts=(share_2024,),
     )
     f2025 = _filing(
         year=2025,
         source_file="a2025.pdf",
+        unit_scale="ones",
         revenue_values={
             date(2024, 12, 31): (100.0, PresentationRole.COMPARATIVE),
             date(2025, 12, 31): (110.0, PresentationRole.CURRENT_PERIOD),
@@ -525,6 +527,8 @@ def test_equal_repeated_share_facts_agree(tmp_path: Path):
     assert reconciled.supplemental_conflicts == ()
     fin = standardize_reconciled(reconciled)
     assert fin.historical_shares is not None
+    assert fin.historical_shares.scale_basis == "financial_statement_units"
+    assert fin.historical_shares.basis == "reported"
     assert fin.historical_shares.diluted_weighted_average == {
         date(2024, 12, 31): 90.0,
         date(2025, 12, 31): 100.0,
@@ -556,12 +560,14 @@ def test_disagreeing_repeated_share_facts_block_promotion(tmp_path: Path):
     f2024 = _filing(
         year=2024,
         source_file="a2024.pdf",
+        unit_scale="ones",
         revenue_values={date(2024, 12, 31): (100.0, PresentationRole.CURRENT_PERIOD)},
         share_facts=(share_2024,),
     )
     f2025 = _filing(
         year=2025,
         source_file="a2025.pdf",
+        unit_scale="ones",
         revenue_values={
             date(2024, 12, 31): (100.0, PresentationRole.COMPARATIVE),
             date(2025, 12, 31): (110.0, PresentationRole.CURRENT_PERIOD),
@@ -616,12 +622,14 @@ def test_complete_axis_share_promotion_ignores_derived(tmp_path: Path):
     f2024 = _filing(
         year=2024,
         source_file="a2024.pdf",
+        unit_scale="ones",
         revenue_values={date(2024, 12, 31): (100.0, PresentationRole.CURRENT_PERIOD)},
         share_facts=shares_2024,
     )
     f2025 = _filing(
         year=2025,
         source_file="a2025.pdf",
+        unit_scale="ones",
         revenue_values={
             date(2024, 12, 31): (100.0, PresentationRole.COMPARATIVE),
             date(2025, 12, 31): (110.0, PresentationRole.CURRENT_PERIOD),
@@ -639,6 +647,66 @@ def test_complete_axis_share_promotion_ignores_derived(tmp_path: Path):
     assert fin.historical_shares is not None
     assert fin.historical_shares.diluted_weighted_average[date(2024, 12, 31)] == 90.0
     assert fin.historical_shares.diluted_weighted_average[date(2025, 12, 31)] == 100.0
+
+
+def test_historical_shares_unit_scale_millions_conversion(tmp_path: Path):
+    shares_2024 = (
+        SupplementalFact(
+            fact_type="diluted_weighted_average_shares",
+            period=date(2024, 12, 31),
+            value=307_247_804.0,
+            status="reported",
+            source=SourceRef(page=18, note="EPS"),
+        ),
+    )
+    shares_2025 = (
+        SupplementalFact(
+            fact_type="diluted_weighted_average_shares",
+            period=date(2025, 12, 31),
+            value=307_247_804.0,
+            status="reported",
+            source=SourceRef(page=19, note="EPS"),
+        ),
+        SupplementalFact(
+            fact_type="diluted_weighted_average_shares",
+            period=date(2024, 12, 31),
+            value=307_247_804.0,
+            status="reported",
+            source=SourceRef(page=19, note="EPS"),
+        ),
+    )
+    f2024 = _filing(
+        year=2024,
+        source_file="a2024.pdf",
+        unit_scale="millions",
+        revenue_values={date(2024, 12, 31): (100.0, PresentationRole.CURRENT_PERIOD)},
+        share_facts=shares_2024,
+    )
+    f2025 = _filing(
+        year=2025,
+        source_file="a2025.pdf",
+        unit_scale="millions",
+        revenue_values={
+            date(2024, 12, 31): (100.0, PresentationRole.COMPARATIVE),
+            date(2025, 12, 31): (110.0, PresentationRole.CURRENT_PERIOD),
+        },
+        share_facts=shares_2025,
+    )
+    reconciled = reconcile_filings(
+        [
+            _validated(tmp_path, f2024, b"2024"),
+            _validated(tmp_path, f2025, b"2025"),
+        ]
+    )
+    fin = standardize_reconciled(reconciled)
+    assert fin.historical_shares is not None
+    assert fin.historical_shares.scale_basis == "financial_statement_units"
+    assert fin.historical_shares.diluted_weighted_average[date(2024, 12, 31)] == pytest.approx(
+        307.247804
+    )
+    assert fin.historical_shares.diluted_weighted_average[date(2025, 12, 31)] == pytest.approx(
+        307.247804
+    )
 
 
 def test_note_fact_disagreement_is_recorded_not_promoted(tmp_path: Path):

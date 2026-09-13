@@ -50,6 +50,9 @@ def _load_historical_shares(payload: dict) -> HistoricalShareData | None:
         raise ValueError(
             "historical_shares.diluted_weighted_average must be an object"
         )
+    raw_factors = raw.get("adjustment_factors") or {}
+    if not isinstance(raw_factors, dict):
+        raise ValueError("historical_shares.adjustment_factors must be an object")
     return HistoricalShareData(
         scale_basis=str(raw.get("scale_basis") or ""),
         diluted_weighted_average={
@@ -57,6 +60,11 @@ def _load_historical_shares(payload: dict) -> HistoricalShareData | None:
                 None if value is None else float(value)
             )
             for period, value in values.items()
+        },
+        basis=str(raw.get("basis") or "reported"),
+        adjustment_factors={
+            _parse_date(str(period)): float(value)
+            for period, value in raw_factors.items()
         },
     )
 

@@ -90,6 +90,8 @@ def _merge_historical_shares(
         base.historical_shares = HistoricalShareData(
             scale_basis=incoming.scale_basis,
             diluted_weighted_average=dict(incoming.diluted_weighted_average),
+            basis=incoming.basis,
+            adjustment_factors=dict(incoming.adjustment_factors),
         )
         return
     existing = base.historical_shares
@@ -101,6 +103,9 @@ def _merge_historical_shares(
     existing.diluted_weighted_average.update(
         incoming.diluted_weighted_average
     )
+    if incoming.basis:
+        existing.basis = incoming.basis
+    existing.adjustment_factors.update(incoming.adjustment_factors)
 
 
 def merge_documents(

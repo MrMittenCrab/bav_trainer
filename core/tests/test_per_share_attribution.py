@@ -262,7 +262,7 @@ def test_share_enabled_attribution_surface(tmp_path):
     assert ws.cell(7, 1).value == "Diluted Weighted-Average Shares"
     assert ws.cell(12, 1).value == "Change in Diluted EPS"
     assert ws.cell(15, 1).value == "DILUTED EPS CHANGE ATTRIBUTION"
-    assert ws.cell(16, 1).value == "Change in Reported Net Income"
+    assert ws.cell(16, 1).value == "Change in Per-Share Earnings Numerator"
     assert ws.cell(17, 1).value == "Earnings Effect on Change in Diluted EPS"
     assert ws.cell(18, 1).value == "Share-Count Effect on Change in Diluted EPS"
     assert ws.cell(19, 1).value == "Diluted EPS Change from Drivers"

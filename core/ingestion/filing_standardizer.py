@@ -150,29 +150,21 @@ def standardize_reconciled(
 def _historical_shares(
     reconciled: ReconciledCompanyData,
 ) -> HistoricalShareData | None:
-    """Emit historical shares only for a complete unambiguous reported diluted WAS axis."""
-    period_set = set(reconciled.periods)
-    series: dict[date, float] = {}
-    for period in reconciled.periods:
-        observations = [
-            obs
-            for obs in reconciled.share_facts
-            if obs.kind == "share"
-            and obs.fact.status == "reported"
-            and obs.fact.fact_type == "diluted_weighted_average_shares"
-            and obs.fact.period == period
-        ]
-        if not observations:
-            return None
-        distinct = {float(obs.fact.value) for obs in observations}
-        if len(distinct) != 1:
-            return None
-        series[period] = next(iter(distinct))
-    if set(series) != period_set:
+    """Emit comparable diluted WAS in financial-statement units when resolvable."""
+    from .share_basis import resolve_historical_share_basis, unit_scale_divisor
+
+    resolution = resolve_historical_share_basis(reconciled)
+    if resolution is None:
         return None
+    divisor = unit_scale_divisor(reconciled.unit_scale)
     return HistoricalShareData(
-        scale_basis="shares",
-        diluted_weighted_average={period: series[period] for period in reconciled.periods},
+        scale_basis="financial_statement_units",
+        diluted_weighted_average={
+            period: actual / divisor
+            for period, actual in resolution.diluted_weighted_average_actual_shares.items()
+        },
+        basis=resolution.basis,
+        adjustment_factors=dict(resolution.applied_adjustment_factors),
     )
 
 

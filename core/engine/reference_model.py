@@ -3405,7 +3405,16 @@ class ReferenceModelBuilder:
         )
         ws.cell(row=nopat_row, column=1, value="NOPAT")
         ws.cell(row=shares_row, column=1, value="Diluted Weighted-Average Shares")
-        ws.cell(row=eps_row, column=1, value="Reported Diluted EPS")
+        share_basis = "reported"
+        if self.fin.historical_shares is not None and self.fin.historical_shares.basis:
+            share_basis = self.fin.historical_shares.basis
+        basis_label = (
+            "Share Basis: Split-adjusted comparable basis"
+            if share_basis == "split_adjusted"
+            else "Share Basis: Reported basis"
+        )
+        ws.cell(row=8, column=1, value=basis_label)
+        ws.cell(row=eps_row, column=1, value="Diluted EPS (Comparable Basis)")
         ws.cell(row=nopat_ps_row, column=1, value="NOPAT per Diluted Share")
         ws.cell(row=eps_chg_row, column=1, value="Change in Diluted EPS")
         ws.cell(
@@ -3515,7 +3524,11 @@ class ReferenceModelBuilder:
         ws.cell(
             row=section_row, column=1, value="DILUTED EPS CHANGE ATTRIBUTION"
         ).font = BOLD
-        ws.cell(row=net_income_change_row, column=1, value="Change in Reported Net Income")
+        ws.cell(
+            row=net_income_change_row,
+            column=1,
+            value="Change in Per-Share Earnings Numerator",
+        )
         ws.cell(
             row=earnings_effect_row,
             column=1,

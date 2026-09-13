@@ -1,36 +1,40 @@
-Status: Step 9M.3C complete — parent/NCI attribution and parent ROE (G5 closed)
+Status: Step 9M.3D complete — split-adjusted share basis and per-share activation (G6 closed)
 
 Implementation base:
-- 9f3c4b0 Step 9M.3B treatment-conditioned lease interest
+- f15a01a Step 9M.3C
 
-Step 9M.3C status: complete
+Step 9M.3D status: complete
 
 Final verification:
-- focused tests: 110 passed
-  (`test_ownership_attribution.py` + `test_line_resolver.py` + `test_per_share.py` +
+- focused G6 suite: 131 passed
+  (`test_share_basis.py` + `test_filing_reconciler.py` + `test_per_share.py` +
    `test_per_share_attribution.py` + `test_reference_integrity.py` +
    `test_fast_retailing_benchmark.py`)
-- full core tests: 470 passed
+- full core tests: 492 passed
 - forecast/valuation isolation: pass
-- family orders: 1..97 (ownership 91..97); prior 1..90 unchanged in meaning
 - lease-treatment regressions: pass
+- ownership-attribution regressions: pass
+- family orders unchanged (G6 activates existing per-share families)
 - source/extracted/provenance/conflicts unchanged: yes
-- standardized.json unchanged (attribution already on statement rows)
+- standardized.json: historical_shares null → split-adjusted comparable axis only
 - statement overlap conflicts: 3
 - supplemental conflicts: 3
 
-Ownership attribution:
-- ownership_specs: 34
-- expected_specs: 346
-- FY2025 profit bridge gap: -1; equity bridge gap: -1 (within 1.5 envelope)
-- Parent ROE: separate shareholder diagnostic (not consolidated DuPont ROE)
-- Per-share numerator: parent-attributable when ownership complete; FR per-share
-  still omitted until G6 (`historical_shares=null`)
+Share basis / per-share:
+- basis: split_adjusted; split_factor: 3 (audited FY2022 restatement anchor)
+- FY2021 analytically ×3; FY2022 later audited restated WAS selected
+- scale_basis: financial_statement_units
+  (306.871785 … 307.247804)
+- per_share_specs: 18; per_share_attribution_specs: 16
+- ownership_specs: 34; lease_specs: 18
+- expected_specs: 380
+- FY2025 diluted EPS ≈ 1409.32 (parent-attributable 433009 / 307.247804)
+- raw extracted share facts preserved; G7 conflicts unchanged
 
 Fast Retailing Stages 1–7: all pass
-  blank Check 346; filled Check 346
-G1/G1B/G2/G2B/G2C/G3/G4/G5 closed; G6–G7 remain open
+  blank Check 380; filled Check 380
+G1/G1B/G2/G2B/G2C/G3/G4/G5/G6 closed; G7 remains open
 TARGET.md: unchanged by Cursor
 
 Next checkpoint:
-- G6 audited split-adjusted share basis / per-share activation
+- G7 restatement / overlap conflict policy (presentation or code — TBD)

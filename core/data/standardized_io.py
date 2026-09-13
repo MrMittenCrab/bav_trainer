@@ -60,6 +60,11 @@ def _serialize_historical_shares(
             _date_key(period): (None if value is None else float(value))
             for period, value in shares.diluted_weighted_average.items()
         },
+        "basis": shares.basis or "reported",
+        "adjustment_factors": {
+            _date_key(period): float(value)
+            for period, value in (shares.adjustment_factors or {}).items()
+        },
     }
 
 
@@ -70,6 +75,9 @@ def _deserialize_historical_shares(
         return None
     if not isinstance(payload, dict):
         raise ValueError("historical_shares must be an object or null")
+    raw_factors = payload.get("adjustment_factors") or {}
+    if not isinstance(raw_factors, dict):
+        raise ValueError("historical_shares.adjustment_factors must be an object")
     return HistoricalShareData(
         scale_basis=str(payload.get("scale_basis") or ""),
         diluted_weighted_average={
@@ -77,6 +85,10 @@ def _deserialize_historical_shares(
             for period, value in (
                 payload.get("diluted_weighted_average") or {}
             ).items()
+        },
+        basis=str(payload.get("basis") or "reported"),
+        adjustment_factors={
+            _parse_date(period): float(value) for period, value in raw_factors.items()
         },
     )
 

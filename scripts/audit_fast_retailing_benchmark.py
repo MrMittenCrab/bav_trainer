@@ -189,6 +189,8 @@ def run_audit() -> dict[str, Any]:
                     f"expected_specs={len(builder.expected_specs)} "
                     f"lease_specs={len(builder.lease_liability_specs)} "
                     f"ownership_specs={len(builder.ownership_attribution_specs)} "
+                    f"per_share_specs={len(builder.per_share_specs)} "
+                    f"per_share_attribution_specs={len(builder.per_share_attribution_specs)} "
                     f"fixed_asset_specs={len(builder.fixed_asset_specs)}"
                 ),
             )
@@ -316,11 +318,11 @@ def write_baseline(result: dict[str, Any]) -> None:
         provenance.get("supplemental_conflict_count", 0),
     )
     lines = [
-        "# Fast Retailing Benchmark Baseline (Step 9M.3C)",
+        "# Fast Retailing Benchmark Baseline (Step 9M.3D)",
         "",
-        "- Accounting engine phase: Step 9M.3C (ownership attribution on 9M.3B base)",
+        "- Accounting engine phase: Step 9M.3D (split-adjusted share basis / per-share on 9M.3C base)",
         "- Input path: generic `extracted/` → `validate-source` → `reconcile` → `reconciled/`",
-        "- Benchmark phase: measurement only — G1/G1B/G2/G2B/G2C/G3/G4/G5 closed; G6–G7 remain open",
+        "- Benchmark phase: measurement only — G1/G1B/G2/G2B/G2C/G3/G4/G5/G6 closed; G7 remains open",
         "- Five fiscal periods: 2021-08-31 … 2025-08-31",
         "",
         "## Source hashes",
@@ -339,7 +341,7 @@ def write_baseline(result: dict[str, Any]) -> None:
             "- Supplemental provenance source-bound: yes",
             "- Portable source-path validation: yes",
             "- Silent repeated-share overwrite removed: yes",
-            "- G1/G1B/G2/G2B/G2C/G3/G4/G5 closed; G6–G7 remain open",
+            "- G1/G1B/G2/G2B/G2C/G3/G4/G5/G6 closed; G7 remains open",
             "",
             "## Stage results",
             "",
@@ -387,6 +389,10 @@ def write_baseline(result: dict[str, Any]) -> None:
             "- Temporary Trainer/Answer Key artifacts are not committed.",
             "- Synthetic DEMO / cross-company surfaces remain unchanged.",
             "- Forecasting / valuation remain deferred.",
+            "- Comparable diluted-WAS axis (financial-statement units): "
+            "306.871785, 306.969624, 307.13887, 307.231804, 307.247804 "
+            "(basis=split_adjusted; FY2021 factor=3; FY2022–FY2025 factor=1).",
+            "- Raw extracted share facts and G7 conflicts preserved unchanged.",
             "",
         ]
     )

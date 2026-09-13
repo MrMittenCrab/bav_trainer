@@ -1,6 +1,11 @@
 # Step 9M.3D — Split-Adjusted Historical Share Basis and Per-Share Activation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Verification (fresh):** focused G6 suite **131 passed**; full `core/tests/` **492 passed**;
+> Fast Retailing Stages 1–7 **pass** (`expected_specs=380`, blank/filled Check **380**);
+> G6 **CLOSED**; G7 **OPEN** (conflicts 3/3 unchanged). Do not begin G7 in this checkpoint.
+
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 > **For Cursor:** Read `TARGET.md`, then `benchmark/fast_retailing/GAPS.md`, then this plan in full. The accepted implementation base is commit `f15a01ac4733a9290c238f621a993e722f524032` (`Step 9M.3C`). Implement only Step 9M.3D using red/green TDD. Do not begin G7 conflict-policy redesign, PDF/AI extraction, forecasting, valuation, scenarios, or investment conclusions. Do not commit, push, reset, rebase, merge, clean, or delete branches; the user owns checkpoint commits.
 
@@ -94,7 +99,7 @@ def resolve_historical_share_basis(
 
 Do not expose source file paths through this model-facing result; audit artifacts already preserve observations.
 
-- [ ] **Step 1: Add a no-split reported-axis test**
+- [x] **Step 1: Add a no-split reported-axis test**
 
 Construct a synthetic `ReconciledCompanyData` with a complete period axis where each period has one `diluted_weighted_average_shares` observation with `status="reported"`. Require:
 
@@ -107,7 +112,7 @@ assert result.applied_adjustment_factors == {p1: 1.0, p2: 1.0}
 assert result.diluted_weighted_average_actual_shares == {p1: 100.0, p2: 110.0}
 ```
 
-- [ ] **Step 2: Add valid derived-WAS validation**
+- [x] **Step 2: Add valid derived-WAS validation**
 
 For one filing/period supply:
 
@@ -130,7 +135,7 @@ derived total != basic + dilutive
 
 Each unsupported case must return `None` for a required complete axis rather than inventing a correction.
 
-- [ ] **Step 3: Add one valid audited-restatement anchor test**
+- [x] **Step 3: Add one valid audited-restatement anchor test**
 
 Use three model periods. For period 2 supply two audited share presentations:
 
@@ -163,7 +168,7 @@ result.diluted_weighted_average_actual_shares == {
 result.applied_adjustment_factors == {p1: 3.0, p2: 1.0, p3: 1.0}
 ```
 
-- [ ] **Step 4: Add fail-closed restatement tests**
+- [x] **Step 4: Add fail-closed restatement tests**
 
 Require `None` for each unsupported contract:
 
@@ -179,7 +184,7 @@ later selected share observation does not come from the restatement filing or la
 
 For the EPS inverse-factor check, use a rounding-aware comparison suitable for two-decimal EPS presentation; do not demand bitwise equality. Keep the tolerance local and documented.
 
-- [ ] **Step 5: Run Task 1 red**
+- [x] **Step 5: Run Task 1 red**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_share_basis.py -v
@@ -187,7 +192,7 @@ PYTHONPATH=. pytest core/tests/test_share_basis.py -v
 
 Expected before implementation: import/behavior failures because the resolver does not exist.
 
-- [ ] **Step 6: Implement the minimal resolver**
+- [x] **Step 6: Implement the minimal resolver**
 
 Implementation order:
 
@@ -206,7 +211,7 @@ Implementation order:
 
 Do not mutate `reconciled.share_facts`, `reconciled.values`, or conflicts.
 
-- [ ] **Step 7: Run Task 1 green**
+- [x] **Step 7: Run Task 1 green**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_share_basis.py -v
@@ -238,7 +243,7 @@ class HistoricalShareData:
 
 Older payloads without `basis` / `adjustment_factors` must deserialize with the defaults above.
 
-- [ ] **Step 1: Add JSON round-trip tests**
+- [x] **Step 1: Add JSON round-trip tests**
 
 Require the new fields to survive:
 
@@ -248,7 +253,7 @@ StandardizedFinancials -> standardized_to_payload -> standardized_from_payload
 
 Also load a legacy payload containing only `scale_basis` + `diluted_weighted_average` and require `basis="reported"`, empty `adjustment_factors`.
 
-- [ ] **Step 2: Add unit-scale conversion tests**
+- [x] **Step 2: Add unit-scale conversion tests**
 
 Parameterize filing unit scales:
 
@@ -267,7 +272,7 @@ shares.scale_basis == "financial_statement_units"
 
 This is a dimensional contract, not display formatting.
 
-- [ ] **Step 3: Replace the current `_historical_shares()` selection logic**
+- [x] **Step 3: Replace the current `_historical_shares()` selection logic**
 
 `filing_standardizer.py` currently requires `status="reported"` diluted-WAS facts and therefore rejects the Fast Retailing axis even though the extraction already contains explicitly derived diluted WAS. Replace that behavior with `resolve_historical_share_basis(reconciled)`.
 
@@ -289,11 +294,11 @@ HistoricalShareData(
 
 Do not put source paths or page numbers into `StandardizedFinancials`.
 
-- [ ] **Step 4: Prove unsupported share data remains optional**
+- [x] **Step 4: Prove unsupported share data remains optional**
 
 Add regressions that incomplete/unresolved share facts still produce `historical_shares=None` while the rest of `StandardizedFinancials` is emitted normally. G6 must not make share data mandatory for companies without a reliable basis.
 
-- [ ] **Step 5: Run Task 2 tests**
+- [x] **Step 5: Run Task 2 tests**
 
 ```bash
 PYTHONPATH=. pytest \
@@ -321,15 +326,15 @@ Then run the repository's existing standardized-IO round-trip tests containing `
 - Keep existing family IDs `reported_diluted_eps`, `nopat_per_diluted_share`, `diluted_eps_change`, `diluted_share_count_change` and existing attribution IDs stable.
 - Keep Step 9M.3C `PerShareSeries.earnings_numerator` behavior unchanged.
 
-- [ ] **Step 1: Add split-adjusted per-share math regression**
+- [x] **Step 1: Add split-adjusted per-share math regression**
 
 Use parent-attributable earnings in financial-statement units and a `HistoricalShareData` object with `basis="split_adjusted"`, `scale_basis="financial_statement_units"`. Require exact computation from the adjusted share axis and require share-count change to use adjusted values, not raw pre-split counts.
 
-- [ ] **Step 2: Preserve whole-owned / already-comparable behavior**
+- [x] **Step 2: Preserve whole-owned / already-comparable behavior**
 
 Existing fixtures with `basis="reported"` and `scale_basis="financial_statement_units"` must produce unchanged numbers.
 
-- [ ] **Step 3: Correct learner-facing terminology**
+- [x] **Step 3: Correct learner-facing terminology**
 
 The current family title/hint says “Reported Diluted EPS” even when the earliest period can be analytically split-adjusted. Keep the stable internal family ID but change visible title/hints to the equivalent of:
 
@@ -341,7 +346,7 @@ When the supplied basis is split-adjusted, this is an analytical comparable figu
 
 Likewise, change attribution display text that says “Reported Net Income” to “Per-Share Earnings Numerator” (or equivalent), because Step 9M.3C may use parent-attributable profit. Keep internal IDs stable.
 
-- [ ] **Step 4: Expose the share basis without adding a practice answer**
+- [x] **Step 4: Expose the share basis without adding a practice answer**
 
 On `Per Share Analysis`, keep supplied share counts populated. Add a small non-practice basis label such as:
 
@@ -351,7 +356,7 @@ Share Basis: Split-adjusted comparable basis
 
 when `historical_shares.basis == "split_adjusted"`; use `Reported basis` otherwise. Do not make this a yellow cell and do not create a new semantic practice family.
 
-- [ ] **Step 5: Prove module/spec counts**
+- [x] **Step 5: Prove module/spec counts**
 
 For five periods, existing per-share families contribute:
 
@@ -363,7 +368,7 @@ Total newly active specs:      34
 
 With the Fast Retailing Step 9M.3C base of `346`, G6 activation should therefore produce `380` active specs if no unrelated optional module becomes active. Add an assertion against the catalog arithmetic; if the measured count differs, inspect rather than changing `380` blindly.
 
-- [ ] **Step 6: Run Task 3 tests**
+- [x] **Step 6: Run Task 3 tests**
 
 ```bash
 PYTHONPATH=. pytest \
@@ -387,7 +392,7 @@ PYTHONPATH=. pytest \
 **Interfaces:**
 - Use the normal filing validation/reconciliation/standardization path; do not hand-edit `standardized.json` values.
 
-- [ ] **Step 1: Add documentary anchor assertions**
+- [x] **Step 1: Add documentary anchor assertions**
 
 Require the benchmark evidence already committed:
 
@@ -402,7 +407,7 @@ prior diluted EPS = 2671.29
 
 Also require the later FY2022 reported basic and dilutive components to be exactly 3× the earlier components where both are non-zero.
 
-- [ ] **Step 2: Assert the five-year resolved actual-share axis**
+- [x] **Step 2: Assert the five-year resolved actual-share axis**
 
 Require:
 
@@ -425,7 +430,7 @@ FY2021 applied adjustment factor = 3
 FY2022–FY2025 applied factor = 1
 ```
 
-- [ ] **Step 3: Assert standardized financial-statement-unit values**
+- [x] **Step 3: Assert standardized financial-statement-unit values**
 
 After normal standardization require:
 
@@ -440,7 +445,7 @@ FY2025 307.247804
 
 The only intentional `standardized.json` change in this checkpoint should be `historical_shares: null -> populated comparable-basis object` (plus its new basis metadata). Income statement, balance sheet, cash flow, historical lease, and all source-grounded statement values must remain unchanged.
 
-- [ ] **Step 4: Assert per-share economics against ownership-safe numerators**
+- [x] **Step 4: Assert per-share economics against ownership-safe numerators**
 
 Fast Retailing per-share computation must use Step 9M.3C parent-attributable profit. Require FY2022–FY2025 computed diluted EPS to agree with the later audited/restated EPS presentation within the existing numerical tolerance. For FY2021, require the computed comparable EPS to equal the originally reported pre-split EPS divided by `3` within two-decimal presentation rounding; do not relabel that analytically adjusted value as a newly reported source fact.
 
@@ -450,7 +455,7 @@ Require FY2025 approximately:
 433009 / 307.247804 ≈ 1409.32
 ```
 
-- [ ] **Step 5: Assert module activation and Check totals**
+- [x] **Step 5: Assert module activation and Check totals**
 
 Require:
 
@@ -470,7 +475,7 @@ blank Check:  correct=0 incorrect=0 blank=380 total=380
 filled Check: correct=380 incorrect=0 blank=0 total=380
 ```
 
-- [ ] **Step 6: Prove G7 evidence is untouched**
+- [x] **Step 6: Prove G7 evidence is untouched**
 
 Require:
 
@@ -484,11 +489,11 @@ FY2022 dilutive-share conflict still records both observations
 
 G6 may consume those observations as evidence; it must not erase or “resolve away” the conflict artifact.
 
-- [ ] **Step 7: Regenerate standardized output through production code**
+- [x] **Step 7: Regenerate standardized output through production code**
 
 Use the same validated extraction → reconciliation → `standardize_reconciled()` path already used by the benchmark tests/scripts. Do not edit JSON by hand. Then inspect the diff and require the narrow `historical_shares` change described above.
 
-- [ ] **Step 8: Run Fast Retailing acceptance tests**
+- [x] **Step 8: Run Fast Retailing acceptance tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
@@ -504,7 +509,7 @@ PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
 - Modify after measured verification: `RESULT.md`
 - Modify status/check boxes in `IMPLEMENTATION.md` only after fresh verification
 
-- [ ] **Step 1: Run the focused G6 suite**
+- [x] **Step 1: Run the focused G6 suite**
 
 ```bash
 PYTHONPATH=. pytest \
@@ -519,7 +524,7 @@ PYTHONPATH=. pytest \
 
 Record the literal pass count; do not pre-fill it.
 
-- [ ] **Step 2: Run the full historical suite**
+- [x] **Step 2: Run the full historical suite**
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
@@ -527,7 +532,7 @@ PYTHONPATH=. pytest core/tests/ -q
 
 Record the literal pass count.
 
-- [ ] **Step 3: Run the staged benchmark audit**
+- [x] **Step 3: Run the staged benchmark audit**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
@@ -535,7 +540,7 @@ PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
 
 Require Stages 1–7 all pass. Record literal Stage-4 module/spec counts and Stage-6/7 Check totals. Expected catalog arithmetic is `380`, but measured output is authoritative.
 
-- [ ] **Step 4: Verify source and audit artifacts did not drift**
+- [x] **Step 4: Verify source and audit artifacts did not drift**
 
 ```bash
 git diff -- \
@@ -555,11 +560,11 @@ git diff -- benchmark/fast_retailing/reconciled/standardized.json
 
 Require only the intended `historical_shares` comparable-basis activation.
 
-- [ ] **Step 5: Verify prior accounting behavior and forecast isolation**
+- [x] **Step 5: Verify prior accounting behavior and forecast isolation**
 
 Run the existing Step 9M.3B lease-treatment regressions, Step 9M.3C ownership-attribution regressions, and normal-build scenario/forecast isolation regression. Family IDs/orders remain unchanged; G6 activates existing per-share families rather than adding new family orders.
 
-- [ ] **Step 6: Update measured documentation**
+- [x] **Step 6: Update measured documentation**
 
 If the acceptance criteria pass, update:
 
@@ -582,7 +587,7 @@ G7 conflicts preserved unchanged
 
 Update `BASELINE.md` with actual per-share applicability, spec counts, Check totals, and the five-year comparable share axis. Update `RESULT.md` with literal test/audit evidence.
 
-- [ ] **Step 7: Mark complete only after fresh evidence, then stop**
+- [x] **Step 7: Mark complete only after fresh evidence, then stop**
 
 At the top of `IMPLEMENTATION.md`, record actual focused/full test counts and actual benchmark stage/count results. Mark checkboxes complete only for steps actually run.
 

@@ -6,6 +6,7 @@ import hashlib
 import json
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 from core.data.standardized_io import standardized_from_payload
@@ -165,7 +166,16 @@ def test_generic_reconcile_is_deterministic_and_round_trips(tmp_path: Path):
         "2024-08-31",
         "2025-08-31",
     ]
-    assert fin.historical_shares is None
+    assert fin.historical_shares is not None
+    assert fin.historical_shares.scale_basis == "financial_statement_units"
+    assert fin.historical_shares.basis == "split_adjusted"
+    assert fin.historical_shares.diluted_weighted_average == {
+        date(2021, 8, 31): 306.871785,
+        date(2022, 8, 31): 306.969624,
+        date(2023, 8, 31): 307.13887,
+        date(2024, 8, 31): 307.231804,
+        date(2025, 8, 31): 307.247804,
+    }
     assert {item.label for item in fin.income_statement}
     assert any(item.concept == "revenue" for item in fin.income_statement)
 
@@ -295,7 +305,16 @@ def test_audit_script_writes_baseline_and_stage_records():
         "7_filled_check",
     ):
         assert stage in text
-    assert "Step 9M.2A" in text or "Step 9M.2B" in text or "Step 9M.2C" in text or "Step 9M.2D" in text or "Step 9M.3A" in text or "Step 9M.3B" in text or "Step 9M.3C" in text
+    assert (
+        "Step 9M.2A" in text
+        or "Step 9M.2B" in text
+        or "Step 9M.2C" in text
+        or "Step 9M.2D" in text
+        or "Step 9M.3A" in text
+        or "Step 9M.3B" in text
+        or "Step 9M.3C" in text
+        or "Step 9M.3D" in text
+    )
     assert "pass" in completed.stdout or "fail" in completed.stdout
 
 
@@ -561,7 +580,7 @@ def test_fast_retailing_split_lease_liability_module_activates():
     builder = ReferenceModelBuilder(fin)
     assert builder.lease_liability_series is not None
     assert len(builder.lease_liability_specs) == 18
-    assert len(builder.expected_specs) == 346
+    assert len(builder.expected_specs) == 380
 
     reform = reformulate_balance_sheet(fin, periods)
     cases = classification_judgment_cases(fin, periods, reform)
@@ -584,14 +603,13 @@ def test_fast_retailing_audit_stages_include_lease_module():
     ):
         assert stages[name].status == "pass", f"{name}: {stages[name].message}"
     assert "lease_specs=18" in (stages["4_reference_model_builder"].message or "")
-    assert "expected_specs=346" in (stages["4_reference_model_builder"].message or "")
-    assert "blank=346" in (stages["6_blank_check"].message or "")
-    assert "total=346" in (stages["6_blank_check"].message or "")
-    assert "correct=346" in (stages["7_filled_check"].message or "")
+    assert "expected_specs=380" in (stages["4_reference_model_builder"].message or "")
+    assert "blank=380" in (stages["6_blank_check"].message or "")
+    assert "total=380" in (stages["6_blank_check"].message or "")
+    assert "correct=380" in (stages["7_filled_check"].message or "")
 
 
 def test_fast_retailing_historical_lease_interest_axis_and_treatment():
-    from datetime import date
     from core.data.line_identity import line_identity
     from core.model.lease_liability import (
         InconsistentLeaseTreatmentError,
@@ -683,20 +701,19 @@ def test_fast_retailing_historical_lease_interest_axis_and_treatment():
 
     builder = ReferenceModelBuilder(fin)
     assert len(builder.lease_liability_specs) == 18
-    assert len(builder.expected_specs) == 346
+    assert len(builder.expected_specs) == 380
     result = run_audit()
     stages = {stage.stage: stage for stage in result["stages"]}
     assert stages["4_reference_model_builder"].status == "pass"
     assert "lease_specs=18" in (stages["4_reference_model_builder"].message or "")
-    assert "expected_specs=346" in (stages["4_reference_model_builder"].message or "")
+    assert "expected_specs=380" in (stages["4_reference_model_builder"].message or "")
     assert stages["6_blank_check"].status == "pass"
-    assert "blank=346" in (stages["6_blank_check"].message or "")
+    assert "blank=380" in (stages["6_blank_check"].message or "")
     assert stages["7_filled_check"].status == "pass"
-    assert "correct=346" in (stages["7_filled_check"].message or "")
+    assert "correct=380" in (stages["7_filled_check"].message or "")
 
 
 def test_fast_retailing_ownership_attribution_g5():
-    from datetime import date
     from core.model.line_resolver import resolve_line
     from core.model.ownership_attribution import (
         compute_ownership_attribution_series,
@@ -763,9 +780,8 @@ def test_fast_retailing_ownership_attribution_g5():
 
     builder = ReferenceModelBuilder(fin)
     assert len(builder.ownership_attribution_specs) == 34
-    assert len(builder.expected_specs) == 346
-    # Per-share still omitted until G6 (no historical_shares).
-    assert builder.per_share_series is None
+    assert len(builder.expected_specs) == 380
+    assert builder.per_share_series is not None
 
     result = run_audit()
     stages = {stage.stage: stage for stage in result["stages"]}
@@ -779,7 +795,182 @@ def test_fast_retailing_ownership_attribution_g5():
         "7_filled_check",
     ):
         assert stages[name].status == "pass", f"{name}: {stages[name].message}"
-    assert "expected_specs=346" in (stages["4_reference_model_builder"].message or "")
+    assert "expected_specs=380" in (stages["4_reference_model_builder"].message or "")
     assert "ownership_specs=34" in (stages["4_reference_model_builder"].message or "")
-    assert "blank=346" in (stages["6_blank_check"].message or "")
-    assert "correct=346" in (stages["7_filled_check"].message or "")
+    assert "blank=380" in (stages["6_blank_check"].message or "")
+    assert "correct=380" in (stages["7_filled_check"].message or "")
+
+
+def test_fast_retailing_share_basis_and_per_share_g6():
+    from core.ingestion.filing_json import load_extracted_filing
+    from core.ingestion.filing_reconciler import reconcile_filings
+    from core.ingestion.filing_standardizer import standardize_reconciled
+    from core.ingestion.filing_validator import validate_extracted_filing
+    from core.ingestion.share_basis import resolve_historical_share_basis
+    from core.model.line_resolver import resolve_line
+    from core.model.source_values import required_period_value
+    from core.trainer.workbook import build_training_workbook
+    from core.trainer.checker import check_workbook
+    from openpyxl import load_workbook
+    from core.engine.reference_model import PER_SHARE_SHEET
+
+    provenance = _load_json(PROV_JSON)
+    conflicts = _load_json(CONFLICTS_JSON)
+    assert conflicts["overlap_conflict_count"] == 3
+    assert conflicts["supplemental_conflict_count"] == 3
+
+    # Documentary FY2022 diluted-WAS / EPS restatement anchor.
+    was_2022 = [
+        s
+        for s in provenance["share_facts"]
+        if s["fact_type"] == "diluted_weighted_average_shares"
+        and s["period"] == "2022-08-31"
+    ]
+    by_year = {s["filing_year"]: s["value"] for s in was_2022}
+    assert by_year[2022] == 102_323_208
+    assert by_year[2023] == 306_969_624
+    assert by_year[2023] / by_year[2022] == 3.0
+
+    basic = {
+        s["filing_year"]: s["value"]
+        for s in provenance["share_facts"]
+        if s["fact_type"] == "basic_weighted_average_shares"
+        and s["period"] == "2022-08-31"
+    }
+    dilutive = {
+        s["filing_year"]: s["value"]
+        for s in provenance["share_facts"]
+        if s["fact_type"] == "dilutive_shares" and s["period"] == "2022-08-31"
+    }
+    assert basic[2023] == basic[2022] * 3
+    assert dilutive[2023] == dilutive[2022] * 3
+
+    eps_conflict = next(
+        c
+        for c in conflicts["conflicts"]
+        if c["row_identity"].endswith("|diluted_eps") and c["period"] == "2022-08-31"
+    )
+    assert eps_conflict["selected"]["value"] == 890.43
+    assert eps_conflict["selected"]["presentation_role"] == "restated_comparative"
+    prior_eps = next(
+        o["value"]
+        for o in eps_conflict["observations"]
+        if o["filing_year"] == 2022
+    )
+    assert prior_eps == 2671.29
+
+    validated = []
+    for path in sorted(EXTRACTED.glob("*.json")):
+        filing = load_extracted_filing(path)
+        report = validate_extracted_filing(filing, source_root=SOURCE)
+        assert report.ok
+        validated.append((filing, report))
+    reconciled = reconcile_filings(validated)
+    resolution = resolve_historical_share_basis(reconciled)
+    assert resolution is not None
+    assert resolution.basis == "split_adjusted"
+    assert resolution.split_factor == 3.0
+    assert resolution.restatement_anchor_period == date(2022, 8, 31)
+    assert resolution.restatement_filing_year == 2023
+    assert resolution.diluted_weighted_average_actual_shares == {
+        date(2021, 8, 31): 306_871_785.0,
+        date(2022, 8, 31): 306_969_624.0,
+        date(2023, 8, 31): 307_138_870.0,
+        date(2024, 8, 31): 307_231_804.0,
+        date(2025, 8, 31): 307_247_804.0,
+    }
+    assert resolution.applied_adjustment_factors[date(2021, 8, 31)] == 3.0
+    for p in (
+        date(2022, 8, 31),
+        date(2023, 8, 31),
+        date(2024, 8, 31),
+        date(2025, 8, 31),
+    ):
+        assert resolution.applied_adjustment_factors[p] == 1.0
+
+    fin = standardize_reconciled(reconciled)
+    assert fin.historical_shares is not None
+    assert fin.historical_shares.scale_basis == "financial_statement_units"
+    assert fin.historical_shares.basis == "split_adjusted"
+    assert fin.historical_shares.diluted_weighted_average == {
+        date(2021, 8, 31): 306.871785,
+        date(2022, 8, 31): 306.969624,
+        date(2023, 8, 31): 307.13887,
+        date(2024, 8, 31): 307.231804,
+        date(2025, 8, 31): 307.247804,
+    }
+
+    committed = standardized_from_payload(_load_json(STD_JSON))
+    assert committed.historical_shares == fin.historical_shares
+
+    builder = ReferenceModelBuilder(fin)
+    assert builder.per_share_series is not None
+    assert len(builder.per_share_specs) == 18
+    assert len(builder.per_share_attribution_specs) == 16
+    assert len(builder.ownership_attribution_specs) == 34
+    assert len(builder.lease_liability_specs) == 18
+    assert len(builder.expected_specs) == 380
+
+    parent = resolve_line(
+        fin.income_statement, "profit_attributable_to_owners", required=True
+    ).item
+    assert parent is not None
+    fy2025 = date(2025, 8, 31)
+    parent_ni = required_period_value(parent, fy2025, field="parent")
+    assert parent_ni == 433_009
+    assert builder.per_share_series.reported_diluted_eps[-1] == pytest.approx(
+        433_009 / 307.247804, abs=0.01
+    )
+    assert builder.per_share_series.reported_diluted_eps[-1] == pytest.approx(
+        1409.32, abs=0.01
+    )
+    # FY2022 matches later audited restated EPS; FY2021 = original / 3.
+    assert builder.per_share_series.reported_diluted_eps[1] == pytest.approx(
+        890.43, abs=0.01
+    )
+    assert builder.per_share_series.reported_diluted_eps[0] == pytest.approx(
+        1660.44 / 3.0, abs=0.01
+    )
+
+    # G7 evidence preserved.
+    assert any(
+        c["fact_type"] == "basic_weighted_average_shares"
+        and c["period"] == "2022-08-31"
+        for c in conflicts["supplemental_conflicts"]
+    )
+    assert any(
+        c["fact_type"] == "dilutive_shares" and c["period"] == "2022-08-31"
+        for c in conflicts["supplemental_conflicts"]
+    )
+    assert len(eps_conflict["observations"]) == 2
+
+    import tempfile
+    from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
+
+    with tempfile.TemporaryDirectory() as tmp:
+        trainer, answer = build_training_workbook(fin, Path(tmp) / "FR.xlsx")
+        blank = check_workbook(trainer)
+        assert (blank.correct, blank.incorrect, blank.blank, blank.total) == (
+            0,
+            0,
+            380,
+            380,
+        )
+        smap = load_semantic_map(answer)
+        wb = load_workbook(trainer, data_only=False)
+        for comp in smap.all_ordered():
+            row, col = parse_cell_ref(comp.cell)
+            wb[comp.tab].cell(row=row, column=col).value = comp.formula
+        wb.save(trainer)
+        wb.close()
+        filled = check_workbook(trainer)
+        assert (filled.correct, filled.incorrect, filled.blank, filled.total) == (
+            380,
+            0,
+            0,
+            380,
+        )
+        wb = load_workbook(answer)
+        ws = wb[PER_SHARE_SHEET]
+        assert ws.cell(8, 1).value == "Share Basis: Split-adjusted comparable basis"
+        wb.close()

@@ -58,6 +58,8 @@ class HistoricalShareData:
 
     scale_basis: str = ""
     diluted_weighted_average: dict[date, float | None] = field(default_factory=dict)
+    basis: str = "reported"  # "reported" | "split_adjusted"
+    adjustment_factors: dict[date, float] = field(default_factory=dict)
 
 
 @dataclass
