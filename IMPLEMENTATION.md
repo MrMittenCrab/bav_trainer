@@ -42,17 +42,7 @@
 
 **Interfaces:**
 - Add `BALANCE_SHEET_TOLERANCE = 1.0` in `core/data/validators.py`.
-- Change the validator signature to:
-
-```python
-def validate_balance_sheet(
-    data: StandardizedFinancials,
-    *,
-    tolerance: float = BALANCE_SHEET_TOLERANCE,
-) -> dict[date, bool]:
-    ...
-```
-
+- Change `validate_balance_sheet` to accept keyword-only `tolerance: float = BALANCE_SHEET_TOLERANCE` and continue returning `dict[date, bool]`.
 - `reconcile_financials(data)` continues to call `validate_balance_sheet(data)` and therefore inherits the default tolerance without a new reconciler API.
 
 - [ ] **Step 1: Add a focused fixture for balance-sheet identity residuals**
@@ -305,7 +295,7 @@ Expected before implementation: the eight explicit generic financial rows raise 
 
 - [ ] **Step 4: Implement a narrow concept-driven fallback**
 
-At the end of `_classify_by_concept(item)`, after the existing strong concept rules and before `return None`, add a small private helper or equivalent inline logic with this behavior:
+At the end of `_classify_by_concept(item)`, after the existing strong concept rules and before its final `return None`, add a small private helper or equivalent inline logic with this exact decision contract:
 
 ```python
 def _generic_financial_concept_decision(
@@ -506,7 +496,7 @@ reform_alt = reformulate_balance_sheet(
 and require:
 
 - the selected detail decision changes to the alternative category;
-- the underlying `LineItem.values` remain byte-for-byte/numerically unchanged;
+- the underlying `LineItem.values` remain numerically unchanged;
 - `implied_equity` is unchanged versus the reference classification;
 - NOA and/or Net Debt move in the direction described by the template.
 
@@ -651,7 +641,7 @@ Do not fix the newly exposed failure in this checkpoint unless it is demonstrabl
 
 - [ ] **Step 6: Remove stale audit-version wording**
 
-`scripts/audit_fast_retailing_benchmark.py` currently describes the audited accounting engine using the old Step 9L.1 commit constant. Replace that stale claim with phase wording that does not pretend to know the user's future checkpoint SHA, for example:
+`scripts/audit_fast_retailing_benchmark.py` currently describes the audited accounting engine using the old Step 9L.1 commit constant. Replace that stale claim with phase wording that does not pretend to know the user's future checkpoint SHA:
 
 ```text
 - Accounting engine phase: Step 9M.2A (G1/G2 implementation on accepted Step 9M.1.1 base)
@@ -699,24 +689,22 @@ In `benchmark/fast_retailing/GAPS.md`:
 
 - [ ] **Step 2: Update RESULT.md with actual evidence only**
 
-Record the final observed values, including:
+Record these fields using the literal output from the final commands rather than guessed values:
 
 ```text
 Step 9M.2A scope: G1 + G2 only
 G1 one-unit BS tolerance: pass
 G2 generic financial rows: guided judgment, no hard stop
-Fast Retailing Stage 3: <actual status>
-Fast Retailing Stage 4: <actual status>
-next blocker: <exact measured stage/type/message, or none>
+Fast Retailing Stage 3: exact status from the final audit
+Fast Retailing Stage 4: exact status from the final audit
+next blocker: exact measured stage/type/message, or state none if all stages pass
 statement overlap conflicts: 3
 supplemental conflicts: 3
 Fast Retailing standardized source payload changed: no
 forecast/valuation activation: no
-focused tests: <actual count>
-full core tests: <actual count>
+focused tests: exact pass count from Task 5 Step 3
+full core tests: exact pass count from Task 5 Step 4
 ```
-
-Replace the angle-bracket descriptions with the actual command output before marking the step complete; do not guess counts.
 
 - [ ] **Step 3: Run the focused Step 9M.2A suite**
 
