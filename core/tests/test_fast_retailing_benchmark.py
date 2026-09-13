@@ -12,6 +12,7 @@ from core.data.standardized_io import standardized_from_payload
 from core.ingestion.filing_json import load_extracted_filing
 from core.ingestion.filing_validator import validate_extracted_filing
 from core.ingestion.reconciler import reconcile_financials
+from core.engine.reference_model import ReferenceModelBuilder
 from core.model.classification import (
     UnclassifiedBalanceSheetLineError,
     check_reformulation_integrity,
@@ -19,6 +20,15 @@ from core.model.classification import (
     is_balance_sheet_subtotal,
     reformulate_balance_sheet,
 )
+from core.model.financial_math import compute_anchor
+from core.model.judgment import classification_judgment_cases
+from core.model.lease_liability import (
+    compute_lease_liability_series,
+    lease_liability_applicable,
+    resolve_lease_liability_source,
+)
+from core.model.period_axis import canonical_fiscal_periods
+import pytest
 from scripts.audit_fast_retailing_benchmark import run_audit
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -285,7 +295,7 @@ def test_audit_script_writes_baseline_and_stage_records():
         "7_filled_check",
     ):
         assert stage in text
-    assert "Step 9M.2A" in text or "Step 9M.2B" in text or "Step 9M.2C" in text or "Step 9M.2D" in text
+    assert "Step 9M.2A" in text or "Step 9M.2B" in text or "Step 9M.2C" in text or "Step 9M.2D" in text or "Step 9M.3A" in text
     assert "pass" in completed.stdout or "fail" in completed.stdout
 
 
@@ -508,3 +518,73 @@ def test_fast_retailing_audit_stages_pass_through_reformulation_integrity():
         assert stage4.exception_type != "ReformulationIntegrityError", (
             f"Stage 4 still fails on reformulation integrity: {stage4.message}"
         )
+
+
+def test_fast_retailing_split_lease_liability_module_activates():
+    """G3: BS current+non-current sum is the diagnostic source; Note 17 stays separate."""
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    provenance = _load_json(PROV_JSON)
+    periods = list(canonical_fiscal_periods(fin))
+    fy2025 = periods[-1]
+
+    current = next(
+        item
+        for item in fin.balance_sheet
+        if (item.concept or "").strip() == "lease_liability_current"
+    )
+    noncurrent = next(
+        item
+        for item in fin.balance_sheet
+        if (item.concept or "").strip() == "lease_liability_noncurrent"
+    )
+    assert current.values[fy2025] == pytest.approx(126_830.0)
+    assert noncurrent.values[fy2025] == pytest.approx(386_670.0)
+
+    source = resolve_lease_liability_source(fin)
+    assert source is not None
+    assert source.mode == "split"
+    assert lease_liability_applicable(fin) is True
+
+    series = compute_lease_liability_series(fin, periods, compute_anchor(fin, periods))
+    assert series.lease_liability[-1] == pytest.approx(513_500.0)
+
+    note_total = next(
+        n
+        for n in provenance["note_facts"]
+        if n["fact_type"] == "lease_liability_total" and n["period"] == "2025-08-31"
+    )
+    assert note_total["value"] == 513_501
+    # Contract: diagnostic = BS component sum; note aggregate is independent
+    # documentary evidence; one-unit difference is preserved (no plug / substitution).
+    assert series.lease_liability[-1] != note_total["value"]
+
+    builder = ReferenceModelBuilder(fin)
+    assert builder.lease_liability_series is not None
+    assert len(builder.lease_liability_specs) == 18
+    assert len(builder.expected_specs) == 312
+
+    reform = reformulate_balance_sheet(fin, periods)
+    cases = classification_judgment_cases(fin, periods, reform)
+    lease_cases = [c for c in cases if "lease" in c.label.lower()]
+    assert len(lease_cases) == 2
+    assert lease_cases[0].override_selector != lease_cases[1].override_selector
+
+
+def test_fast_retailing_audit_stages_include_lease_module():
+    result = run_audit()
+    stages = {stage.stage: stage for stage in result["stages"]}
+    for name in (
+        "1_source_fixture_load",
+        "2_identity_validation",
+        "3_reconciliation",
+        "4_reference_model_builder",
+        "5_workbook_generation",
+        "6_blank_check",
+        "7_filled_check",
+    ):
+        assert stages[name].status == "pass", f"{name}: {stages[name].message}"
+    assert "lease_specs=18" in (stages["4_reference_model_builder"].message or "")
+    assert "expected_specs=312" in (stages["4_reference_model_builder"].message or "")
+    assert "blank=312" in (stages["6_blank_check"].message or "")
+    assert "total=312" in (stages["6_blank_check"].message or "")
+    assert "correct=312" in (stages["7_filled_check"].message or "")

@@ -28,6 +28,7 @@ from ..model.fixed_asset import (
 from ..model.lease_liability import (
     compute_lease_liability_series,
     lease_liability_applicable,
+    resolve_lease_liability_source,
 )
 from ..model.judgment import JudgmentCase, classification_judgment_cases
 from ..model.line_resolver import resolve_line, workbook_row_for
@@ -2068,10 +2069,9 @@ class ReferenceModelBuilder:
             return
 
         lease_series = self.lease_liability_series
-        lease_src = self._resolved_source_row(
-            self.fin.balance_sheet, "lease_liability", required=True
-        )
-        assert lease_src is not None
+        lease_source = resolve_lease_liability_source(self.fin)
+        assert lease_source is not None
+        source_rows = [SOURCE_START_ROW + idx for idx in lease_source.indices]
         rev_r = self.rowmap["condensed_revenue_row"]
 
         lease_section_row = next_section_after + 2
@@ -2093,7 +2093,11 @@ class ReferenceModelBuilder:
             out_col = self._col(out_col_idx)
             src_col = self._col(2 + j)
 
-            lease_f = f"='Balance Sheet'!{src_col}{lease_src}"
+            if len(source_rows) == 1:
+                lease_f = f"='Balance Sheet'!{src_col}{source_rows[0]}"
+            else:
+                refs = [f"'Balance Sheet'!{src_col}{row}" for row in source_rows]
+                lease_f = "=" + "+".join(refs)
             lease_rev_f = (
                 f"=IF('Condensed Financials'!{src_col}{rev_r}=0,NA(),"
                 f"{out_col}{lease_row}/'Condensed Financials'!{src_col}{rev_r})"

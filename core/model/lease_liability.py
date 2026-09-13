@@ -1,8 +1,9 @@
-"""Historical lease-liability intensity / trend diagnostics (Step 9L.1).
+"""Historical lease-liability intensity / trend diagnostics (Step 9L.1 / 9M.3A).
 
-Uses one uniquely resolvable aggregate lease-liability source line only.
-Does not invent ROU assets, lease payments, discount rates, or amortisation.
-Does not aggregate split current / non-current lease-liability rows.
+Uses one uniquely resolvable aggregate lease-liability source line, or exactly
+one ``lease_liability_current`` plus one ``lease_liability_noncurrent`` pair
+summed period-by-period. Does not invent ROU assets, lease payments, discount
+rates, or amortisation. Does not promote note aggregates or plug rounding gaps.
 """
 
 from __future__ import annotations
@@ -10,9 +11,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
-from ..data.interface import StandardizedFinancials
+from ..data.interface import LineItem, StandardizedFinancials
 from .financial_math import AnchorMetrics
-from .line_resolver import AmbiguousLineError, resolve_line
+from .line_resolver import AmbiguousLineError, MissingLineError, resolve_line
 from .ratio_values import ratio_or_na
 from .source_values import required_period_value
 
@@ -24,6 +25,13 @@ class LeaseLiabilityAvailability:
 
 
 @dataclass(frozen=True)
+class LeaseLiabilitySource:
+    mode: str  # "aggregate" | "split"
+    items: tuple[LineItem, ...]
+    indices: tuple[int, ...]
+
+
+@dataclass(frozen=True)
 class LeaseLiabilitySeries:
     lease_liability: tuple[float, ...]
     lease_liability_to_revenue: tuple[float | str, ...]
@@ -31,26 +39,99 @@ class LeaseLiabilitySeries:
     lease_liability_growth: tuple[float | str | None, ...]
 
 
-def lease_liability_availability(
+@dataclass(frozen=True)
+class _LeaseResolveState:
+    source: LeaseLiabilitySource | None
+    ambiguous: bool
+
+
+def _concept_key(item: LineItem) -> str:
+    return (item.concept or "").strip().lower()
+
+
+def _indices_with_concept(
+    items: list[LineItem], concept: str
+) -> list[tuple[int, LineItem]]:
+    key = concept.strip().lower()
+    return [(idx, item) for idx, item in enumerate(items) if _concept_key(item) == key]
+
+
+def _resolve_lease_liability_state(
     financials: StandardizedFinancials,
-) -> LeaseLiabilityAvailability:
-    """Report whether an aggregate lease-liability line resolves uniquely."""
-    try:
-        resolved = resolve_line(
-            financials.balance_sheet,
-            "lease_liability",
-            required=False,
+) -> _LeaseResolveState:
+    """Shared aggregate-or-split decision for availability, math, and workbooks."""
+    bs = financials.balance_sheet
+    aggregates = _indices_with_concept(bs, "lease_liability")
+    currents = _indices_with_concept(bs, "lease_liability_current")
+    noncurrents = _indices_with_concept(bs, "lease_liability_noncurrent")
+
+    if len(aggregates) > 1:
+        return _LeaseResolveState(source=None, ambiguous=True)
+    if len(aggregates) == 1:
+        idx, item = aggregates[0]
+        return _LeaseResolveState(
+            source=LeaseLiabilitySource(
+                mode="aggregate",
+                items=(item,),
+                indices=(idx,),
+            ),
+            ambiguous=False,
         )
+
+    if currents or noncurrents:
+        if len(currents) > 1 or len(noncurrents) > 1:
+            return _LeaseResolveState(source=None, ambiguous=True)
+        if len(currents) == 1 and len(noncurrents) == 1:
+            cur_idx, cur_item = currents[0]
+            non_idx, non_item = noncurrents[0]
+            return _LeaseResolveState(
+                source=LeaseLiabilitySource(
+                    mode="split",
+                    items=(cur_item, non_item),
+                    indices=(cur_idx, non_idx),
+                ),
+                ambiguous=False,
+            )
+        # Partial split: one side only — unavailable, not zero-filled.
+        return _LeaseResolveState(source=None, ambiguous=False)
+
+    # No explicit lease concepts — preserve legacy aggregate label-alias path.
+    try:
+        resolved = resolve_line(bs, "lease_liability", required=False)
     except AmbiguousLineError:
-        return LeaseLiabilityAvailability(lease_liability=False, ambiguous=True)
-    return LeaseLiabilityAvailability(
-        lease_liability=resolved.item is not None,
+        return _LeaseResolveState(source=None, ambiguous=True)
+    if resolved.item is None or resolved.index is None:
+        return _LeaseResolveState(source=None, ambiguous=False)
+    return _LeaseResolveState(
+        source=LeaseLiabilitySource(
+            mode="aggregate",
+            items=(resolved.item,),
+            indices=(resolved.index,),
+        ),
         ambiguous=False,
     )
 
 
+def resolve_lease_liability_source(
+    financials: StandardizedFinancials,
+) -> LeaseLiabilitySource | None:
+    """Return the shared aggregate or split lease-liability source, if usable."""
+    return _resolve_lease_liability_state(financials).source
+
+
+def lease_liability_availability(
+    financials: StandardizedFinancials,
+) -> LeaseLiabilityAvailability:
+    """Report whether a unique aggregate or valid current/non-current split resolves."""
+    state = _resolve_lease_liability_state(financials)
+    return LeaseLiabilityAvailability(
+        lease_liability=state.source is not None,
+        ambiguous=state.ambiguous,
+    )
+
+
 def lease_liability_applicable(financials: StandardizedFinancials) -> bool:
-    """Module is present only when one unique aggregate lease liability resolves."""
+    """Module is present when a unique aggregate or valid split source resolves."""
     availability = lease_liability_availability(financials)
     return availability.lease_liability and not availability.ambiguous
 
@@ -61,12 +142,9 @@ def compute_lease_liability_series(
     anchor: AnchorMetrics,
 ) -> LeaseLiabilitySeries:
     """Compute lease-liability intensity / change diagnostics for modeled periods."""
-    lease_item = resolve_line(
-        financials.balance_sheet,
-        "lease_liability",
-        required=True,
-    ).item
-    assert lease_item is not None
+    source = resolve_lease_liability_source(financials)
+    if source is None:
+        raise MissingLineError("lease liability source not available")
 
     n = len(periods)
     revenue = tuple(float(v) for v in anchor.historical.revenue)
@@ -77,7 +155,10 @@ def compute_lease_liability_series(
         )
 
     lease_vals = tuple(
-        required_period_value(lease_item, period, field="lease_liability")
+        sum(
+            required_period_value(item, period, field="lease_liability")
+            for item in source.items
+        )
         for period in periods
     )
     lease_to_revenue = tuple(

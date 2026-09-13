@@ -38,6 +38,7 @@ from core.model.lease_liability import (
     compute_lease_liability_series,
     lease_liability_applicable,
     lease_liability_availability,
+    resolve_lease_liability_source,
 )
 from core.model.period_axis import canonical_fiscal_periods
 from core.model.ratio_values import UNDEFINED_RATIO
@@ -79,7 +80,9 @@ def _tiny(
     lease=(100.0, 120.0),
     revenue=(1000.0, 1100.0),
     split: bool = False,
+    standardized_split: bool = False,
     missing_period: bool = False,
+    extra_bs: list[LineItem] | None = None,
 ):
     d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
 
@@ -87,7 +90,22 @@ def _tiny(
         return {d1: a, d2: b}
 
     cash, ar, ap, bank = 50.0, 40.0, 30.0, 20.0
-    if split:
+    if standardized_split:
+        cur, noncur = (40.0, 50.0), (60.0, 70.0)
+        lease_items = [
+            _li(
+                "Current lease liabilities",
+                vals(*cur),
+                concept="lease_liability_current",
+            ),
+            _li(
+                "Non-current lease liabilities",
+                vals(*noncur),
+                concept="lease_liability_noncurrent",
+            ),
+        ]
+        lease0, lease1 = cur[0] + noncur[0], cur[1] + noncur[1]
+    elif split:
         cur, noncur = (40.0, 50.0), (60.0, 70.0)
         lease_total0 = cur[0] + noncur[0]
         lease_total1 = cur[1] + noncur[1]
@@ -113,10 +131,14 @@ def _tiny(
         _li("Trade payables", vals(ap, ap)),
         _li("Bank borrowings", vals(bank, bank)),
         *lease_items,
+        *(extra_bs or []),
         _li("Total equity", vals(eq0, eq1)),
     ]
     if missing_period:
-        lease_items[0].values = {d1: lease0}
+        # Drop second period from the first lease component only.
+        first_vals = lease_items[0].values
+        d1_key = date(2024, 12, 31)
+        lease_items[0].values = {d1_key: first_vals[d1_key]}
     return StandardizedFinancials(
         ticker="LL",
         company_name="Lease Co",
@@ -199,6 +221,282 @@ def test_split_rows_are_ambiguous_and_omit_module():
     assert not lease_liability_applicable(fin)
     builder = ReferenceModelBuilder(fin)
     assert builder.lease_liability_specs == ()
+
+
+def test_aggregate_source_still_resolves():
+    fin = _tiny(split=False)
+    source = resolve_lease_liability_source(fin)
+    assert source is not None
+    assert source.mode == "aggregate"
+    assert len(source.items) == 1
+    assert len(source.indices) == 1
+    assert lease_liability_applicable(fin)
+
+
+def test_standardized_split_source_resolves():
+    fin = _tiny(standardized_split=True)
+    source = resolve_lease_liability_source(fin)
+    assert source is not None
+    assert source.mode == "split"
+    assert len(source.items) == 2
+    assert len(source.indices) == 2
+    avail = lease_liability_availability(fin)
+    assert avail.lease_liability is True
+    assert avail.ambiguous is False
+    assert lease_liability_applicable(fin) is True
+
+
+def test_split_fail_closed_current_or_noncurrent_only():
+    d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
+
+    def vals(a, b):
+        return {d1: a, d2: b}
+
+    base_bs = [
+        _li("Cash and cash equivalents", vals(50, 50)),
+        _li("Trade receivables", vals(40, 40)),
+        _li("Trade payables", vals(30, 30)),
+        _li("Bank borrowings", vals(20, 20)),
+    ]
+    for concept, label, amount in (
+        ("lease_liability_current", "Current lease liabilities", 40.0),
+        ("lease_liability_noncurrent", "Non-current lease liabilities", 60.0),
+    ):
+        fin = StandardizedFinancials(
+            ticker="LL",
+            company_name="Lease Co",
+            currency="HKD",
+            units="HKD mn",
+            jurisdiction="HK",
+            periods=[
+                FinancialPeriod(end_date=d1, label="FY2024"),
+                FinancialPeriod(end_date=d2, label="FY2025"),
+            ],
+            income_statement=[
+                _li("Revenue", vals(1000, 1100)),
+                _li("Finance costs", vals(-10, -11)),
+                _li("Finance income", vals(0, 0)),
+                _li("Profit before tax", vals(200, 220)),
+                _li("Income tax expense", vals(-30, -33)),
+                _li("Profit for the year", vals(170, 187)),
+            ],
+            balance_sheet=[
+                *base_bs,
+                _li(label, vals(amount, amount), concept=concept),
+                _li("Total equity", vals(1, 1)),
+            ],
+            cash_flow=[_li("Net cash from operating activities", vals(80, 90))],
+        )
+        avail = lease_liability_availability(fin)
+        assert avail.lease_liability is False
+        assert avail.ambiguous is False
+        assert not lease_liability_applicable(fin)
+        assert resolve_lease_liability_source(fin) is None
+
+
+def test_split_fail_closed_duplicate_sides_or_aggregates():
+    d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
+
+    def vals(a, b):
+        return {d1: a, d2: b}
+
+    def _fin(lease_items):
+        return StandardizedFinancials(
+            ticker="LL",
+            company_name="Lease Co",
+            currency="HKD",
+            units="HKD mn",
+            jurisdiction="HK",
+            periods=[
+                FinancialPeriod(end_date=d1, label="FY2024"),
+                FinancialPeriod(end_date=d2, label="FY2025"),
+            ],
+            income_statement=[
+                _li("Revenue", vals(1000, 1100)),
+                _li("Finance costs", vals(-10, -11)),
+                _li("Finance income", vals(0, 0)),
+                _li("Profit before tax", vals(200, 220)),
+                _li("Income tax expense", vals(-30, -33)),
+                _li("Profit for the year", vals(170, 187)),
+            ],
+            balance_sheet=[
+                _li("Cash and cash equivalents", vals(50, 50)),
+                *lease_items,
+                _li("Total equity", vals(1, 1)),
+            ],
+            cash_flow=[_li("Net cash from operating activities", vals(80, 90))],
+        )
+
+    cases = [
+        [
+            _li("Current lease A", vals(10, 10), concept="lease_liability_current"),
+            _li("Current lease B", vals(10, 10), concept="lease_liability_current"),
+            _li(
+                "Non-current lease",
+                vals(20, 20),
+                concept="lease_liability_noncurrent",
+            ),
+        ],
+        [
+            _li("Current lease", vals(10, 10), concept="lease_liability_current"),
+            _li(
+                "Non-current lease A",
+                vals(20, 20),
+                concept="lease_liability_noncurrent",
+            ),
+            _li(
+                "Non-current lease B",
+                vals(20, 20),
+                concept="lease_liability_noncurrent",
+            ),
+        ],
+        [
+            _li("Lease aggregate A", vals(30, 30), concept="lease_liability"),
+            _li("Lease aggregate B", vals(40, 40), concept="lease_liability"),
+        ],
+    ]
+    for lease_items in cases:
+        fin = _fin(lease_items)
+        avail = lease_liability_availability(fin)
+        assert avail.ambiguous is True
+        assert avail.lease_liability is False
+        assert not lease_liability_applicable(fin)
+
+
+def test_aggregate_precedence_over_split_components():
+    d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
+
+    def vals(a, b):
+        return {d1: a, d2: b}
+
+    fin = StandardizedFinancials(
+        ticker="LL",
+        company_name="Lease Co",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=d1, label="FY2024"),
+            FinancialPeriod(end_date=d2, label="FY2025"),
+        ],
+        income_statement=[
+            _li("Revenue", vals(1000, 1100)),
+            _li("Finance costs", vals(-10, -11)),
+            _li("Finance income", vals(0, 0)),
+            _li("Profit before tax", vals(200, 220)),
+            _li("Income tax expense", vals(-30, -33)),
+            _li("Profit for the year", vals(170, 187)),
+        ],
+        balance_sheet=[
+            _li("Cash and cash equivalents", vals(50, 50)),
+            _li("Lease liabilities", vals(100, 120), concept="lease_liability"),
+            _li(
+                "Current lease liabilities",
+                vals(40, 50),
+                concept="lease_liability_current",
+            ),
+            _li(
+                "Non-current lease liabilities",
+                vals(60, 70),
+                concept="lease_liability_noncurrent",
+            ),
+            _li("Total equity", vals(1, 1)),
+        ],
+        cash_flow=[_li("Net cash from operating activities", vals(80, 90))],
+    )
+    source = resolve_lease_liability_source(fin)
+    assert source is not None
+    assert source.mode == "aggregate"
+    assert len(source.items) == 1
+    assert source.items[0].concept == "lease_liability"
+
+
+def test_standardized_split_math():
+    fin = _tiny(standardized_split=True)
+    periods = list(canonical_fiscal_periods(fin))
+    anchor = compute_anchor(fin, periods)
+    series = compute_lease_liability_series(fin, periods, anchor)
+    assert series.lease_liability == (100.0, 120.0)
+    assert series.lease_liability_change == (None, 20.0)
+    assert series.lease_liability_growth[0] is None
+    assert series.lease_liability_growth[1] == pytest.approx(0.20)
+    assert series.lease_liability_to_revenue[0] == pytest.approx(0.10)
+
+
+def test_standardized_split_period_completeness_fails_closed():
+    d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
+    for concept in ("lease_liability_current", "lease_liability_noncurrent"):
+        fin = _tiny(standardized_split=True)
+        item = next(i for i in fin.balance_sheet if (i.concept or "") == concept)
+        item.values = {d1: item.values[d1]}
+        periods = list(canonical_fiscal_periods(fin))
+        with pytest.raises(MissingHistoricalValueError):
+            compute_lease_liability_series(fin, periods, compute_anchor(fin, periods))
+
+
+def test_standardized_split_builder_and_source_link(tmp_path):
+    fin = _tiny(standardized_split=True)
+    builder = ReferenceModelBuilder(fin)
+    assert builder.lease_liability_series is not None
+    assert builder.lease_liability_specs
+    assert {s.family_id for s in builder.lease_liability_specs} == {
+        f.id for f in LEASE_LIABILITY_COMPONENT_CATALOG
+    }
+
+    trainer, answer = build_training_workbook(fin, tmp_path / "SPLIT_STD.xlsx")
+    smap = load_semantic_map(answer)
+    links = [
+        c for c in smap.all_ordered() if c.family_id == "lease_liability_source_link"
+    ]
+    assert links
+    for comp in links:
+        formula = comp.formula.replace(" ", "")
+        assert formula.count("'BalanceSheet'!") + formula.count("'Balance Sheet'!") >= 2
+        assert "+" in formula
+        assert formula.startswith("=")
+
+    # Exact row references for both split components.
+    cur_idx = next(
+        i
+        for i, item in enumerate(fin.balance_sheet)
+        if (item.concept or "") == "lease_liability_current"
+    )
+    non_idx = next(
+        i
+        for i, item in enumerate(fin.balance_sheet)
+        if (item.concept or "") == "lease_liability_noncurrent"
+    )
+    cur_row, non_row = 7 + cur_idx, 7 + non_idx
+    first = links[0].formula.replace(" ", "")
+    assert f"'BalanceSheet'!B{cur_row}" in first or f"'Balance Sheet'!B{cur_row}" in first
+    assert f"'BalanceSheet'!B{non_row}" in first or f"'Balance Sheet'!B{non_row}" in first
+
+
+def test_standardized_split_trusted_source_tamper(tmp_path):
+    fin = _tiny(standardized_split=True)
+    for label in ("Current lease liabilities", "Non-current lease liabilities"):
+        trainer, answer = build_training_workbook(fin, tmp_path / f"SPLIT_TAMPER_{label}.xlsx")
+        smap = load_semantic_map(answer)
+        comp = next(
+            c
+            for c in smap.all_ordered()
+            if c.family_id == "lease_liability_to_revenue"
+            and isinstance(c.expected_value, (int, float))
+        )
+        wb = load_workbook(trainer, data_only=False)
+        row, col = parse_cell_ref(comp.cell)
+        wb[comp.tab].cell(row=row, column=col).value = comp.formula
+        ws = wb["Balance Sheet"]
+        lease_row = next(
+            r
+            for r in range(1, (ws.max_row or 1) + 1)
+            if ws.cell(r, 1).value == label
+        )
+        ws.cell(lease_row, 2).value = 1
+        wb.save(trainer)
+        wb.close()
+        with pytest.raises(ValueError, match="Trusted workbook cell was modified"):
+            check_workbook(trainer)
 
 
 def test_canonical_demo_includes_lease_section(tmp_path):

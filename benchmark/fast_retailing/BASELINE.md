@@ -1,8 +1,8 @@
-# Fast Retailing Benchmark Baseline (Step 9M.2D)
+# Fast Retailing Benchmark Baseline (Step 9M.3A)
 
-- Accounting engine phase: Step 9M.2D (reporting-unit rounding envelope on 9M.2C base)
+- Accounting engine phase: Step 9M.3A (split lease-liability aggregation on 9M.2D base)
 - Input path: generic `extracted/` → `validate-source` → `reconcile` → `reconciled/`
-- Benchmark phase: measurement only — G1/G1B/G2/G2B/G2C closed; G3–G7 remain open
+- Benchmark phase: measurement only — G1/G1B/G2/G2B/G2C/G3 closed; G4–G7 remain open
 - Five fiscal periods: 2021-08-31 … 2025-08-31
 
 ## Source hashes
@@ -19,7 +19,7 @@
 - Supplemental provenance source-bound: yes
 - Portable source-path validation: yes
 - Silent repeated-share overwrite removed: yes
-- G1/G1B/G2/G2B/G2C closed; G3–G7 remain open
+- G1/G1B/G2/G2B/G2C/G3 closed; G4–G7 remain open
 
 ## Stage results
 
@@ -28,10 +28,10 @@
 | 1_source_fixture_load | pass | loaded |
 | 2_identity_validation | pass |  |
 | 3_reconciliation | pass |  |
-| 4_reference_model_builder | pass | expected_specs=294 lease_specs=0 fixed_asset_specs=35 |
+| 4_reference_model_builder | pass | expected_specs=312 lease_specs=18 fixed_asset_specs=35 |
 | 5_workbook_generation | pass |  |
-| 6_blank_check | pass | correct=0 incorrect=0 blank=294 total=294 |
-| 7_filled_check | pass | correct=294 total=294 |
+| 6_blank_check | pass | correct=0 incorrect=0 blank=312 total=312 |
+| 7_filled_check | pass | correct=312 total=312 |
 
 ## First failure
 
@@ -42,8 +42,8 @@ None — all stages passed.
 - **earnings_quality**: applicable
 - **working_capital**: applicable
 - **fixed_asset**: applicable
-- **lease_liability**: omitted/not applicable
-  - availability: lease_liability=False ambiguous=True
+- **lease_liability**: applicable
+  - availability: lease_liability=True ambiguous=False
 - **per_share**: omitted/not applicable
 - **normalization**: omitted/not applicable
 

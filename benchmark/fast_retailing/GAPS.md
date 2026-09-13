@@ -1,6 +1,6 @@
 # Fast Retailing Gap Queue
 
-Evidence basis for Step 9M.2D. Measurement only for remaining gaps — no speculative production redesign here.
+Evidence basis for Step 9M.3A. Measurement only for remaining gaps — no speculative production redesign here.
 
 Categories:
 - **A** source-extraction / provenance defect
@@ -9,17 +9,17 @@ Categories:
 - **D** optional-module input-contract gap
 - **E** comparative/restatement/share-basis conflict
 
-## Observed engine stages (Step 9M.2D)
+## Observed engine stages (Step 9M.3A)
 
 | Stage | Result |
 |---|---|
 | source fixture load | pass |
 | identity validation | pass |
 | financial reconciliation | **pass** (G1 closed) |
-| ReferenceModelBuilder | **pass** (G1B rounding envelope; G2/G2B/G2C closed) |
+| ReferenceModelBuilder | **pass** (312 specs; lease_specs=18) |
 | workbook generation | **pass** |
-| blank Check | **pass** (0/294 correct; 294 blank) |
-| filled Check | **pass** (294/294 correct) |
+| blank Check | **pass** (0/312 correct; 312 blank) |
+| filled Check | **pass** (312/312 correct) |
 
 ## Gaps
 
@@ -88,14 +88,24 @@ Categories:
 - **Evidence:** every Fast Retailing non-subtotal BS detail row is classifiable;
   Stage 4 no longer fails on `Current tax liabilities` or the other six concepts.
 
-### G3 — Split lease liabilities omit lease diagnostic module (expected under 9L.1)
+### G3 — Split lease-liability aggregation contract — **CLOSED in Step 9M.3A**
 
 - **Category:** D
-- **Stage:** module applicability (pre-workbook)
-- **Exact behavior:** `lease_liability_availability.ambiguous == True` because current + non-current lease liability rows share concept resolution; module omitted.
-- **Source facts:** current lease liabilities `126,830`; non-current `386,670`; Note 17 aggregate present value `513,501` (≠ sum `513,500` by one unit).
-- **Synthetic coverage:** manufacturer uses one aggregate lease line; split case is tested to omit diagnostics.
-- **Why generalizable:** Primary-statement split presentation is common; optional diagnostics need an explicit aggregation contract (note total vs sum of splits) before enabling the module.
+- **Stage:** module applicability / lease diagnostics
+- **Resolution:** `resolve_lease_liability_source()` prefers one unique explicit
+  `lease_liability` aggregate when present; otherwise accepts exactly one
+  `lease_liability_current` plus one `lease_liability_noncurrent` and sums them
+  period-by-period. Python expected values and workbook `lease_liability_source_link`
+  formulas use the same source rows. Duplicate/partial/unclear presentations remain
+  fail-closed. Generic duplicate `lease_liability` concepts remain ambiguous (9L.1).
+- **Fast Retailing evidence:** source mode `split`; FY2025 diagnostic total
+  `126,830 + 386,670 = 513,500`; Note 17 `lease_liability_total` remains `513,501`
+  as independent provenance (one-unit difference preserved — no plug / no note
+  substitution / no source mutation). `lease_specs=18`; Stages 1–7 pass with
+  `expected_specs=312`. Two distinct lease Accounting Judgment cases remain.
+- **G4 remains open:** this step changes only the historical liability diagnostic
+  source contract; it does not condition interest expense/income on lease
+  classification treatment.
 
 ### G4 — Lease income-side consistency not treatment-conditioned
 
@@ -135,19 +145,17 @@ Categories:
 - **Synthetic coverage:** none for audited restatement overlaps.
 - **Why generalizable:** Latest-audited-presentation must remain explicit; silent overwrites are forbidden.
 
-## Post-9M.2D audit result
+## Post-9M.3A audit result
 
 - **Stages 1–7:** all **pass**
-  - Stage 4: `expected_specs=294 lease_specs=0 fixed_asset_specs=35`
-  - Stage 6 blank Check: `correct=0 incorrect=0 blank=294 total=294`
-  - Stage 7 filled Check: `correct=294 total=294`
+  - Stage 4: `expected_specs=312 lease_specs=18 fixed_asset_specs=35`
+  - Stage 6 blank Check: `correct=0 incorrect=0 blank=312 total=312`
+  - Stage 7 filled Check: `correct=312 total=312`
 - **First failing stage / exception:** none
-- **ReferenceModelBuilder completed:** yes
-- **Workbook generation / blank Check / filled Check:** reached and passed
-- **Note:** G3–G7 remain open as measured product/accounting gaps (split-lease
-  module omitted, lease-interest treatment, NCI attribution, share-basis / per-share
-  omission, restatement conflicts). They are no longer the first thrown Stage-4
-  exception; select the next checkpoint from these remaining substantive gaps.
+- **lease_liability module:** applicable (`lease_liability=True`, `ambiguous=False`, mode=`split`)
+- **Note:** G4–G7 remain open (lease-interest treatment conditioning, NCI attribution,
+  share-basis / per-share omission, restatement conflicts). G3 closed without changing
+  G4 income-side lease-interest behavior.
 
 ## Corrected extraction note (A — closed in 9M.0)
 
@@ -158,6 +166,6 @@ CFS2021 IS line `Non-controlling interests 40 5,836 53,109` was initially misrea
 1. Do not invent plugs to force BS identity when published totals disagree by rounding (G1 policy already encodes `<= 1.0` acceptance).
 2. Vague unsupported rows (e.g. bare `Other assets`) should remain fail-closed or receive an explicit guided contract — do not auto-classify from the word `other` alone.
 3. Parent vs NCI earnings and equity must be handled consistently when both are disclosed.
-4. Split lease diagnostics need an explicit aggregation contract; do not silently sum.
-5. Lease classification treatment and lease-interest income-side treatment must eventually be internally consistent when lease interest is disclosed.
+4. Split lease diagnostics use an explicit aggregate-or-split source contract (G3 closed); do not silently invent aggregates from vague labels.
+5. Lease classification treatment and lease-interest income-side treatment must eventually be internally consistent when lease interest is disclosed (G4 open).
 6. Multi-year per-share analysis requires an audited comparable share basis.

@@ -1,6 +1,8 @@
+**Status:** Step 9M.3A complete — G3 split lease aggregation; FR Stages 1–7 pass with lease_specs=18 / expected_specs=312. Stopped for user checkpoint.
+
 # Step 9M.3A — Split Lease-Liability Aggregation Contract Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 > **For Cursor:** Read `TARGET.md`, then `benchmark/fast_retailing/GAPS.md`, then this plan in full. The accepted implementation base is commit `d4911261febcb88aa7d33503b1ef3d597367f98c` (`Step 9M.2D`). Implement only Step 9M.3A using red/green TDD. Do not begin G4 lease-interest reclassification, G5 NCI attribution, G6 share-basis/per-share work, G7 reconciliation-policy changes, PDF/AI extraction, forecasting, valuation, scenarios, or investment conclusions. Do not commit, push, reset, rebase, merge, clean, or delete branches; the user owns checkpoint commits.
 
@@ -97,7 +99,7 @@ compute_lease_liability_series(financials, periods, anchor) -> LeaseLiabilitySer
 
 `LeaseLiabilityAvailability` may keep its existing two fields; do not add workbook-specific state to it.
 
-- [ ] **Step 1: Preserve the existing aggregate-source contract**
+- [x] **Step 1: Preserve the existing aggregate-source contract**
 
 Add/retain a focused test showing one direct aggregate source still resolves exactly as before:
 
@@ -113,7 +115,7 @@ assert lease_liability_applicable(fin)
 
 The ordinary `Operating lease liabilities` demo path must remain model-equivalent.
 
-- [ ] **Step 2: Add a valid standardized split fixture**
+- [x] **Step 2: Add a valid standardized split fixture**
 
 Extend the test helper or add a small fixture whose two balance-sheet rows are explicitly:
 
@@ -142,7 +144,7 @@ assert lease_liability_availability(fin).ambiguous is False
 assert lease_liability_applicable(fin) is True
 ```
 
-- [ ] **Step 3: Add split fail-closed cases**
+- [x] **Step 3: Add split fail-closed cases**
 
 Require no usable lease source for each incomplete presentation:
 
@@ -161,7 +163,7 @@ multiple explicit aggregate lease_liability rows
 
 Retain the existing Step 9L.1 regression in which two rows both use generic concept `lease_liability`: that remains ambiguous and omitted. Do not reinterpret duplicate generic concepts as a split pair.
 
-- [ ] **Step 4: Add aggregate-precedence regression**
+- [x] **Step 4: Add aggregate-precedence regression**
 
 Construct a fixture containing:
 
@@ -180,7 +182,7 @@ assert len(source.items) == 1
 
 Rationale: when the balance sheet already reports a unique aggregate, do not synthesize a second competing total.
 
-- [ ] **Step 5: Run the resolver tests red**
+- [x] **Step 5: Run the resolver tests red**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_lease_liability.py \
@@ -190,7 +192,7 @@ PYTHONPATH=. pytest core/tests/test_lease_liability.py \
 
 Expected before implementation: the standardized split pair remains unavailable/ambiguous because Step 9L.1 only resolves a single aggregate lease line.
 
-- [ ] **Step 6: Implement the minimal resolver**
+- [x] **Step 6: Implement the minimal resolver**
 
 Use concept identity before label fallback. The decision order must be:
 
@@ -213,7 +215,7 @@ Do not add generic current/non-current word parsing to `line_resolver.py`. Split
 
 Store the original balance-sheet indices in the descriptor so workbook formulas can use exactly the same sources as Python expected values.
 
-- [ ] **Step 7: Run Task 1 green**
+- [x] **Step 7: Run Task 1 green**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_lease_liability.py \
@@ -233,7 +235,7 @@ PYTHONPATH=. pytest core/tests/test_lease_liability.py \
 - `compute_lease_liability_series()` consumes `resolve_lease_liability_source()`.
 - `LeaseLiabilitySeries.lease_liability` remains one total series; do not change component-catalog IDs or public workbook semantics.
 
-- [ ] **Step 1: Add split-math regression**
+- [x] **Step 1: Add split-math regression**
 
 For the valid split fixture from Task 1 require:
 
@@ -248,13 +250,13 @@ assert series.lease_liability_growth[1] == pytest.approx(0.20)
 assert series.lease_liability_to_revenue[0] == pytest.approx(0.10)
 ```
 
-- [ ] **Step 2: Add period-completeness regression for each split side**
+- [x] **Step 2: Add period-completeness regression for each split side**
 
 Delete the second period from only the current component, then only the non-current component. In both cases require `MissingHistoricalValueError` from `compute_lease_liability_series()`.
 
 The missing side/period must never be treated as zero.
 
-- [ ] **Step 3: Run split math red**
+- [x] **Step 3: Run split math red**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_lease_liability.py \
@@ -262,7 +264,7 @@ PYTHONPATH=. pytest core/tests/test_lease_liability.py \
   -v
 ```
 
-- [ ] **Step 4: Implement period-by-period source summation**
+- [x] **Step 4: Implement period-by-period source summation**
 
 Use the resolver source:
 
@@ -282,7 +284,7 @@ lease_vals = tuple(
 
 Use the repository's existing line-resolution error class rather than inventing a second error hierarchy. Keep all existing ratio/change/growth logic unchanged.
 
-- [ ] **Step 5: Prove aggregate behavior is unchanged**
+- [x] **Step 5: Prove aggregate behavior is unchanged**
 
 Run the existing ordinary, zero-denominator, sign-preservation, and canonical-demo tests together with the new split tests:
 
@@ -308,7 +310,7 @@ Expected: aggregate fixtures produce the same numbers as before; standardized sp
 - Do not change the lease component catalog or semantic component IDs.
 - `lease_liability_source_link` remains the learner-facing total lease-liability source-link family.
 
-- [ ] **Step 1: Add split-builder applicability regression**
+- [x] **Step 1: Add split-builder applicability regression**
 
 Build a workbook from the valid standardized split fixture and require lease components to exist:
 
@@ -320,7 +322,7 @@ assert builder.lease_liability_specs
 
 For a two-period fixture, require all four existing lease families to be present in the semantic map; do not create current/non-current learner families in this step.
 
-- [ ] **Step 2: Add exact split source-link formula regression**
+- [x] **Step 2: Add exact split source-link formula regression**
 
 Open the Answer Key/semantic map and locate `lease_liability_source_link` for each modeled period. Require its formula to reference both exact Balance Sheet source rows and add them, for example semantically:
 
@@ -332,7 +334,7 @@ Do not hard-code row numbers in the production implementation; derive them from 
 
 For a direct aggregate source, retain the existing one-cell link formula.
 
-- [ ] **Step 3: Add split trusted-source tamper regression**
+- [x] **Step 3: Add split trusted-source tamper regression**
 
 For a split-source Trainer:
 
@@ -342,7 +344,7 @@ For a split-source Trainer:
 
 Both balance-sheet components are trusted source cells. The aggregate diagnostic formula is derived from them; no hidden pasted total is allowed.
 
-- [ ] **Step 4: Run builder tests red**
+- [x] **Step 4: Run builder tests red**
 
 ```bash
 PYTHONPATH=. pytest \
@@ -354,7 +356,7 @@ PYTHONPATH=. pytest \
 
 Expected before implementation: Python may resolve the split after Task 2, but workbook construction still assumes one `_resolved_source_row(..., "lease_liability")` and cannot emit the correct two-row formula.
 
-- [ ] **Step 5: Implement one formula path for one-or-many lease source rows**
+- [x] **Step 5: Implement one formula path for one-or-many lease source rows**
 
 Replace the single-row lease source lookup in the lease-context builder with the shared resolver.
 
@@ -376,7 +378,7 @@ Prefer the existing `workbook_row_for()` helper if it can be reused cleanly with
 
 The Python series and Excel formula must be based on the same source descriptor so they cannot diverge.
 
-- [ ] **Step 6: Run Task 3 green**
+- [x] **Step 6: Run Task 3 green**
 
 ```bash
 PYTHONPATH=. pytest \
@@ -401,7 +403,7 @@ PYTHONPATH=. pytest \
 - Use the canonical Fast Retailing standardized payload already committed.
 - Do not add a Fast Retailing-specific source resolver.
 
-- [ ] **Step 1: Assert the canonical split identities and FY2025 values**
+- [x] **Step 1: Assert the canonical split identities and FY2025 values**
 
 Locate by `LineItem.concept`, not row order, and require:
 
@@ -420,7 +422,7 @@ assert series.lease_liability[-1] == pytest.approx(513500.0)
 
 Do not alter standardized.json to make this pass.
 
-- [ ] **Step 2: Assert Note 17 remains separate evidence**
+- [x] **Step 2: Assert Note 17 remains separate evidence**
 
 Read the committed Fast Retailing provenance artifact in the acceptance test and locate the FY2025 reported `lease_liability_total` note fact. Require its value to remain `513501` and require the standardized balance-sheet diagnostic total to remain `513500`.
 
@@ -434,7 +436,7 @@ one-unit difference is preserved, not plugged or silently substituted
 
 Do not add provenance-reading behavior to production `ReferenceModelBuilder` in this step; this comparison is benchmark/audit evidence only.
 
-- [ ] **Step 3: Assert Fast Retailing workbook lease module activation**
+- [x] **Step 3: Assert Fast Retailing workbook lease module activation**
 
 Build `ReferenceModelBuilder(fin)` and require:
 
@@ -451,13 +453,13 @@ assert len(builder.expected_specs) == 312
 
 If this arithmetic does not hold, stop and inspect the family inventory rather than updating the number blindly.
 
-- [ ] **Step 4: Preserve separate lease judgment cases**
+- [x] **Step 4: Preserve separate lease judgment cases**
 
 Require Fast Retailing still produces two distinct lease classification judgment cases, one for the current row and one for the non-current row, with different identity selectors.
 
 The raw diagnostic total must remain `513500` regardless of whether the learner later classifies either row as operating or financial; the diagnostic reports the obligation amount, not its reformulation category.
 
-- [ ] **Step 5: Run Fast Retailing acceptance tests**
+- [x] **Step 5: Run Fast Retailing acceptance tests**
 
 ```bash
 PYTHONPATH=. pytest \
@@ -481,7 +483,7 @@ Expected after Tasks 1–3: the Fast Retailing lease module is now present, sour
 - Existing `run_audit()` remains the integration acceptance path.
 - The Step 9M.2D audit already proves Stages 1–7 pass with 294 components and no lease module.
 
-- [ ] **Step 1: Update the Fast Retailing audit regression for G3 activation**
+- [x] **Step 1: Update the Fast Retailing audit regression for G3 activation**
 
 Require Stages 1–7 to continue passing. At Stage 4 require lease specs to be present. At blank/filled Check require totals to include the newly active lease components.
 
@@ -494,7 +496,7 @@ blank Check:  correct=0 incorrect=0 blank=312 total=312
 filled Check: correct=312 incorrect=0 blank=0 total=312
 ```
 
-- [ ] **Step 2: Run the staged audit**
+- [x] **Step 2: Run the staged audit**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
@@ -511,7 +513,7 @@ filled Check counts
 first failing stage/exception, if any
 ```
 
-- [ ] **Step 3: Stop on any newly exposed execution defect**
+- [x] **Step 3: Stop on any newly exposed execution defect**
 
 If the newly active lease formulas expose a workbook/Check bug, fix it only if it is directly caused by the aggregate-or-split source contract in this checkpoint.
 
@@ -531,7 +533,7 @@ Do not use this checkpoint to begin G4 lease-interest accounting, G5 parent/NCI 
 - Documentation reports literal measured results only.
 - Source/reconciliation artifacts remain read-only.
 
-- [ ] **Step 1: Update G3 from measured evidence**
+- [x] **Step 1: Update G3 from measured evidence**
 
 If all Task 4/5 acceptance criteria pass, mark G3 closed and document:
 
@@ -546,11 +548,11 @@ no plug / no note substitution / no source mutation
 
 Keep G4 explicitly open. State that this step changes only the historical liability diagnostic source contract; it does not condition interest expense/income on lease classification treatment.
 
-- [ ] **Step 2: Update BASELINE.md from the real audit**
+- [x] **Step 2: Update BASELINE.md from the real audit**
 
 Record the actual Stage 1–7 state, active component counts, and lease module applicability after the change. Do not copy expected counts from this plan unless the final command output confirms them.
 
-- [ ] **Step 3: Update RESULT.md with literal verification evidence**
+- [x] **Step 3: Update RESULT.md with literal verification evidence**
 
 Record:
 
@@ -568,7 +570,7 @@ G4–G7: open
 forecast/valuation isolation: pass/fail
 ```
 
-- [ ] **Step 4: Run the focused G3 suite**
+- [x] **Step 4: Run the focused G3 suite**
 
 ```bash
 PYTHONPATH=. pytest \
@@ -580,7 +582,7 @@ PYTHONPATH=. pytest \
 
 Expected: all pass. Record the actual count.
 
-- [ ] **Step 5: Run the full historical regression suite**
+- [x] **Step 5: Run the full historical regression suite**
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
@@ -588,7 +590,7 @@ PYTHONPATH=. pytest core/tests/ -q
 
 Expected: all pass. Record the actual count.
 
-- [ ] **Step 6: Verify source/reconciliation artifacts did not drift**
+- [x] **Step 6: Verify source/reconciliation artifacts did not drift**
 
 ```bash
 git diff -- \
@@ -607,7 +609,7 @@ primary-statement overlap conflicts = 3
 supplemental conflicts = 3
 ```
 
-- [ ] **Step 7: Verify no unrelated workbook fixture drift**
+- [x] **Step 7: Verify no unrelated workbook fixture drift**
 
 ```bash
 git diff -- \
@@ -618,11 +620,11 @@ git diff -- \
 
 Expected: no output. Do not regenerate committed demo workbooks merely because the real-company active component count increases.
 
-- [ ] **Step 8: Verify forecasting/valuation isolation**
+- [x] **Step 8: Verify forecasting/valuation isolation**
 
 Run the existing historical isolation regression used in prior checkpoints. Normal Step 9 builds must not call scenario/forecast/valuation paths.
 
-- [ ] **Step 9: Run the Fast Retailing audit as the final behavioral gate**
+- [x] **Step 9: Run the Fast Retailing audit as the final behavioral gate**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
@@ -630,7 +632,7 @@ PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
 
 Require deterministic agreement with Task 5. If stage/count behavior changes without code/data changes, stop and investigate rather than documenting either run.
 
-- [ ] **Step 10: Mark Step 9M.3A complete only with fresh evidence**
+- [x] **Step 10: Mark Step 9M.3A complete only with fresh evidence**
 
 Only after Steps 4–9 succeed:
 
@@ -639,6 +641,6 @@ add a compact status line at the top of IMPLEMENTATION.md
 update RESULT.md / GAPS.md / BASELINE.md with literal results
 ```
 
-- [ ] **Step 11: Stop**
+- [x] **Step 11: Stop**
 
 Do not implement G4 in this checkpoint. Return the implementation/test summary to the user so they can run `checkpoint`. ChatGPT should then review the checkpoint and decide whether G4 lease-interest consistency or G5 NCI attribution is the next highest-value historical step.
