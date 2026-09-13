@@ -133,7 +133,7 @@ Forward GOOGL sheets (Guidance & Consensus, Model_*, Scenario_Summary, Implied C
 
 ### Priority A — historically useful and current-data-supported
 
-1. **Next:** Bounded goodwill / intangible-asset intensity & change diagnostics (and optional intangible-payments bridge) when unique BS/CF concepts resolve — **without** acquisition-cash or GW-impairment narratives unless those lines are separately supplied.
+1. **Next:** Bounded goodwill / intangible-asset intensity & change diagnostics (and optional intangible-payments bridge) after explicit concept registration for `goodwill` / `intangible_assets` / optional `payments_for_intangible_assets` (not yet in `resolve_line`) — **without** acquisition-cash or GW-impairment narratives unless those lines are separately supplied.
 2. Lease ROU-asset intensity / trend diagnostics when unique `right_of_use_assets` resolves (liability aggregation foundation is done).
 3. SBC expense bridge into dilution / per-share interpretation when CF SBC + share history are supplied (not present on Fast Retailing or ordinary DEMO today).
 4. Deferred-tax balance / net-position diagnostics when unique DTA/DTL (and/or explicit tax-adjustment candidates) are supplied.
@@ -162,8 +162,10 @@ Forward GOOGL sheets (Guidance & Consensus, Model_*, Scenario_Summary, Implied C
 
 ### Resolvers / classification today
 
-- `resolve_line(..., "goodwill"|"intangible_assets"|"payments_for_intangible_assets")` can bind unique concept rows; no dedicated goodwill/intangibles diagnostic module exists.
-- Classification treats goodwill/intangible tokens as operating long-term asset family material; that is structural classification only, not an acquisition bridge.
+- `resolve_line(..., "goodwill"|"intangible_assets"|"payments_for_intangible_assets")` does **not** resolve today. All three raise `ValueError("Unknown financial concept: ...")` because `core/model/line_resolver.py` rejects unregistered concepts before matching `LineItem.concept`, including when `required=False`.
+- Supplied concept-tagged BS/CF facts (e.g. Fast Retailing `reconciled/standardized.json`) are source identity only — they are not implemented `resolve_line` support.
+- Classification may treat goodwill/intangible label tokens as operating long-term asset family material; that is structural classification only, not concept resolution and not an acquisition bridge.
+- No dedicated goodwill/intangibles diagnostic module exists.
 - No resolver invents business-acquisition cash, goodwill impairment allocation, or acquired-vs-internally-developed splits.
 
 ### Fast Retailing supplied facts (`reconciled/standardized.json`)
@@ -181,13 +183,25 @@ Units: **JPY in Millions**. Periods: FY2021–FY2025 (`2021-08-31` … `2025-08-
 
 **Unsupported / must not invent:** business-combination acquisition cash (no subsidiaries/businesses acquisition CF concept present); goodwill impairment or acquisition accounting explanations; linking `impairment_losses` to goodwill (goodwill is flat across FY2021–FY2025 while impairment fluctuates); acquired-vs-internally-generated intangible split; purchase-price allocation.
 
-Illustrative DEMO supplies only a flat unlabeled Goodwill row (no intangibles / no acquisition CF) — any new module must omit itself there unless concepts resolve.
+Illustrative DEMO supplies only a flat unlabeled Goodwill row (no intangibles / no acquisition CF) — any new module must omit itself there unless explicit concepts resolve after the resolution prerequisite below.
 
 ### Verdict on prior Priority A item 1 (full acquisition-cash diagnostics)
 
 The **full** “goodwill / acquired intangibles / acquisition-cash” package **lacks** acquisition-cash and GW-movement facts on Fast Retailing. Do **not** implement acquisition or impairment storytelling.
 
 The **bounded** balance + optional intangible-payments intensity module **is** source-supported and remains the single next implementation candidate.
+
+### Resolution prerequisite (required future work — not current behavior)
+
+Before the candidate module can gate on resolved lines, register and implement **explicit concept resolution** in `core/model/line_resolver.py` for:
+
+1. BS `goodwill`
+2. BS `intangible_assets`
+3. optional CF `payments_for_intangible_assets`
+
+**Proposed matching rule:** unique exact `LineItem.concept` match only — **no** label-alias or safe-pattern fallback for these three. Missing or ambiguous inputs follow the candidate’s omission rules below.
+
+The minimum input contract and omission behavior in this section are **proposed requirements** for that future work. They do **not** describe current `resolve_line` behavior (which still rejects all three as unknown).
 
 ---
 
@@ -197,7 +211,9 @@ The **bounded** balance + optional intangible-payments intensity module **is** s
 
 ### Minimum input contract
 
-Module applicable when **at least one** of the following resolves uniquely on the balance sheet:
+*(Proposed — requires the resolution prerequisite above; not current resolver behavior.)*
+
+Module applicable when **at least one** of the following resolves uniquely on the balance sheet via explicit concept match:
 
 1. `goodwill`
 2. `intangible_assets`
@@ -209,6 +225,8 @@ Optional enhancement (same module, additional families only when present):
 Revenue for intensity ratios comes from existing anchor revenue (already required elsewhere). No new market or forecast inputs.
 
 ### Missing / ambiguous-input behavior
+
+*(Proposed — requires the resolution prerequisite above; not current resolver behavior.)*
 
 - Neither `goodwill` nor `intangible_assets` unique → **omit entire module** (fail closed; no label fallback).
 - Only one of GW / intangibles resolves → emit families only for the resolving line(s).
