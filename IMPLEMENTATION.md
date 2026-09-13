@@ -1,40 +1,34 @@
-# Step 9M.6 — Lease ROU-Asset Intensity & Trends
+# Step 9M.6 — Workbook Acceptance Verification
 
-**Base:** `8003cc1089135b005bde209197a09a3944453d67`
+**Base:** `5240f6b1b2cdd2cc0be017e401d4df6a527300b4`
 
-**Goal:** Add source-gated historical right-of-use asset diagnostics to ALT DuPont and workbook-wide Check.
+**Goal:** Verify the lease ROU-asset implementation and workbook integration in a writable environment.
 
-### Task 1: Define ROU resolution and calculations
+### Task 1: Run the acceptance suite
 
-**Files:** `core/model/line_resolver.py`, new `core/model/lease_rou.py`
+- [ ] Run in a writable checkout with writable temporary storage:
+  `python -m pytest core/tests/test_lease_rou.py core/tests/test_lease_liability.py core/tests/test_goodwill_intangibles.py core/tests/test_fast_retailing_benchmark.py core/tests/test_reference_workbook_audit.py core/tests/test_cross_company_robustness.py`
+- [ ] Record the tested SHA, pass/fail/skip counts, and any failures.
 
-- [x] Resolve BS `right_of_use_assets` by unique exact concept only; omit the module for absent, label-only, or ambiguous matches.
-- [x] Require reported values for every historical period through `required_period_value`; incomplete resolved history raises the existing missing-value error.
-- [x] Compute change, growth, average ROU assets, and average ROU assets/revenue. Use existing chronological-period and undefined-ratio conventions.
-- [x] Keep applicability independent of lease-liability availability and classification treatment.
+### Task 2: Verify workbook and benchmark results
 
-### Task 2: Integrate workbook practice and Check
+- [ ] Confirm semantic mapping survives source-row reordering and all four first-period ROU diagnostics have `.value is None` in both workbooks.
+- [ ] Confirm ROU source balances remain populated; later-period Trainer practice cells are blank yellow without Notes, and matching Answer-Key cells contain formulas and non-empty Notes.
+- [ ] Confirm blank/correct/incorrect Check behavior remains non-disclosing.
+- [ ] Confirm Fast Retailing FY2025 ROU assets are `477111`, ROU practice count is `16`, and total `expected_specs` is `454`.
+- [ ] Confirm Fast Retailing Check reports correct/incorrect/blank counts of `0/0/454` before filling and `454/0/0` after filling.
+- [ ] Confirm existing DEMO, goodwill/intangibles, and lease-liability practice counts remain unchanged.
 
-**Files:** `core/engine/component_catalog.py`, `core/engine/reference_model.py`, `core/model/historical_expected.py`, `core/trainer/checker.py`
+### Task 3: Record verified acceptance
 
-- [x] Add `LEASE ROU-ASSET CONTEXT` to ALT DuPont with populated source-linked balances.
-- [x] Register four semantic practice families: `rou_assets_change`, `rou_assets_growth`, `average_rou_assets`, and `rou_assets_to_revenue`; intensity uses average ROU assets/current revenue.
-- [x] Leave all four first-period diagnostics genuinely blank in both workbooks and outside practice; register later periods only.
-- [x] Connect expected series to Check. Preserve blank yellow Trainer practice cells without Notes and matching Answer-Key formulas with concise Notes.
-- [x] Explain intensity as balance context; exclude lease-payment, discount-rate, amortization, and liability-reconciliation calculations.
+**File:** `IMPLEMENTATION.md`
 
-### Task 3: Verify synthetic and real-company behavior
+- [ ] Record actual suite results and unresolved failures or environment blockers.
+- [ ] Run `git diff --check`.
 
-**Files:** new `core/tests/test_lease_rou.py`, `core/tests/test_fast_retailing_benchmark.py`, `scripts/audit_fast_retailing_benchmark.py`, `benchmark/fast_retailing/BASELINE.md`, `docs/GOOGL_HISTORICAL_REFERENCE.md`
+### Acceptance criteria
 
-- [x] Cover unique, absent, label-only, duplicate, and incomplete ROU inputs; zero prior balance, zero revenue, and one-period history.
-- [x] Assert numerical calculations, semantic mapping after source-row reordering, first-period `.value is None`, populated balances, formula/Note parity, and blank/correct/incorrect non-disclosing Check behavior.
-- [x] Verify activation without lease liabilities and omission without changing existing DEMO practice counts.
-- [x] Verify Fast Retailing FY2025 ROU assets equal supplied `477111`; five-year history adds 16 practice cells, taking `expected_specs` from 438 to 454.
-- [x] Add ROU availability/count reporting, refresh benchmark assertions and measured baseline, and mark this bounded gap implemented in the reference audit.
-
-### Validation and acceptance
-
-- [x] Run `python -m pytest core/tests/test_lease_rou.py core/tests/test_lease_liability.py core/tests/test_goodwill_intangibles.py core/tests/test_fast_retailing_benchmark.py core/tests/test_reference_workbook_audit.py core/tests/test_cross_company_robustness.py`.
-- [x] Run `git diff --check`.
-- [x] Fast Retailing blank Check reports `0/0/454`; filled Check reports `454/0/0`; existing goodwill/intangibles and lease-liability counts remain unchanged.
+- The complete acceptance suite passes, including workbook integration tests; required coverage is not skipped or blocked.
+- Workbook parity, ROU source gating, practice counts, and Check assertions pass.
+- `git diff --check` passes.
+- Completion is recorded only after writable-environment verification succeeds.
