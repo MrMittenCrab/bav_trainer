@@ -1,61 +1,42 @@
-# Step 9M.7 — Deferred-Tax Balance Diagnostics
+# Step 9M.8 — Capex Source and Sign Contract
 
-**Base:** `cb17c496a82413b40a9d51208a115b9f0e33013d`
+**Base:** `5a01a8bd5964a9dfab7b929696767cf0e20ef68f`
 
-**Goal:** Add source-gated deferred-tax balance diagnostics using Fast Retailing’s supplied DTA/DTL history.
+**Goal:** Establish tested source resolution and sign conversion for the planned `payments_for_ppe` capex module.
 
-### Task 1: Define the source contract and calculations — DONE
+### Task 1: Implement the source and sign contract
 
-**Files:** `core/model/deferred_tax.py` (new), `core/model/line_resolver.py`
+**Files:** `core/model/line_resolver.py`, `core/model/capex.py` (new)
 
-- Resolve BS `deferred_tax_assets` and `deferred_tax_liabilities` by unique exact concept only.
-- Require both sources; missing or ambiguous sources omit the entire module. Missing modeled-period values raise `MissingHistoricalValueError`; never substitute zero.
-- Compute signed net deferred-tax asset position as DTA − DTL for every period.
-- Compute period changes in DTA, DTL, and net position; first-period changes are `None`.
-- Preserve reported signs. Do not infer deferred-tax expense, cash-tax effects, recoverability, or legal offset eligibility.
+- Register `payments_for_ppe` as explicit-concept-only, following existing resolver normalization; no label or pattern fallback.
+- Resolve only from `StandardizedFinancials.cash_flow`. Follow existing optional-module source, applicability, and series conventions.
+- Missing or duplicate sources make the module unavailable; direct computation without a usable source raises `MissingLineError`.
+- Read each requested period through `required_period_value`; missing values raise `MissingHistoricalValueError`, while explicit zero remains valid.
+- Expose `payments_reported` and `ppe_capex` series. Preserve source values and calculate `ppe_capex = -payments_reported`.
+- Define input as signed cash flow: negative payments become positive expenditure; positive reported values remain negative analytical capex. Never use absolute values or infer sign from the series.
+- Do not infer capex from investing totals, PP&E movements, D&A, intangible purchases, or lease payments.
 
-### Task 2: Integrate workbook practice and Check — DONE
+### Task 2: Test resolution and sign behavior
 
-**Files:** `core/engine/component_catalog.py`, `core/engine/reference_model.py`, `core/model/historical_expected.py`, `core/trainer/checker.py`
+**Files:** `core/tests/test_capex.py` (new), `core/tests/test_line_resolver.py`
 
-- Follow existing optional-module conventions with `deferred_tax` semantic keys and specs.
-- Add `DEFERRED-TAX BALANCE CONTEXT` on ALT DuPont with populated DTA/DTL source links and four practice families: net position and the three changes.
-- Label net position as analytical DTA less DTL; Notes must distinguish balance movements from tax expense or cash taxes.
-- Register semantic formulas, expected values, and workbook-wide Check coverage.
-- Keep first-period change cells genuinely empty in both workbooks; preserve Trainer/Answer-Key parity, yellow practice cells, and Answer-Key-only formulas and Notes.
+- Cover unique concept resolution, renamed labels, reordered rows, absent concepts, label-only matches, duplicates, and concepts supplied in the wrong statement.
+- Cover negative, positive, mixed-sign, and explicit-zero values; missing and `None` period values; requested-period ordering; and unchanged input data.
+- Load the existing Fast Retailing standardized fixture and verify FY2021–FY2025 capex equals `56500`, `51271`, `61764`, `73728`, `135535`.
+- Run `python -m pytest core/tests/test_capex.py core/tests/test_line_resolver.py core/tests/test_goodwill_intangibles.py core/tests/test_fast_retailing_benchmark.py`.
 
-### Task 3: Verify calculations, gating, and workbook behavior — DONE
+### Task 3: Document the bounded contract
 
-**Files:** `core/tests/test_deferred_tax.py` (new), `core/tests/test_fast_retailing_benchmark.py`, `scripts/audit_fast_retailing_benchmark.py`
+**Files:** `docs/GOOGL_HISTORICAL_REFERENCE.md`, `IMPLEMENTATION.md`
 
-- Cover absent, partial, duplicate, label-only, missing-period, and explicit-zero sources; signed net liabilities; source-row reordering; and first-period blanks.
-- Verify source balances remain populated and Check handles blank/correct/incorrect responses without disclosing answers.
-- Verify FY2025 DTA `40889`, DTL `22539`, net position `18350`, and net-position change `17814`.
-- Verify Fast Retailing adds 17 practice cells: `deferred_tax_specs=17`, `expected_specs=471`; blank Check `0/0/471`, filled Check `471/0/0`.
-- Verify existing DEMO counts and other module counts remain unchanged.
-- Run `python -m pytest core/tests/test_deferred_tax.py core/tests/test_fast_retailing_benchmark.py core/tests/test_lease_rou.py core/tests/test_goodwill_intangibles.py core/tests/test_reference_workbook_audit.py core/tests/test_cross_company_robustness.py`.
-
-### Task 4: Record coverage and acceptance — DONE
-
-**Files:** `docs/GOOGL_HISTORICAL_REFERENCE.md`, `benchmark/fast_retailing/BASELINE.md`, `IMPLEMENTATION.md`
-
-- Update deferred-tax coverage and record measured benchmark results.
-- Replace the unsupported SBC next-candidate entry with the remaining source-supported capex candidate; retain evidence-based deferrals.
-- Record tested SHA, pass/fail/skip counts, and blockers; run `git diff --check`.
+- Record source gating, missing-period behavior, and the signed-cash-flow conversion contract.
+- Mark the capex source contract complete only after verification; retain workbook capex practice as pending.
+- Keep Revenue and optional PP&E dependencies reserved for subsequent analytical ratios and context.
+- Record actual test results and blockers; run `git diff --check`.
 
 ### Acceptance criteria
 
-- Deferred-tax practice activates only under the defined source contract and passes calculation, workbook, and Check tests.
-- Required tests pass without skipped workbook verification; benchmark counts match measured results.
-- Source facts, retained conflicts, and existing accounting treatments remain unchanged.
-- Forecasting and valuation remain deferred while source-supported Step 9 gaps remain.
-
-### Verification (measured)
-
-- **Tested working tree on HEAD:** `4838e0fc982fcc70f2ce5ac7fb31929c84b98770` (uncommitted Step 9M.7 implementation)
-- **Required pytest:** `67 passed, 0 failed, 0 skipped`
-- **Fast Retailing audit:** all stages pass; `deferred_tax_specs=17`, `expected_specs=471`; blank Check `0/0/471`; filled Check `471/0/0`
-- **FY2025 anchors:** DTA `40889`, DTL `22539`, net `18350`, net-change `17814`
-- **`git diff --check`:** clean
-- **Blockers:** none
-- **Next candidate:** Capex / reinvestment bridge (`payments_for_ppe`); SBC remains deferred (no Fast Retailing / DEMO SBC line)
+- Capex resolution fails closed for missing or ambiguous sources and never substitutes missing historical values.
+- Sign tests and Fast Retailing anchors pass without changing source facts or provenance.
+- Workbook generation, semantic practice registration, Check coverage, and benchmark practice counts remain unchanged.
+- This step adds no ratios, reinvestment bridge, workbook practice, forecasting, or valuation.
