@@ -49,7 +49,16 @@ Accounting Judgment / Normalization Judgment treatment choices can change downst
 ## Inputs and scope
 
 - Non-financial operating companies only
-- Manual historical JSON or Excel / Bloomberg / Wind-style exports
+- Filing-based handoff:
+
+```text
+PDF/filing → extracted JSON per filing → validate-source → reconcile → build
+```
+
+- `validate-source` / `reconcile` consume one extracted JSON per filing and write
+  `standardized.json` + audit artifacts; `build` still takes standardized JSON
+- Manual standardized JSON or Excel / Bloomberg / Wind-style exports remain supported
+- Automatic PDF/AI extraction is not part of the CLI yet
 - Actual historical share data is required for per-share modules
 - Missing optional data omits the corresponding module rather than inventing facts
 

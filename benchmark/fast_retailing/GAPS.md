@@ -82,7 +82,7 @@ Categories:
 - **Exact conflicts (3 remaining after correcting a 2021 NCI USD misparse):**
   - FY2022 basic/diluted EPS yen amounts restated in CFS2023 vs CFS2022 presentation.
   - FY2024 CF “Others, net” (financing) differs between CFS2024 and CFS2025 comparatives.
-- **Source facts:** recorded in `provenance.json` → `conflicts`.
+- **Source facts:** recorded in `reconciled/conflicts.json` (and mirrored conflict count in provenance).
 - **Synthetic coverage:** none for audited restatement overlaps.
 - **Why generalizable:** Latest-audited-presentation must remain explicit; silent overwrites are forbidden.
 

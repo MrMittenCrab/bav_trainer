@@ -1,0 +1,103 @@
+{
+  "company_name": "FAST RETAILING CO., LTD.",
+  "conflicts": [
+    {
+      "observations": [
+        {
+          "filing_year": 2024,
+          "pdf_page": 5,
+          "presentation_role": "current_period",
+          "source_file": "Fastretailing_CFS2024.pdf",
+          "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de",
+          "value": 85
+        },
+        {
+          "filing_year": 2025,
+          "pdf_page": 5,
+          "presentation_role": "comparative",
+          "source_file": "Fastretailing_CFS2025.pdf",
+          "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
+          "value": 63
+        }
+      ],
+      "period": "2024-08-31",
+      "reason": "later_audited_presentation",
+      "row_identity": "cash_flow||others, net|others_net_financing",
+      "selected": {
+        "filing_year": 2025,
+        "pdf_page": 5,
+        "presentation_role": "comparative",
+        "source_file": "Fastretailing_CFS2025.pdf",
+        "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f",
+        "value": 63
+      },
+      "statement": "cash_flow"
+    },
+    {
+      "observations": [
+        {
+          "filing_year": 2022,
+          "pdf_page": 3,
+          "presentation_role": "current_period",
+          "source_file": "Fastretailing_CFS2022.pdf",
+          "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+          "value": 2675.3
+        },
+        {
+          "filing_year": 2023,
+          "pdf_page": 3,
+          "presentation_role": "restated_comparative",
+          "source_file": "Fastretailing_CFS2023.pdf",
+          "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+          "value": 891.77
+        }
+      ],
+      "period": "2022-08-31",
+      "reason": "restated_comparative_precedence",
+      "row_identity": "income_statement||basic (yen, dollar)|basic_eps",
+      "selected": {
+        "filing_year": 2023,
+        "pdf_page": 3,
+        "presentation_role": "restated_comparative",
+        "source_file": "Fastretailing_CFS2023.pdf",
+        "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+        "value": 891.77
+      },
+      "statement": "income_statement"
+    },
+    {
+      "observations": [
+        {
+          "filing_year": 2022,
+          "pdf_page": 3,
+          "presentation_role": "current_period",
+          "source_file": "Fastretailing_CFS2022.pdf",
+          "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa",
+          "value": 2671.29
+        },
+        {
+          "filing_year": 2023,
+          "pdf_page": 3,
+          "presentation_role": "restated_comparative",
+          "source_file": "Fastretailing_CFS2023.pdf",
+          "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+          "value": 890.43
+        }
+      ],
+      "period": "2022-08-31",
+      "reason": "restated_comparative_precedence",
+      "row_identity": "income_statement||diluted (yen, dollar)|diluted_eps",
+      "selected": {
+        "filing_year": 2023,
+        "pdf_page": 3,
+        "presentation_role": "restated_comparative",
+        "source_file": "Fastretailing_CFS2023.pdf",
+        "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6",
+        "value": 890.43
+      },
+      "statement": "income_statement"
+    }
+  ],
+  "overlap_conflict_count": 3,
+  "ticker": "6288.HK"
+}

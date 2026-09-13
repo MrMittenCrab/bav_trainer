@@ -65,15 +65,26 @@ Answer Key = formula + Note on formula cells; model treatment/rationale/conseque
 ## Architecture
 
 ```
-Manual HK documents / Excel exports
-        ↓  HKManualDocumentAdapter (StandardizedFinancials)
-        ↓  reconcile + reformulation integrity (blocking)
+Source filings (PDF/docs)
+        ↓  LLM-assisted or manual extraction → one ExtractedFiling JSON v1.0 per filing
+        ↓  python -m core validate-source  (BAV computes source SHA-256; no PDF parsing)
+        ↓  python -m core reconcile        → standardized.json + provenance/conflicts
+        ↓  build consumes StandardizedFinancials only
+        ↓  reformulation integrity (blocking)
 ReferenceModelBuilder → multi-period historical Answer Key
         ↓  TrainingWorkbookGenerator (sanitize Trainer)
 *_Trainer.xlsx (blank yellow historical formulas; no answer metadata)
         ↓  python -m core check --workbook ...
 Workbook-wide yellow / green / red validation (no answers disclosed)
 ```
+
+Extraction records **what the filing says** (labels, sections, values, pages). BAV
+accounting classification / normalization / reformulation happens only after
+documentary extraction and reconciliation. Extractors must not invent source
+hashes; BAV binds `source_file` to SHA-256 during `validate-source`.
+
+Do **not** have an LLM fill `StandardizedFinancials` or Excel directly. Produce
+v1.0 filing JSON, then run the deterministic pipeline.
 
 Forecast/valuation sheet names exist only as **hidden deferred placeholders**. They are not active practice and are not listed by Check/`list`.
 
@@ -83,6 +94,12 @@ Forecast/valuation sheet names exist only as **hidden deferred placeholders**. T
 
 ```bash
 pip install -r requirements-trainer.txt
+
+# Preferred filing handoff (real-company / extracted fixtures):
+python -m core validate-source path/to/extracted --source-root path/to/source
+python -m core reconcile path/to/extracted --source-root path/to/source -o path/to/reconciled
+
+# Or load an already-standardized JSON / Excel export:
 python -m core ingest example/DEMO_HK_Standardized.json -o /tmp/demo_std.json
 ```
 

@@ -1,5 +1,7 @@
 # Step 9M.1 — Generic Filing-JSON Input + Reconciliation Contract
 
+**Status: Step 9M.1 complete** — focused input-pipeline tests 30 passed; full `core/tests/` suite 346 passed; Fast Retailing `validate-source` 5/5 OK (0 errors); `reconcile` deterministic (`overlap_conflicts=3`); CLI surface `{ingest, validate-source, reconcile, build, check, list}` (no `extract`); engine audit source/reconcile path OK with G1–G7 intentionally open for 9M.2; family orders `1..90` unchanged.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > **For Cursor:** Read `TARGET.md`, then `docs/superpowers/specs/2026-09-13-filing-json-input-design.md`, then `benchmark/fast_retailing/GAPS.md`, then this plan in full. The accepted implementation base is commit `3c3949fc64d06c3286acdeeae42dbf7ea05d9a31` (`Step 9M.0`). Implement only Step 9M.1. Use red/green TDD. Do not begin OpenAI API automation, forecasting, valuation, scenarios, or Step 9M.2 accounting fixes. Do not commit, push, reset, rebase, merge, or delete branches; the user owns checkpoint commits.
@@ -111,7 +113,7 @@ def extracted_filing_to_payload(filing: ExtractedFiling) -> dict:
     ...
 ```
 
-- [ ] **Step 1: Write a minimal valid-filing round-trip test**
+- [x] **Step 1: Write a minimal valid-filing round-trip test**
 
 Create a temporary FY2025 JSON fixture matching spec v1.0 with Revenue and one current lease-liability row. Require:
 
@@ -126,7 +128,7 @@ assert extracted_filing_to_payload(filing) == json.loads(path.read_text())
 
 The fixture should omit `source_sha256` to prove the extractor does not need to invent it.
 
-- [ ] **Step 2: Write parser rejection tests**
+- [x] **Step 2: Write parser rejection tests**
 
 Require `ValueError` for:
 
@@ -142,7 +144,7 @@ supplemental status outside reported/derived
 derived supplemental fact without derivation
 ```
 
-- [ ] **Step 3: Run the new tests red**
+- [x] **Step 3: Run the new tests red**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_filing_json.py -v
@@ -150,7 +152,7 @@ PYTHONPATH=. pytest core/tests/test_filing_json.py -v
 
 Expected: import/module failures because the contract does not exist yet.
 
-- [ ] **Step 4: Implement the dataclasses/enums**
+- [x] **Step 4: Implement the dataclasses/enums**
 
 Use exact enum values from the spec. `ALLOWED_UNIT_SCALES` is exactly:
 
@@ -166,13 +168,13 @@ Use exact enum values from the spec. `ALLOWED_UNIT_SCALES` is exactly:
 
 Statement arrays accept reported numeric values only. Missing periods are absent keys, not implicit zeroes.
 
-- [ ] **Step 5: Implement strict loader/serializer**
+- [x] **Step 5: Implement strict loader/serializer**
 
 Preserve original `label` and `section` strings. Convert only dates/enums/numeric values into typed representations. Do not call `normalize_label()` on stored documentary text.
 
 If optional `source_sha256` is absent, keep it empty internally and omit it again on serialization so round-trip shape is stable.
 
-- [ ] **Step 6: Run the focused tests green**
+- [x] **Step 6: Run the focused tests green**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_filing_json.py -v
@@ -222,7 +224,7 @@ def validate_extracted_filing(
     ...
 ```
 
-- [ ] **Step 1: Write computed source-hash tests**
+- [x] **Step 1: Write computed source-hash tests**
 
 Create a small fake source file and require:
 
@@ -246,7 +248,7 @@ An absent source file must produce:
 source_file_missing
 ```
 
-- [ ] **Step 2: Write duplicate-identity tests**
+- [x] **Step 2: Write duplicate-identity tests**
 
 The identity must distinguish:
 
@@ -261,7 +263,7 @@ but two rows with the same statement/section/label/suggested-concept must produc
 duplicate_source_row_identity
 ```
 
-- [ ] **Step 3: Write filing-period consistency tests**
+- [x] **Step 3: Write filing-period consistency tests**
 
 Every filing must contain at least one `current_period` observation equal to `filing.period_end`. A `current_period` observation for a different date is an error:
 
@@ -269,13 +271,13 @@ Every filing must contain at least one `current_period` observation equal to `fi
 current_period_mismatch
 ```
 
-- [ ] **Step 4: Run focused tests red**
+- [x] **Step 4: Run focused tests red**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_filing_json.py -v
 ```
 
-- [ ] **Step 5: Implement identity normalization**
+- [x] **Step 5: Implement identity normalization**
 
 Normalize only for matching:
 
@@ -292,13 +294,13 @@ Identity format:
 
 Original documentary strings remain unchanged in `ExtractedFiling`.
 
-- [ ] **Step 6: Implement validation without mutation**
+- [x] **Step 6: Implement validation without mutation**
 
 When `source_root` is provided, compute SHA-256 from `source_root / filing.source_file`. Compare it with `source_sha256` only when a declaration exists. Return the computed hash in the report for provenance.
 
 Validation reports issues; it never rewrites values, labels, units, hashes, or presentation roles.
 
-- [ ] **Step 7: Run focused tests green**
+- [x] **Step 7: Run focused tests green**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_filing_json.py -v
@@ -365,11 +367,11 @@ def reconcile_filings(
     ...
 ```
 
-- [ ] **Step 1: Write matching-comparative test**
+- [x] **Step 1: Write matching-comparative test**
 
 FY2024 current-period Revenue `100` and FY2025 comparative FY2024 Revenue `100` must produce one reconciled FY2024 value, retain two observations, and produce no conflict.
 
-- [ ] **Step 2: Write later-comparative conflict test**
+- [x] **Step 2: Write later-comparative conflict test**
 
 FY2024 current-period Revenue `100` and FY2025 comparative Revenue `101` must select the FY2025 observation and create exactly one conflict with reason:
 
@@ -377,7 +379,7 @@ FY2024 current-period Revenue `100` and FY2025 comparative Revenue `101` must se
 later_audited_presentation
 ```
 
-- [ ] **Step 3: Write restated-comparative precedence test**
+- [x] **Step 3: Write restated-comparative precedence test**
 
 Given:
 
@@ -393,11 +395,11 @@ require selection of `99` and conflict reason:
 restated_comparative_precedence
 ```
 
-- [ ] **Step 4: Write `prior_presentation` precedence test**
+- [x] **Step 4: Write `prior_presentation` precedence test**
 
 A `prior_presentation` observation must never override an otherwise valid current/comparative observation, even when it comes from a later filing.
 
-- [ ] **Step 5: Write metadata incompatibility tests**
+- [x] **Step 5: Write metadata incompatibility tests**
 
 Require hard `ValueError` before value selection when filings disagree on:
 
@@ -410,13 +412,13 @@ jurisdiction
 
 No currency/unit conversion exists in Step 9M.1.
 
-- [ ] **Step 6: Run reconciler tests red**
+- [x] **Step 6: Run reconciler tests red**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_filing_reconciler.py -v
 ```
 
-- [ ] **Step 7: Implement deterministic ranking**
+- [x] **Step 7: Implement deterministic ranking**
 
 Use:
 
@@ -433,7 +435,7 @@ Select by `(ROLE_RANK[role], filing_year)`. Equal-value observations remain prov
 
 Carry `computed_source_sha256` from each validation report into every `FilingObservation`; reconciliation must not ask the extractor to supply it.
 
-- [ ] **Step 8: Run reconciler tests green**
+- [x] **Step 8: Run reconciler tests green**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_filing_reconciler.py -v
@@ -468,7 +470,7 @@ def reconciliation_conflicts_payload(
     ...
 ```
 
-- [ ] **Step 1: Write complete-axis emission test**
+- [x] **Step 1: Write complete-axis emission test**
 
 For model periods FY2024/FY2025, a Revenue row observed for both periods must emit one `LineItem` with both values.
 
@@ -478,35 +480,35 @@ A row observed only for FY2025 must **not** enter `StandardizedFinancials`; it m
 status = omitted_incomplete_axis
 ```
 
-- [ ] **Step 2: Write concept-preservation test**
+- [x] **Step 2: Write concept-preservation test**
 
 A unique reconciled `suggested_concept="revenue"` must become `LineItem.concept == "revenue"`.
 
 The standardizer must not normalize/change the selected display label.
 
-- [ ] **Step 3: Write supplemental non-promotion test**
+- [x] **Step 3: Write supplemental non-promotion test**
 
 A reported note fact such as `lease_liability_total` remains provenance/supplemental evidence and is not automatically inserted into the Balance Sheet.
 
 A `derived` supplemental fact is likewise never promoted.
 
-- [ ] **Step 4: Write historical-share gating test**
+- [x] **Step 4: Write historical-share gating test**
 
 Only a full-axis explicit reported series of `diluted_weighted_average_shares` with a single consistent scale basis may produce `HistoricalShareData`.
 
 If FY2021/FY2022 are missing or only basic/dilutive components exist, `historical_shares` must remain `None`.
 
-- [ ] **Step 5: Run tests red**
+- [x] **Step 5: Run tests red**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_filing_reconciler.py -v
 ```
 
-- [ ] **Step 6: Implement standardization**
+- [x] **Step 6: Implement standardization**
 
 Use the existing `StandardizedFinancials`, `FinancialPeriod`, `LineItem`, `HistoricalShareData`, and `standardized_to_payload()` without adding source/provenance fields to the model-only serializer.
 
-- [ ] **Step 7: Implement deterministic audit payloads**
+- [x] **Step 7: Implement deterministic audit payloads**
 
 `provenance.json` must include every observation, computed source SHA-256, selected observation, selection rule, omitted incomplete-axis rows, note facts, and share facts.
 
@@ -514,7 +516,7 @@ Use the existing `StandardizedFinancials`, `FinancialPeriod`, `LineItem`, `Histo
 
 Sort output deterministically by statement, row identity, period, and filing year.
 
-- [ ] **Step 8: Run tests green**
+- [x] **Step 8: Run tests green**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_filing_reconciler.py -v
@@ -539,7 +541,7 @@ reconcile
 
 Do not add `extract` in Step 9M.1.
 
-- [ ] **Step 1: Write CLI parser/help tests**
+- [x] **Step 1: Write CLI parser/help tests**
 
 Require `python -m core --help` to contain:
 
@@ -553,7 +555,7 @@ list
 
 Existing commands remain available.
 
-- [ ] **Step 2: Write `validate-source` success/failure tests**
+- [x] **Step 2: Write `validate-source` success/failure tests**
 
 For a directory of valid extracted JSON files:
 
@@ -565,7 +567,7 @@ must exit `0`, compute source hashes, and print one compact summary.
 
 A declared-hash mismatch must exit nonzero and identify `source_hash_mismatch` without rewriting files.
 
-- [ ] **Step 3: Write `reconcile` artifact test**
+- [x] **Step 3: Write `reconcile` artifact test**
 
 ```bash
 python -m core reconcile <extracted-dir> --source-root <source-dir> -o <out-dir>
@@ -581,25 +583,25 @@ conflicts.json
 
 for the reconciliation outputs.
 
-- [ ] **Step 4: Run CLI tests red**
+- [x] **Step 4: Run CLI tests red**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_filing_cli.py -v
 ```
 
-- [ ] **Step 5: Implement shared directory loading**
+- [x] **Step 5: Implement shared directory loading**
 
 Only load `*.json` regular files in lexical order. Reject an empty directory. Do not recursively search arbitrary directories in v1.
 
-- [ ] **Step 6: Implement `validate-source`**
+- [x] **Step 6: Implement `validate-source`**
 
 Require `--source-root` for CLI validation so hashes are actually bound. Validation is all-or-nothing for hard errors. Warnings print but do not change source JSON.
 
-- [ ] **Step 7: Implement `reconcile`**
+- [x] **Step 7: Implement `reconcile`**
 
 Require `--source-root`. Validate/bind first. If any hard error exists, write no reconciled artifacts. Otherwise reconcile and write deterministic JSON using `standardized_to_payload()`, `reconciliation_provenance_payload()`, and `reconciliation_conflicts_payload()`.
 
-- [ ] **Step 8: Run CLI tests green**
+- [x] **Step 8: Run CLI tests green**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_filing_cli.py -v
@@ -626,7 +628,7 @@ PYTHONPATH=. pytest core/tests/test_filing_cli.py -v
 - The five JSON files are the first canonical real-company `ExtractedFiling` fixtures.
 - Generic reconciliation writes benchmark outputs under `benchmark/fast_retailing/reconciled/`.
 
-- [ ] **Step 1: Add a migration acceptance test before changing fixtures**
+- [x] **Step 1: Add a migration acceptance test before changing fixtures**
 
 From existing Step 9M.0 evidence, record the expected FY2025 anchors:
 
@@ -645,7 +647,7 @@ PP&E cash payments                -135,535
 
 Require the new generic pipeline to reproduce those exact selected values and page provenance.
 
-- [ ] **Step 2: Split `source_facts.json` into five v1.0 filing artifacts**
+- [x] **Step 2: Split `source_facts.json` into five v1.0 filing artifacts**
 
 Use `source_manifest.json` only as migration evidence for filenames/hashes; the new extracted JSON does not need the LLM to restate hashes.
 
@@ -660,7 +662,7 @@ Where Step 9M.0 already documented an audited restatement, mark the later observ
 
 Do not re-read/reinterpret the PDFs in this migration task; preserve the already-audited 9M.0 facts exactly.
 
-- [ ] **Step 3: Run generic validation over all five files**
+- [x] **Step 3: Run generic validation over all five files**
 
 ```bash
 PYTHONPATH=. python -m core validate-source \
@@ -670,7 +672,7 @@ PYTHONPATH=. python -m core validate-source \
 
 Expected: zero hard validation errors and five computed source hashes matching `source_manifest.json`.
 
-- [ ] **Step 4: Reconcile through the generic command**
+- [x] **Step 4: Reconcile through the generic command**
 
 ```bash
 PYTHONPATH=. python -m core reconcile \
@@ -679,19 +681,19 @@ PYTHONPATH=. python -m core reconcile \
   -o benchmark/fast_retailing/reconciled
 ```
 
-- [ ] **Step 5: Assert conflict parity**
+- [x] **Step 5: Assert conflict parity**
 
 The generic `conflicts.json` must preserve the three open audited overlap conflicts recorded by Step 9M.0 after the closed 2021 NCI transcription correction. Do not silently reduce the count by choosing one value without conflict evidence.
 
-- [ ] **Step 6: Assert source/provenance parity**
+- [x] **Step 6: Assert source/provenance parity**
 
 Every selected Fast Retailing model value must retain filing filename + PDF page + computed PDF hash. The FY2025 Revenue selection must point to `Fastretailing_CFS2025.pdf`, page `3`.
 
-- [ ] **Step 7: Update the benchmark audit script to load `reconciled/standardized.json`**
+- [x] **Step 7: Update the benchmark audit script to load `reconciled/standardized.json`**
 
 Remove dependence on `scripts/build_fast_retailing_benchmark.py` for normal benchmark execution. The audit still measures Step 9M.0/9M.1 engine stages and must continue to expose the same downstream accounting gaps until Step 9M.2.
 
-- [ ] **Step 8: Run benchmark tests**
+- [x] **Step 8: Run benchmark tests**
 
 ```bash
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
@@ -713,7 +715,7 @@ PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -v
 - There is one generic filing-JSON reconciliation path for future projects.
 - Fast Retailing uses the same path as any future company.
 
-- [ ] **Step 1: Search for legacy references before deletion**
+- [x] **Step 1: Search for legacy references before deletion**
 
 ```bash
 grep -R "source_facts.json\|build_fast_retailing_benchmark" -n . \
@@ -723,11 +725,11 @@ grep -R "source_facts.json\|build_fast_retailing_benchmark" -n . \
 
 Update all active tests/docs/scripts so the only remaining references, if any, are clearly historical descriptions.
 
-- [ ] **Step 2: Delete the legacy bundle/builder only after Tasks 1–6 pass**
+- [x] **Step 2: Delete the legacy bundle/builder only after Tasks 1–6 pass**
 
 Do not delete the five original PDFs, `source_manifest.json`, Step 9M.0 `GAPS.md`, or historical benchmark documentation.
 
-- [ ] **Step 3: Update README with the new normal handoff**
+- [x] **Step 3: Update README with the new normal handoff**
 
 Keep it concise. Document:
 
@@ -737,11 +739,11 @@ PDF/filing → extracted JSON per filing → validate-source → reconcile → b
 
 State that automatic PDF/AI extraction is not yet part of the CLI.
 
-- [ ] **Step 4: Update the skill instructions**
+- [x] **Step 4: Update the skill instructions**
 
 Require future LLM-assisted extraction to produce v1.0 filing JSON, not directly fill `StandardizedFinancials` or Excel. Preserve the rule that BAV accounting judgments occur after documentary extraction and that BAV computes source hashes.
 
-- [ ] **Step 5: Update RESULT.md**
+- [x] **Step 5: Update RESULT.md**
 
 Record:
 
@@ -754,7 +756,7 @@ existing Step 9M.0 accounting gaps intentionally remain for 9M.2
 OpenAI API extraction not implemented
 ```
 
-- [ ] **Step 6: Run the legacy-reference search again**
+- [x] **Step 6: Run the legacy-reference search again**
 
 ```bash
 grep -R "source_facts.json\|build_fast_retailing_benchmark" -n . \
@@ -772,7 +774,7 @@ Expected: no active runtime/test dependency on the deleted files.
 - Modify: `IMPLEMENTATION.md` status line only after all checks below pass
 - Do not modify production accounting modules to make Fast Retailing build farther than the measured gap queue permits.
 
-- [ ] **Step 1: Run focused input-pipeline tests**
+- [x] **Step 1: Run focused input-pipeline tests**
 
 ```bash
 PYTHONPATH=. pytest \
@@ -785,7 +787,7 @@ PYTHONPATH=. pytest \
 
 Expected: all pass.
 
-- [ ] **Step 2: Run the full historical suite**
+- [x] **Step 2: Run the full historical suite**
 
 ```bash
 PYTHONPATH=. pytest core/tests/ -q
@@ -793,7 +795,7 @@ PYTHONPATH=. pytest core/tests/ -q
 
 Expected: all pass; no synthetic surface regressions.
 
-- [ ] **Step 3: Verify CLI surface**
+- [x] **Step 3: Verify CLI surface**
 
 ```bash
 PYTHONPATH=. python -m core --help
@@ -812,7 +814,7 @@ list
 
 No `extract` command yet.
 
-- [ ] **Step 4: Verify deterministic reconciliation**
+- [x] **Step 4: Verify deterministic reconciliation**
 
 Run `reconcile` twice into two temporary directories and compare:
 
@@ -824,7 +826,7 @@ diff -u /tmp/fr1/conflicts.json /tmp/fr2/conflicts.json
 
 Expected: no differences.
 
-- [ ] **Step 5: Re-run the Fast Retailing engine audit**
+- [x] **Step 5: Re-run the Fast Retailing engine audit**
 
 ```bash
 PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
@@ -832,14 +834,14 @@ PYTHONPATH=. python scripts/audit_fast_retailing_benchmark.py
 
 The source/reconciliation pipeline should pass. Downstream accounting-engine gaps from `benchmark/fast_retailing/GAPS.md` remain explicitly open for Step 9M.2; do not repair them in this checkpoint merely to make the audit greener.
 
-- [ ] **Step 6: Confirm no new formula families or forecasting activation**
+- [x] **Step 6: Confirm no new formula families or forecasting activation**
 
 Existing active family orders remain `1..90`; deferred model/scenario tabs remain inactive; no valuation or forecasting code becomes part of normal build execution.
 
-- [ ] **Step 7: Mark Step 9M.1 complete only with evidence**
+- [x] **Step 7: Mark Step 9M.1 complete only with evidence**
 
 At the top of `IMPLEMENTATION.md`, add a compact status line containing the actual final test counts and generic Fast Retailing reconciliation result. Do not prestate counts before running the suite.
 
-- [ ] **Step 8: Stop**
+- [x] **Step 8: Stop**
 
 Do not begin Step 9M.2. Return implementation/test summary to the user so they can run `checkpoint`.

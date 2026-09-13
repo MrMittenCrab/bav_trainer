@@ -1,0 +1,2356 @@
+{
+  "schema_version": "1.0",
+  "company": {
+    "name": "FAST RETAILING CO., LTD.",
+    "ticker": "6288.HK",
+    "stock_code": "6288.HK",
+    "jurisdiction": "JP"
+  },
+  "filing": {
+    "document_type": "annual_report",
+    "fiscal_year": 2025,
+    "period_end": "2025-08-31",
+    "currency": "JPY",
+    "unit_scale": "millions",
+    "source_file": "Fastretailing_CFS2025.pdf"
+  },
+  "statements": {
+    "income_statement": [
+      {
+        "label": "Revenue",
+        "section": "",
+        "suggested_concept": "revenue",
+        "values": {
+          "2024-08-31": {
+            "value": 3103836,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 3400539,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 3,
+          "statement": "Consolidated Statement of Profit or Loss"
+        }
+      },
+      {
+        "label": "Cost of sales",
+        "section": "",
+        "suggested_concept": "cost_of_sales",
+        "values": {
+          "2024-08-31": {
+            "value": -1430764,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -1571681,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 3,
+          "statement": "Consolidated Statement of Profit or Loss"
+        }
+      },
+      {
+        "label": "Gross profit",
+        "section": "",
+        "suggested_concept": "gross_profit",
+        "values": {
+          "2024-08-31": {
+            "value": 1673071,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 1828858,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 3,
+          "statement": "Consolidated Statement of Profit or Loss"
+        }
+      },
+      {
+        "label": "Selling, general and administrative expenses",
+        "section": "",
+        "suggested_concept": "selling_general_administrative",
+        "values": {
+          "2024-08-31": {
+            "value": -1187713,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -1277701,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 3,
+          "statement": "Consolidated Statement of Profit or Loss"
+        }
+      },
+      {
+        "label": "Other income",
+        "section": "",
+        "suggested_concept": "other_income",
+        "values": {
+          "2024-08-31": {
+            "value": 20384,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 19491,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 3,
+          "statement": "Consolidated Statement of Profit or Loss"
+        }
+      },
+      {
+        "label": "Other expenses",
+        "section": "",
+        "suggested_concept": "other_expenses",
+        "values": {
+          "2024-08-31": {
+            "value": -6256,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -8087,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 3,
+          "statement": "Consolidated Statement of Profit or Loss"
+        }
+      },
+      {
+        "label": "Share of profit of associates accounted for using the equity method",
+        "section": "",
+        "suggested_concept": "share_of_profit_of_associates",
+        "values": {
+          "2024-08-31": {
+            "value": 1417,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 1704,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 3,
+          "statement": "Consolidated Statement of Profit or Loss"
+        }
+      },
+      {
+        "label": "Operating profit",
+        "section": "",
+        "suggested_concept": "operating_profit",
+        "values": {
+          "2024-08-31": {
+            "value": 500904,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 564265,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 3,
+          "statement": "Consolidated Statement of Profit or Loss"
+        }
+      },
+      {
+        "label": "Finance income",
+        "section": "",
+        "suggested_concept": "interest_income",
+        "values": {
+          "2024-08-31": {
+            "value": 67399,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 99143,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 3,
+          "statement": "Consolidated Statement of Profit or Loss"
+        }
+      },
+      {
+        "label": "Finance costs",
+        "section": "",
+        "suggested_concept": "interest_expense",
+        "values": {
+          "2024-08-31": {
+            "value": -11101,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -12834,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 3,
+          "statement": "Consolidated Statement of Profit or Loss"
+        }
+      },
+      {
+        "label": "Profit before income taxes",
+        "section": "",
+        "suggested_concept": "pretax_income",
+        "values": {
+          "2024-08-31": {
+            "value": 557201,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 650574,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 3,
+          "statement": "Consolidated Statement of Profit or Loss"
+        }
+      },
+      {
+        "label": "Income tax expense",
+        "section": "",
+        "suggested_concept": "tax_expense",
+        "values": {
+          "2024-08-31": {
+            "value": -163596,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -191421,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 3,
+          "statement": "Consolidated Statement of Profit or Loss"
+        }
+      },
+      {
+        "label": "Profit for the year",
+        "section": "",
+        "suggested_concept": "net_income",
+        "values": {
+          "2024-08-31": {
+            "value": 393605,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 459153,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 3,
+          "statement": "Consolidated Statement of Profit or Loss"
+        }
+      },
+      {
+        "label": "Owners of the Parent",
+        "section": "",
+        "suggested_concept": "profit_attributable_to_owners",
+        "values": {
+          "2024-08-31": {
+            "value": 371999,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 433009,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 3,
+          "statement": "Consolidated Statement of Profit or Loss"
+        }
+      },
+      {
+        "label": "Non-controlling interests",
+        "section": "",
+        "suggested_concept": "profit_attributable_to_nci",
+        "values": {
+          "2024-08-31": {
+            "value": 21605,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 26143,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 3,
+          "statement": "Consolidated Statement of Profit or Loss"
+        }
+      },
+      {
+        "label": "Basic (yen, dollar)",
+        "section": "",
+        "suggested_concept": "basic_eps",
+        "values": {
+          "2024-08-31": {
+            "value": 1212.88,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 1411.44,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 3,
+          "statement": "Consolidated Statement of Profit or Loss"
+        }
+      },
+      {
+        "label": "Diluted (yen, dollar)",
+        "section": "",
+        "suggested_concept": "diluted_eps",
+        "values": {
+          "2024-08-31": {
+            "value": 1210.81,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 1409.32,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 3,
+          "statement": "Consolidated Statement of Profit or Loss"
+        }
+      }
+    ],
+    "balance_sheet": [
+      {
+        "label": "Cash and cash equivalents",
+        "section": "Current assets",
+        "suggested_concept": "cash",
+        "values": {
+          "2024-08-31": {
+            "value": 1193560,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 893239,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Trade and other receivables",
+        "section": "Current assets",
+        "suggested_concept": "trade_and_other_receivables",
+        "values": {
+          "2024-08-31": {
+            "value": 83929,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 96407,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Other financial assets",
+        "section": "Current assets",
+        "suggested_concept": "other_financial_assets_current",
+        "values": {
+          "2024-08-31": {
+            "value": 470554,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 899701,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Inventories",
+        "section": "Current assets",
+        "suggested_concept": "inventories",
+        "values": {
+          "2024-08-31": {
+            "value": 474460,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 510958,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Derivative financial assets",
+        "section": "Current assets",
+        "suggested_concept": "derivative_financial_assets_current",
+        "values": {
+          "2024-08-31": {
+            "value": 111658,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 94803,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Income taxes receivable",
+        "section": "Current assets",
+        "suggested_concept": "income_taxes_receivable",
+        "values": {
+          "2024-08-31": {
+            "value": 2210,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 8042,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Other assets",
+        "section": "Current assets",
+        "suggested_concept": "other_current_assets",
+        "values": {
+          "2024-08-31": {
+            "value": 26897,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 24662,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Total current assets",
+        "section": "Current assets",
+        "suggested_concept": "total_current_assets",
+        "values": {
+          "2024-08-31": {
+            "value": 2363271,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 2527815,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Property, plant and equipment",
+        "section": "Non-current assets",
+        "suggested_concept": "property_plant_equipment",
+        "values": {
+          "2024-08-31": {
+            "value": 245742,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 332351,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Right-of-use assets",
+        "section": "Non-current assets",
+        "suggested_concept": "right_of_use_assets",
+        "values": {
+          "2024-08-31": {
+            "value": 416712,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 477111,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Goodwill",
+        "section": "Non-current assets",
+        "suggested_concept": "goodwill",
+        "values": {
+          "2024-08-31": {
+            "value": 8092,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 8092,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Intangible assets",
+        "section": "Non-current assets",
+        "suggested_concept": "intangible_assets",
+        "values": {
+          "2024-08-31": {
+            "value": 92568,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 91606,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Financial assets",
+        "section": "Non-current assets",
+        "suggested_concept": "financial_assets_noncurrent",
+        "values": {
+          "2024-08-31": {
+            "value": 336302,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 312438,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Investments in associates accounted for using the equity method",
+        "section": "Non-current assets",
+        "suggested_concept": "investments_in_associates",
+        "values": {
+          "2024-08-31": {
+            "value": 19559,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 31361,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Deferred tax assets",
+        "section": "Non-current assets",
+        "suggested_concept": "deferred_tax_assets",
+        "values": {
+          "2024-08-31": {
+            "value": 32432,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 40889,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Derivative financial assets",
+        "section": "Non-current assets",
+        "suggested_concept": "derivative_financial_assets_noncurrent",
+        "values": {
+          "2024-08-31": {
+            "value": 66995,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 33882,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Other assets",
+        "section": "Non-current assets",
+        "suggested_concept": "other_noncurrent_assets",
+        "values": {
+          "2024-08-31": {
+            "value": 5888,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 3803,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Total non-current assets",
+        "section": "Non-current assets",
+        "suggested_concept": "total_noncurrent_assets",
+        "values": {
+          "2024-08-31": {
+            "value": 1224294,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 1331538,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Total assets",
+        "section": "Assets",
+        "suggested_concept": "total_assets",
+        "values": {
+          "2024-08-31": {
+            "value": 3587565,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 3859353,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Trade and other payables",
+        "section": "Current liabilities",
+        "suggested_concept": "trade_and_other_payables",
+        "values": {
+          "2024-08-31": {
+            "value": 388656,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 390149,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Other financial liabilities",
+        "section": "Current liabilities",
+        "suggested_concept": "other_financial_liabilities_current",
+        "values": {
+          "2024-08-31": {
+            "value": 104770,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 150942,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Derivative financial liabilities",
+        "section": "Current liabilities",
+        "suggested_concept": "derivative_financial_liabilities_current",
+        "values": {
+          "2024-08-31": {
+            "value": 12716,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 19250,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Lease liabilities",
+        "section": "Current liabilities",
+        "suggested_concept": "lease_liability_current",
+        "values": {
+          "2024-08-31": {
+            "value": 130744,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 126830,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Current tax liabilities",
+        "section": "Current liabilities",
+        "suggested_concept": "current_tax_liabilities",
+        "values": {
+          "2024-08-31": {
+            "value": 65525,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 73072,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Provisions",
+        "section": "Current liabilities",
+        "suggested_concept": "provisions_current",
+        "values": {
+          "2024-08-31": {
+            "value": 1774,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 1651,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Other liabilities",
+        "section": "Current liabilities",
+        "suggested_concept": "other_current_liabilities",
+        "values": {
+          "2024-08-31": {
+            "value": 148201,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 149394,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Total current liabilities",
+        "section": "Current liabilities",
+        "suggested_concept": "total_current_liabilities",
+        "values": {
+          "2024-08-31": {
+            "value": 852390,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 911291,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Financial liabilities",
+        "section": "Non-current liabilities",
+        "suggested_concept": "financial_liabilities_noncurrent",
+        "values": {
+          "2024-08-31": {
+            "value": 211147,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 141071,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Lease liabilities",
+        "section": "Non-current liabilities",
+        "suggested_concept": "lease_liability_noncurrent",
+        "values": {
+          "2024-08-31": {
+            "value": 347318,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 386670,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Provisions",
+        "section": "Non-current liabilities",
+        "suggested_concept": "provisions_noncurrent",
+        "values": {
+          "2024-08-31": {
+            "value": 52652,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 55711,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Deferred tax liabilities",
+        "section": "Non-current liabilities",
+        "suggested_concept": "deferred_tax_liabilities",
+        "values": {
+          "2024-08-31": {
+            "value": 31896,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 22539,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Derivative financial liabilities",
+        "section": "Non-current liabilities",
+        "suggested_concept": "derivative_financial_liabilities_noncurrent",
+        "values": {
+          "2024-08-31": {
+            "value": 21385,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 12110,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Other liabilities",
+        "section": "Non-current liabilities",
+        "suggested_concept": "other_noncurrent_liabilities",
+        "values": {
+          "2024-08-31": {
+            "value": 2521,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 2457,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Total non-current liabilities",
+        "section": "Non-current liabilities",
+        "suggested_concept": "total_noncurrent_liabilities",
+        "values": {
+          "2024-08-31": {
+            "value": 666920,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 620561,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Total liabilities",
+        "section": "Liabilities",
+        "suggested_concept": "total_liabilities",
+        "values": {
+          "2024-08-31": {
+            "value": 1519310,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 1531852,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Capital stock",
+        "section": "Equity",
+        "suggested_concept": "capital_stock",
+        "values": {
+          "2024-08-31": {
+            "value": 10273,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 10273,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Capital surplus",
+        "section": "Equity",
+        "suggested_concept": "capital_surplus",
+        "values": {
+          "2024-08-31": {
+            "value": 29712,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 30998,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Retained earnings",
+        "section": "Equity",
+        "suggested_concept": "retained_earnings",
+        "values": {
+          "2024-08-31": {
+            "value": 1766073,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 2056437,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Treasury stock, at cost",
+        "section": "Equity",
+        "suggested_concept": "treasury_stock",
+        "values": {
+          "2024-08-31": {
+            "value": -14628,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -14529,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Other components of equity",
+        "section": "Equity",
+        "suggested_concept": "other_components_of_equity",
+        "values": {
+          "2024-08-31": {
+            "value": 225104,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 189936,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Equity attributable to owners of the Parent",
+        "section": "Equity",
+        "suggested_concept": "equity_attributable_to_owners",
+        "values": {
+          "2024-08-31": {
+            "value": 2016535,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 2273115,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Non-controlling interests",
+        "section": "Equity",
+        "suggested_concept": "noncontrolling_interests",
+        "values": {
+          "2024-08-31": {
+            "value": 51718,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 54385,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Total equity",
+        "section": "Equity",
+        "suggested_concept": "total_equity",
+        "values": {
+          "2024-08-31": {
+            "value": 2068254,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 2327501,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      },
+      {
+        "label": "Total liabilities and equity",
+        "section": "Equity",
+        "suggested_concept": "total_liabilities_and_equity",
+        "values": {
+          "2024-08-31": {
+            "value": 3587565,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 3859353,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 2,
+          "statement": "Consolidated Statement of Financial Position"
+        }
+      }
+    ],
+    "cash_flow": [
+      {
+        "label": "Profit before income taxes",
+        "section": "",
+        "suggested_concept": "pretax_income",
+        "values": {
+          "2024-08-31": {
+            "value": 557201,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 650574,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Depreciation and amortization",
+        "section": "",
+        "suggested_concept": "depreciation_amortization",
+        "values": {
+          "2024-08-31": {
+            "value": 204388,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 216492,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Impairment losses/(Reversal of impairment losses)",
+        "section": "",
+        "suggested_concept": "impairment_losses",
+        "values": {
+          "2024-08-31": {
+            "value": -1700,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 598,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Interest and dividends income",
+        "section": "",
+        "suggested_concept": "interest_and_dividends_income",
+        "values": {
+          "2024-08-31": {
+            "value": -66751,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -65317,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Interest expenses",
+        "section": "",
+        "suggested_concept": "interest_expenses_cf",
+        "values": {
+          "2024-08-31": {
+            "value": 11078,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 12834,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Foreign exchange losses/(gains)",
+        "section": "",
+        "suggested_concept": "foreign_exchange_losses_gains",
+        "values": {
+          "2024-08-31": {
+            "value": -621,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -33826,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Share of (profit)/loss of associates accounted for using the equity method",
+        "section": "",
+        "suggested_concept": "share_of_associates_cf",
+        "values": {
+          "2024-08-31": {
+            "value": -1417,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -1704,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Losses on disposal of property, plant and equipment",
+        "section": "",
+        "suggested_concept": "losses_on_disposal_ppe",
+        "values": {
+          "2024-08-31": {
+            "value": 1397,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 1342,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "(Increase)/decrease in trade and other receivables",
+        "section": "",
+        "suggested_concept": "change_in_trade_and_other_receivables",
+        "values": {
+          "2024-08-31": {
+            "value": -17394,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -12718,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "(Increase)/decrease in inventories",
+        "section": "",
+        "suggested_concept": "change_in_inventories",
+        "values": {
+          "2024-08-31": {
+            "value": -23540,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -29855,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Increase/(decrease) in trade and other payables",
+        "section": "",
+        "suggested_concept": "change_in_trade_and_other_payables",
+        "values": {
+          "2024-08-31": {
+            "value": 47320,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 476,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "(Increase)/decrease in other assets",
+        "section": "",
+        "suggested_concept": "change_in_other_assets",
+        "values": {
+          "2024-08-31": {
+            "value": -876,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -2479,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Increase/(decrease) in other liabilities",
+        "section": "",
+        "suggested_concept": "change_in_other_liabilities",
+        "values": {
+          "2024-08-31": {
+            "value": 31520,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 3852,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Others, net",
+        "section": "",
+        "suggested_concept": "others_net_operating",
+        "values": {
+          "2024-08-31": {
+            "value": -878,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -11391,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Cash generated from operations",
+        "section": "",
+        "suggested_concept": "cash_generated_from_operations",
+        "values": {
+          "2024-08-31": {
+            "value": 739726,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 728879,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Interest and dividends income received",
+        "section": "",
+        "suggested_concept": "interest_dividends_received",
+        "values": {
+          "2024-08-31": {
+            "value": 56454,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 64625,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Interest paid",
+        "section": "",
+        "suggested_concept": "interest_paid",
+        "values": {
+          "2024-08-31": {
+            "value": -11099,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -12869,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Income taxes paid",
+        "section": "",
+        "suggested_concept": "income_taxes_paid",
+        "values": {
+          "2024-08-31": {
+            "value": -156361,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -202242,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Income taxes refunded",
+        "section": "",
+        "suggested_concept": "income_taxes_refunded",
+        "values": {
+          "2024-08-31": {
+            "value": 22800,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 2225,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Net cash generated by operating activities",
+        "section": "",
+        "suggested_concept": "operating_cash_flow",
+        "values": {
+          "2024-08-31": {
+            "value": 651521,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 580618,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Amounts deposited into bank deposits with original maturities of three months or longer",
+        "section": "",
+        "suggested_concept": "bank_deposits_placed",
+        "values": {
+          "2024-08-31": {
+            "value": -441156,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -1008113,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Amounts withdrawn from bank deposits with original maturities of three months or longer",
+        "section": "",
+        "suggested_concept": "bank_deposits_withdrawn",
+        "values": {
+          "2024-08-31": {
+            "value": 460241,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 798490,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Payments for property, plant and equipment",
+        "section": "",
+        "suggested_concept": "payments_for_ppe",
+        "values": {
+          "2024-08-31": {
+            "value": -73728,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -135535,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Payments for intangible assets",
+        "section": "",
+        "suggested_concept": "payments_for_intangible_assets",
+        "values": {
+          "2024-08-31": {
+            "value": -30260,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -27329,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Payments for acquisition of right-of-use assets",
+        "section": "",
+        "suggested_concept": "payments_for_rou_assets",
+        "values": {
+          "2024-08-31": {
+            "value": -2015,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -15924,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Payments for investment securities",
+        "section": "",
+        "suggested_concept": "payments_for_investment_securities",
+        "values": {
+          "2024-08-31": {
+            "value": -399523,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -474222,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Proceeds from sale and redemption of investment securities",
+        "section": "",
+        "suggested_concept": "proceeds_from_investment_securities",
+        "values": {
+          "2024-08-31": {
+            "value": 403845,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 289149,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Payments for lease and guarantee deposits",
+        "section": "",
+        "suggested_concept": "payments_for_lease_guarantee_deposits",
+        "values": {
+          "2024-08-31": {
+            "value": -6108,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -6113,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Proceeds from collection of lease and guarantee deposits",
+        "section": "",
+        "suggested_concept": "proceeds_from_lease_guarantee_deposits",
+        "values": {
+          "2024-08-31": {
+            "value": 6302,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 6364,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Investments in associates accounted for using the equity method",
+        "section": "",
+        "suggested_concept": "investments_in_associates_cf",
+        "values": {
+          "2024-08-31": {
+            "value": 0,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -13087,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Others, net",
+        "section": "",
+        "suggested_concept": "others_net_investing",
+        "values": {
+          "2024-08-31": {
+            "value": 171,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 7399,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Net cash used in investing activities",
+        "section": "",
+        "suggested_concept": "investing_cash_flow",
+        "values": {
+          "2024-08-31": {
+            "value": -82231,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -578922,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Proceeds from short-term loans payable",
+        "section": "",
+        "suggested_concept": "proceeds_from_short_term_loans",
+        "values": {
+          "2024-08-31": {
+            "value": 4835,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 566,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Repayment of short-term loans payable",
+        "section": "",
+        "suggested_concept": "repayment_of_short_term_loans",
+        "values": {
+          "2024-08-31": {
+            "value": -4887,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -226,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Repayment of redemption of corporate bonds",
+        "section": "",
+        "suggested_concept": "repayment_of_bonds",
+        "values": {
+          "2024-08-31": {
+            "value": 0,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -30000,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Dividends paid to owners of the Parent",
+        "section": "",
+        "suggested_concept": "dividends_paid_to_owners",
+        "values": {
+          "2024-08-31": {
+            "value": -104263,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -142630,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Dividends paid to non-controlling interests",
+        "section": "",
+        "suggested_concept": "dividends_paid_to_nci",
+        "values": {
+          "2024-08-31": {
+            "value": -18369,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -26428,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Repayments of lease liabilities",
+        "section": "",
+        "suggested_concept": "repayments_of_lease_liabilities",
+        "values": {
+          "2024-08-31": {
+            "value": -146403,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -140483,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Others, net",
+        "section": "",
+        "suggested_concept": "others_net_financing",
+        "values": {
+          "2024-08-31": {
+            "value": 63,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 430,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Net cash used in financing activities",
+        "section": "",
+        "suggested_concept": "financing_cash_flow",
+        "values": {
+          "2024-08-31": {
+            "value": -269003,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -339139,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Effect of exchange rate changes on the balance of cash held in foreign currencies",
+        "section": "",
+        "suggested_concept": "effect_of_exchange_rate_on_cash",
+        "values": {
+          "2024-08-31": {
+            "value": -10007,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 37122,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Net increase/(decrease) in cash and cash equivalents",
+        "section": "",
+        "suggested_concept": "net_change_in_cash",
+        "values": {
+          "2024-08-31": {
+            "value": 290279,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": -300320,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Cash and cash equivalents at the beginning of year",
+        "section": "",
+        "suggested_concept": "cash_beginning",
+        "values": {
+          "2024-08-31": {
+            "value": 903280,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 1193560,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      },
+      {
+        "label": "Cash and cash equivalents at the end of year",
+        "section": "",
+        "suggested_concept": "cash_ending",
+        "values": {
+          "2024-08-31": {
+            "value": 1193560,
+            "presentation_role": "comparative"
+          },
+          "2025-08-31": {
+            "value": 893239,
+            "presentation_role": "current_period"
+          }
+        },
+        "source": {
+          "page": 5,
+          "statement": "Consolidated Statement of Cash Flows"
+        }
+      }
+    ]
+  },
+  "note_facts": [
+    {
+      "fact_type": "lease_liability_total",
+      "period": "2024-08-31",
+      "value": 478062,
+      "status": "reported",
+      "source": {
+        "page": 14,
+        "note": "17 Leases",
+        "label": "Total present value of lease liabilities"
+      }
+    },
+    {
+      "fact_type": "lease_liability_total",
+      "period": "2025-08-31",
+      "value": 513501,
+      "status": "reported",
+      "source": {
+        "page": 14,
+        "note": "17 Leases",
+        "label": "Total present value of lease liabilities"
+      }
+    },
+    {
+      "fact_type": "lease_interest_expense",
+      "period": "2024-08-31",
+      "value": 6507,
+      "status": "reported",
+      "source": {
+        "page": 14,
+        "note": "17 Leases",
+        "label": "Interest expenses on lease liabilities"
+      }
+    },
+    {
+      "fact_type": "lease_interest_expense",
+      "period": "2025-08-31",
+      "value": 8464,
+      "status": "reported",
+      "source": {
+        "page": 14,
+        "note": "17 Leases",
+        "label": "Interest expenses on lease liabilities"
+      }
+    },
+    {
+      "fact_type": "right_of_use_assets",
+      "period": "2024-08-31",
+      "value": 416712,
+      "status": "reported",
+      "source": {
+        "page": 14,
+        "note": "17 Leases",
+        "label": "Right-of-use assets"
+      }
+    },
+    {
+      "fact_type": "right_of_use_assets",
+      "period": "2025-08-31",
+      "value": 477111,
+      "status": "reported",
+      "source": {
+        "page": 14,
+        "note": "17 Leases",
+        "label": "Right-of-use assets"
+      }
+    },
+    {
+      "fact_type": "ppe_capex_payments",
+      "period": "2024-08-31",
+      "value": -73728,
+      "status": "reported",
+      "source": {
+        "page": 5,
+        "note": "Consolidated Statement of Cash Flows",
+        "label": "Payments for property, plant and equipment"
+      }
+    },
+    {
+      "fact_type": "ppe_capex_payments",
+      "period": "2025-08-31",
+      "value": -135535,
+      "status": "reported",
+      "source": {
+        "page": 5,
+        "note": "Consolidated Statement of Cash Flows",
+        "label": "Payments for property, plant and equipment"
+      }
+    },
+    {
+      "fact_type": "depreciation_amortization",
+      "period": "2024-08-31",
+      "value": 204388,
+      "status": "reported",
+      "source": {
+        "page": 5,
+        "note": "Consolidated Statement of Cash Flows",
+        "label": "Depreciation and amortization"
+      }
+    },
+    {
+      "fact_type": "depreciation_amortization",
+      "period": "2025-08-31",
+      "value": 216492,
+      "status": "reported",
+      "source": {
+        "page": 5,
+        "note": "Consolidated Statement of Cash Flows",
+        "label": "Depreciation and amortization"
+      }
+    },
+    {
+      "fact_type": "profit_attributable_to_owners",
+      "period": "2024-08-31",
+      "value": 371999,
+      "status": "reported",
+      "source": {
+        "page": 3,
+        "note": "Consolidated Statement of Profit or Loss",
+        "label": "Profit attributable to owners of the Parent"
+      }
+    },
+    {
+      "fact_type": "profit_attributable_to_owners",
+      "period": "2025-08-31",
+      "value": 433009,
+      "status": "reported",
+      "source": {
+        "page": 3,
+        "note": "Consolidated Statement of Profit or Loss",
+        "label": "Profit attributable to owners of the Parent"
+      }
+    },
+    {
+      "fact_type": "profit_attributable_to_nci",
+      "period": "2024-08-31",
+      "value": 21605,
+      "status": "reported",
+      "source": {
+        "page": 3,
+        "note": "Consolidated Statement of Profit or Loss",
+        "label": "Profit attributable to non-controlling interests"
+      }
+    },
+    {
+      "fact_type": "profit_attributable_to_nci",
+      "period": "2025-08-31",
+      "value": 26143,
+      "status": "reported",
+      "source": {
+        "page": 3,
+        "note": "Consolidated Statement of Profit or Loss",
+        "label": "Profit attributable to non-controlling interests"
+      }
+    },
+    {
+      "fact_type": "equity_attributable_to_owners",
+      "period": "2024-08-31",
+      "value": 2016535,
+      "status": "reported",
+      "source": {
+        "page": 2,
+        "note": "Consolidated Statement of Financial Position",
+        "label": "Equity attributable to owners of the Parent"
+      }
+    },
+    {
+      "fact_type": "equity_attributable_to_owners",
+      "period": "2025-08-31",
+      "value": 2273115,
+      "status": "reported",
+      "source": {
+        "page": 2,
+        "note": "Consolidated Statement of Financial Position",
+        "label": "Equity attributable to owners of the Parent"
+      }
+    },
+    {
+      "fact_type": "noncontrolling_interests_equity",
+      "period": "2024-08-31",
+      "value": 51718,
+      "status": "reported",
+      "source": {
+        "page": 2,
+        "note": "Consolidated Statement of Financial Position",
+        "label": "Non-controlling interests"
+      }
+    },
+    {
+      "fact_type": "noncontrolling_interests_equity",
+      "period": "2025-08-31",
+      "value": 54385,
+      "status": "reported",
+      "source": {
+        "page": 2,
+        "note": "Consolidated Statement of Financial Position",
+        "label": "Non-controlling interests"
+      }
+    },
+    {
+      "fact_type": "interest_expense",
+      "period": "2024-08-31",
+      "value": -11101,
+      "status": "reported",
+      "source": {
+        "page": 3,
+        "note": "Consolidated Statement of Profit or Loss",
+        "label": "Finance costs (primary statement)"
+      }
+    },
+    {
+      "fact_type": "interest_expense",
+      "period": "2025-08-31",
+      "value": -12834,
+      "status": "reported",
+      "source": {
+        "page": 3,
+        "note": "Consolidated Statement of Profit or Loss",
+        "label": "Finance costs (primary statement)"
+      }
+    }
+  ],
+  "share_facts": [
+    {
+      "fact_type": "basic_weighted_average_shares",
+      "period": "2024-08-31",
+      "value": 306707010,
+      "status": "reported",
+      "source": {
+        "page": 18,
+        "note": "27 Earnings per Share",
+        "label": "Average number of common stock during the year"
+      }
+    },
+    {
+      "fact_type": "basic_weighted_average_shares",
+      "period": "2025-08-31",
+      "value": 306786602,
+      "status": "reported",
+      "source": {
+        "page": 18,
+        "note": "27 Earnings per Share",
+        "label": "Average number of common stock during the year"
+      }
+    },
+    {
+      "fact_type": "dilutive_shares",
+      "period": "2024-08-31",
+      "value": 524794,
+      "status": "reported",
+      "source": {
+        "page": 18,
+        "note": "27 Earnings per Share",
+        "label": "Increase in number of common stock (share subscription rights)"
+      }
+    },
+    {
+      "fact_type": "dilutive_shares",
+      "period": "2025-08-31",
+      "value": 461202,
+      "status": "reported",
+      "source": {
+        "page": 18,
+        "note": "27 Earnings per Share",
+        "label": "Increase in number of common stock (share subscription rights)"
+      }
+    },
+    {
+      "fact_type": "diluted_eps",
+      "period": "2024-08-31",
+      "value": 1210.81,
+      "status": "reported",
+      "source": {
+        "page": 3,
+        "note": "Consolidated Statement of Profit or Loss",
+        "label": "Diluted earnings per share for the year"
+      }
+    },
+    {
+      "fact_type": "diluted_eps",
+      "period": "2025-08-31",
+      "value": 1409.32,
+      "status": "reported",
+      "source": {
+        "page": 3,
+        "note": "Consolidated Statement of Profit or Loss",
+        "label": "Diluted earnings per share for the year"
+      }
+    },
+    {
+      "fact_type": "diluted_eps_note",
+      "period": "2024-08-31",
+      "value": 1210.81,
+      "status": "reported",
+      "source": {
+        "page": 18,
+        "note": "27 Earnings per Share",
+        "label": "Diluted earnings per share for the year"
+      }
+    },
+    {
+      "fact_type": "diluted_eps_note",
+      "period": "2025-08-31",
+      "value": 1409.32,
+      "status": "reported",
+      "source": {
+        "page": 18,
+        "note": "27 Earnings per Share",
+        "label": "Diluted earnings per share for the year"
+      }
+    },
+    {
+      "fact_type": "diluted_weighted_average_shares",
+      "period": "2024-08-31",
+      "value": 307231804,
+      "status": "derived",
+      "source": {
+        "page": 18,
+        "note": "27 Earnings per Share",
+        "label": "Diluted weighted-average shares (basic + dilutive)"
+      },
+      "derivation": "basic_weighted_average_shares + dilutive_shares"
+    },
+    {
+      "fact_type": "diluted_weighted_average_shares",
+      "period": "2025-08-31",
+      "value": 307247804,
+      "status": "derived",
+      "source": {
+        "page": 18,
+        "note": "27 Earnings per Share",
+        "label": "Diluted weighted-average shares (basic + dilutive)"
+      },
+      "derivation": "basic_weighted_average_shares + dilutive_shares"
+    }
+  ]
+}

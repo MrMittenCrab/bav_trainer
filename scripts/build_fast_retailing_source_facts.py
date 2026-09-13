@@ -1,4 +1,9 @@
-"""Build benchmark/fast_retailing/source_facts.json from CFS text extracts.
+"""Historical Step 9M.0 helper — OBSOLETE after Step 9M.1.
+
+Formerly built benchmark/fast_retailing/source_facts.json from CFS text extracts.
+Canonical documentary input is now benchmark/fast_retailing/extracted/FY*.json
+via the generic validate-source / reconcile CLI. Kept only as migration history;
+do not use for normal benchmark execution.
 
 Benchmark-only transcription helper. Not used by Trainer runtime.
 """

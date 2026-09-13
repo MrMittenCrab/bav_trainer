@@ -16,8 +16,10 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 BENCH = ROOT / "benchmark" / "fast_retailing"
-STD_JSON = BENCH / "FastRetailing_Standardized.json"
-PROV_JSON = BENCH / "provenance.json"
+RECONCILED = BENCH / "reconciled"
+STD_JSON = RECONCILED / "standardized.json"
+PROV_JSON = RECONCILED / "provenance.json"
+CONFLICTS_JSON = RECONCILED / "conflicts.json"
 MANIFEST = BENCH / "source_manifest.json"
 BASELINE = BENCH / "BASELINE.md"
 MODEL_COMMIT = "26f22b7"
@@ -290,13 +292,22 @@ def run_audit() -> dict[str, Any]:
 def write_baseline(result: dict[str, Any]) -> None:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     provenance = json.loads(PROV_JSON.read_text(encoding="utf-8"))
+    conflicts = (
+        json.loads(CONFLICTS_JSON.read_text(encoding="utf-8"))
+        if CONFLICTS_JSON.is_file()
+        else {}
+    )
     stages: list[StageResult] = result["stages"]
     ctx = result["context"]
+    overlap = conflicts.get(
+        "overlap_conflict_count", provenance.get("overlap_conflict_count", 0)
+    )
     lines = [
-        "# Fast Retailing Benchmark Baseline (Step 9M.0)",
+        "# Fast Retailing Benchmark Baseline (Step 9M.1)",
         "",
-        f"- Model commit audited: `{MODEL_COMMIT}` (Step 9L.1)",
-        "- Benchmark phase: measurement only — no production fixes applied",
+        f"- Model commit audited: `{MODEL_COMMIT}` (Step 9L.1 accounting engine)",
+        "- Input path: generic `extracted/` → `validate-source` → `reconcile` → `reconciled/`",
+        "- Benchmark phase: measurement only — no production accounting fixes applied",
         "- Five fiscal periods: 2021-08-31 … 2025-08-31",
         "",
         "## Source hashes",
@@ -309,7 +320,8 @@ def write_baseline(result: dict[str, Any]) -> None:
     lines.extend(
         [
             "",
-            f"- Overlap conflicts recorded in provenance: **{provenance.get('overlap_conflict_count', 0)}**",
+            f"- Overlap conflicts recorded in conflicts.json: **{overlap}**",
+            f"- Standardized payload: `{STD_JSON.relative_to(ROOT)}`",
             "",
             "## Stage results",
             "",

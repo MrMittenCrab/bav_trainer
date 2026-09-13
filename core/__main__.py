@@ -12,7 +12,15 @@ import sys
 from pathlib import Path
 
 from .data.interface import DocumentManifest, DocumentType
+from .data.standardized_io import standardized_to_payload
 from .engine.component_catalog import COMPONENT_CATALOG
+from .ingestion.filing_cli import load_and_validate_extracted_dir
+from .ingestion.filing_reconciler import reconcile_filings
+from .ingestion.filing_standardizer import (
+    reconciliation_conflicts_payload,
+    reconciliation_provenance_payload,
+    standardize_reconciled,
+)
 from .ingestion.manual_hk import HKManualDocumentAdapter
 from .trainer.checker import check_workbook
 from .trainer.semantic_io import answer_key_path_for, load_semantic_map
@@ -129,6 +137,87 @@ def cmd_check(args: argparse.Namespace) -> int:
     return 0 if summary.incorrect == 0 else 1
 
 
+def cmd_validate_source(args: argparse.Namespace) -> int:
+    source_root = Path(args.source_root)
+    try:
+        validated = load_and_validate_extracted_dir(
+            Path(args.extracted), source_root=source_root
+        )
+    except ValueError as exc:
+        print(f"error: {exc}")
+        return 1
+
+    hard_errors = 0
+    warnings = 0
+    for filing, report in validated:
+        label = filing.filing.source_file
+        if report.ok:
+            print(
+                f"OK {label} sha256={report.computed_source_sha256} "
+                f"warnings={len(report.warnings)}"
+            )
+        else:
+            hard_errors += len(report.errors)
+            for issue in report.errors:
+                print(f"ERROR {label}: {issue.code}: {issue.message}")
+        for issue in report.warnings:
+            warnings += 1
+            print(f"WARN {label}: {issue.code}: {issue.message}")
+
+    print(
+        f"validated {len(validated)} filing(s): "
+        f"{hard_errors} error(s), {warnings} warning(s)"
+    )
+    return 0 if hard_errors == 0 else 1
+
+
+def cmd_reconcile(args: argparse.Namespace) -> int:
+    source_root = Path(args.source_root)
+    out_dir = Path(args.output)
+    try:
+        validated = load_and_validate_extracted_dir(
+            Path(args.extracted), source_root=source_root
+        )
+    except ValueError as exc:
+        print(f"error: {exc}")
+        return 1
+
+    if any(not report.ok for _, report in validated):
+        for filing, report in validated:
+            for issue in report.errors:
+                print(
+                    f"ERROR {filing.filing.source_file}: "
+                    f"{issue.code}: {issue.message}"
+                )
+        print("reconcile aborted: validation errors present; wrote no artifacts")
+        return 1
+
+    try:
+        reconciled = reconcile_filings(validated)
+    except ValueError as exc:
+        print(f"error: {exc}")
+        return 1
+
+    fin = standardize_reconciled(reconciled)
+    provenance = reconciliation_provenance_payload(reconciled)
+    conflicts = reconciliation_conflicts_payload(reconciled)
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    artifacts = {
+        "standardized.json": standardized_to_payload(fin),
+        "provenance.json": provenance,
+        "conflicts.json": conflicts,
+    }
+    for name, payload in artifacts.items():
+        (out_dir / name).write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"wrote {out_dir / name}")
+    print(f"overlap_conflicts={conflicts['overlap_conflict_count']}")
+    return 0
+
+
 def cmd_list(args: argparse.Namespace) -> int:
     from .trainer.workbook import group_components_by_family
 
@@ -170,6 +259,42 @@ def main(argv: list[str] | None = None) -> int:
     p_ingest.add_argument("documents", nargs="+", help="JSON, Excel, or document paths")
     p_ingest.add_argument("-o", "--output", help="Write standardized JSON")
     p_ingest.set_defaults(func=cmd_ingest)
+
+    p_validate = sub.add_parser(
+        "validate-source",
+        help="Validate extracted filing JSON and bind source-file SHA-256",
+    )
+    p_validate.add_argument(
+        "extracted",
+        help="Extracted filing JSON file or directory of *.json filings",
+    )
+    p_validate.add_argument(
+        "--source-root",
+        required=True,
+        help="Directory containing the original source files named in each filing",
+    )
+    p_validate.set_defaults(func=cmd_validate_source)
+
+    p_reconcile = sub.add_parser(
+        "reconcile",
+        help="Validate, reconcile, and standardize extracted filing JSON",
+    )
+    p_reconcile.add_argument(
+        "extracted",
+        help="Directory of extracted filing JSON files (or a single file)",
+    )
+    p_reconcile.add_argument(
+        "--source-root",
+        required=True,
+        help="Directory containing the original source files named in each filing",
+    )
+    p_reconcile.add_argument(
+        "-o",
+        "--output",
+        required=True,
+        help="Output directory for standardized.json / provenance.json / conflicts.json",
+    )
+    p_reconcile.set_defaults(func=cmd_reconcile)
 
     p_build = sub.add_parser(
         "build",

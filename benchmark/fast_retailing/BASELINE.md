@@ -1,7 +1,8 @@
-# Fast Retailing Benchmark Baseline (Step 9M.0)
+# Fast Retailing Benchmark Baseline (Step 9M.1)
 
-- Model commit audited: `26f22b7` (Step 9L.1)
-- Benchmark phase: measurement only — no production fixes applied
+- Model commit audited: `26f22b7` (Step 9L.1 accounting engine)
+- Input path: generic `extracted/` → `validate-source` → `reconcile` → `reconciled/`
+- Benchmark phase: measurement only — no production accounting fixes applied
 - Five fiscal periods: 2021-08-31 … 2025-08-31
 
 ## Source hashes
@@ -12,7 +13,8 @@
 - FY2024: `72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de` (1059695 bytes)
 - FY2025: `25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f` (868396 bytes)
 
-- Overlap conflicts recorded in provenance: **3**
+- Overlap conflicts recorded in conflicts.json: **3**
+- Standardized payload: `benchmark/fast_retailing/reconciled/standardized.json`
 
 ## Stage results
 
@@ -21,7 +23,7 @@
 | 1_source_fixture_load | pass | loaded |
 | 2_identity_validation | pass |  |
 | 3_reconciliation | fail | reconciliation checksums={'income_statement': True, 'balance_sheet': False, 'cash_flow': True} warnings=['Balance sheet does not balance for one or more periods'] |
-| 4_reference_model_builder | fail | Cannot safely classify balance-sheet line 'Other financial assets'; provide classificationOverrides['Other financial assets'] |
+| 4_reference_model_builder | fail | Cannot safely classify balance-sheet line 'Derivative financial assets'; provide classificationOverrides['Derivative financial assets'] |
 | 5_workbook_generation | skipped | prior stage failed |
 | 6_blank_check | skipped | prior stage failed |
 | 7_filled_check | skipped | prior stage failed |
