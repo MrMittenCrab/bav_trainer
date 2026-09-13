@@ -1,5 +1,7 @@
 # Step 9K.1 — PP&E / D&A Asset-Intensity Diagnostics
 
+**Status: COMPLETE** — Fixed-asset intensity on ALT DuPont (orders 79–86); surfaces 70/294, 74/314, 78/328, 86/366; cross-company unchanged; no capex; GOOGL/TARGET hashes unchanged. See `RESULT.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > **For Cursor:** Read `TARGET.md` first, then `docs/GOOGL_HISTORICAL_REFERENCE.md`, then this plan in full. The accepted implementation base is commit `8b5df8b9a97962111693bd906fc6a32171fec61f` (`step 9j1`, Step 9J.1 complete). Implement only Step 9K.1 below using red/green TDD. This remains **Step 9 historical convergence**. Do not begin forecasting, valuation, scenarios, or forward-model activation. Do not commit or push; the user owns the checkpoint commit.

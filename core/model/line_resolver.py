@@ -90,6 +90,19 @@ _EXACT_ALIASES: dict[str, frozenset[str]] = {
             "net cash flows from operating activities",
         }
     ),
+    "property_plant_equipment": frozenset(
+        {
+            "property plant and equipment",
+            "property and equipment",
+            "net property plant and equipment",
+        }
+    ),
+    "depreciation_amortization": frozenset(
+        {
+            "depreciation and amortisation",
+            "depreciation and amortization",
+        }
+    ),
 }
 
 

@@ -41,13 +41,13 @@ Not evidenced as dedicated structured schedules in the inspected workbook:
 
 ## Current Trainer inventory
 
-Canonical normalization-enabled demo (`DEMO_HK_Answer_Key.xlsx`, 66 families / 279 cells) visible surface:
+Canonical normalization-enabled demo (`DEMO_HK_Answer_Key.xlsx`, 74 families / 314 cells) visible surface:
 
 | Sheet / feature | Role |
 |---|---|
 | Income Statement / Balance Sheet / Cash Flow Statement | Populated historical source facts |
 | Condensed Financials | Reformulation schedules (practice formulas) |
-| ALT DuPont | RNOA / Spread / FLEV / ROE (practice formulas) |
+| ALT DuPont | RNOA / Spread / FLEV / ROE + FIXED-ASSET INTENSITY CONTEXT when PP&E and D&A resolve |
 | Accounting Judgment | Guided operating/financing treatment |
 | Normalization Judgment + Earnings Normalization | Recurring / non-recurring bridge |
 | Earnings Quality | Cash conversion, accruals, optional asset-scaled ratios + trend diagnostics |
@@ -56,7 +56,7 @@ Canonical normalization-enabled demo (`DEMO_HK_Answer_Key.xlsx`, 66 families / 2
 | Per Share Analysis | Optional; gated on diluted WAS history (+ normalized EPS bridge when normalization active) |
 | Model_* / Scenario_Summary | Hidden deferred placeholders only |
 
-Ordinary / share / cross-company surfaces remain: `62/259`, `66/279`, `70/293`, `78/331`, services `59/248`, retail `78/331`, manufacturer `70/293`.
+Ordinary / share / cross-company surfaces: `70/294`, `74/314`, `78/328`, `86/366`; services `59/248`, retail `78/331`, manufacturer `70/293`.
 
 ## Historical capability gap matrix
 
@@ -69,13 +69,14 @@ Ordinary / share / cross-company surfaces remain: `62/259`, `66/279`, `70/293`, 
 | recurring/non-recurring normalization | Income Statement **CORE EARNINGS BRIDGE** | Normalization Judgment + Earnings Normalization | implemented-differently | Explicit normalization candidates | Treatment-conditioned formulas | Maintain; broaden candidate types carefully |
 | cash conversion / accrual analysis | Earnings Quality §A accruals & cash conversion | Earnings Quality + trend diagnostics | implemented-differently | CFO + NI (+ total assets for scaled ratios) | Mechanical diagnostics, not scores | Maintain core; do not auto-port Beneish/Piotroski/Benford |
 | working-capital behavior | Condensed NOWC aggregates | Working Capital Analysis sheet | implemented-differently | OWCA/OWCL classifications + Revenue | Dedicated WC diagnostics already stronger for training | Maintain |
-| RNOA margin / turnover / asset intensity | ALT DuPont margin & turnover | Profitability drivers + change attribution | implemented | NOPAT, Revenue, NOA | Structured attribution already present | Maintain; deepen with PPE/capex context (see Priority A) |
+| RNOA margin / turnover / asset intensity | ALT DuPont margin & turnover | Profitability drivers + change attribution; fixed-asset intensity context when PP&E+D&A resolve | implemented-differently | NOPAT, Revenue, NOA; optional PP&E+D&A | Structured attribution + optional PPE context | Maintain; deepen with lease/capex when contracted |
 | ROE operating / financing attribution | ALT DuPont Fin Lev Gain | ROE attribution sheet | implemented-differently | RNOA, Spread, FLEV, equity | Dedicated change attribution | Maintain |
 | historical per-share / diluted-share bridge | IS Basic/Diluted EPS & diluted shares outstanding | Optional Per Share Analysis + norm bridge | implemented-differently | Explicit diluted WAS (+ optional norm) | Gate on share history | Maintain |
-| stock-based compensation / dilution | CF **Stock-based compensation expense**; IS share counts; EQ dilution signal | Diluted-share modules only; no SBC schedule | missing-current-data-supported | CF SBC line and/or SBC disclosure + share history when present | Optional module; omit if absent | Priority A after capex foundation, or Priority B if stricter SBC contract needed |
-| capex / depreciation / PP&E / asset intensity | BS Property and equipment; CF depreciation & **Purchases of property and equipment** | PPE usually classified into OLTA; no dedicated capex/dep schedule | missing-current-data-supported | PPE, depreciation, purchases of PPE (when supplied) | New optional historical diagnostic families | **Priority A — next candidate** |
+| stock-based compensation / dilution | CF **Stock-based compensation expense**; IS share counts; EQ dilution signal | Diluted-share modules only; no SBC schedule | missing-current-data-supported | CF SBC line and/or SBC disclosure + share history when present | Optional module; omit if absent | Priority A after lease foundation, or Priority B if stricter SBC contract needed |
+| PP&E / D&A / asset intensity | ALT DuPont FIXED-ASSET INTENSITY CONTEXT (PP&E, D&A, average PP&E, turnover, intensity, change, D&A ratios) | ALT DuPont fixed-asset families 79–86 when both PP&E and D&A resolve | implemented-differently | Explicit PP&E (BS) + D&A (CF) + Revenue | Practice formulas on ALT DuPont; gated; no capex inference; D&A/Average PP&E is context only | Maintain; do not claim pure depreciation rate |
+| capex / reinvestment bridge | CF **Purchases of property and equipment** | Absent | missing-needs-new-explicit-data | Explicit capex / purchases-of-PP&E source + sign contract | Optional gated module after contract exists | Priority B — deferred until explicit capex contract |
 | leases | BS Operating lease assets / Operating lease liabilities; Condensed classification rows | Lease concept on Accounting Judgment; no lease analytics sheet | implemented-differently | Lease asset/liability lines | Keep judgment; add lease intensity diagnostics later | Priority A deepen as diagnostics |
-| goodwill / acquired intangibles / acquisitions | BS Goodwill; Intangible assets; CF acquisitions line | Often classified as OLTA; no acquisition/goodwill bridge | missing-current-data-supported | Goodwill, intangibles, acquisition CF/lines when present | Optional gated module | Priority A (after capex) |
+| goodwill / acquired intangibles / acquisitions | BS Goodwill; Intangible assets; CF acquisitions line | Often classified as OLTA; no acquisition/goodwill bridge | missing-current-data-supported | Goodwill, intangibles, acquisition CF/lines when present | Optional gated module | Priority A (after lease intensity) |
 | deferred taxes / unusual tax rates | BS Deferred income taxes; CF Deferred income taxes; IS Core bridge tax notes (e.g. Tax Act remasurement) | Effective tax rate + pretax norm tax convention | missing-current-data-supported | Deferred tax BS/CF lines and/or explicit tax-adjustment candidates | Optional tax-quality diagnostics; do not invent | Priority A/B depending on explicit tax-adjustment contract |
 | minority / non-controlling interests | Not evidenced in inspected workbook | Absent | not-evidenced-in-GOOGL | Explicit NCI lines when a company has them | Optional gated module per TARGET | Priority C until a real-company case supplies NCI |
 | segment economics | Not evidenced as structured segment schedules (only scenario narrative mentions) | Absent | not-evidenced-in-GOOGL | Explicit segment revenue/opex/assets disclosures | Optional module; never invent segments | Priority C / B when segment inputs are designed |
@@ -110,18 +111,18 @@ Forward GOOGL sheets (Guidance & Consensus, Model_*, Scenario_Summary, Implied C
 
 ### Priority A — historically useful and current-data-supported
 
-1. **Capex / depreciation / PP&E / asset-intensity diagnostics** (next implementation candidate) — depends on existing BS/CF lines when present; feeds RNOA turnover interpretation.
-2. Lease intensity / lease-liability diagnostics building on existing lease classification judgment.
-3. Goodwill / acquired intangibles / acquisition cash diagnostics when those lines are supplied.
-4. SBC expense bridge into dilution / per-share interpretation when CF SBC + share history are supplied.
-5. Deferred-tax / unusual-tax diagnostics when deferred-tax lines or explicit tax adjustments are supplied.
-6. Further structured historical interpretation prompts on modules already taught.
+1. Lease intensity / lease-liability diagnostics building on existing lease classification judgment.
+2. Goodwill / acquired intangibles / acquisition cash diagnostics when those lines are supplied.
+3. SBC expense bridge into dilution / per-share interpretation when CF SBC + share history are supplied.
+4. Deferred-tax / unusual-tax diagnostics when deferred-tax lines or explicit tax adjustments are supplied.
+5. Further structured historical interpretation prompts on modules already taught.
 
 ### Priority B — historically useful but needs explicit new historical inputs
 
-1. Formal segment-economics input contract + optional module.
-2. Richer tax-adjustment candidate schema beyond current normalization scopes.
-3. Optional Beneish/Piotroski-style screens only if pedagogically justified and computable from standardized facts (not XBRL scrapes).
+1. Capex / reinvestment bridge (requires explicit purchases-of-PP&E / capex source and sign contract; not inferred from investing cash flow or PP&E change + D&A).
+2. Formal segment-economics input contract + optional module.
+3. Richer tax-adjustment candidate schema beyond current normalization scopes.
+4. Optional Beneish/Piotroski-style screens only if pedagogically justified and computable from standardized facts (not XBRL scrapes).
 
 ### Priority C — TARGET-required historical topic not evidenced by GOOGL
 
@@ -134,4 +135,6 @@ Forward GOOGL sheets (Guidance & Consensus, Model_*, Scenario_Summary, Implied C
 2. Residual-income / DCF valuation, ICC, multiples, guidance/consensus.
 3. Pipeline automation / monitoring features.
 
-**Next historical implementation candidate (evidence rule):** Priority A item 1 — **capex / depreciation / PP&E / asset-intensity historical diagnostics**, gated on explicit PPE and cash-flow capex/depreciation lines, without inventing facts and without activating forecasting.
+**Next historical implementation candidate (evidence rule):** Priority A item 1 — **lease intensity / lease-liability diagnostics**, building on existing lease classification without inventing ROU alternatives or activating forecasting.
+
+**Step 9K.1 note:** PP&E / D&A asset-intensity diagnostics are now implemented-differently on ALT DuPont. Capex remains explicitly deferred until a source/sign contract exists.

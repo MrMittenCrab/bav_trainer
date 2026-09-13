@@ -124,10 +124,10 @@ def test_fresh_visible_workbook_uses_minimal_white_yellow_style(tmp_path):
     _assert_fresh_visible_style(answer, practice_cells=practice)
 
     smap = load_semantic_map(answer)
-    assert len(group_components_by_family(smap)) == 66
-    assert len(smap.all_ordered()) == 279
+    assert len(group_components_by_family(smap)) == 74
+    assert len(smap.all_ordered()) == 314
     summary = check_workbook(trainer)
-    assert (summary.correct, summary.incorrect, summary.blank) == (0, 0, 279)
+    assert (summary.correct, summary.incorrect, summary.blank) == (0, 0, 314)
 
 
 def test_check_colors_are_functional_exception_not_base_style(tmp_path):
@@ -180,12 +180,12 @@ def test_committed_canonical_pair_matches_minimal_style_contract():
     _assert_fresh_visible_style(trainer, practice_cells=practice)
     _assert_fresh_visible_style(answer, practice_cells=practice)
     smap = load_semantic_map(answer)
-    assert len(group_components_by_family(smap)) == 66
-    assert len(smap.all_ordered()) == 279
+    assert len(group_components_by_family(smap)) == 74
+    assert len(smap.all_ordered()) == 314
     assert (check_workbook(trainer).correct, check_workbook(trainer).incorrect, check_workbook(trainer).blank) == (
         0,
         0,
-        279,
+        314,
     )
     for suffix in (".component_map.json", ".trainer.json", ".assumptions.json"):
         assert not trainer.with_suffix(suffix).exists()

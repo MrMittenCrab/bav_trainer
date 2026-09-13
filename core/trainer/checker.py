@@ -15,12 +15,14 @@ from ..model.historical_expected import expected_value_for_component
 from ..model.normalization import NormalizationCase, compute_normalization_series
 from ..model.period_axis import canonical_fiscal_periods
 from ..engine.component_catalog import (
+    FIXED_ASSET_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
     PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG,
     PER_SHARE_COMPONENT_CATALOG,
     QUALITY_CHANGE_COMPONENT_CATALOG,
     QUALITY_COMPONENT_CATALOG,
 )
+from ..model.fixed_asset import compute_fixed_asset_series, fixed_asset_applicable
 from ..model.per_share import compute_per_share_series
 from .check_context import (
     classification_overrides_for_check,
@@ -191,6 +193,17 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     list(modeled_periods),
                     anchor,
                 )
+            fixed_asset_family_ids = {
+                family.id for family in FIXED_ASSET_COMPONENT_CATALOG
+            }
+            fixed_asset = None
+            if any(comp.family_id in fixed_asset_family_ids for comp in comps):
+                if fixed_asset_applicable(financials):
+                    fixed_asset = compute_fixed_asset_series(
+                        financials,
+                        list(modeled_periods),
+                        anchor,
+                    )
             dynamic_expected = {
                 comp.id: expected_value_for_component(
                     anchor,
@@ -198,6 +211,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     normalization=normalization,
                     earnings_quality=earnings_quality,
                     per_share=per_share,
+                    fixed_asset=fixed_asset,
                 )
                 for comp in comps
             }

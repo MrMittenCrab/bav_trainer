@@ -132,3 +132,53 @@ def test_operating_cash_flow_aliases_and_non_alias():
         ).item
         is None
     )
+
+
+def test_ppe_and_da_aliases_and_concepts():
+    ppe = resolve_line(
+        [_item("Property, plant and equipment", 100, 110)],
+        "property_plant_equipment",
+        required=True,
+    )
+    assert ppe.item is not None
+    assert ppe.item.label == "Property, plant and equipment"
+
+    ppe_concept = resolve_line(
+        [_item("Fixed assets", 100, 110, concept="property_plant_equipment")],
+        "property_plant_equipment",
+        required=True,
+    )
+    assert ppe_concept.item is not None
+    assert ppe_concept.item.label == "Fixed assets"
+
+    da = resolve_line(
+        [_item("Depreciation and amortisation", -10, -12)],
+        "depreciation_amortization",
+        required=True,
+    )
+    assert da.item is not None
+    assert da.item.label == "Depreciation and amortisation"
+
+    da_us = resolve_line(
+        [_item("Depreciation and amortization", -10, -12)],
+        "depreciation_amortization",
+        required=True,
+    )
+    assert da_us.item is not None
+
+    assert (
+        resolve_line(
+            [_item("Depreciation", -1, -2)],
+            "depreciation_amortization",
+            required=False,
+        ).item
+        is None
+    )
+    assert (
+        resolve_line(
+            [_item("Equipment", 1, 2)],
+            "property_plant_equipment",
+            required=False,
+        ).item
+        is None
+    )

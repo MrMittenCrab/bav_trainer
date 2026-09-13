@@ -218,8 +218,8 @@ def test_demo_quality_change_surface(tmp_path):
     data = _ingest_demo()
     trainer, answer = build_training_workbook(data, tmp_path / "BASE_QC.xlsx")
     smap = load_semantic_map(answer)
-    assert len(smap.all_ordered()) == 259
-    assert len(group_components_by_family(smap)) == 62
+    assert len(smap.all_ordered()) == 294
+    assert len(group_components_by_family(smap)) == 70
     qc = [c for c in smap.all_ordered() if c.category == "earnings_quality_change"]
     assert len(qc) == 15
     assert all(c.tab == "Earnings Quality" for c in qc)
@@ -254,17 +254,17 @@ def test_demo_quality_change_surface(tmp_path):
     wb_t.close()
 
     summary = check_workbook(trainer)
-    assert summary.total == 259
-    assert summary.blank == 259
+    assert summary.total == 294
+    assert summary.blank == 294
 
     assumptions = json.loads(DEMO_ASSUMPTIONS.read_text(encoding="utf-8"))
     trainer_n, answer_n = build_training_workbook(
         data, tmp_path / "NORM_QC.xlsx", assumptions
     )
     smap_n = load_semantic_map(answer_n)
-    assert len(smap_n.all_ordered()) == 279
-    assert len(group_components_by_family(smap_n)) == 66
-    assert check_workbook(trainer_n).blank == 279
+    assert len(smap_n.all_ordered()) == 314
+    assert len(group_components_by_family(smap_n)) == 74
+    assert check_workbook(trainer_n).blank == 314
 
 
 def test_no_assets_trend_surface(tmp_path):

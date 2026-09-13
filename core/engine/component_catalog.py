@@ -1903,6 +1903,185 @@ def expand_normalized_per_share_specs(
     return tuple(specs)
 
 
+FIXED_ASSET_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="ppe_source_link",
+        order=79,
+        title="Property, Plant & Equipment",
+        short_hint="Link reported PP&E for the same fiscal period.",
+        semantic_key="fixed_asset.ppe",
+        category="fixed_asset",
+        tab_template="ALT DuPont",
+        hints=(
+            "Pull ending Property, Plant & Equipment for the same fiscal period.",
+            "This is a source link, not an investment conclusion.",
+        ),
+    ),
+    ComponentFamily(
+        id="da_source_link",
+        order=80,
+        title="Depreciation & Amortisation",
+        short_hint="Link reported combined D&A for the same fiscal period.",
+        semantic_key="fixed_asset.depreciation_amortization",
+        category="fixed_asset",
+        tab_template="ALT DuPont",
+        hints=(
+            "Pull Depreciation & Amortisation for the same fiscal period.",
+            "Combined D&A may include intangible amortisation; do not treat it as a pure PP&E depreciation charge.",
+        ),
+    ),
+    ComponentFamily(
+        id="average_ppe",
+        order=81,
+        title="Average PP&E",
+        short_hint="Average beginning and ending PP&E.",
+        semantic_key="fixed_asset.average_ppe",
+        category="fixed_asset",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("ppe_source_link",),
+        depends_on_previous=("ppe_source_link",),
+        hints=(
+            "Average PP&E = (Prior PP&E + Current PP&E) / 2.",
+        ),
+    ),
+    ComponentFamily(
+        id="ppe_turnover",
+        order=82,
+        title="PP&E Turnover",
+        short_hint="Revenue divided by Average PP&E.",
+        semantic_key="fixed_asset.ppe_turnover",
+        category="fixed_asset",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("revenue_link", "average_ppe"),
+        hints=(
+            "PP&E Turnover = Revenue / Average PP&E.",
+            "A zero Average PP&E denominator makes the ratio undefined (#N/A).",
+            "The ratio alone does not imply under- or over-investment.",
+        ),
+    ),
+    ComponentFamily(
+        id="ppe_intensity",
+        order=83,
+        title="PP&E Intensity",
+        short_hint="Average PP&E divided by Revenue.",
+        semantic_key="fixed_asset.ppe_intensity",
+        category="fixed_asset",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("revenue_link", "average_ppe"),
+        hints=(
+            "PP&E Intensity = Average PP&E / Revenue.",
+            "When defined, PP&E Turnover × PP&E Intensity = 1.",
+            "A higher intensity is not automatically bad; diagnose the asset mix first.",
+        ),
+    ),
+    ComponentFamily(
+        id="ppe_change",
+        order=84,
+        title="Change in PP&E",
+        short_hint="Current PP&E minus prior PP&E.",
+        semantic_key="fixed_asset.ppe_change",
+        category="fixed_asset",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("ppe_source_link",),
+        depends_on_previous=("ppe_source_link",),
+        hints=(
+            "Change in PP&E = Current PP&E − Prior PP&E.",
+            "This is not a capex amount; do not infer purchases of PP&E from the change alone.",
+        ),
+    ),
+    ComponentFamily(
+        id="da_to_revenue",
+        order=85,
+        title="D&A / Revenue",
+        short_hint="Combined D&A divided by Revenue.",
+        semantic_key="fixed_asset.da_to_revenue",
+        category="fixed_asset",
+        tab_template="ALT DuPont",
+        depends_on_current=("da_source_link", "revenue_link"),
+        hints=(
+            "D&A / Revenue = Depreciation & Amortisation / Revenue.",
+            "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        ),
+    ),
+    ComponentFamily(
+        id="da_to_average_ppe",
+        order=86,
+        title="D&A / Average PP&E",
+        short_hint="Combined D&A divided by Average PP&E (context ratio only).",
+        semantic_key="fixed_asset.da_to_average_ppe",
+        category="fixed_asset",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("da_source_link", "average_ppe"),
+        hints=(
+            "D&A / Average PP&E = Depreciation & Amortisation / Average PP&E.",
+            "This is a context ratio, not automatically a pure PP&E depreciation rate, because the supplied D&A line may include intangible amortisation.",
+            "Do not treat the ratio as a good/bad investment conclusion by itself.",
+        ),
+    ),
+)
+
+
+def expand_fixed_asset_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+) -> tuple[ComponentSpec, ...]:
+    """Expand fixed-asset families into period-specific concrete specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_fixed_asset_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_fixed_asset_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in FIXED_ASSET_COMPONENT_CATALOG:
+        if family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        else:
+            indices = range(len(periods))
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            if j > 0:
+                prev = periods[j - 1]
+                for dep_fam in family.depends_on_previous:
+                    deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 def _deferred(
     *,
     id: str,

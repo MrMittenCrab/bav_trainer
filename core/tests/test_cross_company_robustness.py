@@ -436,28 +436,28 @@ def test_ordinary_demo_and_share_enabled_surfaces_preserved(tmp_path):
     )
     trainer, answer = build_training_workbook(data, tmp_path / "DEMO_BASE.xlsx")
     smap = load_semantic_map(answer)
-    assert len(group_components_by_family(smap)) == 62
-    assert len(smap.all_ordered()) == 259
-    assert check_workbook(trainer).blank == 259
+    assert len(group_components_by_family(smap)) == 70
+    assert len(smap.all_ordered()) == 294
+    assert check_workbook(trainer).blank == 294
 
     assumptions = json.loads(DEMO_ASSUMPTIONS.read_text(encoding="utf-8"))
     trainer_n, answer_n = build_training_workbook(
         data, tmp_path / "DEMO_NORM.xlsx", assumptions
     )
     smap_n = load_semantic_map(answer_n)
-    assert len(group_components_by_family(smap_n)) == 66
-    assert len(smap_n.all_ordered()) == 279
-    assert check_workbook(trainer_n).blank == 279
+    assert len(group_components_by_family(smap_n)) == 74
+    assert len(smap_n.all_ordered()) == 314
+    assert check_workbook(trainer_n).blank == 314
 
     shares = _share_enabled_demo()
     trainer_s, answer_s = build_training_workbook(shares, tmp_path / "SHARE.xlsx")
     smap_s = load_semantic_map(answer_s)
-    assert len(group_components_by_family(smap_s)) == 70
-    assert len(smap_s.all_ordered()) == 293
+    assert len(group_components_by_family(smap_s)) == 78
+    assert len(smap_s.all_ordered()) == 328
 
     trainer_sn, answer_sn = build_training_workbook(
         shares, tmp_path / "SHARE_NORM.xlsx", assumptions
     )
     smap_sn = load_semantic_map(answer_sn)
-    assert len(group_components_by_family(smap_sn)) == 78
-    assert len(smap_sn.all_ordered()) == 331
+    assert len(group_components_by_family(smap_sn)) == 86
+    assert len(smap_sn.all_ordered()) == 366

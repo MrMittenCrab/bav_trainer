@@ -279,8 +279,8 @@ def test_demo_roe_attribution_surface(tmp_path):
     data = _ingest_demo()
     trainer, answer = build_training_workbook(data, tmp_path / "BASE_ROE.xlsx")
     smap = load_semantic_map(answer)
-    assert len(smap.all_ordered()) == 259
-    assert len(group_components_by_family(smap)) == 62
+    assert len(smap.all_ordered()) == 294
+    assert len(group_components_by_family(smap)) == 70
     ra = [c for c in smap.all_ordered() if c.category == "roe_attribution"]
     assert len(ra) == 22
     assert all(c.tab == "ALT DuPont" for c in ra)
@@ -332,17 +332,17 @@ def test_demo_roe_attribution_surface(tmp_path):
     wb_t.close()
 
     summary = check_workbook(trainer)
-    assert summary.total == 259
-    assert summary.blank == 259
+    assert summary.total == 294
+    assert summary.blank == 294
 
     assumptions = json.loads(DEMO_ASSUMPTIONS.read_text(encoding="utf-8"))
     trainer_n, answer_n = build_training_workbook(
         data, tmp_path / "NORM_ROE.xlsx", assumptions
     )
     smap_n = load_semantic_map(answer_n)
-    assert len(smap_n.all_ordered()) == 279
-    assert len(group_components_by_family(smap_n)) == 66
-    assert check_workbook(trainer_n).blank == 279
+    assert len(smap_n.all_ordered()) == 314
+    assert len(group_components_by_family(smap_n)) == 74
+    assert check_workbook(trainer_n).blank == 314
 
 
 def test_live_classification_changes_roe_attribution(tmp_path):

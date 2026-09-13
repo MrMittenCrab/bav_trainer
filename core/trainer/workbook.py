@@ -11,6 +11,7 @@ from openpyxl.styles import Border, Font, PatternFill
 
 from ..engine.component_catalog import (
     COMPONENT_CATALOG,
+    FIXED_ASSET_COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
     PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG,
@@ -275,6 +276,7 @@ def group_components_by_family(smap: SemanticMap) -> list[dict]:
     family_meta.update({f.id: f for f in PER_SHARE_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in NORMALIZED_PER_SHARE_COMPONENT_CATALOG})
+    family_meta.update({f.id: f for f in FIXED_ASSET_COMPONENT_CATALOG})
     groups: list[dict] = []
     for family_id, comps in by_family.items():
         comps = sorted(comps, key=lambda c: (c.period_index is None, c.period_index or 0, c.order))

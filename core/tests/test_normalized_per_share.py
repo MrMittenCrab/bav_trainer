@@ -208,8 +208,8 @@ def test_catalog_expand_and_gating(tmp_path):
     assert b1.normalized_per_share_series is None
     trainer1, answer1 = build_training_workbook(shares_only, tmp_path / "SO.xlsx")
     smap1 = load_semantic_map(answer1)
-    assert len(smap1.all_ordered()) == 293
-    assert len(group_components_by_family(smap1)) == 70
+    assert len(smap1.all_ordered()) == 328
+    assert len(group_components_by_family(smap1)) == 78
     assert not any(c.category == "normalized_per_share" for c in smap1.all_ordered())
 
     # normalization + no shares
@@ -218,7 +218,7 @@ def test_catalog_expand_and_gating(tmp_path):
         base, tmp_path / "NORM_ONLY.xlsx", assumptions
     )
     smap_n = load_semantic_map(answer_n)
-    assert len(smap_n.all_ordered()) == 279
+    assert len(smap_n.all_ordered()) == 314
     assert PER_SHARE_SHEET not in load_workbook(answer_n).sheetnames
     assert not any(c.category == "normalized_per_share" for c in smap_n.all_ordered())
 
@@ -228,8 +228,8 @@ def test_catalog_expand_and_gating(tmp_path):
         both, tmp_path / "BOTH.xlsx", assumptions
     )
     smap_b = load_semantic_map(answer_b)
-    assert len(smap_b.all_ordered()) == 331
-    assert len(group_components_by_family(smap_b)) == 78
+    assert len(smap_b.all_ordered()) == 366
+    assert len(group_components_by_family(smap_b)) == 86
     nps = [c for c in smap_b.all_ordered() if c.category == "normalized_per_share"]
     assert len(nps) == 18
     assert {c.family_id for c in nps} == {
@@ -241,7 +241,7 @@ def test_catalog_expand_and_gating(tmp_path):
         builder.normalization_series, builder.per_share_series
     )
     assert set(series) == {f.id for f in NORMALIZED_PER_SHARE_COMPONENT_CATALOG}
-    assert check_workbook(trainer_b).blank == 331
+    assert check_workbook(trainer_b).blank == 366
 
 
 def test_normalized_bridge_sheet_layout_and_trust(tmp_path):

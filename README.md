@@ -13,6 +13,7 @@ Historical BAV Excel practice for Hong Kong-listed **non-financial** companies: 
 - ROE operating/financing attribution
 - Optional diluted per-share analysis when historical diluted-share data is supplied
 - Optional normalized diluted EPS when both shares and normalization are supplied
+- PP&E / D&A fixed-asset intensity diagnostics when both source lines are supplied
 - One workbook-wide Check
 - Matched Trainer + Answer Key
 
@@ -57,7 +58,7 @@ No automatic HKEX/SEC scraping in this product.
 
 Next:
 
-- Continue Step 9 historical convergence using the GOOGL integrated workbook as a structural reference.
+- Continue Step 9 historical convergence; next candidate is lease intensity / lease-liability diagnostics (see `docs/GOOGL_HISTORICAL_REFERENCE.md`). Capex/reinvestment remains deferred until an explicit source/sign contract exists.
 
 Later:
 

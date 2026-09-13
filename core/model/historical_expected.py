@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ..engine.component_catalog import (
     COMPONENT_CATALOG,
+    FIXED_ASSET_COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
     PER_SHARE_ATTRIBUTION_COMPONENT_CATALOG,
@@ -19,6 +20,7 @@ from ..engine.semantic_map import ResolvedComponent
 from .earnings_quality import EarningsQualitySeries
 from .earnings_quality_change import compute_earnings_quality_change_series
 from .financial_math import AnchorMetrics
+from .fixed_asset import FixedAssetSeries
 from .normalization import NormalizationSeries
 from .normalized_per_share import compute_normalized_per_share_series
 from .per_share import PerShareSeries
@@ -97,6 +99,17 @@ _NORMALIZED_PER_SHARE_FAMILY_SERIES = (
     "normalized_diluted_eps",
     "normalized_diluted_eps_change",
     "normalization_effect_on_diluted_eps_change",
+)
+
+_FIXED_ASSET_FAMILY_SERIES = (
+    "ppe_source_link",
+    "da_source_link",
+    "average_ppe",
+    "ppe_turnover",
+    "ppe_intensity",
+    "ppe_change",
+    "da_to_revenue",
+    "da_to_average_ppe",
 )
 
 _WORKING_CAPITAL_FAMILY_SERIES = (
@@ -447,6 +460,31 @@ def normalized_per_share_expected_series(
     }
 
 
+def fixed_asset_expected_series(
+    fixed_asset: FixedAssetSeries,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map fixed-asset diagnostic families from a FixedAssetSeries."""
+    series = {
+        "ppe_source_link": fixed_asset.ppe,
+        "da_source_link": fixed_asset.depreciation_amortization,
+        "average_ppe": fixed_asset.average_ppe,
+        "ppe_turnover": fixed_asset.ppe_turnover,
+        "ppe_intensity": fixed_asset.ppe_intensity,
+        "ppe_change": fixed_asset.ppe_change,
+        "da_to_revenue": fixed_asset.da_to_revenue,
+        "da_to_average_ppe": fixed_asset.da_to_average_ppe,
+    }
+    expected_ids = {family.id for family in FIXED_ASSET_COMPONENT_CATALOG}
+    if set(series) != expected_ids:
+        missing = sorted(expected_ids - set(series))
+        extra = sorted(set(series) - expected_ids)
+        raise ValueError(
+            "fixed_asset_expected_series family mismatch; "
+            f"missing={missing} extra={extra}"
+        )
+    return {family_id: series[family_id] for family_id in _FIXED_ASSET_FAMILY_SERIES}
+
+
 def expected_value_for_component(
     anchor: AnchorMetrics,
     component: ResolvedComponent,
@@ -454,6 +492,7 @@ def expected_value_for_component(
     normalization: NormalizationSeries | None = None,
     earnings_quality: EarningsQualitySeries | None = None,
     per_share: PerShareSeries | None = None,
+    fixed_asset: FixedAssetSeries | None = None,
 ) -> float | str | None:
     """Return the treatment-conditioned expected value for one practice component."""
     family_id = component.family_id
@@ -465,7 +504,13 @@ def expected_value_for_component(
             f"Component {component.id!r} (family {family_id}) has no period_index"
         )
 
-    if family_id in _NORMALIZED_PER_SHARE_FAMILY_SERIES:
+    if family_id in _FIXED_ASSET_FAMILY_SERIES:
+        if fixed_asset is None:
+            raise ValueError(
+                f"Fixed-asset family {family_id!r} requires a FixedAssetSeries"
+            )
+        series = fixed_asset_expected_series(fixed_asset)
+    elif family_id in _NORMALIZED_PER_SHARE_FAMILY_SERIES:
         if normalization is None:
             raise ValueError(
                 f"Normalized-per-share family {family_id!r} requires a "
