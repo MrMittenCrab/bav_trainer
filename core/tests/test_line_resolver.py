@@ -233,7 +233,12 @@ def test_lease_liability_aggregate_aliases_and_ambiguity():
 
 @pytest.mark.parametrize(
     "concept",
-    ("goodwill", "intangible_assets", "payments_for_intangible_assets"),
+    (
+        "goodwill",
+        "intangible_assets",
+        "payments_for_intangible_assets",
+        "payments_for_ppe",
+    ),
 )
 def test_goodwill_intangible_explicit_concept_only(concept):
     by_concept = resolve_line(
