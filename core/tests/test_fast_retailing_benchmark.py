@@ -316,6 +316,7 @@ def test_audit_script_writes_baseline_and_stage_records():
         or "Step 9M.3D" in text
         or "Step 9M.3E" in text
         or "Step 9M.5" in text
+        or "Step 9M.6" in text
     )
     assert "pass" in completed.stdout or "fail" in completed.stdout
 
