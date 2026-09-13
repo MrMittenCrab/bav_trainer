@@ -224,7 +224,8 @@ def run_audit() -> dict[str, Any]:
                     f"per_share_attribution_specs={len(builder.per_share_attribution_specs)} "
                     f"fixed_asset_specs={len(builder.fixed_asset_specs)} "
                     f"goodwill_intangibles_specs={len(builder.goodwill_intangibles_specs)} "
-                    f"deferred_tax_specs={len(builder.deferred_tax_specs)}"
+                    f"deferred_tax_specs={len(builder.deferred_tax_specs)} "
+                    f"capex_specs={len(builder.capex_specs)}"
                 ),
             )
         )

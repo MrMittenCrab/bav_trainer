@@ -15,6 +15,7 @@ from ..model.historical_expected import expected_value_for_component
 from ..model.normalization import NormalizationCase, compute_normalization_series
 from ..model.period_axis import canonical_fiscal_periods
 from ..engine.component_catalog import (
+    CAPEX_COMPONENT_CATALOG,
     DEFERRED_TAX_COMPONENT_CATALOG,
     FIXED_ASSET_COMPONENT_CATALOG,
     GOODWILL_INTANGIBLES_COMPONENT_CATALOG,
@@ -28,6 +29,7 @@ from ..engine.component_catalog import (
     QUALITY_COMPONENT_CATALOG,
 )
 from ..model.fixed_asset import compute_fixed_asset_series, fixed_asset_applicable
+from ..model.capex import compute_capex_series, capex_applicable
 from ..model.deferred_tax import (
     compute_deferred_tax_series,
     deferred_tax_applicable,
@@ -285,6 +287,15 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                         list(modeled_periods),
                         anchor,
                     )
+            capex_family_ids = {family.id for family in CAPEX_COMPONENT_CATALOG}
+            capex = None
+            if any(comp.family_id in capex_family_ids for comp in comps):
+                if capex_applicable(financials):
+                    capex = compute_capex_series(
+                        financials,
+                        list(modeled_periods),
+                        anchor,
+                    )
             dynamic_expected = {
                 comp.id: expected_value_for_component(
                     anchor,
@@ -299,6 +310,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     ownership_attribution=ownership_attribution,
                     goodwill_intangibles=goodwill_intangibles,
                     goodwill_intangibles_availability=gi_availability,
+                    capex=capex,
                 )
                 for comp in comps
             }

@@ -4,7 +4,7 @@
 
 **Goal:** Add historical PP&E capex and capex-to-revenue practice with matching Answer Key formulas, Notes, and workbook-wide Check.
 
-### Task 1: Extend capex calculations and expected values
+### Task 1: Extend capex calculations and expected values — DONE
 
 **Files:** `core/model/capex.py`, `core/model/historical_expected.py`
 
@@ -12,7 +12,7 @@
 - Missing/`None` required period values raise `MissingHistoricalValueError`; explicit zero capex remains valid; zero revenue yields `UNDEFINED_RATIO`.
 - Add expected-value families for `ppe_capex` and `ppe_capex_to_revenue`, following existing optional-module dispatch conventions.
 
-### Task 2: Integrate workbook practice and Check
+### Task 2: Integrate workbook practice and Check — DONE
 
 **Files:** `core/engine/component_catalog.py`, `core/engine/reference_model.py`, `core/trainer/checker.py`
 
@@ -23,7 +23,7 @@
 - Provide concise Answer Key Notes explaining sign conversion, revenue intensity, and zero-denominator behavior; Trainer cells remain blank yellow without Notes.
 - Include both families in workbook-wide, non-disclosing Check through existing semantic mapping.
 
-### Task 3: Verify practice and update coverage
+### Task 3: Verify practice and update coverage — DONE
 
 **Files:** `core/tests/test_capex.py`, `core/tests/test_fast_retailing_benchmark.py`, `docs/GOOGL_HISTORICAL_REFERENCE.md`
 

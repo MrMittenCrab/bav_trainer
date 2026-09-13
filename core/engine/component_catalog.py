@@ -2823,6 +2823,97 @@ def expand_lease_rou_specs(
     return tuple(specs)
 
 
+CAPEX_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="ppe_capex",
+        order=120,
+        title="PP&E Capex (−reported)",
+        short_hint=(
+            "Presented as −reported payments for property, plant and equipment."
+        ),
+        semantic_key="capex.ppe_capex",
+        category="capex",
+        tab_template="ALT DuPont",
+        hints=(
+            "PP&E Capex = −(reported payments for property, plant and equipment).",
+            "Do not apply absolute value; keep the −reported sign convention consistently.",
+            "Explicit zero reported payments remain valid (zero capex).",
+        ),
+    ),
+    ComponentFamily(
+        id="ppe_capex_to_revenue",
+        order=121,
+        title="PP&E Capex / Revenue",
+        short_hint="Presented PP&E capex divided by same-period Revenue.",
+        semantic_key="capex.ppe_capex_to_revenue",
+        category="capex",
+        tab_template="ALT DuPont",
+        depends_on_current=("ppe_capex", "revenue_link"),
+        hints=(
+            "PP&E Capex / Revenue uses the −reported payment presentation.",
+            "A zero Revenue denominator makes the ratio undefined (#N/A).",
+            "Revenue intensity only — not a reinvestment bridge or depreciation ratio.",
+        ),
+    ),
+)
+
+
+def expand_capex_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+) -> tuple[ComponentSpec, ...]:
+    """Expand capex families into period-specific concrete specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_capex_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_capex_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in CAPEX_COMPONENT_CATALOG:
+        if family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        else:
+            indices = range(len(periods))
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            if j > 0:
+                prev = periods[j - 1]
+                for dep_fam in family.depends_on_previous:
+                    deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 DEFERRED_TAX_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
     ComponentFamily(
         id="net_deferred_tax_position",

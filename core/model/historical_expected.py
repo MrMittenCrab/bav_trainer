@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from ..engine.component_catalog import (
+    CAPEX_COMPONENT_CATALOG,
     COMPONENT_CATALOG,
     DEFERRED_TAX_COMPONENT_CATALOG,
     FIXED_ASSET_COMPONENT_CATALOG,
@@ -22,6 +23,7 @@ from ..engine.component_catalog import (
     WORKING_CAPITAL_COMPONENT_CATALOG,
 )
 from ..engine.semantic_map import ResolvedComponent
+from .capex import CapexSeries
 from .earnings_quality import EarningsQualitySeries
 from .earnings_quality_change import compute_earnings_quality_change_series
 from .deferred_tax import DeferredTaxSeries
@@ -144,6 +146,11 @@ _DEFERRED_TAX_FAMILY_SERIES = (
     "deferred_tax_assets_change",
     "deferred_tax_liabilities_change",
     "net_deferred_tax_position_change",
+)
+
+_CAPEX_FAMILY_SERIES = (
+    "ppe_capex",
+    "ppe_capex_to_revenue",
 )
 
 _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
@@ -617,6 +624,25 @@ def deferred_tax_expected_series(
     }
 
 
+def capex_expected_series(
+    capex: CapexSeries,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map capex practice families from a CapexSeries."""
+    series = {
+        "ppe_capex": capex.ppe_capex,
+        "ppe_capex_to_revenue": capex.ppe_capex_to_revenue,
+    }
+    expected_ids = {family.id for family in CAPEX_COMPONENT_CATALOG}
+    if set(series) != expected_ids:
+        missing = sorted(expected_ids - set(series))
+        extra = sorted(set(series) - expected_ids)
+        raise ValueError(
+            "capex_expected_series family mismatch; "
+            f"missing={missing} extra={extra}"
+        )
+    return {family_id: series[family_id] for family_id in _CAPEX_FAMILY_SERIES}
+
+
 def ownership_attribution_expected_series(
     ownership_attribution: OwnershipAttributionSeries,
 ) -> dict[str, tuple[float | str | None, ...]]:
@@ -728,6 +754,7 @@ def expected_value_for_component(
     ownership_attribution: OwnershipAttributionSeries | None = None,
     goodwill_intangibles: GoodwillIntangiblesSeries | None = None,
     goodwill_intangibles_availability: GoodwillIntangiblesAvailability | None = None,
+    capex: CapexSeries | None = None,
 ) -> float | str | None:
     """Return the treatment-conditioned expected value for one practice component."""
     family_id = component.family_id
@@ -773,6 +800,10 @@ def expected_value_for_component(
                 f"Deferred-tax family {family_id!r} requires a DeferredTaxSeries"
             )
         series = deferred_tax_expected_series(deferred_tax)
+    elif family_id in _CAPEX_FAMILY_SERIES:
+        if capex is None:
+            raise ValueError(f"Capex family {family_id!r} requires a CapexSeries")
+        series = capex_expected_series(capex)
     elif family_id in _FIXED_ASSET_FAMILY_SERIES:
         if fixed_asset is None:
             raise ValueError(

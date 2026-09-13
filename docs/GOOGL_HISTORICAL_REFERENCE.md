@@ -66,9 +66,9 @@ Ordinary / share / cross-company DEMO surfaces (recorded regression counts): `74
 
 Distinct from DEMO counts. Post–G1–G7 recorded Stage 4/Check surface:
 
-- **`expected_specs=454`** (blank Check `0/0/454`; filled Check `454/0/0`)
-- Module specs (recorded): `lease_specs=18`, `lease_rou_specs=16`, `ownership_specs=34`, `per_share_specs=18`, `per_share_attribution_specs=16`, `fixed_asset_specs=35`, `goodwill_intangibles_specs=58`
-- Added vs illustrative DEMO when facts resolve: split lease-liability diagnostics, lease ROU-asset intensity, Ownership Attribution (parent/NCI), split-adjusted Per Share Analysis + attribution, goodwill/intangibles intensity context
+- **`expected_specs=481`** (blank Check `0/0/481`; filled Check `481/0/0`)
+- Module specs (recorded): `lease_specs=18`, `lease_rou_specs=16`, `ownership_specs=34`, `per_share_specs=18`, `per_share_attribution_specs=16`, `fixed_asset_specs=35`, `goodwill_intangibles_specs=58`, `deferred_tax_specs=17`, `capex_specs=10`
+- Added vs illustrative DEMO when facts resolve: split lease-liability diagnostics, lease ROU-asset intensity, Ownership Attribution (parent/NCI), split-adjusted Per Share Analysis + attribution, goodwill/intangibles intensity context, deferred-tax balance context, PP&E capex practice
 
 ### Implemented since prior inventory (G3–G6 / related)
 
@@ -80,6 +80,7 @@ Distinct from DEMO counts. Post–G1–G7 recorded Stage 4/Check surface:
 | Split-adjusted per-share analysis | **implemented** | `historical_shares` with `basis=split_adjusted` drives diluted WAS / EPS practice when share axis resolves (G6 / 9M.3D) |
 | Goodwill / intangible intensity & change | **implemented** | ALT DuPont `GOODWILL & INTANGIBLES CONTEXT` when unique BS `goodwill` and/or `intangible_assets` resolve; optional CF `payments_for_intangible_assets` as −reported; no acquisition/impairment narrative (9M.5) |
 | Lease ROU-asset intensity / trend | **implemented** | ALT DuPont `LEASE ROU-ASSET CONTEXT` when unique BS `right_of_use_assets` resolves; average-balance intensity; independent of lease liability (9M.6) |
+| PP&E capex / capex-to-revenue | **implemented** | ALT DuPont `PP&E CAPEX CONTEXT` when unique CF `payments_for_ppe` resolves; −reported practice + revenue intensity; no reinvestment bridge (9M.9) |
 
 ## Historical capability gap matrix
 
@@ -97,7 +98,7 @@ Distinct from DEMO counts. Post–G1–G7 recorded Stage 4/Check surface:
 | historical per-share / diluted-share bridge | IS Basic/Diluted EPS & diluted shares outstanding | Optional Per Share Analysis + norm bridge; split-adjusted WAS when share-basis resolver emits `basis=split_adjusted` | implemented-differently | Explicit diluted WAS (+ optional norm); optional audited split restatement for comparable axis | Gate on share history; analytical axis must not overwrite raw share facts | Maintain |
 | stock-based compensation / dilution | CF **Stock-based compensation expense**; IS share counts; EQ dilution signal | Diluted-share modules only; no SBC schedule | missing-current-data-supported | CF SBC line and/or SBC disclosure + share history when present | Optional module; omit if absent | Priority A when SBC facts exist; Fast Retailing / DEMO currently lack SBC lines |
 | PP&E / D&A / asset intensity | BS Property and equipment; CF depreciation; CF Purchases of property and equipment | ALT DuPont fixed-asset families when both PP&E and D&A resolve (`FIXED-ASSET INTENSITY CONTEXT`) | implemented-differently | Explicit PP&E (BS) + D&A (CF) + Revenue | Practice formulas on ALT DuPont; gated; no capex inference; D&A/Average PP&E is context only | Maintain; do not claim pure depreciation rate |
-| capex / reinvestment bridge | CF **Purchases of property and equipment** | Source+sign contract implemented (`payments_for_ppe` → `ppe_capex = -payments_reported`); **workbook practice still pending** | implemented-differently (bounded) | Explicit CF `payments_for_ppe` (unique exact concept); Revenue / PP&E reserved for later ratios | Optional gated source module; do not infer from investing CF or ΔPPE+D&A; no abs()/sign inference | Source contract done (9M.8); practice/ratios next |
+| capex / reinvestment bridge | CF **Purchases of property and equipment** | ALT DuPont `PP&E CAPEX CONTEXT`: populated reported CF payments + practice `ppe_capex` (−reported) and `ppe_capex_to_revenue`; **no** reinvestment bridge / depreciation ratios | implemented-differently (bounded) | Explicit CF `payments_for_ppe` (unique exact concept) + Revenue | Optional gated practice; do not infer from investing CF or ΔPPE+D&A; no abs()/sign inference; zero revenue → `#N/A` | Maintain bounded practice; reinvestment bridge / other capex diagnostics remain deferred |
 | leases (liability) | BS Operating lease liabilities; Condensed classification rows | Accounting Judgment + ALT DuPont lease-liability families; aggregate **or** split current/non-current sum; treatment-conditioned lease interest when complete note axis exists | implemented-differently | Aggregate `lease_liability` **or** unique `lease_liability_current` + `lease_liability_noncurrent`; optional `lease_interest_expense` note axis; Revenue | Guided classification + intensity/trend; financing net interest conditioned on uniform lease treatment | Maintain |
 | leases (ROU / payments) | BS Operating lease assets | ALT DuPont ROU intensity/trend when unique `right_of_use_assets` resolves; **no** lease-payment / discount-rate diagnostics | implemented-differently (bounded) | Explicit `right_of_use_assets`; optional lease-payment CF lines when present | Optional gated ROU balance context (done); payments/rates remain deferred | Maintain ROU module; Priority B for payment/rate contract |
 | goodwill / acquired intangibles / acquisitions | BS Goodwill; Intangible assets; CF acquisitions line | ALT DuPont goodwill/intangibles intensity & change when concepts resolve; optional intangible-payments (−reported); **no** acquisition-cash / GW-impairment bridge | implemented-differently (bounded) | Unique `goodwill` / `intangible_assets` (and optional intangible-payment CF) when present; acquisition CF only when explicitly supplied | Optional gated intensity/change module; never invent acquisition or GW-impairment stories | Maintain bounded module; acquisition-cash remains deferred until explicit facts |
@@ -135,10 +136,10 @@ Forward GOOGL sheets (Guidance & Consensus, Model_*, Scenario_Summary, Implied C
 
 ### Priority A — historically useful and current-data-supported
 
-1. Capex / reinvestment **workbook practice and analytical ratios** once the `payments_for_ppe` source+sign contract is in place (contract completed in Step 9M.8; Fast Retailing already supplies the CF concept).
-2. Further structured historical interpretation prompts on modules already taught.
-3. Acquisition-cash / GW-impairment attribution only when those facts are separately and explicitly supplied (not present on Fast Retailing today).
-4. SBC expense bridge into dilution / per-share interpretation when CF SBC + share history are supplied (not present on Fast Retailing or ordinary DEMO today).
+1. Further structured historical interpretation prompts on modules already taught.
+2. Acquisition-cash / GW-impairment attribution only when those facts are separately and explicitly supplied (not present on Fast Retailing today).
+3. SBC expense bridge into dilution / per-share interpretation when CF SBC + share history are supplied (not present on Fast Retailing or ordinary DEMO today).
+4. Capex **reinvestment bridge** / depreciation-linked diagnostics only when an explicit bridge contract is designed (capex-to-revenue practice completed in Step 9M.9).
 
 ### Priority B — historically useful but needs explicit new historical inputs
 
@@ -204,25 +205,18 @@ Explicit concept resolution is registered in `core/model/line_resolver.py` for:
 
 ## Next historical implementation candidate (exactly one)
 
-**Name:** Capex / reinvestment bridge — workbook practice / ratios (after source contract)
+**Name:** Structured historical interpretation prompts on already-taught modules (or next source-supported Priority A gap)
 
-### Capex source and sign contract (Step 9M.8 — complete)
+### Capex source, sign, and practice (Step 9M.9 — complete)
 
 - Resolver: CF `payments_for_ppe` is **explicit-concept-only** (no label/pattern fallback), resolved only from `StandardizedFinancials.cash_flow`.
-- Gating: missing or duplicate CF sources → module unavailable (`capex_applicable` false); `compute_capex_series` raises `MissingLineError` when no usable source.
-- Missing periods: each requested period uses `required_period_value`; absent/`None` → `MissingHistoricalValueError`; explicit zero remains valid.
-- Sign: preserve reported cash-flow values as `payments_reported`; analytical `ppe_capex = -payments_reported` (negative outflow → positive expenditure; positive reported → negative analytical capex). Never `abs()` or infer sign from the series.
-- Out of scope for 9M.8: ratios, reinvestment bridge, workbook practice, Revenue/PP&E dependency wiring, forecasting/valuation.
-- Fast Retailing FY2021–FY2025 `ppe_capex` anchors: `56500, 51271, 61764, 73728, 135535` (JPY mn).
-
-### Minimum input contract (remaining practice work)
-
-Explicit CF `payments_for_ppe` (purchases of property and equipment) with the signed conversion above, plus Revenue (and existing PP&E context when present) for subsequent ratios.
-
-### Missing / ambiguous-input behavior
-
-- Missing or ambiguous `payments_for_ppe` → omit module (fail closed).
-- Do not infer capex from investing cash flow totals or from ΔPP&E + D&A.
+- Gating: missing or duplicate CF sources → module unavailable (`capex_applicable` false); no capex rows or practice specs.
+- Sign: preserve reported cash-flow values as `payments_reported`; analytical `ppe_capex = -payments_reported`. Never `abs()` or infer sign.
+- Ratio: `ppe_capex_to_revenue = ratio_or_na(ppe_capex, revenue)`; zero revenue → `UNDEFINED_RATIO` (`#N/A`); missing/`None` required values raise `MissingHistoricalValueError`.
+- Workbook: ALT DuPont `PP&E CAPEX CONTEXT` with populated reported-payment links + two practice families per period (`capex.ppe_capex`, `capex.ppe_capex_to_revenue`); Answer Key Notes; workbook-wide Check.
+- Fast Retailing: `capex_specs=10`, `expected_specs=481`; FY2021–FY2025 `ppe_capex` anchors `56500, 51271, 61764, 73728, 135535` with independently calculated revenue ratios.
+- Out of scope / still deferred: reinvestment bridge, depreciation ratios, forecasting/valuation.
+- DEMO unchanged (no `payments_for_ppe`).
 
 ### Explicitly out of scope for this candidate
 
@@ -232,15 +226,17 @@ Explicit CF `payments_for_ppe` (purchases of property and equipment) with the si
 - Unusual deferred-tax expense / cash-tax diagnostics beyond the implemented balance module
 - Segments, forecasting/valuation
 
-**Step 9M.8 note:** Capex CF source resolution + signed `ppe_capex = -payments_reported` contract is implemented and tested. Workbook practice, Check coverage, and analytical ratios remain pending. DEMO unchanged (no `payments_for_ppe`). Benchmark practice counts unchanged.
+**Step 9M.9 note:** Capex-to-revenue practice is implemented and tested. Reinvestment bridge and other capex diagnostics remain deferred.
 
-**Step 9M.7 note:** Deferred-tax balance diagnostics are implemented on ALT DuPont when unique exact-concept `deferred_tax_assets` and `deferred_tax_liabilities` both resolve. DEMO remains unchanged. Fast Retailing activates 17 practice cells (`deferred_tax_specs=17`, `expected_specs=471`). Deferred-tax expense / cash-tax inference remains deferred.
+**Step 9M.8 note:** Capex CF source resolution + signed `ppe_capex = -payments_reported` contract completed; practice/ratios delivered in 9M.9.
+
+**Step 9M.7 note:** Deferred-tax balance diagnostics are implemented on ALT DuPont when unique exact-concept `deferred_tax_assets` and `deferred_tax_liabilities` both resolve. DEMO remains unchanged. Fast Retailing activates 17 practice cells (`deferred_tax_specs=17`). Deferred-tax expense / cash-tax inference remains deferred.
 
 **Step 9M.6 note:** Lease ROU-asset intensity / trend diagnostics are implemented on ALT DuPont when unique exact-concept `right_of_use_assets` resolves. DEMO remains unchanged (no ROU concept). Fast Retailing activates 16 practice cells. Lease-payment / discount-rate analysis remains deferred.
 
 **Step 9M.5 note:** Goodwill / intangible-asset intensity & change diagnostics (optional intangible-payments as −reported) are implemented on ALT DuPont when explicit concepts resolve. DEMO label-only goodwill remains omitted. Acquisition-cash and GW-impairment storytelling remain deferred.
 
-**Step 9K.1 note:** PP&E / D&A asset-intensity diagnostics are implemented-differently on ALT DuPont. Capex source contract is complete; practice surface is next.
+**Step 9K.1 note:** PP&E / D&A asset-intensity diagnostics are implemented-differently on ALT DuPont. Capex source+practice are complete; reinvestment bridge remains deferred.
 
 **Step 9L.1 / 9M.3A–B note:** Lease-liability intensity/trend diagnostics support aggregate **or** split summation; treatment-conditioned lease interest is implemented when a complete reported lease-interest axis exists.
 

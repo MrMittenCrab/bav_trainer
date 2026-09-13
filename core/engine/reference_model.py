@@ -41,6 +41,11 @@ from ..model.deferred_tax import (
     deferred_tax_applicable,
     resolve_deferred_tax_sources,
 )
+from ..model.capex import (
+    compute_capex_series,
+    capex_applicable,
+    resolve_capex_source,
+)
 from ..model.lease_rou import (
     compute_lease_rou_series,
     lease_rou_applicable,
@@ -71,6 +76,7 @@ from ..model.working_capital import (
 )
 from .component_catalog import (
     DEFERRED_COMPONENT_SPECS,
+    expand_capex_specs,
     expand_fixed_asset_specs,
     expand_goodwill_intangibles_specs,
     expand_historical_specs,
@@ -505,6 +511,38 @@ class ReferenceModelBuilder:
         else:
             self.deferred_tax_series = None
             self.deferred_tax_specs = ()
+        if capex_applicable(self.fin):
+            self.capex_series = compute_capex_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.capex_specs = expand_capex_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + len(self.profitability_change_specs)
+                    + len(self.roe_attribution_specs)
+                    + len(self.quality_change_specs)
+                    + len(self.per_share_specs)
+                    + len(self.per_share_attribution_specs)
+                    + len(self.normalized_per_share_specs)
+                    + len(self.fixed_asset_specs)
+                    + len(self.lease_liability_specs)
+                    + len(self.ownership_attribution_specs)
+                    + len(self.goodwill_intangibles_specs)
+                    + len(self.lease_rou_specs)
+                    + len(self.deferred_tax_specs)
+                    + 1
+                ),
+            )
+        else:
+            self.capex_series = None
+            self.capex_specs = ()
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
@@ -523,6 +561,7 @@ class ReferenceModelBuilder:
             + self.goodwill_intangibles_specs
             + self.lease_rou_specs
             + self.deferred_tax_specs
+            + self.capex_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -577,6 +616,9 @@ class ReferenceModelBuilder:
         }
         self._deferred_tax_spec_index = {
             (s.family_id, s.period_index): s for s in self.deferred_tax_specs
+        }
+        self._capex_spec_index = {
+            (s.family_id, s.period_index): s for s in self.capex_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -1002,6 +1044,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._deferred_tax_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_capex(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._capex_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -2697,6 +2755,79 @@ class ReferenceModelBuilder:
             self.rowmap["dupont_deferred_tax_liabilities_change_row"] = dtl_change_row
             self.rowmap["dupont_net_deferred_tax_position_change_row"] = net_change_row
             next_section_after = net_change_row
+
+        if self.capex_series is not None:
+            capex_series = self.capex_series
+            pay_item = resolve_capex_source(self.fin)
+            assert pay_item is not None
+            pay_src = self._resolved_source_row(
+                self.fin.cash_flow, "payments_for_ppe", required=True
+            )
+            assert pay_src is not None
+            rev_r = self.rowmap["condensed_revenue_row"]
+
+            capex_section_row = next_section_after + 2
+            reported_row = capex_section_row + 1
+            payments_row = capex_section_row + 2
+            payments_rev_row = capex_section_row + 3
+
+            ws.cell(row=capex_section_row, column=1, value="PP&E CAPEX CONTEXT").font = (
+                BOLD
+            )
+            ws.cell(
+                row=reported_row,
+                column=1,
+                value="Payments for Property, Plant & Equipment (reported)",
+            )
+            ws.cell(row=payments_row, column=1, value="PP&E Capex (−reported)")
+            ws.cell(row=payments_rev_row, column=1, value="PP&E Capex / Revenue")
+
+            for j in range(self._n):
+                out_col_idx = 2 + j
+                out_col = self._col(out_col_idx)
+                src_col = self._col(2 + j)
+                reported_f = f"='Cash Flow Statement'!{src_col}{pay_src}"
+                payments_f = f"=-{out_col}{reported_row}"
+                payments_rev_f = (
+                    f"=IF('Condensed Financials'!{src_col}{rev_r}=0,NA(),"
+                    f"{out_col}{payments_row}/'Condensed Financials'!{src_col}{rev_r})"
+                )
+                c = ws.cell(row=reported_row, column=out_col_idx, value=reported_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=payments_row, column=out_col_idx, value=payments_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(
+                    row=payments_rev_row, column=out_col_idx, value=payments_rev_f
+                )
+                c.number_format = PCT_FMT
+
+                pay_exp = capex_series.ppe_capex[j]
+                pay_rev_exp = capex_series.ppe_capex_to_revenue[j]
+                self._register_capex(
+                    "ppe_capex",
+                    j,
+                    "ALT DuPont",
+                    payments_row,
+                    out_col_idx,
+                    payments_f,
+                    float(pay_exp),
+                )
+                self._register_capex(
+                    "ppe_capex_to_revenue",
+                    j,
+                    "ALT DuPont",
+                    payments_rev_row,
+                    out_col_idx,
+                    payments_rev_f,
+                    pay_rev_exp
+                    if isinstance(pay_rev_exp, str)
+                    else float(pay_rev_exp),
+                )
+
+            self.rowmap["dupont_ppe_capex_reported_row"] = reported_row
+            self.rowmap["dupont_ppe_capex_row"] = payments_row
+            self.rowmap["dupont_ppe_capex_to_revenue_row"] = payments_rev_row
+            next_section_after = payments_rev_row
 
         if self.goodwill_intangibles_series is None:
             return
