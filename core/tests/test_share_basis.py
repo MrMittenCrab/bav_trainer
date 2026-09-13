@@ -234,8 +234,11 @@ def _restatement_values(
     )
 
 
-def test_audited_restatement_anchor_infers_integer_split():
-    facts = (
+def _base_2023_anchored_3_for_1_facts(
+    *extras: SupplementalObservation,
+) -> tuple[SupplementalObservation, ...]:
+    """FY2022 diluted WAS is 100 in filing 2022 and 300 in filing 2023."""
+    return (
         _share("diluted_weighted_average_shares", P1, 90.0, filing_year=2021),
         _share("diluted_weighted_average_shares", P2, 100.0, filing_year=2022),
         _share("diluted_weighted_average_shares", P2, 300.0, filing_year=2023),
@@ -244,7 +247,67 @@ def test_audited_restatement_anchor_infers_integer_split():
         _share("dilutive_shares", P2, 5.0, filing_year=2022),
         _share("dilutive_shares", P2, 15.0, filing_year=2023),
         _share("diluted_weighted_average_shares", P3, 330.0, filing_year=2023),
+        *extras,
     )
+
+
+_EXPECTED_SPLIT_AXIS = {P1: 270.0, P2: 300.0, P3: 330.0}
+_EXPECTED_SPLIT_FACTORS = {P1: 3.0, P2: 1.0, P3: 1.0}
+
+
+def _assert_2023_anchored_3_for_1(result) -> None:
+    assert result is not None
+    assert result.basis == "split_adjusted"
+    assert result.split_factor == 3.0
+    assert result.restatement_anchor_period == P2
+    assert result.restatement_filing_year == 2023
+    assert result.diluted_weighted_average_actual_shares == _EXPECTED_SPLIT_AXIS
+    assert result.applied_adjustment_factors == _EXPECTED_SPLIT_FACTORS
+
+
+def test_audited_restatement_anchor_infers_integer_split():
+    result = resolve_historical_share_basis(
+        _reconciled(
+            periods=(P1, P2, P3),
+            share_facts=_base_2023_anchored_3_for_1_facts(),
+            values=_restatement_values(),
+        )
+    )
+    _assert_2023_anchored_3_for_1(result)
+
+
+@pytest.mark.parametrize("reorder", [False, True])
+@pytest.mark.parametrize(
+    "extra_fy2022,expect_ok",
+    [
+        (
+            (_share("diluted_weighted_average_shares", P2, 90.0, filing_year=2021),),
+            False,
+        ),
+        (
+            (_share("diluted_weighted_average_shares", P2, 310.0, filing_year=2024),),
+            False,
+        ),
+        (
+            (_share("diluted_weighted_average_shares", P2, 900.0, filing_year=2024),),
+            False,
+        ),
+        (
+            (_share("diluted_weighted_average_shares", P2, 100.0, filing_year=2021),),
+            True,
+        ),
+        (
+            (_share("diluted_weighted_average_shares", P2, 300.0, filing_year=2024),),
+            True,
+        ),
+    ],
+)
+def test_additional_fy2022_presentations_must_agree_with_anchor(
+    extra_fy2022, expect_ok, reorder
+):
+    facts = _base_2023_anchored_3_for_1_facts(*extra_fy2022)
+    if reorder:
+        facts = tuple(reversed(facts))
     result = resolve_historical_share_basis(
         _reconciled(
             periods=(P1, P2, P3),
@@ -252,17 +315,211 @@ def test_audited_restatement_anchor_infers_integer_split():
             values=_restatement_values(),
         )
     )
-    assert result is not None
-    assert result.basis == "split_adjusted"
-    assert result.split_factor == 3.0
-    assert result.restatement_anchor_period == P2
-    assert result.restatement_filing_year == 2023
-    assert result.diluted_weighted_average_actual_shares == {
-        P1: 270.0,
-        P2: 300.0,
-        P3: 330.0,
-    }
-    assert result.applied_adjustment_factors == {P1: 3.0, P2: 1.0, P3: 1.0}
+    if expect_ok:
+        _assert_2023_anchored_3_for_1(result)
+    else:
+        assert result is None
+
+
+@pytest.mark.parametrize("reorder", [False, True])
+def test_additional_fy2022_derived_presentations_must_agree_with_anchor(reorder):
+    """Valid derived diluted WAS on both sides of the anchor must still reconcile."""
+    extras = (
+        _share("basic_weighted_average_shares", P2, 95.0, filing_year=2021),
+        _share("dilutive_shares", P2, 5.0, filing_year=2021),
+        _share(
+            "diluted_weighted_average_shares",
+            P2,
+            100.0,
+            filing_year=2021,
+            status="derived",
+            derivation="basic_weighted_average_shares + dilutive_shares",
+        ),
+        _share("basic_weighted_average_shares", P2, 285.0, filing_year=2024),
+        _share("dilutive_shares", P2, 15.0, filing_year=2024),
+        _share(
+            "diluted_weighted_average_shares",
+            P2,
+            300.0,
+            filing_year=2024,
+            status="derived",
+            derivation="basic_weighted_average_shares + dilutive_shares",
+        ),
+    )
+    facts = _base_2023_anchored_3_for_1_facts(*extras)
+    if reorder:
+        facts = tuple(reversed(facts))
+    result = resolve_historical_share_basis(
+        _reconciled(
+            periods=(P1, P2, P3),
+            share_facts=facts,
+            values=_restatement_values(),
+        )
+    )
+    _assert_2023_anchored_3_for_1(result)
+
+
+@pytest.mark.parametrize("reorder", [False, True])
+def test_contradictory_derived_fy2022_presentation_fails(reorder):
+    extras = (
+        _share("basic_weighted_average_shares", P2, 85.0, filing_year=2021),
+        _share("dilutive_shares", P2, 5.0, filing_year=2021),
+        _share(
+            "diluted_weighted_average_shares",
+            P2,
+            90.0,
+            filing_year=2021,
+            status="derived",
+            derivation="basic_weighted_average_shares + dilutive_shares",
+        ),
+    )
+    facts = _base_2023_anchored_3_for_1_facts(*extras)
+    if reorder:
+        facts = tuple(reversed(facts))
+    assert (
+        resolve_historical_share_basis(
+            _reconciled(
+                periods=(P1, P2, P3),
+                share_facts=facts,
+                values=_restatement_values(),
+            )
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize("reorder", [False, True])
+def test_conflicting_duplicate_was_within_filing_fails(reorder):
+    extras = (
+        _share("diluted_weighted_average_shares", P2, 105.0, filing_year=2022),
+    )
+    facts = _base_2023_anchored_3_for_1_facts(*extras)
+    if reorder:
+        facts = tuple(reversed(facts))
+    assert (
+        resolve_historical_share_basis(
+            _reconciled(
+                periods=(P1, P2, P3),
+                share_facts=facts,
+                values=_restatement_values(),
+            )
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize("reorder", [False, True])
+@pytest.mark.parametrize(
+    "component_extras",
+    [
+        # Matching first observation hides a contradictory same-side duplicate.
+        (
+            _share("basic_weighted_average_shares", P2, 100.0, filing_year=2022),
+        ),
+        (
+            _share("basic_weighted_average_shares", P2, 200.0, filing_year=2023),
+        ),
+        (
+            _share("dilutive_shares", P2, 8.0, filing_year=2022),
+        ),
+        (
+            _share("dilutive_shares", P2, 10.0, filing_year=2023),
+        ),
+        # Opposite-side presentations that do not reconcile to the factor.
+        (
+            _share("basic_weighted_average_shares", P2, 95.0, filing_year=2021),
+            _share("basic_weighted_average_shares", P2, 200.0, filing_year=2024),
+        ),
+    ],
+)
+def test_contradictory_component_presentations_fail(component_extras, reorder):
+    facts = _base_2023_anchored_3_for_1_facts(*component_extras)
+    if reorder:
+        facts = tuple(reversed(facts))
+    assert (
+        resolve_historical_share_basis(
+            _reconciled(
+                periods=(P1, P2, P3),
+                share_facts=facts,
+                values=_restatement_values(),
+            )
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize("reorder", [False, True])
+def test_matching_additional_component_presentations_preserve_axis(reorder):
+    extras = (
+        _share("basic_weighted_average_shares", P2, 95.0, filing_year=2021),
+        _share("basic_weighted_average_shares", P2, 285.0, filing_year=2024),
+        _share("dilutive_shares", P2, 5.0, filing_year=2021),
+        _share("dilutive_shares", P2, 15.0, filing_year=2024),
+        # Duplicate equal to the first observation must not change acceptance.
+        _share("basic_weighted_average_shares", P2, 95.0, filing_year=2022),
+        _share("dilutive_shares", P2, 15.0, filing_year=2023),
+    )
+    facts = _base_2023_anchored_3_for_1_facts(*extras)
+    if reorder:
+        facts = tuple(reversed(facts))
+    result = resolve_historical_share_basis(
+        _reconciled(
+            periods=(P1, P2, P3),
+            share_facts=facts,
+            values=_restatement_values(),
+        )
+    )
+    _assert_2023_anchored_3_for_1(result)
+
+
+@pytest.mark.parametrize("reorder", [False, True])
+def test_zero_zero_components_still_supported(reorder):
+    facts = (
+        _share("diluted_weighted_average_shares", P1, 90.0, filing_year=2021),
+        _share("diluted_weighted_average_shares", P2, 100.0, filing_year=2022),
+        _share("diluted_weighted_average_shares", P2, 300.0, filing_year=2023),
+        _share("basic_weighted_average_shares", P2, 100.0, filing_year=2022),
+        _share("basic_weighted_average_shares", P2, 300.0, filing_year=2023),
+        _share("dilutive_shares", P2, 0.0, filing_year=2022),
+        _share("dilutive_shares", P2, 0.0, filing_year=2023),
+        _share("diluted_weighted_average_shares", P3, 330.0, filing_year=2023),
+    )
+    if reorder:
+        facts = tuple(reversed(facts))
+    result = resolve_historical_share_basis(
+        _reconciled(
+            periods=(P1, P2, P3),
+            share_facts=facts,
+            values=_restatement_values(),
+        )
+    )
+    _assert_2023_anchored_3_for_1(result)
+
+
+@pytest.mark.parametrize("reorder", [False, True])
+def test_zero_nonzero_component_contradiction_fails(reorder):
+    facts = (
+        _share("diluted_weighted_average_shares", P1, 90.0, filing_year=2021),
+        _share("diluted_weighted_average_shares", P2, 100.0, filing_year=2022),
+        _share("diluted_weighted_average_shares", P2, 300.0, filing_year=2023),
+        _share("basic_weighted_average_shares", P2, 100.0, filing_year=2022),
+        _share("basic_weighted_average_shares", P2, 300.0, filing_year=2023),
+        _share("dilutive_shares", P2, 0.0, filing_year=2022),
+        _share("dilutive_shares", P2, 15.0, filing_year=2023),
+        _share("diluted_weighted_average_shares", P3, 330.0, filing_year=2023),
+    )
+    if reorder:
+        facts = tuple(reversed(facts))
+    assert (
+        resolve_historical_share_basis(
+            _reconciled(
+                periods=(P1, P2, P3),
+                share_facts=facts,
+                values=_restatement_values(),
+            )
+        )
+        is None
+    )
 
 
 def test_disagreement_without_restated_eps_fails():

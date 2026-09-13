@@ -178,39 +178,91 @@ def _diluted_eps_restatement_anchor(
     return None
 
 
+def _unique_side_value(values: list[float]) -> float | None:
+    distinct = set(values)
+    if len(distinct) != 1:
+        return None
+    return next(iter(distinct))
+
+
 def _components_support_factor(
     reconciled: ReconciledCompanyData,
     period: date,
-    old_year: int,
-    new_year: int,
+    restatement_year: int,
     factor: float,
 ) -> bool:
-    """Require non-zero basic/dilutive components not contradict the diluted factor."""
+    """Require reported basic/dilutive presentations not contradict the diluted factor.
+
+    All available same-side reported values must agree. When both sides exist,
+    opposite-side values must reconcile to ``factor``. Zero/zero is allowed;
+    zero/nonzero is rejected.
+    """
     for fact_type in ("basic_weighted_average_shares", "dilutive_shares"):
-        old_obs = _share_obs(
+        observations = _share_obs(
             reconciled,
             fact_type=fact_type,
             period=period,
-            filing_year=old_year,
             status="reported",
         )
-        new_obs = _share_obs(
-            reconciled,
-            fact_type=fact_type,
-            period=period,
-            filing_year=new_year,
-            status="reported",
-        )
-        if not old_obs or not new_obs:
+        if not observations:
             continue
-        old_v = float(old_obs[0].fact.value)
-        new_v = float(new_obs[0].fact.value)
+        pre = [
+            float(obs.fact.value)
+            for obs in observations
+            if obs.filing_year < restatement_year
+        ]
+        post = [
+            float(obs.fact.value)
+            for obs in observations
+            if obs.filing_year >= restatement_year
+        ]
+        if pre:
+            old_v = _unique_side_value(pre)
+            if old_v is None:
+                return False
+        else:
+            old_v = None
+        if post:
+            new_v = _unique_side_value(post)
+            if new_v is None:
+                return False
+        else:
+            new_v = None
+        if old_v is None or new_v is None:
+            continue
         if old_v == 0.0 and new_v == 0.0:
             continue
         if old_v <= 0.0 or new_v <= 0.0:
             return False
         if not isclose(new_v / old_v, factor, rel_tol=0.0, abs_tol=1e-9):
             return False
+    return True
+
+
+def _period_sides_support_factor(
+    observations: list[SupplementalObservation],
+    restatement_year: int,
+    factor: float,
+) -> bool:
+    """Require one consistent pre and post value; when both exist, post = pre × factor."""
+    pre = [
+        float(obs.fact.value)
+        for obs in observations
+        if obs.filing_year < restatement_year
+    ]
+    post = [
+        float(obs.fact.value)
+        for obs in observations
+        if obs.filing_year >= restatement_year
+    ]
+    pre_v = _unique_side_value(pre) if pre else None
+    post_v = _unique_side_value(post) if post else None
+    if pre and pre_v is None:
+        return False
+    if post and post_v is None:
+        return False
+    if pre_v is not None and post_v is not None:
+        return isclose(post_v, pre_v * factor, rel_tol=0.0, abs_tol=1e-9)
     return True
 
 
@@ -278,16 +330,18 @@ def resolve_historical_share_basis(
         post_years = [y for y in year_values if y >= filing_year]
         if not pre_years or not post_years:
             return None
-        old_was = year_values[max(pre_years)]
-        new_was = year_values[min(post_years)]
+        pre_vals = {year_values[y] for y in pre_years}
+        post_vals = {year_values[y] for y in post_years}
+        if len(pre_vals) != 1 or len(post_vals) != 1:
+            return None
+        old_was = next(iter(pre_vals))
+        new_was = next(iter(post_vals))
         factor = _integer_factor(old_was, new_was)
         if factor is None:
             return None
         if not _eps_supports_factor(old_eps, new_eps, factor):
             return None
-        if not _components_support_factor(
-            reconciled, period, max(pre_years), min(post_years), factor
-        ):
+        if not _components_support_factor(reconciled, period, filing_year, factor):
             return None
         if inferred_factor is None:
             inferred_factor = factor
@@ -303,6 +357,18 @@ def resolve_historical_share_basis(
 
     if inferred_factor is None or anchor_period is None or restatement_year is None:
         return None
+
+    # Reject any same-period presentation group that contradicts the audited factor
+    # before selecting axis values (including restated_was periods).
+    for period in reconciled.periods:
+        if not _period_sides_support_factor(
+            by_period[period], restatement_year, inferred_factor
+        ):
+            return None
+        if not _components_support_factor(
+            reconciled, period, restatement_year, inferred_factor
+        ):
+            return None
 
     axis: dict[date, float] = {}
     factors: dict[date, float] = {}
@@ -320,9 +386,10 @@ def resolve_historical_share_basis(
             if obs.filing_year >= restatement_year
         ]
         if post:
-            if len(set(post)) != 1:
+            post_v = _unique_side_value(post)
+            if post_v is None:
                 return None
-            axis[period] = post[0]
+            axis[period] = post_v
             factors[period] = 1.0
             continue
 
@@ -334,9 +401,10 @@ def resolve_historical_share_basis(
         ]
         if not pre:
             return None
-        if len(set(pre)) != 1:
+        pre_v = _unique_side_value(pre)
+        if pre_v is None:
             return None
-        axis[period] = pre[0] * inferred_factor
+        axis[period] = pre_v * inferred_factor
         factors[period] = inferred_factor
 
     if any(v <= 0.0 for v in axis.values()):

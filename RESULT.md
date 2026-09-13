@@ -1,40 +1,34 @@
-Status: Step 9M.3D complete — split-adjusted share basis and per-share activation (G6 closed)
+Status: Step 9M.3D Repair complete — same-period share presentations must agree with the audited split anchor
 
 Implementation base:
-- f15a01a Step 9M.3C
+- afa5e3331ad6104f976fc8d38160d3ec810eb8cd
 
-Step 9M.3D status: complete
+Step 9M.3D Repair status: complete
 
 Final verification:
-- focused G6 suite: 131 passed
-  (`test_share_basis.py` + `test_filing_reconciler.py` + `test_per_share.py` +
-   `test_per_share_attribution.py` + `test_reference_integrity.py` +
-   `test_fast_retailing_benchmark.py`)
-- full core tests: 492 passed
-- forecast/valuation isolation: pass
-- lease-treatment regressions: pass
-- ownership-attribution regressions: pass
-- family orders unchanged (G6 activates existing per-share families)
-- source/extracted/provenance/conflicts unchanged: yes
-- standardized.json: historical_shares null → split-adjusted comparable axis only
+- focused suite: 92 passed
+  (`test_share_basis.py` + `test_filing_reconciler.py` + `test_fast_retailing_benchmark.py`)
+- full core tests: 525 passed
+- Fast Retailing Stages 1–7: all pass
+  - expected_specs=380
+  - blank Check: 0 correct / 0 incorrect / 380 blank
+  - filled Check: 380 correct / 0 incorrect / 0 blank
+- extracted facts and committed reconciled artifacts unchanged: yes
+  (`benchmark/fast_retailing/reconciled/standardized.json`,
+   `provenance.json`, `conflicts.json`)
 - statement overlap conflicts: 3
 - supplemental conflicts: 3
+- G7 remains open
 
-Share basis / per-share:
-- basis: split_adjusted; split_factor: 3 (audited FY2022 restatement anchor)
-- FY2021 analytically ×3; FY2022 later audited restated WAS selected
-- scale_basis: financial_statement_units
-  (306.871785 … 307.247804)
-- per_share_specs: 18; per_share_attribution_specs: 16
-- ownership_specs: 34; lease_specs: 18
-- expected_specs: 380
-- FY2025 diluted EPS ≈ 1409.32 (parent-attributable 433009 / 307.247804)
-- raw extracted share facts preserved; G7 conflicts unchanged
+Share-basis repair:
+- every eligible same-period presentation must agree within the pre-anchor
+  and post-anchor groups; when both exist, `post = pre × split_factor`
+- component checks validate all reported basic/dilutive presentations
+  (order-independent); zero/zero allowed; zero/nonzero rejected
+- contradictory additional presentations fail closed (`historical_shares=None`)
+  without mutating reconciliation observations/conflicts
+- Fast Retailing axis preserved:
+  306.871785, 306.969624, 307.138870, 307.231804, 307.247804
+  adjustment factors 3, 1, 1, 1, 1; parent-attributable per-share earnings
 
-Fast Retailing Stages 1–7: all pass
-  blank Check 380; filled Check 380
-G1/G1B/G2/G2B/G2C/G3/G4/G5/G6 closed; G7 remains open
 TARGET.md: unchanged by Cursor
-
-Next checkpoint:
-- G7 restatement / overlap conflict policy (presentation or code — TBD)

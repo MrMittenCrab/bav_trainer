@@ -592,6 +592,168 @@ def test_disagreeing_repeated_share_facts_block_promotion(tmp_path: Path):
     assert fin.historical_shares is None
 
 
+def test_split_anchor_with_contradictory_presentation_blocks_shares(
+    tmp_path: Path,
+):
+    """Valid EPS/WAS split anchor plus a contradictory same-period WAS fails closed."""
+    p2021 = date(2021, 12, 31)
+    p2022 = date(2022, 12, 31)
+    p2023 = date(2023, 12, 31)
+
+    def _eps_row(
+        values: dict[date, tuple[float, PresentationRole]],
+    ) -> ExtractedStatementRow:
+        return ExtractedStatementRow(
+            label="Diluted EPS",
+            section="diluted",
+            suggested_concept="diluted_eps",
+            values={
+                period: FilingValue(value=value, presentation_role=role)
+                for period, (value, role) in values.items()
+            },
+            source=SourceRef(page=10, statement="Income Statement", note="EPS"),
+        )
+
+    f2021 = _filing(
+        year=2021,
+        source_file="a2021.pdf",
+        unit_scale="ones",
+        revenue_values={p2021: (80.0, PresentationRole.CURRENT_PERIOD)},
+        share_facts=(
+            SupplementalFact(
+                fact_type="diluted_weighted_average_shares",
+                period=p2021,
+                value=90.0,
+                status="reported",
+                source=SourceRef(page=18, note="EPS"),
+            ),
+            # Contradictory pre-anchor presentation of FY2022 (should be 100).
+            SupplementalFact(
+                fact_type="diluted_weighted_average_shares",
+                period=p2022,
+                value=90.0,
+                status="reported",
+                source=SourceRef(page=19, note="EPS"),
+            ),
+        ),
+        extra_rows=(_eps_row({p2021: (25.0, PresentationRole.CURRENT_PERIOD)}),),
+    )
+    f2022 = _filing(
+        year=2022,
+        source_file="a2022.pdf",
+        unit_scale="ones",
+        revenue_values={
+            p2021: (80.0, PresentationRole.COMPARATIVE),
+            p2022: (100.0, PresentationRole.CURRENT_PERIOD),
+        },
+        share_facts=(
+            SupplementalFact(
+                fact_type="diluted_weighted_average_shares",
+                period=p2022,
+                value=100.0,
+                status="reported",
+                source=SourceRef(page=18, note="EPS"),
+            ),
+            SupplementalFact(
+                fact_type="basic_weighted_average_shares",
+                period=p2022,
+                value=95.0,
+                status="reported",
+                source=SourceRef(page=18, note="EPS"),
+            ),
+            SupplementalFact(
+                fact_type="dilutive_shares",
+                period=p2022,
+                value=5.0,
+                status="reported",
+                source=SourceRef(page=18, note="EPS"),
+            ),
+        ),
+        extra_rows=(
+            _eps_row(
+                {
+                    p2021: (25.0, PresentationRole.COMPARATIVE),
+                    p2022: (30.0, PresentationRole.CURRENT_PERIOD),
+                }
+            ),
+        ),
+    )
+    f2023 = _filing(
+        year=2023,
+        source_file="a2023.pdf",
+        unit_scale="ones",
+        revenue_values={
+            p2021: (80.0, PresentationRole.COMPARATIVE),
+            p2022: (100.0, PresentationRole.COMPARATIVE),
+            p2023: (120.0, PresentationRole.CURRENT_PERIOD),
+        },
+        share_facts=(
+            SupplementalFact(
+                fact_type="diluted_weighted_average_shares",
+                period=p2022,
+                value=300.0,
+                status="reported",
+                source=SourceRef(page=18, note="EPS"),
+            ),
+            SupplementalFact(
+                fact_type="basic_weighted_average_shares",
+                period=p2022,
+                value=285.0,
+                status="reported",
+                source=SourceRef(page=18, note="EPS"),
+            ),
+            SupplementalFact(
+                fact_type="dilutive_shares",
+                period=p2022,
+                value=15.0,
+                status="reported",
+                source=SourceRef(page=18, note="EPS"),
+            ),
+            SupplementalFact(
+                fact_type="diluted_weighted_average_shares",
+                period=p2023,
+                value=330.0,
+                status="reported",
+                source=SourceRef(page=19, note="EPS"),
+            ),
+        ),
+        extra_rows=(
+            _eps_row(
+                {
+                    p2022: (10.0, PresentationRole.RESTATED_COMPARATIVE),
+                    p2023: (11.0, PresentationRole.CURRENT_PERIOD),
+                }
+            ),
+        ),
+    )
+    reconciled = reconcile_filings(
+        [
+            _validated(tmp_path, f2021, b"2021"),
+            _validated(tmp_path, f2022, b"2022"),
+            _validated(tmp_path, f2023, b"2023"),
+        ]
+    )
+    share_facts_before = reconciled.share_facts
+    conflicts_before = reconciled.conflicts
+    supplemental_before = reconciled.supplemental_conflicts
+
+    fin = standardize_reconciled(reconciled)
+    assert fin.historical_shares is None
+    assert len(fin.income_statement) >= 1
+    revenue = next(item for item in fin.income_statement if item.concept == "revenue")
+    assert revenue.values == {p2021: 80.0, p2022: 100.0, p2023: 120.0}
+
+    # Reconciliation artifacts remain immutable through standardization.
+    assert reconciled.share_facts == share_facts_before
+    assert reconciled.conflicts == conflicts_before
+    assert reconciled.supplemental_conflicts == supplemental_before
+    assert len(reconciled.share_facts) >= 8
+    assert any(
+        c.fact_type == "diluted_weighted_average_shares" and c.period == p2022
+        for c in reconciled.supplemental_conflicts
+    )
+
+
 def test_complete_axis_share_promotion_ignores_derived(tmp_path: Path):
     shares_2024 = (
         SupplementalFact(
