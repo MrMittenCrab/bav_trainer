@@ -1,32 +1,25 @@
-Status: Step 9M.3E complete — G7 closed by verified retained conflict policy
+Status: Step 9M.9 complete — capex practice validation gate re-verified; no code changes
 
 Implementation base:
-- 10f5bbd67e71c5b341d261213f157fb8df0ec64a
+- 671239c73379e8c3da103d2e1fe51269ce52d0b4
+- HEAD at verification: 190c1727eb5c9904e6473f549f2ad26cbb1fef06
 
-Step 9M.3E status: complete
+Step 9M.9 status: complete
 
-Final verification:
-- focused suite: 93 passed
-  (`test_filing_reconciler.py` + `test_share_basis.py` + `test_fast_retailing_benchmark.py`)
-- Fast Retailing Stages 1–7: all pass
-  - expected_specs=380
-  - blank Check: 0 correct / 0 incorrect / 380 blank
-  - filled Check: 380 correct / 0 incorrect / 0 blank
-- extracted facts and committed reconciled artifacts unchanged: yes
-  (`benchmark/fast_retailing/reconciled/standardized.json`,
-   `provenance.json`, `conflicts.json`)
-- statement overlap conflicts: 3
-- supplemental conflicts: 3
-- G7 closed (conflicts retained; selections locked)
+Final verification (2026-09-14 re-run):
+- `python -m pytest core/tests/test_capex.py core/tests/test_line_resolver.py core/tests/test_goodwill_intangibles.py core/tests/test_fast_retailing_benchmark.py -q`
+  → **62 passed** in 6.92s; 0 failed, 0 errors, 0 skipped
+- Workbook integration coverage executed within the suite (capex Trainer/Answer-Key/Check and Fast Retailing benchmark paths)
+- `git diff --check` → pass (no whitespace errors)
+- Working tree clean; no edits required for this gate
 
-Accepted conflict policy:
-- FY2022 basic EPS selected 891.77 over 2675.30
-  (`restated_comparative_precedence`)
-- FY2022 diluted EPS selected 890.43 over 2671.29
-  (`restated_comparative_precedence`)
-- FY2024 financing “Others, net” selected 63 over 85
-  (`later_audited_presentation`; no cause inferred)
-- both observations retained for every conflict
-- share-basis analytical axis unchanged; reported facts unchanged
+Acceptance:
+- All four test modules pass
+- Source gating, formula/expectation agreement, Trainer/Answer-Key parity, Notes, non-disclosing Check covered by suite
+- Fast Retailing FY2021–FY2025 capex anchors exercised via benchmark tests
+- No new analytical modules, forecasting, valuation, or source/provenance changes
+
+Plan changes required: none
 
 TARGET.md: unchanged by Cursor
+IMPLEMENTATION.md: unchanged by Cursor (read-only)
