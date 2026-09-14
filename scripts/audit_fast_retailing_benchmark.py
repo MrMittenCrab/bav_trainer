@@ -6,12 +6,12 @@ Writes BASELINE.md. Does not patch production accounting logic.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import shutil
 import sys
 import tempfile
-import traceback
 from dataclasses import asdict, dataclass
-from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +25,9 @@ PROV_JSON = RECONCILED / "provenance.json"
 CONFLICTS_JSON = RECONCILED / "conflicts.json"
 MANIFEST = BENCH / "source_manifest.json"
 BASELINE = BENCH / "BASELINE.md"
+EXPECTED_PRACTICE_TOTAL = 491
+EXPECTED_BLANK_CHECK = (0, 0, EXPECTED_PRACTICE_TOTAL, EXPECTED_PRACTICE_TOTAL)
+EXPECTED_FILLED_CHECK = (EXPECTED_PRACTICE_TOTAL, 0, 0, EXPECTED_PRACTICE_TOTAL)
 
 
 @dataclass
@@ -35,8 +38,106 @@ class StageResult:
     message: str = ""
 
 
-def _load_payload() -> dict[str, Any]:
-    return json.loads(STD_JSON.read_text(encoding="utf-8"))
+def _load_payload(path: Path | None = None) -> dict[str, Any]:
+    return json.loads((path or STD_JSON).read_text(encoding="utf-8"))
+
+
+def _fill_rgb(cell) -> str:
+    fill = cell.fill
+    if not fill or fill.fill_type != "solid":
+        return ""
+    color = fill.fgColor.rgb or fill.start_color.rgb or ""
+    return str(color).upper().lstrip("0")[-6:] if color else ""
+
+
+def _copy_release_pair_to_temp(
+    trainer_path: Path,
+    answer_key_path: Path,
+    tmp: Path,
+) -> tuple[Path, Path]:
+    """Copy Trainer/Answer Key and Answer Key sidecars for mutating Check ops."""
+    trainer_copy = tmp / trainer_path.name
+    answer_copy = tmp / answer_key_path.name
+    shutil.copy2(trainer_path, trainer_copy)
+    shutil.copy2(answer_key_path, answer_copy)
+    for suffix in (".component_map.json", ".assumptions.json", ".trainer.json"):
+        sidecar = answer_key_path.with_suffix(suffix)
+        if sidecar.is_file():
+            shutil.copy2(sidecar, tmp / sidecar.name)
+    return trainer_copy, answer_copy
+
+
+def _verify_release_pair_contract(trainer_path: Path, answer_key_path: Path) -> str:
+    """Semantic match, practice contract, and visible structural parity."""
+    from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
+    from openpyxl import load_workbook
+
+    smap = load_semantic_map(answer_key_path)
+    comps = smap.all_ordered()
+    if len(comps) != EXPECTED_PRACTICE_TOTAL:
+        raise ValueError(
+            f"semantic practice cells={len(comps)} != {EXPECTED_PRACTICE_TOTAL}"
+        )
+
+    wb_t = load_workbook(trainer_path, data_only=False)
+    wb_a = load_workbook(answer_key_path, data_only=False)
+    try:
+        visible_t = [s for s in wb_t.sheetnames if not s.startswith("_")]
+        visible_a = [s for s in wb_a.sheetnames if not s.startswith("_")]
+        if visible_t != visible_a:
+            raise ValueError(
+                f"visible sheet mismatch: trainer={visible_t} answer={visible_a}"
+            )
+
+        source_tabs = ("Condensed Financials",)
+        for tab in source_tabs:
+            if tab not in wb_t.sheetnames:
+                continue
+            ws = wb_t[tab]
+            populated = 0
+            for row in ws.iter_rows(
+                min_row=1,
+                max_row=min(ws.max_row or 1, 80),
+                max_col=min(ws.max_column or 1, 12),
+            ):
+                for cell in row:
+                    if isinstance(cell.value, (int, float)) and cell.value != 0:
+                        populated += 1
+            if populated < 10:
+                raise ValueError(f"historical source facts look empty on {tab}")
+
+        for comp in comps:
+            row, col = parse_cell_ref(comp.cell)
+            tc = wb_t[comp.tab].cell(row=row, column=col)
+            ac = wb_a[comp.tab].cell(row=row, column=col)
+            if tc.value is not None:
+                raise ValueError(f"Trainer practice cell {comp.tab}!{comp.cell} not blank")
+            if tc.comment is not None:
+                raise ValueError(f"Trainer practice cell {comp.tab}!{comp.cell} has Note")
+            if _fill_rgb(tc) != "FFFF00":
+                raise ValueError(
+                    f"Trainer practice cell {comp.tab}!{comp.cell} not yellow"
+                )
+            if not (isinstance(ac.value, str) and ac.value.startswith("=")):
+                raise ValueError(
+                    f"Answer Key {comp.tab}!{comp.cell} missing formula"
+                )
+            if ac.value != comp.formula:
+                raise ValueError(
+                    f"Answer Key {comp.tab}!{comp.cell} formula != semantic map"
+                )
+            if ac.comment is None or not str(ac.comment.text or "").strip():
+                raise ValueError(
+                    f"Answer Key {comp.tab}!{comp.cell} missing non-empty Note"
+                )
+            if _fill_rgb(ac) != "FFFF00":
+                raise ValueError(
+                    f"Answer Key practice cell {comp.tab}!{comp.cell} not yellow"
+                )
+    finally:
+        wb_t.close()
+        wb_a.close()
+    return f"practice_cells={len(comps)} visible_parity=ok"
 
 
 def _module_applicability(fin, anchor=None) -> dict[str, Any]:
@@ -116,18 +217,91 @@ def _module_applicability(fin, anchor=None) -> dict[str, Any]:
     }
 
 
-def run_audit() -> dict[str, Any]:
+def run_audit(
+    *,
+    standardized_json: Path | None = None,
+    provenance_json: Path | None = None,
+    conflicts_json: Path | None = None,
+    trainer_path: Path | None = None,
+    answer_key_path: Path | None = None,
+    require_check_counts: bool | None = None,
+    verify_release_pair: bool = False,
+) -> dict[str, Any]:
+    """Run the Fast Retailing stage audit.
+
+    Default call with no arguments preserves the historical temporary-workbook
+    interface used by existing tests. Pass explicit release workbook paths and
+    generated standardized JSON to verify a persisted pair without regenerating
+    substitute workbooks.
+    """
+    std_path = Path(standardized_json) if standardized_json else STD_JSON
+    explicit_pair = trainer_path is not None or answer_key_path is not None
+    if explicit_pair:
+        if trainer_path is None or answer_key_path is None:
+            raise ValueError("trainer_path and answer_key_path must be provided together")
+        trainer_path = Path(trainer_path)
+        answer_key_path = Path(answer_key_path)
+        if require_check_counts is None:
+            require_check_counts = True
+    elif require_check_counts is None:
+        require_check_counts = False
+
     stages: list[StageResult] = []
     context: dict[str, Any] = {
         "modules": {},
         "first_failure": None,
         "workbook_paths": {},
+        "release_fingerprints_before": {},
+        "release_fingerprints_after": {},
+        "standardized_json": str(std_path),
+        "provenance_json": str(provenance_json or PROV_JSON),
+        "conflicts_json": str(conflicts_json or CONFLICTS_JSON),
     }
+
+    def _fingerprint(path: Path) -> str:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    release_files: list[Path] = []
+    if explicit_pair:
+        release_files = [
+            trainer_path,
+            answer_key_path,
+            answer_key_path.with_suffix(".component_map.json"),
+        ]
+        for path in (trainer_path, answer_key_path):
+            if not path.is_file():
+                stages.append(
+                    StageResult(
+                        "1_source_fixture_load",
+                        "fail",
+                        "FileNotFoundError",
+                        f"missing release artifact: {path}",
+                    )
+                )
+                context["first_failure"] = stages[-1]
+                for name in (
+                    "2_identity_validation",
+                    "3_reconciliation",
+                    "4_reference_model_builder",
+                    "5_workbook_generation",
+                    "6_blank_check",
+                    "7_filled_check",
+                ):
+                    stages.append(
+                        StageResult(name, "skipped", message="prior stage failed")
+                    )
+                return {"stages": stages, "context": context}
+        context["release_fingerprints_before"] = {
+            str(p): _fingerprint(p) for p in release_files if p.is_file()
+        }
 
     # Stage 1
     try:
-        payload = _load_payload()
+        if not std_path.is_file():
+            raise FileNotFoundError(f"missing standardized input: {std_path}")
+        payload = _load_payload(std_path)
         assert payload["ticker"] == "6288.HK"
+        assert payload.get("company_name") == "FAST RETAILING CO., LTD."
         assert [p["end_date"] for p in payload["periods"]] == [
             "2021-08-31",
             "2022-08-31",
@@ -245,26 +419,66 @@ def run_audit() -> dict[str, Any]:
             stages.append(StageResult(name, "skipped", message="prior stage failed"))
         return {"stages": stages, "context": context}
 
-    # Stage 5
+    # Stage 5–7: either use persisted release pair or generate temporary workbooks.
     try:
-        from core.trainer.workbook import build_training_workbook
+        from core.trainer.checker import check_workbook
+        from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
+        from openpyxl import load_workbook
 
         with tempfile.TemporaryDirectory(prefix="fr_bench_") as tmp:
-            trainer, answer = build_training_workbook(
-                fin, Path(tmp) / "FastRetailing_Trainer.xlsx"
-            )
-            context["workbook_paths"] = {
-                "trainer": str(trainer),
-                "answer": str(answer),
-                "note": "temporary only; not committed",
-            }
-            stages.append(StageResult("5_workbook_generation", "pass"))
+            tmp_path = Path(tmp)
+            if explicit_pair:
+                assert trainer_path is not None and answer_key_path is not None
+                if verify_release_pair:
+                    contract_msg = _verify_release_pair_contract(
+                        trainer_path, answer_key_path
+                    )
+                else:
+                    contract_msg = "release pair supplied"
+                # Mutating Check / fill on copies only.
+                trainer, answer = _copy_release_pair_to_temp(
+                    trainer_path, answer_key_path, tmp_path
+                )
+                context["workbook_paths"] = {
+                    "trainer": str(trainer_path),
+                    "answer": str(answer_key_path),
+                    "check_copies": str(tmp_path),
+                    "note": "persisted release pair; Check used temporary copies",
+                    "contract": contract_msg,
+                }
+                stages.append(
+                    StageResult(
+                        "5_workbook_generation",
+                        "pass",
+                        message="persisted release pair (not regenerated)",
+                    )
+                )
+            else:
+                from core.trainer.workbook import build_training_workbook
+
+                trainer, answer = build_training_workbook(
+                    fin, tmp_path / "FastRetailing_Trainer.xlsx"
+                )
+                context["workbook_paths"] = {
+                    "trainer": str(trainer),
+                    "answer": str(answer),
+                    "note": "temporary only; not committed",
+                }
+                stages.append(StageResult("5_workbook_generation", "pass"))
 
             # Stage 6
             try:
-                from core.trainer.checker import check_workbook
-
                 summary = check_workbook(trainer)
+                blank_tuple = (
+                    summary.correct,
+                    summary.incorrect,
+                    summary.blank,
+                    summary.total,
+                )
+                if require_check_counts and blank_tuple != EXPECTED_BLANK_CHECK:
+                    raise ValueError(
+                        f"pristine Check counts {blank_tuple} != {EXPECTED_BLANK_CHECK}"
+                    )
                 stages.append(
                     StageResult(
                         "6_blank_check",
@@ -284,13 +498,16 @@ def run_audit() -> dict[str, Any]:
                 stages.append(
                     StageResult("7_filled_check", "skipped", message="prior stage failed")
                 )
+                if explicit_pair:
+                    context["release_fingerprints_after"] = {
+                        str(p): _fingerprint(p)
+                        for p in release_files
+                        if p.is_file()
+                    }
                 return {"stages": stages, "context": context}
 
             # Stage 7
             try:
-                from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
-                from openpyxl import load_workbook
-
                 smap = load_semantic_map(answer)
                 wb = load_workbook(trainer, data_only=False)
                 for comp in smap.all_ordered():
@@ -299,7 +516,18 @@ def run_audit() -> dict[str, Any]:
                 wb.save(trainer)
                 wb.close()
                 filled = check_workbook(trainer)
-                if filled.incorrect or filled.blank:
+                filled_tuple = (
+                    filled.correct,
+                    filled.incorrect,
+                    filled.blank,
+                    filled.total,
+                )
+                if require_check_counts:
+                    if filled_tuple != EXPECTED_FILLED_CHECK:
+                        raise ValueError(
+                            f"filled Check counts {filled_tuple} != {EXPECTED_FILLED_CHECK}"
+                        )
+                elif filled.incorrect or filled.blank:
                     raise ValueError(
                         f"filled check incomplete: correct={filled.correct} "
                         f"incorrect={filled.incorrect} blank={filled.blank}"
@@ -330,6 +558,32 @@ def run_audit() -> dict[str, Any]:
             context["first_failure"] = stages[-1]
         for name in ("6_blank_check", "7_filled_check"):
             stages.append(StageResult(name, "skipped", message="prior stage failed"))
+
+    if explicit_pair:
+        context["release_fingerprints_after"] = {
+            str(p): _fingerprint(p) for p in release_files if p.is_file()
+        }
+        before = context["release_fingerprints_before"]
+        after = context["release_fingerprints_after"]
+        if before and after and before != after:
+            stages.append(
+                StageResult(
+                    "8_release_pristine",
+                    "fail",
+                    "AssertionError",
+                    "release artifacts mutated during verification",
+                )
+            )
+            if context["first_failure"] is None:
+                context["first_failure"] = stages[-1]
+        elif before:
+            stages.append(
+                StageResult(
+                    "8_release_pristine",
+                    "pass",
+                    message="release fingerprints unchanged",
+                )
+            )
 
     return {"stages": stages, "context": context}
 
@@ -456,15 +710,57 @@ def write_baseline(result: dict[str, Any]) -> None:
     BASELINE.write_text("\n".join(lines), encoding="utf-8")
 
 
-def main() -> None:
-    result = run_audit()
-    write_baseline(result)
-    print(f"wrote {BASELINE.relative_to(ROOT)}")
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--standardized-json",
+        type=Path,
+        help="Generated standardized.json (default: benchmark reconciled fixture)",
+    )
+    parser.add_argument("--provenance-json", type=Path)
+    parser.add_argument("--conflicts-json", type=Path)
+    parser.add_argument("--trainer", type=Path, help="Persisted Trainer workbook")
+    parser.add_argument("--answer-key", type=Path, help="Persisted Answer Key workbook")
+    parser.add_argument(
+        "--require-check-counts",
+        action="store_true",
+        help="Require pristine (0,0,491,491) and filled (491,0,0,491) Check counts",
+    )
+    parser.add_argument(
+        "--verify-release-pair",
+        action="store_true",
+        help="Verify practice contract and structural parity on the persisted pair",
+    )
+    parser.add_argument(
+        "--no-baseline",
+        action="store_true",
+        help="Skip writing benchmark/fast_retailing/BASELINE.md",
+    )
+    args = parser.parse_args(argv)
+
+    result = run_audit(
+        standardized_json=args.standardized_json,
+        provenance_json=args.provenance_json,
+        conflicts_json=args.conflicts_json,
+        trainer_path=args.trainer,
+        answer_key_path=args.answer_key,
+        require_check_counts=True if args.require_check_counts else None,
+        verify_release_pair=args.verify_release_pair,
+    )
+    if not args.no_baseline:
+        write_baseline(result)
+        print(f"wrote {BASELINE.relative_to(ROOT)}")
     for stage in result["stages"]:
         print(f"{stage.stage}: {stage.status}")
         if stage.message:
             print(f"  {stage.message[:300]}")
+        if stage.exception_type and stage.status == "fail":
+            print(f"  {stage.exception_type}: {stage.message[:300]}")
+    failed = any(s.status == "fail" for s in result["stages"])
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

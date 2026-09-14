@@ -1315,3 +1315,176 @@ def test_fast_retailing_g7_retained_conflict_policy():
     assert STD_JSON.read_bytes() == committed_std
     assert PROV_JSON.read_bytes() == committed_prov
     assert CONFLICTS_JSON.read_bytes() == committed_conflicts
+
+
+RELEASE = ROOT / "release" / "fast_retailing"
+RELEASE_TRAINER = RELEASE / "FastRetailing_Trainer.xlsx"
+RELEASE_ANSWER = RELEASE / "FastRetailing_Answer_Key.xlsx"
+RELEASE_STD = RELEASE / "supporting" / "standardized.json"
+RELEASE_PROV = RELEASE / "supporting" / "provenance.json"
+RELEASE_CONFLICTS = RELEASE / "supporting" / "conflicts.json"
+
+
+def _stage_map(result: dict) -> dict:
+    return {s.stage: s for s in result["stages"]}
+
+
+def test_release_audit_explicit_pair_verification(tmp_path: Path):
+    """Explicit persisted-pair path verifies without regenerating substitutes."""
+    from core.trainer.workbook import build_training_workbook
+    from scripts.audit_fast_retailing_benchmark import (
+        EXPECTED_BLANK_CHECK,
+        EXPECTED_FILLED_CHECK,
+    )
+
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    trainer, answer = build_training_workbook(fin, tmp_path / "FastRetailing_Trainer.xlsx")
+    before = {
+        p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in (trainer, answer, answer.with_suffix(".component_map.json"))
+        if p.is_file()
+    }
+
+    result = run_audit(
+        standardized_json=STD_JSON,
+        provenance_json=PROV_JSON,
+        conflicts_json=CONFLICTS_JSON,
+        trainer_path=trainer,
+        answer_key_path=answer,
+        require_check_counts=True,
+        verify_release_pair=True,
+    )
+    stages = _stage_map(result)
+    for name in (
+        "1_source_fixture_load",
+        "2_identity_validation",
+        "3_reconciliation",
+        "4_reference_model_builder",
+        "5_workbook_generation",
+        "6_blank_check",
+        "7_filled_check",
+        "8_release_pristine",
+    ):
+        assert stages[name].status == "pass", f"{name}: {stages[name].message}"
+    assert stages["5_workbook_generation"].message == (
+        "persisted release pair (not regenerated)"
+    )
+    assert f"blank={EXPECTED_BLANK_CHECK[2]}" in (stages["6_blank_check"].message or "")
+    assert f"correct={EXPECTED_FILLED_CHECK[0]}" in (
+        stages["7_filled_check"].message or ""
+    )
+    after = {
+        p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in (trainer, answer, answer.with_suffix(".component_map.json"))
+        if p.is_file()
+    }
+    assert before == after
+    assert result["context"]["release_fingerprints_before"] == (
+        result["context"]["release_fingerprints_after"]
+    )
+
+
+def test_release_audit_missing_artifact_fails(tmp_path: Path):
+    missing_trainer = tmp_path / "FastRetailing_Trainer.xlsx"
+    missing_answer = tmp_path / "FastRetailing_Answer_Key.xlsx"
+    result = run_audit(
+        standardized_json=STD_JSON,
+        trainer_path=missing_trainer,
+        answer_key_path=missing_answer,
+        require_check_counts=True,
+    )
+    stages = _stage_map(result)
+    assert stages["1_source_fixture_load"].status == "fail"
+    assert "missing release artifact" in (stages["1_source_fixture_load"].message or "")
+    assert stages["5_workbook_generation"].status == "skipped"
+
+
+def test_release_audit_mismatched_standardized_fails(tmp_path: Path):
+    from core.trainer.workbook import build_training_workbook
+
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    trainer, answer = build_training_workbook(fin, tmp_path / "FastRetailing_Trainer.xlsx")
+    bad_std = tmp_path / "bad_standardized.json"
+    payload = _load_json(STD_JSON)
+    payload["ticker"] = "NOT.FR"
+    bad_std.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = run_audit(
+        standardized_json=bad_std,
+        trainer_path=trainer,
+        answer_key_path=answer,
+        require_check_counts=True,
+    )
+    stages = _stage_map(result)
+    assert stages["1_source_fixture_load"].status == "fail"
+    assert stages["5_workbook_generation"].status == "skipped"
+
+
+def test_release_audit_failed_counts_surface(tmp_path: Path):
+    from core.trainer.workbook import build_training_workbook
+    from openpyxl import load_workbook
+    from scripts.audit_fast_retailing_benchmark import EXPECTED_BLANK_CHECK
+
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    trainer, answer = build_training_workbook(fin, tmp_path / "FastRetailing_Trainer.xlsx")
+    # Fill one practice cell so pristine blank count cannot hold.
+    from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
+
+    smap = load_semantic_map(answer)
+    comp = smap.all_ordered()[0]
+    row, col = parse_cell_ref(comp.cell)
+    wb = load_workbook(trainer, data_only=False)
+    wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    wb.save(trainer)
+    wb.close()
+
+    result = run_audit(
+        standardized_json=STD_JSON,
+        trainer_path=trainer,
+        answer_key_path=answer,
+        require_check_counts=True,
+        verify_release_pair=False,
+    )
+    stages = _stage_map(result)
+    assert stages["6_blank_check"].status == "fail"
+    assert str(EXPECTED_BLANK_CHECK[2]) in (stages["6_blank_check"].message or "")
+    assert stages["7_filled_check"].status == "skipped"
+
+
+def test_persisted_fast_retailing_release_pair_if_present():
+    """When the release build has been run, verify the on-disk pair."""
+    if not RELEASE_TRAINER.is_file() or not RELEASE_ANSWER.is_file():
+        pytest.skip("release/fast_retailing pair not built yet")
+    assert RELEASE_STD.is_file()
+    result = run_audit(
+        standardized_json=RELEASE_STD,
+        provenance_json=RELEASE_PROV,
+        conflicts_json=RELEASE_CONFLICTS,
+        trainer_path=RELEASE_TRAINER,
+        answer_key_path=RELEASE_ANSWER,
+        require_check_counts=True,
+        verify_release_pair=True,
+    )
+    stages = _stage_map(result)
+    for name in (
+        "5_workbook_generation",
+        "6_blank_check",
+        "7_filled_check",
+        "8_release_pristine",
+    ):
+        assert stages[name].status == "pass", f"{name}: {stages[name].message}"
+    assert stages["5_workbook_generation"].message == (
+        "persisted release pair (not regenerated)"
+    )
+    conflicts = _load_json(RELEASE_CONFLICTS)
+    assert conflicts["overlap_conflict_count"] == 3
+    assert conflicts["supplemental_conflict_count"] == 3
+    payload = _load_json(RELEASE_STD)
+    assert payload["ticker"] == "6288.HK"
+    assert [p["end_date"] for p in payload["periods"]] == [
+        "2021-08-31",
+        "2022-08-31",
+        "2023-08-31",
+        "2024-08-31",
+        "2025-08-31",
+    ]
