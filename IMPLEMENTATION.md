@@ -1,51 +1,50 @@
-# Step 9M.2.4.1.1 — Repair Sparse Equity-Detail Evidence Reconciliation
+# Step 9M.2.4.1.1.1 — Repair Generic Pretax-Income Resolution
 
-**Base:** `17114fc2b600b461a6c68fe6b30ad1ab01dbc11e`
-**Status:** PROBLEMS — UNRESOLVED; repair planned
-**Parents:** Step 9M.2.4.1 and Step 9M.2.4 — UNRESOLVED
-**Goal:** Reject unsupported sparse equity omissions while preserving every original parent acceptance criterion.
+**Base:** `8c0098c8091f65814f77ed1b9d3fd082a1721671`
+**Status:** PLANNED
+**Parents:** Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — UNRESOLVED pending original-criteria closure assessment.
+**Previous repair:** Sparse equity reconciliation PASS; broader parent closure is not established.
+**Goal:** Resolve supplied pretax-income identity without changing historical facts or weakening integrity gates.
 
 ## Constraints
 
 - Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`; record completion and measured verification in `RESULT.md`.
-- Production scope: `core/model/classification.py`, limited to sparse-detail evidence reconciliation and integrity safeguards.
-- Test scope: `core/tests/test_classification.py`, `core/tests/test_reference_integrity.py`, and `core/tests/test_lululemon_benchmark.py`.
-- Preserve source PDFs, extracted JSON, standardized facts, provenance, conflicts, committed artifacts, and baseline hashes; no generated refresh is authorized.
-- Preserve classification metadata, source identity, explicit override precedence, subtotal/detail boundaries, shared required-value semantics, and non-balance-sheet completeness behavior.
-- Verification artifacts belong only in temporary directories; preserve deterministic failure-path immutability coverage.
-- No invented zeros, carry-forward, absent-after-zero inference, balancing plugs, issuer-specific rules, benchmark overrides, tolerance inflation, or suppressed integrity errors.
-- No G4–G7, forecasting, valuation, or unrelated blocker repair.
+- Production scope: `core/model/line_resolver.py`, limited to generic pretax-income resolution and directly implicated tax-expense exclusion.
+- Test scope: `core/tests/test_line_resolver.py`, `core/tests/test_reference_integrity.py`, and `core/tests/test_lululemon_benchmark.py`.
+- Preserve source PDFs, extracted JSON, standardized facts, provenance, conflicts, committed artifacts, and baseline hashes; no generated refresh.
+- Preserve explicit-concept precedence, ambiguity errors, source identity, classification overrides, subtotal/detail boundaries, required-value semantics, and non-balance-sheet completeness behavior.
+- Verification artifacts belong only in temporary directories; retain deterministic failure-path immutability coverage.
+- No invented values, balancing plugs, issuer-specific rules, benchmark overrides, tolerance inflation, suppressed errors, G4–G7, forecasting, valuation, or unrelated blocker repair.
 
-## Task 1 — Reproduce and repair the equity evidence gate
+## Task 1 — Assess parent criteria and trace the blocker
 
-- Reproduce removal of 100 of equity detail through explicit `None` while independent totals remain unchanged; demonstrate that existing asset-detail, liability-detail, and implied-equity gaps incorrectly remain zero.
-- Reconcile classified equity detail independently against supplied reported equity for every period requiring sparse-detail eligibility; retain the existing implied-equity identity check separately.
-- Use signed equity contributions, exclude subtotals, and apply the existing rounding formula to the actual equity-detail count without changing existing asset, liability, or implied-equity tolerance rules.
-- Require supplied independent asset, liability, and equity totals and successful separate detail reconciliations before returning usable sparse reformulation results.
-- Missing keys, unavailable totals or reconciliation evidence, unsupported absence, and contradictory detail must fail closed. Eligible absence remains non-contributing only in the affected aggregate; never rewrite source nulls.
+- Compare original acceptance in plans `aa6adc1`, `a370a02`, `2e88322`, and `88ce931` against `RESULT.md` and the supplied PASS review; record each criterion as supported, failed, or unverified.
+- Distinguish the satisfied sparse-equity repair from unresolved parent closure; workbook probes originally allowed recording the next exception and must not be rewritten as unconditional workbook-success criteria.
+- Reproduce `MissingLineError: Required concept 'pretax_income' not found in statement lines`.
+- Trace supplied `income_before_tax` / “Income before income tax expense” through standardized data, selected filing provenance, resolver priority, and the reference-model source row.
 
-## Task 2 — Add focused regression coverage
+## Task 2 — Repair resolution and add focused regressions
 
-- Add a regression that fails on the reviewed revision and rejects the 100 equity omission after repair despite zero existing identity gaps.
-- Cover sparse equity with leading, interior, and trailing absence; reported zero; complete rows; missing keys; unavailable totals; and equity-detail gaps at and beyond the unchanged rounding envelope.
-- Cover incomplete equity detail when a sparse asset or liability activates the gate, signed contra-equity contributions, subtotal exclusion, and explicit override controls.
-- Preserve genuine omission, contradictory input, equal asset/liability omission, and rounding-boundary rejection controls.
-- Retain supported sparse liability success, nullable export/reload, source-value immutability, four-period Lululemon integrity, empty unclassified detail, and G1/G2/G3 assertions.
+- Add the narrow generic explicit-concept alias `income_before_tax` for `pretax_income`, retaining canonical `pretax_income`; support the exact normalized supplied label when explicit identity is unavailable.
+- Ensure that label cannot resolve as `tax_expense`; preserve existing legitimate tax-expense resolution.
+- Demonstrate pre-repair failure and post-repair success; cover canonical and alias identities, normalized label fallback, explicit-concept precedence, duplicate ambiguity, missing required lines, and nearby nonmatching labels.
+- Verify Python calculations and Excel source links resolve the same supplied row, with unchanged values and concept through export/reload.
+- Replace the obsolete expected pretax exception with direct resolution/source-link assertions; probe workbook generation and record any next exception without expanding production scope.
 
-## Task 3 — Verify and record fresh evidence
+## Task 3 — Verify and record
 
 - Run `PYTHONPATH=. pytest core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py core/tests/test_classification.py core/tests/test_line_resolver.py core/tests/test_reference_integrity.py core/tests/test_lululemon_benchmark.py -q`.
 - Run `PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q` and `PYTHONPATH=. pytest core/tests -q`.
-- Probe the Lululemon build in a temporary directory; record workbook generation or the exact next exception without repairing unrelated blockers.
-- Record the reproduction and repair outcome, all four periods’ exact asset-detail, liability-detail, equity-detail, and implied-equity gaps, causal rows, detail counts, tolerance formulas, and envelopes.
-- Confirm NCIT remains 28555 / 15864 / reported 0 / `None`, Common stock remains 611 / 606 / 581 / 557, and gift-card/PPE controls pass.
-- Correct the unsupported completion claim in `RESULT.md`; record verified revision, working-tree state, fresh test outcomes/counts, source/artifact hashes before and after, and final diff scope.
+- Retain four-period asset-detail, liability-detail, equity-detail, and implied-equity integrity assertions, empty unclassified detail, and G1/G2/G3 controls.
+- Record exact gaps, detail counts, unchanged tolerance envelopes, causal liability/equity rows, test outcomes/counts, workbook outcome, verified revision, working-tree state, before/after source/artifact hashes, and final diff scope in `RESULT.md`.
 
 ## Acceptance and next step
 
-- Unsupported sparse equity omissions fail closed before usable reformulation results; balanced assets and liabilities alone cannot authorize missing equity detail.
-- All four Lululemon periods pass `check_reformulation_integrity` within unchanged tolerance rules; original liability and corresponding equity discrepancies are explained and repaired.
-- Required tests pass, genuine inconsistencies still fail closed, and source facts and committed artifacts remain unchanged.
-- Sparse absence remains distinct from reported zero through standardization, export/reload, and reformulation; provenance and selected observations remain preserved, and no missing historical fact is invented.
-- Keep Step 9M.2.4.1.1 and both parents UNRESOLVED until their original acceptance criteria pass; missing evidence, execution restrictions, or further required production scope remain blockers.
-- On failure, next step: **Step 9M.2.4.1.1 — Repair Sparse Equity-Detail Evidence Reconciliation**. On acceptance, return to Plan for parent closure assessment and selection of an unused detailed ID; Step 9 remains incomplete.
+- Supplied pretax income resolves generically and consistently in Python and Excel; tax expense remains distinct, and ambiguity and missing required evidence still fail closed.
+- Original parent acceptance remains mandatory: all four Lululemon periods pass `check_reformulation_integrity` under unchanged tolerances; original liability and corresponding equity discrepancies are explained and repaired.
+- Independent asset, liability, and signed equity-detail evidence gates reject unsupported sparse omissions; implied-equity reconciliation remains separate.
+- Sparse absence remains distinct from reported zero through standardization, export/reload, and reformulation; provenance and selected observations remain preserved.
+- NCIT remains 28555 / 15864 / reported 0 / `None`; Common stock remains 611 / 606 / 581 / 557; gift-card/PPE controls pass.
+- Required suites pass, genuine inconsistencies fail closed, and source facts and committed artifacts remain unchanged.
+- Keep parents UNRESOLVED until every original criterion is supported; unavailable evidence or access remains a blocker.
+- On failure: **Step 9M.2.4.1.1.1 — Repair Generic Pretax-Income Resolution**. On PASS: return to Plan for evidence-based parent closure and selection of an unused detailed ID for any remaining blocker; Step 9 remains incomplete.
