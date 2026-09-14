@@ -1,47 +1,44 @@
-# Step 9N.3 — Source-Supported Lease-Repayment Diagnostics
+# Step 9N.4 — Completion-Record and Scope Reconciliation
 
-**Base:** `3eb729b26e21cc6d8bb8c41864296f8b35f739e8`
+**Base:** `6a90c81a6fe0fbb439cfb9a1733dbfab167ec0ce`
 
-**Goal:** Teach reported historical lease-repayment cash and revenue intensity through the matched Trainer, Answer Key, and Check.
+**Goal:** Repair the Step 9 exit assessment and account explicitly for the prior step’s three supporting edits.
 
 **Read-only:** `TARGET.md`, `IMPLEMENTATION.md`. Cursor must never modify either file.
 
-**Writable files:**
-- New: `core/model/lease_repayment.py`, `core/tests/test_lease_repayment.py`.
-- Existing: `core/engine/component_catalog.py`, `core/engine/reference_model.py`, `core/model/historical_expected.py`, `core/trainer/workbook.py`, `core/trainer/checker.py`.
-- Verification and records: `core/tests/test_fast_retailing_benchmark.py`, `core/tests/test_historical_v1_exit_gate.py`, `docs/GOOGL_HISTORICAL_REFERENCE.md`, `RESULT.md`.
+**Writable files:** `RESULT.md`, `docs/GOOGL_HISTORICAL_REFERENCE.md`.
 
-### Task 1: Implement source resolution and calculations
+### Task 1: Account for supporting edits
 
-- Read `RESULT.md` before assessing the previous step; distinguish its recorded regression passes from independently verified results.
-- Follow `core/model/capex.py` conventions for exact-concept CF resolution, period validation, signed cash conversion, and undefined ratios.
-- Resolve only unique CF `repayments_of_lease_liabilities`; absent, ambiguous, label-only, or wrong-statement sources activate no module. Missing/null required period values fail closed without zero-filling.
-- Compute `lease_repayments = -reported_repayments` and `lease_repayments_to_revenue = lease_repayments / revenue`; preserve source signs and values, never use `abs()`.
-- Keep repayment activation independent of lease-liability balances, ROU balances, and lease-interest disclosures. Infer no repayments from balance changes.
+- Read `RESULT.md` and inspect the base commit against its parent.
+- Explicitly accept and retain these necessary supporting changes as exceptions to Step 9N.3’s writable list:
+  - `core/model/line_resolver.py`: register `repayments_of_lease_liabilities` for exact-concept-only resolution.
+  - `core/tests/test_line_resolver.py`: cover that concept in the explicit-concept-only regression.
+  - `core/tests/test_capex.py`: update Fast Retailing total specs from 481 to 491 while retaining 10 capex specs.
+- Record their exact scope and verification in `RESULT.md`; distinguish accepted prior changes from this step’s writable files.
 
-### Task 2: Integrate the historical practice surface
+### Task 2: Reconcile the evidence-based exit gate
 
-- Add `LEASE_REPAYMENT_COMPONENT_CATALOG` with families `lease_repayments` and `lease_repayments_to_revenue`, orders 122–123, category/semantic prefix `lease_repayment`.
-- Expand both families for every supplied historical period; integrate expected values, semantic mapping, workbook family metadata, and Check.
-- Add a compact `LEASE REPAYMENT CONTEXT` block on ALT DuPont using existing optional-module layout conventions.
-- Keep reported CF facts populated; practice formulas negate the source link and calculate revenue intensity.
-- Answer-Key Notes explain signed repayment cash and intensity, distinguishing them from total lease cost, ROU amortization, and liability movement.
-- Extend the historical catalog freeze to orders 1–123 with explicit new ID/order assertions; preserve all existing identities and deferred-category isolation.
+- Reassess all six TARGET exit criteria against the existing gap matrix, documented deferrals, real-company benchmark, and regression evidence.
+- For criteria 1 and 6, identify any remaining concrete material gap with its repository evidence, learner impact, and available source facts. Deferred topics or pending planner confirmation alone do not establish failure.
+- If no such gap remains and verification supports the other criteria, mark all six criteria PASS and Step 9 complete.
+- Otherwise record the specific failed criterion and bounded unresolved defect; do not manufacture additional historical work.
+- Synchronize the audit’s coverage summary, blocking queue, candidate section, and current gate statements with `RESULT.md`. Remove stale instructions requiring another Step 9 candidate regardless of evidence.
+- Preserve documented source-availability and materiality deferrals.
+- Record Step 10 driver-based forecasting as the next stage if the gate passes; implement no forecasting in this repair.
 
-### Task 3: Verify and record outcomes
+### Task 3: Verify and record
 
-- Test source gating, renamed/reordered exact-concept rows, missing/null periods, negative/positive/zero reported cash, zero revenue, and single-period support.
-- Verify formula/source alignment, Trainer blank yellow cells without Notes, Answer-Key formulas with Notes, visual parity, and non-disclosing blank/correct/incorrect Check behavior.
-- Assert Fast Retailing FY2021–FY2025 repayments of 148,248 / 136,889 / 140,646 / 146,403 / 140,483 JPY mn and ratios against supplied revenue.
-- Assert 10 repayment specs and 491 total Fast Retailing specs; preserve 10 capex specs, existing liability/ROU specs, and three overlap plus three supplemental conflicts. DEMO remains unchanged.
-- Run `python -m pytest core/tests/test_lease_repayment.py core/tests/test_historical_v1_exit_gate.py core/tests/test_fast_retailing_benchmark.py -q`.
-- Run `python -m pytest core/tests -q`, `git diff --check`, and inspect `git diff --name-only`.
-- Direct completion records, commands, measured outcomes, and limitations to `RESULT.md`; synchronize coverage, blockers, and exit-gate assessment in `docs/GOOGL_HISTORICAL_REFERENCE.md`.
+- Run `python -m pytest core/tests/test_line_resolver.py core/tests/test_capex.py core/tests/test_lease_repayment.py core/tests/test_historical_v1_exit_gate.py core/tests/test_fast_retailing_benchmark.py -q`.
+- Run `python -m pytest core/tests -q`.
+- Keep test-generated benchmark artifacts outside the final diff; preserve any pre-existing user changes.
+- Run `git diff --check` and inspect `git status --short` plus `git diff --name-only`.
+- Record actual commands, measured results, revision, limitations, the six-row gate decision, and next-stage disposition in `RESULT.md`; distinguish prior recorded passes from fresh verification.
 
 ### Acceptance criteria
 
-- Source-supported repayment diagnostics work throughout reference-model → Trainer/Answer-Key → Check; unsupported inputs fail closed.
-- Required tests pass; source fixtures, reconciliation evidence, and existing analytical results remain unchanged.
-- Discount-rate analysis, complete lease roll-forward, and ROU acquisition-payment diagnostics remain separately deferred.
-- Clear the repayment blocker only on measured evidence; reassess all Step 9 exit criteria without declaring completion from this module alone.
-- No forecasting, valuation, or Step 10 implementation; only writable files change.
+- Criteria 1 and 6 pass unless a concrete remaining material gap is evidenced.
+- All six dispositions and the resulting stage decision agree across both writable records.
+- The three supporting edits are explicitly accepted, explained, and verified without changing their implementation.
+- Required verification passes; only the two writable records remain changed.
+- No new historical module, forecasting, valuation, commit, or push.
