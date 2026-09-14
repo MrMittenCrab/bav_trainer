@@ -1,15 +1,15 @@
-# RESULT.md — Step 9M.2.3 Repair Punctuation Movements, Liability Preservation, and Paid-In-Capital Balances (G3)
+# RESULT.md — Step 9M.2.3 Narrow Paid-In-Capital Exemptions and Reject Contradictory Liability Concepts (G3)
 
 **Status:** PASS  
 **Completion:** DONE  
 **Next step:** Step **9M.2.4** — Lululemon Liability-Detail Reformulation Integrity (build blocker; G4 remains deferred)
 
-**Plan base (IMPLEMENTATION.md):** `901a4b2df4a16d2469344e5d38b3e264a834a808`  
-**Workspace HEAD at completion:** `e0eac83de22130d9fb4614dd8e3d099b3243effc`  
+**Plan base (IMPLEMENTATION.md):** `b142604cd183d3f1c3c6c0abb6e67aa7137ce242`  
+**Workspace HEAD at completion:** `07b000c0254789046d01c03cf94c6a2ef6733c4f`  
 `TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged).  
 No commit / push / sync / checkpoint. No G4–G7 implementation or forecasting/valuation work.
 
-This supersedes the previous Step 9M.2.3 G3 PASS claim: punctuation-normalized payment movements now fail closed, supported accrued/pension liabilities are preserved against common-stock Equity override, and paid-in-capital balances remain Equity.
+This supersedes the previous Step 9M.2.3 G3 PASS claim: payment detection no longer treats bare `paidin` as a paid-in-capital exemption, and contradictory liability concepts on ordinary Common stock fail closed while supported liability labels and genuine PIC balances remain classified.
 
 ---
 
@@ -17,17 +17,15 @@ This supersedes the previous Step 9M.2.3 G3 PASS claim: punctuation-normalized p
 
 In `core/model/classification.py`:
 
-1. Added `_common_stock_label_key` punctuation folding for common-stock topic detection and payment-phrase matching (hyphens, em dashes, other punct → spaces).
-2. Replaced unrestricted concept `paid` matching with payment-sensitive detection (`cashpaid` / `paidfor` / non-`paidin` `paid`) so `paid_in_capital` and `additional_paid_in_capital` balances are preserved; genuine payment stems still reject rows that also contain paid-in-capital wording.
-3. Extended liability evidence markers with accrued / pension / retirement-benefit / post-employment so both ordinary common-stock recognition routes fall through to supported liability classification.
-4. Kept movement guards scoped to common-stock identity and preserved explicit override precedence.
+1. Narrowed `_common_stock_concept_has_payment` so only genuine `paidincapital` balance wording is exempt; `common_stock_paid_in_cash` / `paid_in_cash` now raise as payment movements. Payment stems (`cashpaid` / `paidfor`) still reject when paid-in-capital wording co-occurs.
+2. Extended `_COMMON_STOCK_LIABILITY_CONCEPT_MARKERS` with accrued / pension / retirement-benefit / post-employment identities so both ordinary common-stock recognition routes reject contradictory concepts (`pension_obligation`, `accrued_expenses`, etc.).
+3. Preserved label-side supported liability fall-through, movement scoping, and override precedence.
 
 In `core/tests/test_classification.py`:
 
-1. Expanded supported-liability regressions for Accrued expenses and pension / retirement / post-employment labels paired with `common_stock` (exact category, ambiguity, judgment codes).
-2. Expanded payment-movement punctuation cases (`Cash-paid-for common-stock`, `Cash paid—for common stock`, `Paid-for common stock`, exact/empty/unrelated/fallback concepts).
-3. Added paid-in-capital Equity regressions for `Common stock` + PIC concepts and PIC labels + PIC/`common_stock` concepts.
-4. Retained ordinary common-stock, genuine-payment, override, investment, redeemable/preferred, other equity-component, and G1/G2 controls.
+1. Added the three reported public-classifier failures plus retirement/post-employment concept contradictions.
+2. Added normalized `paid_in_cash` / `common_stock_paid_in_cash` variants and payment+PIC co-occurrence cases.
+3. Retained PIC Equity, Accrued expenses / pension-label + `common_stock` supported-liability, debt-concept, override, investment, redeemable, and G1/G2 controls.
 
 `core/tests/test_lululemon_benchmark.py`: no edits required.
 
@@ -38,13 +36,14 @@ In `core/tests/test_classification.py`:
 | Check | Result |
 |---|---|
 | Exact `common_stock` / whole-label `Common stock` → Equity, non-ambiguous | **pass** |
-| Punctuation-normalized payment movements raise (no cash/liability/equity fallback) | **pass** |
+| `Common stock` + `common_stock_paid_in_cash` / `paid_in_cash` → `UnclassifiedBalanceSheetLineError` | **pass** |
+| Payment stems co-occurring with paid-in-capital wording still raise | **pass** |
+| `Common stock` + `pension_obligation` / `accrued_expenses` / retirement / post-employment concepts raise | **pass** |
 | Accrued expenses / `common_stock` → Operating Working Capital Liability | **pass** |
-| Pension / retirement / post-employment + `common_stock` → ambiguous OLT L + `pension_obligation_operating_vs_financing` | **pass** |
+| Pension / retirement / post-employment labels + `common_stock` → ambiguous OLT L + `pension_obligation_operating_vs_financing` | **pass** |
 | `Common stock` + `paid_in_capital` / `additional_paid_in_capital` → non-ambiguous Equity | **pass** |
 | PIC labels + PIC/`common_stock` concepts → non-ambiguous Equity | **pass** |
-| Unsupported liability contradictions raise | **pass** |
-| Investment / redeemable / equity-component / G1 / G2 / override controls | **pass** |
+| Decisive debt-concept / override / investment / redeemable / G1 / G2 controls | **pass** |
 | Lululemon Common stock values/identity intact (611 / 606 / 581 / 557) | **pass** |
 | Unclassified BS detail set | `{}` (empty) |
 | Temp-dir build first exception | `ReformulationIntegrityError` (`liability-detail gap`) |
@@ -70,13 +69,13 @@ Before and after digests are identical for all three committed Lululemon artifac
 
 ```text
 PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_line_resolver.py core/tests/test_fixed_asset.py core/tests/test_lululemon_benchmark.py -q
-→ 401 passed in 4.02s
+→ 414 passed in 4.11s
 
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q
-→ 132 passed in 27.10s
+→ 132 passed in 26.63s
 
 PYTHONPATH=. pytest core/tests -q
-→ 1019 passed in 86.85s
+→ 1032 passed in 85.00s
 ```
 
 0 failures; no execution restrictions.
@@ -97,9 +96,8 @@ Incidental FR/DEMO workbook/provenance refreshes from the suite were restored; f
 
 | Criterion | Result |
 |---|---|
-| Punctuation-normalized common-stock payments fail closed unless explicitly overridden | **pass** |
-| Supported accrued-expense and pension liabilities preserve classification/judgment; paid-in-capital remains Equity | **pass** |
-| Existing classification controls pass; source facts / committed artifacts unchanged | **pass** |
-| Required verification passes | **pass** |
+| All three reported pairs raise through the public classifier; genuine PIC balances remain Equity | **pass** |
+| Supported liabilities retain exact categories and judgment behavior; existing classification controls pass | **pass** |
+| Required verification passes; source facts / committed artifacts unchanged | **pass** |
 
 **Proposed next (on PASS):** Step 9M.2.4 — Lululemon Liability-Detail Reformulation Integrity. G4 remains deferred; Step 9 remains incomplete.

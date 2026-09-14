@@ -667,8 +667,10 @@ _COMMON_STOCK_MOVEMENT_LABEL_MARKERS = (
 )
 
 # Liability wording that contradicts ordinary common-stock equity recognition.
-# Accrued / pension / retirement / post-employment evidence must fall through to
-# supported liability rules rather than being overridden by common-stock Equity.
+# Label-side accrued / pension / retirement / post-employment evidence must fall
+# through to supported liability rules. Concept-side accrued-expense / pension /
+# retirement-benefit / post-employment identities contradict ordinary Common stock
+# balances and must fail closed (no Equity override).
 _COMMON_STOCK_LIABILITY_LABEL_MARKERS = (
     "liab",
     "payable",
@@ -695,6 +697,10 @@ _COMMON_STOCK_LIABILITY_CONCEPT_MARKERS = (
     "loan",
     "debt",
     "commercialpaper",
+    "accrued",
+    "pension",
+    "retirementbenefit",
+    "postemployment",
 )
 
 
@@ -709,14 +715,18 @@ def _common_stock_concept_has_payment(concept_token: str) -> bool:
     """True for payment-sensitive concept stems; preserves paid-in-capital balances.
 
     Genuine payment stems (``cashpaid``, ``paidfor``) remain movements even when
-    paid-in-capital wording co-occurs. Bare ``paid`` inside ``paidin`` /
-    ``paidincapital`` alone is not a payment.
+    paid-in-capital wording co-occurs. Only genuine ``paidincapital`` balance
+    wording is exempt: bare presence of ``paidin`` (e.g. ``paid_in_cash``) must
+    not suppress payment detection.
     """
     if not concept_token:
         return False
     if any(stem in concept_token for stem in _COMMON_STOCK_PAYMENT_CONCEPT_STEMS):
         return True
-    if "paid" in concept_token and "paidin" not in concept_token:
+    # Genuine paid-in-capital balances only — not every ``paidin`` substring.
+    if "paidincapital" in concept_token:
+        return False
+    if "paid" in concept_token:
         return True
     return False
 

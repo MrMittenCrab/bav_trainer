@@ -1974,6 +1974,13 @@ def test_common_stock_concept_with_supported_liability_labels(
         ("Common stock", "miscellaneous_liability"),
         ("Miscellaneous liability", "common_stock"),
         ("Liability balance", "common_stock"),
+        # Contradictory liability concepts on ordinary Common stock balances.
+        ("Common stock", "pension_obligation"),
+        ("Common stock", "accrued_expenses"),
+        ("Common stock", "retirement_benefit_obligation"),
+        ("Common stock", "post_employment_benefits"),
+        ("Common stock", "retirement_benefits"),
+        ("Common stock", "postemployment_obligation"),
     ],
 )
 def test_common_stock_unsupported_liability_contradictions_raise(label, concept):
@@ -2017,6 +2024,15 @@ def test_common_stock_label_with_debt_concept_remains_financial_liability():
         ("Payments for common stock", ""),
         ("Payment for common stock", "common_stock"),
         ("Common stock", "paid_for_common_stock"),
+        # paidin substring must not suppress genuine payment detection
+        ("Common stock", "common_stock_paid_in_cash"),
+        ("Common stock", "paid_in_cash"),
+        ("Common stock", "CommonStockPaidInCash"),
+        ("Common stock", "common_stock_paid_in_cash_for_shares"),
+        # Payment stems still reject when paid-in-capital wording co-occurs
+        ("Common stock", "cash_paid_from_paid_in_capital"),
+        ("Common stock", "paid_for_from_additional_paid_in_capital"),
+        ("Common stock", "cash_paid_for_common_stock_from_paid_in_capital"),
     ],
 )
 def test_common_stock_payment_movements_raise_unclassified(label, concept):
