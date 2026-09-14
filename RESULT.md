@@ -1,9 +1,9 @@
-# RESULT.md — Step 9 Repair Release Layout Contract Bypasses
+# RESULT.md — Step 9 Repair Start/End Border and Hyperlink Theme Parity
 
 **Review status:** PASS
 
-**Implementation base (plan):** `4bd447678a726f77e48b8ef6742c4f145b5e5b39`
-**HEAD at completion:** `f8468a4e4d90012b78ed0081facef578dd4f3631`
+**Implementation base (plan):** `cc805d39596399947a7ba9faecd68143f41d59f2`
+**HEAD at completion:** `173aba2936a8b382fe742ceb18de97bae645f998`
 
 **Writable this step:** `scripts/audit_fast_retailing_benchmark.py`, `core/tests/test_fast_retailing_benchmark.py`, `RESULT.md`.
 `TARGET.md` / `IMPLEMENTATION.md`: unchanged (read-only).
@@ -13,9 +13,9 @@ No commit / push / sync / checkpoint. No next implementation step.
 
 ## What shipped
 
-- Judgment content exemptions no longer cover whole F:H columns. Only response cells on actual case rows (matching `_judgment_case_rows`) are content/Note-exempt; headers such as Accounting Judgment!F4 and other non-response cells compare normally. Matching case coordinates required in both workbooks.
-- Visible formatting comparison is complete and workbook-theme-aware: font decorations, fill (pattern/gradient), all border sides/flags, alignment (wrap/shrink/rotation/indent), number format, protection. Colors dispatch on `Color.type` only; theme/indexed references resolve to effective RGB so identical indices with different theme/palette definitions fail. Style IDs are not compared.
-- Bypass regressions: one-sided Trainer/Answer Key mutations for F4 text/Note, non-case F:H content, wrap_text (including response cells), theme color, tint, theme-definition divergence; omitted-component cases; positive controls for legitimate judgment-response diffs and equivalent formatting with different style IDs; audit-stage fail + nonzero CLI exit.
+- `_border_components` now compares `border_start` and `border_end` (including the absent-border branch), normalized via `_side_token`.
+- `_THEME_SCHEME_ORDER` extended with `hlink` (index 10) and `folHlink` (index 11); effective RGB + tint resolution unchanged and now covers those indices.
+- Persisted-pair regressions: one-sided start/end absent-vs-present, style, and color mutations on ordinary and judgment-response cells; theme-definition divergence at indices 10–11 with matching cell theme references; positive matching start/end borders and hyperlink theme+tint; audit-stage fail + nonzero CLI for both border sides and both hyperlink indices; temp-pair and source-release hash checks.
 
 Forecasting / valuation remain dormant.
 
@@ -27,10 +27,10 @@ Forecasting / valuation remain dormant.
 
 ```text
 python -m pytest core/tests/test_fast_retailing_benchmark.py core/tests/test_historical_v1_exit_gate.py -q
-→ 99 passed in 18.04s
+→ 139 passed in 28.47s
 
 python -m pytest core/tests -q
-→ 666 passed in 72.82s
+→ 706 passed in 85.04s
 
 git diff --check
 → clean
@@ -58,14 +58,10 @@ python scripts/audit_fast_retailing_benchmark.py \
 
 ### Corruption coverage
 
-- Judgment header F4 text / Note — Trainer or Answer Key.
-- Non-case F:H content (G4) — Trainer or Answer Key.
-- wrap_text on judgment response F5 — Trainer or Answer Key.
-- Distinct theme color, tint, and changed theme definition behind identical theme index — Trainer or Answer Key.
-- Omitted format components: shrink_to_fit, text_rotation, indent, underline, strikethrough, number_format, protection_hidden, border_left, fill_type.
-- Positive: legitimate F5:H5 content/Note diffs pass; equivalent Aptos Narrow formatting with different workbook-local style IDs passes.
-- Bypass fails stage `5_workbook_generation`, skips Check stages, CLI exit nonzero; release hashes unchanged after pass and fail paths.
-- Explicit-pair no-generation regression preserved.
+- `border_start` / `border_end`: absent vs present, changed style, changed color (matching style) — Trainer or Answer Key; ordinary A6 and judgment-response F5.
+- Theme indices 10 (`hlink`) / 11 (`folHlink`): identical cell theme refs, one workbook theme definition changed — Trainer or Answer Key; ordinary and judgment-response cells → `font_color`.
+- Positive: matching start/end borders; matching hyperlink theme refs with tint=0.25.
+- Audit/CLI: border_start, border_end, hlink, folHlink corruptions fail `5_workbook_generation`, skip Check stages, exit nonzero; temp-pair hashes unchanged; source-release fingerprints unchanged; explicit-pair no-generation regression retained.
 
 ### Artifact SHA-256 (unchanged)
 
@@ -87,7 +83,7 @@ core/tests/test_fast_retailing_benchmark.py
 RESULT.md
 ```
 
-Incidental touches to `benchmark/fast_retailing/BASELINE.md` and `example/DEMO_HK_Trainer.xlsx` were restored and are outside the final diff.
+Incidental touches to `benchmark/fast_retailing/BASELINE.md`, `example/DEMO_HK_Trainer.xlsx`, and `benchmark/lululemon/` from the full suite were restored/removed and are outside the final diff.
 
 ---
 
@@ -95,10 +91,10 @@ Incidental touches to `benchmark/fast_retailing/BASELINE.md` and `example/DEMO_H
 
 | Criterion | Result |
 |---|---|
-| Judgment headers and non-response content cannot bypass parity checks | **pass** |
-| Wrapping and effective theme-color mismatches fail, including on response cells | **pass** |
+| One-sided start/end border diffs and theme indices 10–11 effective-color diffs fail persisted-pair verification | **pass** |
+| Matching formatting passes; judgment-content exemptions and existing formatting regressions intact | **pass** |
 | Unchanged release verification passes with pristine `(0, 0, 491, 491)` and filled `(491, 0, 0, 491)` | **pass** |
-| Required regressions pass; release artifacts remain unchanged | **pass** |
+| Required tests pass; verification leaves workbooks and sidecars unchanged | **pass** |
 | Only writable files change; no commit or push | **pass** |
 
 **Plan changes needed:** none.

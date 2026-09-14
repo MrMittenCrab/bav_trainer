@@ -69,6 +69,8 @@ _THEME_SCHEME_ORDER = (
     "accent4",
     "accent5",
     "accent6",
+    "hlink",
+    "folHlink",
 )
 _RGBMAX = 0xFF
 _HLSMAX = 240
@@ -269,6 +271,8 @@ def _border_components(border, *, theme_colors, palette) -> dict[str, Any]:
             "border_diagonal": None,
             "border_vertical": None,
             "border_horizontal": None,
+            "border_start": None,
+            "border_end": None,
         }
     return {
         "border_flags": (
@@ -298,6 +302,16 @@ def _border_components(border, *, theme_colors, palette) -> dict[str, Any]:
         ),
         "border_horizontal": _side_token(
             getattr(border, "horizontal", None),
+            theme_colors=theme_colors,
+            palette=palette,
+        ),
+        "border_start": _side_token(
+            getattr(border, "start", None),
+            theme_colors=theme_colors,
+            palette=palette,
+        ),
+        "border_end": _side_token(
+            getattr(border, "end", None),
             theme_colors=theme_colors,
             palette=palette,
         ),

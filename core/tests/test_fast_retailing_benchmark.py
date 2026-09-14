@@ -1514,6 +1514,20 @@ def _copy_persisted_release_pair(tmp_path: Path) -> tuple[Path, Path]:
     return _copy_release_pair_to_temp(RELEASE_TRAINER, RELEASE_ANSWER, tmp_path)
 
 
+def _temp_pair_fingerprints(trainer: Path, answer: Path) -> dict[str, str]:
+    paths = [
+        trainer,
+        answer,
+        answer.with_suffix(".component_map.json"),
+        answer.with_suffix(".assumptions.json"),
+    ]
+    return {
+        str(p): hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in paths
+        if p.is_file()
+    }
+
+
 def _release_fin():
     return standardized_from_payload(_load_json(RELEASE_STD))
 
@@ -2067,4 +2081,279 @@ def test_release_layout_bypass_fails_audit_stage_and_cli(tmp_path: Path):
     )
     assert completed.returncode != 0
     assert "5_workbook_generation: fail" in completed.stdout
+    assert _release_pair_fingerprints() == before
+
+
+def _layout_cell(wb, cell_kind: str):
+    if cell_kind == "ordinary":
+        return wb["Income Statement"]["A6"]
+    if cell_kind == "judgment_response":
+        return wb["Accounting Judgment"]["F5"]
+    raise AssertionError(cell_kind)
+
+
+def _layout_expect_coords(cell_kind: str) -> tuple[str, str]:
+    if cell_kind == "ordinary":
+        return ("Income Statement", "A6")
+    if cell_kind == "judgment_response":
+        return ("Accounting Judgment", "F5")
+    raise AssertionError(cell_kind)
+
+
+@pytest.mark.parametrize("target", ["trainer", "answer"])
+@pytest.mark.parametrize("side", ["start", "end"])
+@pytest.mark.parametrize(
+    "mutation",
+    ["absent_vs_present", "changed_style", "changed_color"],
+)
+@pytest.mark.parametrize("cell_kind", ["ordinary", "judgment_response"])
+def test_release_layout_border_start_end_corruptions(
+    tmp_path: Path, target: str, side: str, mutation: str, cell_kind: str
+):
+    from openpyxl.styles import Border, Side
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    before = _release_pair_fingerprints()
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+    fin = _release_fin()
+    component = f"border_{side}"
+    sheet, coord = _layout_expect_coords(cell_kind)
+
+    if mutation == "absent_vs_present":
+
+        def mut(wb):
+            cell = _layout_cell(wb, cell_kind)
+            cell.border = Border(**{side: Side(style="thin", color="FF000000")})
+
+        _apply_one_sided(trainer, answer, target, mut)
+    else:
+        base = Side(style="thin", color="FF000000")
+
+        def set_matching(wb):
+            cell = _layout_cell(wb, cell_kind)
+            cell.border = Border(**{side: base})
+
+        _mutate_workbook(trainer, set_matching)
+        _mutate_workbook(answer, set_matching)
+
+        if mutation == "changed_style":
+            altered = Side(style="medium", color="FF000000")
+        else:
+            altered = Side(style="thin", color="FFFF0000")
+
+        def mut(wb):
+            cell = _layout_cell(wb, cell_kind)
+            cell.border = Border(**{side: altered})
+
+        _apply_one_sided(trainer, answer, target, mut)
+
+    temp_before = _temp_pair_fingerprints(trainer, answer)
+    with pytest.raises(ValueError, match=rf"component={component}") as excinfo:
+        _verify_release_pair_contract(trainer, answer, fin)
+    msg = str(excinfo.value)
+    assert f"sheet={sheet!r}" in msg
+    assert f"cell={coord}" in msg
+    assert _temp_pair_fingerprints(trainer, answer) == temp_before
+    assert _release_pair_fingerprints() == before
+
+
+@pytest.mark.parametrize("target", ["trainer", "answer"])
+@pytest.mark.parametrize("theme_index,scheme_name", [(10, "hlink"), (11, "folHlink")])
+@pytest.mark.parametrize("cell_kind", ["ordinary", "judgment_response"])
+def test_release_layout_hyperlink_theme_definition_corruptions(
+    tmp_path: Path, target: str, theme_index: int, scheme_name: str, cell_kind: str
+):
+    from openpyxl.styles import Font
+    from openpyxl.styles.colors import Color
+    from openpyxl.xml.functions import QName, fromstring, tostring
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    before = _release_pair_fingerprints()
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+    fin = _release_fin()
+    sheet, coord = _layout_expect_coords(cell_kind)
+
+    def set_theme_font(wb):
+        cell = _layout_cell(wb, cell_kind)
+        cell.font = Font(name="Aptos Narrow", size=11, color=Color(theme=theme_index))
+
+    _mutate_workbook(trainer, set_theme_font)
+    _mutate_workbook(answer, set_theme_font)
+
+    def mutate_theme_only(wb):
+        xlmns = "http://schemas.openxmlformats.org/drawingml/2006/main"
+        root = fromstring(wb.loaded_theme)
+        scheme = root.find(QName(xlmns, "themeElements").text).findall(
+            QName(xlmns, "clrScheme").text
+        )[0]
+        child = list(scheme.find(QName(xlmns, scheme_name).text))[0]
+        child.set("val", "FF00FF")
+        wb.loaded_theme = tostring(root)
+
+    _apply_one_sided(trainer, answer, target, mutate_theme_only)
+
+    temp_before = _temp_pair_fingerprints(trainer, answer)
+    with pytest.raises(ValueError, match=r"component=font_color") as excinfo:
+        _verify_release_pair_contract(trainer, answer, fin)
+    msg = str(excinfo.value)
+    assert f"sheet={sheet!r}" in msg
+    assert f"cell={coord}" in msg
+    assert _temp_pair_fingerprints(trainer, answer) == temp_before
+    assert _release_pair_fingerprints() == before
+
+
+@pytest.mark.parametrize("side", ["start", "end"])
+def test_release_layout_positive_matching_start_end_borders(tmp_path: Path, side: str):
+    from openpyxl.styles import Border, Side
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    before = _release_pair_fingerprints()
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+    fin = _release_fin()
+    edge = Side(style="thin", color="FF000000")
+
+    def mut(wb):
+        for cell_kind in ("ordinary", "judgment_response"):
+            cell = _layout_cell(wb, cell_kind)
+            cell.border = Border(**{side: edge})
+
+    _mutate_workbook(trainer, mut)
+    _mutate_workbook(answer, mut)
+    temp_before = _temp_pair_fingerprints(trainer, answer)
+    msg = _verify_release_pair_contract(trainer, answer, fin)
+    assert "layout_parity=ok" in msg
+    assert _temp_pair_fingerprints(trainer, answer) == temp_before
+    assert _release_pair_fingerprints() == before
+
+
+@pytest.mark.parametrize("theme_index", [10, 11])
+def test_release_layout_positive_matching_hyperlink_theme_tint(
+    tmp_path: Path, theme_index: int
+):
+    from openpyxl.styles import Font
+    from openpyxl.styles.colors import Color
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    before = _release_pair_fingerprints()
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+    fin = _release_fin()
+
+    def mut(wb):
+        for cell_kind in ("ordinary", "judgment_response"):
+            cell = _layout_cell(wb, cell_kind)
+            cell.font = Font(
+                name="Aptos Narrow",
+                size=11,
+                color=Color(theme=theme_index, tint=0.25),
+            )
+
+    _mutate_workbook(trainer, mut)
+    _mutate_workbook(answer, mut)
+    temp_before = _temp_pair_fingerprints(trainer, answer)
+    msg = _verify_release_pair_contract(trainer, answer, fin)
+    assert "layout_parity=ok" in msg
+    assert _temp_pair_fingerprints(trainer, answer) == temp_before
+    assert _release_pair_fingerprints() == before
+
+
+@pytest.mark.parametrize(
+    "corruption",
+    [
+        ("border_start", "start"),
+        ("border_end", "end"),
+        ("hlink_theme", 10),
+        ("folHlink_theme", 11),
+    ],
+)
+def test_release_layout_border_hyperlink_fails_audit_stage_and_cli(
+    tmp_path: Path, corruption: tuple
+):
+    from openpyxl.styles import Border, Font, Side
+    from openpyxl.styles.colors import Color
+    from openpyxl.xml.functions import QName, fromstring, tostring
+
+    kind, payload = corruption
+    before = _release_pair_fingerprints()
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+
+    if kind.startswith("border_"):
+        side = payload
+
+        def mut(wb):
+            wb["Income Statement"]["A6"].border = Border(
+                **{side: Side(style="thin", color="FF000000")}
+            )
+
+        _mutate_workbook(trainer, mut)
+        expect_snip = f"component={kind}"
+        expect_sheet = "Income Statement"
+    else:
+        theme_index = payload
+        scheme_name = "hlink" if theme_index == 10 else "folHlink"
+
+        def set_theme_font(wb):
+            wb["Income Statement"]["A6"].font = Font(
+                name="Aptos Narrow", size=11, color=Color(theme=theme_index)
+            )
+
+        _mutate_workbook(trainer, set_theme_font)
+        _mutate_workbook(answer, set_theme_font)
+
+        def mut(wb):
+            xlmns = "http://schemas.openxmlformats.org/drawingml/2006/main"
+            root = fromstring(wb.loaded_theme)
+            scheme = root.find(QName(xlmns, "themeElements").text).findall(
+                QName(xlmns, "clrScheme").text
+            )[0]
+            child = list(scheme.find(QName(xlmns, scheme_name).text))[0]
+            child.set("val", "FF00FF")
+            wb.loaded_theme = tostring(root)
+
+        _mutate_workbook(trainer, mut)
+        expect_snip = "component=font_color"
+        expect_sheet = "Income Statement"
+
+    temp_before = _temp_pair_fingerprints(trainer, answer)
+    result = run_audit(
+        standardized_json=RELEASE_STD,
+        provenance_json=RELEASE_PROV,
+        conflicts_json=RELEASE_CONFLICTS,
+        trainer_path=trainer,
+        answer_key_path=answer,
+        require_check_counts=True,
+        verify_release_pair=True,
+    )
+    stages = _stage_map(result)
+    assert stages["5_workbook_generation"].status == "fail"
+    assert expect_snip in (stages["5_workbook_generation"].message or "")
+    assert expect_sheet in (stages["5_workbook_generation"].message or "")
+    assert stages["6_blank_check"].status == "skipped"
+    assert stages["7_filled_check"].status == "skipped"
+    assert _temp_pair_fingerprints(trainer, answer) == temp_before
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "audit_fast_retailing_benchmark.py"),
+            "--standardized-json",
+            str(RELEASE_STD),
+            "--provenance-json",
+            str(RELEASE_PROV),
+            "--conflicts-json",
+            str(RELEASE_CONFLICTS),
+            "--trainer",
+            str(trainer),
+            "--answer-key",
+            str(answer),
+            "--verify-release-pair",
+            "--require-check-counts",
+            "--no-baseline",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode != 0
+    assert "5_workbook_generation: fail" in completed.stdout
+    assert _temp_pair_fingerprints(trainer, answer) == temp_before
     assert _release_pair_fingerprints() == before
