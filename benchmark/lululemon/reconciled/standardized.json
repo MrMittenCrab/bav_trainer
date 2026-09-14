@@ -211,6 +211,16 @@
       }
     },
     {
+      "concept": "non_current_income_taxes_payable",
+      "label": "Non-current income taxes payable",
+      "values": {
+        "2023-01-29": 28555.0,
+        "2024-01-28": 15864.0,
+        "2025-02-02": 0.0,
+        "2026-02-01": null
+      }
+    },
+    {
       "concept": "lease_liability_noncurrent",
       "label": "Non-current lease liabilities",
       "values": {

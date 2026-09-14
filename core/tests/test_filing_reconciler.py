@@ -47,6 +47,7 @@ def _filing(
     note_facts: tuple[SupplementalFact, ...] = (),
     share_facts: tuple[SupplementalFact, ...] = (),
     extra_rows: tuple[ExtractedStatementRow, ...] = (),
+    balance_sheet_rows: tuple[ExtractedStatementRow, ...] = (),
 ) -> ExtractedFiling:
     period_end = date(year, 12, 31)
     return ExtractedFiling(
@@ -76,7 +77,7 @@ def _filing(
             ),
             *extra_rows,
         ),
-        balance_sheet=(),
+        balance_sheet=balance_sheet_rows,
         cash_flow=(),
         note_facts=note_facts,
         share_facts=share_facts,
@@ -579,6 +580,297 @@ def test_standardize_complete_axis_and_omission(tmp_path: Path):
         and "only_2025" in item["row_identity"]
         for item in provenance["omitted_incomplete_axis"]
     )
+
+
+def _bs_row(
+    *,
+    label: str,
+    concept: str,
+    section: str,
+    values: dict[date, tuple[float, PresentationRole]],
+) -> ExtractedStatementRow:
+    return ExtractedStatementRow(
+        label=label,
+        section=section,
+        suggested_concept=concept,
+        values={
+            period: FilingValue(value=value, presentation_role=role)
+            for period, (value, role) in values.items()
+        },
+        source=SourceRef(page=2, statement="Balance Sheet"),
+    )
+
+
+def test_standardize_retains_sparse_balance_sheet_facts(tmp_path: Path):
+    """Sparse BS rows stay on the model axis; IS incompletes remain omitted."""
+    from core.data.standardized_io import (
+        standardized_from_payload,
+        standardized_to_payload,
+    )
+
+    p2023 = date(2023, 12, 31)
+    p2024 = date(2024, 12, 31)
+    p2025 = date(2025, 12, 31)
+    p2026 = date(2026, 12, 31)
+
+    # Trailing absence + explicit zero: present 2023/2024/2025(0), absent 2026.
+    trailing = _bs_row(
+        label="Sparse Trailing",
+        concept="sparse_trailing",
+        section="non-current liabilities",
+        values={
+            p2023: (10.0, PresentationRole.CURRENT_PERIOD),
+            p2024: (20.0, PresentationRole.COMPARATIVE),
+            p2025: (0.0, PresentationRole.COMPARATIVE),
+        },
+    )
+    # Leading absence: absent 2023, present 2024/2025/2026.
+    leading = _bs_row(
+        label="Sparse Leading",
+        concept="sparse_leading",
+        section="non-current liabilities",
+        values={
+            p2024: (1.0, PresentationRole.CURRENT_PERIOD),
+            p2025: (2.0, PresentationRole.COMPARATIVE),
+            p2026: (3.0, PresentationRole.COMPARATIVE),
+        },
+    )
+    # Interior absence: present 2023/2025, absent 2024/2026.
+    interior = _bs_row(
+        label="Sparse Interior",
+        concept="sparse_interior",
+        section="non-current liabilities",
+        values={
+            p2023: (7.0, PresentationRole.CURRENT_PERIOD),
+            p2025: (9.0, PresentationRole.CURRENT_PERIOD),
+        },
+    )
+    # Complete BS row across the full axis.
+    complete = _bs_row(
+        label="Complete Liability",
+        concept="complete_liability",
+        section="non-current liabilities",
+        values={
+            p2023: (100.0, PresentationRole.CURRENT_PERIOD),
+            p2024: (110.0, PresentationRole.COMPARATIVE),
+            p2025: (120.0, PresentationRole.COMPARATIVE),
+            p2026: (130.0, PresentationRole.COMPARATIVE),
+        },
+    )
+    # Incomplete IS row must remain omitted.
+    only_is = ExtractedStatementRow(
+        label="Only IS 2025",
+        section="",
+        suggested_concept="only_is_2025",
+        values={p2025: FilingValue(5.0, PresentationRole.CURRENT_PERIOD)},
+        source=SourceRef(page=1, statement="Income Statement"),
+    )
+
+    filings = [
+        _filing(
+            year=2023,
+            source_file="a2023.pdf",
+            revenue_values={p2023: (100.0, PresentationRole.CURRENT_PERIOD)},
+            balance_sheet_rows=(
+                _bs_row(
+                    label=trailing.label,
+                    concept=trailing.suggested_concept,
+                    section=trailing.section,
+                    values={p2023: (10.0, PresentationRole.CURRENT_PERIOD)},
+                ),
+                _bs_row(
+                    label=interior.label,
+                    concept=interior.suggested_concept,
+                    section=interior.section,
+                    values={p2023: (7.0, PresentationRole.CURRENT_PERIOD)},
+                ),
+                _bs_row(
+                    label=complete.label,
+                    concept=complete.suggested_concept,
+                    section=complete.section,
+                    values={p2023: (100.0, PresentationRole.CURRENT_PERIOD)},
+                ),
+            ),
+        ),
+        _filing(
+            year=2024,
+            source_file="a2024.pdf",
+            revenue_values={
+                p2023: (100.0, PresentationRole.COMPARATIVE),
+                p2024: (110.0, PresentationRole.CURRENT_PERIOD),
+            },
+            balance_sheet_rows=(
+                _bs_row(
+                    label=trailing.label,
+                    concept=trailing.suggested_concept,
+                    section=trailing.section,
+                    values={
+                        p2023: (10.0, PresentationRole.COMPARATIVE),
+                        p2024: (20.0, PresentationRole.CURRENT_PERIOD),
+                    },
+                ),
+                _bs_row(
+                    label=leading.label,
+                    concept=leading.suggested_concept,
+                    section=leading.section,
+                    values={p2024: (1.0, PresentationRole.CURRENT_PERIOD)},
+                ),
+                _bs_row(
+                    label=complete.label,
+                    concept=complete.suggested_concept,
+                    section=complete.section,
+                    values={
+                        p2023: (100.0, PresentationRole.COMPARATIVE),
+                        p2024: (110.0, PresentationRole.CURRENT_PERIOD),
+                    },
+                ),
+            ),
+        ),
+        _filing(
+            year=2025,
+            source_file="a2025.pdf",
+            revenue_values={
+                p2024: (110.0, PresentationRole.COMPARATIVE),
+                p2025: (120.0, PresentationRole.CURRENT_PERIOD),
+            },
+            extra_rows=(only_is,),
+            balance_sheet_rows=(
+                _bs_row(
+                    label=trailing.label,
+                    concept=trailing.suggested_concept,
+                    section=trailing.section,
+                    values={
+                        p2024: (20.0, PresentationRole.COMPARATIVE),
+                        p2025: (0.0, PresentationRole.CURRENT_PERIOD),
+                    },
+                ),
+                _bs_row(
+                    label=leading.label,
+                    concept=leading.suggested_concept,
+                    section=leading.section,
+                    values={
+                        p2024: (1.0, PresentationRole.COMPARATIVE),
+                        p2025: (2.0, PresentationRole.CURRENT_PERIOD),
+                    },
+                ),
+                _bs_row(
+                    label=interior.label,
+                    concept=interior.suggested_concept,
+                    section=interior.section,
+                    values={p2025: (9.0, PresentationRole.CURRENT_PERIOD)},
+                ),
+                _bs_row(
+                    label=complete.label,
+                    concept=complete.suggested_concept,
+                    section=complete.section,
+                    values={
+                        p2024: (110.0, PresentationRole.COMPARATIVE),
+                        p2025: (120.0, PresentationRole.CURRENT_PERIOD),
+                    },
+                ),
+            ),
+        ),
+        _filing(
+            year=2026,
+            source_file="a2026.pdf",
+            revenue_values={
+                p2025: (120.0, PresentationRole.COMPARATIVE),
+                p2026: (130.0, PresentationRole.CURRENT_PERIOD),
+            },
+            balance_sheet_rows=(
+                _bs_row(
+                    label=leading.label,
+                    concept=leading.suggested_concept,
+                    section=leading.section,
+                    values={
+                        p2025: (2.0, PresentationRole.COMPARATIVE),
+                        p2026: (3.0, PresentationRole.CURRENT_PERIOD),
+                    },
+                ),
+                _bs_row(
+                    label=complete.label,
+                    concept=complete.suggested_concept,
+                    section=complete.section,
+                    values={
+                        p2025: (120.0, PresentationRole.COMPARATIVE),
+                        p2026: (130.0, PresentationRole.CURRENT_PERIOD),
+                    },
+                ),
+            ),
+        ),
+    ]
+    reconciled = reconcile_filings(
+        [_validated(tmp_path, f, str(f.filing.fiscal_year).encode()) for f in filings]
+    )
+    fin = standardize_reconciled(reconciled)
+    by_concept = {item.concept: item for item in fin.balance_sheet}
+
+    assert by_concept["sparse_trailing"].values == {
+        p2023: 10.0,
+        p2024: 20.0,
+        p2025: 0.0,
+        p2026: None,
+    }
+    assert by_concept["sparse_leading"].values == {
+        p2023: None,
+        p2024: 1.0,
+        p2025: 2.0,
+        p2026: 3.0,
+    }
+    assert by_concept["sparse_interior"].values == {
+        p2023: 7.0,
+        p2024: None,
+        p2025: 9.0,
+        p2026: None,
+    }
+    assert by_concept["complete_liability"].values == {
+        p2023: 100.0,
+        p2024: 110.0,
+        p2025: 120.0,
+        p2026: 130.0,
+    }
+    # Latest available model-period observation supplies label/concept.
+    assert by_concept["sparse_trailing"].label == "Sparse Trailing"
+    assert by_concept["sparse_trailing"].concept == "sparse_trailing"
+
+    assert all(item.concept != "only_is_2025" for item in fin.income_statement)
+    provenance = reconciliation_provenance_payload(reconciled)
+    assert any(
+        item["status"] == "omitted_incomplete_axis"
+        and "only_is_2025" in item["row_identity"]
+        for item in provenance["omitted_incomplete_axis"]
+    )
+    retained = {
+        item["suggested_concept"]: item for item in provenance["retained_sparse_axis"]
+    }
+    assert set(retained) == {"sparse_trailing", "sparse_leading", "sparse_interior"}
+    assert retained["sparse_trailing"]["missing_periods"] == [p2026.isoformat()]
+    assert "complete_liability" not in retained
+
+    trailing_key = (
+        "balance_sheet|"
+        f"{next(v.row_identity for v in reconciled.values if v.suggested_concept == 'sparse_trailing')}|"
+        f"{p2026.isoformat()}"
+    )
+    assert provenance["values"][trailing_key]["status"] == "missing_period"
+    assert provenance["values"][trailing_key]["selected"] is None
+
+    zero_key = (
+        "balance_sheet|"
+        f"{next(v.row_identity for v in reconciled.values if v.suggested_concept == 'sparse_trailing')}|"
+        f"{p2025.isoformat()}"
+    )
+    assert provenance["values"][zero_key]["status"] == "selected"
+    assert provenance["values"][zero_key]["selected"]["value"] == 0
+
+    payload = standardized_to_payload(fin)
+    reloaded = standardized_from_payload(payload)
+    re_by = {item.concept: item for item in reloaded.balance_sheet}
+    assert re_by["sparse_trailing"].values == by_concept["sparse_trailing"].values
+    assert re_by["sparse_trailing"].values[p2026] is None
+    assert re_by["sparse_trailing"].values[p2025] == 0.0
+    assert re_by["sparse_trailing"].label == "Sparse Trailing"
+    assert re_by["sparse_trailing"].concept == "sparse_trailing"
 
 
 def test_note_facts_not_promoted(tmp_path: Path):

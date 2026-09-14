@@ -97,12 +97,48 @@ def _supplemental_observation_payload(obs: SupplementalObservation) -> dict[str,
     return out
 
 
+def _latest_available_row(
+    by_period: dict[date, ReconciledValue],
+    model_periods: list[date],
+) -> ReconciledValue:
+    """Label/concept come from the latest model-period observation that exists."""
+    for period in reversed(model_periods):
+        row = by_period.get(period)
+        if row is not None:
+            return row
+    raise ValueError("row has no observations on the model axis")
+
+
+def _line_values_for_axis(
+    by_period: dict[date, ReconciledValue],
+    model_periods: list[date],
+    *,
+    allow_sparse: bool,
+) -> dict[date, float | None] | None:
+    """Build axis values; sparse BS rows use explicit None for unreported periods."""
+    if set(by_period) == set(model_periods):
+        return {
+            period: float(by_period[period].selected.value) for period in model_periods
+        }
+    if not allow_sparse:
+        return None
+    if not by_period:
+        return None
+    return {
+        period: (
+            float(by_period[period].selected.value)
+            if period in by_period
+            else None
+        )
+        for period in model_periods
+    }
+
+
 def standardize_reconciled(
     reconciled: ReconciledCompanyData,
 ) -> StandardizedFinancials:
     """Emit model-only StandardizedFinancials from reconciled documentary facts."""
     model_periods = list(reconciled.periods)
-    period_set = set(model_periods)
     grouped = _group_by_row(reconciled)
 
     statements: dict[str, list[LineItem]] = {
@@ -113,15 +149,19 @@ def standardize_reconciled(
 
     for (statement, _ident), rows in sorted(grouped.items(), key=lambda item: item[0]):
         by_period = {row.period: row for row in rows}
-        if set(by_period) != period_set:
+        values = _line_values_for_axis(
+            by_period,
+            model_periods,
+            allow_sparse=(statement == "balance_sheet"),
+        )
+        if values is None:
             continue
-        # Prefer label/concept from the latest model-period selection
-        latest = by_period[model_periods[-1]]
+        latest = _latest_available_row(by_period, model_periods)
         statements[statement].append(
             LineItem(
                 label=latest.label,
                 concept=latest.suggested_concept,
-                values={period: float(by_period[period].selected.value) for period in model_periods},
+                values=values,
             )
         )
 
@@ -206,13 +246,22 @@ def reconciliation_provenance_payload(
 
     values: dict[str, Any] = {}
     omitted: list[dict[str, Any]] = []
+    retained_sparse: list[dict[str, Any]] = []
 
     for (statement, ident), rows in sorted(grouped.items(), key=lambda item: item[0]):
         by_period = {row.period: row for row in rows}
         available = sorted(by_period)
-        label = rows[-1].label
-        concept = rows[-1].suggested_concept
-        if set(by_period) != period_set:
+        latest = (
+            _latest_available_row(by_period, model_periods)
+            if by_period
+            else rows[-1]
+        )
+        label = latest.label
+        concept = latest.suggested_concept
+        incomplete = set(by_period) != period_set
+        retain_sparse = incomplete and statement == "balance_sheet" and bool(by_period)
+
+        if incomplete and not retain_sparse:
             omitted.append(
                 {
                     "statement": statement,
@@ -238,19 +287,48 @@ def reconciliation_provenance_payload(
                     "status": "omitted_incomplete_axis",
                 }
             continue
-        for period, row in sorted(by_period.items()):
+
+        if retain_sparse:
+            missing = [p for p in model_periods if p not in by_period]
+            retained_sparse.append(
+                {
+                    "statement": statement,
+                    "row_identity": ident,
+                    "label": label,
+                    "suggested_concept": concept,
+                    "available_periods": [p.isoformat() for p in available],
+                    "missing_periods": [p.isoformat() for p in missing],
+                    "status": "retained_sparse_axis",
+                }
+            )
+
+        for period in model_periods:
             key = f"{statement}|{ident}|{period.isoformat()}"
-            values[key] = {
-                "statement": statement,
-                "row_identity": ident,
-                "period": period.isoformat(),
-                "label": row.label,
-                "suggested_concept": row.suggested_concept,
-                "selected": _observation_payload(row.selected),
-                "observations": [_observation_payload(o) for o in row.observations],
-                "selection_rule": _selection_rule(row),
-                "status": "selected",
-            }
+            if period in by_period:
+                row = by_period[period]
+                values[key] = {
+                    "statement": statement,
+                    "row_identity": ident,
+                    "period": period.isoformat(),
+                    "label": row.label,
+                    "suggested_concept": row.suggested_concept,
+                    "selected": _observation_payload(row.selected),
+                    "observations": [_observation_payload(o) for o in row.observations],
+                    "selection_rule": _selection_rule(row),
+                    "status": "selected",
+                }
+            elif retain_sparse:
+                values[key] = {
+                    "statement": statement,
+                    "row_identity": ident,
+                    "period": period.isoformat(),
+                    "label": label,
+                    "suggested_concept": concept,
+                    "selected": None,
+                    "observations": [],
+                    "selection_rule": None,
+                    "status": "missing_period",
+                }
 
     # Also retain observations for non-model periods (e.g. FY2020 comparatives)
     for value in reconciled.values:
@@ -287,6 +365,7 @@ def reconciliation_provenance_payload(
         ],
         "values": values,
         "omitted_incomplete_axis": omitted,
+        "retained_sparse_axis": retained_sparse,
         "note_facts": [
             _supplemental_observation_payload(obs) for obs in reconciled.note_facts
         ],

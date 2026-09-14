@@ -16,7 +16,6 @@ from core.data.standardized_io import standardized_from_payload
 from core.ingestion.filing_json import load_extracted_filing
 from core.ingestion.filing_validator import validate_extracted_filing
 from core.model.classification import (
-    ReformulationIntegrityError,
     UnclassifiedBalanceSheetLineError,
     classify_balance_sheet_line,
     is_balance_sheet_subtotal,
@@ -519,12 +518,50 @@ def test_common_stock_classifies_across_all_periods():
     assert decision.overridden is False
 
 
-def test_build_blocker_is_reformulation_integrity(tmp_path: Path):
-    """After G3, classification clears; build blocks on reformulation integrity.
+def test_non_current_income_taxes_payable_restored_sparse_axis():
+    """Sparse NCIT liability is retained with explicit None for FY2026 absence."""
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    item = next(
+        row
+        for row in fin.balance_sheet
+        if row.concept == "non_current_income_taxes_payable"
+        and row.label == "Non-current income taxes payable"
+    )
+    assert item.values == {
+        date(2023, 1, 29): 28555.0,
+        date(2024, 1, 28): 15864.0,
+        date(2025, 2, 2): 0.0,
+        date(2026, 2, 1): None,
+    }
+    provenance = _load_json(PROV_JSON)
+    retained = [
+        entry
+        for entry in provenance["retained_sparse_axis"]
+        if entry["suggested_concept"] == "non_current_income_taxes_payable"
+    ]
+    assert len(retained) == 1
+    assert retained[0]["missing_periods"] == ["2026-02-01"]
+    assert retained[0]["available_periods"] == [
+        "2023-01-29",
+        "2024-01-28",
+        "2025-02-02",
+    ]
+    assert not any(
+        entry["suggested_concept"] == "non_current_income_taxes_payable"
+        for entry in provenance["omitted_incomplete_axis"]
+    )
 
-    No unclassified BS detail rows remain. G1 gift-card, G2 PPE, and G3
-    common stock stay classified. Do not repair the integrity gap here.
+
+def test_four_period_reformulation_integrity(tmp_path: Path):
+    """After sparse NCIT retention: empty unclassified; G1/G2/G3 preserved.
+
+    Four-period ``check_reformulation_integrity`` cannot run yet: retained
+    ``None`` for FY2026 raises ``MissingHistoricalValueError`` inside
+    ``reformulate_balance_sheet`` (out of Step 9M.2.4.1 production scope).
     """
+    from core.model.classification import reformulate_balance_sheet
+    from core.model.source_values import MissingHistoricalValueError
+
     fin = standardized_from_payload(_load_json(STD_JSON))
 
     unclassified = set()
@@ -565,8 +602,11 @@ def test_build_blocker_is_reformulation_integrity(tmp_path: Path):
     )
     assert classify_balance_sheet_line(common).category == "Equity"
 
+    with pytest.raises(MissingHistoricalValueError, match="2026-02-01"):
+        reformulate_balance_sheet(fin, EXPECTED_PERIODS)
+
     out = tmp_path / "Lululemon"
-    with pytest.raises(ReformulationIntegrityError, match="liability-detail gap"):
+    with pytest.raises(MissingHistoricalValueError, match="2026-02-01"):
         build_training_workbook(fin, out)
 
 
@@ -585,15 +625,15 @@ def test_no_lulu_specific_production_branch():
 
 
 def test_committed_reconciled_hashes_are_stable():
-    """Lock measured baseline artifact digests for Step 9M.2."""
+    """Lock measured baseline artifact digests for Step 9M.2.4.1."""
     assert _sha256(STD_JSON) == (
-        "ba1ba06857198361706c368df490e4b874f8f03e7b45eaeb0af59eaa02aa4f45"
+        "29852347d78387be6fd9224246ab337b15a5176218cd01b2c20a0c8c3c00b361"
     )
     assert _sha256(CONFLICTS_JSON) == (
         "d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0"
     )
     # provenance is large; lock size + digest together
-    assert PROV_JSON.stat().st_size == 698793
+    assert PROV_JSON.stat().st_size == 699401
     assert _sha256(PROV_JSON) == (
-        "2d4d770e7fede9d30a576ba82c031157895fee5224a3094f034fc466e546d269"
+        "a31f7b05cddc16a61df91cdc8578bb69713069651af21160ff662ea562433075"
     )

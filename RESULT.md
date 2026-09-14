@@ -1,20 +1,42 @@
-# RESULT.md — Step 9M.2.4 Lululemon Liability-Detail Reformulation Integrity
+# RESULT.md — Step 9M.2.4.1 Preserve Sparse Liability Facts in Standardization
 
-**Status:** INCOMPLETE (not PASS)  
-**Completion:** STOPPED — upstream reconciler/standardizer defect; no in-scope repair  
-**Retained step:** Step **9M.2.4** — Lululemon Liability-Detail Reformulation Integrity  
-**Next step:** Do not advance. Plan must expand allowed production surface before retry.
-
-**Plan base (IMPLEMENTATION.md):** `7358db04098fce5014abe23a74806be14c0ef986`  
-**Workspace HEAD at stop:** `aa6adc16c64ba5850d2a6d90f0cf4aa32495922d`  
+**Status:** BLOCKED (in-scope standardizer work done; parent integrity acceptance not met)  
+**Step:** 9M.2.4.1 — Preserve Sparse Liability Facts in Standardization  
+**Parent:** Step 9M.2.4 — Lululemon Liability-Detail Reformulation Integrity — remains **UNRESOLVED**  
+**Workspace HEAD:** `a370a02b52bc4ab93d514232e913685ba361c55c`  
 `TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged).  
-No commit / push / sync / checkpoint. No classification/line_resolver edits. No G4–G7 or forecasting/valuation work. No source-fact or committed-artifact mutation.
+No commit / push / sync / checkpoint. No branch create/switch. No G4–G7 or forecasting/valuation work.
 
 ---
 
-## Diagnosis (Task 1)
+## What was implemented (in production scope)
 
-Measured four-period reformulation gaps on committed `benchmark/lululemon/reconciled/standardized.json`:
+`core/ingestion/filing_standardizer.py`:
+
+- Balance-sheet rows with selected observations on only part of the model axis are **retained**.
+- Supplied amounts preserved; unreported model periods use explicit `None` (nullable `LineItem.values` contract).
+- Label/concept taken from the **latest available model-period** observation.
+- Non-balance-sheet incomplete-axis rows remain **omitted** (`omitted_incomplete_axis`).
+- Provenance adds `retained_sparse_axis` (row-level) and period status `missing_period` (no fabricated `selected` / observations); available periods stay `selected`; outside-axis observations unchanged.
+
+Restored Lululemon NCIT row in regenerated `standardized.json`:
+
+| Period | Value |
+|---|---:|
+| 2023-01-29 | 28555.0 |
+| 2024-01-28 | 15864.0 |
+| 2025-02-02 | 0.0 (reported zero) |
+| 2026-02-01 | `null` / `None` (absent) |
+
+Sparse absence remains distinguishable from reported zero through export/reload.
+
+---
+
+## Measured before / after reformulation gaps
+
+Tolerance **formula** unchanged: `max(1.0, 0.5 * (detail_count + 1))`.
+
+### Before (NCIT omitted from standardized — prior committed behavior)
 
 | Period | asset-detail gap | liability-detail gap | equity gap | liability envelope | equity envelope |
 |---|---:|---:|---:|---:|---:|
@@ -23,112 +45,108 @@ Measured four-period reformulation gaps on committed `benchmark/lululemon/reconc
 | 2025-02-02 | 0.0 | 0.0 | 0.0 | 5.5 | 11.0 |
 | 2026-02-01 | 0.0 | 0.0 | 0.0 | 5.5 | 11.0 |
 
-- Asset detail count = 11 → rounding envelope `max(1.0, 0.5*(11+1)) = 6.0`.
-- Liability detail count = 10 → envelope `5.5`.
-- Equity uses asset+liability detail count = 21 → envelope `11.0`.
-- Reported totals resolve correctly: `Total assets`, `Total liabilities`, `Total stockholders' equity`.
-- All non-subtotal standardized BS rows classify; unclassified detail set = `{}`.
-- Classified liability sum is short of reported Total Liabilities by exactly the gaps above; equity gap is the mirror (`implied − reported = −liability gap`) because assets and equity details already reconcile.
+- Asset detail count = 11 → envelope 6.0  
+- Liability detail count = 10 → envelope 5.5  
+- Equity uses asset+liability count = 21 → envelope 11.0  
 
-### Causal row (exact identity)
+Causal row: omitted `non_current_income_taxes_payable` (28555 / 15864 / 0 / absent).
 
-Extracted filings contain **`Non-current income taxes payable`** / suggested concept `non_current_income_taxes_payable` under non-current liabilities:
+### After (NCIT retained with `None` at 2026-02-01)
 
-| Period | Selected value | Source |
-|---|---:|---|
-| 2023-01-29 | **28555** | FY2023 comparative / FY2022 current (agreeing) |
-| 2024-01-28 | **15864** | FY2024 comparative / FY2023 current (agreeing) |
-| 2025-02-02 | **0** | FY2024 current |
-| 2026-02-01 | *(absent from FY2025 filing)* | — |
+`reformulate_balance_sheet` / workbook build raise:
 
-Those non-zero values equal the measured liability-detail gaps exactly.
+```text
+MissingHistoricalValueError: balance_sheet detail
+concept=non_current_income_taxes_payable|label=non-current income taxes payable
+line 'Non-current income taxes payable' has no supplied value for modeled period 2026-02-01
+```
 
-Committed provenance records the entire row as **`omitted_incomplete_axis`**:
+Parent `check_reformulation_integrity` for all four periods therefore **cannot run** inside current production scope.
 
-- `row_identity`: `balance_sheet|non-current liabilities|non-current income taxes payable|non_current_income_taxes_payable`
-- `available_periods`: `2023-01-29`, `2024-01-28`, `2025-02-02` (missing model-axis `2026-02-01`)
-- Period-level provenance statuses: `omitted_incomplete_axis` for 2023/2024/2025; `outside_model_axis` for 2022-01-30 comparative (38074)
+### Probe-only (not applied): treat standardized `None` as non-contributing (0 to sum)
 
-The row is therefore **absent from `standardized.json`**, so classification/aggregation never sees it. This is not a misclassification, subtotal false-positive, or total-resolution bug in `classification.py` / `line_resolver.py`.
+If detail summation skipped/`None`→non-contributing without writing invented zeros into standardized facts:
 
-Omission is produced by `core/ingestion/filing_standardizer.py`: when a row’s available periods ≠ full model axis, it is appended to `omitted_incomplete_axis` and skipped from standardized output (`continue` after audit recording).
+| Period | asset-detail gap | liability-detail gap | equity gap |
+|---|---:|---:|---:|
+| 2023-01-29 | 0.0 | 0.0 | 0.0 |
+| 2024-01-28 | 0.0 | 0.0 | 0.0 |
+| 2025-02-02 | 0.0 | 0.0 | 0.0 |
+| 2026-02-01 | 0.0 | 0.0 | 0.0 |
+
+- Asset detail count = 11 → envelope 6.0  
+- Liability detail count = **11** → envelope **6.0** (formula unchanged; count +1)  
+- Equity count = 22 → envelope **11.5**  
+- Probe `check_reformulation_integrity` → **PASS**
 
 ---
 
-## Why Task 2 was not applied
+## Deterministic regeneration
 
-IMPLEMENTATION limits production changes to `core/model/classification.py` or `core/model/line_resolver.py`, and forbids altering source facts / committed reconciliation artifacts / baseline hashes.
+Two reconcile runs in separate temporary directories: all three artifacts byte-identical across runs.
 
-No smallest generic correction exists inside that surface that can restore an omitted liability detail without inventing values or relaxing integrity checks. Per plan: *If evidence establishes an upstream source defect, record it and retain this step as incomplete rather than altering source facts.*
+| Artifact | Before SHA-256 | Before size | After SHA-256 | After size | Notes |
+|---|---|---:|---|---:|---|
+| standardized.json | `ba1ba06857198361706c368df490e4b874f8f03e7b45eaeb0af59eaa02aa4f45` | 22289 | `29852347d78387be6fd9224246ab337b15a5176218cd01b2c20a0c8c3c00b361` | 22548 | +NCIT sparse row |
+| provenance.json | `2d4d770e7fede9d30a576ba82c031157895fee5224a3094f034fc466e546d269` | 698793 | `a31f7b05cddc16a61df91cdc8578bb69713069651af21160ff662ea562433075` | 699401 | NCIT moved omitted→retained_sparse; +`missing_period` |
+| conflicts.json | `d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0` | 4718 | *(unchanged)* | 4718 | required stable |
 
-No synthetic classification regression was added (would not reproduce the demonstrated defect). The obsolete Lululemon `liability-detail gap` build-blocker assertion was left unchanged because the blocker remains.
+Committed Lululemon `standardized.json` / `provenance.json` refreshed from verified regeneration only. Source PDFs and extracted JSON unchanged (hashes/sizes verified). Conflicts unchanged.
+
+---
+
+## Anchors confirmed
+
+- Common stock: 611 / 606 / 581 / 557 across the four periods (existing G3 test).  
+- Gift-card (G1) and PPE (G2) classification assertions pass.  
+- Unclassified non-subtotal BS detail set remains empty.
+
+---
+
+## Fresh verification counts
+
+```text
+PYTHONPATH=. pytest core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py \
+  core/tests/test_classification.py core/tests/test_line_resolver.py \
+  core/tests/test_reference_integrity.py core/tests/test_lululemon_benchmark.py -q
+→ 490 passed in 9.38s
+
+PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q
+→ 132 passed in 27.17s
+
+PYTHONPATH=. pytest core/tests -q
+→ 1042 passed in 93.81s
+```
+
+Lululemon workbook probe in a temporary directory: **failed** with the `MissingHistoricalValueError` quoted above (no unrelated blocker repaired).
+
+Synthetic sparse BS regression added in `test_filing_reconciler.py` (leading / interior / trailing absence, explicit zero vs absence, complete rows, unchanged non-BS omission, export/reload, provenance grounding).
+
+---
+
+## Diff scope (intentional)
+
+- `core/ingestion/filing_standardizer.py`
+- `core/tests/test_filing_reconciler.py`
+- `core/tests/test_lululemon_benchmark.py`
+- `benchmark/lululemon/reconciled/standardized.json`
+- `benchmark/lululemon/reconciled/provenance.json`
+- `RESULT.md` (this file)
+
+FR benchmark / demo workbook / source / extracted / conflicts: not part of authorized refresh (stray FR/demo mutations from test side-effects were reverted).
 
 ---
 
 ## Required plan change (do not edit IMPLEMENTATION.md here)
 
-Retry of Step 9M.2.4 needs an expanded production scope, for example:
+Parent acceptance still requires all four periods to pass `check_reformulation_integrity` within unchanged tolerance **rules**. Sparse retention with explicit `None` is correct and in-scope, but `reformulate_balance_sheet` still calls `required_period_value`, which fail-closes on `None`.
 
-1. **`core/ingestion/filing_standardizer.py`** (and covered reconciler/standardizer tests): retain incomplete-axis **balance-sheet detail** rows on the model axis instead of omitting them—e.g. carry forward available period values and use explicit reported `0` / absent-after-zero policy for missing terminal periods—while keeping provenance of sparse coverage.
-2. Regenerate or surgically refresh Lululemon reconciled artifacts only after that generic fix, then replace the build-blocker assertion with four-period `check_reformulation_integrity` assertions as originally specified.
-3. Keep classification/line_resolver unchanged unless a separate classification defect appears after the row is present.
+Next Plan revision must expand production scope beyond `filing_standardizer.py`, for example:
 
-G4 remains deferred until this integrity blocker clears.
+1. **`core/model/classification.py`** (detail summation in `reformulate_balance_sheet`): treat explicit standardized `None` on a retained sparse BS detail as **non-contributing for that period’s sum** (not an invented source zero; `LineItem.values` stays `None`; reported `0.0` remains distinct).
+2. Preserve fail-closed behavior for genuinely required complete-axis lines / totals as existing tests require.
+3. Then replace the current measured-next-exception Lululemon assertion with direct four-period integrity assertions and confirm workbook generation.
 
----
+Until that scope exists, **retain Step 9M.2.4 — UNRESOLVED**. Do not invent zeros, carry-forward, or absent-after-zero inference to force PASS.
 
-## Artifact hashes (before / after; unchanged)
-
-| Artifact | SHA-256 | Size | Unchanged |
-|---|---|---:|---|
-| standardized.json | `ba1ba06857198361706c368df490e4b874f8f03e7b45eaeb0af59eaa02aa4f45` | 22289 | yes |
-| conflicts.json | `d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0` | 4718 | yes |
-| provenance.json | `2d4d770e7fede9d30a576ba82c031157895fee5224a3094f034fc466e546d269` | 698793 | yes |
-
----
-
-## Measured verification
-
-```text
-PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_line_resolver.py core/tests/test_reference_integrity.py core/tests/test_lululemon_benchmark.py -q
-→ 462 passed in 8.44s
-
-PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q
-→ 132 passed in 26.63s
-
-PYTHONPATH=. pytest core/tests -q
-→ 1040 passed in 85.06s
-```
-
-0 failures on the required suites; suites do not establish Step PASS because acceptance (four-period integrity) still fails.
-
-Temp-dir Lululemon build probe:
-
-```text
-ReformulationIntegrityError
-2023-01-29: liability-detail gap=-2.856e+04 (... envelope=5.5); equity gap=2.856e+04 (... envelope=11)
-2024-01-28: liability-detail gap=-1.586e+04 (... envelope=5.5); equity gap=1.586e+04 (... envelope=11)
-```
-
-Controls still hold on committed standardized input:
-
-- Common stock values: **611 / 606 / 581 / 557**
-- Gift-card → Operating Working Capital Liability
-- PPE → Operating Long-Term Asset
-- Unclassified BS detail set: `{}`
-
-Incidental FR/DEMO refreshes from the suite were restored; final working-tree diff for this step is **`RESULT.md` only**.
-
----
-
-## Acceptance
-
-| Criterion | Result |
-|---|---|
-| All four periods pass `check_reformulation_integrity` within unchanged tolerance | **fail** (FY2023/FY2024) |
-| Liability/equity discrepancies explained with exact row identities | **pass** (diagnosis) |
-| Discrepancies repaired | **fail** (upstream omission; out of allowed edit scope) |
-| Required tests pass; source facts / committed artifacts unchanged | **pass** (tests green; hashes unchanged) |
-| Genuine inconsistencies still fail closed | **pass** (existing suite) |
-
-**Incomplete verification does not establish PASS.** Retain Step 9M.2.4. Step 9 remains incomplete.
+**BLOCKER:** Parent four-period `check_reformulation_integrity` blocked by `MissingHistoricalValueError` on retained sparse `None` at 2026-02-01; fixing requires Plan-authorized production scope outside `filing_standardizer.py` (classification / nullable detail summation).

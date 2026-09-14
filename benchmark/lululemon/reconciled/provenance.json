@@ -10,18 +10,6 @@
         "2024-01-28",
         "2025-02-02"
       ],
-      "label": "Non-current income taxes payable",
-      "row_identity": "balance_sheet|non-current liabilities|non-current income taxes payable|non_current_income_taxes_payable",
-      "statement": "balance_sheet",
-      "status": "omitted_incomplete_axis",
-      "suggested_concept": "non_current_income_taxes_payable"
-    },
-    {
-      "available_periods": [
-        "2023-01-29",
-        "2024-01-28",
-        "2025-02-02"
-      ],
       "label": "Gain on disposal of assets",
       "row_identity": "cash_flow|cash flows from operating activities|gain on disposal of assets|gain_on_disposal_of_assets",
       "statement": "cash_flow",
@@ -126,6 +114,23 @@
     "2024-01-28",
     "2025-02-02",
     "2026-02-01"
+  ],
+  "retained_sparse_axis": [
+    {
+      "available_periods": [
+        "2023-01-29",
+        "2024-01-28",
+        "2025-02-02"
+      ],
+      "label": "Non-current income taxes payable",
+      "missing_periods": [
+        "2026-02-01"
+      ],
+      "row_identity": "balance_sheet|non-current liabilities|non-current income taxes payable|non_current_income_taxes_payable",
+      "statement": "balance_sheet",
+      "status": "retained_sparse_axis",
+      "suggested_concept": "non_current_income_taxes_payable"
+    }
   ],
   "share_facts": [
     {
@@ -3890,7 +3895,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "omitted_incomplete_axis",
+      "status": "selected",
       "suggested_concept": "non_current_income_taxes_payable"
     },
     "balance_sheet|balance_sheet|non-current liabilities|non-current income taxes payable|non_current_income_taxes_payable|2024-01-28": {
@@ -3925,7 +3930,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "omitted_incomplete_axis",
+      "status": "selected",
       "suggested_concept": "non_current_income_taxes_payable"
     },
     "balance_sheet|balance_sheet|non-current liabilities|non-current income taxes payable|non_current_income_taxes_payable|2025-02-02": {
@@ -3952,7 +3957,18 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "omitted_incomplete_axis",
+      "status": "selected",
+      "suggested_concept": "non_current_income_taxes_payable"
+    },
+    "balance_sheet|balance_sheet|non-current liabilities|non-current income taxes payable|non_current_income_taxes_payable|2026-02-01": {
+      "label": "Non-current income taxes payable",
+      "observations": [],
+      "period": "2026-02-01",
+      "row_identity": "balance_sheet|non-current liabilities|non-current income taxes payable|non_current_income_taxes_payable",
+      "selected": null,
+      "selection_rule": null,
+      "statement": "balance_sheet",
+      "status": "missing_period",
       "suggested_concept": "non_current_income_taxes_payable"
     },
     "balance_sheet|balance_sheet|non-current liabilities|non-current lease liabilities|lease_liability_noncurrent|2022-01-30": {
