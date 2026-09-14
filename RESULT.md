@@ -1,14 +1,15 @@
-# RESULT.md — Step 9M.2.2 Repair PPE Balance Boundaries and Liability Preservation (G2)
+# RESULT.md — Step 9M.2.2 Normalize PPE Topic Detection and Reject Punctuation Movements (G2)
 
 **Status:** PASS  
 **Completion:** DONE  
 **Next step:** Step **9M.2.3** — Generic Common-Stock Equity Classification (G3)
 
-**Plan base:** `ba110d4283616b3f336292d0cad35befe60569a8`  
+**Plan base (IMPLEMENTATION.md):** `ab19f79ba93ce5eca0b59a92644ec0ece2d06476`  
+**Workspace HEAD at completion:** `01eb2d805cb141df7d3ccf660649c72a4ae9eb00`  
 `TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged).  
 No commit / push / sync / checkpoint. No G3–G7 or forecasting/valuation work.
 
-This RESULT supersedes the prior unsupported G2 closure that admitted payable/PPE-substring and trailing-movement fallthroughs.
+This RESULT supersedes the prior G2 PASS that closed whole-label/payable/trailing-movement boundaries but still admitted ampersand and Oxford-comma movement fallthroughs.
 
 ---
 
@@ -16,32 +17,30 @@ This RESULT supersedes the prior unsupported G2 closure that admitted payable/PP
 
 In `core/model/classification.py`:
 
-1. Replaced PPE phrase-substring matching with punctuation-folded **whole-label** balance identity (`_ppe_label_key` + `_PPE_BALANCE_LABELS`), including plant wording and leading/trailing `net` variants.
-2. Preserved exact balance concepts `property_plant_equipment` / `property_plant_and_equipment`, neutral-label concept recognition, and override precedence.
-3. Expanded movement markers to position-independent singular/plural forms (additions, disposals, payments, sales, changes, and prior leading forms).
-4. Added early `_is_ppe_movement` fail-closed before concept/label fallbacks so rejected movements cannot reach legacy plant/PPE asset matching.
-5. Payable/liability labels containing PPE wording no longer match the PPE balancer; they fall through to existing payable classification.
+1. Folded `_PPE_CONTENT_LABEL_PHRASES` to punctuation-normalized keys (`property and equipment`, `property plant and equipment`, `plant and equipment`).
+2. Applied `_ppe_label_key` to label topic detection so comma, Oxford-comma, ampersand, and whitespace variants share that vocabulary.
+3. Kept whole-label balance matching exact (`_ppe_balance_label_hit`); topic substring matching remains movement-gate only.
+4. Existing early `_is_ppe_movement` fail-closed and override precedence unchanged.
 
 In tests:
 
-1. Payable regressions for `Accounts payable for property and equipment` / `Property and equipment payable` (empty, unrelated, `accounts_payable`).
-2. Trailing and plant-wording movement fail-closed coverage; balance labels with movement concepts; movements with empty/unrelated/exact PPE concepts.
-3. Replaced legacy expectation that `Purchases of property, plant and equipment` classifies as an asset with fail-closed.
-4. Override still wins for rejected movements; positive balance / concept-only / no-judgment retained.
-5. Resolver near-match list extended for reported movement and payable variants (no resolver code change).
+1. Public-path regressions for `Property plant & equipment additions` and `Property, plant, and equipment disposals` with empty / unrelated / both exact PPE balance concepts.
+2. Normalized topic variants with leading/trailing additions, disposals, payments, sales, and changes.
+3. Matching punctuation balance controls remain `Operating Long-Term Asset`; payable, movement-concept, no-judgment, and override coverage retained/extended.
+4. Resolver near-match list extended with both reported punctuation movement labels (no resolver code change).
 
 ---
 
-## G2 repair evidence
+## G2 punctuation-repair evidence
 
 | Check | Result |
 |---|---|
-| Whole-label PPE balances → OLTA | **pass** |
-| Concept-only + punctuation/`net` variants | **pass** |
-| Payable labels stay OWCL (empty/unrelated/payable concept) | **pass** |
-| Trailing/leading/plant movements fail closed | **pass** |
-| No legacy plant/PPE fallthrough for movements | **pass** |
-| Override wins on balances and rejected movements | **pass** |
+| Ampersand / Oxford-comma movements fail closed (public classifier) | **pass** |
+| Exact PPE concepts cannot mask those label-topic failures | **pass** |
+| Leading/trailing singular/plural punctuation topic variants fail closed | **pass** |
+| Matching punctuation balances remain OLTA | **pass** |
+| Payable / override / G1 / whole-label / plant-wording coverage retained | **pass** |
+| Resolver near-match rejects both reported labels | **pass** |
 | Lululemon PPE resolves; all four values; `fixed_asset_applicable` | **pass** |
 | Build unclassified set | `{Common stock}` only |
 | Temp-dir build first exception | `Common stock` (G3) |
@@ -67,13 +66,13 @@ Before and after digests are identical for all three committed Lululemon artifac
 
 ```text
 PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_line_resolver.py core/tests/test_fixed_asset.py core/tests/test_lululemon_benchmark.py -q
-→ 276 passed in 4.44s
+→ 314 passed in 4.17s
 
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q
-→ 132 passed in 28.87s
+→ 132 passed in 27.00s
 
 PYTHONPATH=. pytest core/tests -q
-→ 894 passed in 87.01s
+→ 932 passed in 86.01s
 ```
 
 0 failures; no execution restrictions.
@@ -86,9 +85,9 @@ Incidental FR/DEMO workbook/provenance refreshes from the suite were restored; f
 
 | Criterion | Result |
 |---|---|
-| PPE whole-label matching; payables preserved | **pass** |
-| Movement variants fail closed through public classifier + legacy path | **pass** |
-| Valid PPE / resolver / fixed-asset / Lululemon G3 blocker intact | **pass** |
+| Reported punctuation movements + variants fail closed through public classifier | **pass** |
+| Valid PPE balances / payables / overrides / resolver / fixed-asset intact | **pass** |
+| Exact Lululemon G3 blocker (`{Common stock}`) intact | **pass** |
 | Required checks + immutability / hash / no-issuer guards | **pass** |
 | Diff scoped to allowed files | **pass** |
 

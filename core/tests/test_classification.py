@@ -1597,10 +1597,14 @@ def test_customer_prepayment_reformulation_reduces_nowc_and_nola_not_net_debt():
         ("Property, plant and equipment", ""),
         ("Property plant and equipment", ""),
         ("Property, plant & equipment", ""),
+        ("Property plant & equipment", ""),
+        ("Property, plant, and equipment", ""),
         ("Net property and equipment", ""),
         ("Property and equipment net", ""),
         ("Net property, plant and equipment", ""),
         ("Property plant and equipment net", ""),
+        ("Property plant & equipment, net", ""),
+        ("Net property, plant, and equipment", ""),
         ("Miscellaneous balance", "property_plant_equipment"),
         ("Miscellaneous balance", "property_plant_and_equipment"),
         ("Property and equipment, net", "property_plant_equipment"),
@@ -1632,6 +1636,23 @@ def test_ppe_payable_labels_remain_operating_wc_liability(label, concept):
     assert decision.overridden is False
 
 
+_PPE_PUNCTUATION_MOVEMENT_CONCEPTS = ("", "unrelated_xyz", "property_plant_equipment", "property_plant_and_equipment")
+
+
+@pytest.mark.parametrize("concept", _PPE_PUNCTUATION_MOVEMENT_CONCEPTS)
+@pytest.mark.parametrize(
+    "label",
+    [
+        "Property plant & equipment additions",
+        "Property, plant, and equipment disposals",
+    ],
+)
+def test_ppe_punctuation_reported_movements_fail_closed(label, concept):
+    """Public classifier rejects ampersand / Oxford-comma movement labels."""
+    with pytest.raises(UnclassifiedBalanceSheetLineError):
+        classify_balance_sheet_line(_li(label, 100, 110, concept=concept))
+
+
 @pytest.mark.parametrize(
     ("label", "concept"),
     [
@@ -1651,9 +1672,39 @@ def test_ppe_payable_labels_remain_operating_wc_liability(label, concept):
         ("Purchases of property, plant and equipment", ""),
         ("Property, plant and equipment additions", ""),
         ("Additions to property, plant and equipment", ""),
+        # Punctuation-normalized topic + leading/trailing movement markers.
+        ("Property plant & equipment additions", ""),
+        ("Property plant & equipment disposals", ""),
+        ("Property plant & equipment payments", ""),
+        ("Property plant & equipment sales", ""),
+        ("Property plant & equipment changes", ""),
+        ("Additions to property plant & equipment", ""),
+        ("Disposals of property plant & equipment", ""),
+        ("Payments for property plant & equipment", ""),
+        ("Sales of property plant & equipment", ""),
+        ("Changes in property plant & equipment", ""),
+        ("Property, plant, and equipment additions", ""),
+        ("Property, plant, and equipment disposals", ""),
+        ("Property, plant, and equipment payments", ""),
+        ("Property, plant, and equipment sales", ""),
+        ("Property, plant, and equipment changes", ""),
+        ("Additions to property, plant, and equipment", ""),
+        ("Disposals of property, plant, and equipment", ""),
+        ("Payments for property, plant, and equipment", ""),
+        ("Sales of property, plant, and equipment", ""),
+        ("Changes in property, plant, and equipment", ""),
         ("Property and equipment additions", "unrelated_xyz"),
         ("Property and equipment additions", "property_plant_equipment"),
         ("Property and equipment additions", "property_plant_and_equipment"),
+        ("Property plant & equipment additions", "unrelated_xyz"),
+        ("Property plant & equipment additions", "property_plant_equipment"),
+        ("Property plant & equipment additions", "property_plant_and_equipment"),
+        ("Property, plant, and equipment disposals", "unrelated_xyz"),
+        ("Property, plant, and equipment disposals", "property_plant_equipment"),
+        (
+            "Property, plant, and equipment disposals",
+            "property_plant_and_equipment",
+        ),
         ("Purchases of property, plant and equipment", "property_plant_equipment"),
         (
             "Property and equipment, net",
@@ -1709,6 +1760,17 @@ def test_ppe_override_still_wins():
     )
     assert forced.category == "Operating Long-Term Asset"
     assert forced.overridden is True
+
+    punct_rejected = _li(
+        "Property plant & equipment additions", 100, 110, concept=""
+    )
+    with pytest.raises(UnclassifiedBalanceSheetLineError):
+        classify_balance_sheet_line(punct_rejected)
+    punct_forced = classify_balance_sheet_line(
+        punct_rejected, override="Operating Long-Term Asset"
+    )
+    assert punct_forced.category == "Operating Long-Term Asset"
+    assert punct_forced.overridden is True
 
 
 def test_ppe_preserves_existing_plant_wording_and_unrelated_rows():

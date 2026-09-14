@@ -251,6 +251,8 @@ def test_ppe_movement_labels_are_not_near_matches():
         "Property and equipment changes",
         "Purchases of property, plant and equipment",
         "Property, plant and equipment additions",
+        "Property plant & equipment additions",
+        "Property, plant, and equipment disposals",
         "Accounts payable for property and equipment",
         "Property and equipment payable",
     ):

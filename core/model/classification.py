@@ -446,11 +446,11 @@ _PPE_BALANCE_LABELS = frozenset(
 )
 
 # Topic phrases used only to gate movement fail-closed (substring OK here).
+# Stored as punctuation-folded keys so comma / Oxford-comma / ampersand /
+# whitespace variants share one vocabulary with `_ppe_label_key`.
 _PPE_CONTENT_LABEL_PHRASES = (
     "property and equipment",
-    "property, plant and equipment",
     "property plant and equipment",
-    "property, plant & equipment",
     "plant and equipment",
 )
 
@@ -522,7 +522,13 @@ def _ppe_has_movement(concept_token: str, low: str) -> bool:
 
 
 def _ppe_content(concept_token: str, low: str) -> bool:
-    """True when concept or label identifies a PPE topic (balance or movement)."""
+    """True when concept or label identifies a PPE topic (balance or movement).
+
+    Label topic detection uses `_ppe_label_key` so punctuation variants
+    (commas, Oxford commas, ampersands, extra whitespace) share identity with
+    the phrase vocabulary. This is substring topic matching only — whole-label
+    balance recognition remains separate in `_ppe_balance_label_hit`.
+    """
     if concept_token in _PPE_BALANCE_CONCEPTS:
         return True
     if concept_token and (
@@ -534,9 +540,9 @@ def _ppe_content(concept_token: str, low: str) -> bool:
         or concept_token.endswith("ppe")
     ):
         return True
-    if any(phrase in low for phrase in _PPE_CONTENT_LABEL_PHRASES):
-        return True
     key = _ppe_label_key(low)
+    if any(phrase in key for phrase in _PPE_CONTENT_LABEL_PHRASES):
+        return True
     if key == "ppe" or re.search(r"\bppe\b", key):
         return True
     return False
