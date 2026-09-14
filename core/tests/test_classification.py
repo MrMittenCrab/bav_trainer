@@ -1596,8 +1596,11 @@ def test_customer_prepayment_reformulation_reduces_nowc_and_nola_not_net_debt():
         ("Property and equipment", ""),
         ("Property, plant and equipment", ""),
         ("Property plant and equipment", ""),
+        ("Property, plant & equipment", ""),
         ("Net property and equipment", ""),
         ("Property and equipment net", ""),
+        ("Net property, plant and equipment", ""),
+        ("Property plant and equipment net", ""),
         ("Miscellaneous balance", "property_plant_equipment"),
         ("Miscellaneous balance", "property_plant_and_equipment"),
         ("Property and equipment, net", "property_plant_equipment"),
@@ -1615,6 +1618,23 @@ def test_ppe_balances_classify_as_operating_long_term_asset(label, concept):
 @pytest.mark.parametrize(
     ("label", "concept"),
     [
+        ("Accounts payable for property and equipment", ""),
+        ("Accounts payable for property and equipment", "unrelated_xyz"),
+        ("Accounts payable for property and equipment", "accounts_payable"),
+        ("Property and equipment payable", ""),
+        ("Property and equipment payable", "unrelated_xyz"),
+        ("Property and equipment payable", "accounts_payable"),
+    ],
+)
+def test_ppe_payable_labels_remain_operating_wc_liability(label, concept):
+    decision = classify_balance_sheet_line(_li(label, 100, 110, concept=concept))
+    assert decision.category == "Operating Working Capital Liability"
+    assert decision.overridden is False
+
+
+@pytest.mark.parametrize(
+    ("label", "concept"),
+    [
         ("Purchases of property and equipment", ""),
         ("Purchase of property and equipment", ""),
         ("Proceeds from sale of property and equipment", ""),
@@ -1623,6 +1643,18 @@ def test_ppe_balances_classify_as_operating_long_term_asset(label, concept):
         ("Additions to property and equipment", ""),
         ("Payments for property and equipment", ""),
         ("Change in property and equipment", ""),
+        ("Property and equipment additions", ""),
+        ("Property and equipment disposals", ""),
+        ("Property and equipment payments", ""),
+        ("Property and equipment sales", ""),
+        ("Property and equipment changes", ""),
+        ("Purchases of property, plant and equipment", ""),
+        ("Property, plant and equipment additions", ""),
+        ("Additions to property, plant and equipment", ""),
+        ("Property and equipment additions", "unrelated_xyz"),
+        ("Property and equipment additions", "property_plant_equipment"),
+        ("Property and equipment additions", "property_plant_and_equipment"),
+        ("Purchases of property, plant and equipment", "property_plant_equipment"),
         (
             "Property and equipment, net",
             "purchases_of_property_plant_equipment",
@@ -1639,7 +1671,12 @@ def test_ppe_balances_classify_as_operating_long_term_asset(label, concept):
             "Property and equipment, net",
             "impairment_of_property_plant_and_equipment",
         ),
+        (
+            "Property and equipment, net",
+            "additions_to_property_plant_equipment",
+        ),
         ("Miscellaneous balance", "purchases_of_property_plant_equipment"),
+        ("Miscellaneous balance", "additions_to_property_plant_and_equipment"),
     ],
 )
 def test_ppe_movement_rows_do_not_classify_as_ppe_balances(label, concept):
@@ -1664,6 +1701,15 @@ def test_ppe_override_still_wins():
     assert overridden.overridden is True
     assert overridden.reason == "User override"
 
+    rejected = _li("Property and equipment additions", 100, 110, concept="")
+    with pytest.raises(UnclassifiedBalanceSheetLineError):
+        classify_balance_sheet_line(rejected)
+    forced = classify_balance_sheet_line(
+        rejected, override="Operating Long-Term Asset"
+    )
+    assert forced.category == "Operating Long-Term Asset"
+    assert forced.overridden is True
+
 
 def test_ppe_preserves_existing_plant_wording_and_unrelated_rows():
     plant = classify_balance_sheet_line(
@@ -1671,11 +1717,11 @@ def test_ppe_preserves_existing_plant_wording_and_unrelated_rows():
     )
     assert plant.category == "Operating Long-Term Asset"
 
-    # Pre-existing plant-wording movement still follows legacy label matcher.
-    purchases_plant = classify_balance_sheet_line(
-        _li("Purchases of property, plant and equipment", 100, 110, concept="")
-    )
-    assert purchases_plant.category == "Operating Long-Term Asset"
+    # Plant-wording movements fail closed (no legacy PPE asset fallthrough).
+    with pytest.raises(UnclassifiedBalanceSheetLineError):
+        classify_balance_sheet_line(
+            _li("Purchases of property, plant and equipment", 100, 110, concept="")
+        )
 
     cash = classify_balance_sheet_line(
         _li("Cash and cash equivalents", 10, 12, concept="cash")
@@ -1686,6 +1732,9 @@ def test_ppe_preserves_existing_plant_wording_and_unrelated_rows():
         _li("Accounts payable", 10, 12, concept="accounts_payable")
     )
     assert payable.category == "Operating Working Capital Liability"
+
+    bare_ppe = classify_balance_sheet_line(_li("PPE", 10, 12, concept=""))
+    assert bare_ppe.category == "Operating Long-Term Asset"
 
 
 def test_ppe_balance_has_no_judgment_case():

@@ -244,6 +244,15 @@ def test_ppe_movement_labels_are_not_near_matches():
         "Depreciation of property and equipment",
         "Impairment of property and equipment",
         "Purchase of property and equipment",
+        "Property and equipment additions",
+        "Property and equipment disposals",
+        "Property and equipment payments",
+        "Property and equipment sales",
+        "Property and equipment changes",
+        "Purchases of property, plant and equipment",
+        "Property, plant and equipment additions",
+        "Accounts payable for property and equipment",
+        "Property and equipment payable",
     ):
         assert (
             resolve_line(

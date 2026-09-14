@@ -5,6 +5,7 @@ Single authority for Python expected values and Excel Condensed Financials.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Iterable
@@ -432,11 +433,25 @@ _PPE_BALANCE_CONCEPTS = frozenset(
     }
 )
 
-_PPE_BALANCE_LABEL_PHRASES = (
+# Whole-label identity keys after punctuation folding (& → and, other punct → space).
+_PPE_BALANCE_LABELS = frozenset(
+    {
+        "property and equipment",
+        "property and equipment net",
+        "net property and equipment",
+        "property plant and equipment",
+        "property plant and equipment net",
+        "net property plant and equipment",
+    }
+)
+
+# Topic phrases used only to gate movement fail-closed (substring OK here).
+_PPE_CONTENT_LABEL_PHRASES = (
     "property and equipment",
     "property, plant and equipment",
     "property plant and equipment",
     "property, plant & equipment",
+    "plant and equipment",
 )
 
 _PPE_MOVEMENT_CONCEPT_MARKERS = (
@@ -454,29 +469,47 @@ _PPE_MOVEMENT_CONCEPT_MARKERS = (
     "payments",
     "saleof",
     "salesof",
+    "sale",
+    "sales",
     "changein",
+    "changesin",
+    "change",
+    "changes",
     "increasein",
     "decreasein",
 )
 
+# Position-independent markers (leading or trailing singular/plural forms).
 _PPE_MOVEMENT_LABEL_MARKERS = (
     "purchase",
     "purchases",
     "proceeds",
     "depreciation",
     "impairment",
-    "additions to",
-    "addition to",
-    "disposals of",
-    "disposal of",
-    "payments for",
-    "payment for",
+    "addition",
+    "additions",
+    "disposal",
+    "disposals",
+    "payment",
+    "payments",
     "sale of",
     "sales of",
+    "sale",
+    "sales",
     "change in",
+    "changes in",
+    "change",
+    "changes",
     "increase in",
     "decrease in",
 )
+
+
+def _ppe_label_key(low: str) -> str:
+    """Fold punctuation so whole-label PPE identity ignores commas/ampersands."""
+    s = low.replace("&", " and ")
+    s = re.sub(r"[^a-z0-9' ]+", " ", s)
+    return " ".join(s.split())
 
 
 def _ppe_has_movement(concept_token: str, low: str) -> bool:
@@ -488,19 +521,46 @@ def _ppe_has_movement(concept_token: str, low: str) -> bool:
     return any(marker in low for marker in _PPE_MOVEMENT_LABEL_MARKERS)
 
 
+def _ppe_content(concept_token: str, low: str) -> bool:
+    """True when concept or label identifies a PPE topic (balance or movement)."""
+    if concept_token in _PPE_BALANCE_CONCEPTS:
+        return True
+    if concept_token and (
+        "propertyplant" in concept_token
+        or "propertyandequipment" in concept_token
+        or "plantequipment" in concept_token
+        or concept_token == "ppe"
+        or concept_token.startswith("ppe")
+        or concept_token.endswith("ppe")
+    ):
+        return True
+    if any(phrase in low for phrase in _PPE_CONTENT_LABEL_PHRASES):
+        return True
+    key = _ppe_label_key(low)
+    if key == "ppe" or re.search(r"\bppe\b", key):
+        return True
+    return False
+
+
+def _is_ppe_movement(concept_token: str, low: str) -> bool:
+    """PPE movement rows must fail closed (no legacy plant/PPE asset fallback)."""
+    return _ppe_has_movement(concept_token, low) and _ppe_content(concept_token, low)
+
+
 def _ppe_balance_label_hit(low: str) -> bool:
-    """True when the label uses bounded property-and-equipment balance wording."""
+    """True when the entire label is a supported PPE net-balance identity."""
     if _ppe_has_movement("", low):
         return False
-    return any(phrase in low for phrase in _PPE_BALANCE_LABEL_PHRASES)
+    return _ppe_label_key(low) in _PPE_BALANCE_LABELS
 
 
 def _ppe_balance_decision(item: LineItem) -> ClassificationDecision | None:
     """Classify generic net PPE balances as operating long-term assets.
 
-    Deterministic; no guided-judgment case. Exact balance concepts and bounded
-    balance labels are supported. Movement rows are rejected here so the new
-    matcher cannot admit purchases, proceeds, depreciation, or impairment.
+    Deterministic; no guided-judgment case. Exact balance concepts and
+    whole-label balance identities are supported. Movement rows are rejected
+    here so the matcher cannot admit purchases, proceeds, depreciation,
+    impairment, or trailing addition/disposal/payment/sale/change variants.
     """
     concept_token = _concept_token(item.concept or "")
     low = _norm(item.label)
@@ -785,6 +845,13 @@ def classify_balance_sheet_line(
 
     # Prepayment movements must fail closed before liability label fallbacks.
     if _is_customer_prepayment_movement(concept_token, low):
+        raise UnclassifiedBalanceSheetLineError(
+            f"Cannot safely classify balance-sheet line {item.label!r}; "
+            f"provide classificationOverrides[{item.label!r}]"
+        )
+
+    # PPE movements must fail closed before legacy plant/PPE asset matching.
+    if _is_ppe_movement(concept_token, low):
         raise UnclassifiedBalanceSheetLineError(
             f"Cannot safely classify balance-sheet line {item.label!r}; "
             f"provide classificationOverrides[{item.label!r}]"
