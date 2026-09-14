@@ -1,40 +1,42 @@
-# Step 9N.1 — Repair Lease-Payment Exit-Gate Evidence
+# Step 9N.2 — Repair Historical Active-Catalog Freeze
 
-**Base:** `f4172600c5348c9b5baf442ac00ffced1f47fcc8`
+**Base:** `8ddee77790761659ec61fef4c3be884cfe42115a`
 
-**Goal:** Correct lease-payment dispositions and reassess historical curriculum closure.
+**Goal:** Restore the historical catalog regression gate with all currently active optional catalogs covered.
 
-**Writable files:** `RESULT.md`, `docs/GOOGL_HISTORICAL_REFERENCE.md`.
+**Writable files:** `core/tests/test_historical_v1_exit_gate.py`, `RESULT.md`, `docs/GOOGL_HISTORICAL_REFERENCE.md`.
 
 **Read-only:** `TARGET.md`, `IMPLEMENTATION.md`. Cursor must never modify either file.
 
-### Task 1: Establish supplied facts and actual coverage
+### Task 1: Repair the catalog contract
 
-- Read the previous assessment in `RESULT.md`.
-- Trace `repayments_of_lease_liabilities` and `payments_for_rou_assets` through `benchmark/fast_retailing/reconciled/standardized.json`, relevant provenance entries, and referenced extracted filing rows.
-- Record FY2021–FY2025 values, units, sign conventions, and source references. Measure repayment materiality against supplied revenue and lease-liability balances; assess ROU acquisition payments separately.
-- Verify coverage in `core/model/lease_liability.py`, `core/model/lease_rou.py`, their component catalogs, and corresponding tests: liability balances, intensity, change/growth, ROU balance context, and treatment-conditioned lease interest. Identify payment and amortization diagnostics as absent.
+- Read `RESULT.md` before assessing the previous step.
+- Use `core/engine/component_catalog.py` as the read-only source of existing family identities and orders.
+- Extend `ACTIVE_CATALOGS` with `GOODWILL_INTANGIBLES_COMPONENT_CATALOG`, `DEFERRED_TAX_COMPONENT_CATALOG`, and `CAPEX_COMPONENT_CATALOG`; retain lease ROU and existing catalogs.
+- Freeze the complete active historical namespace: orders 1–121, including goodwill/intangibles 98–111, lease ROU 112–115, deferred tax 116–119, and capex 120–121.
+- Assert explicit expected family-ID/order mappings for these additions, preserving uniqueness checks and deferred-ID/category isolation.
+- Clarify the test’s description to cover the current Step 9 historical namespace. Preserve existing family IDs, orders, and workbook assertions.
 
-### Task 2: Correct dispositions and affected exit criteria
+### Task 2: Run required verification
 
-- Replace unsupported repayment-duplication and amortization claims throughout both writable files, including the gap matrix, queue, and completion statements.
-- Separate source-supported repayment diagnostics from discount-rate analysis and a complete lease roll-forward. Missing rates do not prevent analysis of reported repayments; balance changes do not measure amortization or repayments.
-- Classify repayment analysis as an unresolved source-supported gap unless a concrete, measured curriculum reason supports deferral. Do not use missing contracts or ROU acquisition-payment materiality to dismiss repayments.
-- Reassess exit criteria 1, 2, and 6 with explicit pass/fail/unverified dispositions and evidence. Preserve unaffected evidence and the recorded criterion 5 regression blocker.
-- Synchronize the queue and exactly one next implementation across both documents. Retain catalog-freeze repair as the next implementation unless the corrected assessment establishes a higher-priority blocker; keep every unresolved blocker visible.
+- Run `python -m pytest core/tests/test_historical_v1_exit_gate.py -q`.
+- Run `python -m pytest core/tests -q`.
+- Run `python -m pytest core/tests/test_fast_retailing_benchmark.py -q`.
+- Verify Fast Retailing retains 481 practice specs, 10 capex specs, three overlap conflicts, and three supplemental conflicts.
+- Run `git diff --check` and inspect `git diff --name-only`.
 
-### Task 3: Verify and record the repair
+### Task 3: Record outcomes and synchronize blockers
 
-- Run `python -m pytest core/tests/test_lease_liability.py core/tests/test_lease_rou.py -q`.
-- Run `git diff --check` and inspect the changed-file list.
-- Record corrected source measurements, coverage findings, commands, measured outcomes, and limitations in `RESULT.md`.
-- Label previous full-suite and benchmark results as prior measurements; do not imply they were rerun.
+- Direct completion records, commands, measured outcomes, and limitations to `RESULT.md`; distinguish new results from prior measurements.
+- Update the exit-gate assessment and queue in `docs/GOOGL_HISTORICAL_REFERENCE.md` to match measured regression results.
+- Clear the catalog-freeze blocker only if required tests pass.
+- Keep material lease-repayment diagnostics unresolved and Step 9 incomplete; preserve separate deferrals for discount-rate analysis, complete lease roll-forward, and ROU acquisition payments.
+- If verification passes, record exactly one next implementation consistently in both documents: source-supported lease-repayment diagnostics. Otherwise, retain the concrete regression repair as next.
 
 ### Acceptance criteria
 
-- Both documents distinguish implemented balance diagnostics from absent repayment/amortization analysis.
-- Lease-payment dispositions cite supplied facts, measured materiality, and actual module coverage.
-- Exit criteria 1, 2, and 6 no longer rely on unsupported curriculum-closure claims.
-- Step 9 remains incomplete while material gaps or regression blockers remain; no Step 10 advancement.
-- Exactly one next implementation is recorded consistently.
-- Only the two writable documents change; no code, tests, fixtures, or baselines are modified.
+- Every current active historical catalog is covered by a fixed namespace assertion; duplicate IDs/orders and deferred forecast/valuation leakage still fail.
+- Required regression and Fast Retailing benchmark tests pass without changing production code, fixtures, baselines, or benchmark expectations.
+- Fast Retailing counts and conflict evidence remain unchanged.
+- Only writable files change; no new analytical modules or Step 10 advancement.
+- Both documents preserve the unresolved repayment gap and agree on the next implementation.
