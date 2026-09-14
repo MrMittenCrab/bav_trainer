@@ -293,6 +293,7 @@ _CUSTOMER_PREPAYMENT_MOVEMENT_CONCEPT_MARKERS = (
 
 _CUSTOMER_PREPAYMENT_MOVEMENT_LABEL_MARKERS = (
     "derecognition",
+    "recognition of",
     "change in",
     "increase in",
     "decrease in",
@@ -300,6 +301,46 @@ _CUSTOMER_PREPAYMENT_MOVEMENT_LABEL_MARKERS = (
     "additions to",
     "reductions in",
 )
+
+# Stems that identify prepayment-related concepts even when wrapped in movement
+# prefixes (e.g. change_in_deferred_revenue) or non-alias tokens.
+_CUSTOMER_PREPAYMENT_CONCEPT_STEMS = (
+    "unredeemedgiftcard",
+    "giftcardliab",
+    "giftcardsliab",
+    "unearnedrevenue",
+    "deferredrevenue",
+    "contractliab",
+)
+
+
+def _customer_prepayment_has_movement(concept_token: str, low: str) -> bool:
+    """True when concept or label uses a bounded movement/derecognition marker."""
+    if concept_token and any(
+        marker in concept_token for marker in _CUSTOMER_PREPAYMENT_MOVEMENT_CONCEPT_MARKERS
+    ):
+        return True
+    return any(marker in low for marker in _CUSTOMER_PREPAYMENT_MOVEMENT_LABEL_MARKERS)
+
+
+def _customer_prepayment_content(concept_token: str, low: str) -> bool:
+    """True when concept or label identifies a customer-prepayment liability topic."""
+    if any(phrase in low for phrase in _CUSTOMER_PREPAYMENT_LABEL_PHRASES):
+        return True
+    if concept_token in _CUSTOMER_PREPAYMENT_LIABILITY_CONCEPTS:
+        return True
+    if concept_token and any(
+        stem in concept_token for stem in _CUSTOMER_PREPAYMENT_CONCEPT_STEMS
+    ):
+        return True
+    return False
+
+
+def _is_customer_prepayment_movement(concept_token: str, low: str) -> bool:
+    """Movement rows for prepayment topics must fail closed (no liability fallback)."""
+    return _customer_prepayment_has_movement(concept_token, low) and (
+        _customer_prepayment_content(concept_token, low)
+    )
 
 
 def _customer_prepayment_label_hit(low: str) -> bool:
@@ -313,17 +354,13 @@ def _customer_prepayment_label_hit(low: str) -> bool:
 
 def _customer_prepayment_excluded(concept_token: str, low: str) -> bool:
     """Reject movement/derecognition concepts and contradictory asset wording."""
-    if concept_token and any(
-        marker in concept_token for marker in _CUSTOMER_PREPAYMENT_MOVEMENT_CONCEPT_MARKERS
-    ):
+    if _customer_prepayment_has_movement(concept_token, low):
         return True
     if "asset" in concept_token and "liab" not in concept_token:
         return True
     if "receivable" in concept_token:
         return True
     if "asset" in low or "receivable" in low:
-        return True
-    if any(marker in low for marker in _CUSTOMER_PREPAYMENT_MOVEMENT_LABEL_MARKERS):
         return True
     return False
 
@@ -347,6 +384,7 @@ def _customer_prepayment_liability_decision(
 
     Deterministic operating liability; no guided-judgment case. Unqualified balances
     default to working capital; explicitly noncurrent variants are long-term.
+    Movement rows are rejected here and must already have failed closed upstream.
     """
     concept_token = _concept_token(item.concept or "")
     low = _norm(item.label)
@@ -636,11 +674,19 @@ def classify_balance_sheet_line(
             overridden=True,
         )
 
+    concept_token = _concept_token(item.concept or "")
+    low = _norm(item.label)
+
+    # Prepayment movements must fail closed before liability label fallbacks.
+    if _is_customer_prepayment_movement(concept_token, low):
+        raise UnclassifiedBalanceSheetLineError(
+            f"Cannot safely classify balance-sheet line {item.label!r}; "
+            f"provide classificationOverrides[{item.label!r}]"
+        )
+
     by_concept = _classify_by_concept(item)
     if by_concept is not None:
         return by_concept
-
-    low = _norm(item.label)
 
     # Label-only customer prepayments (empty / non-alias concepts).
     prepayment = _customer_prepayment_liability_decision(item)

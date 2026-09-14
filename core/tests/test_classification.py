@@ -1242,6 +1242,97 @@ def test_customer_prepayment_unsupported_pairs_fail_closed_or_safe(label, concep
     assert "Customer prepayment" not in decision.reason
 
 
+@pytest.mark.parametrize(
+    ("label", "concept"),
+    [
+        # Label-only movement wording (empty concept).
+        ("Recognition of deferred revenue", ""),
+        ("Derecognition of unearned revenue", ""),
+        ("Change in gift card liability", ""),
+        ("Increase in contract liability", ""),
+        ("Decrease in deferred revenue", ""),
+        ("Amortization of unearned revenue", ""),
+        ("Additions to contract liabilities", ""),
+        ("Reductions in gift-card liability", ""),
+        # Movement labels with supported balance concepts.
+        ("Recognition of deferred revenue", "deferred_revenue"),
+        ("Change in unredeemed gift card liability", "unredeemed_gift_card_liability"),
+        ("Increase in unearned revenue", "unearned_revenue"),
+        ("Decrease in contract liability", "contract_liability"),
+        ("Amortization of deferred revenue", "deferred_revenue"),
+        ("Additions to gift card liability", "gift_card_liability"),
+        ("Reductions in contract liabilities", "contract_liabilities"),
+        # Movement concepts with balance labels.
+        (
+            "Deferred revenue",
+            "recognition_of_deferred_revenue",
+        ),
+        (
+            "Unredeemed gift card liability",
+            "change_in_unredeemed_gift_card_liability",
+        ),
+        (
+            "Unearned revenue",
+            "increase_in_unearned_revenue",
+        ),
+        (
+            "Contract liability",
+            "decrease_in_contract_liability",
+        ),
+        (
+            "Gift card liability",
+            "amortization_of_gift_card_liability",
+        ),
+        (
+            "Contract liabilities",
+            "additions_to_contract_liabilities",
+        ),
+        (
+            "Deferred revenue",
+            "reductions_in_deferred_revenue",
+        ),
+        (
+            "Unredeemed gift card liability",
+            "derecognition_of_unredeemed_gift_card_liability",
+        ),
+        # Noncurrent / long-term / other-liability labels that reach broad fallbacks.
+        ("Recognition of non-current deferred revenue", ""),
+        ("Recognition of non-current contract liability", ""),
+        ("Change in long-term unearned revenue", ""),
+        ("Change in other non-current liability", "deferred_revenue"),
+        ("Increase in long-term liabilities", "contract_liability"),
+        ("Decrease in other noncurrent liabilities", "gift_card_liability"),
+        ("Recognition of other current liabilities", "deferred_revenue"),
+        ("Change in other current liability", "unearned_revenue"),
+        ("Additions to other current liabilities", "contract_liability"),
+        ("Reductions in long-term liabilities", "deferred_revenue"),
+        ("Amortization of long-term deferred revenue", "deferred_revenue"),
+    ],
+)
+def test_customer_prepayment_movements_raise_unclassified(label, concept):
+    """Excluded prepayment movements must raise — not classify via liability fallbacks."""
+    with pytest.raises(UnclassifiedBalanceSheetLineError):
+        classify_balance_sheet_line(_li(label, 10, 12, concept=concept))
+
+
+def test_customer_prepayment_movement_override_still_wins():
+    item = _li(
+        "Recognition of deferred revenue",
+        10,
+        12,
+        concept="deferred_revenue",
+    )
+    with pytest.raises(UnclassifiedBalanceSheetLineError):
+        classify_balance_sheet_line(item)
+
+    overridden = classify_balance_sheet_line(
+        item, override="Operating Working Capital Liability"
+    )
+    assert overridden.category == "Operating Working Capital Liability"
+    assert overridden.overridden is True
+    assert overridden.reason == "User override"
+
+
 def test_customer_prepayment_does_not_create_judgment_cases():
     fin = StandardizedFinancials(
         ticker="PREPAY",
