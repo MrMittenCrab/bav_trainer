@@ -1,134 +1,95 @@
-# RESULT.md — Step 9M.1.1 Filing-JSON Hardening Closed
+# RESULT.md — Step 9M.2 Lululemon Benchmark Baseline and Gap Map
 
-**Review status:** PASS (supplied incoming review)
-**Completion:** DONE
-**Next step:** None
+**Status:** PASS  
+**Completion:** DONE  
+**Next step:** Step **9M.2.1** — generic gift-card / deferred-revenue liability classification (G1)
 
-**Implementation base (plan):** `f1e7e21b4ee095c65b35d1db45e0a9ee2635e175`
-**Reviewed revision:** `f1e7e21b4ee095c65b35d1db45e0a9ee2635e175`
-**Historical verification revision:** `f1e7e21b4ee095c65b35d1db45e0a9ee2635e175`
-(Prior plan/base context retained for audit: plan `1760bd3`, earlier base `af02e2e`, historical claim `a707408:RESULT.md`.)
+**Plan base:** `fe17dd9` (`Add Lululemon historical benchmark inputs`)  
+**Verification revision:** `446219d07f0a0d10e5b6b5c0d96301e24f13dfaa` (working tree adds LULU baseline artifacts + test; not committed)
 
-**Writable this step:** `RESULT.md` only (documentation closure).
-`TARGET.md` / `IMPLEMENTATION.md`: unchanged (read-only).
-Code, tests, source inputs, generated artifacts, and workbooks: unchanged.
-No commit / push / sync / checkpoint. No further project step.
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged).  
+No commit / push / sync / checkpoint. No Step 10/11 work. No issuer-specific production logic.
 
 ---
 
 ## What shipped
 
-Hardening defects remaining after `a707408` were repaired (accepted at reviewed revision `f1e7e21`):
-
-1. **Exact ISO dates** — `_parse_date` no longer truncates; rejects `…junk`, `T00:00:00`, `/` separators, and impossible calendar days.
-2. **Windows absolute paths** — validator rejects `PureWindowsPath` absolutes (e.g. `C:\…`) before any source read/hash.
-3. **Complete bound-source registry** — `BoundSourceFile` + `ReconciledCompanyData.source_files` populated from every validated filing/report pair; provenance serializes `filing_year` / `source_file` / `source_sha256` from that registry (not from selected statement observations).
-
-Forecasting / valuation remain dormant. Committed benchmark/release artifacts were **not** overwritten.
+1. Validated all four LULU FY2022–FY2025 extracted filings against bound PDFs.
+2. Ran generic reconcile → `benchmark/lululemon/reconciled/{standardized,provenance,conflicts}.json` (deterministic).
+3. Attempted untouched generic build → **blocked** by `UnclassifiedBalanceSheetLineError` on `Unredeemed gift card liability` (no Trainer/Answer Key produced).
+4. Added permanent regression `core/tests/test_lululemon_benchmark.py`.
+5. Recorded `benchmark/lululemon/BASELINE.md` + `benchmark/lululemon/GAPS.md`.
 
 ---
 
-## Acceptance mapping (original Step 9M.1.1 → current evidence)
+## Measured verification
 
-| Requirement | Code | Named tests | Measured evidence | Remaining defect |
-|---|---|---|---|---|
-| Strict required metadata | `filing_json._required_nonempty_str` / `_required_positive_int` | `test_parser_rejects_missing_required_fields` | blank/missing company fields, bad `fiscal_year`, blank currency/source_file → `ValueError` | none |
-| Exact ISO dates (no truncate) | `filing_json._parse_date` | `test_parser_rejects_non_exact_iso_dates`, `test_parser_accepts_exact_iso_date` | junk/`T`/`/`/Feb-30 rejected; `2025-08-31` accepted | none (fixed at `f1e7e21`) |
-| Portable source-root containment before access | `filing_validator.validate_extracted_filing` + `PureWindowsPath` | `test_validate_rejects_escaping_source_paths`, `test_validate_allows_nested_relative_source_path`, `test_validate_and_reconcile_reject_invalid_source_path` | abs/`..`/Windows abs → `invalid_source_path`, `computed_source_sha256 is None`; nested relative OK | none (Windows case fixed at `f1e7e21`) |
-| Complete bound-source registry | `BoundSourceFile`, `reconcile_filings` → `source_files` | `test_complete_bound_source_registry_retains_losers_and_supplemental_only`, FR live assert in `test_migration_reproduces_fy2025_anchors_and_conflict_parity` | loser filing with no selected statements still in registry; FR live = 5/5 with years | none (fixed at `f1e7e21`) |
-| Source-bound supplemental provenance | `SupplementalObservation` + `_supplemental_observation_payload` | `test_supplemental_observations_retain_source_binding` | filing_year, source_file, SHA-256, page, derivation retained | none |
-| Deterministic supplemental conflicts | `_group_supplemental_conflicts`, conflicts payload | FR + reconciler share/note disagreement tests | overlap=3, supplemental=3; reason `cross_filing_supplemental_disagreement` | none |
-| Fail-closed share promotion | `resolve_historical_share_basis` via `_historical_shares` | share-basis / FR share tests | disagreements retained; promotion only via explicit basis policy | none (policy evolved; see below) |
-| Synthetic workbook drift (`DEMO_HK_Trainer.xlsx`) | n/a (historical) | historical blob evidence only | Pre-9M.1 `1f4bdfd6` blob ≠ `e5fa7b8` (9M.1 drift). Later intentional changes: `a707408` restore attempt, then `5510c1e` Step 9M.5 further change. Current HEAD blob matches `5510c1e`. **Not restored** to obsolete pre-9M.1 bytes. | none for this closure |
-| G1–G7 / family counts | preserved outside this step | FR/GAPS docs + suite | historical evidence only; not reverted | n/a (out of scope) |
-| Formatting-verification evidence | prior Step 9 RESULT | prior border/theme work | separately identified prior work; **not** used as hardening closure | n/a |
-
-### Share-promotion discrepancy vs `a707408`
-
-Historical record claimed Fast Retailing `historical_shares` omitted. Current measured behavior (accepted later share-basis policy): `basis=split_adjusted`, `split_factor=3.0`, `restatement_filing_year=2023`, diluted WAS axis present. Supplemental conflict count remains **3**. Statement overlap remains **3**. Explicit policies preserved; no silent order-based overwrite.
-
-### Provenance artifact comparison (live vs committed)
-
-Live reconcile adds `filing_year` on each `source_files[]` entry. Committed `benchmark/…/provenance.json` and `release/…/provenance.json` still lack that field (hash `fd5a1ec8…`). `standardized.json` and `conflicts.json` byte-identical to committed (`5a1d445c…`, `12b91048…`). Per plan: difference investigated; committed artifacts **not** overwritten to force a pass.
-
----
-
-## Measured verification (historical — not re-executed this closure)
-
-Recorded at historical verification revision `f1e7e21`. Presented here as preserved evidence only; this documentation-only closure did **not** re-run tests or regenerate artifacts.
-
-### Commands
+### Task 1 — validate-source
 
 ```text
-python -m pytest core/tests/test_filing_json.py core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py core/tests/test_fast_retailing_benchmark.py -q
-→ 197 passed in 27.95s
-
-python -m core reconcile benchmark/fast_retailing/extracted \
-  --source-root benchmark/fast_retailing/source -o /tmp/fr-harden-1
-python -m core reconcile benchmark/fast_retailing/extracted \
-  --source-root benchmark/fast_retailing/source -o /tmp/fr-harden-2
-diff -ru /tmp/fr-harden-1 /tmp/fr-harden-2
-→ no differences (deterministic)
-
-python -m pytest core/tests -q
-→ 714 passed in 85.31s
-
-python -m core --help
-→ commands: ingest, validate-source, reconcile, build, check, list (no extract)
-
-git diff --check
-→ clean
+PYTHONPATH=. python -m core validate-source benchmark/lululemon/extracted \
+  --source-root benchmark/lululemon/source
+→ validated 4 filing(s): 0 error(s), 0 warning(s)
 ```
 
-### Source registry + hashes (live)
-
-| FY | source_file | computed SHA-256 |
+| FY | PDF | SHA-256 |
 |---|---|---|
-| 2021 | Fastretailing_CFS2021.pdf | `06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798` |
-| 2022 | Fastretailing_CFS2022.pdf | `9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa` |
-| 2023 | Fastretailing_CFS2023.pdf | `2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6` |
-| 2024 | Fastretailing_CFS2024.pdf | `72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de` |
-| 2025 | Fastretailing_CFS2025.pdf | `25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f` |
+| 2022 | LULU_FY2022_Annual_Report.pdf | `b344d1e7…275e4e` (4913067 bytes) |
+| 2023 | LULU_FY2023_Annual_Report.pdf | `cd47ea25…13c0f1` (5848446 bytes) |
+| 2024 | LULU_FY2024_Annual_Report.pdf | `9268fd53…0ca7ec` (5953217 bytes) |
+| 2025 | LULU_FY2025_Annual_Report.pdf | `82e00f90…3c71cc` (6590658 bytes) |
 
-- overlap_conflict_count: **3**
-- supplemental_conflict_count: **3**
-- bound source_files: **5/5** (with `filing_year` in live provenance)
-
-### Committed artifacts unchanged by verification
+### Task 2 — reconcile + build
 
 ```text
-4b657461757cfb43f6067636868df44541575d274b3a6925ccc6d397dac89536  FastRetailing_Trainer.xlsx
-a1d397933971535cdba7f2c2076014462cc00c66ffe19a2a4651d2e192c9e089  FastRetailing_Answer_Key.xlsx
-5a1d445c8f5013ef4045fb7f9725c6c234d4f814b04cad95856df4e5e2ff92e1  standardized.json (benchmark + release)
-fd5a1ec87b61c4835d3b7bfda79996afa6c5ed9bbf2082e35413fb18ee696f1f  provenance.json (committed; lacks filing_year on source_files)
-12b910485985df8390634a7fa5361132bf674b5df403858afb03c9a8c56c44a5  conflicts.json
+PYTHONPATH=. python -m core reconcile benchmark/lululemon/extracted \
+  --source-root benchmark/lululemon/source -o benchmark/lululemon/reconciled
+→ overlap_conflicts=3
 ```
 
-Incidental suite touches to `example/DEMO_HK_Trainer.xlsx` / benchmark provenance were restored; final diff excludes them.
-
-### Implementation changed-file list (at `f1e7e21`; not modified this closure)
+| Metric | Value |
+|---|---|
+| periods | 2023-01-29, 2024-01-28, 2025-02-02, 2026-02-01 |
+| IS/BS/CF rows | 16 / 31 / 34 |
+| overlap / supplemental conflicts | 3 / 0 |
+| bound sources | 4/4 |
+| diluted WAS (thousands) | 128017, 127060, 123935, 119068 |
+| standardized.json | `ba1ba06857198361706c368df490e4b874f8f03e7b45eaeb0af59eaa02aa4f45` |
+| conflicts.json | `d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0` |
+| provenance.json | `2d4d770e7fede9d30a576ba82c031157895fee5224a3094f034fc466e546d269` |
 
 ```text
-core/ingestion/filing_json.py
-core/ingestion/filing_validator.py
-core/ingestion/filing_reconciler.py
-core/ingestion/filing_standardizer.py
-core/tests/test_filing_json.py
-core/tests/test_filing_reconciler.py
-core/tests/test_fast_retailing_benchmark.py
-RESULT.md
+PYTHONPATH=. python -m core build benchmark/lululemon/reconciled/standardized.json \
+  -o release/lululemon/Lululemon
+→ UnclassifiedBalanceSheetLineError:
+  Cannot safely classify balance-sheet line 'Unredeemed gift card liability'
 ```
 
----
+Component count: **n/a** (blocked before workbook generation).  
+Also unclassified behind first raise: `Property and equipment, net`, `Common stock`.
 
-## Documentation-only closure verification
+### Task 3 — regressions
 
 ```text
-git diff --check
-→ clean
+PYTHONPATH=. pytest core/tests/test_lululemon_benchmark.py -q
+→ 6 passed
+
+PYTHONPATH=. pytest core/tests/test_lululemon_benchmark.py \
+  core/tests/test_fast_retailing_benchmark.py -q
+→ 138 passed
+
+PYTHONPATH=. pytest core/tests -q
+→ 720 passed in 84.12s
 ```
 
-No test rerun required for this documentation-only closure.
+Incidental FR/DEMO workbook refreshes from the suite were restored; final diff is LULU-only.
+
+### Task 4 — gap map
+
+See `benchmark/lululemon/GAPS.md`. Highest-value open gap:
+
+- **G1** generic gift-card / deferred-revenue liability classification (build blocker)
+- Then G2 PPE wording/concept identity, G3 `common_stock`, G4 capex concept alias, G5 ROU/DTA aliases, G6 comparative FY2021 axis, G7 empty note_facts
 
 ---
 
@@ -136,11 +97,13 @@ No test rerun required for this documentation-only closure.
 
 | Criterion | Result |
 |---|---|
-| Every 9M.1.1 requirement has explicit evidence (formatting not substituted) | **pass** (preserved) |
-| Required verification passes; no known remaining hardening defect | **pass** (historical at `f1e7e21`) |
-| Reviewed SHA recorded; review PASS; completion DONE; next step None | **pass** |
-| Only `RESULT.md` changed this closure; no commit/push; no next stage started | **pass** |
+| Four filings validate or source defect isolated | **pass** (all validate) |
+| Deterministic generic reconciliation artifacts | **pass** |
+| Trainer/Answer-Key baseline or precise general blocker proven by test | **pass** (blocker proven) |
+| LULU regression + gap map | **pass** |
+| Fast Retailing + synthetic suite valid | **pass** (720) |
+| No forecasting/valuation; no issuer-specific production logic | **pass** |
 
-**Unresolved issues:** none on Step 9M.1.1 hardening scope.
+**Plan changes needed:** none.
 
-**Plan changes needed:** none. Optional follow-up outside this step: regenerate committed provenance JSON to include `filing_year` on `source_files` (live already emits it; committed bytes intentionally left unchanged here).
+**Unresolved:** G1–G7 as recorded; Step 9 **not** complete.
