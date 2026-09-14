@@ -136,7 +136,32 @@ def _subprocess_env() -> dict[str, str]:
     return env
 
 
+ARTIFACT_NAMES = ("standardized.json", "provenance.json", "conflicts.json")
+
+
+def _read_committed_artifacts() -> dict[str, bytes]:
+    return {name: (RECONCILED / name).read_bytes() for name in ARTIFACT_NAMES}
+
+
+def _assert_artifact_sets_match(
+    generated: Path,
+    expected_bytes: dict[str, bytes],
+) -> None:
+    """Compare generated artifacts to expected bytes; never write expected paths."""
+    mismatches: list[str] = []
+    for name in ARTIFACT_NAMES:
+        actual = (generated / name).read_bytes()
+        if actual != expected_bytes[name]:
+            mismatches.append(name)
+    if mismatches:
+        raise AssertionError(
+            "reconciliation artifact mismatch: " + ", ".join(mismatches)
+        )
+
+
 def test_generic_reconcile_is_deterministic(tmp_path: Path):
+    committed_before = _read_committed_artifacts()
+
     out1 = tmp_path / "r1"
     out2 = tmp_path / "r2"
     for out in (out1, out2):
@@ -150,21 +175,53 @@ def test_generic_reconcile_is_deterministic(tmp_path: Path):
         )
         assert "overlap_conflicts=" in completed.stdout
 
-    for name in ("standardized.json", "provenance.json", "conflicts.json"):
+    for name in ARTIFACT_NAMES:
         assert (out1 / name).read_bytes() == (out2 / name).read_bytes()
 
-    # Refresh committed reconciled artifacts from the same generic command path.
-    subprocess.run(
-        _reconcile_cmd(RECONCILED),
+    _assert_artifact_sets_match(out1, committed_before)
+    _assert_artifact_sets_match(out2, committed_before)
+
+    committed_after = _read_committed_artifacts()
+    assert committed_after == committed_before
+
+
+@pytest.mark.parametrize("drifted_name", ARTIFACT_NAMES)
+def test_reconcile_drift_is_detected_without_rewriting_expected(
+    tmp_path: Path, drifted_name: str
+):
+    """Altering a temp expected copy must fail comparison and leave that copy intact."""
+    expected_dir = tmp_path / "expected"
+    expected_dir.mkdir()
+    for name in ARTIFACT_NAMES:
+        (expected_dir / name).write_bytes((RECONCILED / name).read_bytes())
+
+    drifted_path = expected_dir / drifted_name
+    original_expected = drifted_path.read_bytes()
+    drifted_path.write_bytes(original_expected + b"\n#drift\n")
+    altered_expected = drifted_path.read_bytes()
+    assert altered_expected != original_expected
+
+    expected_bytes = {name: (expected_dir / name).read_bytes() for name in ARTIFACT_NAMES}
+
+    out = tmp_path / "generated"
+    completed = subprocess.run(
+        _reconcile_cmd(out),
         cwd=ROOT,
         check=True,
         capture_output=True,
         text=True,
         env=_subprocess_env(),
     )
+    assert "overlap_conflicts=" in completed.stdout
 
-    for name in ("standardized.json", "provenance.json", "conflicts.json"):
-        assert (out1 / name).read_bytes() == (RECONCILED / name).read_bytes()
+    with pytest.raises(AssertionError, match=drifted_name):
+        _assert_artifact_sets_match(out, expected_bytes)
+
+    assert drifted_path.read_bytes() == altered_expected
+    for name in ARTIFACT_NAMES:
+        if name == drifted_name:
+            continue
+        assert (expected_dir / name).read_bytes() == (RECONCILED / name).read_bytes()
 
 
 def test_reconciled_axis_anchors_and_conflicts():
