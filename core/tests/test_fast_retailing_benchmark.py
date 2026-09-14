@@ -1488,3 +1488,305 @@ def test_persisted_fast_retailing_release_pair_if_present():
         "2024-08-31",
         "2025-08-31",
     ]
+
+
+def _release_pair_fingerprints() -> dict[str, str]:
+    paths = [
+        RELEASE_TRAINER,
+        RELEASE_ANSWER,
+        RELEASE_ANSWER.with_suffix(".component_map.json"),
+        RELEASE_ANSWER.with_suffix(".assumptions.json"),
+        RELEASE_STD,
+        RELEASE_PROV,
+        RELEASE_CONFLICTS,
+    ]
+    return {
+        str(p): hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in paths
+        if p.is_file()
+    }
+
+
+def _copy_persisted_release_pair(tmp_path: Path) -> tuple[Path, Path]:
+    from scripts.audit_fast_retailing_benchmark import _copy_release_pair_to_temp
+
+    assert RELEASE_TRAINER.is_file() and RELEASE_ANSWER.is_file()
+    return _copy_release_pair_to_temp(RELEASE_TRAINER, RELEASE_ANSWER, tmp_path)
+
+
+def _release_fin():
+    return standardized_from_payload(_load_json(RELEASE_STD))
+
+
+def _mutate_workbook(path: Path, mutator) -> None:
+    from openpyxl import load_workbook
+
+    wb = load_workbook(path, data_only=False)
+    try:
+        mutator(wb)
+        wb.save(path)
+    finally:
+        wb.close()
+
+
+@pytest.mark.parametrize("target", ["trainer", "answer", "both"])
+@pytest.mark.parametrize(
+    "mutation,expect_snip",
+    [
+        (
+            "earlier_year_fact",
+            "workbook=",
+        ),
+        (
+            "zero_value",
+            "workbook=",
+        ),
+        (
+            "historical_shares",
+            "historical_shares.diluted_weighted_average",
+        ),
+        (
+            "delete_fact",
+            "required source fact blanked",
+        ),
+        (
+            "missing_source_sheet",
+            "missing required source sheet",
+        ),
+        (
+            "formula_for_literal",
+            "source fact replaced by formula",
+        ),
+    ],
+)
+def test_release_source_fidelity_corruptions(tmp_path: Path, target: str, mutation: str, expect_snip: str):
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    before = _release_pair_fingerprints()
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+    fin = _release_fin()
+
+    def apply(path: Path) -> None:
+        if mutation == "earlier_year_fact":
+
+            def mut(wb):
+                ws = wb["Income Statement"]
+                ws["B7"] = float(ws["B7"].value) + 1.0
+
+            _mutate_workbook(path, mut)
+        elif mutation == "zero_value":
+
+            def mut(wb):
+                ws = wb["Cash Flow Statement"]
+                # FY2021 payments for investment securities is literal 0.
+                ws.cell(row=39, column=2).value = None
+
+            _mutate_workbook(path, mut)
+        elif mutation == "historical_shares":
+
+            def mut(wb):
+                ws = wb["Per Share Analysis"]
+                ws.cell(row=7, column=2).value = 1.0
+
+            _mutate_workbook(path, mut)
+        elif mutation == "delete_fact":
+
+            def mut(wb):
+                ws = wb["Income Statement"]
+                ws["B7"] = None
+
+            _mutate_workbook(path, mut)
+        elif mutation == "missing_source_sheet":
+
+            def mut(wb):
+                del wb["Balance Sheet"]
+
+            _mutate_workbook(path, mut)
+        elif mutation == "formula_for_literal":
+
+            def mut(wb):
+                ws = wb["Income Statement"]
+                ws["B7"] = "=1+1"
+
+            _mutate_workbook(path, mut)
+        else:
+            raise AssertionError(mutation)
+
+    if target in ("trainer", "both"):
+        apply(trainer)
+    if target in ("answer", "both"):
+        apply(answer)
+
+    with pytest.raises(ValueError, match=expect_snip):
+        _verify_release_pair_contract(trainer, answer, fin)
+    assert _release_pair_fingerprints() == before
+
+
+@pytest.mark.parametrize("state", ["hidden", "veryHidden"])
+@pytest.mark.parametrize("target", ["trainer", "answer", "both"])
+def test_release_hidden_historical_sheet_rejected(tmp_path: Path, state: str, target: str):
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    before = _release_pair_fingerprints()
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+    fin = _release_fin()
+
+    def hide(path: Path) -> None:
+        def mut(wb):
+            wb["Income Statement"].sheet_state = state
+
+        _mutate_workbook(path, mut)
+
+    if target in ("trainer", "both"):
+        hide(trainer)
+    if target in ("answer", "both"):
+        hide(answer)
+
+    with pytest.raises(ValueError, match="required historical/practice sheet hidden"):
+        _verify_release_pair_contract(trainer, answer, fin)
+    assert _release_pair_fingerprints() == before
+
+
+@pytest.mark.parametrize(
+    "mutation,expect_snip",
+    [
+        ("label", "source row label mismatch"),
+        ("merged", "merged ranges mismatch"),
+        ("dimensions", "visible dimensions mismatch"),
+        ("row_hidden", "row hidden mismatch"),
+        ("col_hidden", "column hidden mismatch"),
+        ("freeze", "freeze_panes mismatch"),
+        ("formatting", "effective formatting mismatch"),
+    ],
+)
+def test_release_layout_parity_corruptions(tmp_path: Path, mutation: str, expect_snip: str):
+    from openpyxl.styles import Font
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    before = _release_pair_fingerprints()
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+    fin = _release_fin()
+
+    def mut(wb):
+        ws = wb["Income Statement"]
+        if mutation == "label":
+            ws["A7"] = "CORRUPTED LABEL"
+        elif mutation == "merged":
+            ws.merge_cells("A1:B1")
+        elif mutation == "dimensions":
+            ws.cell(row=(ws.max_row or 1) + 5, column=1, value="extra")
+        elif mutation == "row_hidden":
+            ws.row_dimensions[7].hidden = True
+        elif mutation == "col_hidden":
+            ws.column_dimensions["B"].hidden = True
+        elif mutation == "freeze":
+            ws.freeze_panes = "B7"
+        elif mutation == "formatting":
+            ws["A6"].font = Font(name="Aptos Narrow", size=14, bold=True)
+        else:
+            raise AssertionError(mutation)
+
+    # Corrupt only Trainer so Answer Key remains the reference layout.
+    _mutate_workbook(trainer, mut)
+    with pytest.raises(ValueError, match=expect_snip):
+        _verify_release_pair_contract(trainer, answer, fin)
+    assert _release_pair_fingerprints() == before
+
+
+def test_release_contract_failure_surfaces_via_audit_stage(tmp_path: Path):
+    before = _release_pair_fingerprints()
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+
+    def mut(wb):
+        wb["Income Statement"]["B7"] = 0
+
+    _mutate_workbook(trainer, mut)
+    result = run_audit(
+        standardized_json=RELEASE_STD,
+        provenance_json=RELEASE_PROV,
+        conflicts_json=RELEASE_CONFLICTS,
+        trainer_path=trainer,
+        answer_key_path=answer,
+        require_check_counts=True,
+        verify_release_pair=True,
+    )
+    stages = _stage_map(result)
+    assert stages["5_workbook_generation"].status == "fail"
+    assert "workbook=Trainer" in (stages["5_workbook_generation"].message or "")
+    assert stages["6_blank_check"].status == "skipped"
+    assert stages["7_filled_check"].status == "skipped"
+    assert _release_pair_fingerprints() == before
+
+
+def test_explicit_pair_verification_does_not_generate(tmp_path: Path, monkeypatch):
+    from scripts import audit_fast_retailing_benchmark as audit_mod
+
+    before = _release_pair_fingerprints()
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+
+    def boom(*_args, **_kwargs):
+        raise AssertionError("build_training_workbook must not run for explicit pairs")
+
+    monkeypatch.setattr(
+        "core.trainer.workbook.build_training_workbook",
+        boom,
+    )
+    # Also guard the local import path used inside run_audit.
+    import core.trainer.workbook as wb_mod
+
+    monkeypatch.setattr(wb_mod, "build_training_workbook", boom)
+
+    result = audit_mod.run_audit(
+        standardized_json=RELEASE_STD,
+        provenance_json=RELEASE_PROV,
+        conflicts_json=RELEASE_CONFLICTS,
+        trainer_path=trainer,
+        answer_key_path=answer,
+        require_check_counts=True,
+        verify_release_pair=True,
+    )
+    stages = _stage_map(result)
+    assert stages["5_workbook_generation"].status == "pass"
+    assert stages["5_workbook_generation"].message == (
+        "persisted release pair (not regenerated)"
+    )
+    assert stages["6_blank_check"].status == "pass"
+    assert stages["7_filled_check"].status == "pass"
+    assert "blank=491" in (stages["6_blank_check"].message or "")
+    assert "correct=491" in (stages["7_filled_check"].message or "")
+    assert _release_pair_fingerprints() == before
+
+
+def test_persisted_release_pair_contract_and_check_counts():
+    from scripts.audit_fast_retailing_benchmark import (
+        EXPECTED_BLANK_CHECK,
+        EXPECTED_FILLED_CHECK,
+        _verify_release_pair_contract,
+    )
+
+    if not RELEASE_TRAINER.is_file():
+        pytest.skip("release/fast_retailing pair not built yet")
+    before = _release_pair_fingerprints()
+    fin = _release_fin()
+    msg = _verify_release_pair_contract(RELEASE_TRAINER, RELEASE_ANSWER, fin)
+    assert "source_fidelity=ok" in msg
+    assert "layout_parity=ok" in msg
+
+    result = run_audit(
+        standardized_json=RELEASE_STD,
+        provenance_json=RELEASE_PROV,
+        conflicts_json=RELEASE_CONFLICTS,
+        trainer_path=RELEASE_TRAINER,
+        answer_key_path=RELEASE_ANSWER,
+        require_check_counts=True,
+        verify_release_pair=True,
+    )
+    stages = _stage_map(result)
+    assert stages["6_blank_check"].status == "pass"
+    assert f"blank={EXPECTED_BLANK_CHECK[2]}" in (stages["6_blank_check"].message or "")
+    assert stages["7_filled_check"].status == "pass"
+    assert f"correct={EXPECTED_FILLED_CHECK[0]}" in (
+        stages["7_filled_check"].message or ""
+    )
+    assert stages["8_release_pristine"].status == "pass"
+    assert _release_pair_fingerprints() == before

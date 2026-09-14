@@ -42,6 +42,23 @@ def _load_payload(path: Path | None = None) -> dict[str, Any]:
     return json.loads((path or STD_JSON).read_text(encoding="utf-8"))
 
 
+SOURCE_STATEMENT_SHEETS: tuple[tuple[str, str], ...] = (
+    ("Income Statement", "income_statement"),
+    ("Balance Sheet", "balance_sheet"),
+    ("Cash Flow Statement", "cash_flow"),
+)
+SOURCE_HEADER_ROW = 6
+SOURCE_START_ROW = 7
+PER_SHARE_SHEET = "Per Share Analysis"
+PER_SHARE_HEADER_ROW = 4
+PER_SHARE_SHARES_ROW = 7
+PER_SHARE_SHARES_LABEL = "Diluted Weighted-Average Shares"
+DEFERRED_TAB_NAMES = ("Model_Bear", "Model_Base", "Model_Bull", "Scenario_Summary")
+LEASE_INTEREST_LABEL = "Lease interest expense (reported note)"
+JUDGMENT_SHEETS = ("Accounting Judgment", "Normalization Judgment")
+JUDGMENT_RESPONSE_COLS = (6, 7, 8)
+
+
 def _fill_rgb(cell) -> str:
     fill = cell.fill
     if not fill or fill.fill_type != "solid":
@@ -67,8 +84,507 @@ def _copy_release_pair_to_temp(
     return trainer_copy, answer_copy
 
 
-def _verify_release_pair_contract(trainer_path: Path, answer_key_path: Path) -> str:
-    """Semantic match, practice contract, and visible structural parity."""
+def _cell_addr(row: int, col: int) -> str:
+    from openpyxl.utils import get_column_letter
+
+    return f"{get_column_letter(col)}{row}"
+
+
+def _as_date(value: Any):
+    from datetime import date, datetime
+
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return None
+
+
+def _color_token(color) -> str:
+    if color is None:
+        return ""
+    rgb = getattr(color, "rgb", None)
+    if rgb is not None:
+        return f"rgb:{str(rgb).upper()}"
+    theme = getattr(color, "theme", None)
+    if theme is not None:
+        tint = getattr(color, "tint", 0.0) or 0.0
+        return f"theme:{theme}:{tint}"
+    indexed = getattr(color, "indexed", None)
+    if indexed is not None:
+        return f"indexed:{indexed}"
+    auto = getattr(color, "auto", None)
+    if auto:
+        return "auto"
+    return ""
+
+
+def _border_token(border) -> tuple:
+    if border is None:
+        return ()
+    sides = []
+    for name in ("left", "right", "top", "bottom", "diagonal"):
+        side = getattr(border, name, None)
+        if side is None:
+            sides.append((name, None, ""))
+        else:
+            sides.append((name, side.style, _color_token(side.color)))
+    return tuple(sides)
+
+
+def _format_signature(cell) -> tuple:
+    font = cell.font
+    fill = cell.fill
+    alignment = cell.alignment
+    protection = cell.protection
+    fill_type = fill.fill_type if fill is not None else None
+    fg = ""
+    if fill is not None and fill_type == "solid":
+        fg = _color_token(fill.fgColor) or _color_token(fill.start_color)
+    return (
+        font.name if font else None,
+        font.size if font else None,
+        bool(font.bold) if font else False,
+        bool(font.italic) if font else False,
+        _color_token(font.color) if font else "",
+        fill_type,
+        fg,
+        cell.number_format,
+        alignment.horizontal if alignment else None,
+        alignment.vertical if alignment else None,
+        bool(protection.locked) if protection else True,
+        _border_token(cell.border),
+    )
+
+
+def _comment_text(cell) -> str:
+    if cell.comment is None:
+        return ""
+    return str(cell.comment.text or "")
+
+
+def _is_formula(value: Any) -> bool:
+    return isinstance(value, str) and value.startswith("=")
+
+
+def _source_failure(
+    workbook: str,
+    sheet: str,
+    row: int,
+    col: int,
+    source_identity: str,
+    period: Any,
+    expected: Any,
+    actual: Any,
+    reason: str = "",
+) -> ValueError:
+    period_s = "" if period is None else str(period)
+    detail = reason or "value mismatch"
+    return ValueError(
+        f"{detail}: workbook={workbook} sheet={sheet!r} cell={_cell_addr(row, col)} "
+        f"source_identity={source_identity!r} period={period_s!r} "
+        f"expected={expected!r} actual={actual!r}"
+    )
+
+
+def _canonical_periods(fin) -> list:
+    from core.model.period_axis import canonical_fiscal_periods
+
+    return canonical_fiscal_periods(fin)
+
+
+def _verify_period_headers(
+    ws,
+    *,
+    workbook: str,
+    sheet: str,
+    header_row: int,
+    periods: list,
+    start_col: int = 2,
+) -> None:
+    for j, expected in enumerate(periods):
+        col = start_col + j
+        actual = ws.cell(row=header_row, column=col).value
+        actual_date = _as_date(actual)
+        if actual_date != expected:
+            raise _source_failure(
+                workbook,
+                sheet,
+                header_row,
+                col,
+                "period_header",
+                expected,
+                expected,
+                actual,
+                reason="period header mismatch",
+            )
+
+
+def _verify_source_value(
+    cell,
+    *,
+    workbook: str,
+    sheet: str,
+    row: int,
+    col: int,
+    source_identity: str,
+    period: Any,
+    expected: Any,
+) -> None:
+    actual = cell.value
+    if _is_formula(actual):
+        raise _source_failure(
+            workbook,
+            sheet,
+            row,
+            col,
+            source_identity,
+            period,
+            expected,
+            actual,
+            reason="source fact replaced by formula",
+        )
+    if expected is None:
+        if actual is not None:
+            raise _source_failure(
+                workbook,
+                sheet,
+                row,
+                col,
+                source_identity,
+                period,
+                None,
+                actual,
+                reason="missing source fact blanked incorrectly",
+            )
+        return
+    if actual is None:
+        raise _source_failure(
+            workbook,
+            sheet,
+            row,
+            col,
+            source_identity,
+            period,
+            expected,
+            actual,
+            reason="required source fact blanked",
+        )
+    if isinstance(expected, (int, float)) and isinstance(actual, (int, float)):
+        if float(actual) != float(expected):
+            raise _source_failure(
+                workbook,
+                sheet,
+                row,
+                col,
+                source_identity,
+                period,
+                expected,
+                actual,
+            )
+        return
+    if actual != expected:
+        raise _source_failure(
+            workbook,
+            sheet,
+            row,
+            col,
+            source_identity,
+            period,
+            expected,
+            actual,
+        )
+
+
+def _verify_statement_sheet(ws, items, periods, *, workbook: str, sheet: str) -> None:
+    from core.data.line_identity import line_identity
+
+    _verify_period_headers(
+        ws,
+        workbook=workbook,
+        sheet=sheet,
+        header_row=SOURCE_HEADER_ROW,
+        periods=periods,
+    )
+    for idx, item in enumerate(items):
+        row = SOURCE_START_ROW + idx
+        identity = line_identity(item).key()
+        label_cell = ws.cell(row=row, column=1)
+        if label_cell.value != item.label:
+            raise _source_failure(
+                workbook,
+                sheet,
+                row,
+                1,
+                identity,
+                None,
+                item.label,
+                label_cell.value,
+                reason="source row label mismatch",
+            )
+        for j, period in enumerate(periods):
+            col = 2 + j
+            expected = item.values.get(period)
+            _verify_source_value(
+                ws.cell(row=row, column=col),
+                workbook=workbook,
+                sheet=sheet,
+                row=row,
+                col=col,
+                source_identity=identity,
+                period=period,
+                expected=expected,
+            )
+
+
+def _verify_workbook_source_fidelity(wb, fin, *, workbook: str) -> None:
+    periods = _canonical_periods(fin)
+    statement_attrs = {
+        "Income Statement": fin.income_statement,
+        "Balance Sheet": fin.balance_sheet,
+        "Cash Flow Statement": fin.cash_flow,
+    }
+    for sheet, _attr in SOURCE_STATEMENT_SHEETS:
+        if sheet not in wb.sheetnames:
+            raise ValueError(
+                f"missing required source sheet: workbook={workbook} sheet={sheet!r}"
+            )
+        ws = wb[sheet]
+        expected_units = f"Units: {fin.units}"
+        actual_units = ws.cell(row=3, column=1).value
+        if actual_units != expected_units:
+            raise _source_failure(
+                workbook,
+                sheet,
+                3,
+                1,
+                "units",
+                None,
+                expected_units,
+                actual_units,
+                reason="units mismatch",
+            )
+        _verify_statement_sheet(
+            ws,
+            statement_attrs[sheet],
+            periods,
+            workbook=workbook,
+            sheet=sheet,
+        )
+        if sheet == "Income Statement" and fin.historical_lease is not None:
+            lease_row = None
+            for row in range(SOURCE_START_ROW, (ws.max_row or SOURCE_START_ROW) + 1):
+                if ws.cell(row=row, column=1).value == LEASE_INTEREST_LABEL:
+                    lease_row = row
+                    break
+            if lease_row is None:
+                raise ValueError(
+                    f"missing lease interest source row: workbook={workbook} "
+                    f"sheet={sheet!r} source_identity={LEASE_INTEREST_LABEL!r}"
+                )
+            for j, period in enumerate(periods):
+                col = 2 + j
+                expected = fin.historical_lease.lease_interest_expense.get(period)
+                expected = None if expected is None else float(expected)
+                _verify_source_value(
+                    ws.cell(row=lease_row, column=col),
+                    workbook=workbook,
+                    sheet=sheet,
+                    row=lease_row,
+                    col=col,
+                    source_identity="historical_lease.lease_interest_expense",
+                    period=period,
+                    expected=expected,
+                )
+
+    if fin.historical_shares is None:
+        return
+    if PER_SHARE_SHEET not in wb.sheetnames:
+        raise ValueError(
+            f"missing required source sheet: workbook={workbook} "
+            f"sheet={PER_SHARE_SHEET!r}"
+        )
+    ws = wb[PER_SHARE_SHEET]
+    _verify_period_headers(
+        ws,
+        workbook=workbook,
+        sheet=PER_SHARE_SHEET,
+        header_row=PER_SHARE_HEADER_ROW,
+        periods=periods,
+    )
+    label = ws.cell(row=PER_SHARE_SHARES_ROW, column=1).value
+    if label != PER_SHARE_SHARES_LABEL:
+        raise _source_failure(
+            workbook,
+            PER_SHARE_SHEET,
+            PER_SHARE_SHARES_ROW,
+            1,
+            "historical_shares.diluted_weighted_average",
+            None,
+            PER_SHARE_SHARES_LABEL,
+            label,
+            reason="historical shares label mismatch",
+        )
+    for j, period in enumerate(periods):
+        col = 2 + j
+        expected = fin.historical_shares.diluted_weighted_average.get(period)
+        _verify_source_value(
+            ws.cell(row=PER_SHARE_SHARES_ROW, column=col),
+            workbook=workbook,
+            sheet=PER_SHARE_SHEET,
+            row=PER_SHARE_SHARES_ROW,
+            col=col,
+            source_identity="historical_shares.diluted_weighted_average",
+            period=period,
+            expected=expected,
+        )
+
+
+def _comparable_sheet_names(wb) -> list[str]:
+    """Non-metadata sheets in workbook order (includes deferred placeholders)."""
+    return [name for name in wb.sheetnames if not name.startswith("_")]
+
+
+def _requires_visible(name: str) -> bool:
+    return not name.startswith("_") and name not in DEFERRED_TAB_NAMES
+
+
+def _verify_required_visibility(wb, *, workbook: str) -> None:
+    for sheet, _attr in SOURCE_STATEMENT_SHEETS:
+        if sheet not in wb.sheetnames:
+            raise ValueError(
+                f"missing required source sheet: workbook={workbook} sheet={sheet!r}"
+            )
+    for name in wb.sheetnames:
+        if not _requires_visible(name):
+            continue
+        state = wb[name].sheet_state
+        if state != "visible":
+            raise ValueError(
+                f"required historical/practice sheet hidden: workbook={workbook} "
+                f"sheet={name!r} sheet_state={state!r}"
+            )
+
+
+def _dim_hidden(dimension) -> bool:
+    return bool(getattr(dimension, "hidden", False))
+
+
+def _verify_visible_layout_parity(wb_t, wb_a, practice_coords: set[tuple[str, int, int]]) -> None:
+    from openpyxl.utils import get_column_letter
+
+    comparable_t = _comparable_sheet_names(wb_t)
+    comparable_a = _comparable_sheet_names(wb_a)
+    if comparable_t != comparable_a:
+        raise ValueError(
+            f"sheet order/state mismatch: trainer={comparable_t} answer={comparable_a}"
+        )
+    for name in comparable_t:
+        if wb_t[name].sheet_state != wb_a[name].sheet_state:
+            raise ValueError(
+                f"sheet_state mismatch for {name!r}: "
+                f"trainer={wb_t[name].sheet_state!r} answer={wb_a[name].sheet_state!r}"
+            )
+
+    visible = [
+        name
+        for name in comparable_t
+        if wb_t[name].sheet_state == "visible" and wb_a[name].sheet_state == "visible"
+    ]
+    for name in visible:
+        ws_t = wb_t[name]
+        ws_a = wb_a[name]
+        if (ws_t.max_row, ws_t.max_column) != (ws_a.max_row, ws_a.max_column):
+            raise ValueError(
+                f"visible dimensions mismatch on {name!r}: "
+                f"trainer={(ws_t.max_row, ws_t.max_column)} "
+                f"answer={(ws_a.max_row, ws_a.max_column)}"
+            )
+        if ws_t.freeze_panes != ws_a.freeze_panes:
+            raise ValueError(
+                f"freeze_panes mismatch on {name!r}: "
+                f"trainer={ws_t.freeze_panes!r} answer={ws_a.freeze_panes!r}"
+            )
+        if list(ws_t.merged_cells.ranges) != list(ws_a.merged_cells.ranges):
+            raise ValueError(f"merged ranges mismatch on {name!r}")
+        max_row = max(ws_t.max_row or 1, ws_a.max_row or 1)
+        max_col = max(ws_t.max_column or 1, ws_a.max_column or 1)
+        for row in range(1, max_row + 1):
+            if _dim_hidden(ws_t.row_dimensions[row]) != _dim_hidden(
+                ws_a.row_dimensions[row]
+            ):
+                raise ValueError(f"row hidden mismatch on {name!r} row={row}")
+            if ws_t.row_dimensions[row].height != ws_a.row_dimensions[row].height:
+                raise ValueError(f"row height mismatch on {name!r} row={row}")
+        for col in range(1, max_col + 1):
+            letter = get_column_letter(col)
+            if _dim_hidden(ws_t.column_dimensions[letter]) != _dim_hidden(
+                ws_a.column_dimensions[letter]
+            ):
+                raise ValueError(f"column hidden mismatch on {name!r} col={letter}")
+            if ws_t.column_dimensions[letter].width != ws_a.column_dimensions[letter].width:
+                raise ValueError(f"column width mismatch on {name!r} col={letter}")
+        for row in range(1, max_row + 1):
+            for col in range(1, max_col + 1):
+                ct = ws_t.cell(row=row, column=col)
+                ca = ws_a.cell(row=row, column=col)
+                allowed_content_diff = (name, row, col) in practice_coords or (
+                    name in JUDGMENT_SHEETS and col in JUDGMENT_RESPONSE_COLS
+                )
+                if not allowed_content_diff:
+                    if ct.value != ca.value:
+                        raise ValueError(
+                            f"non-practice value mismatch: sheet={name!r} "
+                            f"cell={_cell_addr(row, col)} "
+                            f"trainer={ct.value!r} answer={ca.value!r}"
+                        )
+                    if _comment_text(ct) != _comment_text(ca):
+                        raise ValueError(
+                            f"non-practice Note mismatch: sheet={name!r} "
+                            f"cell={_cell_addr(row, col)}"
+                        )
+                if _format_signature(ct) != _format_signature(ca):
+                    raise ValueError(
+                        f"effective formatting mismatch: sheet={name!r} "
+                        f"cell={_cell_addr(row, col)}"
+                    )
+
+
+def _verify_practice_contract(wb_t, wb_a, comps) -> None:
+    from core.trainer.semantic_io import parse_cell_ref
+
+    for comp in comps:
+        row, col = parse_cell_ref(comp.cell)
+        tc = wb_t[comp.tab].cell(row=row, column=col)
+        ac = wb_a[comp.tab].cell(row=row, column=col)
+        if tc.value is not None:
+            raise ValueError(f"Trainer practice cell {comp.tab}!{comp.cell} not blank")
+        if tc.comment is not None:
+            raise ValueError(f"Trainer practice cell {comp.tab}!{comp.cell} has Note")
+        if _fill_rgb(tc) != "FFFF00":
+            raise ValueError(f"Trainer practice cell {comp.tab}!{comp.cell} not yellow")
+        if not (isinstance(ac.value, str) and ac.value.startswith("=")):
+            raise ValueError(f"Answer Key {comp.tab}!{comp.cell} missing formula")
+        if ac.value != comp.formula:
+            raise ValueError(
+                f"Answer Key {comp.tab}!{comp.cell} formula != semantic map"
+            )
+        if ac.comment is None or not str(ac.comment.text or "").strip():
+            raise ValueError(
+                f"Answer Key {comp.tab}!{comp.cell} missing non-empty Note"
+            )
+        if _fill_rgb(ac) != "FFFF00":
+            raise ValueError(
+                f"Answer Key practice cell {comp.tab}!{comp.cell} not yellow"
+            )
+
+
+def _verify_release_pair_contract(
+    trainer_path: Path,
+    answer_key_path: Path,
+    fin,
+) -> str:
+    """Source fidelity, practice contract, visibility, and visible structural parity."""
     from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
     from openpyxl import load_workbook
 
@@ -78,66 +594,26 @@ def _verify_release_pair_contract(trainer_path: Path, answer_key_path: Path) -> 
         raise ValueError(
             f"semantic practice cells={len(comps)} != {EXPECTED_PRACTICE_TOTAL}"
         )
+    practice_coords = {
+        (comp.tab, *parse_cell_ref(comp.cell)) for comp in comps
+    }
 
     wb_t = load_workbook(trainer_path, data_only=False)
     wb_a = load_workbook(answer_key_path, data_only=False)
     try:
-        visible_t = [s for s in wb_t.sheetnames if not s.startswith("_")]
-        visible_a = [s for s in wb_a.sheetnames if not s.startswith("_")]
-        if visible_t != visible_a:
-            raise ValueError(
-                f"visible sheet mismatch: trainer={visible_t} answer={visible_a}"
-            )
-
-        source_tabs = ("Condensed Financials",)
-        for tab in source_tabs:
-            if tab not in wb_t.sheetnames:
-                continue
-            ws = wb_t[tab]
-            populated = 0
-            for row in ws.iter_rows(
-                min_row=1,
-                max_row=min(ws.max_row or 1, 80),
-                max_col=min(ws.max_column or 1, 12),
-            ):
-                for cell in row:
-                    if isinstance(cell.value, (int, float)) and cell.value != 0:
-                        populated += 1
-            if populated < 10:
-                raise ValueError(f"historical source facts look empty on {tab}")
-
-        for comp in comps:
-            row, col = parse_cell_ref(comp.cell)
-            tc = wb_t[comp.tab].cell(row=row, column=col)
-            ac = wb_a[comp.tab].cell(row=row, column=col)
-            if tc.value is not None:
-                raise ValueError(f"Trainer practice cell {comp.tab}!{comp.cell} not blank")
-            if tc.comment is not None:
-                raise ValueError(f"Trainer practice cell {comp.tab}!{comp.cell} has Note")
-            if _fill_rgb(tc) != "FFFF00":
-                raise ValueError(
-                    f"Trainer practice cell {comp.tab}!{comp.cell} not yellow"
-                )
-            if not (isinstance(ac.value, str) and ac.value.startswith("=")):
-                raise ValueError(
-                    f"Answer Key {comp.tab}!{comp.cell} missing formula"
-                )
-            if ac.value != comp.formula:
-                raise ValueError(
-                    f"Answer Key {comp.tab}!{comp.cell} formula != semantic map"
-                )
-            if ac.comment is None or not str(ac.comment.text or "").strip():
-                raise ValueError(
-                    f"Answer Key {comp.tab}!{comp.cell} missing non-empty Note"
-                )
-            if _fill_rgb(ac) != "FFFF00":
-                raise ValueError(
-                    f"Answer Key practice cell {comp.tab}!{comp.cell} not yellow"
-                )
+        _verify_workbook_source_fidelity(wb_t, fin, workbook="Trainer")
+        _verify_workbook_source_fidelity(wb_a, fin, workbook="Answer Key")
+        _verify_required_visibility(wb_t, workbook="Trainer")
+        _verify_required_visibility(wb_a, workbook="Answer Key")
+        _verify_visible_layout_parity(wb_t, wb_a, practice_coords)
+        _verify_practice_contract(wb_t, wb_a, comps)
     finally:
         wb_t.close()
         wb_a.close()
-    return f"practice_cells={len(comps)} visible_parity=ok"
+    return (
+        f"practice_cells={len(comps)} source_fidelity=ok "
+        f"visibility=ok layout_parity=ok"
+    )
 
 
 def _module_applicability(fin, anchor=None) -> dict[str, Any]:
@@ -431,7 +907,7 @@ def run_audit(
                 assert trainer_path is not None and answer_key_path is not None
                 if verify_release_pair:
                     contract_msg = _verify_release_pair_contract(
-                        trainer_path, answer_key_path
+                        trainer_path, answer_key_path, fin
                     )
                 else:
                     contract_msg = "release pair supplied"

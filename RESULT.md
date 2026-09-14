@@ -1,11 +1,11 @@
-# RESULT.md — Step 9 Persistent Fast Retailing Release Pair
+# RESULT.md — Step 9 Release Source Fidelity and Structural Parity
 
 **Review status:** PASS
 
-**Implementation base (plan):** `1547e262e68229e93b51d5fe0dbb8f4b6db04cce`
-**HEAD at completion:** `3ade89371d974b7ce9199e3d76997ee81e66c5c5`
+**Implementation base (plan):** `68f90e5e85ec1e47a9cdb3a5b5c3067251262f98`
+**HEAD at completion:** `16a628bcb8fb934ea401e6ee2f6d3a8b407ba184`
 
-**Writable this step:** `scripts/build_fast_retailing_release.py` (new), `scripts/audit_fast_retailing_benchmark.py`, `core/tests/test_fast_retailing_benchmark.py`, `release/fast_retailing/` (new), `RESULT.md`.
+**Writable this step:** `scripts/audit_fast_retailing_benchmark.py`, `core/tests/test_fast_retailing_benchmark.py`, `RESULT.md`.
 `TARGET.md` / `IMPLEMENTATION.md`: unchanged (read-only).
 No commit / push / sync / checkpoint. No next implementation step.
 
@@ -13,14 +13,11 @@ No commit / push / sync / checkpoint. No next implementation step.
 
 ## What shipped
 
-- Reproducible release builder `scripts/build_fast_retailing_release.py`: validates source-manifest hashes + FY2021–FY2025 extracted filings, runs production reconcile/standardize, builds Trainer/Answer Key via `build_training_workbook`, writes supporting artifacts + README, verifies with nonzero exit on failure.
-- Persistent pair under `release/fast_retailing/`:
-  - `FastRetailing_Trainer.xlsx`
-  - `FastRetailing_Answer_Key.xlsx`
-  - Answer Key sidecars (`component_map.json`, `assumptions.json`), `rowmap.json`, `README.md`
-  - `supporting/{standardized,provenance,conflicts}.json`
-- Audit extension: `run_audit(...)` accepts explicit standardized JSON + release workbook paths; default no-arg interface preserved. Release verification uses temporary copies for Check/fill; asserts `(0,0,491,491)` pristine and `(491,0,0,491)` filled; confirms practice contract + fingerprint pristine stage.
-- Regression tests for explicit-pair verification, missing/mismatched artifacts, failed counts, and on-disk release verification.
+- `_verify_release_pair_contract(trainer, answer, fin)` now takes loaded `StandardizedFinancials`.
+- Exhaustive persisted source-fact comparison for Income Statement / Balance Sheet / Cash Flow Statement (and lease supplemental when present) plus diluted weighted-average shares on Per Share Analysis; rejects blanked facts, altered values, missing sheets/rows/periods, and formulas substituted for literals. Each workbook checked independently against inputs.
+- Visibility from `sheet_state` (not name prefixes): required historical/practice sheets must be visible; metadata (`_*`) and dormant forecast placeholders remain intentionally hideable; jointly hidden historical sheets fail.
+- Visible layout parity: sheet order/state, dimensions, labels/values (non-practice), merged ranges, row/column heights & hidden flags, freeze panes, and effective formatting. Practice content + Answer-Key Notes / judgment responses remain the only allowed content diffs; blank-yellow Trainer and formula+Note Answer Key checks retained.
+- Corruption regressions covering Trainer / Answer Key / both, source mutations, hidden/`veryHidden` sheets, and layout mismatches; explicit-pair path proven not to call workbook generation; release hashes unchanged after pass and fail paths.
 
 Forecasting / valuation remain dormant.
 
@@ -31,38 +28,46 @@ Forecasting / valuation remain dormant.
 ### Commands run
 
 ```text
-python scripts/build_fast_retailing_release.py
-→ exit 0
-  Trainer: release/fast_retailing/FastRetailing_Trainer.xlsx
-  Answer Key: release/fast_retailing/FastRetailing_Answer_Key.xlsx
-
-# rebuild + compare (exclude docProps packaging timestamps)
-→ component_map / assumptions / standardized / provenance / conflicts: byte-identical
-→ Trainer / Answer Key zip payloads excl docProps/: identical
-→ rebuild exit 0
-
 python -m pytest core/tests/test_fast_retailing_benchmark.py core/tests/test_historical_v1_exit_gate.py -q
-→ 39 passed in 8.80s
+→ 73 passed in 13.78s
 
 python -m pytest core/tests -q
-→ 606 passed in 64.41s
+→ 640 passed in 68.18s
 
 git diff --check
 → clean
+
+python scripts/audit_fast_retailing_benchmark.py \
+  --standardized-json release/fast_retailing/supporting/standardized.json \
+  --provenance-json release/fast_retailing/supporting/provenance.json \
+  --conflicts-json release/fast_retailing/supporting/conflicts.json \
+  --trainer release/fast_retailing/FastRetailing_Trainer.xlsx \
+  --answer-key release/fast_retailing/FastRetailing_Answer_Key.xlsx \
+  --verify-release-pair --require-check-counts --no-baseline
+→ exit 0
+  5_workbook_generation: persisted release pair (not regenerated)
+  6_blank_check: correct=0 incorrect=0 blank=491 total=491
+  7_filled_check: correct=491 total=491
+  8_release_pristine: release fingerprints unchanged
 ```
 
-### Release audit (persisted pair)
-
-All stages pass, including `8_release_pristine`. Check counts:
+### Check counts
 
 | Mode | (correct, incorrect, blank, total) |
 |---|---|
-| pristine Trainer (temp copy) | (0, 0, 491, 491) |
-| answer-filled copy | (491, 0, 0, 491) |
+| pristine | (0, 0, 491, 491) |
+| filled | (491, 0, 0, 491) |
 
-Release workbooks unchanged after verification (SHA-256 fingerprints equal before/after).
+### Corruption coverage
 
-### Artifact SHA-256 (post-rebuild)
+- Source: earlier-year fact, zero value, historical shares, deleted fact, missing source sheet, formula-for-literal — Trainer / Answer Key / both.
+- Visibility: `hidden` and `veryHidden` on Income Statement — Trainer / Answer Key / both (including identical joint hide).
+- Layout: label, merged ranges, dimensions, row/column hidden, freeze panes, formatting.
+- Contract failures surface on stage `5_workbook_generation` with workbook/sheet/cell detail; Check stages skipped.
+- Explicit-pair verification does not invoke `build_training_workbook`.
+- On-disk release + sidecar hashes unchanged after successful and failed verification.
+
+### Artifact SHA-256 (unchanged)
 
 ```text
 4b657461757cfb43f6067636868df44541575d274b3a3025ccc6d397dac89536  FastRetailing_Trainer.xlsx
@@ -77,14 +82,12 @@ fd5a1ec87b61c4835d3b7bfda79996afa6c5ed9bbf2082e35413fb18ee696f1f  supporting/pro
 ### Final changed-file list
 
 ```text
-scripts/build_fast_retailing_release.py          (new)
 scripts/audit_fast_retailing_benchmark.py
 core/tests/test_fast_retailing_benchmark.py
-release/fast_retailing/                          (new tree)
-RESULT.md                                        (this record)
+RESULT.md
 ```
 
-Incidental test touches to `benchmark/fast_retailing/BASELINE.md` and `example/DEMO_HK_Trainer.xlsx` were restored and are outside the final diff.
+Incidental touches to `benchmark/fast_retailing/BASELINE.md` and `example/DEMO_HK_Trainer.xlsx` were restored and are outside the final diff.
 
 ---
 
@@ -92,15 +95,13 @@ Incidental test touches to `benchmark/fast_retailing/BASELINE.md` and `example/D
 
 | Criterion | Result |
 |---|---|
-| Exactly two user-facing release workbooks under `release/fast_retailing/`, reproducible from checked-in inputs | **pass** |
-| Existing FR benchmark checks verify the persisted pair | **pass** |
-| Release Trainer pristine; Answer Key usable for human review | **pass** |
-| Required checks pass; only writable files change; no commit/push | **pass** |
+| Every required persisted source fact matches standardized input in both workbooks | **pass** |
+| Hidden required historical sheets and visible structural mismatches fail release verification | **pass** |
+| Pristine release verification and required regressions pass without modifying release artifacts | **pass** |
+| Only writable files change; no commit/push | **pass** |
 
 ---
 
 ## Plan changes
 
-**No plan changes required.**
-
-Further forecasting work remains deferred. Normal Step 9 work may resume after human review of this release pair.
+None.
