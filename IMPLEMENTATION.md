@@ -1,51 +1,52 @@
-# Step 9M.2.4.1.1.1 — Repair Independent Pretax and ETR Parity Verification
+# Step 9M.2.4.1.1.1 — Repair Coverage, Workbook Period Identity, and Acceptance Accounting
 
-**Base:** `8bd5f5071a3fa174165f08b246ce43dc82e94340`
+**Base:** `29fc582c212101063593daf7481fca254e7b56af`
 **Status:** PROBLEMS — UNRESOLVED; repair of the same step.
-**Parents:** Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — UNRESOLVED pending original acceptance evidence.
-**Goal:** Establish independent calculation expectations, validate emitted ETR arithmetic, demonstrate wrong-link rejection, and correct unsupported completion claims.
+**Parents:** Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — UNRESOLVED pending every original acceptance criterion.
+**Goal:** Complete pretax/ETR coverage, independently verify workbook periods, and replace unsupported completion claims with criterion-level evidence.
 
 ## Constraints
 
-- Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`; record completion and measured verification in `RESULT.md`.
+- Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`; write completion records and measured verification to `RESULT.md`.
 - Changes limited to `core/tests/test_reference_integrity.py`, `core/tests/test_line_resolver.py`, `core/tests/test_lululemon_benchmark.py`, and `RESULT.md`; no production changes.
 - Preserve source PDFs, extracted JSON, standardized facts, provenance, conflicts, committed artifacts, and baseline hashes; no generated refresh.
 - Verification artifacts belong only in temporary directories; preserve deterministic failure-path immutability coverage.
-- Preserve source identity, explicit-concept and override precedence, ambiguity errors, required-value semantics, subtotal/detail boundaries, and non-balance-sheet completeness behavior.
-- No invented company facts, balancing plugs, issuer-specific rules, benchmark overrides, tolerance inflation, suppressed errors, G4–G7, forecasting, valuation, or unrelated blocker repair.
+- Preserve classification metadata, source identity, explicit-concept and override precedence, ambiguity errors, required-value semantics, subtotal/detail boundaries, and non-balance-sheet completeness behavior.
+- No invented facts or zeros, carry-forward, absent-after-zero inference, balancing plugs, issuer-specific rules, benchmark overrides, tolerance inflation, suppressed errors, G4–G7, forecasting, valuation, or unrelated blocker repair.
 
-## Task 1 — Replace circular expectations and verify emitted arithmetic
+## Task 1 — Complete the parity coverage matrix
 
-- Give parity assertions explicit fixture-owned labels, period identities, pretax values, tax values, and expected ETRs; never derive expectations through `resolve_line`, `ratio_or_na`, or other production helpers.
-- Check every `compute_anchor` historical pretax and ETR result against those expectations, including 400 / 500 pretax, −60 / −80 tax, and 0.15 / 0.16 ETR.
-- Build and reload actual Answer-Key workbooks with formulas retained; resolve emitted pretax and tax links to independently expected source labels, period columns, and values.
-- Validate the complete emitted ETR expression: zero-denominator guard, `NA()` branch, negative-tax numerator, pretax denominator, and same-period references. Replace substring checks with a strict test-local formula contract and evaluation of its actual referenced cells.
-- Compare evaluated emitted arithmetic with independent expectations and Python outputs; cover nonzero and zero pretax. Describe this as formula inspection/evaluation, not Excel recalculation.
-- Exercise canonical concept, alias concept, normalized label fallback, and both source-row orders before and after standardized export/reload.
+- Parameterize all 12 combinations: canonical `pretax_income`, alias `income_before_tax`, and normalized label fallback × both source-row orders × original and standardized export/reload input.
+- For every combination, verify fixture-owned labels, concepts, period identities, amounts, and row ordering; check every historical Python pretax/ETR result and saved/reloaded Answer-Key source link and ETR expression.
+- Keep expectations independent of production resolution and arithmetic helpers; retain 400 / 500 pretax, −60 / −80 tax, and 0.15 / 0.16 ETR expectations for the alias fixture.
+- Retain zero-pretax `NA()` behavior, strict zero-guard/sign/numerator/denominator contracts, referenced-cell evaluation, and alias-removal, precedence, duplicate-ambiguity, missing-required-value, and tax-exclusion regressions.
+- Give each matrix case a distinct test ID and record its measured outcome; partial coverage cannot establish matrix completion.
 
-## Task 2 — Demonstrate corruption rejection
+## Task 2 — Verify actual workbook period identity
 
-- Separate workbook construction from parity validation so negative controls validate saved, reloaded corrupted workbook copies without regenerating them.
-- Establish a passing baseline, then redirect an emitted pretax link to the tax row and separately to another period; require the same validator to reject each with a specific assertion.
-- Mutate emitted ETR formulas independently: remove the minus sign, reverse numerator/denominator, and corrupt the zero guard; demonstrate rejection despite retaining referenced row names and `NA()`.
-- Restore or rebuild clean temporary copies between mutations; retain alias-removal, precedence, duplicate ambiguity, missing-required-value, and tax-exclusion regressions.
+- Replace `assert period == expect.period_ends[j]` with checks of actual saved/reloaded period headers in `Income Statement` and `Condensed Financials` against fixture-owned expected identities and header representations.
+- Verify header count and order, and bind each pretax/tax source reference and ETR reference to its independently expected period; matching column numbers alone is insufficient.
+- Establish a passing baseline, then alter or swap headers independently on each sheet while leaving formulas and values unchanged; require the same validator to reject each saved/reloaded copy with a period-specific assertion.
+- Preserve separate corrupted-copy rejection for pretax links redirected to tax or another period and ETR formulas with missing minus sign, reversed division, or corrupted zero guard. Never regenerate a corrupted workbook before validation.
+- Report this as formula inspection and referenced-cell evaluation, not Excel recalculation.
 
-## Task 3 — Verify and correct RESULT
+## Task 3 — Reconcile original acceptance and verify
 
-- Withdraw unsupported COMPLETE, independent-expectation, emitted-arithmetic, and wrong-link-detection claims; replace them only with measured evidence from the repaired checks.
+- Withdraw the current unsupported COMPLETE claim. Inventory every original criterion and required evidence obligation from `aa6adc1`, `a370a02`, `2e88322`, `88ce931`, and the current step; give each a separate RESULT entry with test node or artifact/revision, concrete measurements, and PASS/FAIL/UNVERIFIED status.
+- Include causal before/after liability and equity evidence, sparse-position/zero/complete-row coverage, signed contra-equity, subtotal/override controls, missing totals/keys, contradictory and equal omissions, rounding boundaries, provenance preservation, deterministic reconciliation comparisons, and failure-path immutability. “Prior child” or aggregate suite success alone is insufficient.
+- Use traceable historical evidence for unavailable pre-repair behavior; distinguish actual results from diagnostic probes. Missing evidence remains UNVERIFIED without inventing measurements or expanding production scope.
 - Run `PYTHONPATH=. pytest core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py core/tests/test_classification.py core/tests/test_line_resolver.py core/tests/test_reference_integrity.py core/tests/test_lululemon_benchmark.py -q`.
 - Run `PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q` and `PYTHONPATH=. pytest core/tests -q`.
-- Probe unmodified Lululemon input in a temporary directory; record successful generation or the exact next exception without repairing it. Workbook success is not an original parent acceptance requirement.
-- Record independent inputs/results, inspected formulas/source cells, each mutation and rejection, fresh suite counts, verified revision, working-tree state, before/after source/artifact hashes, and final diff scope.
-- Reconcile every original criterion from `aa6adc1`, `a370a02`, `2e88322`, and `88ce931` with concrete evidence or failed/unverified status; distinguish synthetic parity, real-company resolution, and unavailable full-company parity.
+- Probe unmodified Lululemon input in a temporary directory; record successful generation or the exact next exception without repairing it. Distinguish synthetic parity, real-company resolution, and unavailable full-company parity; workbook success is not an original parent acceptance requirement.
+- Record fresh matrix/mutation outcomes, suite counts, verified revision, working-tree state, before/after source/artifact hashes, and final diff scope.
 
 ## Acceptance and next step
 
-- Independent expectations establish Python pretax/ETR correctness; actual emitted source links and ETR arithmetic pass positive controls and reject the injected defects.
-- All four Lululemon periods pass `check_reformulation_integrity` under unchanged tolerances; original liability and corresponding equity discrepancies are explained and repaired with causal rows, detail counts, gaps, and tolerance envelopes recorded.
-- Independent asset, liability, and signed equity-detail gates reject unsupported sparse omissions; implied-equity reconciliation remains separate. Missing totals/keys, contradictory inputs, equal asset/liability omissions, and excessive gaps fail closed.
-- Sparse absence remains distinct from reported zero through standardization, export/reload, and reformulation; provenance and selected observations remain preserved.
+- All 12 matrix cases pass independent Python and emitted-formula expectations; workbook header checks reject header corruption as well as existing link/arithmetic defects.
+- All four Lululemon periods pass `check_reformulation_integrity` under unchanged tolerances; original liability and corresponding equity discrepancies are explained with causal rows, detail counts, gaps, and tolerance envelopes.
+- Independent asset, liability, and signed equity-detail gates reject unsupported sparse omissions before usable results; implied-equity reconciliation stays separate. Missing totals/keys, contradictory evidence, equal asset/liability omissions, and excessive gaps fail closed.
+- Sparse absence stays distinct from reported zero through standardization, export/reload, and reformulation; provenance and selected/superseded/outside-axis observations remain preserved.
 - NCIT remains 28555 / 15864 / reported 0 / `None`; Common stock remains 611 / 606 / 581 / 557; empty unclassified detail and G1/G2/G3 controls remain intact.
-- Required suites pass and source facts and committed artifacts remain unchanged. Missing evidence or execution restrictions cannot establish completion.
-- On failure, next step: **Step 9M.2.4.1.1.1 — Repair Independent Pretax and ETR Parity Verification**.
-- On acceptance, return to Plan for original-criteria parent closure assessment; parents remain unresolved until those criteria pass. Any genuinely new child uses **9M.2.4.1.1.1.2**. Step 9 remains incomplete.
+- Required suites pass; source facts and committed artifacts remain unchanged. Every original criterion has concrete evidence or an explicit unresolved status; missing evidence or execution restrictions cannot establish completion.
+- On failure, next step: **Step 9M.2.4.1.1.1 — Repair Coverage, Workbook Period Identity, and Acceptance Accounting**.
+- On acceptance, return to Plan for original-criteria parent closure assessment; preserve unresolved parents until their original criteria pass. Any genuinely new child uses **9M.2.4.1.1.1.3**. Step 9 remains incomplete.
