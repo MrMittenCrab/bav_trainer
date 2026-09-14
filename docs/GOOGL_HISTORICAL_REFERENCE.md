@@ -5,7 +5,7 @@ Internal development reference for Step 9 historical convergence. Evidence is li
 Audit tool: `scripts/audit_reference_workbook.py`  
 GOOGL SHA-256 (pre/post inspection): `81faf2882d0df07ecf5def45695431c1935b4f7a94c1e017367596a063063896`  
 
-**Coverage refresh (Step 9M.6):** Inventory, gap matrix, and queue below incorporate Fast Retailing G1–G7 closure evidence and measured Step 9M.6 lease ROU-asset activation (`expected_specs=454`).
+**Coverage refresh (Step 9N):** Inventory, gap matrix, and queue below incorporate Fast Retailing G1–G7 closure, capex acceptance (`capex_specs=10`, `expected_specs=481`), and Step 9N exit-gate dispositions. Exit gate **FAIL** — see `RESULT.md` (frozen-catalog regression blocker).
 
 ## Role of the reference
 
@@ -96,17 +96,17 @@ Distinct from DEMO counts. Post–G1–G7 recorded Stage 4/Check surface:
 | RNOA margin / turnover / asset intensity | ALT DuPont margin & turnover | Profitability drivers + change attribution; fixed-asset intensity context when PP&E+D&A resolve | implemented-differently | NOPAT, Revenue, NOA; optional PP&E+D&A | Structured attribution + optional PPE context | Maintain; deepen with lease/capex when contracted |
 | ROE operating / financing attribution | ALT DuPont Fin Lev Gain | ROE attribution sheet | implemented-differently | RNOA, Spread, FLEV, equity | Dedicated change attribution | Maintain |
 | historical per-share / diluted-share bridge | IS Basic/Diluted EPS & diluted shares outstanding | Optional Per Share Analysis + norm bridge; split-adjusted WAS when share-basis resolver emits `basis=split_adjusted` | implemented-differently | Explicit diluted WAS (+ optional norm); optional audited split restatement for comparable axis | Gate on share history; analytical axis must not overwrite raw share facts | Maintain |
-| stock-based compensation / dilution | CF **Stock-based compensation expense**; IS share counts; EQ dilution signal | Diluted-share modules only; no SBC schedule | missing-current-data-supported | CF SBC line and/or SBC disclosure + share history when present | Optional module; omit if absent | Priority A when SBC facts exist; Fast Retailing / DEMO currently lack SBC lines |
+| stock-based compensation / dilution | CF **Stock-based compensation expense**; IS share counts; EQ dilution signal | Diluted-share modules only; no SBC schedule | explicitly deferred (source absent) | CF SBC line and/or SBC disclosure + share history when present | Optional module; omit if absent | Deferred — no SBC on Fast Retailing / ordinary DEMO |
 | PP&E / D&A / asset intensity | BS Property and equipment; CF depreciation; CF Purchases of property and equipment | ALT DuPont fixed-asset families when both PP&E and D&A resolve (`FIXED-ASSET INTENSITY CONTEXT`) | implemented-differently | Explicit PP&E (BS) + D&A (CF) + Revenue | Practice formulas on ALT DuPont; gated; no capex inference; D&A/Average PP&E is context only | Maintain; do not claim pure depreciation rate |
-| capex / reinvestment bridge | CF **Purchases of property and equipment** | ALT DuPont `PP&E CAPEX CONTEXT`: populated reported CF payments + practice `ppe_capex` (−reported) and `ppe_capex_to_revenue`; **no** reinvestment bridge / depreciation ratios | implemented-differently (bounded) | Explicit CF `payments_for_ppe` (unique exact concept) + Revenue | Optional gated practice; do not infer from investing CF or ΔPPE+D&A; no abs()/sign inference; zero revenue → `#N/A` | Maintain bounded practice; reinvestment bridge / other capex diagnostics remain deferred |
+| capex / reinvestment bridge | CF **Purchases of property and equipment** | ALT DuPont `PP&E CAPEX CONTEXT`: populated reported CF payments + practice `ppe_capex` (−reported) and `ppe_capex_to_revenue`; **no** reinvestment bridge / depreciation ratios | implemented-differently (bounded); reinvestment explicitly deferred | Explicit CF `payments_for_ppe` (unique exact concept) + Revenue | Optional gated practice; do not infer from investing CF or ΔPPE+D&A; no abs()/sign inference; zero revenue → `#N/A` | Maintain bounded practice; reinvestment deferred (aggregate D&A / no maintenance-disposal split) |
 | leases (liability) | BS Operating lease liabilities; Condensed classification rows | Accounting Judgment + ALT DuPont lease-liability families; aggregate **or** split current/non-current sum; treatment-conditioned lease interest when complete note axis exists | implemented-differently | Aggregate `lease_liability` **or** unique `lease_liability_current` + `lease_liability_noncurrent`; optional `lease_interest_expense` note axis; Revenue | Guided classification + intensity/trend; financing net interest conditioned on uniform lease treatment | Maintain |
-| leases (ROU / payments) | BS Operating lease assets | ALT DuPont ROU intensity/trend when unique `right_of_use_assets` resolves; **no** lease-payment / discount-rate diagnostics | implemented-differently (bounded) | Explicit `right_of_use_assets`; optional lease-payment CF lines when present | Optional gated ROU balance context (done); payments/rates remain deferred | Maintain ROU module; Priority B for payment/rate contract |
+| leases (ROU / payments) | BS Operating lease assets | ALT DuPont ROU intensity/trend when unique `right_of_use_assets` resolves; **no** lease-payment / discount-rate diagnostics | implemented-differently (bounded); payments explicitly deferred | Explicit `right_of_use_assets`; optional lease-payment CF lines when present | Optional gated ROU balance context (done); payments/rates deferred | Maintain ROU module; payment/rate deferred (rates absent; ROU cash immaterial; repayments duplicate liability diagnostics) |
 | goodwill / acquired intangibles / acquisitions | BS Goodwill; Intangible assets; CF acquisitions line | ALT DuPont goodwill/intangibles intensity & change when concepts resolve; optional intangible-payments (−reported); **no** acquisition-cash / GW-impairment bridge | implemented-differently (bounded) | Unique `goodwill` / `intangible_assets` (and optional intangible-payment CF) when present; acquisition CF only when explicitly supplied | Optional gated intensity/change module; never invent acquisition or GW-impairment stories | Maintain bounded module; acquisition-cash remains deferred until explicit facts |
 | deferred taxes / unusual tax rates | BS Deferred income taxes; CF Deferred income taxes; IS Core bridge tax notes | ALT DuPont deferred-tax balance context when unique DTA+DTL resolve; ETR + pretax norm tax convention remain separate | implemented-differently (bounded) | Unique `deferred_tax_assets` + `deferred_tax_liabilities` (both required) | Optional gated net-position / balance-change practice; no expense or cash-tax inference | Maintain; unusual-rate / CF deferred-tax expense remain deferred |
 | minority / non-controlling interests | Not evidenced in inspected workbook | Ownership Attribution + parent ROE + parent-safe per-share numerator when ownership concepts resolve | implemented-differently | `profit_attributable_to_owners`, `profit_attributable_to_nci`, `equity_attributable_to_owners`, `noncontrolling_interests` | Optional gated schedule; consolidated DuPont unchanged | Maintain (Fast Retailing supplies NCI; GOOGL demo did not evidence it) |
 | segment economics | Not evidenced as structured segment schedules (only scenario narrative mentions) | Absent | not-evidenced-in-GOOGL | Explicit segment revenue/opex/assets disclosures | Optional module; never invent segments | Priority C / B when segment inputs are designed |
-| accounting consistency / reconciliation checks | Source statement arithmetic; EQ screens (Beneish/Piotroski/Benford) | `reconcile_financials` / identity validators; trusted-cell checks; retained cross-filing conflicts | implemented-differently | Existing standardized facts | Keep blocking integrity; forensic screens optional later | Priority B for forensic screens (Benford needs XBRL population — likely not-trainer-target) |
-| historical interpretation / diagnostics | EQ commentary framing; scenario rationales (forward) | WC / profitability / ROE / EQ change attributions | implemented-differently | Existing computed series | Prefer structured diagnostics over essays | Priority A — extend interpretation on new historical modules |
+| accounting consistency / reconciliation checks | Source statement arithmetic; EQ screens (Beneish/Piotroski/Benford) | `reconcile_financials` / identity validators; trusted-cell checks; retained cross-filing conflicts | implemented-differently; forensics explicitly deferred | Existing standardized facts | Keep blocking integrity; forensic screens optional later | Maintain integrity checks; Beneish/Piotroski/Benford deferred (curriculum / not-trainer-target) |
+| historical interpretation / diagnostics | EQ commentary framing; scenario rationales (forward) | WC / profitability / ROE / EQ change attributions | implemented-differently | Existing computed series | Prefer structured diagnostics over essays | Maintain; further module prompts explicitly deferred (curriculum polish) |
 
 Forward GOOGL sheets (Guidance & Consensus, Model_*, Scenario_Summary, Implied Cost of Capital, Valuation Multiples) are inventoried above and classified **deferred-forward** for roadmap purposes; they are not Step 9 implementation tasks.
 
@@ -134,24 +134,28 @@ Forward GOOGL sheets (Guidance & Consensus, Model_*, Scenario_Summary, Implied C
 
 ## Prioritized Step 9 queue
 
-### Priority A — historically useful and current-data-supported
+### Materially blocking (exit gate)
 
-1. Further structured historical interpretation prompts on modules already taught.
-2. Acquisition-cash / GW-impairment attribution only when those facts are separately and explicitly supplied (not present on Fast Retailing today).
-3. SBC expense bridge into dilution / per-share interpretation when CF SBC + share history are supplied (not present on Fast Retailing or ordinary DEMO today).
-4. Capex **reinvestment bridge** / depreciation-linked diagnostics only when an explicit bridge contract is designed (capex-to-revenue practice completed in Step 9M.9).
+1. **Repair historical-v1 active-catalog freeze** — `test_historical_v1_active_catalog_namespace_is_frozen` fails (`ACTIVE_CATALOGS` includes lease ROU orders 112–115 while asserting `range(1, 98)`; goodwill/deferred-tax/capex catalogs omitted from the freeze list). Blocks criterion 5. **Next implementation.**
 
-### Priority B — historically useful but needs explicit new historical inputs
+### Explicitly deferred — source absent
 
-1. Formal segment-economics input contract + optional module.
-2. Richer tax-adjustment candidate schema beyond current normalization scopes / deferred-tax balance context.
-3. Optional Beneish/Piotroski-style screens only if pedagogically justified and computable from standardized facts (not XBRL scrapes).
-4. Lease-payment / discount-rate analysis only with an explicit payment and rate contract (do not invent from ROU + liability).
+1. Acquisition-cash / GW-impairment attribution — no business-acquisition CF; goodwill flat; impairment not GW-tagged (Fast Retailing / DEMO).
+2. SBC expense bridge into dilution / per-share interpretation — no CF SBC on Fast Retailing or ordinary DEMO.
+3. Formal segment-economics module — no structured segment input facts/contract (also not-evidenced-in-GOOGL).
 
-### Priority C — TARGET-required historical topic not evidenced by GOOGL
+### Explicitly deferred — curriculum / evidence quality (not “missing contract” alone)
 
-1. Structured segment economics (await disclosures + input contract; not evidenced as GOOGL schedules).
-2. ~~Minority / non-controlling interests~~ → **moved to implemented** when ownership concepts resolve (Fast Retailing G5).
+1. Further structured interpretation prompts on already-taught modules — major-schedule WC / profitability / ROE / EQ change attributions already satisfy TARGET’s structured-diagnostics preference; essays not required.
+2. Capex **reinvestment** / depreciation-linked bridge beyond `ppe_capex` + `ppe_capex_to_revenue` — TARGET capex/D&A/intensity already covered by fixed-asset + capex contexts; FR `depreciation_amortization` is aggregate (ROU amortization risk) without maintenance/disposal split.
+3. Lease-payment / discount-rate analysis — liability + ROU balance modules cover lease intensity; rates absent; FR `payments_for_rou_assets` immaterial vs ROU stock; `repayments_of_lease_liabilities` largely duplicates liability amortization already diagnosed.
+4. Richer tax-adjustment / cash-tax bridge — ETR + deferred-tax balance context suffice for historical exit; cash-tax vs book-tax needs reconciling items beyond `income_taxes_paid`/`refunded` alone.
+5. Beneish/Piotroski-style screens — mechanical EQ preferred; Benford/XBRL populations not-trainer-target.
+
+### Priority C — TARGET topic not evidenced by GOOGL (aligned with deferrals above)
+
+1. Structured segment economics — deferred pending disclosures + input contract.
+2. ~~Minority / non-controlling interests~~ → **implemented** when ownership concepts resolve (Fast Retailing G5).
 
 ### Deferred — forecasting / valuation / non-Trainer reference features
 
@@ -205,9 +209,15 @@ Explicit concept resolution is registered in `core/model/line_resolver.py` for:
 
 ## Next historical implementation candidate (exactly one)
 
-**Name:** Structured historical interpretation prompts on already-taught modules (or next source-supported Priority A gap)
+**Name:** Repair historical-v1 active-catalog freeze for post–9M modules
 
-### Capex source, sign, and practice (Step 9M.9 — complete)
+**Problem:** `core/tests/test_historical_v1_exit_gate.py::test_historical_v1_active_catalog_namespace_is_frozen` expects contiguous orders `1..97`, but `ACTIVE_CATALOGS` includes `LEASE_ROU_COMPONENT_CATALOG` (112–115). Goodwill/intangibles (98–111), deferred tax (116–119), and capex (120–121) are active historical catalogs omitted from that freeze list. Measured: **1 failed, 570 passed** on `python -m pytest core/tests -q`.
+
+**Actions:** Align `ACTIVE_CATALOGS` + order/id freeze assertions with the chosen contract (expand to all active historical optional catalogs through capex, **or** document a v1-only freeze that excludes post–v1 catalogs). Keep deferred forecast/valuation specs disjoint.
+
+**Acceptance:** `pytest core/tests -q` green; Fast Retailing 481 / `capex_specs=10` / blank·filled Check parity / 3 overlap + 3 supplemental unchanged; no new analytical modules.
+
+### Capex source, sign, and practice (Step 9M.9 — complete; preserved)
 
 - Resolver: CF `payments_for_ppe` is **explicit-concept-only** (no label/pattern fallback), resolved only from `StandardizedFinancials.cash_flow`.
 - Gating: missing or duplicate CF sources → module unavailable (`capex_applicable` false); no capex rows or practice specs.
@@ -215,18 +225,18 @@ Explicit concept resolution is registered in `core/model/line_resolver.py` for:
 - Ratio: `ppe_capex_to_revenue = ratio_or_na(ppe_capex, revenue)`; zero revenue → `UNDEFINED_RATIO` (`#N/A`); missing/`None` required values raise `MissingHistoricalValueError`.
 - Workbook: ALT DuPont `PP&E CAPEX CONTEXT` with populated reported-payment links + two practice families per period (`capex.ppe_capex`, `capex.ppe_capex_to_revenue`); Answer Key Notes; workbook-wide Check.
 - Fast Retailing: `capex_specs=10`, `expected_specs=481`; FY2021–FY2025 `ppe_capex` anchors `56500, 51271, 61764, 73728, 135535` with independently calculated revenue ratios.
-- Out of scope / still deferred: reinvestment bridge, depreciation ratios, forecasting/valuation.
+- Reinvestment bridge / other capex diagnostics: **explicitly deferred** (curriculum — see queue); not the next candidate.
 - DEMO unchanged (no `payments_for_ppe`).
 
 ### Explicitly out of scope for this candidate
 
-- Lease-payment / discount-rate schedules
-- Acquisition-cash / GW-impairment narratives
-- SBC expense bridge (still deferred — no Fast Retailing / DEMO SBC line)
-- Unusual deferred-tax expense / cash-tax diagnostics beyond the implemented balance module
-- Segments, forecasting/valuation
+- New analytical schedules (interpretation, reinvestment, lease payments, SBC, acquisition, segments, forensics)
+- Forecasting / valuation
+- Source fixture or benchmark baseline edits
 
-**Step 9M.9 note:** Capex-to-revenue practice is implemented and tested. Reinvestment bridge and other capex diagnostics remain deferred.
+**Step 9N note:** Exit gate FAIL on frozen-catalog regression; curriculum gaps disposed in queue above.
+
+**Step 9M.9 note:** Capex-to-revenue practice is implemented and tested. Reinvestment bridge explicitly deferred (curriculum).
 
 **Step 9M.8 note:** Capex CF source resolution + signed `ppe_capex = -payments_reported` contract completed; practice/ratios delivered in 9M.9.
 
