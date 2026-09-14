@@ -1,11 +1,11 @@
 # RESULT.md — Step 9M.2.4.1.1.1 Repair Frozen Numbering and Supersede Invalid Completion Claims
 
-**Status:** COMPLETE (frozen numbering: live reservation `.13`; prior `.12`-available numbering COMPLETE/PASS SUPERSEDED; prior `.11`-available numbering COMPLETE/PASS SUPERSEDED retained; original technical acceptance supported; parents remain Plan-owned UNRESOLVED)  
+**Status:** COMPLETE (frozen numbering: live reservation `.14`; prior `.13`-available numbering COMPLETE/PASS SUPERSEDED; prior `.12`-available numbering COMPLETE/PASS SUPERSEDED retained; original technical acceptance supported; parents remain Plan-owned UNRESOLVED)  
 **Step:** 9M.2.4.1.1.1 — Repair Frozen Numbering and Supersede Invalid Completion Claims  
 **Parents:** Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED** (Plan closure pending; not a technical-acceptance blocker)  
-**Base:** `dca446342ca26c953504a4f81c9cbfba3b40a28e`  
+**Base:** `2c493580f1408ef2a09557567412d697029df326`  
 **Verified code revision (isolated runs):** `590c73a4eba8ee2901687f8f2d03e63aacc865bd`  
-**Workspace HEAD:** `b67bda84663944e4c00ea9c3c8c4bfea3d835941` (plan-only delta vs base: `IMPLEMENTATION.md`)  
+**Workspace HEAD:** `06e03b81c359af2cdf559007b8bfea8a9d529b58` (plan-only delta vs base: `IMPLEMENTATION.md`)  
 `TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged by this run).  
 No commit / push / sync / checkpoint. No branch create/switch. No G4–G7 or forecasting/valuation work.  
 No production or test changes. Authoritative diff scope: `RESULT.md` only. No suite re-execution this repair.
@@ -20,7 +20,8 @@ No production or test changes. Authoritative diff scope: `RESULT.md` only. No su
 | Numbering repair (prior `.10` claim) | **SUPERSEDED** — prior COMPLETE/PASS at `a953cf3` relied on `.10` being available; frozen index already uses `.1`–`.10` |
 | Numbering repair (prior `.11` claim) | **SUPERSEDED** — prior COMPLETE/PASS at `8753019` relied on `.11` being available; frozen index already uses `.1`–`.11`; no opening event or SHA invented |
 | Numbering repair (prior `.12` claim) | **SUPERSEDED** — prior COMPLETE/PASS at `dca4463` relied on `.12` being available; frozen index already uses `.1`–`.12`; reservation record `dca446342ca26c953504a4f81c9cbfba3b40a28e`; no opening event or SHA invented |
-| Numbering repair (this step) | **COMPLETE** — recorded independently; prospective new-work IDs use `.13`; invalid `.9`/`.10`/`.11`/`.12` availability SUPERSEDED; `.13` not opened |
+| Numbering repair (prior `.13` claim) | **SUPERSEDED** — prior COMPLETE/PASS at `2c49358` relied on `.13` being available; frozen index already uses `.1`–`.13`; reservation record `2c493580f1408ef2a09557567412d697029df326`; no opening event or SHA invented |
+| Numbering repair (this step) | **COMPLETE** — recorded independently; prospective new-work IDs use `.14`; invalid `.9`/`.10`/`.11`/`.12`/`.13` availability SUPERSEDED; `.14` not opened |
 
 Unsupported COMPLETE / “fully restored/preserved” claims that closed parents, or that treated A5/B8/E10/E11/A2-ED/B7-MID as automatic technical blockers, are **withdrawn**.
 
@@ -54,15 +55,16 @@ Compared `4035dbf2^:RESULT.md` (Correct Completion Accounting and Isolated Verif
 ### Numbering
 
 - Retain detailed step ID: **9M.2.4.1.1.1**.
-- Do **not** renumber historical work. Historical child identities `.1`–`.12` remain unchanged.
-- Frozen child IDs `.1` through `.12` are already used and must not be proposed as available for new work.
-- Children through **`9M.2.4.1.1.1.12`** are already used under the Plan-supplied frozen index.
+- Do **not** renumber historical work. Historical child identities `.1`–`.13` remain unchanged.
+- Frozen child IDs `.1` through `.13` are already used and must not be proposed as available for new work.
+- Children through **`9M.2.4.1.1.1.13`** are already used under the Plan-supplied frozen index.
 - Prior RESULT `5c2cc77` claim that first available ID is **`9M.2.4.1.1.1.9`** remains **SUPERSEDED** (invalid: `.9` already used). Historical identity retained; not a live availability claim.
 - Prior RESULT `a953cf3` claim that first available ID is **`9M.2.4.1.1.1.10`** is **SUPERSEDED** (invalid: `.10` already used under the supplied frozen index). Historical reservation record retained; no opening event or SHA invented.
 - Prior RESULT `8753019` claim that first available ID is **`9M.2.4.1.1.1.11`** is **SUPERSEDED** (invalid: `.11` already used under the supplied frozen index). Historical reservation record retained; no opening event or SHA invented.
 - Prior RESULT `dca446342ca26c953504a4f81c9cbfba3b40a28e` claim that first available ID is **`9M.2.4.1.1.1.12`** is **SUPERSEDED** (invalid: `.12` already used under the supplied frozen index). Historical reservation record retained; no opening event or SHA invented.
+- Prior RESULT `2c493580f1408ef2a09557567412d697029df326` claim that first available ID is **`9M.2.4.1.1.1.13`** is **SUPERSEDED** (invalid: `.13` already used under the supplied frozen index). Historical reservation record retained; no opening event or SHA invented.
 - The earlier withdrawal of exhausted children through `.8` (reserved by prior plan `9b33033`) remains a historical identity, not a live availability claim.
-- First available ID for genuinely new bounded work: **`9M.2.4.1.1.1.13`** (Plan-selected only; this repair does not open that child; not a prerequisite for Plan parent-closure assessment).
+- First available ID for genuinely new bounded work: **`9M.2.4.1.1.1.14`** (Plan-selected only; this repair does not open that child; not a prerequisite for Plan parent-closure assessment).
 
 ---
 
@@ -612,7 +614,7 @@ Prior documentation checks retained as historical provenance; they are **not** c
 
 Historical inspection at `a953cf3`: full and abbreviated child-ID references then treated identities `.1`–`.9` as exhausted and `.10` as first-available. That `.10` availability is invalid under the Plan-supplied frozen index.
 
-Used-child inspection (committed RESULT reservations; historical identities `.1`–`.12` unchanged; live prospective ID corrected to `.13`):
+Used-child inspection (committed RESULT reservations; historical identities `.1`–`.13` unchanged; live prospective ID corrected to `.14`):
 
 | Reserved then as first-available | RESULT SHA | Later disposition |
 |---|---|---|
@@ -628,7 +630,8 @@ Used-child inspection (committed RESULT reservations; historical identities `.1`
 | `9M.2.4.1.1.1.10` | `a953cf3` reservation record (no opening event/SHA invented) | used / exhausted under Plan-supplied frozen index; availability **SUPERSEDED** |
 | `9M.2.4.1.1.1.11` | `8753019` reservation record (no opening event/SHA invented) | used / exhausted under Plan-supplied frozen index; availability **SUPERSEDED** |
 | `9M.2.4.1.1.1.12` | `dca446342ca26c953504a4f81c9cbfba3b40a28e` reservation record (no opening event/SHA invented) | used / exhausted under Plan-supplied frozen index; availability **SUPERSEDED** |
-| `9M.2.4.1.1.1.13` | this RESULT | reserved only; **not opened** |
+| `9M.2.4.1.1.1.13` | `2c493580f1408ef2a09557567412d697029df326` reservation record (no opening event/SHA invented) | used / exhausted under Plan-supplied frozen index; availability **SUPERSEDED** |
+| `9M.2.4.1.1.1.14` | this RESULT | reserved only; **not opened** |
 
 | Check | Outcome |
 |---|---|
@@ -700,7 +703,7 @@ Historical inspection at `dca4463` (workspace HEAD then `e8d3598`): full and abb
 | Check | Outcome |
 |---|---|
 | Every live prospective reservation uses `9M.2.4.1.1.1.12` | **SUPERSEDED** — invalid `.12` availability; frozen index uses `.1`–`.12` |
-| Invalid `.9`/`.10`/`.11` availability and dependent numbering-completion claims explicitly superseded | **PASS** (prior repair provenance) — `.9`/`.10`/`.11` availability SUPERSEDED retained; `.12` availability separately SUPERSEDED by this repair |
+| Invalid `.9`/`.10`/`.11` availability and dependent numbering-completion claims explicitly superseded | **PASS** (prior repair provenance) — `.9`/`.10`/`.11` availability SUPERSEDED retained; `.12` availability separately SUPERSEDED (frozen index uses `.1`–`.12`) |
 | `.11` disposition corrected without inventing an opening event or SHA | **PASS** (prior repair provenance) — reservation record cited at `8753019`; frozen index marks used/exhausted |
 | Original acceptance, dependency mapping, evidence, Tech/Doc/Plan/NonReq statuses intact | **PASS** (prior repair provenance) — A2-ED/B7-MID Doc UNVERIFIED; A5/B8/E10 Plan; E11 NonReq UNVERIFIED; workbook `interest_expense` exception retained |
 | Historical identities `.1`–`.11` preserved; `.12` reserved only and not opened | **PASS** (prior repair provenance) — identities retained; `.12` was not opened; availability now **SUPERSEDED** as used/exhausted |
@@ -725,21 +728,23 @@ No suite re-execution. No disposable-copy re-run. Isolation tree not required fo
 
 ---
 
-## Task 3 verification (this frozen-numbering repair — documentation only)
+## Task 3 verification (prior numbering repair provenance — `.13` reservation at `2c49358`)
 
-Inspected full and abbreviated child-ID references in `RESULT.md` and Plan-supplied `IMPLEMENTATION.md`. Live prospective reservations use `.13`; used IDs `.1`–`.12` appear only as historical, exhausted, or superseded.
+Prior documentation checks retained as historical provenance; they are **not** checks performed for this frozen-numbering repair. The numbering COMPLETE/PASS below that relied on `.13` being available is **SUPERSEDED**.
+
+Historical inspection at `2c49358` (workspace HEAD then `b67bda8`): full and abbreviated child-ID references then treated identities `.1`–`.12` as exhausted and `.13` as first-available. That `.13` availability is invalid under the Plan-supplied frozen index.
 
 | Check | Outcome |
 |---|---|
-| Every live prospective reservation uses `9M.2.4.1.1.1.13` | **PASS** — Numbering, status summaries, used-child table, closure note, and required plan note |
-| Invalid `.9`/`.10`/`.11`/`.12` availability and dependent numbering-completion claims explicitly superseded | **PASS** — prior `.12`-available COMPLETE/PASS marked **SUPERSEDED**; `.9`/`.10`/`.11` remain historically SUPERSEDED |
-| `.12` disposition corrected without inventing an opening event or SHA | **PASS** — reservation record cited at `dca446342ca26c953504a4f81c9cbfba3b40a28e`; frozen index marks used/exhausted |
-| Original acceptance, dependency mapping, evidence, Tech/Doc/Plan/NonReq statuses intact | **PASS** — A2-ED/B7-MID Doc UNVERIFIED; A5/B8/E10 Plan; E11 NonReq UNVERIFIED; workbook `interest_expense` exception retained |
-| Historical identities `.1`–`.12` preserved | **PASS** — no renumbering; `.13` reserved only and not opened |
-| Authoritative diff only `RESULT.md` | **PASS** (measured below) |
-| Suites re-run this repair? | **No** — no fresh technical measurements claimed |
+| Every live prospective reservation uses `9M.2.4.1.1.1.13` | **SUPERSEDED** — invalid `.13` availability; frozen index uses `.1`–`.13` |
+| Invalid `.9`/`.10`/`.11`/`.12` availability and dependent numbering-completion claims explicitly superseded | **PASS** (prior repair provenance) — `.9`/`.10`/`.11`/`.12` availability SUPERSEDED retained; `.13` availability separately SUPERSEDED by this repair |
+| `.12` disposition corrected without inventing an opening event or SHA | **PASS** (prior repair provenance) — reservation record cited at `dca446342ca26c953504a4f81c9cbfba3b40a28e`; frozen index marks used/exhausted |
+| Original acceptance, dependency mapping, evidence, Tech/Doc/Plan/NonReq statuses intact | **PASS** (prior repair provenance) — A2-ED/B7-MID Doc UNVERIFIED; A5/B8/E10 Plan; E11 NonReq UNVERIFIED; workbook `interest_expense` exception retained |
+| Historical identities `.1`–`.12` preserved; `.13` reserved only and not opened | **PASS** (prior repair provenance) — identities retained; `.13` was not opened; availability now **SUPERSEDED** as used/exhausted |
+| Authoritative diff only `RESULT.md` | **PASS** (prior repair provenance; measured at `2c49358` / HEAD then `b67bda8`) |
+| Suites re-run that repair? | **No** — no fresh technical measurements claimed |
 
-Commands this frozen-numbering repair (read-only / RESULT write only):
+Commands prior `.13` numbering repair (read-only / RESULT write only; provenance only — **not** this repair):
 
 ```text
 git rev-parse HEAD   # b67bda84663944e4c00ea9c3c8c4bfea3d835941
@@ -751,7 +756,39 @@ rg -n '9M\.2\.4\.1\.1\.1\.[0-9]+|first available|exhausted' RESULT.md IMPLEMENTA
 # Preserved (not re-run): isolation suites/probes at 590c73a; auth agg b1123a35…0a1
 ```
 
-Measured: HEAD `b67bda84663944e4c00ea9c3c8c4bfea3d835941`; working tree ` M RESULT.md` only; `TARGET.md` / `IMPLEMENTATION.md` diffs empty; live first-available new-work ID is `9M.2.4.1.1.1.13`; used IDs through `.12` appear only as exhausted/historical/superseded.
+Measured (historical, `2c49358` numbering repair): HEAD `b67bda84663944e4c00ea9c3c8c4bfea3d835941`; working tree ` M RESULT.md` only; `TARGET.md` / `IMPLEMENTATION.md` diffs empty; then-claimed live first-available new-work ID `9M.2.4.1.1.1.13` is **SUPERSEDED**; used IDs through `.12` remain exhausted/historical; `.13` reservation record `2c493580f1408ef2a09557567412d697029df326` retained with no opening event or SHA invented.
+
+No suite re-execution. No disposable-copy re-run. Isolation tree not required for that numbering repair.
+
+---
+
+## Task 3 verification (this frozen-numbering repair — documentation only)
+
+Inspected full and abbreviated child-ID references in `RESULT.md` and Plan-supplied `IMPLEMENTATION.md`. Live prospective reservations use `.14`; used IDs `.1`–`.13` appear only as historical, exhausted, or superseded.
+
+| Check | Outcome |
+|---|---|
+| Every live prospective reservation uses `9M.2.4.1.1.1.14` | **PASS** — Numbering, status summaries, used-child table, closure note, and required plan note |
+| Invalid `.9`/`.10`/`.11`/`.12`/`.13` availability and dependent numbering-completion claims explicitly superseded | **PASS** — prior `.13`-available COMPLETE/PASS marked **SUPERSEDED**; `.9`/`.10`/`.11`/`.12` remain historically SUPERSEDED |
+| `.13` disposition corrected without inventing an opening event or SHA | **PASS** — reservation record cited at `2c493580f1408ef2a09557567412d697029df326`; frozen index marks used/exhausted |
+| Original acceptance, dependency mapping, evidence, Tech/Doc/Plan/NonReq statuses intact | **PASS** — A2-ED/B7-MID Doc UNVERIFIED; A5/B8/E10 Plan; E11 NonReq UNVERIFIED; workbook `interest_expense` exception retained |
+| Historical identities `.1`–`.13` preserved | **PASS** — no renumbering; `.14` reserved only and not opened |
+| Authoritative diff only `RESULT.md` | **PASS** (measured below) |
+| Suites re-run this repair? | **No** — no fresh technical measurements claimed |
+
+Commands this frozen-numbering repair (read-only / RESULT write only):
+
+```text
+git rev-parse HEAD   # 06e03b81c359af2cdf559007b8bfea8a9d529b58
+git rev-parse 2c493580f1408ef2a09557567412d697029df326  # IMPLEMENTATION.md Base
+git status --short                 # M RESULT.md
+git diff --name-only HEAD          # RESULT.md
+git diff --stat HEAD -- TARGET.md IMPLEMENTATION.md  # empty
+rg -n '9M\.2\.4\.1\.1\.1\.[0-9]+|first available|exhausted' RESULT.md IMPLEMENTATION.md
+# Preserved (not re-run): isolation suites/probes at 590c73a; auth agg b1123a35…0a1
+```
+
+Measured: HEAD `06e03b81c359af2cdf559007b8bfea8a9d529b58`; working tree ` M RESULT.md` only; `TARGET.md` / `IMPLEMENTATION.md` diffs empty; live first-available new-work ID is `9M.2.4.1.1.1.14`; used IDs through `.13` appear only as exhausted/historical/superseded.
 
 No suite re-execution. No disposable-copy re-run. Isolation tree not required for this numbering repair.
 
@@ -768,7 +805,7 @@ No suite re-execution. No disposable-copy re-run. Isolation tree not required fo
 
 ## Closure note (does not rewrite the plan)
 
-Frozen numbering repaired while preserving original acceptance and evidence. Prior numbering COMPLETE/PASS that treated `.12` as available is **SUPERSEDED**. Prior `.9`/`.10`/`.11` availability SUPERSEDED claims are retained. Evidence-accounting remains complete. Original **technical** acceptance is **SUPPORTED** (Tech-class criteria all PASS; Tech-blocker inventory empty). Parents stay **UNRESOLVED** solely for Plan-owned closure (A5 / B8 / E10) — pending closure does **not** block technical acceptance or readiness for Plan assessment. This numbering repair is complete independently of parent closure.
+Frozen numbering repaired while preserving original acceptance and evidence. Prior numbering COMPLETE/PASS that treated `.13` as available is **SUPERSEDED**. Prior `.9`/`.10`/`.11`/`.12` availability SUPERSEDED claims are retained. Evidence-accounting remains complete. Original **technical** acceptance is **SUPPORTED** (Tech-class criteria all PASS; Tech-blocker inventory empty). Parents stay **UNRESOLVED** solely for Plan-owned closure (A5 / B8 / E10) — pending closure does **not** block technical acceptance or readiness for Plan assessment. This numbering repair is complete independently of parent closure.
 
 Explicit UNVERIFIED retained (not invented; not Tech blockers):
 
@@ -777,6 +814,6 @@ Explicit UNVERIFIED retained (not invented; not Tech blockers):
 - A5 / B8 / E10 — Plan — parent Plan closure
 - E11 — NonReq — full-company workbook pretax parity (`interest_expense` blocker); not an original parent Tech requirement
 
-Keep **Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — UNRESOLVED** pending Plan closure assessment. Return to Plan for that assessment now that original technical acceptance is supported. Reserve **9M.2.4.1.1.1.13** for genuinely new bounded work; this repair does not open that child. Step 9 remains incomplete.
+Keep **Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — UNRESOLVED** pending Plan closure assessment. Return to Plan for that assessment now that original technical acceptance is supported. Reserve **9M.2.4.1.1.1.14** for genuinely new bounded work; this repair does not open that child. Step 9 remains incomplete.
 
-**Required plan note (do not edit IMPLEMENTATION.md here):** original technical acceptance supported; documentary UNVERIFIED (A2-ED, B7-MID) and NonReq E11 retained without blocking Tech; Plan should assess parent closure (A5/B8/E10) and may select new work under **9M.2.4.1.1.1.13**. Do not treat pending Plan closure as a prerequisite for that assessment.
+**Required plan note (do not edit IMPLEMENTATION.md here):** original technical acceptance supported; documentary UNVERIFIED (A2-ED, B7-MID) and NonReq E11 retained without blocking Tech; Plan should assess parent closure (A5/B8/E10) and may select new work under **9M.2.4.1.1.1.14**. Do not treat pending Plan closure as a prerequisite for that assessment.
