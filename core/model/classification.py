@@ -715,18 +715,18 @@ def _common_stock_concept_has_payment(concept_token: str) -> bool:
     """True for payment-sensitive concept stems; preserves paid-in-capital balances.
 
     Genuine payment stems (``cashpaid``, ``paidfor``) remain movements even when
-    paid-in-capital wording co-occurs. Only genuine ``paidincapital`` balance
-    wording is exempt: bare presence of ``paidin`` (e.g. ``paid_in_cash``) must
-    not suppress payment detection.
+    paid-in-capital wording co-occurs. ``paidincapital`` exempts only that
+    balance phrase itself — stripping it must not suppress separate payment
+    wording (e.g. ``paidincash``) elsewhere in the normalized concept. Bare
+    ``paidin`` alone (e.g. ``paid_in_cash``) is still payment-sensitive.
     """
     if not concept_token:
         return False
     if any(stem in concept_token for stem in _COMMON_STOCK_PAYMENT_CONCEPT_STEMS):
         return True
-    # Genuine paid-in-capital balances only — not every ``paidin`` substring.
-    if "paidincapital" in concept_token:
-        return False
-    if "paid" in concept_token:
+    # Exempt only the paid-in-capital balance phrase; residual ``paid`` is payment.
+    remainder = concept_token.replace("paidincapital", "")
+    if "paid" in remainder:
         return True
     return False
 

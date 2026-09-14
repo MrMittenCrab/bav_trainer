@@ -2029,6 +2029,15 @@ def test_common_stock_label_with_debt_concept_remains_financial_liability():
         ("Common stock", "paid_in_cash"),
         ("Common stock", "CommonStockPaidInCash"),
         ("Common stock", "common_stock_paid_in_cash_for_shares"),
+        # paidincapital must not suppress co-occurring paid-in-cash wording
+        ("Common stock", "common_stock_paid_in_cash_from_paid_in_capital"),
+        ("Common stock", "CommonStockPaidInCashFromPaidInCapital"),
+        ("Common stock", "common-stock-paid-in-cash-from-paid-in-capital"),
+        ("Common stock", "common_stock.paid_in_cash.from_paid_in_capital"),
+        ("Common stock", "paid_in_cash_from_paid_in_capital"),
+        ("Common stock", "paid_in_cash_from_additional_paid_in_capital"),
+        ("Common stock", "from_paid_in_capital_paid_in_cash"),
+        ("Common stock", "from_additional_paid_in_capital_common_stock_paid_in_cash"),
         # Payment stems still reject when paid-in-capital wording co-occurs
         ("Common stock", "cash_paid_from_paid_in_capital"),
         ("Common stock", "paid_for_from_additional_paid_in_capital"),
