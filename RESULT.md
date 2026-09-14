@@ -1,11 +1,11 @@
-# RESULT.md — Step 9M.2.4.1.1.1 Correct Closure Dependencies Against Original Acceptance
+# RESULT.md — Step 9M.2.4.1.1.1 Correct New-Work Numbering While Preserving Acceptance
 
-**Status:** COMPLETE (closure dependencies corrected; original technical acceptance supported; parents remain Plan-owned UNRESOLVED)  
-**Step:** 9M.2.4.1.1.1 — Correct Closure Dependencies Against Original Acceptance  
+**Status:** COMPLETE (new-work numbering corrected; original technical acceptance supported; parents remain Plan-owned UNRESOLVED)  
+**Step:** 9M.2.4.1.1.1 — Correct New-Work Numbering While Preserving Acceptance  
 **Parents:** Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED** (Plan closure pending; not a technical-acceptance blocker)  
-**Base:** `5aecbc25ae2680cdf0b4d782a74475ad83462902`  
+**Base:** `5c2cc7756769b57454fde6c71eb23fdaa2d57a8a`  
 **Verified code revision (isolated runs):** `590c73a4eba8ee2901687f8f2d03e63aacc865bd`  
-**Workspace HEAD:** `0bb096c97a83cc9b2082f7fca2a82be55acb561d` (plan-only delta vs base: `IMPLEMENTATION.md`)  
+**Workspace HEAD:** `430379187643ccffda1c8bde6632170b1bdc5dff` (plan-only delta vs base: `IMPLEMENTATION.md`)  
 `TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged by this run).  
 No commit / push / sync / checkpoint. No branch create/switch. No G4–G7 or forecasting/valuation work.  
 No production or test changes. Authoritative diff scope: `RESULT.md` only. No suite re-execution this repair.
@@ -17,6 +17,7 @@ No production or test changes. Authoritative diff scope: `RESULT.md` only. No su
 | Evidence-accounting completion | **COMPLETE** — every ledger obligation has PASS or explicit UNVERIFIED with cited missing evidence; isolation refs and historical totals accounting retained from prior RESULT |
 | Original technical acceptance | **SUPPORTED** — all originating technical criteria PASS; no remaining technical blocker by criterion/missing proof/demonstrated failure |
 | Pending Plan closure | **OPEN** — A5 / B8 / E10 record Plan-owned parent closure only; do **not** block technical acceptance or readiness for Plan assessment |
+| Numbering repair (this step) | **COMPLETE** — recorded independently; prospective new-work IDs use `.10`; invalid `.9`-available PASS superseded; `.10` not opened |
 
 Unsupported COMPLETE / “fully restored/preserved” claims that closed parents, or that treated A5/B8/E10/E11/A2-ED/B7-MID as automatic technical blockers, are **withdrawn**.
 
@@ -50,9 +51,10 @@ Compared `4035dbf2^:RESULT.md` (Correct Completion Accounting and Isolated Verif
 ### Numbering
 
 - Retain detailed step ID: **9M.2.4.1.1.1**.
-- Do **not** renumber historical work.
-- Proposed exhausted children through **`9M.2.4.1.1.1.8`** are withdrawn for new work (`.8` already used / reserved by prior plan `9b33033`).
-- First available ID for genuinely new bounded work: **`9M.2.4.1.1.1.9`** (Plan-selected only; not a prerequisite for Plan parent-closure assessment).
+- Do **not** renumber historical work. Historical child identities `.1`–`.9` remain unchanged.
+- Children through **`9M.2.4.1.1.1.9`** are already used and must not be proposed as available for new work.
+- Prior RESULT `5c2cc77` claim that first available ID is **`9M.2.4.1.1.1.9`** is **SUPERSEDED** (invalid: `.9` already used). The earlier withdrawal of exhausted children through `.8` (reserved by prior plan `9b33033`) remains a historical identity, not a live availability claim.
+- First available ID for genuinely new bounded work: **`9M.2.4.1.1.1.10`** (Plan-selected only; this repair does not open that child; not a prerequisite for Plan parent-closure assessment).
 
 ---
 
@@ -566,7 +568,9 @@ Dependent PASS note: prior A4/E8 PASS that relied on non-isolated suite runs + r
 
 ---
 
-## Task 3 verification (this repair — documentation only)
+## Task 3 verification (prior repair provenance — closure-dependency mapping at `5c2cc77`)
+
+Prior documentation checks retained. The numbering PASS below is **not** current acceptance.
 
 | Check | Outcome |
 |---|---|
@@ -575,12 +579,12 @@ Dependent PASS note: prior A4/E8 PASS that relied on non-isolated suite runs + r
 | Genuine UNVERIFIED retained with exact missing evidence | **PASS** — A2-ED (gate absent), B7-MID (`c50912c` no usable reformulation), E11 (`interest_expense`), A5/B8/E10 (Plan) |
 | E11 and pending Plan closure no longer create circular/additional Tech blockers | **PASS** — Tech-blocker inventory empty; three-way status separates layers |
 | A2-ED / B7-MID not treated as automatic Tech blockers | **PASS** — Dep=Doc; originating A2/B7 Tech criteria PASS |
-| Numbering: `.8` corrected; `.9` reserved for new work | **PASS** |
+| Numbering: `.8` corrected; `.9` reserved for new work | **SUPERSEDED** — invalid claim: `.9` already used; must not be proposed as available for new work |
 | Evidence body preserved (isolation, totals, gaps, NCIT, synthetic, pretax, suites) | **PASS** — no deletions of measured tables |
-| Authoritative diff only `RESULT.md` | **PASS** (measured below) |
+| Authoritative diff only `RESULT.md` | **PASS** (prior repair) |
 | Suites re-run this repair? | **No** — reuse preserved isolated measurements at `590c73a`; no fresh suite claim |
 
-Commands this repair (read-only / RESULT write only):
+Prior-repair commands (read-only / RESULT write only; provenance only):
 
 ```text
 git show {aa6adc1,a370a02,2e88322,88ce931,da07d28,a62893f,0f1d2c3,b5a33cd}:IMPLEMENTATION.md  # acceptance wording
@@ -590,14 +594,60 @@ git status --short   # expect RESULT.md only after write
 # Preserved (not re-run): isolation suites/probes at 590c73a; auth agg b1123a35…0a1
 ```
 
-No suite re-execution. No disposable-copy re-run. Isolation tree not required for this dependency-mapping repair.
+No suite re-execution. No disposable-copy re-run. Isolation tree not required for the prior dependency-mapping repair.
+
+---
+
+## Task 3 verification (this numbering repair — documentation only)
+
+Inspected full and abbreviated child-ID references in `RESULT.md` before and after correction. Historical identities `.1`–`.9` retained; no used ID remains proposed as available.
+
+Used-child inspection (committed RESULT reservations, identities unchanged):
+
+| Reserved then as first-available | RESULT SHA | Later disposition |
+|---|---|---|
+| `9M.2.4.1.1.1.1` | `8bd5f50` | used / exhausted |
+| `9M.2.4.1.1.1.2` | `29fc582` | used / exhausted |
+| `9M.2.4.1.1.1.3` | `7303db2` | used / exhausted |
+| `9M.2.4.1.1.1.4` | `c4a09ed` | used / exhausted |
+| `9M.2.4.1.1.1.5` | `590c73a` | used / exhausted |
+| `9M.2.4.1.1.1.6` | `470aa43` | used / exhausted |
+| `9M.2.4.1.1.1.7` | `4035dbf` | used / exhausted |
+| `9M.2.4.1.1.1.8` | `5aecbc2` | used / exhausted (`9b33033`) |
+| `9M.2.4.1.1.1.9` | `5c2cc77` | used / exhausted (this repair supersedes availability) |
+| `9M.2.4.1.1.1.10` | this RESULT | reserved only; **not opened** |
+
+| Check | Outcome |
+|---|---|
+| No used ID remains proposed as available for new work | **PASS** — exhausted through `.9`; live first-available is `.10` only |
+| Invalid numbering PASS for reserving `.9` superseded without rewriting historical identities | **PASS** — prior row marked **SUPERSEDED**; `.1`–`.9` identities retained |
+| Numbering section, closure note, and required plan note use `.10` for prospective new work | **PASS** |
+| Original acceptance, dependency mapping, evidence, Tech/Doc/Plan/NonReq statuses intact | **PASS** — A2-ED/B7-MID Doc UNVERIFIED; A5/B8/E10 Plan; E11 NonReq UNVERIFIED; workbook `interest_expense` exception retained |
+| Authoritative diff only `RESULT.md` | **PASS** (measured below) |
+| Suites re-run this repair? | **No** — no fresh technical measurements claimed |
+
+Commands this numbering repair (read-only / RESULT write only):
+
+```text
+git rev-parse HEAD   # 430379187643ccffda1c8bde6632170b1bdc5dff
+git rev-parse 5c2cc7756769b57454fde6c71eb23fdaa2d57a8a  # IMPLEMENTATION.md Base
+git status --short                 # M RESULT.md
+git diff --name-only HEAD          # RESULT.md
+git diff --stat HEAD -- TARGET.md IMPLEMENTATION.md  # empty
+rg -n '9M\.2\.4\.1\.1\.1\.[0-9]+|first available|exhausted children' RESULT.md IMPLEMENTATION.md
+# Preserved (not re-run): isolation suites/probes at 590c73a; auth agg b1123a35…0a1
+```
+
+Measured: HEAD `430379187643ccffda1c8bde6632170b1bdc5dff`; working tree ` M RESULT.md` only; `TARGET.md` / `IMPLEMENTATION.md` diffs empty; live first-available new-work ID is `9M.2.4.1.1.1.10`; used IDs through `.9` appear only as exhausted/historical/superseded.
+
+No suite re-execution. No disposable-copy re-run. Isolation tree not required for this numbering repair.
 
 ---
 
 ## Final authoritative scope
 
 - Authoritative tracked aggregate excl. `RESULT.md` from isolation run: `b1123a35…0a1` (221 files).  
-- This repair: RESULT.md dependency/summary correction only; **no** suite re-execution; **no** copy-back; **no** invented measurements.  
+- This repair: RESULT.md numbering/status correction only; **no** suite re-execution; **no** copy-back; **no** invented measurements.  
 - Diff scope: `RESULT.md` only.  
 - `interest_expense` build exception preserved (A3 PASS; E11 NonReq UNVERIFIED/unavailable).
 
@@ -605,7 +655,7 @@ No suite re-execution. No disposable-copy re-run. Isolation tree not required fo
 
 ## Closure note (does not rewrite the plan)
 
-Closure dependencies corrected against original acceptance wording. Evidence-accounting remains complete. Original **technical** acceptance is **SUPPORTED** (Tech-class criteria all PASS; Tech-blocker inventory empty). Parents stay **UNRESOLVED** solely for Plan-owned closure (A5 / B8 / E10) — pending closure does **not** block technical acceptance or readiness for Plan assessment.
+New-work numbering corrected while preserving original acceptance and evidence. Evidence-accounting remains complete. Original **technical** acceptance is **SUPPORTED** (Tech-class criteria all PASS; Tech-blocker inventory empty). Parents stay **UNRESOLVED** solely for Plan-owned closure (A5 / B8 / E10) — pending closure does **not** block technical acceptance or readiness for Plan assessment. This numbering repair is complete independently of parent closure.
 
 Explicit UNVERIFIED retained (not invented; not Tech blockers):
 
@@ -614,6 +664,6 @@ Explicit UNVERIFIED retained (not invented; not Tech blockers):
 - A5 / B8 / E10 — Plan — parent Plan closure
 - E11 — NonReq — full-company workbook pretax parity (`interest_expense` blocker); not an original parent Tech requirement
 
-Keep **Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — UNRESOLVED** pending Plan closure assessment. Return to Plan for that assessment now that original technical acceptance is supported. Reserve **9M.2.4.1.1.1.9** for genuinely new bounded work. Step 9 remains incomplete.
+Keep **Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — UNRESOLVED** pending Plan closure assessment. Return to Plan for that assessment now that original technical acceptance is supported. Reserve **9M.2.4.1.1.1.10** for genuinely new bounded work; this repair does not open that child. Step 9 remains incomplete.
 
-**Required plan note (do not edit IMPLEMENTATION.md here):** original technical acceptance supported; documentary UNVERIFIED (A2-ED, B7-MID) and NonReq E11 retained without blocking Tech; Plan should assess parent closure (A5/B8/E10) and may select new work under **9M.2.4.1.1.1.9**. Do not treat pending Plan closure as a prerequisite for that assessment.
+**Required plan note (do not edit IMPLEMENTATION.md here):** original technical acceptance supported; documentary UNVERIFIED (A2-ED, B7-MID) and NonReq E11 retained without blocking Tech; Plan should assess parent closure (A5/B8/E10) and may select new work under **9M.2.4.1.1.1.10**. Do not treat pending Plan closure as a prerequisite for that assessment.
