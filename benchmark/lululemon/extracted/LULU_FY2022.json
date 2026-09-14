@@ -1,0 +1,2007 @@
+{
+  "schema_version": "1.0",
+  "company": {
+    "name": "lululemon athletica inc.",
+    "ticker": "LULU",
+    "stock_code": "LULU",
+    "jurisdiction": "US"
+  },
+  "filing": {
+    "document_type": "annual_report",
+    "fiscal_year": 2022,
+    "period_end": "2023-01-29",
+    "currency": "USD",
+    "unit_scale": "thousands",
+    "source_file": "LULU_FY2022_Annual_Report.pdf",
+    "source_sha256": "b344d1e7a710259fa06f88773dee0b3827334820ce2b881fe6b95ca2ae275e4e"
+  },
+  "statements": {
+    "income_statement": [
+      {
+        "label": "Net revenue",
+        "section": "",
+        "suggested_concept": "revenue",
+        "values": {
+          "2023-01-29": {
+            "value": 8110518,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 6256617,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 4401879,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Net revenue"
+        }
+      },
+      {
+        "label": "Cost of goods sold",
+        "section": "",
+        "suggested_concept": "cost_of_goods_sold",
+        "values": {
+          "2023-01-29": {
+            "value": 3618178,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 2648052,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 1937888,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Cost of goods sold"
+        }
+      },
+      {
+        "label": "Gross profit",
+        "section": "",
+        "suggested_concept": "gross_profit",
+        "values": {
+          "2023-01-29": {
+            "value": 4492340,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 3608565,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 2463991,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Gross profit"
+        }
+      },
+      {
+        "label": "Selling, general and administrative expenses",
+        "section": "",
+        "suggested_concept": "selling_general_and_administrative_expenses",
+        "values": {
+          "2023-01-29": {
+            "value": 2757447,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 2225034,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 1609003,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Selling, general and administrative expenses"
+        }
+      },
+      {
+        "label": "Amortization of intangible assets",
+        "section": "",
+        "suggested_concept": "amortization_of_intangible_assets",
+        "values": {
+          "2023-01-29": {
+            "value": 8752,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 8782,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 5160,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Amortization of intangible assets"
+        }
+      },
+      {
+        "label": "Impairment of goodwill and other assets",
+        "section": "",
+        "suggested_concept": "impairment_and_restructuring",
+        "values": {
+          "2023-01-29": {
+            "value": 407913,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 0,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 0,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Impairment of goodwill and other assets"
+        }
+      },
+      {
+        "label": "Acquisition-related expenses",
+        "section": "",
+        "suggested_concept": "acquisition_related_expenses",
+        "values": {
+          "2023-01-29": {
+            "value": 0,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 41394,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 29842,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Acquisition-related expenses"
+        }
+      },
+      {
+        "label": "Gain on disposal of assets",
+        "section": "",
+        "suggested_concept": "gain_on_disposal_of_assets",
+        "values": {
+          "2023-01-29": {
+            "value": -10180,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 0,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 0,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Gain on disposal of assets"
+        }
+      },
+      {
+        "label": "Income from operations",
+        "section": "",
+        "suggested_concept": "operating_income",
+        "values": {
+          "2023-01-29": {
+            "value": 1328408,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 1333355,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 819986,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Income from operations"
+        }
+      },
+      {
+        "label": "Other income (expense), net",
+        "section": "",
+        "suggested_concept": "other_income_expense_net",
+        "values": {
+          "2023-01-29": {
+            "value": 4163,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 514,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": -636,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Other income (expense), net"
+        }
+      },
+      {
+        "label": "Income before income tax expense",
+        "section": "",
+        "suggested_concept": "income_before_tax",
+        "values": {
+          "2023-01-29": {
+            "value": 1332571,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 1333869,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 819350,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Income before income tax expense"
+        }
+      },
+      {
+        "label": "Income tax expense",
+        "section": "",
+        "suggested_concept": "income_tax_expense",
+        "values": {
+          "2023-01-29": {
+            "value": 477771,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 358547,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 230437,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Income tax expense"
+        }
+      },
+      {
+        "label": "Net income",
+        "section": "",
+        "suggested_concept": "net_income",
+        "values": {
+          "2023-01-29": {
+            "value": 854800,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 975322,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 588913,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Net income"
+        }
+      },
+      {
+        "label": "Foreign currency translation adjustment",
+        "section": "Other comprehensive income (loss), net of tax",
+        "suggested_concept": "foreign_currency_translation_adjustment",
+        "values": {
+          "2023-01-29": {
+            "value": -65571,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": -28494,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 72731,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Foreign currency translation adjustment"
+        }
+      },
+      {
+        "label": "Net investment hedge gains (losses)",
+        "section": "Other comprehensive income (loss), net of tax",
+        "suggested_concept": "net_investment_hedge_gains_losses",
+        "values": {
+          "2023-01-29": {
+            "value": 8904,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 9732,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": -25305,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Net investment hedge gains (losses)"
+        }
+      },
+      {
+        "label": "Other comprehensive income (loss), net of tax",
+        "section": "",
+        "suggested_concept": "other_comprehensive_income",
+        "values": {
+          "2023-01-29": {
+            "value": -56667,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": -18762,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 47426,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Other comprehensive income (loss), net of tax"
+        }
+      },
+      {
+        "label": "Comprehensive income",
+        "section": "",
+        "suggested_concept": "comprehensive_income",
+        "values": {
+          "2023-01-29": {
+            "value": 798133,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 956560,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 636339,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Comprehensive income"
+        }
+      },
+      {
+        "label": "Basic earnings per share",
+        "section": "",
+        "suggested_concept": "basic_eps",
+        "values": {
+          "2023-01-29": {
+            "value": 6.7,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 7.52,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 4.52,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Basic earnings per share"
+        }
+      },
+      {
+        "label": "Diluted earnings per share",
+        "section": "",
+        "suggested_concept": "diluted_eps",
+        "values": {
+          "2023-01-29": {
+            "value": 6.68,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 7.49,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 4.5,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 50,
+          "statement": "Consolidated Statements of Operations and Comprehensive Income",
+          "label": "Diluted earnings per share"
+        }
+      }
+    ],
+    "balance_sheet": [
+      {
+        "label": "Cash and cash equivalents",
+        "section": "Current assets",
+        "suggested_concept": "cash_and_cash_equivalents",
+        "values": {
+          "2023-01-29": {
+            "value": 1154867,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 1259871,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Cash and cash equivalents"
+        }
+      },
+      {
+        "label": "Accounts receivable, net",
+        "section": "Current assets",
+        "suggested_concept": "accounts_receivable",
+        "values": {
+          "2023-01-29": {
+            "value": 132906,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 77001,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Accounts receivable, net"
+        }
+      },
+      {
+        "label": "Inventories",
+        "section": "Current assets",
+        "suggested_concept": "inventories",
+        "values": {
+          "2023-01-29": {
+            "value": 1447367,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 966481,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Inventories"
+        }
+      },
+      {
+        "label": "Prepaid and receivable income taxes",
+        "section": "Current assets",
+        "suggested_concept": "prepaid_and_receivable_income_taxes",
+        "values": {
+          "2023-01-29": {
+            "value": 185641,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 118928,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Prepaid and receivable income taxes"
+        }
+      },
+      {
+        "label": "Prepaid expenses and other current assets",
+        "section": "Current assets",
+        "suggested_concept": "prepaid_expenses_and_other_current_assets",
+        "values": {
+          "2023-01-29": {
+            "value": 238672,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 192572,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Prepaid expenses and other current assets"
+        }
+      },
+      {
+        "label": "Total current assets",
+        "section": "Current assets",
+        "suggested_concept": "total_current_assets",
+        "values": {
+          "2023-01-29": {
+            "value": 3159453,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 2614853,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Total current assets"
+        }
+      },
+      {
+        "label": "Property and equipment, net",
+        "section": "Non-current assets",
+        "suggested_concept": "property_plant_and_equipment",
+        "values": {
+          "2023-01-29": {
+            "value": 1269614,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 927710,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Property and equipment, net"
+        }
+      },
+      {
+        "label": "Right-of-use lease assets",
+        "section": "Non-current assets",
+        "suggested_concept": "right_of_use_lease_asset",
+        "values": {
+          "2023-01-29": {
+            "value": 969419,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 803543,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Right-of-use lease assets"
+        }
+      },
+      {
+        "label": "Goodwill",
+        "section": "Non-current assets",
+        "suggested_concept": "goodwill",
+        "values": {
+          "2023-01-29": {
+            "value": 24144,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 386880,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Goodwill"
+        }
+      },
+      {
+        "label": "Intangible assets, net",
+        "section": "Non-current assets",
+        "suggested_concept": "intangible_assets",
+        "values": {
+          "2023-01-29": {
+            "value": 21961,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 71299,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Intangible assets, net"
+        }
+      },
+      {
+        "label": "Deferred income tax assets",
+        "section": "Non-current assets",
+        "suggested_concept": "deferred_tax_asset",
+        "values": {
+          "2023-01-29": {
+            "value": 6402,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 6091,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Deferred income tax assets"
+        }
+      },
+      {
+        "label": "Other non-current assets",
+        "section": "Non-current assets",
+        "suggested_concept": "other_non_current_assets",
+        "values": {
+          "2023-01-29": {
+            "value": 156045,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 132102,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Other non-current assets"
+        }
+      },
+      {
+        "label": "Total assets",
+        "section": "",
+        "suggested_concept": "total_assets",
+        "values": {
+          "2023-01-29": {
+            "value": 5607038,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 4942478,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Total assets"
+        }
+      },
+      {
+        "label": "Accounts payable",
+        "section": "Current liabilities",
+        "suggested_concept": "accounts_payable",
+        "values": {
+          "2023-01-29": {
+            "value": 172732,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 289728,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Accounts payable"
+        }
+      },
+      {
+        "label": "Accrued liabilities and other",
+        "section": "Current liabilities",
+        "suggested_concept": "accrued_liabilities_and_other",
+        "values": {
+          "2023-01-29": {
+            "value": 399223,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 330800,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Accrued liabilities and other"
+        }
+      },
+      {
+        "label": "Accrued compensation and related expenses",
+        "section": "Current liabilities",
+        "suggested_concept": "accrued_compensation_and_related_expenses",
+        "values": {
+          "2023-01-29": {
+            "value": 248167,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 204921,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Accrued compensation and related expenses"
+        }
+      },
+      {
+        "label": "Current lease liabilities",
+        "section": "Current liabilities",
+        "suggested_concept": "lease_liability_current",
+        "values": {
+          "2023-01-29": {
+            "value": 207972,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 188996,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Current lease liabilities"
+        }
+      },
+      {
+        "label": "Current income taxes payable",
+        "section": "Current liabilities",
+        "suggested_concept": "current_income_taxes_payable",
+        "values": {
+          "2023-01-29": {
+            "value": 174221,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 133852,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Current income taxes payable"
+        }
+      },
+      {
+        "label": "Unredeemed gift card liability",
+        "section": "Current liabilities",
+        "suggested_concept": "unredeemed_gift_card_liability",
+        "values": {
+          "2023-01-29": {
+            "value": 251478,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 208195,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Unredeemed gift card liability"
+        }
+      },
+      {
+        "label": "Other current liabilities",
+        "section": "Current liabilities",
+        "suggested_concept": "other_current_liabilities",
+        "values": {
+          "2023-01-29": {
+            "value": 38405,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 48842,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Other current liabilities"
+        }
+      },
+      {
+        "label": "Total current liabilities",
+        "section": "Current liabilities",
+        "suggested_concept": "total_current_liabilities",
+        "values": {
+          "2023-01-29": {
+            "value": 1492198,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 1405334,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Total current liabilities"
+        }
+      },
+      {
+        "label": "Non-current lease liabilities",
+        "section": "Non-current liabilities",
+        "suggested_concept": "lease_liability_noncurrent",
+        "values": {
+          "2023-01-29": {
+            "value": 862362,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 692056,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Non-current lease liabilities"
+        }
+      },
+      {
+        "label": "Non-current income taxes payable",
+        "section": "Non-current liabilities",
+        "suggested_concept": "non_current_income_taxes_payable",
+        "values": {
+          "2023-01-29": {
+            "value": 28555,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 38074,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Non-current income taxes payable"
+        }
+      },
+      {
+        "label": "Deferred income tax liabilities",
+        "section": "Non-current liabilities",
+        "suggested_concept": "deferred_tax_liability",
+        "values": {
+          "2023-01-29": {
+            "value": 55084,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 53352,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Deferred income tax liabilities"
+        }
+      },
+      {
+        "label": "Other non-current liabilities",
+        "section": "Non-current liabilities",
+        "suggested_concept": "other_non_current_liabilities",
+        "values": {
+          "2023-01-29": {
+            "value": 20040,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 13616,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Other non-current liabilities"
+        }
+      },
+      {
+        "label": "Total liabilities",
+        "section": "",
+        "suggested_concept": "total_liabilities",
+        "values": {
+          "2023-01-29": {
+            "value": 2458239,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 2202432,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Total liabilities"
+        }
+      },
+      {
+        "label": "Common stock",
+        "section": "Stockholders' equity",
+        "suggested_concept": "common_stock",
+        "values": {
+          "2023-01-29": {
+            "value": 611,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 616,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Common stock"
+        }
+      },
+      {
+        "label": "Additional paid-in capital",
+        "section": "Stockholders' equity",
+        "suggested_concept": "additional_paid_in_capital",
+        "values": {
+          "2023-01-29": {
+            "value": 474645,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 422507,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Additional paid-in capital"
+        }
+      },
+      {
+        "label": "Retained earnings",
+        "section": "Stockholders' equity",
+        "suggested_concept": "retained_earnings",
+        "values": {
+          "2023-01-29": {
+            "value": 2926127,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 2512840,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Retained earnings"
+        }
+      },
+      {
+        "label": "Accumulated other comprehensive loss",
+        "section": "Stockholders' equity",
+        "suggested_concept": "accumulated_other_comprehensive_income",
+        "values": {
+          "2023-01-29": {
+            "value": -252584,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": -195917,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Accumulated other comprehensive loss"
+        }
+      },
+      {
+        "label": "Total stockholders' equity",
+        "section": "Stockholders' equity",
+        "suggested_concept": "total_equity",
+        "values": {
+          "2023-01-29": {
+            "value": 3148799,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 2740046,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Total stockholders' equity"
+        }
+      },
+      {
+        "label": "Total liabilities and stockholders' equity",
+        "section": "",
+        "suggested_concept": "total_liabilities_and_equity",
+        "values": {
+          "2023-01-29": {
+            "value": 5607038,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 4942478,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 49,
+          "statement": "Consolidated Balance Sheets",
+          "label": "Total liabilities and stockholders' equity"
+        }
+      }
+    ],
+    "cash_flow": [
+      {
+        "label": "Net income",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "cash_flow_net_income",
+        "values": {
+          "2023-01-29": {
+            "value": 854800,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 975322,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 588913,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Net income"
+        }
+      },
+      {
+        "label": "Depreciation and amortization",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "depreciation_and_amortization",
+        "values": {
+          "2023-01-29": {
+            "value": 291791,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 224206,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 185478,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Depreciation and amortization"
+        }
+      },
+      {
+        "label": "Impairment of goodwill and other assets",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "impairment_and_restructuring",
+        "values": {
+          "2023-01-29": {
+            "value": 407913,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 0,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 0,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Impairment of goodwill and other assets"
+        }
+      },
+      {
+        "label": "Gain on disposal of assets",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "gain_on_disposal_of_assets",
+        "values": {
+          "2023-01-29": {
+            "value": -10180,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 0,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 0,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Gain on disposal of assets"
+        }
+      },
+      {
+        "label": "Stock-based compensation expense",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "stock_based_compensation",
+        "values": {
+          "2023-01-29": {
+            "value": 78075,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 69137,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 50797,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Stock-based compensation expense"
+        }
+      },
+      {
+        "label": "Derecognition of unredeemed gift card liability",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "derecognition_of_unredeemed_gift_card_liability",
+        "values": {
+          "2023-01-29": {
+            "value": -23337,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": -18699,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": -13696,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Derecognition of unredeemed gift card liability"
+        }
+      },
+      {
+        "label": "Settlement of derivatives not designated in a hedging relationship",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "settlement_of_derivatives",
+        "values": {
+          "2023-01-29": {
+            "value": -38649,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 15191,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 4485,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Settlement of derivatives not designated in a hedging relationship"
+        }
+      },
+      {
+        "label": "Deferred income taxes",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "deferred_income_taxes",
+        "values": {
+          "2023-01-29": {
+            "value": 3042,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": -5180,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 34908,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Deferred income taxes"
+        }
+      },
+      {
+        "label": "Inventories",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "change_in_inventories",
+        "values": {
+          "2023-01-29": {
+            "value": -510510,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": -323609,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": -96548,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Inventories"
+        }
+      },
+      {
+        "label": "Prepaid and receivable income taxes",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "change_in_prepaid_and_receivable_income_taxes",
+        "values": {
+          "2023-01-29": {
+            "value": -66714,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 20108,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": -53966,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Prepaid and receivable income taxes"
+        }
+      },
+      {
+        "label": "Prepaid expenses and other current assets",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "change_in_prepaid_expenses_and_other_current_assets",
+        "values": {
+          "2023-01-29": {
+            "value": -113820,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": -82404,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": -70999,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Prepaid expenses and other current assets"
+        }
+      },
+      {
+        "label": "Other non-current assets",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "change_in_other_non_current_assets",
+        "values": {
+          "2023-01-29": {
+            "value": -36518,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": -17556,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": -49056,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Other non-current assets"
+        }
+      },
+      {
+        "label": "Accounts payable",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "change_in_accounts_payable",
+        "values": {
+          "2023-01-29": {
+            "value": -107280,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 117655,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 82663,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Accounts payable"
+        }
+      },
+      {
+        "label": "Accrued liabilities and other",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "change_in_accrued_liabilities_and_other",
+        "values": {
+          "2023-01-29": {
+            "value": 65364,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 103878,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 99161,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Accrued liabilities and other"
+        }
+      },
+      {
+        "label": "Accrued compensation and related expenses",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "change_in_accrued_compensation_and_related_expenses",
+        "values": {
+          "2023-01-29": {
+            "value": 47254,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 75273,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": -6692,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Accrued compensation and related expenses"
+        }
+      },
+      {
+        "label": "Current and non-current income taxes payable",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "change_in_income_taxes_payable",
+        "values": {
+          "2023-01-29": {
+            "value": 35986,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 120778,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": -24125,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Current and non-current income taxes payable"
+        }
+      },
+      {
+        "label": "Unredeemed gift card liability",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "change_in_unredeemed_gift_card_liability",
+        "values": {
+          "2023-01-29": {
+            "value": 68266,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 71441,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 47962,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Unredeemed gift card liability"
+        }
+      },
+      {
+        "label": "Right-of-use lease assets and current and non-current lease liabilities",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "change_in_lease_assets_and_liabilities",
+        "values": {
+          "2023-01-29": {
+            "value": 23905,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 13494,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 13267,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Right-of-use lease assets and current and non-current lease liabilities"
+        }
+      },
+      {
+        "label": "Other current and non-current liabilities",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "change_in_other_liabilities",
+        "values": {
+          "2023-01-29": {
+            "value": -2925,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 30073,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 10784,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Other current and non-current liabilities"
+        }
+      },
+      {
+        "label": "Net cash provided by operating activities",
+        "section": "Cash flows from operating activities",
+        "suggested_concept": "net_cash_from_operating_activities",
+        "values": {
+          "2023-01-29": {
+            "value": 966463,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 1389108,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 803336,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Net cash provided by operating activities"
+        }
+      },
+      {
+        "label": "Purchase of property and equipment",
+        "section": "Cash flows from investing activities",
+        "suggested_concept": "capital_expenditures",
+        "values": {
+          "2023-01-29": {
+            "value": -638657,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": -394502,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": -229226,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Purchase of property and equipment"
+        }
+      },
+      {
+        "label": "Settlement of net investment hedges",
+        "section": "Cash flows from investing activities",
+        "suggested_concept": "settlement_of_net_investment_hedges",
+        "values": {
+          "2023-01-29": {
+            "value": 47804,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": -23389,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": -14607,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Settlement of net investment hedges"
+        }
+      },
+      {
+        "label": "Acquisition, net of cash acquired",
+        "section": "Cash flows from investing activities",
+        "suggested_concept": "acquisition_net_of_cash_acquired",
+        "values": {
+          "2023-01-29": {
+            "value": 0,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 0,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": -452581,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Acquisition, net of cash acquired"
+        }
+      },
+      {
+        "label": "Other investing activities",
+        "section": "Cash flows from investing activities",
+        "suggested_concept": "other_investing_activities",
+        "values": {
+          "2023-01-29": {
+            "value": 20916,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": -10000,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 882,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Other investing activities"
+        }
+      },
+      {
+        "label": "Net cash used in investing activities",
+        "section": "Cash flows from investing activities",
+        "suggested_concept": "net_cash_from_investing_activities",
+        "values": {
+          "2023-01-29": {
+            "value": -569937,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": -427891,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": -695532,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Net cash used in investing activities"
+        }
+      },
+      {
+        "label": "Proceeds from settlement of stock-based compensation",
+        "section": "Cash flows from financing activities",
+        "suggested_concept": "proceeds_from_stock_based_compensation",
+        "values": {
+          "2023-01-29": {
+            "value": 11704,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 18194,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 15263,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Proceeds from settlement of stock-based compensation"
+        }
+      },
+      {
+        "label": "Shares withheld related to net share settlement of stock-based compensation",
+        "section": "Cash flows from financing activities",
+        "suggested_concept": "shares_withheld_for_stock_based_compensation",
+        "values": {
+          "2023-01-29": {
+            "value": -35158,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": -49809,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": -32388,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Shares withheld related to net share settlement of stock-based compensation"
+        }
+      },
+      {
+        "label": "Repurchase of common stock",
+        "section": "Cash flows from financing activities",
+        "suggested_concept": "repurchase_of_common_stock",
+        "values": {
+          "2023-01-29": {
+            "value": -444001,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": -812602,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": -63663,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Repurchase of common stock"
+        }
+      },
+      {
+        "label": "Other financing activities",
+        "section": "Cash flows from financing activities",
+        "suggested_concept": "other_financing_activities",
+        "values": {
+          "2023-01-29": {
+            "value": -32,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": -770,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 0,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Other financing activities"
+        }
+      },
+      {
+        "label": "Net cash used in financing activities",
+        "section": "Cash flows from financing activities",
+        "suggested_concept": "net_cash_from_financing_activities",
+        "values": {
+          "2023-01-29": {
+            "value": -467487,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": -844987,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": -80788,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Net cash used in financing activities"
+        }
+      },
+      {
+        "label": "Effect of foreign currency exchange rate changes on cash and cash equivalents",
+        "section": "",
+        "suggested_concept": "effect_of_fx_on_cash",
+        "values": {
+          "2023-01-29": {
+            "value": -34043,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": -6876,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 29996,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Effect of foreign currency exchange rate changes on cash and cash equivalents"
+        }
+      },
+      {
+        "label": "Increase (decrease) in cash and cash equivalents",
+        "section": "",
+        "suggested_concept": "change_in_cash",
+        "values": {
+          "2023-01-29": {
+            "value": -105004,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 109354,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 57012,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Increase (decrease) in cash and cash equivalents"
+        }
+      },
+      {
+        "label": "Cash and cash equivalents, beginning of period",
+        "section": "",
+        "suggested_concept": "cash_beginning",
+        "values": {
+          "2023-01-29": {
+            "value": 1259871,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 1150517,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 1093505,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Cash and cash equivalents, beginning of period"
+        }
+      },
+      {
+        "label": "Cash and cash equivalents, end of period",
+        "section": "",
+        "suggested_concept": "cash_ending",
+        "values": {
+          "2023-01-29": {
+            "value": 1154867,
+            "presentation_role": "current_period"
+          },
+          "2022-01-30": {
+            "value": 1259871,
+            "presentation_role": "comparative"
+          },
+          "2021-01-31": {
+            "value": 1150517,
+            "presentation_role": "comparative"
+          }
+        },
+        "source": {
+          "page": 53,
+          "statement": "Consolidated Statements of Cash Flows",
+          "label": "Cash and cash equivalents, end of period"
+        }
+      }
+    ]
+  },
+  "note_facts": [],
+  "share_facts": [
+    {
+      "fact_type": "basic_weighted_average_shares",
+      "period": "2023-01-29",
+      "value": 127666000,
+      "status": "reported",
+      "source": {
+        "page": 50,
+        "statement": "Consolidated Statements of Operations and Comprehensive Income",
+        "label": "Basic weighted-average number of shares outstanding"
+      }
+    },
+    {
+      "fact_type": "basic_weighted_average_shares",
+      "period": "2022-01-30",
+      "value": 129768000,
+      "status": "reported",
+      "source": {
+        "page": 50,
+        "statement": "Consolidated Statements of Operations and Comprehensive Income",
+        "label": "Basic weighted-average number of shares outstanding"
+      }
+    },
+    {
+      "fact_type": "basic_weighted_average_shares",
+      "period": "2021-01-31",
+      "value": 130289000,
+      "status": "reported",
+      "source": {
+        "page": 50,
+        "statement": "Consolidated Statements of Operations and Comprehensive Income",
+        "label": "Basic weighted-average number of shares outstanding"
+      }
+    },
+    {
+      "fact_type": "diluted_weighted_average_shares",
+      "period": "2023-01-29",
+      "value": 128017000,
+      "status": "reported",
+      "source": {
+        "page": 50,
+        "statement": "Consolidated Statements of Operations and Comprehensive Income",
+        "label": "Diluted weighted-average number of shares outstanding"
+      }
+    },
+    {
+      "fact_type": "diluted_weighted_average_shares",
+      "period": "2022-01-30",
+      "value": 130295000,
+      "status": "reported",
+      "source": {
+        "page": 50,
+        "statement": "Consolidated Statements of Operations and Comprehensive Income",
+        "label": "Diluted weighted-average number of shares outstanding"
+      }
+    },
+    {
+      "fact_type": "diluted_weighted_average_shares",
+      "period": "2021-01-31",
+      "value": 130871000,
+      "status": "reported",
+      "source": {
+        "page": 50,
+        "statement": "Consolidated Statements of Operations and Comprehensive Income",
+        "label": "Diluted weighted-average number of shares outstanding"
+      }
+    }
+  ]
+}
