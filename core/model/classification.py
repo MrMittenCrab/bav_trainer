@@ -622,8 +622,9 @@ _COMMON_STOCK_INSTRUMENT_LABEL_MARKERS = (
 )
 
 # Issuance / repurchase / payment / purchase / sale / change movements.
-# Concept uses ``paid`` (covers cash_paid_for_...); labels use ``paid for`` /
-# ``cash paid`` so paid-in capital is not treated as a payment movement.
+# Concept payment detection is payment-sensitive (see
+# ``_common_stock_concept_has_payment``) so paid-in-capital balances survive.
+# Label payment phrases are matched on punctuation-folded keys.
 _COMMON_STOCK_MOVEMENT_CONCEPT_MARKERS = (
     "issuance",
     "issue",
@@ -632,7 +633,6 @@ _COMMON_STOCK_MOVEMENT_CONCEPT_MARKERS = (
     "repurchase",
     "payment",
     "payments",
-    "paid",
     "purchase",
     "purchases",
     "saleof",
@@ -640,6 +640,12 @@ _COMMON_STOCK_MOVEMENT_CONCEPT_MARKERS = (
     "changein",
     "increasein",
     "decreasein",
+)
+
+# Payment stems that remain movements even when paid-in-capital wording co-occurs.
+_COMMON_STOCK_PAYMENT_CONCEPT_STEMS = (
+    "cashpaid",
+    "paidfor",
 )
 
 _COMMON_STOCK_MOVEMENT_LABEL_MARKERS = (
@@ -661,6 +667,8 @@ _COMMON_STOCK_MOVEMENT_LABEL_MARKERS = (
 )
 
 # Liability wording that contradicts ordinary common-stock equity recognition.
+# Accrued / pension / retirement / post-employment evidence must fall through to
+# supported liability rules rather than being overridden by common-stock Equity.
 _COMMON_STOCK_LIABILITY_LABEL_MARKERS = (
     "liab",
     "payable",
@@ -672,6 +680,11 @@ _COMMON_STOCK_LIABILITY_LABEL_MARKERS = (
     "commercial paper",
     "bonds payable",
     "loan payable",
+    "accrued",
+    "pension",
+    "retirement benefit",
+    "post-employment",
+    "post employment",
 )
 
 _COMMON_STOCK_LIABILITY_CONCEPT_MARKERS = (
@@ -685,13 +698,40 @@ _COMMON_STOCK_LIABILITY_CONCEPT_MARKERS = (
 )
 
 
+def _common_stock_label_key(low: str) -> str:
+    """Fold punctuation so common-stock topic/payment phrases ignore hyphens/dashes."""
+    s = low.replace("&", " and ")
+    s = re.sub(r"[^a-z0-9' ]+", " ", s)
+    return " ".join(s.split())
+
+
+def _common_stock_concept_has_payment(concept_token: str) -> bool:
+    """True for payment-sensitive concept stems; preserves paid-in-capital balances.
+
+    Genuine payment stems (``cashpaid``, ``paidfor``) remain movements even when
+    paid-in-capital wording co-occurs. Bare ``paid`` inside ``paidin`` /
+    ``paidincapital`` alone is not a payment.
+    """
+    if not concept_token:
+        return False
+    if any(stem in concept_token for stem in _COMMON_STOCK_PAYMENT_CONCEPT_STEMS):
+        return True
+    if "paid" in concept_token and "paidin" not in concept_token:
+        return True
+    return False
+
+
 def _common_stock_has_movement(concept_token: str, low: str) -> bool:
     """True when concept or label uses a common-stock movement / activity marker."""
-    if concept_token and any(
-        marker in concept_token for marker in _COMMON_STOCK_MOVEMENT_CONCEPT_MARKERS
+    if concept_token and (
+        any(
+            marker in concept_token for marker in _COMMON_STOCK_MOVEMENT_CONCEPT_MARKERS
+        )
+        or _common_stock_concept_has_payment(concept_token)
     ):
         return True
-    return any(marker in low for marker in _COMMON_STOCK_MOVEMENT_LABEL_MARKERS)
+    key = _common_stock_label_key(low)
+    return any(marker in key for marker in _COMMON_STOCK_MOVEMENT_LABEL_MARKERS)
 
 
 def _common_stock_content(concept_token: str, low: str) -> bool:
@@ -700,7 +740,7 @@ def _common_stock_content(concept_token: str, low: str) -> bool:
         return True
     if concept_token and "commonstock" in concept_token:
         return True
-    return "common stock" in low
+    return "common stock" in _common_stock_label_key(low)
 
 
 def _is_common_stock_movement(concept_token: str, low: str) -> bool:
@@ -716,14 +756,16 @@ def _common_stock_instrument_excluded(concept_token: str, low: str) -> bool:
         marker in concept_token for marker in _COMMON_STOCK_INSTRUMENT_CONCEPT_MARKERS
     ):
         return True
-    return any(marker in low for marker in _COMMON_STOCK_INSTRUMENT_LABEL_MARKERS)
+    key = _common_stock_label_key(low)
+    return any(marker in key for marker in _COMMON_STOCK_INSTRUMENT_LABEL_MARKERS)
 
 
 def _common_stock_label_has_liability(low: str) -> bool:
     """True when the label uses liability / debt / payable wording."""
-    if any(marker in low for marker in _COMMON_STOCK_LIABILITY_LABEL_MARKERS):
+    key = _common_stock_label_key(low)
+    if any(marker in key for marker in _COMMON_STOCK_LIABILITY_LABEL_MARKERS):
         return True
-    return low.endswith(" debt") or " debt " in f" {low} "
+    return key.endswith(" debt") or " debt " in f" {key} "
 
 
 def _common_stock_concept_has_liability(concept_token: str) -> bool:
@@ -759,7 +801,7 @@ def _common_stock_balance_label_hit(low: str) -> bool:
         return False
     if _common_stock_label_has_liability(low):
         return False
-    return low in _COMMON_STOCK_BALANCE_LABELS
+    return _common_stock_label_key(low) in _COMMON_STOCK_BALANCE_LABELS
 
 
 def _common_stock_balance_decision(item: LineItem) -> ClassificationDecision | None:
@@ -769,7 +811,8 @@ def _common_stock_balance_decision(item: LineItem) -> ClassificationDecision | N
     whole-label ``Common stock`` identities are supported. Redeemable,
     preferred, investment, issuance/repurchase/payment movements, and
     contradictory liability pairings are rejected so neither recognition route
-    can bypass the guards.
+    can bypass the guards. Supported accrued / pension liability evidence and
+    paid-in-capital balances are preserved.
     """
     concept_token = _concept_token(item.concept or "")
     low = _norm(item.label)

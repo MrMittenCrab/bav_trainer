@@ -1911,6 +1911,30 @@ def test_common_stock_excluded_pairs_do_not_use_equity_rule(label, concept):
         ("Accounts payable", "common_stock", "Operating Working Capital Liability", None),
         ("Notes payable", "common_stock", "Financial Liability", None),
         (
+            "Accrued expenses",
+            "common_stock",
+            "Operating Working Capital Liability",
+            None,
+        ),
+        (
+            "Pension obligations",
+            "common_stock",
+            "Operating Long-Term Liability",
+            "pension_obligation_operating_vs_financing",
+        ),
+        (
+            "Retirement benefit obligations",
+            "common_stock",
+            "Operating Long-Term Liability",
+            "pension_obligation_operating_vs_financing",
+        ),
+        (
+            "Post-employment benefits",
+            "common_stock",
+            "Operating Long-Term Liability",
+            "pension_obligation_operating_vs_financing",
+        ),
+        (
             "Other current liabilities",
             "common_stock",
             "Operating Working Capital Liability",
@@ -1978,19 +2002,46 @@ def test_common_stock_label_with_debt_concept_remains_financial_liability():
         ("CASH PAID FOR COMMON STOCK", ""),
         ("  Cash   paid  for  common   stock  ", ""),
         ("Cash-paid for common stock", "common_stock"),
+        ("Cash-paid-for common-stock", ""),
+        ("Cash-paid-for common-stock", "common_stock"),
+        ("Cash paid—for common stock", ""),
+        ("Cash paid—for common stock", "common_stock"),
+        ("Paid-for common stock", ""),
+        ("Paid-for common stock", "common_stock"),
         ("Cash paid for common stock.", "common_stock"),
         ("Cash paid for common stock", "cash"),
         ("Cash paid for common stock", "accounts_payable"),
         ("Cash paid for common stock payable", "common_stock"),
         ("Cash paid for common stock in retained earnings", ""),
+        ("Cash paid for common stock from paid-in capital", ""),
         ("Payments for common stock", ""),
         ("Payment for common stock", "common_stock"),
+        ("Common stock", "paid_for_common_stock"),
     ],
 )
 def test_common_stock_payment_movements_raise_unclassified(label, concept):
     """Payment movements fail closed before cash/liability/equity fallbacks."""
     with pytest.raises(UnclassifiedBalanceSheetLineError):
         classify_balance_sheet_line(_li(label, 100, 110, concept=concept))
+
+
+@pytest.mark.parametrize(
+    ("label", "concept"),
+    [
+        ("Common stock", "paid_in_capital"),
+        ("Common stock", "additional_paid_in_capital"),
+        ("Paid-in capital", "paid_in_capital"),
+        ("Additional paid-in capital", "additional_paid_in_capital"),
+        ("Paid-in capital", "common_stock"),
+        ("Additional paid-in capital", "common_stock"),
+    ],
+)
+def test_common_stock_paid_in_capital_balances_remain_equity(label, concept):
+    """Paid-in-capital balances stay non-ambiguous Equity (not payment movements)."""
+    decision = classify_balance_sheet_line(_li(label, 100, 110, concept=concept))
+    assert decision.category == "Equity"
+    assert decision.ambiguous is False
+    assert decision.judgment_code is None
 
 
 def test_common_stock_investment_retains_financial_asset_behavior():
