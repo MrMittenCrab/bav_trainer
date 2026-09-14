@@ -1832,3 +1832,182 @@ def test_ppe_balance_has_no_judgment_case():
     )
     assert reform.decisions[idx].category == "Operating Long-Term Asset"
     assert reform.decisions[idx].judgment_code is None
+
+
+# --- Generic ordinary common-stock equity classification (G3) ---
+
+
+@pytest.mark.parametrize(
+    ("label", "concept"),
+    [
+        ("Common stock", "common_stock"),
+        ("Common stock", ""),
+        ("Common stock", "unrelated_xyz"),
+        ("common stock", "common_stock"),
+        ("COMMON STOCK", ""),
+        ("  Common   stock  ", ""),
+        ("Miscellaneous balance", "common_stock"),
+        ("Equity residual", "common_stock"),
+    ],
+)
+def test_common_stock_balances_classify_as_equity(label, concept):
+    decision = classify_balance_sheet_line(_li(label, 100, 110, concept=concept))
+    assert decision.category == "Equity"
+    assert decision.ambiguous is False
+    assert decision.judgment_code is None
+    assert decision.overridden is False
+    assert "common-stock" in decision.reason.lower() or "common stock" in decision.reason.lower()
+
+
+@pytest.mark.parametrize(
+    ("label", "concept"),
+    [
+        # Excluded concepts paired with whole-label Common stock.
+        ("Common stock", "redeemable_common_stock"),
+        ("Common stock", "common_stock_subject_to_redemption"),
+        ("Common stock", "mandatorily_redeemable_common_stock"),
+        ("Common stock", "preferred_stock"),
+        ("Common stock", "preference_shares"),
+        ("Common stock", "investment_in_common_stock"),
+        ("Common stock", "common_stock_investment"),
+        ("Common stock", "issuance_of_common_stock"),
+        ("Common stock", "proceeds_from_issuance_of_common_stock"),
+        ("Common stock", "repurchase_of_common_stock"),
+        ("Common stock", "payments_for_repurchase_of_common_stock"),
+        ("Common stock", "purchase_of_common_stock"),
+        # Excluded labels paired with exact common_stock concept.
+        ("Redeemable common stock", "common_stock"),
+        ("Mandatorily redeemable common stock", "common_stock"),
+        ("Common stock subject to mandatory redemption", "common_stock"),
+        ("Preferred stock", "common_stock"),
+        ("Investment in common stock", "common_stock"),
+        ("Issuance of common stock", "common_stock"),
+        ("Proceeds from issuance of common stock", "common_stock"),
+        ("Repurchase of common stock", "common_stock"),
+        ("Payments for repurchase of common stock", "common_stock"),
+        ("Purchase of common stock", "common_stock"),
+        # Label-only / empty-concept excluded forms.
+        ("Redeemable common stock", ""),
+        ("Preferred stock", ""),
+        ("Repurchase of common stock", ""),
+        ("Issuance of common stock", ""),
+        ("Proceeds from issuance of common stock", ""),
+    ],
+)
+def test_common_stock_excluded_pairs_do_not_use_equity_rule(label, concept):
+    """Excluded instruments/movements must not enter the ordinary-equity rule."""
+    item = _li(label, 100, 110, concept=concept)
+    try:
+        decision = classify_balance_sheet_line(item)
+    except UnclassifiedBalanceSheetLineError:
+        return
+    assert "Ordinary common-stock" not in decision.reason
+
+
+def test_common_stock_investment_retains_financial_asset_behavior():
+    decision = classify_balance_sheet_line(
+        _li("Investment in common stock", 100, 110, concept="common_stock")
+    )
+    assert decision.category == "Financial Asset"
+    assert "Ordinary common-stock" not in decision.reason
+
+
+def test_common_stock_redeemable_with_debt_label_remains_liability():
+    decision = classify_balance_sheet_line(
+        LineItem(
+            label="Long-term debt",
+            concept="CommonStockSubjectToRedemption",
+            values={P1: 10, P2: 12},
+        )
+    )
+    assert decision.category == "Financial Liability"
+    assert "Ordinary common-stock" not in decision.reason
+
+
+def test_common_stock_override_still_wins():
+    item = _li("Common stock", 100, 110, concept="common_stock")
+    default = classify_balance_sheet_line(item)
+    assert default.category == "Equity"
+    assert default.overridden is False
+
+    overridden = classify_balance_sheet_line(item, override="Exclude")
+    assert overridden.category == "Exclude"
+    assert overridden.overridden is True
+    assert overridden.reason == "User override"
+
+    rejected = _li("Repurchase of common stock", 100, 110, concept="common_stock")
+    with pytest.raises(UnclassifiedBalanceSheetLineError):
+        classify_balance_sheet_line(rejected)
+    forced = classify_balance_sheet_line(rejected, override="Equity")
+    assert forced.category == "Equity"
+    assert forced.overridden is True
+
+
+def test_common_stock_preserves_existing_equity_components_and_g1_g2():
+    retained = classify_balance_sheet_line(
+        _li("Retained earnings", 100, 110, concept="retained_earnings")
+    )
+    assert retained.category == "Equity"
+
+    share_capital = classify_balance_sheet_line(
+        _li("Share capital", 100, 110, concept="share_capital")
+    )
+    assert share_capital.category == "Equity"
+
+    gift = classify_balance_sheet_line(
+        _li(
+            "Unredeemed gift card liability",
+            10,
+            12,
+            concept="unredeemed_gift_card_liability",
+        )
+    )
+    assert gift.category == "Operating Working Capital Liability"
+
+    ppe = classify_balance_sheet_line(
+        _li(
+            "Property and equipment, net",
+            100,
+            110,
+            concept="property_plant_and_equipment",
+        )
+    )
+    assert ppe.category == "Operating Long-Term Asset"
+
+    equity_method = classify_balance_sheet_line(
+        LineItem(
+            label="Investment in associate",
+            concept="EquityMethodInvestments",
+            values={P1: 10, P2: 12},
+        )
+    )
+    assert equity_method.category == "Operating Long-Term Asset"
+
+
+def test_common_stock_balance_has_no_judgment_case():
+    fin = StandardizedFinancials(
+        ticker="CS",
+        company_name="Common Stock Co",
+        currency="USD",
+        units="USD",
+        jurisdiction="US",
+        periods=_periods(),
+        income_statement=[],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 40, 42, concept="cash"),
+            _li("Common stock", 100, 110, concept="common_stock"),
+            _li("Accounts payable", 8, 9, concept="accounts_payable"),
+            _li("Retained earnings", 32, 43, concept="retained_earnings"),
+        ],
+        cash_flow=[],
+    )
+    periods = [P1, P2]
+    reform = reformulate_balance_sheet(fin, periods)
+    cases = classification_judgment_cases(fin, periods, reform)
+    assert not any(case.label == "Common stock" for case in cases)
+    idx = next(
+        i for i, item in enumerate(fin.balance_sheet) if item.label == "Common stock"
+    )
+    assert reform.decisions[idx].category == "Equity"
+    assert reform.decisions[idx].judgment_code is None
+    assert reform.decisions[idx].ambiguous is False

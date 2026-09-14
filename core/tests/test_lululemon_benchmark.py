@@ -16,6 +16,7 @@ from core.data.standardized_io import standardized_from_payload
 from core.ingestion.filing_json import load_extracted_filing
 from core.ingestion.filing_validator import validate_extracted_filing
 from core.model.classification import (
+    ReformulationIntegrityError,
     UnclassifiedBalanceSheetLineError,
     classify_balance_sheet_line,
     is_balance_sheet_subtotal,
@@ -77,9 +78,7 @@ DILUTED_WAS_ANCHORS = {
     date(2026, 2, 1): 119068.0,
 }
 
-BUILD_BLOCKER_LABELS = {
-    "Common stock",
-}
+BUILD_BLOCKER_LABELS: set[str] = set()
 
 
 def _load_json(path: Path) -> dict:
@@ -491,10 +490,40 @@ def test_ppe_classifies_resolves_and_enables_fixed_asset():
     assert fixed_asset_applicable(fin) is True
 
 
-def test_build_blocker_is_unclassified_balance_sheet_lines(tmp_path: Path):
-    """After G2, build remains blocked on Common stock only.
+COMMON_STOCK_VALUES = {
+    date(2023, 1, 29): 611.0,
+    date(2024, 1, 28): 606.0,
+    date(2025, 2, 2): 581.0,
+    date(2026, 2, 1): 557.0,
+}
 
-    First raise is Common stock; G1 gift-card and G2 PPE remain classified.
+
+def test_common_stock_classifies_across_all_periods():
+    """G3: unchanged Lululemon Common stock row is Equity in every period."""
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    item = next(
+        row
+        for row in fin.balance_sheet
+        if row.concept == "common_stock" and row.label == "Common stock"
+    )
+    assert item.concept == "common_stock"
+    assert item.label == "Common stock"
+    assert set(item.values) >= set(EXPECTED_PERIODS)
+    for period, expected in COMMON_STOCK_VALUES.items():
+        assert item.values[period] == expected
+
+    decision = classify_balance_sheet_line(item)
+    assert decision.category == "Equity"
+    assert decision.ambiguous is False
+    assert decision.judgment_code is None
+    assert decision.overridden is False
+
+
+def test_build_blocker_is_reformulation_integrity(tmp_path: Path):
+    """After G3, classification clears; build blocks on reformulation integrity.
+
+    No unclassified BS detail rows remain. G1 gift-card, G2 PPE, and G3
+    common stock stay classified. Do not repair the integrity gap here.
     """
     fin = standardized_from_payload(_load_json(STD_JSON))
 
@@ -529,11 +558,17 @@ def test_build_blocker_is_unclassified_balance_sheet_lines(tmp_path: Path):
         classify_balance_sheet_line(ppe).category == "Operating Long-Term Asset"
     )
 
+    common = next(
+        row
+        for row in fin.balance_sheet
+        if row.label == "Common stock" and row.concept == "common_stock"
+    )
+    assert classify_balance_sheet_line(common).category == "Equity"
+
     out = tmp_path / "Lululemon"
-    with pytest.raises(
-        UnclassifiedBalanceSheetLineError, match="Common stock"
-    ):
+    with pytest.raises(ReformulationIntegrityError, match="liability-detail gap"):
         build_training_workbook(fin, out)
+
 
 def test_no_lulu_specific_production_branch():
     """Production engine must stay generic — no ticker/issuer hard-codes."""

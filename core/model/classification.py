@@ -229,6 +229,7 @@ def _classify_by_concept(item: LineItem) -> ClassificationDecision | None:
         or _deterministic_accounting_concept_decision(item)
         or _customer_prepayment_liability_decision(item)
         or _ppe_balance_decision(item)
+        or _common_stock_balance_decision(item)
     )
 
 
@@ -586,6 +587,110 @@ def _ppe_balance_decision(item: LineItem) -> ClassificationDecision | None:
     )
 
 
+# Exact concept token for ordinary common-stock equity balances only.
+# Redeemable, preferred, investment, and movement concepts are excluded.
+_COMMON_STOCK_BALANCE_CONCEPTS = frozenset(
+    {
+        "commonstock",
+    }
+)
+
+# Whole-label identity after normalize/case fold (no unrestricted substring).
+_COMMON_STOCK_BALANCE_LABELS = frozenset(
+    {
+        "common stock",
+    }
+)
+
+# Concept markers that disqualify ordinary common-stock equity identity.
+_COMMON_STOCK_EXCLUDED_CONCEPT_MARKERS = (
+    "redeem",
+    "redemption",
+    "mandatory",
+    "preferred",
+    "preference",
+    "investment",
+    "issuance",
+    "issue",
+    "proceed",
+    "proceeds",
+    "repurchase",
+    "payment",
+    "payments",
+    "purchase",
+    "purchases",
+    "saleof",
+    "salesof",
+    "changein",
+    "increasein",
+    "decreasein",
+)
+
+# Label markers that disqualify ordinary common-stock equity identity.
+_COMMON_STOCK_EXCLUDED_LABEL_MARKERS = (
+    "redeem",
+    "redemption",
+    "mandatory",
+    "preferred",
+    "preference",
+    "investment",
+    "issuance",
+    "issue of",
+    "issued",
+    "proceeds",
+    "repurchase",
+    "payment",
+    "purchase",
+    "sale of",
+    "sales of",
+    "change in",
+    "increase in",
+    "decrease in",
+)
+
+
+def _common_stock_excluded(concept_token: str, low: str) -> bool:
+    """Reject redeemable/preferred/investment/movement common-stock rows."""
+    if concept_token and any(
+        marker in concept_token for marker in _COMMON_STOCK_EXCLUDED_CONCEPT_MARKERS
+    ):
+        return True
+    return any(marker in low for marker in _COMMON_STOCK_EXCLUDED_LABEL_MARKERS)
+
+
+def _common_stock_balance_label_hit(low: str) -> bool:
+    """True when the entire label is ordinary common-stock balance identity."""
+    if _common_stock_excluded("", low):
+        return False
+    return low in _COMMON_STOCK_BALANCE_LABELS
+
+
+def _common_stock_balance_decision(item: LineItem) -> ClassificationDecision | None:
+    """Classify ordinary common-stock balances as Equity.
+
+    Deterministic; no guided-judgment case. Exact ``common_stock`` concepts and
+    whole-label ``Common stock`` identities are supported. Redeemable,
+    preferred, investment, and issuance/repurchase/payment movements are
+    rejected so neither recognition route can bypass the guards.
+    """
+    concept_token = _concept_token(item.concept or "")
+    low = _norm(item.label)
+
+    if _common_stock_excluded(concept_token, low):
+        return None
+
+    concept_hit = concept_token in _COMMON_STOCK_BALANCE_CONCEPTS
+    label_hit = _common_stock_balance_label_hit(low)
+    if not concept_hit and not label_hit:
+        return None
+
+    return ClassificationDecision(
+        "Equity",
+        ambiguous=False,
+        reason="Ordinary common-stock equity balance",
+    )
+
+
 def _generic_financial_concept_decision(
     item: LineItem,
 ) -> ClassificationDecision | None:
@@ -876,6 +981,11 @@ def classify_balance_sheet_line(
     ppe = _ppe_balance_decision(item)
     if ppe is not None:
         return ppe
+
+    # Label-only ordinary common-stock balances (empty / non-alias concepts).
+    common_stock = _common_stock_balance_decision(item)
+    if common_stock is not None:
+        return common_stock
 
     # Ambiguous judgment calls — real default + flag
     if (
