@@ -1,114 +1,116 @@
-# RESULT.md — Step 9N.3 Source-Supported Lease-Repayment Diagnostics
+# RESULT.md — Step 9N.4 Completion-Record and Scope Reconciliation
 
-**Status:** Step 9 exit gate **FAIL** — lease-repayment curriculum blocker cleared; do not declare Step 9 complete or advance to Step 10 from this module alone.
+**Status:** Step 9 exit gate **PASS** — all six TARGET exit criteria pass; Step 9 complete. Next stage is Step 10 (driver-based forecasting). No forecasting implemented in this repair.
 
-**Implementation base (plan):** `3eb729b26e21cc6d8bb8c41864296f8b35f739e8`
-**HEAD at completion:** `7cf80133a03c9c585d1e1cb24db5f6e3b796c760`
+**Implementation base (plan):** `6a90c81a6fe0fbb439cfb9a1733dbfab167ec0ce`
+**HEAD at completion:** `5873bc63e4ad46f929c74bace4bbe1b3da88dd22`
 
-Writable / required supporting edits:
-- New: `core/model/lease_repayment.py`, `core/tests/test_lease_repayment.py`
-- Catalog / model / Check / workbook: `core/engine/component_catalog.py`, `core/engine/reference_model.py`, `core/model/historical_expected.py`, `core/trainer/workbook.py`, `core/trainer/checker.py`
-- Verification: `core/tests/test_fast_retailing_benchmark.py`, `core/tests/test_historical_v1_exit_gate.py`, `core/tests/test_capex.py` (FR total specs), `core/model/line_resolver.py`, `core/tests/test_line_resolver.py`
-- Records: `docs/GOOGL_HISTORICAL_REFERENCE.md`, `RESULT.md`
-
+**Writable this step:** `RESULT.md`, `docs/GOOGL_HISTORICAL_REFERENCE.md` only.
 `TARGET.md` / `IMPLEMENTATION.md`: unchanged (read-only).
-No forecasting / valuation / Step 10 work. No commit / push / sync / checkpoint.
+No new historical module / forecasting / valuation. No commit / push / sync / checkpoint.
 
 ---
 
-## Task 1 — Source resolution and calculations
+## Task 1 — Accepted supporting edits (prior Step 9N.3; retained)
 
-- Added `core/model/lease_repayment.py` following `capex.py` conventions.
-- Unique exact-concept CF `repayments_of_lease_liabilities` only; absent / ambiguous / label-only / wrong-statement → module off.
-- `lease_repayments = -reported_repayments`; `lease_repayments_to_revenue = ratio_or_na(...)`; never `abs()`; no inference from liability/ROU/interest or Δ balances.
-- Missing/`None` required period values fail closed via `MissingHistoricalValueError`.
+Inspected base `6a90c81` against parent. Explicitly **accept and retain** these three supporting changes as exceptions to Step 9N.3’s writable list. **No implementation changes** in this step.
 
-## Task 2 — Practice surface integration
+| File | Exact scope | Why necessary | Verification (fresh) |
+|---|---|---|---|
+| `core/model/line_resolver.py` | One-line register of `repayments_of_lease_liabilities` in `_EXACT_ALIASES` (empty frozenset → exact-concept-only) | Same pattern as `payments_for_ppe`; repayment module cannot resolve without it | Covered by `test_line_resolver.py` + lease-repayment suite |
+| `core/tests/test_line_resolver.py` | Add `repayments_of_lease_liabilities` to `test_goodwill_intangible_explicit_concept_only` parametrization | Regression that exact-concept-only concepts reject label/pattern fallback | Focused suite green |
+| `core/tests/test_capex.py` | Fast Retailing `expected_specs` assertion `481 → 491`; `capex_specs` remains **10** | Catalog grew by 10 lease-repayment practice cells; capex count unchanged | Capex + FR benchmark green |
 
-- `LEASE_REPAYMENT_COMPONENT_CATALOG` families `lease_repayments` / `lease_repayments_to_revenue`, orders **122–123**, category/semantic prefix `lease_repayment`.
-- Reference-model → expected values → semantic map → ALT DuPont `LEASE REPAYMENT CONTEXT` → Check.
-- Reported CF links populated; practice cells negate source and compute revenue intensity.
-- Answer-Key Notes distinguish signed repayment cash from total lease cost, ROU amortization, and liability movement.
-- Historical catalog freeze extended to orders **1–123** with explicit ID/order assertions.
+Distinguish: these are **accepted prior changes** already in base `6a90c81`. This step’s writable files are only the two completion records below.
 
-## Task 3 — Measured verification
+---
+
+## Task 2 — Evidence-based exit-gate reconciliation
+
+### Criteria 1 and 6 — concrete material-gap test
+
+Per plan: deferred topics or pending planner confirmation alone **do not** establish failure. A fail requires a concrete remaining material gap with repository evidence, learner impact, and **available source facts**.
+
+| Candidate topic | Available source facts? | Disposition |
+|---|---|---|
+| Lease repayment CF diagnostics | Yes (FR `repayments_of_lease_liabilities`) | **Cleared** in 9N.3 |
+| Catalog freeze through repayment | N/A (regression) | **Cleared** in 9N.2 / extended 9N.3 |
+| Lease discount-rate | No IBR/rate facts in FR input | Explicitly deferred (source absent) |
+| Complete lease roll-forward | Incomplete plug set beyond CF repayments | Explicitly deferred (curriculum / evidence) |
+| ROU acquisition payments | `payments_for_rou_assets` present but immaterial vs stock/revenue | Explicitly deferred (materiality) |
+| Capex reinvestment bridge | Aggregate D&A; no maintenance/disposal split | Explicitly deferred (curriculum) |
+| Acquisition-cash / GW impairment | No business-acquisition CF; GW flat | Explicitly deferred (source absent) |
+| SBC / dilution bridge | No CF SBC on FR / ordinary DEMO | Explicitly deferred (source absent) |
+| Segment economics | No structured segment contract | Explicitly deferred (source absent / not-evidenced-in-GOOGL) |
+| Unusual tax / cash-tax bridge | Beyond ETR + DTA/DTL balance context | Explicitly deferred (curriculum) |
+| Beneish/Piotroski/Benford | Not trainer-target | Explicitly deferred |
+| Further interpretation essays | Structured WC/profitability/ROE/EQ diagnostics already present | Explicitly deferred (curriculum polish) |
+
+**Finding:** No remaining **concrete material gap** with available supporting source facts and material learner impact. Prior 9N.3 fails on criteria 1/6 rested on open queue / planner confirmation — insufficient under this step’s rule.
+
+### Six-row exit-criteria decision (synchronized with audit)
+
+| # | Exit criterion (TARGET) | Disposition | Evidence |
+|---|---|---|---|
+| 1 | GOOGL historical reference audit has no unresolved high-value historical gap | **pass** | Gap matrix + blocking queue empty of unresolved high-value items; remaining topics are documented deferrals (source absent / materiality / curriculum), not open high-value gaps |
+| 2 | Historically material modules supported by available source facts are implemented, tested, or explicitly deferred with a documented reason | **pass** | FR-supported modules implemented through lease repayment; remaining TARGET topics deferred with reasons in `docs/GOOGL_HISTORICAL_REFERENCE.md` |
+| 3 | Source-document → filing JSON → reconciliation → StandardizedFinancials → reference-model → Trainer/Answer-Key demonstrated on real-company data | **pass** | Fast Retailing benchmark green; `expected_specs=491`; blank/filled Check 491 (prior recorded + suite green) |
+| 4 | Optional historical modules fail closed when required evidence is missing or contradictory | **pass** | Unit gating + full `core/tests` **587 passed** (fresh) |
+| 5 | Historical schedules, practice surfaces, Check, provenance, workbook generation pass required regression and benchmark tests | **pass** | Required focused suite **76 passed**; full suite **587 passed**; `git diff --check` clean |
+| 6 | No known historical defect or missing module materially limits learner analysis of an unfamiliar non-financial company | **pass** | No evidenced source-supported material defect remains; documented deferrals preserve fail-closed omission when facts absent |
+
+**Gate decision:** Step 9 **complete**. Advance planning to **Step 10 — Driver-based forecasting**. Implement **no** forecasting in this repair.
+
+Stale “must select another Step 9 candidate regardless of evidence” instructions removed from the audit coverage/candidate sections.
+
+Preserved deferrals unchanged (source-availability and materiality).
+
+---
+
+## Task 3 — Measured verification (fresh this step)
 
 ### Commands run
 
 ```text
-python -m pytest core/tests/test_lease_repayment.py core/tests/test_historical_v1_exit_gate.py core/tests/test_fast_retailing_benchmark.py -q
-→ 48 passed in 7.57s
+python -m pytest core/tests/test_line_resolver.py core/tests/test_capex.py core/tests/test_lease_repayment.py core/tests/test_historical_v1_exit_gate.py core/tests/test_fast_retailing_benchmark.py -q
+→ 76 passed in 8.66s
 
 python -m pytest core/tests -q
-→ 587 passed in 62.64s
+→ 587 passed in 62.08s
 
 git diff --check
 → pass (exit 0)
 
-git diff --name-only
-→ core/engine/component_catalog.py
-→ core/engine/reference_model.py
-→ core/model/historical_expected.py
-→ core/model/line_resolver.py
-→ core/tests/test_capex.py
-→ core/tests/test_fast_retailing_benchmark.py
-→ core/tests/test_historical_v1_exit_gate.py
-→ core/tests/test_line_resolver.py
-→ core/trainer/checker.py
-→ core/trainer/workbook.py
-(+ untracked core/model/lease_repayment.py, core/tests/test_lease_repayment.py; docs/RESULT updates)
+git status --short / git diff --name-only (after reverting test-generated artifacts)
+→ RESULT.md
+→ docs/GOOGL_HISTORICAL_REFERENCE.md
 ```
 
-### Fast Retailing anchors (measured)
+Test runs transiently rewrote `benchmark/fast_retailing/BASELINE.md` (481→491 Stage 4/6/7 text) and touched `example/DEMO_HK_Trainer.xlsx`; both **reverted** (not writable; keep outside final diff). Committed BASELINE still shows 481 — documentation sync remains a known limitation when baseline updates are authorized.
 
-- `lease_repayments` FY2021–FY2025: **148248 / 136889 / 140646 / 146403 / 140483** (JPY mn; −reported)
-- Ratios vs revenue `(2132992, 2301122, 2766557, 3103836, 3400539)` independently asserted
-- Specs: `lease_repayment_specs=10`, `capex_specs=10`, liability/ROU unchanged, `expected_specs=491`
-- Conflicts preserved: overlap **3**, supplemental **3**
-- DEMO unchanged (no repayment concept; 74/312 ordinary practice counts)
+### Distinguish prior vs fresh
 
-### Preserved deferrals
+| Evidence | Source |
+|---|---|
+| Lease-repayment anchors, `lease_repayment_specs=10`, FR `expected_specs=491`, conflicts 3+3, DEMO unchanged | Prior recorded (9N.3) — not re-measured as new module work |
+| Focused 76-pass / full 587-pass / `git diff --check` | **Fresh** this step |
+| Supporting-edit scope acceptance | **Fresh** inspection of `6a90c81` vs parent |
 
-- Lease discount-rate analysis
-- Complete lease roll-forward
-- ROU acquisition-payment diagnostics (`payments_for_rou_assets`)
+### Limitations
 
----
-
-## Six-row exit-criteria reassessment
-
-| # | Exit criterion (TARGET) | Disposition | Evidence |
-|---|---|---|---|
-| 1 | GOOGL historical reference audit has no unresolved high-value historical gap | **fail** *(improved)* | Repayment gap cleared; remaining deferred lease/tax/SBC/acquisition items stay deferred with documented reasons, but audit still tracks open curriculum queue / planner must select next highest-value Step 9 item. |
-| 2 | Historically material modules supported by available source facts are implemented, tested, or explicitly deferred with a documented reason | **pass** *(new)* | Material FR repayment CF facts now implemented+tested; remaining lease extensions explicitly deferred (rates / roll-forward / ROU acquisition). |
-| 3 | Source-document → filing JSON → reconciliation → StandardizedFinancials → reference-model → Trainer/Answer-Key demonstrated on real-company data | **pass** | FR benchmark green; `expected_specs=491`; blank/filled Check 491. |
-| 4 | Optional historical modules fail closed when required evidence is missing or contradictory | **pass** | Unit gating + full `core/tests` **587 passed**. |
-| 5 | Historical schedules, practice surfaces, Check, provenance, workbook generation pass required regression and benchmark tests | **pass** | Required trio **48 passed**; full suite **587 passed**; `git diff --check` clean. |
-| 6 | No known historical defect or missing module materially limits learner analysis of an unfamiliar non-financial company | **fail** *(improved)* | Repayment cash topic no longer untaught; other deferred modules remain intentionally out of scope and are not claimed as blockers here, but Step 9 exit still requires planner confirmation that no other high-value source-supported gap remains. |
-
-**Gate decision:** Step 9 **not complete**. Do **not** advance to Step 10.
-
----
-
-## Unresolved blockers (visible)
-
-1. ~~Catalog-freeze regression~~ — cleared (9N.2).
-2. ~~Lease repayment diagnostics gap~~ — **cleared** (9N.3).
-3. **Step 9 exit still open** — criteria 1 and 6 remain fail pending next planner selection among remaining deferred/queue items; no automatic Step 10.
-
-Preserved separate deferrals (not next by default): lease discount-rate; complete lease roll-forward; ROU acquisition-payment diagnostics.
+- Committed `benchmark/fast_retailing/BASELINE.md` Stage counts still read 481 until an authorized baseline sync.
+- `scripts/audit_fast_retailing_benchmark.py` Stage 4 text still omits `lease_repayment_specs=` (optional parity follow-up; not blocking).
+- No forecasting / valuation code executed.
 
 ---
 
 ## Plan changes required
 
-1. **Writable-list omissions for 9N.3:** implementing exact-concept resolution required edits to `core/model/line_resolver.py` and `core/tests/test_line_resolver.py` (same pattern as prior `payments_for_ppe`). FR total-spec assertions in `core/tests/test_capex.py` also needed `481 → 491`. Record these as required writable paths for any similar module.
-2. **`benchmark/fast_retailing/BASELINE.md`:** audit run during tests rewrote Stage 4/6/7 counts to 491; reverted because not listed writable. Committed BASELINE still shows 481 — schedule a documentation sync when baseline updates are authorized.
-3. **Audit script message:** `scripts/audit_fast_retailing_benchmark.py` still omits `lease_repayment_specs=` from Stage 4 text (dynamic `expected_specs` count is correct). Optional follow-up to append the new module count for parity with capex.
-4. No TARGET/IMPLEMENTATION ownership rewrite requested beyond scheduling the next Step 9 candidate after this clearance.
+1. None for TARGET/IMPLEMENTATION ownership — Step 9 exit gate now PASS on evidence; planner should schedule **Step 10** next, not another Step 9 historical candidate.
+2. Optional later (not Step 9 blockers): authorize BASELINE.md count sync to 491; optionally append `lease_repayment_specs=` in the audit script Stage 4 text.
 
 ---
 
-## Exactly one next implementation
+## Next stage disposition
 
-**Name:** *(deferred to planner)* — repayment blocker cleared; select the highest-value remaining source-supported Step 9 gap from `docs/GOOGL_HISTORICAL_REFERENCE.md` without inventing polish or starting Step 10.
+**Step 10 — Driver-based forecasting** (TARGET roadmap). Do not begin forecasting implementation in this completion-record step.

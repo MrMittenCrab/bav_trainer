@@ -5,7 +5,7 @@ Internal development reference for Step 9 historical convergence. Evidence is li
 Audit tool: `scripts/audit_reference_workbook.py`  
 GOOGL SHA-256 (pre/post inspection): `81faf2882d0df07ecf5def45695431c1935b4f7a94c1e017367596a063063896`  
 
-**Coverage refresh (Step 9N.3):** Source-supported lease-repayment diagnostics implemented (`LEASE REPAYMENT CONTEXT`; families 122–123; catalog freeze orders 1–123). Fast Retailing `expected_specs=491` with `lease_repayment_specs=10`. Discount-rate / full roll-forward / ROU-acquisition-payment remain deferred. Exit gate **FAIL** — repayment curriculum blocker cleared; reassess remaining Step 9 gaps without declaring completion (see `RESULT.md`).
+**Coverage refresh (Step 9N.4):** Exit-gate reconciliation. No remaining concrete high-value historical gap with available source facts; documented deferrals preserved. Lease-repayment module (9N.3) retained. Fast Retailing `expected_specs=491` with `lease_repayment_specs=10`. Exit gate **PASS** — Step 9 complete; next stage is Step 10 driver-based forecasting (not implemented here). See `RESULT.md`.
 
 ## Role of the reference
 
@@ -138,9 +138,9 @@ Forward GOOGL sheets (Guidance & Consensus, Model_*, Scenario_Summary, Implied C
 ### Materially blocking (exit gate)
 
 1. ~~**Repair historical-v1 active-catalog freeze**~~ — **cleared in Step 9N.2.** Freeze extended through lease repayment in 9N.3 (orders 1–123; goodwill/intangibles 98–111, lease ROU 112–115, deferred tax 116–119, capex 120–121, lease repayment 122–123).
-2. ~~**Lease repayment diagnostics**~~ — **cleared in Step 9N.3.** FR CF `repayments_of_lease_liabilities` now drives ALT DuPont practice (`lease_repayment_specs=10`; `expected_specs=491`). Measured: required suite green; full `core/tests` **587 passed**.
+2. ~~**Lease repayment diagnostics**~~ — **cleared in Step 9N.3.** FR CF `repayments_of_lease_liabilities` now drives ALT DuPont practice (`lease_repayment_specs=10`; `expected_specs=491`).
 
-No remaining **materially blocking** curriculum item is selected here; reassess exit criteria in `RESULT.md` before choosing the next Step 9 candidate (do not advance to Step 10 from this module alone).
+**Queue empty.** No unresolved high-value source-supported historical gap remains. Documented deferrals below are not exit blockers. Step 9 exit gate **PASS** (Step 9N.4); next stage is **Step 10 — driver-based forecasting**.
 
 ### Explicitly deferred — source absent
 
@@ -213,11 +213,13 @@ Explicit concept resolution is registered in `core/model/line_resolver.py` for:
 
 ---
 
-## Next historical implementation candidate (exactly one)
+## Next implementation disposition
 
-**Name:** *(none selected in this coverage refresh)* — lease-repayment gap cleared in Step 9N.3. Next planner pass must pick the highest-value remaining Step 9 dependency from the deferred/queue evidence without inventing low-value polish or advancing to Step 10.
+**Step 9 historical candidate:** *(none)* — blocking queue empty; deferred topics lack available source facts or are curriculum/materiality deferrals, not concrete exit gaps.
 
-**Problem (cleared):** Fast Retailing CF `repayments_of_lease_liabilities` lacked Trainer repayment diagnostics; now taught via `LEASE REPAYMENT CONTEXT`.
+**Next stage:** **Step 10 — Driver-based forecasting** (TARGET). Do not invent further Step 9 historical polish solely to remain in Step 9.
+
+**Problem (cleared, 9N.3):** Fast Retailing CF `repayments_of_lease_liabilities` lacked Trainer repayment diagnostics; now taught via `LEASE REPAYMENT CONTEXT`.
 
 **Distinct from (remain deferred):** lease discount-rate analysis; complete lease roll-forward; ROU acquisition-payment diagnostics.
 
@@ -249,7 +251,9 @@ Explicit concept resolution is registered in `core/model/line_resolver.py` for:
 - Forecasting / valuation
 - Source fixture edits unrelated to repayment gating
 
-**Step 9N.3 note:** Lease-repayment diagnostics implemented and tested. Catalog freeze orders 1–123. Exit gate still FAIL pending full six-criterion reassessment; do not declare Step 9 complete from this module alone.
+**Step 9N.4 note:** Exit-gate repair. Criteria 1 and 6 reassessed under the concrete material-gap rule (deferred topics / planner confirmation alone do not fail). All six criteria **PASS**; Step 9 complete; next stage Step 10. Supporting 9N.3 edits to `line_resolver.py`, `test_line_resolver.py`, and `test_capex.py` (481→491) explicitly accepted. Fresh verification: focused **76 passed**; full `core/tests` **587 passed**.
+
+**Step 9N.3 note:** Lease-repayment diagnostics implemented and tested. Catalog freeze orders 1–123. Prior incomplete exit assessment superseded by 9N.4.
 
 **Step 9N.2 note:** Catalog freeze repaired (orders 1–121; suite green). Superseded as the blocking next item by 9N.3 repayment delivery.
 
