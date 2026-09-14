@@ -159,30 +159,208 @@ def _assert_artifact_sets_match(
         )
 
 
-def test_generic_reconcile_is_deterministic(tmp_path: Path):
-    committed_before = _read_committed_artifacts()
+def _run_reconcile_pass(out: Path) -> None:
+    completed = subprocess.run(
+        _reconcile_cmd(out),
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+        env=_subprocess_env(),
+    )
+    assert "overlap_conflicts=" in completed.stdout
 
-    out1 = tmp_path / "r1"
-    out2 = tmp_path / "r2"
-    for out in (out1, out2):
-        completed = subprocess.run(
-            _reconcile_cmd(out),
-            cwd=ROOT,
-            check=True,
-            capture_output=True,
-            text=True,
-            env=_subprocess_env(),
-        )
-        assert "overlap_conflicts=" in completed.stdout
 
+def _assert_inter_run_artifacts_match(out1: Path, out2: Path) -> None:
     for name in ARTIFACT_NAMES:
         assert (out1 / name).read_bytes() == (out2 / name).read_bytes()
 
-    _assert_artifact_sets_match(out1, committed_before)
-    _assert_artifact_sets_match(out2, committed_before)
 
+def _assert_committed_artifacts_unchanged(committed_before: dict[str, bytes]) -> None:
     committed_after = _read_committed_artifacts()
-    assert committed_after == committed_before
+    mutated = [
+        name
+        for name in ARTIFACT_NAMES
+        if committed_after[name] != committed_before[name]
+    ]
+    if mutated:
+        raise AssertionError(
+            "committed reconciliation artifacts mutated: " + ", ".join(mutated)
+        )
+
+
+def _guarded_deterministic_reconcile(
+    tmp_path: Path,
+    *,
+    committed_before: dict[str, bytes] | None = None,
+    run_pass=_run_reconcile_pass,
+    assert_inter_run=_assert_inter_run_artifacts_match,
+    assert_baseline=_assert_artifact_sets_match,
+    read_committed=_read_committed_artifacts,
+) -> None:
+    """Run both reconcile passes under try; always re-verify committed bytes in finally."""
+    if committed_before is None:
+        committed_before = read_committed()
+    out1 = tmp_path / "r1"
+    out2 = tmp_path / "r2"
+    error: BaseException | None = None
+    try:
+        run_pass(out1)
+        run_pass(out2)
+        assert_inter_run(out1, out2)
+        assert_baseline(out1, committed_before)
+        assert_baseline(out2, committed_before)
+    except BaseException as exc:
+        error = exc
+    finally:
+        try:
+            after = read_committed()
+            mutated = [
+                name
+                for name in ARTIFACT_NAMES
+                if after[name] != committed_before[name]
+            ]
+            if mutated:
+                raise AssertionError(
+                    "committed reconciliation artifacts mutated: "
+                    + ", ".join(mutated)
+                )
+        except AssertionError:
+            raise
+        else:
+            if error is not None:
+                raise error
+
+
+def test_generic_reconcile_is_deterministic(tmp_path: Path):
+    committed_before = _read_committed_artifacts()
+    _guarded_deterministic_reconcile(tmp_path, committed_before=committed_before)
+
+
+@pytest.mark.parametrize("fail_pass", [1, 2])
+def test_reconcile_immutability_verified_after_subprocess_failure(
+    tmp_path: Path, fail_pass: int
+):
+    """Subprocess failure still triggers final committed-byte verification."""
+    committed_before = _read_committed_artifacts()
+    calls = {"n": 0}
+    verified = {"ok": False}
+
+    def boom_pass(out: Path) -> None:
+        calls["n"] += 1
+        if calls["n"] == fail_pass:
+            raise subprocess.CalledProcessError(1, _reconcile_cmd(out))
+        _run_reconcile_pass(out)
+
+    def tracking_read() -> dict[str, bytes]:
+        verified["ok"] = True
+        return _read_committed_artifacts()
+
+    with pytest.raises(subprocess.CalledProcessError):
+        _guarded_deterministic_reconcile(
+            tmp_path,
+            committed_before=committed_before,
+            run_pass=boom_pass,
+            read_committed=tracking_read,
+        )
+    assert verified["ok"]
+    _assert_committed_artifacts_unchanged(committed_before)
+
+
+@pytest.mark.parametrize("fail_at", ["inter_run", "baseline"])
+def test_reconcile_immutability_verified_after_comparison_failure(
+    tmp_path: Path, fail_at: str
+):
+    """Comparison failure still triggers final committed-byte verification."""
+    committed_before = _read_committed_artifacts()
+    verified = {"ok": False}
+
+    def boom_inter(out1: Path, out2: Path) -> None:
+        raise AssertionError("injected inter-run mismatch")
+
+    def boom_baseline(generated: Path, expected_bytes: dict[str, bytes]) -> None:
+        raise AssertionError("injected baseline mismatch")
+
+    def tracking_read() -> dict[str, bytes]:
+        verified["ok"] = True
+        return _read_committed_artifacts()
+
+    kwargs: dict = {
+        "committed_before": committed_before,
+        "read_committed": tracking_read,
+    }
+    if fail_at == "inter_run":
+        kwargs["assert_inter_run"] = boom_inter
+        match = "injected inter-run mismatch"
+    else:
+        kwargs["assert_baseline"] = boom_baseline
+        match = "injected baseline mismatch"
+
+    with pytest.raises(AssertionError, match=match):
+        _guarded_deterministic_reconcile(tmp_path, **kwargs)
+    assert verified["ok"]
+    _assert_committed_artifacts_unchanged(committed_before)
+
+
+@pytest.mark.parametrize("mutated_name", ARTIFACT_NAMES)
+@pytest.mark.parametrize("fail_at", ["pass1", "inter_run", "baseline"])
+def test_reconcile_immutability_guard_detects_temp_mutation(
+    tmp_path: Path, mutated_name: str, fail_at: str
+):
+    """Temp artifact mutation before injected failure is detected by the finally guard."""
+    expected_dir = tmp_path / "expected"
+    expected_dir.mkdir()
+    for name in ARTIFACT_NAMES:
+        (expected_dir / name).write_bytes((RECONCILED / name).read_bytes())
+
+    def read_temp() -> dict[str, bytes]:
+        return {name: (expected_dir / name).read_bytes() for name in ARTIFACT_NAMES}
+
+    committed_before = read_temp()
+    mutated_path = expected_dir / mutated_name
+    altered = mutated_path.read_bytes() + b"\n#mutated\n"
+    finally_saw_mutation = {"ok": False}
+
+    def mutate_then_fail_pass(out: Path) -> None:
+        mutated_path.write_bytes(altered)
+        raise subprocess.CalledProcessError(1, ["fake"])
+
+    def mutate_then_fail_inter(out1: Path, out2: Path) -> None:
+        mutated_path.write_bytes(altered)
+        raise AssertionError("injected inter-run mismatch")
+
+    def mutate_then_fail_baseline(
+        generated: Path, expected_bytes: dict[str, bytes]
+    ) -> None:
+        mutated_path.write_bytes(altered)
+        raise AssertionError("injected baseline mismatch")
+
+    def read_temp_tracking() -> dict[str, bytes]:
+        current = read_temp()
+        if current[mutated_name] != committed_before[mutated_name]:
+            finally_saw_mutation["ok"] = True
+        return current
+
+    kwargs: dict = {
+        "committed_before": committed_before,
+        "read_committed": read_temp_tracking,
+    }
+    if fail_at == "pass1":
+        kwargs["run_pass"] = mutate_then_fail_pass
+    elif fail_at == "inter_run":
+        kwargs["assert_inter_run"] = mutate_then_fail_inter
+    else:
+        kwargs["assert_baseline"] = mutate_then_fail_baseline
+
+    with pytest.raises(AssertionError, match=mutated_name):
+        _guarded_deterministic_reconcile(tmp_path, **kwargs)
+
+    assert finally_saw_mutation["ok"]
+    assert mutated_path.read_bytes() == altered
+    for name in ARTIFACT_NAMES:
+        if name == mutated_name:
+            continue
+        assert (expected_dir / name).read_bytes() == (RECONCILED / name).read_bytes()
 
 
 @pytest.mark.parametrize("drifted_name", ARTIFACT_NAMES)

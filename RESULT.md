@@ -1,14 +1,14 @@
-# RESULT.md — Step 9M.2 Repair Lululemon Benchmark Artifact Isolation
+# RESULT.md — Step 9M.2 Repair Failure-Path Artifact Immutability Verification
 
 **Status:** PASS  
 **Completion:** DONE  
 **Next step:** Step **9M.2.1** — Generic Gift-Card / Deferred-Revenue Liability Classification (G1)
 
-**Plan base:** `32df12b1c253005575a76db5c768094f87c43489`  
+**Plan base:** `9bb3880dc75fbca5ff9c8f0b14585bb405818bd2`  
 `TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged).  
 No commit / push / sync / checkpoint. No Step 9M.2.1 or forecasting/valuation work.
 
-Supersedes prior Step 9M.2 PASS (baseline + gap map).
+Supersedes prior Step 9M.2 PASS (artifact isolation).
 
 ---
 
@@ -16,13 +16,25 @@ Supersedes prior Step 9M.2 PASS (baseline + gap map).
 
 In `core/tests/test_lululemon_benchmark.py`:
 
-1. Removed the reconciliation subprocess that wrote into committed `benchmark/lululemon/reconciled/`.
-2. Both reconcile passes now write only under `tmp_path`.
-3. Committed `standardized.json` / `provenance.json` / `conflicts.json` bytes are read before either run and compared byte-for-byte to both generated sets.
-4. Post-run re-read asserts committed bytes are unchanged.
-5. Added parameterized drift regression (`test_reconcile_drift_is_detected_without_rewriting_expected`) that alters only temporary expected copies for each of the three artifacts; comparison fails naming the drifted file and leaves the altered copy untouched.
+1. Extracted `_guarded_deterministic_reconcile`: both reconcile passes, stdout checks, inter-run match, and committed-baseline comparisons run under `try`; committed-byte reread/equality runs in `finally`.
+2. Unchanged committed bytes preserve the original failure; mutations raise `AssertionError` naming affected artifacts.
+3. Failure-path coverage:
+   - subprocess failure at pass 1 and pass 2;
+   - comparison failure at inter-run and committed-baseline;
+   - each path propagates the injected failure and still executes final verification.
+4. Parameterized temp-mutation guard across `ARTIFACT_NAMES` × `{pass1, inter_run, baseline}`: mutation before injected failure is detected and named; altered temp copies are not restored.
+5. Retained `test_reconcile_drift_is_detected_without_rewriting_expected`.
 
-Shared comparison helper: `_assert_artifact_sets_match` (read-only; never refreshes or restores fixtures).
+---
+
+## Failure-path coverage
+
+| Path | Propagates failure | Final reread runs | Mutation named |
+|---|---|---|---|
+| subprocess fail pass 1 / 2 | yes | yes | n/a (committed unchanged) |
+| inter-run comparison fail | yes | yes | n/a |
+| committed-baseline comparison fail | yes | yes | n/a |
+| temp mutation + injected fail (3 artifacts × 3 sites) | immutability AssertionError | yes | yes; copy left altered |
 
 ---
 
@@ -42,14 +54,14 @@ Before and after digests are identical for all three committed artifacts.
 
 ```text
 PYTHONPATH=. pytest core/tests/test_lululemon_benchmark.py -q
-→ 9 passed in 0.91s
+→ 22 passed in 3.24s
 
 PYTHONPATH=. pytest core/tests/test_lululemon_benchmark.py \
   core/tests/test_fast_retailing_benchmark.py -q
-→ 141 passed in 28.17s
+→ 154 passed in 31.01s
 
 PYTHONPATH=. pytest core/tests -q
-→ 723 passed in 84.55s
+→ 736 passed in 90.24s
 ```
 
 Incidental FR/DEMO workbook/provenance refreshes from the suite were restored; final working-tree diff is `core/tests/test_lululemon_benchmark.py` (+ this `RESULT.md`).
@@ -60,10 +72,10 @@ Incidental FR/DEMO workbook/provenance refreshes from the suite were restored; f
 
 | Criterion | Result |
 |---|---|
-| Reconciliation tests write only to temporary directories | **pass** |
-| Two generated runs match all three untouched committed artifacts | **pass** |
-| Drift in any expected artifact fails comparison without rewriting evidence | **pass** |
-| Focused LULU + combined benchmark + full core regressions | **pass** (9 / 141 / 723) |
+| Final committed-byte verification after success, subprocess failure, comparison failure | **pass** |
+| Unchanged artifacts preserve original failure; temp mutations detected without rewrite | **pass** |
+| Both successful reconcile runs match each other and all three committed artifacts | **pass** |
+| Focused LULU + combined benchmark + full core regressions | **pass** (22 / 154 / 736) |
 | Committed Lululemon artifact hashes unchanged | **pass** |
 
 **Plan changes needed:** none.
