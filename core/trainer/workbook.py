@@ -10,9 +10,13 @@ from openpyxl.comments import Comment
 from openpyxl.styles import Border, Font, PatternFill
 
 from ..engine.component_catalog import (
+    CAPEX_COMPONENT_CATALOG,
     COMPONENT_CATALOG,
+    DEFERRED_TAX_COMPONENT_CATALOG,
     FIXED_ASSET_COMPONENT_CATALOG,
+    GOODWILL_INTANGIBLES_COMPONENT_CATALOG,
     LEASE_LIABILITY_COMPONENT_CATALOG,
+    LEASE_REPAYMENT_COMPONENT_CATALOG,
     LEASE_ROU_COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
@@ -283,6 +287,10 @@ def group_components_by_family(smap: SemanticMap) -> list[dict]:
     family_meta.update({f.id: f for f in LEASE_LIABILITY_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in LEASE_ROU_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in OWNERSHIP_ATTRIBUTION_COMPONENT_CATALOG})
+    family_meta.update({f.id: f for f in GOODWILL_INTANGIBLES_COMPONENT_CATALOG})
+    family_meta.update({f.id: f for f in DEFERRED_TAX_COMPONENT_CATALOG})
+    family_meta.update({f.id: f for f in CAPEX_COMPONENT_CATALOG})
+    family_meta.update({f.id: f for f in LEASE_REPAYMENT_COMPONENT_CATALOG})
     groups: list[dict] = []
     for family_id, comps in by_family.items():
         comps = sorted(comps, key=lambda c: (c.period_index is None, c.period_index or 0, c.order))

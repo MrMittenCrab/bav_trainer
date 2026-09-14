@@ -5,7 +5,7 @@ Internal development reference for Step 9 historical convergence. Evidence is li
 Audit tool: `scripts/audit_reference_workbook.py`  
 GOOGL SHA-256 (pre/post inspection): `81faf2882d0df07ecf5def45695431c1935b4f7a94c1e017367596a063063896`  
 
-**Coverage refresh (Step 9N.2):** Catalog-freeze regression cleared (`ACTIVE_CATALOGS` orders 1–121; `core/tests` 571 passed). Implemented lease surfaces remain liability + ROU **balance** diagnostics only; CF repayment / amortization analysis is **absent**. Exit gate **FAIL** — unresolved source-supported lease-repayment gap (see `RESULT.md`).
+**Coverage refresh (Step 9N.3):** Source-supported lease-repayment diagnostics implemented (`LEASE REPAYMENT CONTEXT`; families 122–123; catalog freeze orders 1–123). Fast Retailing `expected_specs=491` with `lease_repayment_specs=10`. Discount-rate / full roll-forward / ROU-acquisition-payment remain deferred. Exit gate **FAIL** — repayment curriculum blocker cleared; reassess remaining Step 9 gaps without declaring completion (see `RESULT.md`).
 
 ## Role of the reference
 
@@ -66,9 +66,9 @@ Ordinary / share / cross-company DEMO surfaces (recorded regression counts): `74
 
 Distinct from DEMO counts. Post–G1–G7 recorded Stage 4/Check surface:
 
-- **`expected_specs=481`** (blank Check `0/0/481`; filled Check `481/0/0`)
-- Module specs (recorded): `lease_specs=18`, `lease_rou_specs=16`, `ownership_specs=34`, `per_share_specs=18`, `per_share_attribution_specs=16`, `fixed_asset_specs=35`, `goodwill_intangibles_specs=58`, `deferred_tax_specs=17`, `capex_specs=10`
-- Added vs illustrative DEMO when facts resolve: split lease-liability diagnostics, lease ROU-asset intensity, Ownership Attribution (parent/NCI), split-adjusted Per Share Analysis + attribution, goodwill/intangibles intensity context, deferred-tax balance context, PP&E capex practice
+- **`expected_specs=491`** (blank Check `0/0/491`; filled Check `491/0/0`)
+- Module specs (recorded): `lease_specs=18`, `lease_rou_specs=16`, `ownership_specs=34`, `per_share_specs=18`, `per_share_attribution_specs=16`, `fixed_asset_specs=35`, `goodwill_intangibles_specs=58`, `deferred_tax_specs=17`, `capex_specs=10`, `lease_repayment_specs=10`
+- Added vs illustrative DEMO when facts resolve: split lease-liability diagnostics, lease ROU-asset intensity, Ownership Attribution (parent/NCI), split-adjusted Per Share Analysis + attribution, goodwill/intangibles intensity context, deferred-tax balance context, PP&E capex practice, lease-repayment cash intensity
 
 ### Implemented since prior inventory (G3–G6 / related)
 
@@ -81,6 +81,7 @@ Distinct from DEMO counts. Post–G1–G7 recorded Stage 4/Check surface:
 | Goodwill / intangible intensity & change | **implemented** | ALT DuPont `GOODWILL & INTANGIBLES CONTEXT` when unique BS `goodwill` and/or `intangible_assets` resolve; optional CF `payments_for_intangible_assets` as −reported; no acquisition/impairment narrative (9M.5) |
 | Lease ROU-asset intensity / trend | **implemented** | ALT DuPont `LEASE ROU-ASSET CONTEXT` when unique BS `right_of_use_assets` resolves; average-balance intensity; independent of lease liability (9M.6) |
 | PP&E capex / capex-to-revenue | **implemented** | ALT DuPont `PP&E CAPEX CONTEXT` when unique CF `payments_for_ppe` resolves; −reported practice + revenue intensity; no reinvestment bridge (9M.9) |
+| Lease repayment cash / intensity | **implemented** | ALT DuPont `LEASE REPAYMENT CONTEXT` when unique CF `repayments_of_lease_liabilities` resolves; −reported practice + revenue intensity; independent of liability/ROU/interest (9N.3) |
 
 ## Historical capability gap matrix
 
@@ -100,7 +101,7 @@ Distinct from DEMO counts. Post–G1–G7 recorded Stage 4/Check surface:
 | PP&E / D&A / asset intensity | BS Property and equipment; CF depreciation; CF Purchases of property and equipment | ALT DuPont fixed-asset families when both PP&E and D&A resolve (`FIXED-ASSET INTENSITY CONTEXT`) | implemented-differently | Explicit PP&E (BS) + D&A (CF) + Revenue | Practice formulas on ALT DuPont; gated; no capex inference; D&A/Average PP&E is context only | Maintain; do not claim pure depreciation rate |
 | capex / reinvestment bridge | CF **Purchases of property and equipment** | ALT DuPont `PP&E CAPEX CONTEXT`: populated reported CF payments + practice `ppe_capex` (−reported) and `ppe_capex_to_revenue`; **no** reinvestment bridge / depreciation ratios | implemented-differently (bounded); reinvestment explicitly deferred | Explicit CF `payments_for_ppe` (unique exact concept) + Revenue | Optional gated practice; do not infer from investing CF or ΔPPE+D&A; no abs()/sign inference; zero revenue → `#N/A` | Maintain bounded practice; reinvestment deferred (aggregate D&A / no maintenance-disposal split) |
 | leases (liability) | BS Operating lease liabilities; Condensed classification rows | Accounting Judgment + ALT DuPont lease-liability families; aggregate **or** split current/non-current sum; treatment-conditioned lease interest when complete note axis exists | implemented-differently | Aggregate `lease_liability` **or** unique `lease_liability_current` + `lease_liability_noncurrent`; optional `lease_interest_expense` note axis; Revenue | Guided classification + intensity/trend; financing net interest conditioned on uniform lease treatment | Maintain |
-| leases (ROU / payments) | BS Operating lease assets | ALT DuPont ROU **balance** intensity/trend when unique `right_of_use_assets` resolves; **no** CF repayment, ROU-amortization, or discount-rate diagnostics | implemented-differently (bounded ROU balances); **repayment unresolved** | Explicit `right_of_use_assets`; FR supplies CF `repayments_of_lease_liabilities` (material) and `payments_for_rou_assets` (separately, mostly immaterial) | ROU balance practice done; teach reported repayment cash when present; do not equate Δ liability with amortization/repayments; rates separate | Maintain ROU balances; **implement repayment diagnostics** (gap); defer discount-rate (rates absent); defer full roll-forward; defer ROU-acquisition payments on materiality |
+| leases (ROU / payments) | BS Operating lease assets | ALT DuPont ROU **balance** intensity/trend when unique `right_of_use_assets` resolves; ALT DuPont `LEASE REPAYMENT CONTEXT` when unique CF `repayments_of_lease_liabilities` resolves (−reported + revenue intensity); **no** ROU-amortization or discount-rate diagnostics | implemented-differently (bounded ROU balances + repayment cash) | Explicit `right_of_use_assets`; unique CF `repayments_of_lease_liabilities` for repayment module; FR also supplies `payments_for_rou_assets` (separately deferred) | ROU balance + repayment-cash practice; do not equate Δ liability with amortization/repayments; rates separate | Maintain ROU + repayment; defer discount-rate (rates absent); defer full roll-forward; defer ROU-acquisition payments on materiality |
 | goodwill / acquired intangibles / acquisitions | BS Goodwill; Intangible assets; CF acquisitions line | ALT DuPont goodwill/intangibles intensity & change when concepts resolve; optional intangible-payments (−reported); **no** acquisition-cash / GW-impairment bridge | implemented-differently (bounded) | Unique `goodwill` / `intangible_assets` (and optional intangible-payment CF) when present; acquisition CF only when explicitly supplied | Optional gated intensity/change module; never invent acquisition or GW-impairment stories | Maintain bounded module; acquisition-cash remains deferred until explicit facts |
 | deferred taxes / unusual tax rates | BS Deferred income taxes; CF Deferred income taxes; IS Core bridge tax notes | ALT DuPont deferred-tax balance context when unique DTA+DTL resolve; ETR + pretax norm tax convention remain separate | implemented-differently (bounded) | Unique `deferred_tax_assets` + `deferred_tax_liabilities` (both required) | Optional gated net-position / balance-change practice; no expense or cash-tax inference | Maintain; unusual-rate / CF deferred-tax expense remain deferred |
 | minority / non-controlling interests | Not evidenced in inspected workbook | Ownership Attribution + parent ROE + parent-safe per-share numerator when ownership concepts resolve | implemented-differently | `profit_attributable_to_owners`, `profit_attributable_to_nci`, `equity_attributable_to_owners`, `noncontrolling_interests` | Optional gated schedule; consolidated DuPont unchanged | Maintain (Fast Retailing supplies NCI; GOOGL demo did not evidence it) |
@@ -136,8 +137,10 @@ Forward GOOGL sheets (Guidance & Consensus, Model_*, Scenario_Summary, Implied C
 
 ### Materially blocking (exit gate)
 
-1. ~~**Repair historical-v1 active-catalog freeze**~~ — **cleared in Step 9N.2.** Freeze now covers orders 1–121 (goodwill/intangibles 98–111, lease ROU 112–115, deferred tax 116–119, capex 120–121). Measured: exit-gate **7 passed**; `core/tests` **571 passed**; FR benchmark **26 passed** (481 / 10 capex / 3+3 conflicts).
-2. **Lease repayment diagnostics (unresolved source-supported gap)** — FR CF `repayments_of_lease_liabilities` FY2021–FY2025 = −148,248 / −136,889 / −140,646 / −146,403 / −140,483 (JPY mn; ~4.1–7.0% of revenue; ~27–32% of lease-liability stock). Liability/ROU modules expose **balances** only (families 87–90, 112–115); payment and amortization diagnostics are absent. ΔLL ≠ −repayments. Blocks criteria 1, 2, and 6. **Next implementation.**
+1. ~~**Repair historical-v1 active-catalog freeze**~~ — **cleared in Step 9N.2.** Freeze extended through lease repayment in 9N.3 (orders 1–123; goodwill/intangibles 98–111, lease ROU 112–115, deferred tax 116–119, capex 120–121, lease repayment 122–123).
+2. ~~**Lease repayment diagnostics**~~ — **cleared in Step 9N.3.** FR CF `repayments_of_lease_liabilities` now drives ALT DuPont practice (`lease_repayment_specs=10`; `expected_specs=491`). Measured: required suite green; full `core/tests` **587 passed**.
+
+No remaining **materially blocking** curriculum item is selected here; reassess exit criteria in `RESULT.md` before choosing the next Step 9 candidate (do not advance to Step 10 from this module alone).
 
 ### Explicitly deferred — source absent
 
@@ -212,15 +215,21 @@ Explicit concept resolution is registered in `core/model/line_resolver.py` for:
 
 ## Next historical implementation candidate (exactly one)
 
-**Name:** Source-supported lease-repayment diagnostics
+**Name:** *(none selected in this coverage refresh)* — lease-repayment gap cleared in Step 9N.3. Next planner pass must pick the highest-value remaining Step 9 dependency from the deferred/queue evidence without inventing low-value polish or advancing to Step 10.
 
-**Problem:** Fast Retailing supplies material CF `repayments_of_lease_liabilities` (FY2021–FY2025; ~4.1–7.0% of revenue; ~27–32% of lease-liability stock), but Trainer lease modules expose liability/ROU **balances** only. Balance change ≠ repayment cash. Blocks exit criteria 1, 2, and 6.
+**Problem (cleared):** Fast Retailing CF `repayments_of_lease_liabilities` lacked Trainer repayment diagnostics; now taught via `LEASE REPAYMENT CONTEXT`.
 
 **Distinct from (remain deferred):** lease discount-rate analysis; complete lease roll-forward; ROU acquisition-payment diagnostics.
 
-**Actions:** Add source-gated repayment diagnostics (intensity / conversion context as appropriate) when CF repayment facts resolve; omit when absent; do not invent rates, roll-forward plugs, or ROU acquisition payments.
+### Lease-repayment source, sign, and practice (Step 9N.3 — complete)
 
-**Acceptance:** Module tests + FR regression; omit on DEMO if repayments absent; no Step 10 advancement.
+- Resolver: CF `repayments_of_lease_liabilities` is **explicit-concept-only** (no label/pattern fallback), resolved only from `StandardizedFinancials.cash_flow`.
+- Gating: missing, ambiguous, label-only, or wrong-statement sources → module unavailable; no repayment rows or practice specs. Independent of lease-liability / ROU / lease-interest facts.
+- Sign: preserve reported cash-flow values as `repayments_reported`; analytical `lease_repayments = -repayments_reported`. Never `abs()` or infer from Δ liability.
+- Ratio: `lease_repayments_to_revenue = ratio_or_na(lease_repayments, revenue)`; zero revenue → `UNDEFINED_RATIO` (`#N/A`); missing/`None` required values raise `MissingHistoricalValueError`.
+- Workbook: ALT DuPont `LEASE REPAYMENT CONTEXT` with populated reported-repayment links + two practice families per period (`lease_repayment.lease_repayments`, `lease_repayment.lease_repayments_to_revenue`); Answer Key Notes distinguish repayment cash from total lease cost / ROU amortization / liability movement; workbook-wide Check.
+- Fast Retailing: `lease_repayment_specs=10`, `expected_specs=491`; FY2021–FY2025 `lease_repayments` anchors `148248, 136889, 140646, 146403, 140483` with independently calculated revenue ratios. Capex specs remain 10; liability/ROU specs and 3+3 conflicts unchanged.
+- DEMO unchanged (no `repayments_of_lease_liabilities`).
 
 ### Capex source, sign, and practice (Step 9M.9 — complete; preserved)
 
@@ -229,18 +238,20 @@ Explicit concept resolution is registered in `core/model/line_resolver.py` for:
 - Sign: preserve reported cash-flow values as `payments_reported`; analytical `ppe_capex = -payments_reported`. Never `abs()` or infer sign.
 - Ratio: `ppe_capex_to_revenue = ratio_or_na(ppe_capex, revenue)`; zero revenue → `UNDEFINED_RATIO` (`#N/A`); missing/`None` required values raise `MissingHistoricalValueError`.
 - Workbook: ALT DuPont `PP&E CAPEX CONTEXT` with populated reported-payment links + two practice families per period (`capex.ppe_capex`, `capex.ppe_capex_to_revenue`); Answer Key Notes; workbook-wide Check.
-- Fast Retailing: `capex_specs=10`, `expected_specs=481`; FY2021–FY2025 `ppe_capex` anchors `56500, 51271, 61764, 73728, 135535` with independently calculated revenue ratios.
-- Reinvestment bridge / other capex diagnostics: **explicitly deferred** (curriculum — see queue); not the next candidate.
+- Fast Retailing: `capex_specs=10`, `expected_specs=491` (includes lease-repayment specs); FY2021–FY2025 `ppe_capex` anchors `56500, 51271, 61764, 73728, 135535` with independently calculated revenue ratios.
+- Reinvestment bridge / other capex diagnostics: **explicitly deferred** (curriculum — see queue).
 - DEMO unchanged (no `payments_for_ppe`).
 
-### Explicitly out of scope for this candidate
+### Explicitly out of scope for the cleared repayment candidate
 
 - Discount-rate / IBR analysis, complete lease roll-forward, ROU acquisition-payment diagnostics
 - Interpretation essays, reinvestment bridge, SBC, acquisition, segments, forensics
 - Forecasting / valuation
-- Source fixture or benchmark baseline edits unrelated to repayment gating
+- Source fixture edits unrelated to repayment gating
 
-**Step 9N.2 note:** Catalog freeze repaired (orders 1–121; suite green). Exit gate still FAIL on unresolved material lease-repayment gap. Next implementation is source-supported lease-repayment diagnostics.
+**Step 9N.3 note:** Lease-repayment diagnostics implemented and tested. Catalog freeze orders 1–123. Exit gate still FAIL pending full six-criterion reassessment; do not declare Step 9 complete from this module alone.
+
+**Step 9N.2 note:** Catalog freeze repaired (orders 1–121; suite green). Superseded as the blocking next item by 9N.3 repayment delivery.
 
 **Step 9N.1 note:** Corrected lease-payment dispositions. Balance diagnostics ≠ repayment/amortization. Catalog-freeze blocker since cleared in 9N.2.
 
@@ -252,7 +263,7 @@ Explicit concept resolution is registered in `core/model/line_resolver.py` for:
 
 **Step 9M.7 note:** Deferred-tax balance diagnostics are implemented on ALT DuPont when unique exact-concept `deferred_tax_assets` and `deferred_tax_liabilities` both resolve. DEMO remains unchanged. Fast Retailing activates 17 practice cells (`deferred_tax_specs=17`). Deferred-tax expense / cash-tax inference remains deferred.
 
-**Step 9M.6 note:** Lease ROU-asset **balance** intensity / trend diagnostics are implemented on ALT DuPont when unique exact-concept `right_of_use_assets` resolves. DEMO remains unchanged (no ROU concept). Fast Retailing activates 16 practice cells. CF repayment diagnostics remain an **unresolved source-supported gap** (9N.1); discount-rate and full roll-forward remain separately deferred.
+**Step 9M.6 note:** Lease ROU-asset **balance** intensity / trend diagnostics are implemented on ALT DuPont when unique exact-concept `right_of_use_assets` resolves. DEMO remains unchanged (no ROU concept). Fast Retailing activates 16 practice cells. CF repayment diagnostics delivered in 9N.3; discount-rate and full roll-forward remain separately deferred.
 
 **Step 9M.5 note:** Goodwill / intangible-asset intensity & change diagnostics (optional intangible-payments as −reported) are implemented on ALT DuPont when explicit concepts resolve. DEMO label-only goodwill remains omitted. Acquisition-cash and GW-impairment storytelling remain deferred.
 

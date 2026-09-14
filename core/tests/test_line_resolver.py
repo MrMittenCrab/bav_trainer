@@ -238,6 +238,7 @@ def test_lease_liability_aggregate_aliases_and_ambiguity():
         "intangible_assets",
         "payments_for_intangible_assets",
         "payments_for_ppe",
+        "repayments_of_lease_liabilities",
     ),
 )
 def test_goodwill_intangible_explicit_concept_only(concept):

@@ -2914,6 +2914,104 @@ def expand_capex_specs(
     return tuple(specs)
 
 
+LEASE_REPAYMENT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="lease_repayments",
+        order=122,
+        title="Lease Repayments (−reported)",
+        short_hint=(
+            "Presented as −reported cash repayments of lease liabilities. "
+            "Not total lease cost, ROU amortization, or liability movement."
+        ),
+        semantic_key="lease_repayment.lease_repayments",
+        category="lease_repayment",
+        tab_template="ALT DuPont",
+        hints=(
+            "Lease Repayments = −(reported repayments of lease liabilities).",
+            "Do not apply absolute value; keep the −reported sign convention consistently.",
+            "This is reported repayment cash only — not total lease cost, ROU "
+            "amortization, or the change in lease liability.",
+            "Explicit zero reported repayments remain valid (zero repayments).",
+        ),
+    ),
+    ComponentFamily(
+        id="lease_repayments_to_revenue",
+        order=123,
+        title="Lease Repayments / Revenue",
+        short_hint=(
+            "Presented lease repayments divided by same-period Revenue. "
+            "Cash intensity only — not liability stock or ROU amortization."
+        ),
+        semantic_key="lease_repayment.lease_repayments_to_revenue",
+        category="lease_repayment",
+        tab_template="ALT DuPont",
+        depends_on_current=("lease_repayments", "revenue_link"),
+        hints=(
+            "Lease Repayments / Revenue uses the −reported repayment presentation.",
+            "A zero Revenue denominator makes the ratio undefined (#N/A).",
+            "Revenue intensity of repayment cash only — not total lease cost, "
+            "ROU amortization, or liability movement.",
+        ),
+    ),
+)
+
+
+def expand_lease_repayment_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+) -> tuple[ComponentSpec, ...]:
+    """Expand lease-repayment families into period-specific concrete specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_lease_repayment_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_lease_repayment_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in LEASE_REPAYMENT_COMPONENT_CATALOG:
+        if family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        else:
+            indices = range(len(periods))
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            if j > 0:
+                prev = periods[j - 1]
+                for dep_fam in family.depends_on_previous:
+                    deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 DEFERRED_TAX_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
     ComponentFamily(
         id="net_deferred_tax_position",

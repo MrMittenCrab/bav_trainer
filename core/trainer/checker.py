@@ -20,6 +20,7 @@ from ..engine.component_catalog import (
     FIXED_ASSET_COMPONENT_CATALOG,
     GOODWILL_INTANGIBLES_COMPONENT_CATALOG,
     LEASE_LIABILITY_COMPONENT_CATALOG,
+    LEASE_REPAYMENT_COMPONENT_CATALOG,
     LEASE_ROU_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
     OWNERSHIP_ATTRIBUTION_COMPONENT_CATALOG,
@@ -30,6 +31,10 @@ from ..engine.component_catalog import (
 )
 from ..model.fixed_asset import compute_fixed_asset_series, fixed_asset_applicable
 from ..model.capex import compute_capex_series, capex_applicable
+from ..model.lease_repayment import (
+    compute_lease_repayment_series,
+    lease_repayment_applicable,
+)
 from ..model.deferred_tax import (
     compute_deferred_tax_series,
     deferred_tax_applicable,
@@ -296,6 +301,17 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                         list(modeled_periods),
                         anchor,
                     )
+            lease_repayment_family_ids = {
+                family.id for family in LEASE_REPAYMENT_COMPONENT_CATALOG
+            }
+            lease_repayment = None
+            if any(comp.family_id in lease_repayment_family_ids for comp in comps):
+                if lease_repayment_applicable(financials):
+                    lease_repayment = compute_lease_repayment_series(
+                        financials,
+                        list(modeled_periods),
+                        anchor,
+                    )
             dynamic_expected = {
                 comp.id: expected_value_for_component(
                     anchor,
@@ -311,6 +327,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     goodwill_intangibles=goodwill_intangibles,
                     goodwill_intangibles_availability=gi_availability,
                     capex=capex,
+                    lease_repayment=lease_repayment,
                 )
                 for comp in comps
             }

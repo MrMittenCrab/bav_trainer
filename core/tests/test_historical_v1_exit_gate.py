@@ -17,6 +17,7 @@ from core.engine.component_catalog import (
     FIXED_ASSET_COMPONENT_CATALOG,
     GOODWILL_INTANGIBLES_COMPONENT_CATALOG,
     LEASE_LIABILITY_COMPONENT_CATALOG,
+    LEASE_REPAYMENT_COMPONENT_CATALOG,
     LEASE_ROU_COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
@@ -44,7 +45,7 @@ from core.trainer.workbook import build_training_workbook, group_components_by_f
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# Step 9 historical active namespace: family orders 1–121 (through capex).
+# Step 9 historical active namespace: family orders 1–123 (through lease repayment).
 ACTIVE_CATALOGS = (
     COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
@@ -64,9 +65,10 @@ ACTIVE_CATALOGS = (
     LEASE_ROU_COMPONENT_CATALOG,
     DEFERRED_TAX_COMPONENT_CATALOG,
     CAPEX_COMPONENT_CATALOG,
+    LEASE_REPAYMENT_COMPONENT_CATALOG,
 )
 
-# Explicit post–9M optional catalog family id → order mappings (98–121).
+# Explicit post–v1 optional catalog family id → order mappings (98–123).
 EXPECTED_POST_V1_FAMILY_ORDERS = {
     # Goodwill / intangibles 98–111
     "goodwill_change": 98,
@@ -96,6 +98,9 @@ EXPECTED_POST_V1_FAMILY_ORDERS = {
     # Capex 120–121
     "ppe_capex": 120,
     "ppe_capex_to_revenue": 121,
+    # Lease repayment 122–123
+    "lease_repayments": 122,
+    "lease_repayments_to_revenue": 123,
 }
 
 
@@ -134,7 +139,7 @@ def _assert_deferred_isolation(trainer: Path, answer: Path) -> None:
 
 
 def test_historical_v1_active_catalog_namespace_is_frozen():
-    """Freeze the current Step 9 historical active catalog namespace (orders 1–121)."""
+    """Freeze the current Step 9 historical active catalog namespace (orders 1–123)."""
     families = [family for catalog in ACTIVE_CATALOGS for family in catalog]
     ids = [family.id for family in families]
     orders = [family.order for family in families]
@@ -142,7 +147,7 @@ def test_historical_v1_active_catalog_namespace_is_frozen():
 
     assert len(ids) == len(set(ids))
     assert len(orders) == len(set(orders))
-    assert sorted(orders) == list(range(1, 122))
+    assert sorted(orders) == list(range(1, 124))
 
     for family_id, expected_order in EXPECTED_POST_V1_FAMILY_ORDERS.items():
         assert by_id[family_id] == expected_order

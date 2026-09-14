@@ -1,4 +1,4 @@
-"""Step 9M.9 — PP&E capex practice, ratios, and workbook Check."""
+"""Step 9N.3 — Lease-repayment practice, ratios, and workbook Check."""
 
 from __future__ import annotations
 
@@ -19,19 +19,19 @@ from core.data.interface import (
 )
 from core.data.standardized_io import standardized_from_payload
 from core.engine.component_catalog import (
-    CAPEX_COMPONENT_CATALOG,
-    expand_capex_specs,
+    LEASE_REPAYMENT_COMPONENT_CATALOG,
+    expand_lease_repayment_specs,
 )
 from core.engine.reference_model import ReferenceModelBuilder
 from core.ingestion.manual_hk import HKManualDocumentAdapter
-from core.model.capex import (
-    capex_applicable,
-    capex_availability,
-    compute_capex_series,
-    resolve_capex_source,
-)
 from core.model.financial_math import compute_anchor
-from core.model.historical_expected import capex_expected_series
+from core.model.historical_expected import lease_repayment_expected_series
+from core.model.lease_repayment import (
+    compute_lease_repayment_series,
+    lease_repayment_applicable,
+    lease_repayment_availability,
+    resolve_lease_repayment_source,
+)
 from core.model.line_resolver import AmbiguousLineError, MissingLineError, resolve_line
 from core.model.period_axis import canonical_fiscal_periods
 from core.model.ratio_values import UNDEFINED_RATIO
@@ -61,16 +61,16 @@ def _li(label, values, concept=""):
 
 def _tiny(
     *,
-    payments=(-100.0, -120.0),
+    repayments=(-100.0, -120.0),
     revenue=(1000.0, 1100.0),
-    with_payments: bool = True,
+    with_repayments: bool = True,
     label_only: bool = False,
     duplicate: bool = False,
     missing_period: bool = False,
     none_period: bool = False,
     missing_revenue: bool = False,
     none_revenue: bool = False,
-    payments_first: bool = False,
+    repayments_first: bool = False,
     on_balance_sheet: bool = False,
     single_period: bool = False,
 ):
@@ -81,7 +81,7 @@ def _tiny(
         def vals(a, b=None):
             return {d1: a}
 
-        pay_vals = (payments[0],)
+        repay_vals = (repayments[0],)
         rev_vals = (revenue[0],)
     else:
         d1, d2 = P1, P2
@@ -93,22 +93,22 @@ def _tiny(
         def vals(a, b=None):
             return {d1: a, d2: b if b is not None else a}
 
-        pay_vals = payments
+        repay_vals = repayments
         rev_vals = revenue
 
-    concept = "" if label_only else "payments_for_ppe"
+    concept = "" if label_only else "repayments_of_lease_liabilities"
     if missing_period and not single_period:
-        pay_values = {P1: pay_vals[0]}
+        repay_values = {P1: repay_vals[0]}
     elif none_period and not single_period:
-        pay_values = {P1: pay_vals[0], P2: None}
+        repay_values = {P1: repay_vals[0], P2: None}
     elif single_period:
-        pay_values = vals(pay_vals[0])
+        repay_values = vals(repay_vals[0])
     else:
-        pay_values = vals(*pay_vals)
+        repay_values = vals(*repay_vals)
 
-    pay_item = _li(
-        "Payments for property, plant and equipment",
-        pay_values,
+    repay_item = _li(
+        "Repayments of lease liabilities",
+        repay_values,
         concept=concept,
     )
 
@@ -156,24 +156,24 @@ def _tiny(
             _li("Net cash from operating activities", vals(80, 90)),
         ]
 
-    if with_payments:
+    if with_repayments:
         target = bs if on_balance_sheet else cf
-        if payments_first:
-            target.insert(0, pay_item)
+        if repayments_first:
+            target.insert(0, repay_item)
         else:
-            target.append(pay_item)
+            target.append(repay_item)
         if duplicate and not on_balance_sheet:
             cf.append(
                 _li(
-                    "Payments for PPE duplicate",
-                    vals(*pay_vals) if not single_period else vals(pay_vals[0]),
-                    concept="payments_for_ppe",
+                    "Repayments of lease liabilities duplicate",
+                    vals(*repay_vals) if not single_period else vals(repay_vals[0]),
+                    concept="repayments_of_lease_liabilities",
                 )
             )
 
     return StandardizedFinancials(
-        ticker="CAPEX",
-        company_name="Capex Co",
+        ticker="LEASE_REPAY",
+        company_name="Lease Repay Co",
         currency="HKD",
         units="HKD mn",
         jurisdiction="HK",
@@ -190,145 +190,160 @@ def _anchor(fin: StandardizedFinancials):
 
 def test_catalog_expansion_five_periods():
     periods = [date(y, 12, 31) for y in range(2021, 2026)]
-    assert len(CAPEX_COMPONENT_CATALOG) == 2
-    assert [f.order for f in CAPEX_COMPONENT_CATALOG] == [120, 121]
-    specs = expand_capex_specs(periods, start_order=1000)
+    assert len(LEASE_REPAYMENT_COMPONENT_CATALOG) == 2
+    assert [f.order for f in LEASE_REPAYMENT_COMPONENT_CATALOG] == [122, 123]
+    specs = expand_lease_repayment_specs(periods, start_order=1000)
     assert len(specs) == 10
-    assert {s.family_id for s in specs} == {"ppe_capex", "ppe_capex_to_revenue"}
-    assert all(s.semantic_key.startswith("capex.") for s in specs)
+    assert {s.family_id for s in specs} == {
+        "lease_repayments",
+        "lease_repayments_to_revenue",
+    }
+    assert all(s.semantic_key.startswith("lease_repayment.") for s in specs)
+    assert all(s.category == "lease_repayment" for s in specs)
     with pytest.raises(ValueError, match="duplicate"):
-        expand_capex_specs([periods[0], periods[0]], start_order=1)
+        expand_lease_repayment_specs([periods[0], periods[0]], start_order=1)
     with pytest.raises(ValueError, match="chronological"):
-        expand_capex_specs(list(reversed(periods)), start_order=1)
+        expand_lease_repayment_specs(list(reversed(periods)), start_order=1)
 
 
 def test_unique_concept_resolution_and_renamed_label():
     fin = _tiny()
-    item = resolve_capex_source(fin)
+    item = resolve_lease_repayment_source(fin)
     assert item is not None
-    assert item.concept == "payments_for_ppe"
-    assert item.label == "Payments for property, plant and equipment"
-    assert capex_applicable(fin)
-    avail = capex_availability(fin)
-    assert avail.payments_for_ppe is True and avail.ambiguous is False
+    assert item.concept == "repayments_of_lease_liabilities"
+    assert item.label == "Repayments of lease liabilities"
+    assert lease_repayment_applicable(fin)
+    avail = lease_repayment_availability(fin)
+    assert (
+        avail.repayments_of_lease_liabilities is True and avail.ambiguous is False
+    )
 
     renamed = _tiny()
     renamed.cash_flow[-1] = _li(
-        "Purchase of fixed assets (renamed)",
+        "Lease liability principal repaid (renamed)",
         {P1: -100.0, P2: -120.0},
-        concept="payments_for_ppe",
+        concept="repayments_of_lease_liabilities",
     )
-    assert resolve_capex_source(renamed) is not None
-    assert resolve_capex_source(renamed).label == "Purchase of fixed assets (renamed)"
+    assert resolve_lease_repayment_source(renamed) is not None
+    assert (
+        resolve_lease_repayment_source(renamed).label
+        == "Lease liability principal repaid (renamed)"
+    )
 
 
 def test_reordered_rows_still_resolve():
-    first = _tiny(payments_first=True)
-    last = _tiny(payments_first=False)
-    assert resolve_capex_source(first) is not None
-    assert resolve_capex_source(last) is not None
-    assert resolve_capex_source(first).values == resolve_capex_source(last).values
+    first = _tiny(repayments_first=True)
+    last = _tiny(repayments_first=False)
+    assert resolve_lease_repayment_source(first) is not None
+    assert resolve_lease_repayment_source(last) is not None
+    assert (
+        resolve_lease_repayment_source(first).values
+        == resolve_lease_repayment_source(last).values
+    )
 
 
 def test_absent_label_only_duplicate_wrong_statement():
-    absent = _tiny(with_payments=False)
-    assert not capex_applicable(absent)
-    assert resolve_capex_source(absent) is None
-    assert capex_availability(absent).payments_for_ppe is False
+    absent = _tiny(with_repayments=False)
+    assert not lease_repayment_applicable(absent)
+    assert resolve_lease_repayment_source(absent) is None
+    assert lease_repayment_availability(absent).repayments_of_lease_liabilities is False
     with pytest.raises(MissingLineError):
-        compute_capex_series(absent, list(canonical_fiscal_periods(absent)), _anchor(absent))
-    assert ReferenceModelBuilder(absent).capex_specs == ()
+        compute_lease_repayment_series(
+            absent, list(canonical_fiscal_periods(absent)), _anchor(absent)
+        )
+    assert ReferenceModelBuilder(absent).lease_repayment_specs == ()
 
     label_only = _tiny(label_only=True)
-    assert not capex_applicable(label_only)
-    assert resolve_capex_source(label_only) is None
+    assert not lease_repayment_applicable(label_only)
+    assert resolve_lease_repayment_source(label_only) is None
     assert (
         resolve_line(
-            label_only.cash_flow, "payments_for_ppe", required=False
+            label_only.cash_flow, "repayments_of_lease_liabilities", required=False
         ).item
         is None
     )
-    assert ReferenceModelBuilder(label_only).capex_specs == ()
+    assert ReferenceModelBuilder(label_only).lease_repayment_specs == ()
 
     dup = _tiny(duplicate=True)
-    avail = capex_availability(dup)
+    avail = lease_repayment_availability(dup)
     assert avail.ambiguous is True
-    assert avail.payments_for_ppe is False
-    assert not capex_applicable(dup)
-    assert resolve_capex_source(dup) is None
+    assert avail.repayments_of_lease_liabilities is False
+    assert not lease_repayment_applicable(dup)
+    assert resolve_lease_repayment_source(dup) is None
     with pytest.raises(AmbiguousLineError):
-        resolve_line(dup.cash_flow, "payments_for_ppe", required=False)
-    assert ReferenceModelBuilder(dup).capex_specs == ()
+        resolve_line(dup.cash_flow, "repayments_of_lease_liabilities", required=False)
+    assert ReferenceModelBuilder(dup).lease_repayment_specs == ()
 
     wrong = _tiny(on_balance_sheet=True)
-    assert not capex_applicable(wrong)
-    assert resolve_capex_source(wrong) is None
+    assert not lease_repayment_applicable(wrong)
+    assert resolve_lease_repayment_source(wrong) is None
     assert (
-        resolve_line(wrong.balance_sheet, "payments_for_ppe", required=False).item
+        resolve_line(
+            wrong.balance_sheet, "repayments_of_lease_liabilities", required=False
+        ).item
         is not None
     )
 
 
 def test_sign_conversion_ratios_positive_negative_mixed_zero():
-    negative = _tiny(payments=(-50.0, -80.0), revenue=(1000.0, 2000.0))
-    series_neg = compute_capex_series(
+    negative = _tiny(repayments=(-50.0, -80.0), revenue=(1000.0, 2000.0))
+    series_neg = compute_lease_repayment_series(
         negative, list(canonical_fiscal_periods(negative)), _anchor(negative)
     )
-    assert series_neg.payments_reported == (-50.0, -80.0)
-    assert series_neg.ppe_capex == (50.0, 80.0)
-    assert series_neg.ppe_capex_to_revenue[0] == pytest.approx(50.0 / 1000.0)
-    assert series_neg.ppe_capex_to_revenue[1] == pytest.approx(80.0 / 2000.0)
+    assert series_neg.repayments_reported == (-50.0, -80.0)
+    assert series_neg.lease_repayments == (50.0, 80.0)
+    assert series_neg.lease_repayments_to_revenue[0] == pytest.approx(50.0 / 1000.0)
+    assert series_neg.lease_repayments_to_revenue[1] == pytest.approx(80.0 / 2000.0)
 
-    positive = _tiny(payments=(50.0, 80.0))
-    series_pos = compute_capex_series(
+    positive = _tiny(repayments=(50.0, 80.0))
+    series_pos = compute_lease_repayment_series(
         positive, list(canonical_fiscal_periods(positive)), _anchor(positive)
     )
-    assert series_pos.payments_reported == (50.0, 80.0)
-    assert series_pos.ppe_capex == (-50.0, -80.0)
-    assert series_pos.ppe_capex_to_revenue[0] == pytest.approx(-50.0 / 1000.0)
+    assert series_pos.repayments_reported == (50.0, 80.0)
+    assert series_pos.lease_repayments == (-50.0, -80.0)
+    assert series_pos.lease_repayments_to_revenue[0] == pytest.approx(-50.0 / 1000.0)
 
-    mixed = _tiny(payments=(-50.0, 80.0))
-    series_mix = compute_capex_series(
+    mixed = _tiny(repayments=(-50.0, 80.0))
+    series_mix = compute_lease_repayment_series(
         mixed, list(canonical_fiscal_periods(mixed)), _anchor(mixed)
     )
-    assert series_mix.payments_reported == (-50.0, 80.0)
-    assert series_mix.ppe_capex == (50.0, -80.0)
+    assert series_mix.repayments_reported == (-50.0, 80.0)
+    assert series_mix.lease_repayments == (50.0, -80.0)
 
-    zero = _tiny(payments=(0.0, -10.0))
-    series_z = compute_capex_series(
+    zero = _tiny(repayments=(0.0, -10.0))
+    series_z = compute_lease_repayment_series(
         zero, list(canonical_fiscal_periods(zero)), _anchor(zero)
     )
-    assert series_z.payments_reported == (0.0, -10.0)
-    assert series_z.ppe_capex == (0.0, 10.0)
-    assert series_z.ppe_capex_to_revenue[0] == pytest.approx(0.0)
+    assert series_z.repayments_reported == (0.0, -10.0)
+    assert series_z.lease_repayments == (0.0, 10.0)
+    assert series_z.lease_repayments_to_revenue[0] == pytest.approx(0.0)
 
-    mapped = capex_expected_series(series_neg)
-    assert set(mapped) == {f.id for f in CAPEX_COMPONENT_CATALOG}
+    mapped = lease_repayment_expected_series(series_neg)
+    assert set(mapped) == {f.id for f in LEASE_REPAYMENT_COMPONENT_CATALOG}
 
 
 def test_zero_revenue_undefined_ratio():
-    fin = _tiny(payments=(-50.0, -80.0), revenue=(0.0, 2000.0))
-    series = compute_capex_series(
+    fin = _tiny(repayments=(-50.0, -80.0), revenue=(0.0, 2000.0))
+    series = compute_lease_repayment_series(
         fin, list(canonical_fiscal_periods(fin)), _anchor(fin)
     )
-    assert series.ppe_capex == (50.0, 80.0)
-    assert series.ppe_capex_to_revenue[0] == UNDEFINED_RATIO
-    assert series.ppe_capex_to_revenue[1] == pytest.approx(80.0 / 2000.0)
+    assert series.lease_repayments == (50.0, 80.0)
+    assert series.lease_repayments_to_revenue[0] == UNDEFINED_RATIO
+    assert series.lease_repayments_to_revenue[1] == pytest.approx(80.0 / 2000.0)
 
 
 def test_missing_none_inputs_raise():
     missing = _tiny(missing_period=True)
     periods = list(canonical_fiscal_periods(missing))
-    # Revenue is complete; payments missing for P2.
     anchor = compute_anchor(missing, periods)
     with pytest.raises(MissingHistoricalValueError):
-        compute_capex_series(missing, periods, anchor)
+        compute_lease_repayment_series(missing, periods, anchor)
 
     none_period = _tiny(none_period=True)
     periods_n = list(canonical_fiscal_periods(none_period))
     anchor_n = compute_anchor(none_period, periods_n)
     with pytest.raises(MissingHistoricalValueError):
-        compute_capex_series(none_period, periods_n, anchor_n)
+        compute_lease_repayment_series(none_period, periods_n, anchor_n)
 
     missing_rev = _tiny(missing_revenue=True)
     periods_r = list(canonical_fiscal_periods(missing_rev))
@@ -341,18 +356,36 @@ def test_missing_none_inputs_raise():
         compute_anchor(none_rev, periods_nr)
 
 
-def test_period_ordering_and_unchanged_input():
-    fin = _tiny(payments=(-10.0, -20.0))
+def test_period_ordering_unchanged_input_and_single_period():
+    fin = _tiny(repayments=(-10.0, -20.0))
     reverse = [P2, P1]
     anchor = compute_anchor(fin, reverse)
-    series = compute_capex_series(fin, reverse, anchor)
-    assert series.payments_reported == (-20.0, -10.0)
-    assert series.ppe_capex == (20.0, 10.0)
+    series = compute_lease_repayment_series(fin, reverse, anchor)
+    assert series.repayments_reported == (-20.0, -10.0)
+    assert series.lease_repayments == (20.0, 10.0)
 
-    before = copy.deepcopy(resolve_capex_source(fin).values)
-    compute_capex_series(fin, [P1, P2], compute_anchor(fin, [P1, P2]))
-    after = resolve_capex_source(fin).values
+    before = copy.deepcopy(resolve_lease_repayment_source(fin).values)
+    compute_lease_repayment_series(fin, [P1, P2], compute_anchor(fin, [P1, P2]))
+    after = resolve_lease_repayment_source(fin).values
     assert after == before
+
+    single = _tiny(single_period=True, repayments=(-40.0, -50.0), revenue=(800.0, 900.0))
+    assert lease_repayment_applicable(single)
+    builder = ReferenceModelBuilder(single)
+    assert builder.lease_repayment_series is not None
+    assert builder.lease_repayment_series.lease_repayments == (40.0,)
+    assert len(builder.lease_repayment_specs) == 2
+
+
+def test_independent_of_liability_rou_interest():
+    """Repayment activation does not require liability, ROU, or lease interest."""
+    fin = _tiny()
+    assert lease_repayment_applicable(fin)
+    assert fin.historical_lease is None
+    builder = ReferenceModelBuilder(fin)
+    assert builder.lease_repayment_specs
+    assert builder.lease_liability_specs == ()
+    assert builder.lease_rou_specs == ()
 
 
 def _dupont_row_by_label(ws, label: str) -> int:
@@ -364,56 +397,57 @@ def _dupont_row_by_label(ws, label: str) -> int:
 
 def test_workbook_gating_structure_formulas_notes_and_check(tmp_path):
     data = _tiny()
-    trainer, answer = build_training_workbook(data, tmp_path / "CAPEX_BASE.xlsx")
+    trainer, answer = build_training_workbook(data, tmp_path / "LEASE_REPAY_BASE.xlsx")
     builder = ReferenceModelBuilder(data)
-    assert builder.capex_series is not None
-    assert len(builder.capex_specs) == 4
-    assert {s.family_id for s in builder.capex_specs} == {
-        "ppe_capex",
-        "ppe_capex_to_revenue",
+    assert builder.lease_repayment_series is not None
+    assert len(builder.lease_repayment_specs) == 4
+    assert {s.family_id for s in builder.lease_repayment_specs} == {
+        "lease_repayments",
+        "lease_repayments_to_revenue",
     }
 
     smap = load_semantic_map(answer)
-    capex_comps = [
+    repay_comps = [
         c
         for c in smap.all_ordered()
-        if c.family_id in {f.id for f in CAPEX_COMPONENT_CATALOG}
+        if c.family_id in {f.id for f in LEASE_REPAYMENT_COMPONENT_CATALOG}
     ]
-    assert len(capex_comps) == 4
+    assert len(repay_comps) == 4
 
     for path in (trainer, answer):
         wb = load_workbook(path, data_only=False)
         ws = wb["ALT DuPont"]
         assert any(
-            ws.cell(r, 1).value == "PP&E CAPEX CONTEXT"
+            ws.cell(r, 1).value == "LEASE REPAYMENT CONTEXT"
             for r in range(1, (ws.max_row or 1) + 1)
         )
         reported_row = _dupont_row_by_label(
-            ws, "Payments for Property, Plant & Equipment (reported)"
+            ws, "Repayments of Lease Liabilities (reported)"
         )
-        capex_row = _dupont_row_by_label(ws, "PP&E Capex (−reported)")
-        ratio_row = _dupont_row_by_label(ws, "PP&E Capex / Revenue")
-        # Source link populated in both workbooks.
+        repay_row = _dupont_row_by_label(ws, "Lease Repayments (−reported)")
+        ratio_row = _dupont_row_by_label(ws, "Lease Repayments / Revenue")
         assert isinstance(ws.cell(reported_row, 2).value, str)
         assert ws.cell(reported_row, 2).value.startswith("=")
         for col in (2, 3):
             reported = ws.cell(reported_row, column=col)
-            capex_cell = ws.cell(capex_row, column=col)
+            repay_cell = ws.cell(repay_row, column=col)
             ratio_cell = ws.cell(ratio_row, column=col)
             if path == answer:
-                assert isinstance(capex_cell.value, str) and capex_cell.value.startswith(
+                assert isinstance(repay_cell.value, str) and repay_cell.value.startswith(
                     "="
                 )
-                assert capex_cell.value.replace(" ", "").startswith("=-")
+                assert repay_cell.value.replace(" ", "").startswith("=-")
                 assert "IF(" in str(ratio_cell.value) and "NA()" in str(ratio_cell.value)
-                assert capex_cell.comment is not None
-                assert (capex_cell.comment.text or "").strip()
+                assert repay_cell.comment is not None
+                note = (repay_cell.comment.text or "").strip().lower()
+                assert note
+                assert "rou" in note or "liability" in note or "total lease" in note
                 assert ratio_cell.comment is not None
                 assert (ratio_cell.comment.text or "").strip()
             else:
-                assert capex_cell.value is None
+                assert repay_cell.value is None
                 assert ratio_cell.value is None
-                assert capex_cell.comment is None
+                assert repay_cell.comment is None
                 assert ratio_cell.comment is None
                 assert reported.value is not None
         wb.close()
@@ -434,7 +468,7 @@ def test_workbook_gating_structure_formulas_notes_and_check(tmp_path):
     assert filled.incorrect == 0
     assert filled.blank == 0
 
-    bad = next(c for c in capex_comps if c.family_id == "ppe_capex")
+    bad = next(c for c in repay_comps if c.family_id == "lease_repayments")
     _inject_formula_and_cached_value(
         trainer,
         bad.tab,
@@ -446,36 +480,36 @@ def test_workbook_gating_structure_formulas_notes_and_check(tmp_path):
     assert bad_summary.incorrect >= 1
     dumped = repr(bad_summary)
     assert "=999" not in dumped
-    assert "PP&E Capex" not in dumped
+    assert "Lease Repayments" not in dumped
 
 
 def test_workbook_renamed_reordered_source_links(tmp_path):
-    for payments_first in (False, True):
-        fin = _tiny(payments_first=payments_first)
+    for repayments_first in (False, True):
+        fin = _tiny(repayments_first=repayments_first)
         fin.cash_flow[
             next(
                 i
                 for i, item in enumerate(fin.cash_flow)
-                if (item.concept or "") == "payments_for_ppe"
+                if (item.concept or "") == "repayments_of_lease_liabilities"
             )
         ] = _li(
-            "Purchase of fixed assets (renamed)",
+            "Lease liability principal repaid (renamed)",
             {P1: -100.0, P2: -120.0},
-            concept="payments_for_ppe",
+            concept="repayments_of_lease_liabilities",
         )
         trainer, answer = build_training_workbook(
-            fin, tmp_path / f"CAPEX_REORDER_{payments_first}.xlsx"
+            fin, tmp_path / f"LEASE_REPAY_REORDER_{repayments_first}.xlsx"
         )
         idx = next(
             i
             for i, item in enumerate(fin.cash_flow)
-            if (item.concept or "") == "payments_for_ppe"
+            if (item.concept or "") == "repayments_of_lease_liabilities"
         )
         expected_row = 7 + idx
         wb = load_workbook(answer, data_only=False)
         ws = wb["ALT DuPont"]
         reported_row = _dupont_row_by_label(
-            ws, "Payments for Property, Plant & Equipment (reported)"
+            ws, "Repayments of Lease Liabilities (reported)"
         )
         level_f = str(ws.cell(reported_row, 2).value).replace(" ", "")
         assert f"'CashFlowStatement'!B{expected_row}" in level_f or (
@@ -485,13 +519,14 @@ def test_workbook_renamed_reordered_source_links(tmp_path):
 
 
 def test_undefined_ratio_check_accepts_na(tmp_path):
-    data = _tiny(payments=(-50.0, -80.0), revenue=(0.0, 2000.0))
-    trainer, answer = build_training_workbook(data, tmp_path / "CAPEX_NA.xlsx")
+    data = _tiny(repayments=(-50.0, -80.0), revenue=(0.0, 2000.0))
+    trainer, answer = build_training_workbook(data, tmp_path / "LEASE_REPAY_NA.xlsx")
     smap = load_semantic_map(answer)
     undef = [
         c
         for c in smap.all_ordered()
-        if c.family_id == "ppe_capex_to_revenue" and c.expected_value == UNDEFINED_RATIO
+        if c.family_id == "lease_repayments_to_revenue"
+        and c.expected_value == UNDEFINED_RATIO
     ]
     assert undef
     wb = load_workbook(trainer, data_only=False)
@@ -500,7 +535,6 @@ def test_undefined_ratio_check_accepts_na(tmp_path):
         wb[comp.tab].cell(row=row, column=col).value = comp.formula
     wb.save(trainer)
     wb.close()
-    # Inject cached #N/A for the undefined-ratio cell so Check can validate.
     for comp in undef:
         _inject_formula_and_cached_value(
             trainer,
@@ -517,21 +551,21 @@ def test_undefined_ratio_check_accepts_na(tmp_path):
 
 def test_demo_omits_and_practice_counts_unchanged(tmp_path):
     data = _ingest_demo()
-    assert not capex_applicable(data)
+    assert not lease_repayment_applicable(data)
     builder = ReferenceModelBuilder(data)
-    assert builder.capex_series is None
-    assert builder.capex_specs == ()
-    trainer, answer = build_training_workbook(data, tmp_path / "CAPEX_DEMO.xlsx")
+    assert builder.lease_repayment_series is None
+    assert builder.lease_repayment_specs == ()
+    trainer, answer = build_training_workbook(data, tmp_path / "LEASE_REPAY_DEMO.xlsx")
     smap = load_semantic_map(answer)
     assert len(group_components_by_family(smap)) == 74
     assert len(smap.all_ordered()) == 312
     assert check_workbook(trainer).blank == 312
 
 
-def test_fast_retailing_fy2021_fy2025_capex_anchors_and_ratios():
+def test_fast_retailing_fy2021_fy2025_repayment_anchors_and_ratios():
     payload = json.loads(STD_JSON.read_text(encoding="utf-8"))
     fin = standardized_from_payload(payload)
-    assert capex_applicable(fin)
+    assert lease_repayment_applicable(fin)
     periods = list(canonical_fiscal_periods(fin))
     assert [p.isoformat() for p in periods] == [
         "2021-08-31",
@@ -541,22 +575,31 @@ def test_fast_retailing_fy2021_fy2025_capex_anchors_and_ratios():
         "2025-08-31",
     ]
     anchor = compute_anchor(fin, periods)
-    series = compute_capex_series(fin, periods, anchor)
-    assert series.payments_reported == (
-        -56500.0,
-        -51271.0,
-        -61764.0,
-        -73728.0,
-        -135535.0,
+    series = compute_lease_repayment_series(fin, periods, anchor)
+    assert series.repayments_reported == (
+        -148248.0,
+        -136889.0,
+        -140646.0,
+        -146403.0,
+        -140483.0,
     )
-    assert series.ppe_capex == (56500.0, 51271.0, 61764.0, 73728.0, 135535.0)
+    assert series.lease_repayments == (
+        148248.0,
+        136889.0,
+        140646.0,
+        146403.0,
+        140483.0,
+    )
     revenues = (2132992.0, 2301122.0, 2766557.0, 3103836.0, 3400539.0)
     assert list(anchor.historical.revenue) == list(revenues)
     for j, rev in enumerate(revenues):
-        assert series.ppe_capex_to_revenue[j] == pytest.approx(
-            series.ppe_capex[j] / rev
+        assert series.lease_repayments_to_revenue[j] == pytest.approx(
+            series.lease_repayments[j] / rev
         )
 
     builder = ReferenceModelBuilder(fin)
+    assert len(builder.lease_repayment_specs) == 10
     assert len(builder.capex_specs) == 10
+    assert len(builder.lease_liability_specs) == 18
+    assert len(builder.lease_rou_specs) == 16
     assert len(builder.expected_specs) == 491

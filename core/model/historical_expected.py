@@ -9,6 +9,7 @@ from ..engine.component_catalog import (
     FIXED_ASSET_COMPONENT_CATALOG,
     GOODWILL_INTANGIBLES_COMPONENT_CATALOG,
     LEASE_LIABILITY_COMPONENT_CATALOG,
+    LEASE_REPAYMENT_COMPONENT_CATALOG,
     LEASE_ROU_COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
@@ -34,6 +35,7 @@ from .goodwill_intangibles import (
     GoodwillIntangiblesSeries,
 )
 from .lease_liability import LeaseLiabilitySeries
+from .lease_repayment import LeaseRepaymentSeries
 from .lease_rou import LeaseRouSeries
 from .normalization import NormalizationSeries
 from .normalized_per_share import compute_normalized_per_share_series
@@ -151,6 +153,11 @@ _DEFERRED_TAX_FAMILY_SERIES = (
 _CAPEX_FAMILY_SERIES = (
     "ppe_capex",
     "ppe_capex_to_revenue",
+)
+
+_LEASE_REPAYMENT_FAMILY_SERIES = (
+    "lease_repayments",
+    "lease_repayments_to_revenue",
 )
 
 _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
@@ -643,6 +650,27 @@ def capex_expected_series(
     return {family_id: series[family_id] for family_id in _CAPEX_FAMILY_SERIES}
 
 
+def lease_repayment_expected_series(
+    lease_repayment: LeaseRepaymentSeries,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map lease-repayment practice families from a LeaseRepaymentSeries."""
+    series = {
+        "lease_repayments": lease_repayment.lease_repayments,
+        "lease_repayments_to_revenue": lease_repayment.lease_repayments_to_revenue,
+    }
+    expected_ids = {family.id for family in LEASE_REPAYMENT_COMPONENT_CATALOG}
+    if set(series) != expected_ids:
+        missing = sorted(expected_ids - set(series))
+        extra = sorted(set(series) - expected_ids)
+        raise ValueError(
+            "lease_repayment_expected_series family mismatch; "
+            f"missing={missing} extra={extra}"
+        )
+    return {
+        family_id: series[family_id] for family_id in _LEASE_REPAYMENT_FAMILY_SERIES
+    }
+
+
 def ownership_attribution_expected_series(
     ownership_attribution: OwnershipAttributionSeries,
 ) -> dict[str, tuple[float | str | None, ...]]:
@@ -755,6 +783,7 @@ def expected_value_for_component(
     goodwill_intangibles: GoodwillIntangiblesSeries | None = None,
     goodwill_intangibles_availability: GoodwillIntangiblesAvailability | None = None,
     capex: CapexSeries | None = None,
+    lease_repayment: LeaseRepaymentSeries | None = None,
 ) -> float | str | None:
     """Return the treatment-conditioned expected value for one practice component."""
     family_id = component.family_id
@@ -804,6 +833,12 @@ def expected_value_for_component(
         if capex is None:
             raise ValueError(f"Capex family {family_id!r} requires a CapexSeries")
         series = capex_expected_series(capex)
+    elif family_id in _LEASE_REPAYMENT_FAMILY_SERIES:
+        if lease_repayment is None:
+            raise ValueError(
+                f"Lease-repayment family {family_id!r} requires a LeaseRepaymentSeries"
+            )
+        series = lease_repayment_expected_series(lease_repayment)
     elif family_id in _FIXED_ASSET_FAMILY_SERIES:
         if fixed_asset is None:
             raise ValueError(

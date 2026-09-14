@@ -46,6 +46,11 @@ from ..model.capex import (
     capex_applicable,
     resolve_capex_source,
 )
+from ..model.lease_repayment import (
+    compute_lease_repayment_series,
+    lease_repayment_applicable,
+    resolve_lease_repayment_source,
+)
 from ..model.lease_rou import (
     compute_lease_rou_series,
     lease_rou_applicable,
@@ -82,6 +87,7 @@ from .component_catalog import (
     expand_historical_specs,
     expand_lease_liability_specs,
     expand_deferred_tax_specs,
+    expand_lease_repayment_specs,
     expand_lease_rou_specs,
     expand_ownership_attribution_specs,
     expand_normalization_specs,
@@ -543,6 +549,39 @@ class ReferenceModelBuilder:
         else:
             self.capex_series = None
             self.capex_specs = ()
+        if lease_repayment_applicable(self.fin):
+            self.lease_repayment_series = compute_lease_repayment_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.lease_repayment_specs = expand_lease_repayment_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + len(self.profitability_change_specs)
+                    + len(self.roe_attribution_specs)
+                    + len(self.quality_change_specs)
+                    + len(self.per_share_specs)
+                    + len(self.per_share_attribution_specs)
+                    + len(self.normalized_per_share_specs)
+                    + len(self.fixed_asset_specs)
+                    + len(self.lease_liability_specs)
+                    + len(self.ownership_attribution_specs)
+                    + len(self.goodwill_intangibles_specs)
+                    + len(self.lease_rou_specs)
+                    + len(self.deferred_tax_specs)
+                    + len(self.capex_specs)
+                    + 1
+                ),
+            )
+        else:
+            self.lease_repayment_series = None
+            self.lease_repayment_specs = ()
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
@@ -562,6 +601,7 @@ class ReferenceModelBuilder:
             + self.lease_rou_specs
             + self.deferred_tax_specs
             + self.capex_specs
+            + self.lease_repayment_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -619,6 +659,9 @@ class ReferenceModelBuilder:
         }
         self._capex_spec_index = {
             (s.family_id, s.period_index): s for s in self.capex_specs
+        }
+        self._lease_repayment_spec_index = {
+            (s.family_id, s.period_index): s for s in self.lease_repayment_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -1060,6 +1103,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._capex_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_lease_repayment(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._lease_repayment_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -2828,6 +2887,85 @@ class ReferenceModelBuilder:
             self.rowmap["dupont_ppe_capex_row"] = payments_row
             self.rowmap["dupont_ppe_capex_to_revenue_row"] = payments_rev_row
             next_section_after = payments_rev_row
+
+        if self.lease_repayment_series is not None:
+            lease_repayment_series = self.lease_repayment_series
+            repay_item = resolve_lease_repayment_source(self.fin)
+            assert repay_item is not None
+            repay_src = self._resolved_source_row(
+                self.fin.cash_flow, "repayments_of_lease_liabilities", required=True
+            )
+            assert repay_src is not None
+            rev_r = self.rowmap["condensed_revenue_row"]
+
+            lease_repay_section_row = next_section_after + 2
+            reported_row = lease_repay_section_row + 1
+            repayments_row = lease_repay_section_row + 2
+            repayments_rev_row = lease_repay_section_row + 3
+
+            ws.cell(
+                row=lease_repay_section_row,
+                column=1,
+                value="LEASE REPAYMENT CONTEXT",
+            ).font = BOLD
+            ws.cell(
+                row=reported_row,
+                column=1,
+                value="Repayments of Lease Liabilities (reported)",
+            )
+            ws.cell(
+                row=repayments_row, column=1, value="Lease Repayments (−reported)"
+            )
+            ws.cell(
+                row=repayments_rev_row, column=1, value="Lease Repayments / Revenue"
+            )
+
+            for j in range(self._n):
+                out_col_idx = 2 + j
+                out_col = self._col(out_col_idx)
+                src_col = self._col(2 + j)
+                reported_f = f"='Cash Flow Statement'!{src_col}{repay_src}"
+                repayments_f = f"=-{out_col}{reported_row}"
+                repayments_rev_f = (
+                    f"=IF('Condensed Financials'!{src_col}{rev_r}=0,NA(),"
+                    f"{out_col}{repayments_row}/'Condensed Financials'!{src_col}{rev_r})"
+                )
+                c = ws.cell(row=reported_row, column=out_col_idx, value=reported_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=repayments_row, column=out_col_idx, value=repayments_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(
+                    row=repayments_rev_row, column=out_col_idx, value=repayments_rev_f
+                )
+                c.number_format = PCT_FMT
+
+                repay_exp = lease_repayment_series.lease_repayments[j]
+                repay_rev_exp = lease_repayment_series.lease_repayments_to_revenue[j]
+                self._register_lease_repayment(
+                    "lease_repayments",
+                    j,
+                    "ALT DuPont",
+                    repayments_row,
+                    out_col_idx,
+                    repayments_f,
+                    float(repay_exp),
+                )
+                self._register_lease_repayment(
+                    "lease_repayments_to_revenue",
+                    j,
+                    "ALT DuPont",
+                    repayments_rev_row,
+                    out_col_idx,
+                    repayments_rev_f,
+                    repay_rev_exp
+                    if isinstance(repay_rev_exp, str)
+                    else float(repay_rev_exp),
+                )
+
+            self.rowmap["dupont_lease_repayments_reported_row"] = reported_row
+            self.rowmap["dupont_lease_repayments_row"] = repayments_row
+            self.rowmap["dupont_lease_repayments_to_revenue_row"] = repayments_rev_row
+            next_section_after = repayments_rev_row
 
         if self.goodwill_intangibles_series is None:
             return
