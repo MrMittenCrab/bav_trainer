@@ -1,6 +1,6 @@
 # Step 9M.2.4.1.1.1 — Repair Frozen Numbering and Supersede Invalid Completion Claims
 
-**Base:** `dca446342ca26c953504a4f81c9cbfba3b40a28e`
+**Base:** `2c493580f1408ef2a09557567412d697029df326`
 **Status:** PROBLEMS — UNRESOLVED; repair of the same step.
 **Parents:** Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 remain UNRESOLVED pending Plan assessment against their original acceptance.
 **Scope:** Documentation-only correction of prospective numbering and dependent completion claims.
@@ -15,14 +15,14 @@
 
 ## Task 1 — Correct prospective numbering
 
-- Retain `9M.2.4.1.1.1` as the current repair ID. Frozen children `.1` through `.12` are used/exhausted.
-- Set every live prospective reservation in `RESULT.md` to `9M.2.4.1.1.1.13`, including Numbering, status summaries, the used-child table, closure note, and required plan note.
-- Preserve historical reservations and earlier supersessions. Mark `.12` used/exhausted under the supplied frozen index; cite `dca446342ca26c953504a4f81c9cbfba3b40a28e` as its reservation record without inventing an opening event.
-- Reserve `.13` solely for genuinely new bounded work selected by Plan; this repair does not open that child.
+- Retain `9M.2.4.1.1.1` as the current repair ID. Frozen children `.1` through `.13` are used/exhausted.
+- Set every live prospective reservation in `RESULT.md` to `9M.2.4.1.1.1.14`, including Numbering, status summaries, the used-child table, closure note, and required plan note.
+- Preserve historical reservations and earlier supersessions. Mark `.13` used/exhausted under the supplied frozen index; cite `2c493580f1408ef2a09557567412d697029df326` as its reservation record without inventing an opening event.
+- Reserve `.14` solely for genuinely new bounded work selected by Plan; this repair does not open that child.
 
 ## Task 2 — Supersede dependent completion claims
 
-- Explicitly supersede all numbering COMPLETE/PASS and availability claims dependent on `.12` in the header, status table, verification narrative/rows, measured summary, and closure note; retain earlier `.9`/`.10`/`.11` supersessions.
+- Explicitly supersede all numbering COMPLETE/PASS and availability claims dependent on `.13` in the header, status table, verification narrative/rows, measured summary, and closure note; retain earlier `.9`/`.10`/`.11`/`.12` supersessions.
 - Preserve prior commands, revisions, measurements, and outcomes as historical provenance, clearly separating them from this repair’s checks.
 - Keep numbering-repair completion, evidence-accounting completion, supported original technical acceptance, and pending Plan closure separate.
 - Preserve criterion wording and Tech/Doc/Plan/NonReq dependencies: A2-ED/B7-MID remain documentary UNVERIFIED; A5/B8/E10 remain pending Plan closure; E11 remains NonReq UNVERIFIED/unavailable.
@@ -30,7 +30,7 @@
 
 ## Task 3 — Verify and record
 
-- Inspect full and abbreviated child references in `RESULT.md` and the Plan-supplied `IMPLEMENTATION.md`; verify all live reservations use `.13` and `.1`–`.12` references remain historical, exhausted, or explicitly superseded.
+- Inspect full and abbreviated child references in `RESULT.md` and the Plan-supplied `IMPLEMENTATION.md`; verify all live reservations use `.14` and `.1`–`.13` references remain historical, exhausted, or explicitly superseded.
 - Review the complete execution diff against execution-start state: only `RESULT.md` changes; original acceptance, dependencies, historical identities, and evidence remain intact.
 - Record actual documentation-check commands, execution revision, outcomes, and bounded completion in `RESULT.md`; leave the repair unresolved if required checks or write access are unavailable.
 - Do not rerun suites or claim fresh technical measurements.
@@ -48,7 +48,7 @@
 
 ## Repair acceptance
 
-- Every live prospective reservation uses `9M.2.4.1.1.1.13`; invalid `.9`/`.10`/`.11`/`.12` availability and dependent numbering-completion claims are explicitly superseded.
+- Every live prospective reservation uses `9M.2.4.1.1.1.14`; invalid `.9`/`.10`/`.11`/`.12`/`.13` availability and dependent numbering-completion claims are explicitly superseded.
 - Documentation checks support the repair outcome; original acceptance, evidence, historical identities, and unresolved parents remain intact.
 
-**Next step:** If incomplete, **Step 9M.2.4.1.1.1 — Repair Frozen Numbering and Supersede Invalid Completion Claims**. After verification, return to Plan for parent closure assessment against original acceptance; pending closure does not block that assessment. Reserve **9M.2.4.1.1.1.13** for genuinely new bounded work. Step 9 remains incomplete.
+**Next step:** If incomplete, **Step 9M.2.4.1.1.1 — Repair Frozen Numbering and Supersede Invalid Completion Claims**. After verification, return to Plan for parent closure assessment against original acceptance; pending closure does not block that assessment. Reserve **9M.2.4.1.1.1.14** for genuinely new bounded work. Step 9 remains incomplete.
