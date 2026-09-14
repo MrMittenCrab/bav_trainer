@@ -1,46 +1,47 @@
-# Step 9M.2.2 — Normalize PPE Topic Detection and Reject Punctuation Movements (G2)
+# Step 9M.2.3 — Generic Common-Stock Equity Classification (G3)
 
-**Base:** `ab19f79ba93ce5eca0b59a92644ec0ece2d06476`
-**Status:** PROBLEMS — repair G2 before advancing.
-**Goal:** Reject PPE movements consistently across punctuation variants through the public classifier.
+**Base:** `a86b9368095880bc3ad018d8d55b5ad3b41514fe`
+**Previous step:** Step 9M.2.2 — PASS.
+**Goal:** Classify ordinary common-stock balances safely as Equity and remove the remaining Lululemon classification blocker.
 
 ## Constraints
 
 - Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`.
-- Limit changes to `core/model/classification.py`, `core/tests/test_classification.py`, `core/tests/test_line_resolver.py`, `core/tests/test_lululemon_benchmark.py`, and `RESULT.md`.
-- Preserve source facts, committed reconciliation artifacts, baseline hashes, and failure-path immutability guards. Generate verification artifacts only in temporary directories.
-- No issuer-specific rules, source relabeling, benchmark overrides, G3–G7 implementation, or forecasting/valuation work.
+- Limit changes to `core/model/classification.py`, `core/tests/test_classification.py`, `core/tests/test_lululemon_benchmark.py`, and `RESULT.md`.
+- Preserve source facts, stored concepts, committed reconciliation artifacts, baseline hashes, and failure-path immutability guards. Generate verification artifacts only in temporary directories.
+- No issuer-specific rules, source relabeling, benchmark overrides, G4–G7 implementation, or forecasting/valuation work.
 
-## Task 1 — Normalize PPE topic detection consistently
+## Task 1 — Add guarded common-stock classification
 
-- Apply `_ppe_label_key` consistently to label topic detection and its phrase vocabulary, including comma, Oxford-comma, ampersand, and whitespace variants.
-- Keep topic recognition distinct from whole-label balance recognition; do not broaden balance matching to substrings.
-- Ensure `_is_ppe_movement` rejects normalized PPE topics before concept classification and legacy asset fallbacks, while explicit overrides retain precedence.
-- Preserve exact PPE balance concepts, neutral-label concept recognition, supported `net` balances, payable/liability classification, and unrelated behavior.
+- Recognize exact normalized `common_stock` balance concepts and whole-label `Common stock` balances as `Equity`, without ambiguity or a required judgment.
+- Follow existing concept/label normalization conventions; do not use unrestricted `commonstock` substring matching.
+- Prevent redeemable or mandatorily redeemable stock, preferred stock, stock investments, and issuance/repurchase/payment movements from entering the new ordinary-equity rule.
+- Check contradictory labels and concepts before accepting common-stock identity; retain supported liability/investment behavior and fail closed for unsupported rows.
+- Preserve explicit override precedence and existing equity-component, G1, and G2 behavior.
 
-## Task 2 — Add public-path punctuation regressions
+## Task 2 — Add public-classifier regressions
 
-- Through `classify_balance_sheet_line`, assert `Property plant & equipment additions` and `Property, plant, and equipment disposals` raise `UnclassifiedBalanceSheetLineError`.
-- Parameterize both reported labels with empty, unrelated, and both exact PPE balance concepts so concept recognition cannot mask label-topic failures.
-- Cover normalized topic variants with leading/trailing singular/plural movement markers, including additions, disposals, payments, sales, and changes.
-- Add matching punctuation balance controls that remain `Operating Long-Term Asset`; retain payable, movement-concept, no-judgment, and explicit-override coverage.
-- Extend resolver near-match regressions with both reported labels without explicit balance identity; preserve canonical/alias priority, ambiguity, and stored concepts.
+- Cover exact-concept recognition with a neutral label, whole-label recognition with empty/unrelated concepts, and case/whitespace variants.
+- Assert valid balances return `Equity` with `ambiguous=False`.
+- Cover excluded concepts paired with `Common stock` and excluded labels paired with exact `common_stock`, so either recognition route cannot bypass exclusions.
+- Include redeemable stock, mandatory redemption, preferred stock, common-stock investments, issuance proceeds, and repurchase/payment movements.
+- Retain liability, equity-method investment, existing equity-component, and explicit-override controls.
 
-## Task 3 — Verify and record measured completion
+## Task 3 — Re-measure the benchmark and record completion
 
-- Confirm unchanged Lululemon PPE resolves to its original item/index with all four values intact and `fixed_asset_applicable` true.
-- Preserve exactly `{Common stock}` as the unclassified set and `Common stock` as the temporary build probe’s first exception.
-- Retain G1 coverage, fixed-asset calculations, deterministic reconciliation, and artifact immutability guards.
+- Assert unchanged Lululemon `Common stock` / `common_stock` classifies as Equity with its original four-period values and identity intact.
+- Replace the expected `{Common stock}` unclassified set with an empty set; retain gift-card, PPE, fixed-asset, reconciliation, and artifact-immutability assertions.
+- Run the temporary-directory build probe past classification. Assert the measured next exception precisely, or assert successful workbook-pair creation if no exception occurs; do not repair downstream gaps.
 - Run:
   - `PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_line_resolver.py core/tests/test_fixed_asset.py core/tests/test_lululemon_benchmark.py -q`
   - `PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q`
   - `PYTHONPATH=. pytest core/tests -q`
-- Update `RESULT.md` to supersede the prior G2 PASS with the punctuation repair, measured command results, artifact hashes before/after, remaining blockers, and final diff scope. Record failures or execution restrictions explicitly.
+- Record G3 completion, measured command results, build outcome, artifact hashes before/after, remaining blockers, and final diff scope in `RESULT.md`. Record failures or execution restrictions explicitly.
 
 ## Acceptance and next step
 
-- Both reported movements and their punctuation variants fail closed through the public classifier, including legacy fallback paths.
-- Valid PPE balances, payable/liability categories, override precedence, resolver identity, and the exact Lululemon G3 blocker remain intact.
-- Required checks pass and committed artifacts remain unchanged; incomplete verification does not establish PASS.
-- On failure, retain **Step 9M.2.2 — Normalize PPE Topic Detection and Reject Punctuation Movements (G2)**.
-- On PASS, propose **Step 9M.2.3 — Generic Common-Stock Equity Classification (G3)**; Step 9 remains incomplete.
+- Ordinary common-stock balances classify deterministically as Equity; excluded instruments and movements cannot bypass guards.
+- Lululemon has no unclassified balance-sheet detail rows, and the build probe advances beyond G3.
+- Required checks pass; source facts and committed artifacts remain unchanged. Incomplete verification does not establish PASS.
+- On failure, retain **Step 9M.2.3 — Generic Common-Stock Equity Classification (G3)**.
+- On PASS, propose **Step 9M.2.4 — Generic Capex Concept Identity (G4)** unless the measured build exposes a higher-priority blocker; record that blocker for the next bounded plan. Step 9 remains incomplete.
