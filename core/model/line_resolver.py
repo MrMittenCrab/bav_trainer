@@ -95,6 +95,8 @@ _EXACT_ALIASES: dict[str, frozenset[str]] = {
             "property plant and equipment",
             "property and equipment",
             "net property plant and equipment",
+            "property and equipment net",
+            "property plant and equipment net",
         }
     ),
     "depreciation_amortization": frozenset(
@@ -150,6 +152,16 @@ _EXACT_ALIASES: dict[str, frozenset[str]] = {
     "deferred_tax_liabilities": frozenset(),
 }
 
+# Explicit LineItem.concept aliases at priority 1 (stored concept left unchanged).
+_EXPLICIT_CONCEPT_ALIASES: dict[str, frozenset[str]] = {
+    "property_plant_equipment": frozenset(
+        {
+            "property plant equipment",
+            "property plant and equipment",
+        }
+    ),
+}
+
 
 def _safe_pattern_match(concept: str, label_norm: str) -> bool:
     """Narrow pattern aliases (priority 3). Avoid unrestricted substrings."""
@@ -195,6 +207,9 @@ def resolve_line(
         raise ValueError(f"Unknown financial concept: {concept!r}")
 
     concept_norm = _norm_text(concept)
+    explicit_concepts = _EXPLICIT_CONCEPT_ALIASES.get(concept) or frozenset(
+        {concept_norm}
+    )
 
     def _collect(predicate) -> list[tuple[int, LineItem]]:
         hits: list[tuple[int, LineItem]] = []
@@ -203,8 +218,10 @@ def resolve_line(
                 hits.append((idx, item))
         return hits
 
-    # Priority 1 — explicit concept field
-    p1 = _collect(lambda it: bool(it.concept) and _norm_text(it.concept) == concept_norm)
+    # Priority 1 — explicit concept field (canonical + declared aliases)
+    p1 = _collect(
+        lambda it: bool(it.concept) and _norm_text(it.concept) in explicit_concepts
+    )
     if len(p1) > 1:
         labels = ", ".join(repr(it.label) for _, it in p1)
         raise AmbiguousLineError(

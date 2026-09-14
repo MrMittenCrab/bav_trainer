@@ -274,3 +274,98 @@ def test_trusted_fixed_asset_check_tamper_fails_before_recolor(tmp_path):
     wb = load_workbook(trainer, data_only=False)
     assert _fill_rgb(wb[comp.tab].cell(row=row, column=col)) == "FFFF00"
     wb.close()
+
+
+def test_ppe_alias_concept_enables_fixed_asset_math():
+    """property_plant_and_equipment alias unlocks averages / turnover / intensity."""
+    d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
+
+    def vals(a, b):
+        return {d1: a, d2: b}
+
+    cash, ar, ap, bank = 50.0, 40.0, 30.0, 20.0
+    ppe0, ppe1 = 100.0, 120.0
+    eq0 = cash + ar + ppe0 - ap - bank
+    eq1 = cash + ar + ppe1 - ap - bank
+    fin = StandardizedFinancials(
+        ticker="PPEA",
+        company_name="PPE Alias Co",
+        currency="USD",
+        units="USD",
+        jurisdiction="US",
+        periods=[
+            FinancialPeriod(end_date=d1, label="FY2024"),
+            FinancialPeriod(end_date=d2, label="FY2025"),
+        ],
+        income_statement=[
+            _li("Revenue", vals(1000.0, 1100.0)),
+            _li("Finance costs", vals(-10, -11)),
+            _li("Finance income", vals(0, 0)),
+            _li("Profit before tax", vals(200, 220)),
+            _li("Income tax expense", vals(-30, -33)),
+            _li("Profit for the year", vals(170, 187)),
+        ],
+        balance_sheet=[
+            _li("Cash and cash equivalents", vals(cash, cash)),
+            _li("Trade receivables", vals(ar, ar)),
+            _li(
+                "Property and equipment, net",
+                vals(ppe0, ppe1),
+                concept="property_plant_and_equipment",
+            ),
+            _li("Trade payables", vals(ap, ap)),
+            _li("Bank borrowings", vals(bank, bank)),
+            _li("Total equity", vals(eq0, eq1)),
+        ],
+        cash_flow=[
+            _li("Depreciation and amortisation", vals(-10.0, -12.0)),
+            _li("Net cash from operating activities", vals(80, 90)),
+        ],
+    )
+    assert fixed_asset_applicable(fin)
+    periods = list(canonical_fiscal_periods(fin))
+    series = compute_fixed_asset_series(fin, periods, compute_anchor(fin, periods))
+    assert series.ppe == pytest.approx((100.0, 120.0))
+    assert series.average_ppe[0] is None
+    assert series.ppe_turnover[0] is None
+    assert series.ppe_intensity[0] is None
+    assert series.average_ppe[1] == pytest.approx(110.0)
+    assert series.ppe_turnover[1] == pytest.approx(1100.0 / 110.0)
+    assert series.ppe_intensity[1] == pytest.approx(110.0 / 1100.0)
+    assert series.ppe_change[1] == pytest.approx(20.0)
+
+
+def test_ppe_missing_or_ambiguous_source_still_fails_closed():
+    assert not fixed_asset_applicable(_tiny(with_ppe=False, with_da=True))
+    d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
+    from core.model.line_resolver import AmbiguousLineError
+
+    ambiguous = StandardizedFinancials(
+        ticker="PPEAMB",
+        company_name="PPE Ambiguous Co",
+        currency="USD",
+        units="USD",
+        jurisdiction="US",
+        periods=[
+            FinancialPeriod(end_date=d1, label="FY2024"),
+            FinancialPeriod(end_date=d2, label="FY2025"),
+        ],
+        income_statement=[_li("Revenue", {d1: 1000.0, d2: 1100.0})],
+        balance_sheet=[
+            _li(
+                "First PPE",
+                {d1: 100.0, d2: 110.0},
+                concept="property_plant_equipment",
+            ),
+            _li(
+                "Second PPE",
+                {d1: 100.0, d2: 110.0},
+                concept="property_plant_and_equipment",
+            ),
+        ],
+        cash_flow=[
+            _li("Depreciation and amortisation", {d1: -10.0, d2: -12.0}),
+        ],
+    )
+    with pytest.raises(AmbiguousLineError):
+        fixed_asset_availability(ambiguous)

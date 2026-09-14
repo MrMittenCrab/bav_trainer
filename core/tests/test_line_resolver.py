@@ -184,6 +184,77 @@ def test_ppe_and_da_aliases_and_concepts():
     )
 
 
+def test_ppe_property_plant_and_equipment_concept_alias():
+    """Alias concept resolves at P1; stored concept is left unchanged."""
+    items = [
+        _item(
+            "Neutral carrying label",
+            100,
+            110,
+            concept="property_plant_and_equipment",
+        )
+    ]
+    resolved = resolve_line(items, "property_plant_equipment", required=True)
+    assert resolved.item is not None
+    assert resolved.index == 0
+    assert resolved.item.label == "Neutral carrying label"
+    assert resolved.item.concept == "property_plant_and_equipment"
+
+
+def test_ppe_net_balance_label_aliases():
+    for label in (
+        "Property and equipment, net",
+        "Property plant and equipment, net",
+        "Property and equipment net",
+        "Property plant and equipment net",
+    ):
+        resolved = resolve_line(
+            [_item(label, 100, 110)],
+            "property_plant_equipment",
+            required=True,
+        )
+        assert resolved.item is not None
+        assert resolved.item.label == label
+
+
+def test_ppe_explicit_concept_outranks_label():
+    items = [
+        _item("Property and equipment, net", 1, 2),
+        _item("Other carrying amount", 100, 110, concept="property_plant_equipment"),
+    ]
+    resolved = resolve_line(items, "property_plant_equipment", required=True)
+    assert resolved.item is not None
+    assert resolved.index == 1
+    assert resolved.item.label == "Other carrying amount"
+
+
+def test_ppe_canonical_and_alias_concepts_are_ambiguous_together():
+    items = [
+        _item("First", 1, 2, concept="property_plant_equipment"),
+        _item("Second", 3, 4, concept="property_plant_and_equipment"),
+    ]
+    with pytest.raises(AmbiguousLineError):
+        resolve_line(items, "property_plant_equipment", required=False)
+
+
+def test_ppe_movement_labels_are_not_near_matches():
+    for label in (
+        "Purchases of property and equipment",
+        "Proceeds from sale of property and equipment",
+        "Depreciation of property and equipment",
+        "Impairment of property and equipment",
+        "Purchase of property and equipment",
+    ):
+        assert (
+            resolve_line(
+                [_item(label, 1, 2)],
+                "property_plant_equipment",
+                required=False,
+            ).item
+            is None
+        )
+
+
 def test_lease_liability_aggregate_aliases_and_ambiguity():
     lease = resolve_line(
         [_item("Operating lease liabilities", 100, 120)],

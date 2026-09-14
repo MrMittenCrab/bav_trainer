@@ -227,6 +227,7 @@ def _classify_by_concept(item: LineItem) -> ClassificationDecision | None:
         or _generic_other_balance_concept_decision(item)
         or _deterministic_accounting_concept_decision(item)
         or _customer_prepayment_liability_decision(item)
+        or _ppe_balance_decision(item)
     )
 
 
@@ -419,6 +420,103 @@ def _customer_prepayment_liability_decision(
         category,
         ambiguous=False,
         reason="Customer prepayment / deferred-revenue liability",
+    )
+
+
+# Exact concept tokens for net property-and-equipment balance rows only.
+# Movement, purchase, proceeds, depreciation, and impairment concepts are excluded.
+_PPE_BALANCE_CONCEPTS = frozenset(
+    {
+        "propertyplantequipment",
+        "propertyplantandequipment",
+    }
+)
+
+_PPE_BALANCE_LABEL_PHRASES = (
+    "property and equipment",
+    "property, plant and equipment",
+    "property plant and equipment",
+    "property, plant & equipment",
+)
+
+_PPE_MOVEMENT_CONCEPT_MARKERS = (
+    "purchase",
+    "purchases",
+    "proceed",
+    "proceeds",
+    "depreciation",
+    "impairment",
+    "addition",
+    "additions",
+    "disposal",
+    "disposals",
+    "payment",
+    "payments",
+    "saleof",
+    "salesof",
+    "changein",
+    "increasein",
+    "decreasein",
+)
+
+_PPE_MOVEMENT_LABEL_MARKERS = (
+    "purchase",
+    "purchases",
+    "proceeds",
+    "depreciation",
+    "impairment",
+    "additions to",
+    "addition to",
+    "disposals of",
+    "disposal of",
+    "payments for",
+    "payment for",
+    "sale of",
+    "sales of",
+    "change in",
+    "increase in",
+    "decrease in",
+)
+
+
+def _ppe_has_movement(concept_token: str, low: str) -> bool:
+    """True when concept or label uses a PPE movement / activity marker."""
+    if concept_token and any(
+        marker in concept_token for marker in _PPE_MOVEMENT_CONCEPT_MARKERS
+    ):
+        return True
+    return any(marker in low for marker in _PPE_MOVEMENT_LABEL_MARKERS)
+
+
+def _ppe_balance_label_hit(low: str) -> bool:
+    """True when the label uses bounded property-and-equipment balance wording."""
+    if _ppe_has_movement("", low):
+        return False
+    return any(phrase in low for phrase in _PPE_BALANCE_LABEL_PHRASES)
+
+
+def _ppe_balance_decision(item: LineItem) -> ClassificationDecision | None:
+    """Classify generic net PPE balances as operating long-term assets.
+
+    Deterministic; no guided-judgment case. Exact balance concepts and bounded
+    balance labels are supported. Movement rows are rejected here so the new
+    matcher cannot admit purchases, proceeds, depreciation, or impairment.
+    """
+    concept_token = _concept_token(item.concept or "")
+    low = _norm(item.label)
+
+    if _ppe_has_movement(concept_token, low):
+        return None
+
+    concept_hit = concept_token in _PPE_BALANCE_CONCEPTS
+    label_hit = _ppe_balance_label_hit(low)
+    if not concept_hit and not label_hit:
+        return None
+
+    return ClassificationDecision(
+        "Operating Long-Term Asset",
+        ambiguous=False,
+        reason="Property and equipment net balance",
     )
 
 
@@ -700,6 +798,11 @@ def classify_balance_sheet_line(
     prepayment = _customer_prepayment_liability_decision(item)
     if prepayment is not None:
         return prepayment
+
+    # Label-only generic PPE net balances (empty / non-alias concepts).
+    ppe = _ppe_balance_decision(item)
+    if ppe is not None:
+        return ppe
 
     # Ambiguous judgment calls — real default + flag
     if (

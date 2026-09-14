@@ -1,14 +1,12 @@
-# RESULT.md — Step 9M.2.1 Repair Plural Gift-Card Movement Detection and Liability Fallback Escapes (G1)
+# RESULT.md — Step 9M.2.2 Generic Property-and-Equipment Classification and PPE Identity (G2)
 
 **Status:** PASS  
 **Completion:** DONE  
-**Next step:** Step **9M.2.2** — Generic Property-and-Equipment Classification and PPE Identity (G2)
+**Next step:** Step **9M.2.3** — Generic Common-Stock Equity Classification (G3)
 
-**Plan base:** `44e7651968651e38715e08ef8692d7acffb46eb3`  
+**Plan base:** `f718ef4d90a8c6a0ab22766c8b2b9ba73be3634a`  
 `TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged).  
-No commit / push / sync / checkpoint. No G2–G7 or forecasting/valuation work.
-
-Supersedes prior Step 9M.2.1 G1 PASS (recognition-movement exclusions) that left plural `gift card liabilities` wording able to escape through liability label fallbacks.
+No commit / push / sync / checkpoint. No G3–G7 or forecasting/valuation work.
 
 ---
 
@@ -16,37 +14,38 @@ Supersedes prior Step 9M.2.1 G1 PASS (recognition-movement exclusions) that left
 
 In `core/model/classification.py`:
 
-1. Extended customer-prepayment label phrases with plural liability forms: `gift card liabilities`, `gift-card liabilities`, `gift cards liabilities`, `gift-cards liabilities` (singular forms retained).
-2. Added matching exact concept aliases (`giftcardliabilities`, `giftcardsliabilities`, current/noncurrent variants) so label and concept topic recognition stay aligned for balance classification and movement protection.
-3. Unchanged movement gate still raises `UnclassifiedBalanceSheetLineError` before concept classification and current / noncurrent / other-liability / long-term fallbacks.
+1. Added deterministic PPE net-balance classification (`_ppe_balance_decision`) as `Operating Long-Term Asset` with no judgment case.
+2. Exact balance concepts: `property_plant_equipment`, `property_plant_and_equipment`.
+3. Bounded balance label phrases including `property and equipment` / plant wording variants.
+4. Movement markers (purchase/proceeds/depreciation/impairment/additions/payments/sale/change) reject the new matcher; legacy plant-wording behavior preserved.
+5. Override precedence unchanged.
 
-Tests: reported failing label with empty concept; parameterized plural/spaced/hyphenated wording; recognition/derecognition/change/increase/decrease/amortization/additions/reductions; fallback-context escapes; movement+balance concept and movement-concept+balance-label pairs; positive current/noncurrent plural balance controls; explicit override control. Prior asset / unrelated / judgment / reformulation / Lululemon guards retained.
+In `core/model/line_resolver.py`:
+
+1. Explicit concept alias `property_plant_and_equipment` → canonical `property_plant_equipment` at priority 1; stored `LineItem.concept` unchanged.
+2. Canonical + alias share P1; duplicate rows raise `AmbiguousLineError`.
+3. Exact net-balance label aliases: `property and equipment net`, `property plant and equipment net` (plus prior aliases retained).
+
+Tests: public classifier regressions; resolver alias/label/precedence/ambiguity/movement rejection; synthetic fixed-asset averages/turnover/intensity; Lululemon PPE classify/resolve/fixed-asset unlock and Common-stock-only build blocker. G1 gift-card coverage retained.
 
 ---
 
-## Regression evidence vs base
-
-New plural-gift-card raise cases were run against `44e7651` `classification.py` before the repair:
-
-- **7 failed** (DID NOT RAISE / override precondition), including the reported label `Recognition of gift card liabilities within other current liabilities` and other-current / noncurrent / long-term liability fallback escapes.
-- After repair: those cases raise; valid plural balances still classify; override still wins.
-
----
-
-## G1 plural repair closure evidence
+## G2 closure evidence
 
 | Check | Result |
 |---|---|
-| Reported plural recognition label raises | **pass** |
-| Plural wording + liability fallbacks cannot re-admit movements | **pass** |
-| Valid current/noncurrent plural gift-card balances | **pass** |
-| Override precedence on reported row | **pass** |
-| Lululemon gift-card all four periods → OWCL | **pass** |
-| Build unclassified set | `{Property and equipment, net, Common stock}` only |
-| Temp-dir build first exception | `Property and equipment, net` (G2) |
+| Reported `Property and equipment, net` → OLTA | **pass** |
+| Concept-only + label-only PPE recognition | **pass** |
+| Movement labels/concepts not admitted by new matcher | **pass** |
+| Override precedence | **pass** |
+| Alias concept resolves; stored concept unchanged | **pass** |
+| Lululemon PPE all four periods classify + resolve to original index | **pass** |
+| `fixed_asset_applicable` becomes true | **pass** |
+| Build unclassified set | `{Common stock}` only |
+| Temp-dir build first exception | `Common stock` (G3) |
 | Source facts / committed reconcile bytes | **unchanged** |
 
-**Remaining visible blockers:** G2 (PPE wording/identity), G3 (Common stock). G4–G7 unchanged.
+**Remaining visible blockers:** G3 (Common stock). G4–G7 unchanged.
 
 ---
 
@@ -65,17 +64,19 @@ Before and after digests are identical for all three committed Lululemon artifac
 ## Measured verification (this step)
 
 ```text
-PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_lululemon_benchmark.py -q
-→ 195 passed in 3.04s
+PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_line_resolver.py core/tests/test_fixed_asset.py core/tests/test_lululemon_benchmark.py -q
+→ 253 passed in 4.84s
 
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q
-→ 132 passed in 27.04s
+→ 132 passed in 28.61s
 
 PYTHONPATH=. pytest core/tests -q
-→ 837 passed in 87.59s
+→ 871 passed in 87.28s
 ```
 
-Incidental FR/DEMO workbook/provenance refreshes from the suite were restored; final working-tree diff is `core/model/classification.py`, `core/tests/test_classification.py`, and this `RESULT.md`.
+Prior-review note (per plan): do not equate this run with the excluded mismatched log that cited 177 passing tests and seven reproduced base failures; this step’s measured suite is the three commands above, with **0 failures** and no execution restrictions.
+
+Incidental FR/DEMO workbook/provenance refreshes from the suite were restored; final working-tree diff is scoped to allowed files plus this `RESULT.md`.
 
 ---
 
@@ -83,12 +84,12 @@ Incidental FR/DEMO workbook/provenance refreshes from the suite were restored; f
 
 | Criterion | Result |
 |---|---|
-| Plural gift-card movements raise (incl. reported label) | **pass** |
-| No liability fallback escapes unless explicitly overridden | **pass** |
-| Valid balances + reformulation + Lululemon G1 retained | **pass** |
+| Generic PPE classify + canonical resolve without source mutation | **pass** |
+| No unsafe new movement matches; no silent ambiguity | **pass** |
+| Lululemon fixed-asset availability restored; build → G3 Common stock | **pass** |
 | Required checks + immutability / hash / no-issuer guards | **pass** |
 | Diff scoped to allowed files | **pass** |
 
 **Plan changes needed:** none.
 
-**Unresolved:** G2–G7 as previously recorded; Step 9 **not** complete. Propose **Step 9M.2.2 — Generic Property-and-Equipment Classification and PPE Identity (G2)**.
+**Unresolved:** G3–G7 as previously recorded; Step 9 **not** complete. Propose **Step 9M.2.3 — Generic Common-Stock Equity Classification (G3)**.

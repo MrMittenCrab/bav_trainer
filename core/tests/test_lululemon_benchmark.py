@@ -20,6 +20,8 @@ from core.model.classification import (
     classify_balance_sheet_line,
     is_balance_sheet_subtotal,
 )
+from core.model.fixed_asset import fixed_asset_applicable, fixed_asset_availability
+from core.model.line_resolver import resolve_line
 from core.trainer.workbook import build_training_workbook
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -76,7 +78,6 @@ DILUTED_WAS_ANCHORS = {
 }
 
 BUILD_BLOCKER_LABELS = {
-    "Property and equipment, net",
     "Common stock",
 }
 
@@ -458,11 +459,42 @@ def test_gift_card_liability_classifies_across_all_periods():
         assert item.values[period] is not None
 
 
-def test_build_blocker_is_unclassified_balance_sheet_lines(tmp_path: Path):
-    """After G1, build remains blocked on PPE and Common stock only.
+def test_ppe_classifies_resolves_and_enables_fixed_asset():
+    """G2: PPE row classifies/resolves with all four periods; fixed-asset unlocks."""
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    original_index, item = next(
+        (idx, row)
+        for idx, row in enumerate(fin.balance_sheet)
+        if row.concept == "property_plant_and_equipment"
+        and row.label == "Property and equipment, net"
+    )
+    assert set(item.values) >= set(EXPECTED_PERIODS)
+    for period in EXPECTED_PERIODS:
+        assert item.values[period] is not None
 
-    First raise is Property and equipment, net; Common stock also fails closed
-    under the same generic classifier.
+    decision = classify_balance_sheet_line(item)
+    assert decision.category == "Operating Long-Term Asset"
+    assert decision.ambiguous is False
+    assert decision.judgment_code is None
+    assert decision.overridden is False
+
+    resolved = resolve_line(
+        fin.balance_sheet, "property_plant_equipment", required=True
+    )
+    assert resolved.index == original_index
+    assert resolved.item is item
+    assert resolved.item.concept == "property_plant_and_equipment"
+
+    avail = fixed_asset_availability(fin)
+    assert avail.ppe is True
+    assert avail.depreciation_amortization is True
+    assert fixed_asset_applicable(fin) is True
+
+
+def test_build_blocker_is_unclassified_balance_sheet_lines(tmp_path: Path):
+    """After G2, build remains blocked on Common stock only.
+
+    First raise is Common stock; G1 gift-card and G2 PPE remain classified.
     """
     fin = standardized_from_payload(_load_json(STD_JSON))
 
@@ -487,12 +519,21 @@ def test_build_blocker_is_unclassified_balance_sheet_lines(tmp_path: Path):
         == "Operating Working Capital Liability"
     )
 
+    ppe = next(
+        row
+        for row in fin.balance_sheet
+        if row.label == "Property and equipment, net"
+        and row.concept == "property_plant_and_equipment"
+    )
+    assert (
+        classify_balance_sheet_line(ppe).category == "Operating Long-Term Asset"
+    )
+
     out = tmp_path / "Lululemon"
     with pytest.raises(
-        UnclassifiedBalanceSheetLineError, match="Property and equipment, net"
+        UnclassifiedBalanceSheetLineError, match="Common stock"
     ):
         build_training_workbook(fin, out)
-
 
 def test_no_lulu_specific_production_branch():
     """Production engine must stay generic — no ticker/issuer hard-codes."""
