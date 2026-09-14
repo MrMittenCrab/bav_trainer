@@ -57,6 +57,21 @@ DEFERRED_TAB_NAMES = ("Model_Bear", "Model_Base", "Model_Bull", "Scenario_Summar
 LEASE_INTEREST_LABEL = "Lease interest expense (reported note)"
 JUDGMENT_SHEETS = ("Accounting Judgment", "Normalization Judgment")
 JUDGMENT_RESPONSE_COLS = (6, 7, 8)
+JUDGMENT_FIRST_DATA_ROW = 5
+_THEME_SCHEME_ORDER = (
+    "lt1",
+    "dk1",
+    "lt2",
+    "dk2",
+    "accent1",
+    "accent2",
+    "accent3",
+    "accent4",
+    "accent5",
+    "accent6",
+)
+_RGBMAX = 0xFF
+_HLSMAX = 240
 
 
 def _fill_rgb(cell) -> str:
@@ -100,61 +115,319 @@ def _as_date(value: Any):
     return None
 
 
-def _color_token(color) -> str:
-    if color is None:
-        return ""
-    rgb = getattr(color, "rgb", None)
-    if rgb is not None:
-        return f"rgb:{str(rgb).upper()}"
-    theme = getattr(color, "theme", None)
-    if theme is not None:
-        tint = getattr(color, "tint", 0.0) or 0.0
-        return f"theme:{theme}:{tint}"
-    indexed = getattr(color, "indexed", None)
-    if indexed is not None:
-        return f"indexed:{indexed}"
-    auto = getattr(color, "auto", None)
-    if auto:
-        return "auto"
-    return ""
+def _judgment_case_rows(ws):
+    """Yield data rows that look like judgment cases (not the zero-case message)."""
+    for row in range(JUDGMENT_FIRST_DATA_ROW, (ws.max_row or 0) + 1):
+        order = ws.cell(row=row, column=1).value
+        label = ws.cell(row=row, column=2).value
+        if isinstance(order, int) and order >= 1 and label not in (None, ""):
+            yield row
 
 
-def _border_token(border) -> tuple:
-    if border is None:
+def _judgment_response_coords(wb) -> set[tuple[str, int, int]]:
+    coords: set[tuple[str, int, int]] = set()
+    for name in JUDGMENT_SHEETS:
+        if name not in wb.sheetnames:
+            continue
+        ws = wb[name]
+        for row in _judgment_case_rows(ws):
+            for col in JUDGMENT_RESPONSE_COLS:
+                coords.add((name, row, col))
+    return coords
+
+
+def _theme_scheme_colors(wb) -> tuple[str, ...]:
+    theme_bytes = getattr(wb, "loaded_theme", None)
+    if not theme_bytes:
         return ()
-    sides = []
-    for name in ("left", "right", "top", "bottom", "diagonal"):
-        side = getattr(border, name, None)
-        if side is None:
-            sides.append((name, None, ""))
+    from openpyxl.xml.functions import QName, fromstring
+
+    xlmns = "http://schemas.openxmlformats.org/drawingml/2006/main"
+    root = fromstring(theme_bytes)
+    theme_el = root.find(QName(xlmns, "themeElements").text)
+    if theme_el is None:
+        return ()
+    schemes = theme_el.findall(QName(xlmns, "clrScheme").text)
+    if not schemes:
+        return ()
+    first = schemes[0]
+    colors: list[str] = []
+    for name in _THEME_SCHEME_ORDER:
+        node = first.find(QName(xlmns, name).text)
+        if node is None:
+            colors.append("")
+            continue
+        child = next(iter(node), None)
+        if child is None:
+            colors.append("")
+            continue
+        val = child.attrib.get("val", "")
+        if "window" in val:
+            colors.append(str(child.attrib.get("lastClr", "")).upper())
         else:
-            sides.append((name, side.style, _color_token(side.color)))
-    return tuple(sides)
+            colors.append(str(val).upper())
+    return tuple(colors)
 
 
-def _format_signature(cell) -> tuple:
+def _indexed_palette(wb) -> tuple[str, ...]:
+    colors = getattr(wb, "_colors", None)
+    if colors:
+        return tuple(str(c).upper() for c in colors)
+    from openpyxl.styles.colors import COLOR_INDEX
+
+    return tuple(str(c).upper() for c in COLOR_INDEX)
+
+
+def _rgb_to_ms_hls(rgb_hex: str) -> tuple[int, int, int]:
+    from colorsys import rgb_to_hls
+
+    hex6 = rgb_hex.upper().lstrip("#")[-6:]
+    red = int(hex6[0:2], 16) / _RGBMAX
+    green = int(hex6[2:4], 16) / _RGBMAX
+    blue = int(hex6[4:6], 16) / _RGBMAX
+    h, l, s = rgb_to_hls(red, green, blue)
+    return (int(round(h * _HLSMAX)), int(round(l * _HLSMAX)), int(round(s * _HLSMAX)))
+
+
+def _ms_hls_to_rgb_hex(h: int, l: int, s: int) -> str:
+    from colorsys import hls_to_rgb
+
+    red, green, blue = hls_to_rgb(h / _HLSMAX, l / _HLSMAX, s / _HLSMAX)
+    return (
+        f"{int(round(red * _RGBMAX)):02X}"
+        f"{int(round(green * _RGBMAX)):02X}"
+        f"{int(round(blue * _RGBMAX)):02X}"
+    )
+
+
+def _tint_luminance(tint: float, lum: int) -> int:
+    if tint < 0:
+        return int(round(lum * (1.0 + tint)))
+    return int(round(lum * (1.0 - tint) + (_HLSMAX - _HLSMAX * (1.0 - tint))))
+
+
+def _apply_tint(rgb_hex: str, tint: float) -> str:
+    hex6 = rgb_hex.upper().lstrip("#")[-6:]
+    if not hex6 or abs(float(tint or 0.0)) < 1e-12:
+        return hex6
+    h, l, s = _rgb_to_ms_hls(hex6)
+    return _ms_hls_to_rgb_hex(h, _tint_luminance(float(tint), l), s)
+
+
+def _normalize_color(
+    color,
+    *,
+    theme_colors: tuple[str, ...],
+    palette: tuple[str, ...],
+) -> tuple | None:
+    """Normalize openpyxl Color by active type only; include resolved effective RGB."""
+    if color is None:
+        return None
+    ctype = color.type
+    tint = float(getattr(color, "tint", 0.0) or 0.0)
+    if ctype == "rgb":
+        raw = color.value
+        rgb = str(raw).upper() if raw is not None else ""
+        effective = _apply_tint(rgb[-6:], tint) if len(rgb) >= 6 else rgb
+        return ("rgb", rgb, tint, effective)
+    if ctype == "theme":
+        theme = color.value
+        base = ""
+        if isinstance(theme, int) and 0 <= theme < len(theme_colors):
+            base = theme_colors[theme]
+        effective = _apply_tint(base, tint) if base else ""
+        return ("theme", theme, tint, effective)
+    if ctype == "indexed":
+        indexed = color.value
+        base = ""
+        if isinstance(indexed, int) and 0 <= indexed < len(palette):
+            base = palette[indexed]
+        effective = _apply_tint(base[-6:], tint) if len(base) >= 6 else str(base).upper()
+        return ("indexed", indexed, tint, effective)
+    if ctype == "auto":
+        return ("auto", bool(color.value), tint, "AUTO")
+    return (ctype, None, tint, "")
+
+
+def _side_token(side, *, theme_colors, palette) -> tuple | None:
+    if side is None:
+        return None
+    return (
+        side.style,
+        _normalize_color(side.color, theme_colors=theme_colors, palette=palette),
+    )
+
+
+def _border_components(border, *, theme_colors, palette) -> dict[str, Any]:
+    if border is None:
+        return {
+            "border_flags": None,
+            "border_left": None,
+            "border_right": None,
+            "border_top": None,
+            "border_bottom": None,
+            "border_diagonal": None,
+            "border_vertical": None,
+            "border_horizontal": None,
+        }
+    return {
+        "border_flags": (
+            bool(border.outline),
+            bool(border.diagonalUp),
+            bool(border.diagonalDown),
+        ),
+        "border_left": _side_token(
+            border.left, theme_colors=theme_colors, palette=palette
+        ),
+        "border_right": _side_token(
+            border.right, theme_colors=theme_colors, palette=palette
+        ),
+        "border_top": _side_token(
+            border.top, theme_colors=theme_colors, palette=palette
+        ),
+        "border_bottom": _side_token(
+            border.bottom, theme_colors=theme_colors, palette=palette
+        ),
+        "border_diagonal": _side_token(
+            border.diagonal, theme_colors=theme_colors, palette=palette
+        ),
+        "border_vertical": _side_token(
+            getattr(border, "vertical", None),
+            theme_colors=theme_colors,
+            palette=palette,
+        ),
+        "border_horizontal": _side_token(
+            getattr(border, "horizontal", None),
+            theme_colors=theme_colors,
+            palette=palette,
+        ),
+    }
+
+
+def _fill_components(fill, *, theme_colors, palette) -> dict[str, Any]:
+    if fill is None:
+        return {"fill_kind": None}
+    fill_type = getattr(fill, "fill_type", None) or getattr(fill, "type", None)
+    pattern = getattr(fill, "patternType", None) or getattr(fill, "fill_type", None)
+    # PatternFill
+    if hasattr(fill, "fgColor") or hasattr(fill, "patternType"):
+        fg = getattr(fill, "fgColor", None) or getattr(fill, "start_color", None)
+        bg = getattr(fill, "bgColor", None) or getattr(fill, "end_color", None)
+        return {
+            "fill_kind": "pattern",
+            "fill_type": fill_type,
+            "pattern_type": pattern,
+            "fg_color": _normalize_color(
+                fg, theme_colors=theme_colors, palette=palette
+            ),
+            "bg_color": _normalize_color(
+                bg, theme_colors=theme_colors, palette=palette
+            ),
+        }
+    # GradientFill
+    stops = []
+    for stop in getattr(fill, "stop", None) or ():
+        stops.append(
+            (
+                getattr(stop, "position", None),
+                _normalize_color(
+                    getattr(stop, "color", None),
+                    theme_colors=theme_colors,
+                    palette=palette,
+                ),
+            )
+        )
+    return {
+        "fill_kind": "gradient",
+        "fill_type": fill_type,
+        "degree": getattr(fill, "degree", None),
+        "left": getattr(fill, "left", None),
+        "right": getattr(fill, "right", None),
+        "top": getattr(fill, "top", None),
+        "bottom": getattr(fill, "bottom", None),
+        "stops": tuple(stops),
+    }
+
+
+def _format_components(
+    cell,
+    *,
+    theme_colors: tuple[str, ...],
+    palette: tuple[str, ...],
+) -> dict[str, Any]:
     font = cell.font
-    fill = cell.fill
     alignment = cell.alignment
     protection = cell.protection
-    fill_type = fill.fill_type if fill is not None else None
-    fg = ""
-    if fill is not None and fill_type == "solid":
-        fg = _color_token(fill.fgColor) or _color_token(fill.start_color)
-    return (
-        font.name if font else None,
-        font.size if font else None,
-        bool(font.bold) if font else False,
-        bool(font.italic) if font else False,
-        _color_token(font.color) if font else "",
-        fill_type,
-        fg,
-        cell.number_format,
-        alignment.horizontal if alignment else None,
-        alignment.vertical if alignment else None,
-        bool(protection.locked) if protection else True,
-        _border_token(cell.border),
+    comps: dict[str, Any] = {
+        "number_format": cell.number_format,
+        "font_name": font.name if font else None,
+        "font_size": font.size if font else None,
+        "font_bold": bool(font.bold) if font else False,
+        "font_italic": bool(font.italic) if font else False,
+        "font_underline": font.underline if font else None,
+        "font_strikethrough": bool(font.strike) if font else False,
+        "font_vert_align": font.vertAlign if font else None,
+        "font_outline": bool(font.outline) if font else False,
+        "font_shadow": bool(font.shadow) if font else False,
+        "font_condense": bool(font.condense) if font else False,
+        "font_extend": bool(font.extend) if font else False,
+        "font_family": font.family if font else None,
+        "font_charset": font.charset if font else None,
+        "font_scheme": font.scheme if font else None,
+        "font_color": _normalize_color(
+            font.color if font else None,
+            theme_colors=theme_colors,
+            palette=palette,
+        ),
+        "align_horizontal": alignment.horizontal if alignment else None,
+        "align_vertical": alignment.vertical if alignment else None,
+        "align_wrap_text": bool(alignment.wrap_text) if alignment else False,
+        "align_shrink_to_fit": bool(alignment.shrink_to_fit) if alignment else False,
+        "align_text_rotation": alignment.textRotation if alignment else 0,
+        "align_indent": alignment.indent if alignment else 0,
+        "align_relative_indent": (
+            alignment.relativeIndent if alignment else 0
+        ),
+        "align_justify_last_line": (
+            bool(alignment.justifyLastLine) if alignment else False
+        ),
+        "align_reading_order": alignment.readingOrder if alignment else 0,
+        "protection_locked": bool(protection.locked) if protection else True,
+        "protection_hidden": bool(protection.hidden) if protection else False,
+    }
+    comps.update(
+        _fill_components(cell.fill, theme_colors=theme_colors, palette=palette)
     )
+    comps.update(
+        _border_components(cell.border, theme_colors=theme_colors, palette=palette)
+    )
+    return comps
+
+
+def _assert_format_parity(
+    ct,
+    ca,
+    *,
+    sheet: str,
+    row: int,
+    col: int,
+    theme_t: tuple[str, ...],
+    theme_a: tuple[str, ...],
+    palette_t: tuple[str, ...],
+    palette_a: tuple[str, ...],
+) -> None:
+    comps_t = _format_components(ct, theme_colors=theme_t, palette=palette_t)
+    comps_a = _format_components(ca, theme_colors=theme_a, palette=palette_a)
+    keys = list(dict.fromkeys([*comps_t.keys(), *comps_a.keys()]))
+    for key in keys:
+        vt = comps_t.get(key)
+        va = comps_a.get(key)
+        if vt != va:
+            raise ValueError(
+                f"effective formatting mismatch: sheet={sheet!r} "
+                f"cell={_cell_addr(row, col)} component={key} "
+                f"trainer={vt!r} answer={va!r}"
+            )
 
 
 def _comment_text(cell) -> str:
@@ -486,6 +759,19 @@ def _verify_visible_layout_parity(wb_t, wb_a, practice_coords: set[tuple[str, in
                 f"trainer={wb_t[name].sheet_state!r} answer={wb_a[name].sheet_state!r}"
             )
 
+    judgment_t = _judgment_response_coords(wb_t)
+    judgment_a = _judgment_response_coords(wb_a)
+    if judgment_t != judgment_a:
+        raise ValueError(
+            f"judgment response coordinate mismatch: "
+            f"trainer={sorted(judgment_t)} answer={sorted(judgment_a)}"
+        )
+    content_exempt = set(practice_coords) | judgment_t
+    theme_t = _theme_scheme_colors(wb_t)
+    theme_a = _theme_scheme_colors(wb_a)
+    palette_t = _indexed_palette(wb_t)
+    palette_a = _indexed_palette(wb_a)
+
     visible = [
         name
         for name in comparable_t
@@ -528,10 +814,7 @@ def _verify_visible_layout_parity(wb_t, wb_a, practice_coords: set[tuple[str, in
             for col in range(1, max_col + 1):
                 ct = ws_t.cell(row=row, column=col)
                 ca = ws_a.cell(row=row, column=col)
-                allowed_content_diff = (name, row, col) in practice_coords or (
-                    name in JUDGMENT_SHEETS and col in JUDGMENT_RESPONSE_COLS
-                )
-                if not allowed_content_diff:
+                if (name, row, col) not in content_exempt:
                     if ct.value != ca.value:
                         raise ValueError(
                             f"non-practice value mismatch: sheet={name!r} "
@@ -543,11 +826,17 @@ def _verify_visible_layout_parity(wb_t, wb_a, practice_coords: set[tuple[str, in
                             f"non-practice Note mismatch: sheet={name!r} "
                             f"cell={_cell_addr(row, col)}"
                         )
-                if _format_signature(ct) != _format_signature(ca):
-                    raise ValueError(
-                        f"effective formatting mismatch: sheet={name!r} "
-                        f"cell={_cell_addr(row, col)}"
-                    )
+                _assert_format_parity(
+                    ct,
+                    ca,
+                    sheet=name,
+                    row=row,
+                    col=col,
+                    theme_t=theme_t,
+                    theme_a=theme_a,
+                    palette_t=palette_t,
+                    palette_a=palette_a,
+                )
 
 
 def _verify_practice_contract(wb_t, wb_a, comps) -> None:

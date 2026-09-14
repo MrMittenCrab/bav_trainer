@@ -1790,3 +1790,281 @@ def test_persisted_release_pair_contract_and_check_counts():
     )
     assert stages["8_release_pristine"].status == "pass"
     assert _release_pair_fingerprints() == before
+
+
+def _apply_one_sided(trainer: Path, answer: Path, target: str, mutator) -> None:
+    if target in ("trainer", "both"):
+        _mutate_workbook(trainer, mutator)
+    if target in ("answer", "both"):
+        _mutate_workbook(answer, mutator)
+
+
+@pytest.mark.parametrize("target", ["trainer", "answer"])
+@pytest.mark.parametrize(
+    "mutation,expect_snip",
+    [
+        ("judgment_header_f4_text", "non-practice value mismatch"),
+        ("judgment_header_f4_note", "non-practice Note mismatch"),
+        ("non_case_fh_content", "non-practice value mismatch"),
+        ("wrap_text", "component=align_wrap_text"),
+        ("theme_color", "component=font_color"),
+        ("tint", "component=font_color"),
+        ("theme_definition", "component=font_color"),
+    ],
+)
+def test_release_layout_bypass_corruptions(
+    tmp_path: Path, target: str, mutation: str, expect_snip: str
+):
+    from openpyxl.comments import Comment
+    from openpyxl.styles import Alignment, Font
+    from openpyxl.styles.colors import Color
+    from openpyxl.xml.functions import QName, fromstring, tostring
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    before = _release_pair_fingerprints()
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+    fin = _release_fin()
+
+    def mut(wb):
+        if mutation == "judgment_header_f4_text":
+            wb["Accounting Judgment"]["F4"] = "CORRUPTED HEADER"
+        elif mutation == "judgment_header_f4_note":
+            wb["Accounting Judgment"]["F4"].comment = Comment("header note", "test")
+        elif mutation == "non_case_fh_content":
+            # Row 4 headers are non-case; G4 must stay matched across the pair.
+            wb["Accounting Judgment"]["G4"] = "CORRUPTED RATIONALE HEADER"
+        elif mutation == "wrap_text":
+            # Response cells are content-exempt but formatting must still match.
+            cell = wb["Accounting Judgment"]["F5"]
+            cell.alignment = Alignment(
+                horizontal=cell.alignment.horizontal,
+                vertical=cell.alignment.vertical or "top",
+                wrap_text=False,
+                shrink_to_fit=cell.alignment.shrink_to_fit,
+                indent=cell.alignment.indent or 0,
+                textRotation=cell.alignment.textRotation or 0,
+            )
+        elif mutation == "theme_color":
+            wb["Income Statement"]["A6"].font = Font(
+                name="Aptos Narrow", size=11, color=Color(theme=4)
+            )
+        elif mutation == "tint":
+            wb["Income Statement"]["A6"].font = Font(
+                name="Aptos Narrow", size=11, color=Color(theme=4, tint=0.4)
+            )
+        elif mutation == "theme_definition":
+            wb["Income Statement"]["A6"].font = Font(
+                name="Aptos Narrow", size=11, color=Color(theme=4)
+            )
+            xlmns = "http://schemas.openxmlformats.org/drawingml/2006/main"
+            root = fromstring(wb.loaded_theme)
+            scheme = root.find(QName(xlmns, "themeElements").text).findall(
+                QName(xlmns, "clrScheme").text
+            )[0]
+            child = list(scheme.find(QName(xlmns, "accent1").text))[0]
+            child.set("val", "FF00FF")
+            wb.loaded_theme = tostring(root)
+        else:
+            raise AssertionError(mutation)
+
+    if mutation == "theme_definition":
+        # Both workbooks share the theme reference; only one theme definition changes.
+        def set_theme_font(wb):
+            wb["Income Statement"]["A6"].font = Font(
+                name="Aptos Narrow", size=11, color=Color(theme=4)
+            )
+
+        _mutate_workbook(trainer, set_theme_font)
+        _mutate_workbook(answer, set_theme_font)
+
+        def mutate_theme_only(wb):
+            xlmns = "http://schemas.openxmlformats.org/drawingml/2006/main"
+            root = fromstring(wb.loaded_theme)
+            scheme = root.find(QName(xlmns, "themeElements").text).findall(
+                QName(xlmns, "clrScheme").text
+            )[0]
+            child = list(scheme.find(QName(xlmns, "accent1").text))[0]
+            child.set("val", "FF00FF")
+            wb.loaded_theme = tostring(root)
+
+        _apply_one_sided(trainer, answer, target, mutate_theme_only)
+    else:
+        _apply_one_sided(trainer, answer, target, mut)
+
+    with pytest.raises(ValueError, match=expect_snip):
+        _verify_release_pair_contract(trainer, answer, fin)
+    assert _release_pair_fingerprints() == before
+
+
+@pytest.mark.parametrize(
+    "mutation,expect_snip",
+    [
+        ("shrink_to_fit", "component=align_shrink_to_fit"),
+        ("text_rotation", "component=align_text_rotation"),
+        ("indent", "component=align_indent"),
+        ("font_underline", "component=font_underline"),
+        ("font_strike", "component=font_strikethrough"),
+        ("number_format", "component=number_format"),
+        ("protection_hidden", "component=protection_hidden"),
+        ("border_left", "component=border_left"),
+        ("fill_pattern", "component=fill_type"),
+    ],
+)
+def test_release_layout_omitted_format_components(
+    tmp_path: Path, mutation: str, expect_snip: str
+):
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Protection, Side
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    before = _release_pair_fingerprints()
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+    fin = _release_fin()
+
+    def mut(wb):
+        cell = wb["Income Statement"]["A6"]
+        if mutation == "shrink_to_fit":
+            cell.alignment = Alignment(
+                horizontal=cell.alignment.horizontal,
+                vertical=cell.alignment.vertical,
+                wrap_text=cell.alignment.wrap_text,
+                shrink_to_fit=True,
+                indent=cell.alignment.indent or 0,
+                textRotation=cell.alignment.textRotation or 0,
+            )
+        elif mutation == "text_rotation":
+            cell.alignment = Alignment(
+                horizontal=cell.alignment.horizontal,
+                vertical=cell.alignment.vertical,
+                wrap_text=cell.alignment.wrap_text,
+                shrink_to_fit=cell.alignment.shrink_to_fit,
+                indent=cell.alignment.indent or 0,
+                textRotation=90,
+            )
+        elif mutation == "indent":
+            cell.alignment = Alignment(
+                horizontal=cell.alignment.horizontal,
+                vertical=cell.alignment.vertical,
+                wrap_text=cell.alignment.wrap_text,
+                shrink_to_fit=cell.alignment.shrink_to_fit,
+                indent=2,
+                textRotation=cell.alignment.textRotation or 0,
+            )
+        elif mutation == "font_underline":
+            cell.font = Font(name="Aptos Narrow", size=11, underline="single")
+        elif mutation == "font_strike":
+            cell.font = Font(name="Aptos Narrow", size=11, strike=True)
+        elif mutation == "number_format":
+            cell.number_format = "0.00"
+        elif mutation == "protection_hidden":
+            cell.protection = Protection(locked=True, hidden=True)
+        elif mutation == "border_left":
+            cell.border = Border(left=Side(style="thin", color="FF000000"))
+        elif mutation == "fill_pattern":
+            cell.fill = PatternFill(patternType="gray125")
+        else:
+            raise AssertionError(mutation)
+
+    _mutate_workbook(trainer, mut)
+    with pytest.raises(ValueError, match=expect_snip):
+        _verify_release_pair_contract(trainer, answer, fin)
+    assert _release_pair_fingerprints() == before
+
+
+def test_release_layout_positive_judgment_response_diff(tmp_path: Path):
+    from openpyxl.comments import Comment
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    before = _release_pair_fingerprints()
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+    fin = _release_fin()
+
+    def mut(wb):
+        ws = wb["Accounting Judgment"]
+        ws["F5"] = "Operating Working Capital Asset"
+        ws["G5"] = "Learner rationale"
+        ws["H5"] = "Learner consequence"
+        ws["F5"].comment = Comment("response note", "learner")
+
+    _mutate_workbook(trainer, mut)
+    msg = _verify_release_pair_contract(trainer, answer, fin)
+    assert "layout_parity=ok" in msg
+    assert _release_pair_fingerprints() == before
+
+
+def test_release_layout_positive_equivalent_format_different_style_ids(tmp_path: Path):
+    from openpyxl.styles import Font
+    from openpyxl.styles.cell_style import StyleArray
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    before = _release_pair_fingerprints()
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+    fin = _release_fin()
+
+    def mut(wb):
+        cell = wb["Income Statement"]["A7"]
+        font = Font(
+            name="Aptos Narrow",
+            size=11.0,
+            bold=False,
+            italic=False,
+            color="00000000",
+        )
+        list.append(wb._fonts, font)
+        style = list(cell._style)
+        style[0] = len(wb._fonts) - 1
+        cell._style = StyleArray(style)
+
+    _mutate_workbook(trainer, mut)
+    msg = _verify_release_pair_contract(trainer, answer, fin)
+    assert "layout_parity=ok" in msg
+    assert _release_pair_fingerprints() == before
+
+
+def test_release_layout_bypass_fails_audit_stage_and_cli(tmp_path: Path):
+    before = _release_pair_fingerprints()
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+
+    def mut(wb):
+        wb["Accounting Judgment"]["F4"] = "CORRUPTED HEADER"
+
+    _mutate_workbook(trainer, mut)
+    result = run_audit(
+        standardized_json=RELEASE_STD,
+        provenance_json=RELEASE_PROV,
+        conflicts_json=RELEASE_CONFLICTS,
+        trainer_path=trainer,
+        answer_key_path=answer,
+        require_check_counts=True,
+        verify_release_pair=True,
+    )
+    stages = _stage_map(result)
+    assert stages["5_workbook_generation"].status == "fail"
+    assert "Accounting Judgment" in (stages["5_workbook_generation"].message or "")
+    assert stages["6_blank_check"].status == "skipped"
+    assert stages["7_filled_check"].status == "skipped"
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "audit_fast_retailing_benchmark.py"),
+            "--standardized-json",
+            str(RELEASE_STD),
+            "--provenance-json",
+            str(RELEASE_PROV),
+            "--conflicts-json",
+            str(RELEASE_CONFLICTS),
+            "--trainer",
+            str(trainer),
+            "--answer-key",
+            str(answer),
+            "--verify-release-pair",
+            "--require-check-counts",
+            "--no-baseline",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode != 0
+    assert "5_workbook_generation: fail" in completed.stdout
+    assert _release_pair_fingerprints() == before
