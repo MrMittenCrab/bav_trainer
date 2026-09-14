@@ -1,18 +1,77 @@
-# RESULT.md — Step 9M.2.4.1.1.1 Verify Generic Pretax-Income Resolution and Correct Acceptance Accounting
+# RESULT.md — Step 9M.2.4.1.1.1 Repair Independent Pretax and ETR Parity Verification
 
-**Status:** COMPLETE (this verification child’s acceptance met; parents remain UNRESOLVED)  
-**Step:** 9M.2.4.1.1.1 — Verify Generic Pretax-Income Resolution and Correct Acceptance Accounting  
+**Status:** COMPLETE (this repair child’s acceptance met; parents remain UNRESOLVED)  
+**Step:** 9M.2.4.1.1.1 — Repair Independent Pretax and ETR Parity Verification  
 **Parents:** Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
-**Workspace HEAD:** `b9694347a238b00dcdfc1f3b588a237f8185f011` (plan commit; base `412922f`)  
+**Workspace HEAD:** `70da89edc8a8a2d11c11cae0fe4cc9dd32be6e48` (plan commit; base `8bd5f50`)  
 `TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged).  
 No commit / push / sync / checkpoint. No branch create/switch. No G4–G7 or forecasting/valuation work.  
 No production changes.
 
 ---
 
-## Task 2 — Parent criteria vs evidence (corrected)
+## Withdrawal of unsupported prior claims
 
-Prior RESULT invented **workbook-generation success** as an original `aa6adc1` acceptance criterion and treated its failure as parent-blocking evidence. Original plans require a temporary-directory probe that may **either** succeed **or** record the exact next exception — not unconditional workbook success.
+Prior RESULT claimed COMPLETE for independent-expectation, emitted-arithmetic, and wrong-link-detection coverage while expectations were still derived through `resolve_line` / `ratio_or_na` and ETR checks were substring-only. Those claims are **withdrawn**.
+
+This repair replaces them with fixture-owned expectations, a strict test-local ETR formula contract plus referenced-cell evaluation, and saved-copy corruption rejection.
+
+---
+
+## Task 1 — Independent expectations and emitted arithmetic
+
+Fixture-owned default expect (not from production helpers):
+
+| Field | Independent value |
+|---|---|
+| pretax label | `Income before income tax expense` |
+| tax label | `Income tax expense` |
+| periods | `2024-12-31`, `2025-12-31` |
+| pretax | **400.0 / 500.0** |
+| tax | **−60.0 / −80.0** |
+| ETR (`-tax/pretax`, test-local) | **0.15 / 0.16** |
+
+`compute_anchor` vs those expectations:
+
+- `pretax_income` = `[400.0, 500.0]`
+- `effective_tax_rate` = `[0.15, 0.16]`
+
+Emitted Condensed Answer-Key formulas (build → copy/reload; formulas retained; **not** Excel recalculation):
+
+| Period | Pretax formula | Source label / value | Tax formula | ETR formula (strict contract) |
+|---|---|---|---|---|
+| 0 | `='Income Statement'!B12` | `Income before income tax expense` / `400` | `='Income Statement'!B10` | `=IF(B15=0,NA(),-B16/B15)` |
+| 1 | `='Income Statement'!C12` | same label / `500` | `='Income Statement'!C10` | `=IF(C15=0,NA(),-C16/C15)` |
+
+Evaluated referenced-cell arithmetic matches independent ETR and Python outputs.
+
+Also measured:
+
+- canonical `pretax_income` concept (250/310, −40/−55);
+- normalized label fallback (empty concept; 180/210, −27/−42);
+- natural and reordered source-row orders;
+- standardized export/reload;
+- zero pretax period → independent `#N/A` and zero-guard contract (`pretax=0/500`, tax=`−60/−80`, ETR=`#N/A` / `0.16`).
+
+---
+
+## Task 2 — Corruption rejection (construction ≠ validation)
+
+Passing baseline Answer Key built once; each negative control mutates a fresh saved copy (no regenerate):
+
+| Mutation | Validator rejection |
+|---|---|
+| Pretax formula redirected to tax source row | `AssertionError` matching `pretax (source label mismatch\|link redirected)` |
+| Pretax formula redirected to other period column | `AssertionError` matching `pretax (link wrong period\|source value mismatch)` |
+| ETR minus sign removed (NA + row names retained) | `AssertionError` matching `etr formula contract mismatch` |
+| ETR numerator/denominator reversed | same contract rejection |
+| ETR zero-guard corrupted (`=0` → `=1`) | same contract rejection |
+
+Retained regressions: alias-removal fail-closed; precedence / duplicate ambiguity / missing-required / tax-exclusion in `test_line_resolver.py`.
+
+---
+
+## Task 3 — Parent criteria reconciliation
 
 | Plan | Criterion | Status |
 |---|---|---|
@@ -25,44 +84,13 @@ Prior RESULT invented **workbook-generation success** as an original `aa6adc1` a
 | `88ce931` | Sparse equity omission fails closed independently of implied-equity | **supported** (prior child) |
 | Parent closure | Every original parent acceptance criterion established for closure | **unverified / incomplete** — keep parents UNRESOLVED pending Plan assessment |
 
-Workbook probe outcome alone does **not** establish or deny parent acceptance.
-
 ### Evidence classes (kept distinct)
 
 | Class | Evidence | Status |
 |---|---|---|
-| Synthetic calculation / formula parity | New `_pretax_parity_*` fixtures + Answer-Key formula inspection | **supported** |
+| Synthetic calculation / formula parity | Fixture-owned expect + strict ETR contract + cell evaluation + corruption rejection | **supported** |
 | Real-company resolution | Lululemon `income_before_tax` / label / four-period values / tax distinct / export-reload | **supported** |
 | Full-company Python↔Excel pretax parity on unmodified Lululemon | Requires successful workbook build | **unavailable** — blocked by `interest_expense` |
-
-Prior COMPLETE claim that treated row-index arithmetic as sufficient Python/Excel parity is **withdrawn** for the repair narrative; this child supplies direct calculation + emitted-formula evidence on synthetic fixtures.
-
----
-
-## Task 1 — Measured synthetic calculation and formula paths
-
-Fixture (reordered IS; distinct pretax vs tax; separate from Lululemon):
-
-- concept `income_before_tax`, label `Income before income tax expense`
-- pretax inputs: **400.0 / 500.0**
-- tax expense: **−60.0 / −80.0**
-- independent ETR: **0.15 / 0.16** (`-tax/pretax`)
-
-`compute_anchor` historical series:
-
-- `pretax_income` = `[400.0, 500.0]`
-- `effective_tax_rate` = `[0.15, 0.16]`
-
-Emitted Condensed Answer-Key formulas (formulas retained; **not** Excel recalculation):
-
-| Period | Pretax Income formula | Resolved source label / value | Tax Expense formula | ETR formula |
-|---|---|---|---|---|
-| 0 | `='Income Statement'!B12` | `Income before income tax expense` / `400` | `='Income Statement'!B10` | `=IF(B15=0,NA(),-B16/B15)` |
-| 1 | `='Income Statement'!C12` | same label / `500` | `='Income Statement'!C10` | `=IF(C15=0,NA(),-C16/C15)` |
-
-Source-resolved pretax values match Python outputs; tax source row ≠ pretax source row; ETR arithmetic from those source cells matches Python ETR.
-
-Also covered: canonical `pretax_income` concept, normalized label fallback (empty concept), reordered rows, standardized export/reload, alias-removal fail-closed, wrong-link detection via distinct pretax/tax values. Precedence, duplicate ambiguity, missing-required, and tax-exclusion regressions retained.
 
 ---
 
@@ -72,7 +100,7 @@ Also covered: canonical `pretax_income` concept, normalized label fallback (empt
 |---|---|
 | concept / label | `income_before_tax` / `Income before income tax expense` |
 | values | 1332571 / 2175735 / 2576077 / 2238967 |
-| tax | `Income tax expense` at index 10 (pretax index 8) |
+| tax | `Income tax expense` (index ≠ pretax) |
 | export/reload | concept/label/values/index unchanged |
 
 ### Workbook probe (unmodified input, temporary directory)
@@ -102,8 +130,6 @@ Tolerance formula unchanged: `max(1.0, 0.5 * (detail_count + 1))` (`DEFAULT_TOLE
 - `check_reformulation_integrity` → **PASS** all four periods.  
 - G1/G2/G3 controls retained in benchmark tests.
 
-Causal liability/equity rows for the original NCIT discrepancy remain as documented in prior sparse-repair children (NCIT classification / sparse equity gate); current gaps are all zero under unchanged envelopes.
-
 ---
 
 ## Source / artifact hashes (before = after)
@@ -124,13 +150,13 @@ No generated refresh authorized; committed Lululemon artifacts unchanged. Stray 
 PYTHONPATH=. pytest core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py \
   core/tests/test_classification.py core/tests/test_line_resolver.py \
   core/tests/test_reference_integrity.py core/tests/test_lululemon_benchmark.py -q
-→ 524 passed in 9.71s
+→ 526 passed in 10.09s
 
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q
-→ 132 passed in 27.39s
+→ 132 passed in 27.30s
 
 PYTHONPATH=. pytest core/tests -q
-→ 1076 passed in 88.03s
+→ 1078 passed in 88.76s
 ```
 
 Working tree after suite cleanup: only intentional test + RESULT edits.
@@ -139,14 +165,14 @@ Working tree after suite cleanup: only intentional test + RESULT edits.
 
 ## Diff scope (intentional)
 
-- `core/tests/test_reference_integrity.py` — synthetic pretax/ETR arithmetic + emitted formula source-link parity (canonical / alias / label / reorder / reload / alias-removal detection)
-- `core/tests/test_line_resolver.py` — alias-removal fail-closed regression
+- `core/tests/test_reference_integrity.py` — fixture-owned pretax/ETR expectations; strict ETR contract + referenced-cell evaluation; separated build/validate; corruption rejection; zero-denominator case; alias-removal retained
 - `RESULT.md` (this file)
 
+`test_line_resolver.py` / `test_lululemon_benchmark.py`: no edit required this pass (regressions already present).  
 Production code, committed standardized/provenance/conflicts, source PDFs, extracted JSON: **unchanged**.
 
 ---
 
 ## Parent / plan notes (do not edit IMPLEMENTATION.md here)
 
-Child 9M.2.4.1.1.1 acceptance for **verify generic pretax calculation/formula parity and correct acceptance accounting** is met. Keep **Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — UNRESOLVED** for Plan’s evidence-based parent closure assessment. Any genuinely new child uses first unused ID **9M.2.4.1.1.1.1**. Step 9 remains incomplete.
+Child 9M.2.4.1.1.1 acceptance for **repair independent pretax/ETR parity verification** is met. Keep **Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — UNRESOLVED** for Plan’s evidence-based parent closure assessment. Any genuinely new child uses first unused ID **9M.2.4.1.1.1.2**. Step 9 remains incomplete.
