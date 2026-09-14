@@ -1,45 +1,46 @@
-# Step 9M.2.1 — Repair Customer-Prepayment Movement Exclusions and Liability Fallbacks (G1)
+# Step 9M.2.1 — Repair Plural Gift-Card Movement Detection and Liability Fallback Escapes (G1)
 
-**Base:** `da4b3e1b7b6ffc4c987ad5a0ec21ea893f595703`
+**Base:** `44e7651968651e38715e08ef8692d7acffb46eb3`
 **Status:** PROBLEMS
-**Goal:** Prevent movement rows from being classified as customer-prepayment balances or escaping exclusions through liability fallbacks.
+**Goal:** Make plural gift-card movement rows raise instead of escaping through liability classification.
 
 ## Constraints
 
 - Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`.
-- Limit changes to `core/model/classification.py`, `core/tests/test_classification.py`, `core/tests/test_lululemon_benchmark.py`, and `RESULT.md`.
+- Limit changes to `core/model/classification.py`, `core/tests/test_classification.py`, and `RESULT.md`.
 - Preserve source inputs, committed reconciliation artifacts, baseline hashes, and failure-path immutability guards; generate test artifacts only in temporary directories.
 - No issuer-specific rules, source relabeling, benchmark overrides, G2–G7 implementation, or forecasting/valuation work.
 
-## Task 1 — Repair movement exclusions
+## Task 1 — Repair plural gift-card detection
 
-- Make concept and label movement exclusions consistent, including `Recognition of deferred revenue` with an empty concept or a supported balance concept.
-- Ensure excluded customer-prepayment movements cannot regain liability classification through current, noncurrent, other-liability, or long-term label fallbacks.
-- Cover recognition, derecognition, change, increase, decrease, amortization, additions, and reductions using bounded matching.
-- Require unsupported movement rows to raise `UnclassifiedBalanceSheetLineError`; preserve explicit override precedence.
-- Preserve valid balance classification, noncurrent-before-current handling, contradictory-asset exclusions, and existing deferred-tax, lease, financial-instrument, and equity treatment.
+- Extend customer-prepayment topic matching to cover `gift card liabilities`, `gift-card liabilities`, `gift cards liabilities`, and `gift-cards liabilities`, retaining singular forms.
+- Keep label topic recognition consistent between balance classification and movement protection, using bounded wording.
+- Ensure movement protection raises `UnclassifiedBalanceSheetLineError` before concept classification or current, noncurrent, other-liability, and long-term label fallbacks.
+- Preserve explicit override precedence, noncurrent-before-current handling, contradictory-asset exclusions, and unrelated classification behavior.
 
-## Task 2 — Add regressions through the public classifier
+## Task 2 — Add public-classifier regressions
 
-- Add parameterized cases for label-only movement wording, movement labels paired with balance concepts, and movement concepts paired with balance labels.
-- Cover gift-card, deferred-revenue, unearned-revenue, and contract-liability movements, including noncurrent and long-term labels that reach broad liability fallbacks.
-- Assert `UnclassifiedBalanceSheetLineError` for unsupported movements; checking only that the customer-prepayment reason is absent is insufficient.
-- Retain positive current/noncurrent balance controls, safe asset treatment, override precedence, no-guided-judgment coverage, and the two-period NOWC/NOLA/Net Debt/equity reformulation checks.
-- Confirm the new regressions expose the base revision’s defects before applying the repair.
+- Add the exact failing label `Recognition of gift card liabilities within other current liabilities` with an empty concept; assert `UnclassifiedBalanceSheetLineError`.
+- Parameterize singular/plural card and liability wording, spaced/hyphenated forms, and current, noncurrent, other-liability, and long-term fallback contexts.
+- Cover recognition, derecognition, change, increase, decrease, amortization, additions, and reductions across representative plural cases.
+- Include empty and unrelated concepts, movement labels paired with supported balance concepts, and movement concepts paired with balance labels.
+- Assert hard raises through `classify_balance_sheet_line`; absence of the customer-prepayment reason is insufficient.
+- Add positive current/noncurrent plural balance controls and an explicit override control for the reported failing row. Retain existing asset, unrelated-classification, judgment, and reformulation checks.
+- Demonstrate that the new defect regressions fail against the base revision before applying the repair, then pass afterward.
 
-## Task 3 — Verify benchmarks and record completion
+## Task 3 — Verify and record completion
 
-- Retain Lululemon gift-card classification across all four periods, exactly `Property and equipment, net` and `Common stock` as unclassified rows, and the temporary build probe’s exact PPE blocker.
-- Retain deterministic reconciliation, committed-hash, failure-path immutability, and no-issuer-branch assertions.
 - Run:
   - `PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_lululemon_benchmark.py -q`
   - `PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q`
   - `PYTHONPATH=. pytest core/tests -q`
-- Update `RESULT.md` to supersede the premature G1 PASS with the repair outcome, regression evidence, newly measured check results, before/after reconciliation hashes, remaining G2/G3 blockers, and final diff scope. Report restrictions or failures explicitly.
+- Preserve Lululemon gift-card classification across all four periods, exactly `Property and equipment, net` and `Common stock` as unclassified rows, and the temporary build probe’s exact PPE blocker.
+- Verify deterministic reconciliation, committed hashes, failure-path immutability, and no-issuer-branch guards.
+- Update `RESULT.md` to supersede the previous G1 PASS with the plural repair outcome, base-failure/post-fix evidence, newly measured verification, before/after artifact hashes, remaining G2/G3 blockers, and final diff scope. Record failures or restrictions explicitly.
 
 ## Acceptance and next step
 
-- Recognition and other excluded movements fail closed across customer-prepayment classification and liability fallbacks unless explicitly overridden.
-- Valid balance classifications and reformulation results remain correct; required checks pass and committed artifacts remain unchanged.
-- On failure, retain **Step 9M.2.1 — Repair Customer-Prepayment Movement Exclusions and Liability Fallbacks (G1)**.
+- Plural gift-card movements, including the reported label, raise without liability fallback escapes unless explicitly overridden.
+- Valid balances and existing classification/reformulation behavior remain correct; required checks pass and committed artifacts remain unchanged.
+- On failure, retain **Step 9M.2.1 — Repair Plural Gift-Card Movement Detection and Liability Fallback Escapes (G1)**.
 - On PASS, propose **Step 9M.2.2 — Generic Property-and-Equipment Classification and PPE Identity (G2)**; Step 9 remains incomplete.
