@@ -1,43 +1,46 @@
-# Step 9M.2.3 — Restrict Paid-In-Capital Exemptions to Balance Wording (G3)
+# Step 9M.2.4 — Lululemon Liability-Detail Reformulation Integrity
 
-**Base:** `4f2dcc1bfe5b41a836f15507a186adc93e8c861d`
-**Status:** PROBLEMS
-**Goal:** Reject common-stock payment concepts even when paid-in-capital wording co-occurs, while preserving genuine equity balances.
+**Base:** `7358db04098fce5014abe23a74806be14c0ef986`
+**Previous step:** Step 9M.2.3 — PASS
+**Goal:** Repair the measured liability-detail reconciliation gaps while preserving reported source facts and strict integrity checks.
 
 ## Constraints
 
 - Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`.
-- Limit changes to `core/model/classification.py`, `core/tests/test_classification.py`, and `RESULT.md`.
-- Preserve source facts, stored concepts, committed reconciliation artifacts, baseline hashes, and failure-path immutability guards. Generate verification artifacts only in temporary directories.
-- No issuer-specific rules, source relabeling, benchmark overrides, downstream reformulation repair, G4–G7 implementation, or forecasting/valuation work.
+- Limit production changes to the demonstrated defect in `core/model/classification.py` or `core/model/line_resolver.py`; add regressions in their existing tests and `core/tests/test_lululemon_benchmark.py`.
+- Record completion and measured verification in `RESULT.md`.
+- Preserve source PDFs, extracted JSON, stored labels/concepts/values, reconciliation artifacts, baseline hashes, and failure-path immutability guards.
+- Generate verification artifacts only in temporary directories.
+- No issuer-specific rules, benchmark overrides, balancing plugs, tolerance inflation, suppressed integrity errors, G4–G7 implementation, or forecasting/valuation work.
 
-## Task 1 — Repair payment detection
+## Task 1 — Diagnose the reconciliation gaps
 
-- Update `_common_stock_concept_has_payment` so `paidincapital` exempts only the balance phrase itself; it must not suppress separate payment wording elsewhere in the normalized concept.
-- `Common stock` / `common_stock_paid_in_cash_from_paid_in_capital` must raise `UnclassifiedBalanceSheetLineError` before cash, liability, or equity fallbacks.
-- Preserve existing normalization, common-stock movement scoping, supported liability routing, contradictory-liability rejection, and explicit override precedence.
+- Reproduce the recorded liability-detail gaps at 2023-01-29 (approximately −28,555) and 2024-01-28 (approximately −15,864); measure all four periods.
+- Trace each balance-sheet row through subtotal detection, classification, and aggregation; identify the resolved reported totals.
+- Reconcile included and excluded liability amounts to reported totals and explain the corresponding equity gaps using exact row identities and values.
+- Consult relevant committed provenance and extracted filing observations as needed. If evidence establishes an upstream source defect, record it and retain this step as incomplete rather than altering source facts.
 
-## Task 2 — Add public-classifier regressions
+## Task 2 — Repair and add regressions
 
-- Add the exact reported pair to `test_common_stock_payment_movements_raise_unclassified`; demonstrate failure before the repair and success afterward.
-- Parameterize co-occurring paid-in-cash and paid-in-capital wording across snake_case, CamelCase, punctuation variants, reversed phrase order, and additional-paid-in-capital wording.
-- Retain `paid_in_capital` and `additional_paid_in_capital` balance controls: Equity, `ambiguous is False`, and `judgment_code is None`.
-- Retain existing cash-paid/paid-for co-occurrence, ordinary common-stock, liability, investment, redeemable/preferred, override, and G1/G2 controls.
+- Apply the smallest generic correction supported by the diagnosis, preserving classification metadata, explicit override precedence, and source identity.
+- Add a synthetic regression reproducing the demonstrated defect; show failure before the repair and success afterward.
+- Cover neighboring asset/liability/equity cases and subtotal-versus-detail boundaries implicated by the repair.
+- Preserve rejection of genuine omissions and contradictory inputs, including equal asset/liability omissions and gaps exceeding existing rounding envelopes.
+- Replace the obsolete expected liability-gap blocker assertion with direct four-period reformulation integrity assertions; retain the empty unclassified-detail set and G1/G2/G3 controls.
+- Keep artifact immutability coverage exercised through a deterministic failure path even if the original build blocker disappears.
 
 ## Task 3 — Verify and record
 
-- Run:
-  - `PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_line_resolver.py core/tests/test_fixed_asset.py core/tests/test_lululemon_benchmark.py -q`
-  - `PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q`
-  - `PYTHONPATH=. pytest core/tests -q`
-- Rerun the existing temporary-directory Lululemon build probe; record the measured `ReformulationIntegrityError` with `liability-detail gap` without repairing it.
-- Confirm Common stock identity and values (611 / 606 / 581 / 557), the empty unclassified balance-sheet detail set, and existing gift-card/PPE assertions.
-- Update `RESULT.md` to supersede the previous G3 PASS claim with the exact regression outcome, completed repair, measured test results, build outcome, committed artifact hashes before/after, remaining blockers, and final diff scope.
-- Record execution restrictions or failures explicitly; incomplete verification does not establish PASS.
+- Run `PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_line_resolver.py core/tests/test_reference_integrity.py core/tests/test_lululemon_benchmark.py -q`.
+- Run `PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q`.
+- Run `PYTHONPATH=. pytest core/tests -q`.
+- Rerun the Lululemon build in a temporary directory; record successful workbook generation or the exact next exception without repairing an unrelated blocker.
+- Record exact before/after asset-detail, liability-detail, and equity gaps for every period, applicable rounding envelopes, causal rows, regression results, test counts, artifact hashes before/after, and final diff scope in `RESULT.md`.
+- Confirm Common stock values remain 611 / 606 / 581 / 557 and existing gift-card/PPE assertions pass. Record any execution restrictions; incomplete verification does not establish PASS.
 
 ## Acceptance and next step
 
-- The reported pair and normalized co-occurrence regressions raise through `classify_balance_sheet_line`; genuine paid-in-capital balances retain exact Equity metadata.
-- Required tests pass; existing classification behavior, source facts, and committed artifacts remain preserved.
-- On failure, retain **Step 9M.2.3 — Restrict Paid-In-Capital Exemptions to Balance Wording (G3)**.
-- On PASS, propose **Step 9M.2.4 — Lululemon Liability-Detail Reformulation Integrity**, subject to the measured build outcome. G4 remains deferred; Step 9 remains incomplete.
+- All four Lululemon periods pass `check_reformulation_integrity` within unchanged tolerance rules; the recorded liability and corresponding equity discrepancies are explained and repaired.
+- Required tests pass, genuine inconsistencies still fail closed, and source facts and committed artifacts remain unchanged.
+- On failure, retain **Step 9M.2.4 — Lululemon Liability-Detail Reformulation Integrity**.
+- On PASS with no further build blocker, propose **Step 9M.2.5 — Generic Capex Concept Identity (G4)**; otherwise use Step 9M.2.5 for the measured next build blocker and defer G4. Step 9 remains incomplete.
