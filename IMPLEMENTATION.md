@@ -2,6 +2,8 @@
 
 **Base:** `671239c73379e8c3da103d2e1fe51269ce52d0b4`
 
+**Status:** Complete
+
 **Goal:** Complete the pending capex practice validation in a writable environment.
 
 ### Task 1: Run the required validation
@@ -9,6 +11,11 @@
 - Run `python -m pytest core/tests/test_capex.py core/tests/test_line_resolver.py core/tests/test_goodwill_intangibles.py core/tests/test_fast_retailing_benchmark.py -q`.
 - Run `git diff --check`.
 - Record test totals and any failures, errors, or skips; confirm workbook integration tests execute.
+
+**Verification (2026-09-14):**
+- `python -m pytest core/tests/test_capex.py core/tests/test_line_resolver.py core/tests/test_goodwill_intangibles.py core/tests/test_fast_retailing_benchmark.py -q` → **62 passed** in 6.80s; 0 failed, 0 errors, 0 skipped.
+- Workbook integration coverage executed within the suite (capex Trainer/Answer-Key/Check and Fast Retailing benchmark paths).
+- `git diff --check` → pass (no whitespace errors).
 
 ### Task 2: Resolve validation failures
 
@@ -18,6 +25,8 @@
 - Preserve signed capex, same-period revenue ratios, missing-value errors, and undefined ratios for zero revenue.
 - Rerun the complete validation command and `git diff --check` after any fixes.
 
+**Result:** No failures implicated; Task 2 not required.
+
 ### Acceptance criteria
 
 - All four test modules pass in a writable environment, including workbook integration coverage.
@@ -25,3 +34,5 @@
 - Fast Retailing FY2021–FY2025 capex anchors, revenue ratios, and practice counts pass.
 - `git diff --check` passes.
 - No new analytical modules, forecasting, valuation, or source/provenance changes.
+
+**Acceptance:** Met. No code changes required for this gate.
