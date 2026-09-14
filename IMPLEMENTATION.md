@@ -1,46 +1,48 @@
-# Step 9M.2.4 — Lululemon Liability-Detail Reformulation Integrity
+# Step 9M.2.4.1 — Preserve Sparse Liability Facts in Standardization
 
-**Base:** `7358db04098fce5014abe23a74806be14c0ef986`
-**Previous step:** Step 9M.2.3 — PASS
-**Goal:** Repair the measured liability-detail reconciliation gaps while preserving reported source facts and strict integrity checks.
+**Base:** `cdf0c9f5d0222f52728f0d6ba9cf86d61d3df63c`
+**Parent:** Step 9M.2.4 — Lululemon Liability-Detail Reformulation Integrity — UNRESOLVED
+**Goal:** Restore omitted sparse balance-sheet facts without inventing missing values; satisfy the parent’s original integrity acceptance.
 
 ## Constraints
 
-- Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`.
-- Limit production changes to the demonstrated defect in `core/model/classification.py` or `core/model/line_resolver.py`; add regressions in their existing tests and `core/tests/test_lululemon_benchmark.py`.
-- Record completion and measured verification in `RESULT.md`.
-- Preserve source PDFs, extracted JSON, stored labels/concepts/values, reconciliation artifacts, baseline hashes, and failure-path immutability guards.
-- Generate verification artifacts only in temporary directories.
-- No issuer-specific rules, benchmark overrides, balancing plugs, tolerance inflation, suppressed integrity errors, G4–G7 implementation, or forecasting/valuation work.
+- Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`; record completion and measured verification in `RESULT.md`.
+- Production scope: `core/ingestion/filing_standardizer.py`, including its provenance generation.
+- Test scope: `core/tests/test_filing_reconciler.py` and `core/tests/test_lululemon_benchmark.py`.
+- Authorized generated changes: `benchmark/lululemon/reconciled/standardized.json`, `provenance.json`, and their benchmark hash expectations, only from verified deterministic regeneration.
+- Preserve source PDFs, extracted JSON, reported labels/concepts/values, selection precedence, observations, conflicts, and unrelated committed artifacts.
+- Preserve failure-path immutability guards; tests and workbook probes write only to temporary directories.
+- No invented zeros, carry-forward values, absent-after-zero inference, balancing plugs, issuer-specific rules, benchmark overrides, tolerance inflation, or suppressed integrity errors.
+- No G4–G7, forecasting, valuation, or unrelated blocker repair.
 
-## Task 1 — Diagnose the reconciliation gaps
+## Task 1 — Retain sparse balance-sheet facts
 
-- Reproduce the recorded liability-detail gaps at 2023-01-29 (approximately −28,555) and 2024-01-28 (approximately −15,864); measure all four periods.
-- Trace each balance-sheet row through subtotal detection, classification, and aggregation; identify the resolved reported totals.
-- Reconcile included and excluded liability amounts to reported totals and explain the corresponding equity gaps using exact row identities and values.
-- Consult relevant committed provenance and extracted filing observations as needed. If evidence establishes an upstream source defect, record it and retain this step as incomplete rather than altering source facts.
+- Retain balance-sheet rows with selected observations on only part of the model axis; preserve supplied amounts and use explicit `None` for unreported periods through the existing nullable contract.
+- Select label/concept deterministically from the latest available model-period observation; preserve source identity and keep non-balance-sheet completeness behavior unchanged.
+- Update provenance to distinguish retained sparse rows and missing periods from omitted rows; retain all selected, superseded, and outside-axis observations without fabricating source evidence.
+- Restore `non_current_income_taxes_payable`: 28555 at 2023-01-29, 15864 at 2024-01-28, reported 0 at 2025-02-02, and `None` at 2026-02-01.
 
-## Task 2 — Repair and add regressions
+## Task 2 — Regress and regenerate
 
-- Apply the smallest generic correction supported by the diagnosis, preserving classification metadata, explicit override precedence, and source identity.
-- Add a synthetic regression reproducing the demonstrated defect; show failure before the repair and success afterward.
-- Cover neighboring asset/liability/equity cases and subtotal-versus-detail boundaries implicated by the repair.
-- Preserve rejection of genuine omissions and contradictory inputs, including equal asset/liability omissions and gaps exceeding existing rounding envelopes.
-- Replace the obsolete expected liability-gap blocker assertion with direct four-period reformulation integrity assertions; retain the empty unclassified-detail set and G1/G2/G3 controls.
-- Keep artifact immutability coverage exercised through a deterministic failure path even if the original build blocker disappears.
+- Add a synthetic sparse balance-sheet regression that fails before repair; cover leading, interior, and trailing absence, explicit zero versus absence, complete rows, and unchanged non-balance-sheet omissions.
+- Verify standardized export/reload preserves amounts, nulls, labels, and concepts; verify provenance remains source-grounded.
+- Run reconciliation twice in separate temporary directories; compare all three generated artifacts and explain every difference from committed output before refreshing authorized files and hash expectations. `conflicts.json` must remain unchanged.
+- Replace the obsolete expected liability-gap blocker assertion with direct four-period integrity assertions. Preserve empty unclassified-detail, G1/G2/G3, neighboring classification, subtotal/detail, and explicit override controls.
+- Retain deterministic failure-path immutability coverage and rejection of genuine omissions, contradictory inputs, equal asset/liability omissions, and gaps beyond existing rounding envelopes.
 
-## Task 3 — Verify and record
+## Task 3 — Verify and record fresh evidence
 
-- Run `PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_line_resolver.py core/tests/test_reference_integrity.py core/tests/test_lululemon_benchmark.py -q`.
-- Run `PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q`.
-- Run `PYTHONPATH=. pytest core/tests -q`.
-- Rerun the Lululemon build in a temporary directory; record successful workbook generation or the exact next exception without repairing an unrelated blocker.
-- Record exact before/after asset-detail, liability-detail, and equity gaps for every period, applicable rounding envelopes, causal rows, regression results, test counts, artifact hashes before/after, and final diff scope in `RESULT.md`.
-- Confirm Common stock values remain 611 / 606 / 581 / 557 and existing gift-card/PPE assertions pass. Record any execution restrictions; incomplete verification does not establish PASS.
+- Run `PYTHONPATH=. pytest core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py core/tests/test_classification.py core/tests/test_line_resolver.py core/tests/test_reference_integrity.py core/tests/test_lululemon_benchmark.py -q`.
+- Run `PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q` and `PYTHONPATH=. pytest core/tests -q`.
+- Probe the Lululemon build in a temporary directory; record successful workbook generation or the exact next exception without repairing an unrelated blocker.
+- Record exact before/after asset-detail, liability-detail, and equity gaps for all four periods, causal rows, detail counts, unchanged tolerance formulas and resulting envelopes.
+- Confirm Common stock remains 611 / 606 / 581 / 557 and gift-card/PPE assertions pass.
+- Record regression outcomes, fresh test counts, deterministic comparisons, before/after artifact hashes, source immutability, and final diff scope in `RESULT.md`. Previous green tests cannot establish acceptance.
 
 ## Acceptance and next step
 
-- All four Lululemon periods pass `check_reformulation_integrity` within unchanged tolerance rules; the recorded liability and corresponding equity discrepancies are explained and repaired.
-- Required tests pass, genuine inconsistencies still fail closed, and source facts and committed artifacts remain unchanged.
-- On failure, retain **Step 9M.2.4 — Lululemon Liability-Detail Reformulation Integrity**.
-- On PASS with no further build blocker, propose **Step 9M.2.5 — Generic Capex Concept Identity (G4)**; otherwise use Step 9M.2.5 for the measured next build blocker and defer G4. Step 9 remains incomplete.
+- Parent original acceptance remains mandatory: all four periods pass `check_reformulation_integrity` within unchanged tolerance rules; liability and corresponding equity discrepancies are explained and repaired.
+- Required tests pass and genuine inconsistencies still fail closed; source facts and committed artifacts remain unchanged except the explicitly authorized generated refresh and matching hash expectations.
+- Sparse absence remains distinguishable from reported zero throughout standardization and export/reload; no missing fact is invented to obtain PASS.
+- Retain **Step 9M.2.4 — UNRESOLVED** until every original acceptance criterion passes. Missing evidence, execution restrictions, or further required production scope remain blockers.
+- On failure, next step: **Step 9M.2.4.1 — Preserve Sparse Liability Facts in Standardization**. On acceptance, return to Plan for parent closure and selection of an unused detailed ID for subsequent work; Step 9 remains incomplete.
