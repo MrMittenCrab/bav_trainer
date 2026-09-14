@@ -1,51 +1,45 @@
-# Step 9M.2.1 — Generic Gift-Card / Deferred-Revenue Liability Classification (G1)
+# Step 9M.2.1 — Repair Customer-Prepayment Movement Exclusions and Liability Fallbacks (G1)
 
-**Base:** `9c0a6aab0e9e7cc70bdb6c24d2f9cd90daee4d81`
-**Goal:** Classify explicit customer-prepayment liabilities generically and remove Lululemon’s G1 build blocker.
+**Base:** `da4b3e1b7b6ffc4c987ad5a0ec21ea893f595703`
+**Status:** PROBLEMS
+**Goal:** Prevent movement rows from being classified as customer-prepayment balances or escaping exclusions through liability fallbacks.
 
 ## Constraints
 
 - Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`.
 - Limit changes to `core/model/classification.py`, `core/tests/test_classification.py`, `core/tests/test_lululemon_benchmark.py`, and `RESULT.md`.
-- Preserve source inputs, committed reconciliation artifacts, baseline hashes, and failure-path immutability guards.
+- Preserve source inputs, committed reconciliation artifacts, baseline hashes, and failure-path immutability guards; generate test artifacts only in temporary directories.
 - No issuer-specific rules, source relabeling, benchmark overrides, G2–G7 implementation, or forecasting/valuation work.
-- Generate test artifacts only in temporary directories.
 
-## Task 1 — Add generic liability classification
+## Task 1 — Repair movement exclusions
 
-- Extend the existing classifier with guarded, deterministic support for explicit gift-card, unearned-revenue, deferred-revenue, and contract-liability balance concepts and compatible labels.
-- Classify `unredeemed_gift_card_liability` / `Unredeemed gift card liability` as `Operating Working Capital Liability`.
-- Preserve the existing working-capital default for unqualified deferred-revenue / contract-liability balances; classify explicitly noncurrent variants as `Operating Long-Term Liability`, checking noncurrent before current.
-- Use bounded concept aliases and compatible liability wording; do not infer liability classification from generic “gift”, “card”, “contract”, or “revenue” substrings.
-- Prevent contradictory asset wording and movement/derecognition concepts from entering the new balance rule or slipping through its broad liability-label fallback.
-- Preserve explicit override precedence and existing deferred-tax, lease, financial-instrument, and equity treatment.
+- Make concept and label movement exclusions consistent, including `Recognition of deferred revenue` with an empty concept or a supported balance concept.
+- Ensure excluded customer-prepayment movements cannot regain liability classification through current, noncurrent, other-liability, or long-term label fallbacks.
+- Cover recognition, derecognition, change, increase, decrease, amortization, additions, and reductions using bounded matching.
+- Require unsupported movement rows to raise `UnclassifiedBalanceSheetLineError`; preserve explicit override precedence.
+- Preserve valid balance classification, noncurrent-before-current handling, contradictory-asset exclusions, and existing deferred-tax, lease, financial-instrument, and equity treatment.
 
-## Task 2 — Verify classification and reformulation
+## Task 2 — Add regressions through the public classifier
 
-- Add parameterized non-Lululemon tests covering gift-card spelling variants, supported concept/label pairs, label-only liability wording, and current/noncurrent treatment.
-- Cover unsupported or contradictory pairs, contract assets, gift-card receivables, and movement/derecognition concepts; require safe existing classification or fail-closed behavior.
-- Verify deterministic decisions create no guided-judgment case and explicit overrides still win.
-- Add a balanced two-period synthetic reformulation case proving current balances reduce NOWC, noncurrent balances reduce NOLA, and neither increases Net Debt; equity reconciliation must remain intact.
+- Add parameterized cases for label-only movement wording, movement labels paired with balance concepts, and movement concepts paired with balance labels.
+- Cover gift-card, deferred-revenue, unearned-revenue, and contract-liability movements, including noncurrent and long-term labels that reach broad liability fallbacks.
+- Assert `UnclassifiedBalanceSheetLineError` for unsupported movements; checking only that the customer-prepayment reason is absent is insufficient.
+- Retain positive current/noncurrent balance controls, safe asset treatment, override precedence, no-guided-judgment coverage, and the two-period NOWC/NOLA/Net Debt/equity reformulation checks.
+- Confirm the new regressions expose the base revision’s defects before applying the repair.
 
-## Task 3 — Advance benchmark expectations and record verification
+## Task 3 — Verify benchmarks and record completion
 
-- Assert the unchanged Lululemon gift-card row classifies correctly across all four periods.
-- Update the blocker regression to require exactly `Property and equipment, net` and `Common stock` to remain unclassified.
-- Re-run the temporary-directory build probe and assert the measured next blocker; do not weaken it to accept any exception.
-- Retain deterministic reconciliation, committed-hash, failure-path guard, and no-issuer-branch assertions.
-
-Run:
-
-- `PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_lululemon_benchmark.py -q`
-- `PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q`
-- `PYTHONPATH=. pytest core/tests -q`
-
-Record completion and measured results in `RESULT.md`, including G1 closure evidence, remaining G2/G3 blockers, before/after reconciliation hashes, and repository diff scope. Distinguish newly executed checks from prior recorded results; report any restrictions or failures.
+- Retain Lululemon gift-card classification across all four periods, exactly `Property and equipment, net` and `Common stock` as unclassified rows, and the temporary build probe’s exact PPE blocker.
+- Retain deterministic reconciliation, committed-hash, failure-path immutability, and no-issuer-branch assertions.
+- Run:
+  - `PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_lululemon_benchmark.py -q`
+  - `PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q`
+  - `PYTHONPATH=. pytest core/tests -q`
+- Update `RESULT.md` to supersede the premature G1 PASS with the repair outcome, regression evidence, newly measured check results, before/after reconciliation hashes, remaining G2/G3 blockers, and final diff scope. Report restrictions or failures explicitly.
 
 ## Acceptance and next step
 
-- Generic gift-card and deferred-revenue liability classification passes positive, negative, maturity, override, and reformulation tests.
-- Lululemon G1 is resolved without changing source facts or committed reconciliation bytes; G2/G3 remain explicitly visible.
-- Required checks pass and immutability guards remain effective.
-- On failure, retain **Step 9M.2.1 — Generic Gift-Card / Deferred-Revenue Liability Classification (G1)**.
+- Recognition and other excluded movements fail closed across customer-prepayment classification and liability fallbacks unless explicitly overridden.
+- Valid balance classifications and reformulation results remain correct; required checks pass and committed artifacts remain unchanged.
+- On failure, retain **Step 9M.2.1 — Repair Customer-Prepayment Movement Exclusions and Liability Fallbacks (G1)**.
 - On PASS, propose **Step 9M.2.2 — Generic Property-and-Equipment Classification and PPE Identity (G2)**; Step 9 remains incomplete.
