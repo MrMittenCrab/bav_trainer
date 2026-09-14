@@ -614,6 +614,7 @@ def test_four_period_reformulation_integrity(tmp_path: Path):
     reform = reformulate_balance_sheet(fin, EXPECTED_PERIODS)
     assert reform.asset_detail_gap == (0.0, 0.0, 0.0, 0.0)
     assert reform.liability_detail_gap == (0.0, 0.0, 0.0, 0.0)
+    assert reform.equity_detail_gap == (0.0, 0.0, 0.0, 0.0)
     assert reform.equity_gap == (0.0, 0.0, 0.0, 0.0)
     check_reformulation_integrity(reform, EXPECTED_PERIODS)
     # Evidence gate must not invent a reported zero into source facts.

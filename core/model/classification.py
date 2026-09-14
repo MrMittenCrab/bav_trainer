@@ -89,6 +89,7 @@ class BalanceSheetReformulation:
     total_liabilities: tuple[float | None, ...]
     asset_detail_gap: tuple[float | None, ...]
     liability_detail_gap: tuple[float | None, ...]
+    equity_detail_gap: tuple[float | None, ...]
     equity_gap: tuple[float | None, ...]
     detail_indices: tuple[int, ...] = ()
 
@@ -1360,10 +1361,15 @@ def _enforce_sparse_detail_evidence_gate(
     reported_equity: tuple[float | None, ...],
     asset_detail_gap: tuple[float | None, ...],
     liability_detail_gap: tuple[float | None, ...],
-    equity_gap: tuple[float | None, ...],
+    equity_detail_gap: tuple[float | None, ...],
     decisions: dict[int, ClassificationDecision],
 ) -> None:
     """Allow sparse None as non-contribution only when independent totals reconcile.
+
+    Asset, liability, and equity *detail* must each reconcile to their supplied
+    independent totals. The implied-equity identity (NOA − Net Debt vs reported
+    equity) remains a separate integrity check and is not used here — balanced
+    assets and liabilities alone cannot authorize missing equity detail.
 
     Aggregate reconciliation is evidence of non-contribution for the affected
     period only; it never invents a reported zero into ``LineItem.values``.
@@ -1382,15 +1388,17 @@ def _enforce_sparse_detail_evidence_gate(
         for decision in decisions.values()
         if decision.category in _LIABILITY_REFORMULATION_CATEGORIES
     )
+    equity_detail_count = sum(
+        1 for decision in decisions.values() if decision.category == "Equity"
+    )
     asset_tol = _reporting_rounding_tolerance(
         asset_detail_count, base_tolerance=DEFAULT_TOLERANCE
     )
     liability_tol = _reporting_rounding_tolerance(
         liability_detail_count, base_tolerance=DEFAULT_TOLERANCE
     )
-    equity_tol = _reporting_rounding_tolerance(
-        asset_detail_count + liability_detail_count,
-        base_tolerance=DEFAULT_TOLERANCE,
+    equity_detail_tol = _reporting_rounding_tolerance(
+        equity_detail_count, base_tolerance=DEFAULT_TOLERANCE
     )
 
     for j in sorted(sparse_by_period):
@@ -1408,8 +1416,8 @@ def _enforce_sparse_detail_evidence_gate(
             )
         ag = asset_detail_gap[j]
         lg = liability_detail_gap[j]
-        eg = equity_gap[j]
-        if ag is None or lg is None or eg is None:
+        edg = equity_detail_gap[j]
+        if ag is None or lg is None or edg is None:
             raise MissingHistoricalValueError(
                 f"{field} line {sample.label!r} has no supplied value "
                 f"for modeled period {period.isoformat()}"
@@ -1417,7 +1425,7 @@ def _enforce_sparse_detail_evidence_gate(
         if (
             abs(ag) > asset_tol
             or abs(lg) > liability_tol
-            or abs(eg) > equity_tol
+            or abs(edg) > equity_detail_tol
         ):
             raise MissingHistoricalValueError(
                 f"{field} line {sample.label!r} has no supplied value "
@@ -1485,6 +1493,10 @@ def reformulate_balance_sheet(
 
     asset_gap = tuple(_gap(total_assets[i], asset_detail[i]) for i in range(n))
     liability_gap = tuple(_gap(total_liabilities[i], liability_detail[i]) for i in range(n))
+    # Signed Equity-category contributions (subtotals already excluded) vs
+    # independent reported equity — distinct from the implied-equity identity.
+    equity_detail = tuple(totals["Equity"][i] for i in range(n))
+    equity_detail_gap = tuple(_gap(reported_equity[i], equity_detail[i]) for i in range(n))
     equity_gap = tuple(
         None if reported_equity[i] is None else implied[i] - reported_equity[i]
         for i in range(n)
@@ -1498,7 +1510,7 @@ def reformulate_balance_sheet(
         reported_equity=reported_equity,
         asset_detail_gap=asset_gap,
         liability_detail_gap=liability_gap,
-        equity_gap=equity_gap,
+        equity_detail_gap=equity_detail_gap,
         decisions=decisions,
     )
 
@@ -1515,6 +1527,7 @@ def reformulate_balance_sheet(
         total_liabilities=total_liabilities,
         asset_detail_gap=asset_gap,
         liability_detail_gap=liability_gap,
+        equity_detail_gap=equity_detail_gap,
         equity_gap=equity_gap,
         detail_indices=tuple(detail_indices),
     )

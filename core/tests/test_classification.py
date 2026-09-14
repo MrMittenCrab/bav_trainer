@@ -613,6 +613,7 @@ def test_sparse_explicit_absence_reconciles_when_evidence_gate_passes(liability_
     reform = reformulate_balance_sheet(fin, periods)
     assert reform.asset_detail_gap == (0.0, 0.0)
     assert reform.liability_detail_gap == (0.0, 0.0)
+    assert reform.equity_detail_gap == (0.0, 0.0)
     assert reform.equity_gap == (0.0, 0.0)
     check_reformulation_integrity(reform, periods)
     # Source nulls preserved; reported zeros remain distinct.
@@ -786,6 +787,339 @@ def test_complete_rows_unchanged_with_sparse_neighbor():
     assert reform.category_totals["Financial Asset"] == (100.0, 100.0)
     assert reform.category_totals["Operating Working Capital Asset"] == (50.0, 50.0)
     assert reform.category_totals["Financial Liability"] == (60.0, 60.0)
+    assert reform.equity_detail_gap == (0.0, 0.0)
+    assert reform.equity_gap == (0.0, 0.0)
+
+
+def _sparse_equity_fin(
+    retained_values: dict[date, float | None],
+    *,
+    total_equity: dict[date, float | None] | None = None,
+    treasury: dict[date, float | None] | None = None,
+) -> StandardizedFinancials:
+    """Minimal BS where assets/liabilities/implied equity balance; equity detail varies."""
+    eq_total = total_equity or {P1: 150.0, P2: 150.0}
+    rows = [
+        _li("Cash and cash equivalents", 200, 200),
+        LineItem(
+            label="Total assets",
+            concept="total_assets",
+            values={P1: 200.0, P2: 200.0},
+        ),
+        _li("Trade payables", 50, 50),
+        LineItem(
+            label="Total liabilities",
+            concept="total_liabilities",
+            values={P1: 50.0, P2: 50.0},
+        ),
+        _li("Common stock", 50, 50),
+        LineItem(
+            label="Retained earnings",
+            concept="retained_earnings",
+            values=dict(retained_values),
+        ),
+    ]
+    if treasury is not None:
+        rows.append(
+            LineItem(
+                label="Treasury stock",
+                concept="treasury_stock",
+                values=dict(treasury),
+            )
+        )
+    rows.append(
+        LineItem(
+            label="Total equity",
+            concept="total_equity",
+            values=dict(eq_total),
+        )
+    )
+    return StandardizedFinancials(
+        ticker="EQSP",
+        company_name="Equity Sparse Co",
+        currency="HKD",
+        units="mn",
+        jurisdiction="HK",
+        periods=_periods(),
+        income_statement=[],
+        balance_sheet=rows,
+        cash_flow=[],
+    )
+
+
+def test_sparse_equity_omission_fails_despite_zero_identity_gaps():
+    """Regression: omitting 100 of equity via None must fail even when A/L/implied are 0."""
+    from core.model.source_values import MissingHistoricalValueError
+
+    periods = [P1, P2]
+    fin = _sparse_equity_fin({P1: 100.0, P2: None})
+    # Without the gate, identity gaps would all be zero while equity detail is incomplete.
+    with pytest.raises(MissingHistoricalValueError, match="2025-12-31"):
+        reformulate_balance_sheet(fin, periods)
+
+
+@pytest.mark.parametrize(
+    "retained_values",
+    [
+        {P1: None, P2: 100.0},  # leading
+        {P1: 100.0, P2: None},  # trailing
+        {P1: None, P2: None},  # both
+    ],
+)
+def test_sparse_equity_absence_fails_when_detail_incomplete(retained_values):
+    from core.model.source_values import MissingHistoricalValueError
+
+    periods = [P1, P2]
+    fin = _sparse_equity_fin(retained_values)
+    with pytest.raises(MissingHistoricalValueError):
+        reformulate_balance_sheet(fin, periods)
+
+
+def test_sparse_equity_interior_absence_fails_closed():
+    from core.model.source_values import MissingHistoricalValueError
+
+    p0 = date(2023, 12, 31)
+    periods = [p0, P1, P2]
+    fin = StandardizedFinancials(
+        ticker="EQINT",
+        company_name="Equity Interior",
+        currency="HKD",
+        units="mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=p0, label="FY2023"),
+            FinancialPeriod(end_date=P1, label="FY2024"),
+            FinancialPeriod(end_date=P2, label="FY2025"),
+        ],
+        income_statement=[],
+        balance_sheet=[
+            LineItem(
+                label="Cash and cash equivalents",
+                values={p0: 200.0, P1: 200.0, P2: 200.0},
+            ),
+            LineItem(
+                label="Total assets",
+                concept="total_assets",
+                values={p0: 200.0, P1: 200.0, P2: 200.0},
+            ),
+            LineItem(
+                label="Trade payables",
+                values={p0: 50.0, P1: 50.0, P2: 50.0},
+            ),
+            LineItem(
+                label="Total liabilities",
+                concept="total_liabilities",
+                values={p0: 50.0, P1: 50.0, P2: 50.0},
+            ),
+            LineItem(
+                label="Common stock",
+                values={p0: 50.0, P1: 50.0, P2: 50.0},
+            ),
+            LineItem(
+                label="Retained earnings",
+                concept="retained_earnings",
+                values={p0: 100.0, P1: None, P2: 0.0},
+            ),
+            LineItem(
+                label="Total equity",
+                concept="total_equity",
+                values={p0: 150.0, P1: 150.0, P2: 50.0},
+            ),
+        ],
+        cash_flow=[],
+    )
+    with pytest.raises(MissingHistoricalValueError, match="2024-12-31"):
+        reformulate_balance_sheet(fin, periods)
+
+
+def test_sparse_equity_reported_zero_reconciles_when_detail_complete():
+    """Reported zero equity contribution is numeric; distinct from unsupported None."""
+    periods = [P1, P2]
+    fin = _sparse_equity_fin(
+        {P1: 100.0, P2: 0.0},
+        total_equity={P1: 150.0, P2: 50.0},
+    )
+    # Assets stay 200; liabilities stay 50 → implied equity 150 both periods.
+    # Adjust assets/liabilities so implied matches reported for P2.
+    fin.balance_sheet[0].values[P2] = 100.0  # cash
+    fin.balance_sheet[1].values[P2] = 100.0  # total assets
+    fin.balance_sheet[2].values[P2] = 50.0
+    fin.balance_sheet[3].values[P2] = 50.0
+    reform = reformulate_balance_sheet(fin, periods)
+    assert reform.equity_detail_gap == (0.0, 0.0)
+    assert reform.asset_detail_gap == (0.0, 0.0)
+    assert reform.liability_detail_gap == (0.0, 0.0)
+    retained = next(
+        item for item in fin.balance_sheet if item.concept == "retained_earnings"
+    )
+    assert retained.values[P2] == 0.0
+    check_reformulation_integrity(reform, periods)
+
+
+def test_sparse_equity_complete_rows_pass_with_eligible_absence():
+    """Eligible absence: omitted equity amount is not in the reported total."""
+    periods = [P1, P2]
+    # P2 retained is None and total equity excludes it (common stock only = 50).
+    fin = _sparse_equity_fin(
+        {P1: 100.0, P2: None},
+        total_equity={P1: 150.0, P2: 50.0},
+    )
+    fin.balance_sheet[0].values[P2] = 100.0
+    fin.balance_sheet[1].values[P2] = 100.0
+    reform = reformulate_balance_sheet(fin, periods)
+    assert reform.equity_detail_gap == (0.0, 0.0)
+    assert reform.equity_gap == (0.0, 0.0)
+    retained = next(
+        item for item in fin.balance_sheet if item.concept == "retained_earnings"
+    )
+    assert retained.values[P2] is None
+    check_reformulation_integrity(reform, periods)
+
+
+def test_sparse_equity_missing_key_fails_closed():
+    from core.model.source_values import MissingHistoricalValueError
+
+    periods = [P1, P2]
+    fin = _sparse_equity_fin({P1: 100.0, P2: 100.0})
+    retained = next(
+        item for item in fin.balance_sheet if item.concept == "retained_earnings"
+    )
+    del retained.values[P2]
+    with pytest.raises(MissingHistoricalValueError, match="balance_sheet detail"):
+        reformulate_balance_sheet(fin, periods)
+
+
+def test_sparse_equity_unavailable_total_fails_closed():
+    from core.model.source_values import MissingHistoricalValueError
+
+    periods = [P1, P2]
+    fin = _sparse_equity_fin({P1: 100.0, P2: None}, total_equity={P1: 150.0, P2: 50.0})
+    fin.balance_sheet[0].values[P2] = 100.0
+    fin.balance_sheet[1].values[P2] = 100.0
+    # Drop independent equity total for sparse period.
+    total_eq = next(item for item in fin.balance_sheet if item.concept == "total_equity")
+    total_eq.values[P2] = None
+    with pytest.raises(MissingHistoricalValueError, match="total_equity"):
+        reformulate_balance_sheet(fin, periods)
+
+
+def test_sparse_equity_detail_gap_at_rounding_envelope_passes():
+    """Two equity detail rows → envelope max(1, 0.5*(2+1)) = 1.5; gap 1.5 passes."""
+    periods = [P1, P2]
+    # Common 50 + retained None; reported equity 51.5 → detail 50, gap -1.5.
+    fin = _sparse_equity_fin(
+        {P1: 100.0, P2: None},
+        total_equity={P1: 150.0, P2: 51.5},
+    )
+    fin.balance_sheet[0].values[P2] = 101.5
+    fin.balance_sheet[1].values[P2] = 101.5
+    fin.balance_sheet[2].values[P2] = 50.0
+    fin.balance_sheet[3].values[P2] = 50.0
+    reform = reformulate_balance_sheet(fin, periods)
+    assert reform.equity_detail_gap[1] == pytest.approx(-1.5)
+    check_reformulation_integrity(reform, periods)
+
+
+def test_sparse_equity_detail_gap_beyond_rounding_envelope_fails():
+    """Two equity detail rows → envelope 1.5; gap 2.0 fails closed."""
+    from core.model.source_values import MissingHistoricalValueError
+
+    periods = [P1, P2]
+    fin = _sparse_equity_fin(
+        {P1: 100.0, P2: None},
+        total_equity={P1: 150.0, P2: 52.0},
+    )
+    fin.balance_sheet[0].values[P2] = 102.0
+    fin.balance_sheet[1].values[P2] = 102.0
+    with pytest.raises(MissingHistoricalValueError, match="2025-12-31"):
+        reformulate_balance_sheet(fin, periods)
+
+
+def test_sparse_liability_fails_when_equity_detail_incomplete():
+    """Sparse liability activating the gate still requires equity-detail reconciliation."""
+    from core.model.source_values import MissingHistoricalValueError
+
+    periods = [P1, P2]
+    fin = _sparse_balanced_fin({P1: 0.0, P2: None})
+    # Corrupt equity detail: remove share capital contribution for P2 while
+    # leaving total equity unchanged → equity_detail_gap material.
+    share = next(
+        item for item in fin.balance_sheet if item.label == "Share capital and reserves"
+    )
+    share.values[P2] = 0.0
+    with pytest.raises(MissingHistoricalValueError, match="2025-12-31"):
+        reformulate_balance_sheet(fin, periods)
+
+
+def test_sparse_equity_signed_contra_equity_contributes():
+    """Treasury stock negative signed contribution reconciles into equity detail."""
+    periods = [P1, P2]
+    fin = _sparse_equity_fin(
+        {P1: 120.0, P2: None},
+        treasury={P1: -20.0, P2: None},
+        total_equity={P1: 150.0, P2: 50.0},
+    )
+    fin.balance_sheet[0].values[P2] = 100.0
+    fin.balance_sheet[1].values[P2] = 100.0
+    reform = reformulate_balance_sheet(fin, periods)
+    assert reform.category_totals["Equity"] == (150.0, 50.0)
+    assert reform.equity_detail_gap == (0.0, 0.0)
+    treasury = next(
+        item for item in fin.balance_sheet if item.concept == "treasury_stock"
+    )
+    assert treasury.values[P2] is None
+    check_reformulation_integrity(reform, periods)
+
+
+def test_sparse_equity_subtotal_excluded_from_detail():
+    """Total equity subtotal is not an Equity-category detail contribution."""
+    periods = [P1, P2]
+    fin = _sparse_equity_fin(
+        {P1: 100.0, P2: None},
+        total_equity={P1: 150.0, P2: 50.0},
+    )
+    fin.balance_sheet[0].values[P2] = 100.0
+    fin.balance_sheet[1].values[P2] = 100.0
+    reform = reformulate_balance_sheet(fin, periods)
+    # Only Common stock + Retained earnings count; Total equity is a subtotal.
+    equity_decisions = [
+        d for d in reform.decisions.values() if d.category == "Equity"
+    ]
+    assert len(equity_decisions) == 2
+    assert reform.equity_detail_gap == (0.0, 0.0)
+
+
+def test_sparse_equity_explicit_override_controls_detail():
+    """Override into Equity counts toward equity-detail reconciliation."""
+    periods = [P1, P2]
+    fin = _sparse_equity_fin(
+        {P1: 100.0, P2: None},
+        total_equity={P1: 150.0, P2: 50.0},
+    )
+    fin.balance_sheet[0].values[P2] = 100.0
+    fin.balance_sheet[1].values[P2] = 100.0
+    # Unclassified-looking label overridden to Equity; value present both periods.
+    fin.balance_sheet.insert(
+        -1,
+        LineItem(
+            label="Owners residual interest carveout",
+            values={P1: 0.0, P2: 0.0},
+        ),
+    )
+    reform = reformulate_balance_sheet(
+        fin,
+        periods,
+        overrides={"label:Owners residual interest carveout": "Equity"},
+    )
+    assert reform.equity_detail_gap == (0.0, 0.0)
+    carve = next(
+        item
+        for item in fin.balance_sheet
+        if item.label == "Owners residual interest carveout"
+    )
+    idx = fin.balance_sheet.index(carve)
+    assert reform.decisions[idx].category == "Equity"
+    assert reform.decisions[idx].overridden is True
 
 
 def test_classification_curly_apostrophe_equity_alias_consistent():
