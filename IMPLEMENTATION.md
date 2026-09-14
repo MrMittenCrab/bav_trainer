@@ -1,81 +1,53 @@
-# Step 9M.2 — Lululemon Benchmark Baseline and Gap Map
+# Step 9M.2 — Repair Lululemon Benchmark Artifact Isolation
 
-> **For agentic workers:** Implement this bounded step only. Use the existing production pipeline and tests; do not begin Step 10 forecasting or Step 11 valuation.
+**Base:** `32df12b1c253005575a76db5c768094f87c43489`
+**Status:** PROBLEMS
+**Goal:** Detect reconciliation fixture drift without modifying committed benchmark evidence.
 
-**Base:** `fe17dd9` (`Add Lululemon historical benchmark inputs`)
+## Constraints
 
-**Goal:** Make Lululemon the primary real-company benchmark for Step 9 historical convergence by proving the current generic filing-JSON → reconciliation → historical Trainer/Answer-Key pipeline on FY2022–FY2025 source filings, then record the highest-value general BAV gaps exposed by that benchmark.
+- Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`.
+- Limit changes to `core/tests/test_lululemon_benchmark.py` and `RESULT.md`.
+- Keep committed reconciliation artifacts, baseline hashes, source inputs, and production behavior unchanged.
+- Preserve existing source-binding, financial-anchor, conflict, and build-blocker assertions.
+- Do not begin Step 9M.2.1 or forecasting/valuation work.
 
-**Architecture:** Treat `benchmark/lululemon/` as benchmark evidence, not issuer-specific product logic. The production engine must remain generic: no ticker checks, no hard-coded LULU labels, and no company-specific workbook formulas. Fast Retailing remains a regression benchmark while Lululemon becomes the development driver for the next Step 9 work.
+## Task 1 — Isolate reconciliation outputs
 
-## Global constraints
+In `core/tests/test_lululemon_benchmark.py`:
 
-- `TARGET.md` is authoritative and read-only.
-- Preserve one extracted JSON per source filing and all source/page provenance.
-- Do not invent missing historical facts or silently reconcile disagreements.
-- Any code fix required by LULU must be general and covered by a non-LULU or generic regression where practical.
-- Do not implement forecasting, valuation, scenarios, M&A mechanics, or investment conclusions.
-- Do not optimize specifically for LULU workbook coordinates or labels.
-- Keep Fast Retailing and the synthetic suite passing.
+- Remove the reconciliation subprocess targeting `RECONCILED`.
+- Run both reconciliation passes exclusively into separate `tmp_path` directories.
+- Read the committed `standardized.json`, `provenance.json`, and `conflicts.json` bytes before either run.
+- Assert both generated artifact sets match each other and the untouched committed bytes exactly.
+- Verify committed bytes remain unchanged after execution, including when comparison fails; never refresh or restore fixtures inside tests.
 
-### Task 1: Validate the four LULU filing inputs
+## Task 2 — Prove drift is detected
 
-**Inputs:**
-- `benchmark/lululemon/source/LULU_FY2022_Annual_Report.pdf`
-- `benchmark/lululemon/source/LULU_FY2023_Annual_Report.pdf`
-- `benchmark/lululemon/source/LULU_FY2024_Annual_Report.pdf`
-- `benchmark/lululemon/source/LULU_FY2025_Annual_Report.pdf`
-- matching JSON files under `benchmark/lululemon/extracted/`
+- Add a regression using a temporary copy of the expected artifacts and the same comparison path as the benchmark test.
+- Parameterize drift across all three artifact names; alter only temporary expected copies.
+- Require each mismatch to fail comparison and identify the affected artifact.
+- Confirm the altered expected copy remains unchanged by the comparison.
+- Keep generated workbooks and other test outputs in temporary directories.
+
+## Task 3 — Verify and record
 
 Run:
 
-`PYTHONPATH=. python -m core validate-source benchmark/lululemon/extracted --source-root benchmark/lululemon/source`
+- `PYTHONPATH=. pytest core/tests/test_lululemon_benchmark.py -q`
+- `PYTHONPATH=. pytest core/tests/test_lululemon_benchmark.py core/tests/test_fast_retailing_benchmark.py -q`
+- `PYTHONPATH=. pytest core/tests -q`
 
-Require all four filings to pass source binding. If validation fails, distinguish an extracted-input defect from a generic validator defect; never weaken validation merely to accept LULU.
+Capture reconciliation artifact hashes before and after verification and inspect repository changes. Do not regenerate committed evidence to make a comparison pass.
 
-### Task 2: Reconcile and build the untouched baseline
-
-Run the generic production path:
-
-`PYTHONPATH=. python -m core reconcile benchmark/lululemon/extracted --source-root benchmark/lululemon/source -o benchmark/lululemon/reconciled`
-
-Then build:
-
-`PYTHONPATH=. python -m core build benchmark/lululemon/reconciled/standardized.json -o release/lululemon/Lululemon`
-
-Produce a matched `Lululemon_Trainer.xlsx` / `Lululemon_Answer_Key.xlsx` if the current engine can do so. Do not add analytical features merely to improve the baseline in this task. Record actual periods, overlap/supplemental conflicts, bound sources, component count, and any build failure.
-
-### Task 3: Make LULU a permanent real-company regression
-
-Create `core/tests/test_lululemon_benchmark.py` using source-supported anchors measured from the reconciled output. At minimum verify:
-
-- all four filings validate and remain source-bound;
-- reconciliation is deterministic across two runs;
-- the reconciled period axis covers the intended FY2021–FY2025 historical range where supported by the filings;
-- current production build either succeeds reproducibly or its exact general blocker is captured by a failing test before any fix;
-- no LULU-specific production branch is introduced.
-
-Run focused LULU tests, the Fast Retailing benchmark test, then `PYTHONPATH=. pytest core/tests -q`.
-
-### Task 4: Record the Step 9M.2 gap map
-
-Create `benchmark/lululemon/BASELINE.md` and `benchmark/lululemon/GAPS.md`; update `RESULT.md` with measured evidence only.
-
-Classify each material LULU deficiency as one of:
-
-1. extracted/source-data defect;
-2. generic ingestion/reconciliation defect;
-3. generic historical BAV analytical gap;
-4. qualitative target-research item outside the workbook engine.
-
-Prioritize generic historical gaps relevant to `TARGET.md`, especially inventory/working capital, capex/depreciation/asset intensity, leases, dilution/per-share history, segment economics, operating KPIs, and historical interpretation where source-supported.
+Update `RESULT.md` with the repair, actual test results, before/after artifact hashes, and any remaining failures. Supersede the previous PASS assessment with measured repair status.
 
 ## Acceptance and next step
 
-- Four LULU source filings validate or any source-input defect is explicitly isolated.
-- Generic reconciliation artifacts exist and are deterministic.
-- A reproducible current-state LULU Trainer/Answer-Key baseline exists, or one precise general blocker is proven by test.
-- LULU has a committed baseline/regression test and gap map.
-- Fast Retailing and synthetic regressions remain valid.
-- No forecasting/valuation work and no issuer-specific production logic.
-- On PASS, propose **Step 9M.2.1** as the highest-value general historical gap exposed by LULU. Do **not** declare Step 9 complete merely because this baseline step passes.
+- Reconciliation tests write exclusively to temporary directories.
+- Two generated runs match all three untouched committed artifacts byte-for-byte.
+- Drift in any expected artifact fails comparison without rewriting evidence.
+- Focused Lululemon, combined benchmark, and full core regressions pass.
+- Committed Lululemon artifact hashes remain unchanged.
+- On failure, retain **Step 9M.2 — Repair Lululemon Benchmark Artifact Isolation**.
+- On PASS, propose **Step 9M.2.1 — Generic Gift-Card / Deferred-Revenue Liability Classification (G1)**; Step 9 remains incomplete.
