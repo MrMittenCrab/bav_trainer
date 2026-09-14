@@ -356,3 +356,96 @@ def test_goodwill_intangible_explicit_concept_only(concept):
             concept,
             required=False,
         )
+
+
+def test_pretax_income_canonical_and_income_before_tax_alias():
+    """Canonical pretax_income and supplied income_before_tax both resolve at P1."""
+    canonical = resolve_line(
+        [_item("Carrying label", 100, 110, concept="pretax_income")],
+        "pretax_income",
+        required=True,
+    )
+    assert canonical.item is not None
+    assert canonical.index == 0
+    assert canonical.item.concept == "pretax_income"
+
+    alias = resolve_line(
+        [_item("Income before income tax expense", 100, 110, concept="income_before_tax")],
+        "pretax_income",
+        required=True,
+    )
+    assert alias.item is not None
+    assert alias.index == 0
+    assert alias.item.concept == "income_before_tax"
+    assert alias.item.label == "Income before income tax expense"
+
+
+def test_pretax_income_normalized_label_fallback():
+    """Exact supplied label resolves when explicit concept identity is unavailable."""
+    resolved = resolve_line(
+        [_item("Income before income tax expense", 100, 110)],
+        "pretax_income",
+        required=True,
+    )
+    assert resolved.item is not None
+    assert resolved.item.label == "Income before income tax expense"
+    assert resolved.item.concept == ""
+
+
+def test_pretax_income_explicit_concept_outranks_label():
+    items = [
+        _item("Income before income tax expense", 1, 2),
+        _item("Other pretax carrying amount", 100, 110, concept="income_before_tax"),
+    ]
+    resolved = resolve_line(items, "pretax_income", required=True)
+    assert resolved.item is not None
+    assert resolved.index == 1
+    assert resolved.item.label == "Other pretax carrying amount"
+    assert resolved.item.concept == "income_before_tax"
+
+
+def test_pretax_income_canonical_and_alias_concepts_are_ambiguous_together():
+    items = [
+        _item("First", 1, 2, concept="pretax_income"),
+        _item("Second", 3, 4, concept="income_before_tax"),
+    ]
+    with pytest.raises(AmbiguousLineError):
+        resolve_line(items, "pretax_income", required=False)
+
+
+def test_pretax_income_missing_required_and_nearby_nonmatching_labels():
+    with pytest.raises(MissingLineError):
+        resolve_line([_item("Other", 1, 2)], "pretax_income", required=True)
+
+    for label in (
+        "Income tax expense",
+        "Income from operations",
+        "Income before extraordinary items",
+        "Provision for income taxes",
+    ):
+        assert (
+            resolve_line(
+                [_item(label, 1, 2)],
+                "pretax_income",
+                required=False,
+            ).item
+            is None
+        )
+
+
+def test_pretax_label_does_not_resolve_as_tax_expense():
+    """Supplied pretax label must stay distinct from tax_expense (pre-repair P3 leak)."""
+    pretax_only = [_item("Income before income tax expense", 100, 110)]
+    assert resolve_line(pretax_only, "tax_expense", required=False).item is None
+    with pytest.raises(MissingLineError):
+        resolve_line(pretax_only, "tax_expense", required=True)
+
+    both = [
+        _item("Income before income tax expense", 100, 110, concept="income_before_tax"),
+        _item("Income tax expense", -30, -33, concept="income_tax_expense"),
+    ]
+    pretax = resolve_line(both, "pretax_income", required=True)
+    tax = resolve_line(both, "tax_expense", required=True)
+    assert pretax.item is not None and pretax.index == 0
+    assert tax.item is not None and tax.index == 1
+    assert tax.item.label == "Income tax expense"

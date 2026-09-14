@@ -52,6 +52,7 @@ _EXACT_ALIASES: dict[str, frozenset[str]] = {
             "pretax income",
             "pre tax income",
             "profit before income tax",
+            "income before income tax expense",
         }
     ),
     "tax_expense": frozenset(
@@ -160,6 +161,12 @@ _EXPLICIT_CONCEPT_ALIASES: dict[str, frozenset[str]] = {
             "property plant and equipment",
         }
     ),
+    "pretax_income": frozenset(
+        {
+            "pretax income",
+            "income before tax",
+        }
+    ),
 }
 
 
@@ -171,8 +178,10 @@ def _safe_pattern_match(concept: str, label_norm: str) -> bool:
             return False
         return label_norm in {"sales", "net sales", "net revenue"}
     if concept == "tax_expense":
-        # Do not match "profit before tax" / "pretax".
+        # Do not match pretax labels ("profit before tax", "income before income tax expense").
         if "before tax" in label_norm or "before taxation" in label_norm:
+            return False
+        if "before income tax" in label_norm:
             return False
         if label_norm.startswith("pre tax") or label_norm.startswith("pretax"):
             return False

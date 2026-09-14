@@ -12,7 +12,10 @@ from pathlib import Path
 
 import pytest
 
-from core.data.standardized_io import standardized_from_payload
+from core.data.standardized_io import (
+    standardized_from_payload,
+    standardized_to_payload,
+)
 from core.ingestion.filing_json import load_extracted_filing
 from core.ingestion.filing_validator import validate_extracted_filing
 from core.model.classification import (
@@ -621,13 +624,42 @@ def test_four_period_reformulation_integrity(tmp_path: Path):
     assert ncit.values[date(2026, 2, 1)] is None
     assert ncit.values[date(2025, 2, 2)] == 0.0
 
-    from core.model.line_resolver import MissingLineError
+    from core.engine.reference_model import SOURCE_START_ROW
+    from core.model.line_resolver import MissingLineError, workbook_row_for
+
+    pretax = resolve_line(fin.income_statement, "pretax_income", required=True)
+    assert pretax.item is not None
+    assert pretax.item.concept == "income_before_tax"
+    assert pretax.item.label == "Income before income tax expense"
+    assert pretax.item.values == {
+        date(2023, 1, 29): 1332571.0,
+        date(2024, 1, 28): 2175735.0,
+        date(2025, 2, 2): 2576077.0,
+        date(2026, 2, 1): 2238967.0,
+    }
+    pretax_row = workbook_row_for(pretax, start_row=SOURCE_START_ROW)
+    assert pretax_row == SOURCE_START_ROW + pretax.index
+    assert fin.income_statement[pretax.index] is pretax.item
+
+    tax = resolve_line(fin.income_statement, "tax_expense", required=True)
+    assert tax.item is not None
+    assert tax.item.label == "Income tax expense"
+    assert tax.index != pretax.index
+
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    pretax_rt = resolve_line(restored.income_statement, "pretax_income", required=True)
+    assert pretax_rt.item is not None
+    assert pretax_rt.item.concept == "income_before_tax"
+    assert pretax_rt.item.label == "Income before income tax expense"
+    assert pretax_rt.item.values == pretax.item.values
+    assert pretax_rt.index == pretax.index
 
     out = tmp_path / "Lululemon"
-    # Next measured blocker after sparse reformulation repair (out of this child scope).
-    with pytest.raises(MissingLineError, match="pretax_income"):
+    # Next measured blocker after pretax resolution (out of this child scope).
+    with pytest.raises(MissingLineError, match="interest_expense"):
         build_training_workbook(fin, out)
     assert ncit.values[date(2026, 2, 1)] is None
+    assert pretax.item.values[date(2026, 2, 1)] == 2238967.0
 
 
 def test_no_lulu_specific_production_branch():

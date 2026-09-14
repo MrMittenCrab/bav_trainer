@@ -1,45 +1,69 @@
-# RESULT.md — Step 9M.2.4.1.1 Repair Sparse Equity-Detail Evidence Reconciliation
+# RESULT.md — Step 9M.2.4.1.1.1 Repair Generic Pretax-Income Resolution
 
 **Status:** COMPLETE (this repair’s acceptance met; parents remain UNRESOLVED)  
-**Step:** 9M.2.4.1.1 — Repair Sparse Equity-Detail Evidence Reconciliation  
-**Parents:** Step 9M.2.4.1 and Step 9M.2.4 — remain **UNRESOLVED**  
-**Workspace HEAD:** `88ce9311a8851c0373ee930435f7af083e21be2f` (plan commit; base of prior incomplete repair `17114fc`)  
+**Step:** 9M.2.4.1.1.1 — Repair Generic Pretax-Income Resolution  
+**Parents:** Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
+**Workspace HEAD:** `da07d28ca924ad40946561eec346e3ea9ad6e842` (plan commit; base `8c0098c`)  
 `TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged).  
 No commit / push / sync / checkpoint. No branch create/switch. No G4–G7 or forecasting/valuation work.
 
 ---
 
-## Correction of prior unsupported completion claim
+## Task 1 — Parent criteria vs evidence
 
-Prior `RESULT.md` claimed sparse equity evidence was gated because `equity_gap` (implied NOA−Net Debt vs reported equity) was zero. That claim was **incorrect for equity detail**: omitting 100 of classified equity via explicit `None` left asset-detail, liability-detail, and **implied-equity** gaps at **0.0**, so balanced assets/liabilities alone incorrectly authorized missing equity detail. This revision adds an independent **equity-detail** reconciliation used by the sparse evidence gate; implied-equity remains a separate integrity check with unchanged A+L tolerance rules.
+| Plan | Criterion | Status |
+|---|---|---|
+| `aa6adc1` (9M.2.4) | Four-period `check_reformulation_integrity` under unchanged tolerances | **supported** (all gaps 0.0) |
+| `aa6adc1` | Original liability/equity discrepancies explained and repaired | **supported** (prior children; NCIT/sparse equity) |
+| `aa6adc1` | Workbook generation success | **failed** — build still blocked (next: `interest_expense`) |
+| `a370a02` (9M.2.4.1) | Sparse NCIT 28555 / 15864 / reported 0 / `None` preserved | **supported** |
+| `a370a02` | Sparse absence ≠ reported zero through export/reload | **supported** |
+| `2e88322` / `88ce931` | Independent asset/liability/equity-detail evidence gates | **supported** (prior RESULT + remeasured gaps) |
+| `88ce931` | Sparse equity omission fails closed independently of implied-equity | **supported** (prior child) |
+| Parent closure | Every original parent acceptance criterion | **unverified / incomplete** — workbook probe still fails closed on next required line |
+
+Sparse-equity repair remains satisfied and is distinct from parent closure. Workbook probes record the next exception; they are not rewritten as unconditional workbook-success criteria.
+
+---
+
+## Blocker trace (pre-repair)
+
+Supplied Lululemon IS row:
+
+- concept: `income_before_tax`
+- label: `Income before income tax expense`
+- values: 1332571 / 2175735 / 2576077 / 2238967
+
+Resolver required `pretax_income` (canonical concept + prior aliases such as “profit before tax”). Neither the explicit concept alias nor the exact normalized label was registered, yielding:
+
+```text
+MissingLineError: Required concept 'pretax_income' not found in statement lines
+```
+
+Additionally, tax-expense safe-pattern P3 matched `income before income tax expense` (`endswith("tax expense")`) before the exclusion for `before income tax` was added. Legitimate `Income tax expense` resolution was already exact-alias P2 and remains distinct.
 
 ---
 
 ## What was implemented (production scope)
 
-`core/model/classification.py` only (plus focused tests):
+`core/model/line_resolver.py` only:
 
-- Compute `equity_detail_gap` = signed Equity-category detail − independent `total_equity` (subtotals excluded).
-- Sparse evidence gate now requires independent `total_assets`, `total_liabilities`, and `total_equity`, and successful **asset-detail**, **liability-detail**, and **equity-detail** reconciliations under unchanged rounding `max(1.0, 0.5 * (detail_count + 1))` with **equity-detail count** for the equity-detail envelope.
-- Implied-equity identity (`equity_gap`) retained separately in `check_reformulation_integrity` with unchanged asset+liability count tolerance.
-- Missing keys, unavailable totals, unsupported absence, and contradictory equity detail fail closed; source `None` values are never rewritten.
+- Explicit-concept alias `income_before_tax` → `pretax_income` (canonical `pretax_income` retained).
+- Exact label alias `income before income tax expense` for `pretax_income`.
+- Tax-expense safe-pattern exclusion for `before income tax` so the supplied pretax label cannot resolve as `tax_expense`.
 
 ---
 
-## Reproduction (100 equity omission) — measured gaps
+## Measured post-repair resolution
 
-Fixture: assets 200 / liabilities 50 / reported equity 150 both periods; Common stock 50; Retained earnings `{P1: 100.0, P2: None}`.
-
-| Gap (P2) | Pre-gate measured | Post-repair |
-|---|---:|---|
-| asset-detail | 0.0 | gate rejects (no usable reformulation) |
-| liability-detail | 0.0 | gate rejects |
-| **equity-detail** | **−100.0** | gate rejects |
-| implied-equity | 0.0 | gate rejects |
-
-- Causal row: `retained_earnings` explicit `None` at P2 while reported total still includes 100.  
-- Detail counts: A=1, L=1, E=2 → envelopes 1.0 / 1.0 / **1.5** (equity-detail); implied envelope remains 1.5 (A+L).  
-- Post-repair: `MissingHistoricalValueError` for modeled period `2025-12-31`.
+| Check | Result |
+|---|---|
+| `resolve_line(..., "pretax_income")` | index 8, concept `income_before_tax`, label unchanged |
+| Workbook source row | `SOURCE_START_ROW + index` = 15 |
+| `resolve_line(..., "tax_expense")` | index 10, label `Income tax expense` (≠ pretax) |
+| Export/reload | concept/label/values/index unchanged |
+| Pre-repair required pretax | MissingLineError (reproduced before alias) |
+| Post-repair required pretax | resolves |
 
 ---
 
@@ -56,26 +80,19 @@ Tolerance formula unchanged: `max(1.0, 0.5 * (detail_count + 1))`.
 
 - Counts: assets 11 → 6.0; liabilities 11 → 6.0; equity detail 4 → 2.5; implied uses A+L=22 → 11.5.  
 - NCIT series unchanged: **28555 / 15864 / 0.0 / `None`**.  
-- `check_reformulation_integrity` → **PASS** all four periods.
-
----
-
-## Anchors confirmed
-
-- Common stock: **611 / 606 / 581 / 557**.  
-- Gift-card (G1) and PPE (G2) assertions pass.  
-- Unclassified non-subtotal BS detail set empty (G3).  
-- NCIT `None` @ 2026-02-01 and reported `0.0` @ 2025-02-02 preserved.
+- Common stock unchanged: **611 / 606 / 581 / 557**.  
+- `check_reformulation_integrity` → **PASS** all four periods.  
+- Gift-card (G1), PPE (G2), empty unclassified non-subtotal BS detail (G3) retained.
 
 ---
 
 ## Workbook probe (temporary directory)
 
 ```text
-MissingLineError: Required concept 'pretax_income' not found in statement lines
+MissingLineError: Required concept 'interest_expense' not found in statement lines
 ```
 
-Recorded only; **not repaired** (outside this child’s production scope). Parents stay UNRESOLVED.
+Pretax blocker cleared. Next exception recorded only; **not repaired** (outside this child’s production scope). Parents stay UNRESOLVED.
 
 ---
 
@@ -99,23 +116,23 @@ Stray FR/demo mutations from the full suite were reverted.
 PYTHONPATH=. pytest core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py \
   core/tests/test_classification.py core/tests/test_line_resolver.py \
   core/tests/test_reference_integrity.py core/tests/test_lululemon_benchmark.py -q
-→ 514 passed in 9.27s
+→ 520 passed in 9.39s
 
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q
-→ 132 passed in 27.20s
+→ 132 passed in 27.50s
 
 PYTHONPATH=. pytest core/tests -q
-→ 1066 passed in 86.97s
+→ 1072 passed in 87.83s
 ```
 
-New/extended coverage in `test_classification.py`: unsupported 100-equity omission regression; leading/trailing/both/interior equity absence; reported zero vs eligible absence; missing keys; unavailable totals; equity-detail gaps at/beyond envelope; incomplete equity when sparse liability activates gate; signed treasury contra-equity; subtotal exclusion; explicit Equity override. Existing liability sparse success, rounding controls, Lululemon integrity, G1/G2/G3, and pretax workbook blocker assertion retained.
+New coverage in `test_line_resolver.py`: canonical + `income_before_tax` alias; normalized label fallback; explicit-concept precedence; duplicate ambiguity; missing required; nearby nonmatching labels; pretax label excluded from `tax_expense`. Lululemon benchmark replaces obsolete pretax exception with direct resolution/source-link/export-reload assertions and records the `interest_expense` workbook probe.
 
 ---
 
 ## Diff scope (intentional)
 
-- `core/model/classification.py`
-- `core/tests/test_classification.py`
+- `core/model/line_resolver.py`
+- `core/tests/test_line_resolver.py`
 - `core/tests/test_lululemon_benchmark.py`
 - `RESULT.md` (this file)
 
@@ -125,4 +142,4 @@ Committed standardized/provenance/conflicts, source PDFs, extracted JSON: **unch
 
 ## Parent / plan notes (do not edit IMPLEMENTATION.md here)
 
-Child 9M.2.4.1.1 acceptance for **independent equity-detail** sparse gating is met. Keep **Step 9M.2.4.1 and Step 9M.2.4 — UNRESOLVED** until every original parent acceptance criterion passes (workbook generation still blocked by `pretax_income` / further scope). Return to Plan for parent closure assessment and next unused detailed ID. Step 9 remains incomplete.
+Child 9M.2.4.1.1.1 acceptance for **generic pretax-income resolution** is met. Keep **Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — UNRESOLVED** until every original parent acceptance criterion passes (workbook generation still blocked by `interest_expense` / further scope). Return to Plan for evidence-based parent closure and selection of an unused detailed ID for any remaining blocker; Step 9 remains incomplete.
