@@ -1,42 +1,43 @@
-# Step 9 — Repair Start/End Border and Hyperlink Theme Parity
+# Step 9M.1.1 — Filing-JSON Hardening Acceptance and Closure
 
-**Base:** `cc805d39596399947a7ba9faecd68143f41d59f2`
+**Base:** `af02e2e575ab95e5ecd6b2047d395b4002098a07`
 **Incoming review:** PROBLEMS
-**Goal:** Reject persisted-pair start/end border mismatches and changed effective colors behind theme indices 10–11.
+**Goal:** Reconcile Step 9M.1.1 acceptance evidence, repair only remaining hardening defects, record closure, and stop.
 
-**Read-only:** `TARGET.md`, `IMPLEMENTATION.md`; Cursor must never modify either file.
-**Writable:** `scripts/audit_fast_retailing_benchmark.py`, `core/tests/test_fast_retailing_benchmark.py`, `RESULT.md`.
+**Read-only:** `TARGET.md`, `IMPLEMENTATION.md`; Cursor must never modify either.
+**Writable:** `RESULT.md`; only demonstrated hardening repairs in `core/ingestion/filing_{json,validator,reconciler,standardizer}.py`, corresponding `core/tests/test_filing_*.py`, `core/tests/test_fast_retailing_benchmark.py`, and `scripts/audit_fast_retailing_benchmark.py`.
 
-### Task 1: Complete the affected formatting comparisons
+### Task 1: Reconcile the detailed acceptance scope
 
-- Add `border_start` and `border_end` to `_border_components`, including its absent-border branch; normalize each side through `_side_token`.
-- Extend `_THEME_SCHEME_ORDER` with `hlink` and `folHlink` at indices 10 and 11, preserving indices 0–9.
-- Resolve both hyperlink theme colors through the existing effective-color and tint normalization.
-- Preserve component-specific failures containing sheet, cell, and Trainer/Answer Key values.
+- Read the Step 9M.1.1 plan at `d3b808b:IMPLEMENTATION.md`, completion record at `a707408:RESULT.md`, and current implementation/tests.
+- In `RESULT.md`, map each original acceptance requirement to current code, named tests, measured evidence, and any remaining defect.
+- Cover strict required metadata and exact dates; portable source-root containment before source access; complete bound-source registry; source-bound supplemental provenance; deterministic supplemental conflicts; and fail-closed share promotion.
+- Reconcile the original synthetic-workbook drift requirement using historical blob evidence and subsequent intentional changes. Do not restore obsolete workbook bytes or undo accepted later functionality.
+- Treat historical family counts, share omission, and G1–G7 status as historical evidence; verify current behavior without reverting subsequent accepted work.
+- Preserve the existing formatting-verification evidence as separately identified prior work; it does not establish filing-JSON hardening closure.
 
-### Task 2: Add persisted-pair regressions
+### Task 2: Repair only demonstrated hardening defects
 
-- Reuse temporary release-pair copies, sidecar helpers, and save/reload mutation helpers.
-- Parameterize Trainer/Answer Key mutations for both `start` and `end`: absent versus present side, changed style, and changed color with matching style.
-- For each theme index 10 and 11, assign identical references to matching visible cells in both workbooks, then change only the corresponding theme definition in one workbook.
-- Cover formatting on content-exempt judgment-response cells as well as ordinary visible cells.
-- Assert `border_start`, `border_end`, or `font_color` failures with the expected sheet and coordinate.
-- Add positive controls for matching start/end borders and matching hyperlink theme references, including nonzero tint.
-- Extend audit/CLI regressions to cover both border sides and both hyperlink theme indices: fail `5_workbook_generation`, skip both Check stages, and exit nonzero.
-- Compare copied workbook and sidecar hashes immediately before and after verification on successful and failing paths; retain source-release fingerprint checks and the explicit-pair no-generation regression.
+- Add focused failing regressions for uncovered acceptance failures, then make the smallest necessary fixes. If all hardening behavior passes, change only the completion record.
+- Verify all bound filings remain represented, including filings whose statement observations lose precedence and supplemental-only contributors.
+- Verify supplemental observations retain filing year, filename, computed SHA-256, page-level evidence, and derivations; disagreements remain explicit and cannot select shares by input order.
+- Preserve current explicit share-basis policies, statement precedence, documentary values, and model-only `StandardizedFinancials`.
+- Keep source inputs, committed generated artifacts, workbook surfaces, accounting features, and forecasting behavior unchanged.
 
-### Task 3: Verify and record
+### Task 3: Measure acceptance and record closure
 
-- Run `python -m pytest core/tests/test_fast_retailing_benchmark.py core/tests/test_historical_v1_exit_gate.py -q`.
-- Run `python -m pytest core/tests -q`.
-- Run `git diff --check`.
-- Run `python scripts/audit_fast_retailing_benchmark.py --standardized-json release/fast_retailing/supporting/standardized.json --provenance-json release/fast_retailing/supporting/provenance.json --conflicts-json release/fast_retailing/supporting/conflicts.json --trainer release/fast_retailing/FastRetailing_Trainer.xlsx --answer-key release/fast_retailing/FastRetailing_Answer_Key.xlsx --verify-release-pair --require-check-counts --no-baseline`.
-- Update `RESULT.md` with completion revision, exact commands, measured results, new regression coverage, artifact hashes, changed files, and PASS/PROBLEMS/BLOCKED status.
+- Run `python -m pytest core/tests/test_filing_json.py core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py core/tests/test_fast_retailing_benchmark.py -q`.
+- Reconcile `benchmark/fast_retailing/extracted` against `benchmark/fast_retailing/source` into two fresh temporary directories using `python -m core reconcile`; compare all three output artifacts for deterministic equality.
+- Measure source-registry completeness, computed source hashes, statement/supplemental conflict counts, and current share-promotion evidence; explain discrepancies from historical records.
+- Compare generated artifacts with current committed counterparts; investigate differences without overwriting them to obtain a pass.
+- Run `python -m pytest core/tests -q`, `python -m core --help`, and `git diff --check`.
+- Verify tests leave committed workbooks and benchmark artifacts unchanged.
+- Record revision, exact commands, measured outcomes, acceptance mapping, artifact comparisons, changed files, and unresolved issues in `RESULT.md`.
 
-### Acceptance criteria
+### Acceptance and stop
 
-- One-sided start/end border differences and changed effective theme colors at indices 10–11 fail persisted-pair verification.
-- Matching formatting passes; existing judgment-content exemptions and formatting regressions remain intact.
-- Unchanged release verification passes with pristine counts `(0, 0, 491, 491)` and filled counts `(491, 0, 0, 491)`.
-- Required tests pass; verification leaves workbooks and sidecars unchanged.
-- Only writable files change; no commit or push.
+- Every Step 9M.1.1 requirement has explicit evidence or a documented unresolved defect; generic Step 9 formatting completion is not substituted.
+- Required verification passes, and no remaining hardening defect is known.
+- Use review status `PASS`, `PROBLEMS`, or `BLOCKED`; successful closure is `PASS`, with completion `DONE` and next step `None`.
+- If unresolved, retain Step 9M.1.1 and enumerate only its remaining work.
+- Stop after closure. Do not plan or begin Step 9M.2 or any new stage; do not commit or push.
