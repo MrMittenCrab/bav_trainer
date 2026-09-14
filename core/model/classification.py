@@ -14,7 +14,7 @@ from ..data.interface import LineItem, StandardizedFinancials
 from ..data.line_identity import LineIdentity, line_identity
 from ..data.schema import normalize_label
 from .line_resolver import resolve_line
-from .source_values import required_period_value
+from .source_values import MissingHistoricalValueError, required_period_value
 
 BALANCE_SHEET_CATEGORIES = (
     "Operating Working Capital Asset",
@@ -1328,6 +1328,103 @@ def _optional_total(
     )
 
 
+def _detail_period_contribution(
+    item: LineItem,
+    period: date,
+    *,
+    field: str,
+) -> float | None:
+    """Return a numeric contribution, or None for explicit sparse absence.
+
+    Missing keys fail closed. Explicit ``None`` (key present) is eligible for
+    evidence-gated non-contribution and is never rewritten into the source row.
+    Reported zeros remain ordinary numeric contributions.
+    """
+    if period not in item.values:
+        raise MissingHistoricalValueError(
+            f"{field} line {item.label!r} has no supplied value "
+            f"for modeled period {period.isoformat()}"
+        )
+    raw = item.values[period]
+    if raw is None:
+        return None
+    return float(raw)
+
+
+def _enforce_sparse_detail_evidence_gate(
+    *,
+    sparse_by_period: dict[int, list[LineItem]],
+    periods: list[date],
+    total_assets: tuple[float | None, ...],
+    total_liabilities: tuple[float | None, ...],
+    reported_equity: tuple[float | None, ...],
+    asset_detail_gap: tuple[float | None, ...],
+    liability_detail_gap: tuple[float | None, ...],
+    equity_gap: tuple[float | None, ...],
+    decisions: dict[int, ClassificationDecision],
+) -> None:
+    """Allow sparse None as non-contribution only when independent totals reconcile.
+
+    Aggregate reconciliation is evidence of non-contribution for the affected
+    period only; it never invents a reported zero into ``LineItem.values``.
+    Missing totals or gaps beyond the unchanged rounding envelope fail closed.
+    """
+    if not sparse_by_period:
+        return
+
+    asset_detail_count = sum(
+        1
+        for decision in decisions.values()
+        if decision.category in _ASSET_REFORMULATION_CATEGORIES
+    )
+    liability_detail_count = sum(
+        1
+        for decision in decisions.values()
+        if decision.category in _LIABILITY_REFORMULATION_CATEGORIES
+    )
+    asset_tol = _reporting_rounding_tolerance(
+        asset_detail_count, base_tolerance=DEFAULT_TOLERANCE
+    )
+    liability_tol = _reporting_rounding_tolerance(
+        liability_detail_count, base_tolerance=DEFAULT_TOLERANCE
+    )
+    equity_tol = _reporting_rounding_tolerance(
+        asset_detail_count + liability_detail_count,
+        base_tolerance=DEFAULT_TOLERANCE,
+    )
+
+    for j in sorted(sparse_by_period):
+        sample = sparse_by_period[j][0]
+        field = f"balance_sheet detail {line_identity(sample).key()}"
+        period = periods[j]
+        if (
+            total_assets[j] is None
+            or total_liabilities[j] is None
+            or reported_equity[j] is None
+        ):
+            raise MissingHistoricalValueError(
+                f"{field} line {sample.label!r} has no supplied value "
+                f"for modeled period {period.isoformat()}"
+            )
+        ag = asset_detail_gap[j]
+        lg = liability_detail_gap[j]
+        eg = equity_gap[j]
+        if ag is None or lg is None or eg is None:
+            raise MissingHistoricalValueError(
+                f"{field} line {sample.label!r} has no supplied value "
+                f"for modeled period {period.isoformat()}"
+            )
+        if (
+            abs(ag) > asset_tol
+            or abs(lg) > liability_tol
+            or abs(eg) > equity_tol
+        ):
+            raise MissingHistoricalValueError(
+                f"{field} line {sample.label!r} has no supplied value "
+                f"for modeled period {period.isoformat()}"
+            )
+
+
 def reformulate_balance_sheet(
     fin: StandardizedFinancials,
     periods: list[date],
@@ -1344,6 +1441,7 @@ def reformulate_balance_sheet(
     decisions: dict[int, ClassificationDecision] = {}
     detail_indices: list[int] = []
     totals = {cat: [0.0] * n for cat in BALANCE_SHEET_CATEGORIES}
+    sparse_by_period: dict[int, list[LineItem]] = {}
 
     for idx, item in enumerate(fin.balance_sheet):
         if is_balance_sheet_subtotal(item):
@@ -1352,12 +1450,13 @@ def reformulate_balance_sheet(
         ov = override_by_identity.get(line_identity(item))
         decision = classify_balance_sheet_line(item, override=ov)
         decisions[idx] = decision
+        field = f"balance_sheet detail {line_identity(item).key()}"
         for j, pd in enumerate(periods):
-            totals[decision.category][j] += required_period_value(
-                item,
-                pd,
-                field=f"balance_sheet detail {line_identity(item).key()}",
-            )
+            contribution = _detail_period_contribution(item, pd, field=field)
+            if contribution is None:
+                sparse_by_period.setdefault(j, []).append(item)
+                continue
+            totals[decision.category][j] += contribution
 
     owca = totals["Operating Working Capital Asset"]
     owcl = totals["Operating Working Capital Liability"]
@@ -1389,6 +1488,18 @@ def reformulate_balance_sheet(
     equity_gap = tuple(
         None if reported_equity[i] is None else implied[i] - reported_equity[i]
         for i in range(n)
+    )
+
+    _enforce_sparse_detail_evidence_gate(
+        sparse_by_period=sparse_by_period,
+        periods=periods,
+        total_assets=total_assets,
+        total_liabilities=total_liabilities,
+        reported_equity=reported_equity,
+        asset_detail_gap=asset_gap,
+        liability_detail_gap=liability_gap,
+        equity_gap=equity_gap,
+        decisions=decisions,
     )
 
     return BalanceSheetReformulation(

@@ -553,14 +553,11 @@ def test_non_current_income_taxes_payable_restored_sparse_axis():
 
 
 def test_four_period_reformulation_integrity(tmp_path: Path):
-    """After sparse NCIT retention: empty unclassified; G1/G2/G3 preserved.
-
-    Four-period ``check_reformulation_integrity`` cannot run yet: retained
-    ``None`` for FY2026 raises ``MissingHistoricalValueError`` inside
-    ``reformulate_balance_sheet`` (out of Step 9M.2.4.1 production scope).
-    """
-    from core.model.classification import reformulate_balance_sheet
-    from core.model.source_values import MissingHistoricalValueError
+    """Sparse NCIT None is evidence-gated; all four periods reconcile."""
+    from core.model.classification import (
+        check_reformulation_integrity,
+        reformulate_balance_sheet,
+    )
 
     fin = standardized_from_payload(_load_json(STD_JSON))
 
@@ -602,12 +599,34 @@ def test_four_period_reformulation_integrity(tmp_path: Path):
     )
     assert classify_balance_sheet_line(common).category == "Equity"
 
-    with pytest.raises(MissingHistoricalValueError, match="2026-02-01"):
-        reformulate_balance_sheet(fin, EXPECTED_PERIODS)
+    ncit = next(
+        row
+        for row in fin.balance_sheet
+        if row.concept == "non_current_income_taxes_payable"
+    )
+    assert ncit.values == {
+        date(2023, 1, 29): 28555.0,
+        date(2024, 1, 28): 15864.0,
+        date(2025, 2, 2): 0.0,
+        date(2026, 2, 1): None,
+    }
+
+    reform = reformulate_balance_sheet(fin, EXPECTED_PERIODS)
+    assert reform.asset_detail_gap == (0.0, 0.0, 0.0, 0.0)
+    assert reform.liability_detail_gap == (0.0, 0.0, 0.0, 0.0)
+    assert reform.equity_gap == (0.0, 0.0, 0.0, 0.0)
+    check_reformulation_integrity(reform, EXPECTED_PERIODS)
+    # Evidence gate must not invent a reported zero into source facts.
+    assert ncit.values[date(2026, 2, 1)] is None
+    assert ncit.values[date(2025, 2, 2)] == 0.0
+
+    from core.model.line_resolver import MissingLineError
 
     out = tmp_path / "Lululemon"
-    with pytest.raises(MissingHistoricalValueError, match="2026-02-01"):
+    # Next measured blocker after sparse reformulation repair (out of this child scope).
+    with pytest.raises(MissingLineError, match="pretax_income"):
         build_training_workbook(fin, out)
+    assert ncit.values[date(2026, 2, 1)] is None
 
 
 def test_no_lulu_specific_production_branch():

@@ -554,6 +554,240 @@ def test_bs_detail_and_optional_totals_period_completeness():
             reformulate_balance_sheet(fin_tot, periods)
 
 
+def _sparse_balanced_fin(
+    liability_values: dict[date, float | None],
+) -> StandardizedFinancials:
+    """Minimal BS where sparse liability absence reconciles when non-contributing."""
+    return StandardizedFinancials(
+        ticker="SPARSE",
+        company_name="Sparse Co",
+        currency="HKD",
+        units="mn",
+        jurisdiction="HK",
+        periods=_periods(),
+        income_statement=[],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 100, 100),
+            _li("Trade receivables", 50, 50),
+            _li("Property, plant and equipment", 50, 50),
+            LineItem(
+                label="Total assets",
+                concept="total_assets",
+                values={P1: 200.0, P2: 200.0},
+            ),
+            _li("Trade payables", 40, 40),
+            LineItem(
+                label="Non-current income taxes payable",
+                concept="non_current_income_taxes_payable",
+                values=dict(liability_values),
+            ),
+            _li("Bank borrowings", 60, 60),
+            LineItem(
+                label="Total liabilities",
+                concept="total_liabilities",
+                values={P1: 100.0, P2: 100.0},
+            ),
+            _li("Share capital and reserves", 100, 100),
+            LineItem(
+                label="Total equity",
+                concept="total_equity",
+                values={P1: 100.0, P2: 100.0},
+            ),
+        ],
+        cash_flow=[],
+    )
+
+
+@pytest.mark.parametrize(
+    "liability_values",
+    [
+        {P1: None, P2: 0.0},  # leading absence
+        {P1: 0.0, P2: None},  # trailing absence
+        {P1: None, P2: None},  # both periods absent
+    ],
+)
+def test_sparse_explicit_absence_reconciles_when_evidence_gate_passes(liability_values):
+    periods = [P1, P2]
+    fin = _sparse_balanced_fin(liability_values)
+    before = [dict(item.values) for item in fin.balance_sheet]
+    reform = reformulate_balance_sheet(fin, periods)
+    assert reform.asset_detail_gap == (0.0, 0.0)
+    assert reform.liability_detail_gap == (0.0, 0.0)
+    assert reform.equity_gap == (0.0, 0.0)
+    check_reformulation_integrity(reform, periods)
+    # Source nulls preserved; reported zeros remain distinct.
+    sparse = next(
+        item
+        for item in fin.balance_sheet
+        if item.concept == "non_current_income_taxes_payable"
+    )
+    assert sparse.values == liability_values
+    assert [dict(item.values) for item in fin.balance_sheet] == before
+    # Reported zero remains a numeric contribution; explicit None does not.
+    assert None not in (
+        reform.category_totals["Operating Working Capital Liability"][0],
+        reform.category_totals["Operating Working Capital Liability"][1],
+    )
+
+
+def test_sparse_interior_absence_with_neighboring_reported_zero():
+    """Three-period row: value / None / reported zero — null stays non-invented."""
+    p0 = date(2023, 12, 31)
+    periods = [p0, P1, P2]
+    fin = StandardizedFinancials(
+        ticker="INT",
+        company_name="Interior Sparse",
+        currency="HKD",
+        units="mn",
+        jurisdiction="HK",
+        periods=[
+            FinancialPeriod(end_date=p0, label="FY2023"),
+            FinancialPeriod(end_date=P1, label="FY2024"),
+            FinancialPeriod(end_date=P2, label="FY2025"),
+        ],
+        income_statement=[],
+        balance_sheet=[
+            LineItem(
+                label="Cash and cash equivalents",
+                values={p0: 100.0, P1: 100.0, P2: 100.0},
+            ),
+            LineItem(
+                label="Total assets",
+                concept="total_assets",
+                values={p0: 100.0, P1: 100.0, P2: 100.0},
+            ),
+            LineItem(
+                label="Non-current income taxes payable",
+                concept="non_current_income_taxes_payable",
+                values={p0: 25.0, P1: None, P2: 0.0},
+            ),
+            LineItem(
+                label="Bank borrowings",
+                values={p0: 75.0, P1: 100.0, P2: 100.0},
+            ),
+            LineItem(
+                label="Total liabilities",
+                concept="total_liabilities",
+                values={p0: 100.0, P1: 100.0, P2: 100.0},
+            ),
+            LineItem(
+                label="Share capital and reserves",
+                values={p0: 0.0, P1: 0.0, P2: 0.0},
+            ),
+            LineItem(
+                label="Total equity",
+                concept="total_equity",
+                values={p0: 0.0, P1: 0.0, P2: 0.0},
+            ),
+        ],
+        cash_flow=[],
+    )
+    reform = reformulate_balance_sheet(fin, periods)
+    assert reform.liability_detail_gap == (0.0, 0.0, 0.0)
+    check_reformulation_integrity(reform, periods)
+    sparse = next(
+        item
+        for item in fin.balance_sheet
+        if item.concept == "non_current_income_taxes_payable"
+    )
+    assert sparse.values[p0] == 25.0
+    assert sparse.values[P1] is None
+    assert sparse.values[P2] == 0.0
+    assert reform.category_totals["Operating Working Capital Liability"] == (
+        25.0,
+        0.0,
+        0.0,
+    )
+
+
+def test_sparse_absence_fails_without_independent_totals():
+    from core.model.source_values import MissingHistoricalValueError
+
+    periods = [P1, P2]
+    fin = StandardizedFinancials(
+        ticker="NOTOT",
+        company_name="No Totals",
+        currency="HKD",
+        units="mn",
+        jurisdiction="HK",
+        periods=_periods(),
+        income_statement=[],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 100, 110),
+            _li("Trade receivables", 80, 90),
+            _li("Property, plant and equipment", 400, 420),
+            LineItem(
+                label="Deferred tax liability",
+                concept="deferred_tax_liability",
+                values={P1: 10.0, P2: None},
+            ),
+            _li("Trade payables", 50, 55),
+            _li("Bank borrowings", 200, 210),
+            _li("Share capital and reserves", 340, 355),
+        ],
+        cash_flow=[],
+    )
+    with pytest.raises(MissingHistoricalValueError, match="2025-12-31"):
+        reformulate_balance_sheet(fin, periods)
+
+
+def test_sparse_absence_fails_when_total_row_null():
+    from core.model.source_values import MissingHistoricalValueError
+
+    periods = [P1, P2]
+    fin = _sparse_balanced_fin({P1: 0.0, P2: None})
+    # Independent total present as a row but null for the sparse period.
+    total_liab = next(
+        item for item in fin.balance_sheet if item.concept == "total_liabilities"
+    )
+    total_liab.values[P2] = None
+    with pytest.raises(MissingHistoricalValueError, match="total_liabilities"):
+        reformulate_balance_sheet(fin, periods)
+
+
+def test_sparse_absence_fails_on_contradictory_gap():
+    """Explicit None that would leave a material liability gap fails closed."""
+    from core.model.source_values import MissingHistoricalValueError
+
+    periods = [P1, P2]
+    fin = _sparse_balanced_fin({P1: 0.0, P2: None})
+    # Reported total still includes the omitted amount → contradictory evidence.
+    total_liab = next(
+        item for item in fin.balance_sheet if item.concept == "total_liabilities"
+    )
+    total_liab.values[P2] = 140.0
+    total_eq = next(
+        item for item in fin.balance_sheet if item.concept == "total_equity"
+    )
+    total_eq.values[P2] = 60.0
+    with pytest.raises(MissingHistoricalValueError, match="2025-12-31"):
+        reformulate_balance_sheet(fin, periods)
+
+
+def test_sparse_missing_key_still_fails_closed():
+    from core.model.source_values import MissingHistoricalValueError
+
+    periods = [P1, P2]
+    fin = _sparse_balanced_fin({P1: 0.0, P2: 0.0})
+    sparse = next(
+        item
+        for item in fin.balance_sheet
+        if item.concept == "non_current_income_taxes_payable"
+    )
+    del sparse.values[P2]
+    with pytest.raises(MissingHistoricalValueError, match="balance_sheet detail"):
+        reformulate_balance_sheet(fin, periods)
+
+
+def test_complete_rows_unchanged_with_sparse_neighbor():
+    periods = [P1, P2]
+    fin = _sparse_balanced_fin({P1: 0.0, P2: None})
+    reform = reformulate_balance_sheet(fin, periods)
+    assert reform.category_totals["Financial Asset"] == (100.0, 100.0)
+    assert reform.category_totals["Operating Working Capital Asset"] == (50.0, 50.0)
+    assert reform.category_totals["Financial Liability"] == (60.0, 60.0)
+
+
 def test_classification_curly_apostrophe_equity_alias_consistent():
     from core.model.classification import _norm
 

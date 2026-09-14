@@ -1,105 +1,79 @@
-# RESULT.md — Step 9M.2.4.1 Preserve Sparse Liability Facts in Standardization
+# RESULT.md — Step 9M.2.4.1.1 Evidence-Grounded Sparse-Detail Reformulation Repair
 
-**Status:** BLOCKED (in-scope standardizer work done; parent integrity acceptance not met)  
-**Step:** 9M.2.4.1 — Preserve Sparse Liability Facts in Standardization  
-**Parent:** Step 9M.2.4 — Lululemon Liability-Detail Reformulation Integrity — remains **UNRESOLVED**  
-**Workspace HEAD:** `a370a02b52bc4ab93d514232e913685ba361c55c`  
+**Status:** COMPLETE (child acceptance met; parents remain UNRESOLVED)  
+**Step:** 9M.2.4.1.1 — Evidence-Grounded Sparse-Detail Reformulation Repair  
+**Parents:** Step 9M.2.4.1 and Step 9M.2.4 — remain **UNRESOLVED**  
+**Workspace HEAD:** `2e883227b4cb70f2a1d545c48234de29d8cf40fd`  
 `TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged).  
 No commit / push / sync / checkpoint. No branch create/switch. No G4–G7 or forecasting/valuation work.
 
 ---
 
-## What was implemented (in production scope)
+## What was implemented (production scope)
 
-`core/ingestion/filing_standardizer.py`:
+`core/model/classification.py` only:
 
-- Balance-sheet rows with selected observations on only part of the model axis are **retained**.
-- Supplied amounts preserved; unreported model periods use explicit `None` (nullable `LineItem.values` contract).
-- Label/concept taken from the **latest available model-period** observation.
-- Non-balance-sheet incomplete-axis rows remain **omitted** (`omitted_incomplete_axis`).
-- Provenance adds `retained_sparse_axis` (row-level) and period status `missing_period` (no fabricated `selected` / observations); available periods stay `selected`; outside-axis observations unchanged.
-
-Restored Lululemon NCIT row in regenerated `standardized.json`:
-
-| Period | Value |
-|---|---:|
-| 2023-01-29 | 28555.0 |
-| 2024-01-28 | 15864.0 |
-| 2025-02-02 | 0.0 (reported zero) |
-| 2026-02-01 | `null` / `None` (absent) |
-
-Sparse absence remains distinguishable from reported zero through export/reload.
+- Explicit nullable BS detail (`period in values` and `values[period] is None`) may be **non-contributing** for that period’s aggregate only.
+- Evidence gate before usable reformulation results: require independent `total_assets`, `total_liabilities`, and `total_equity` for the affected period, then successful asset-/liability-/equity-gap reconciliations under the **unchanged** rounding envelope `max(1.0, 0.5 * (detail_count + 1))`.
+- Missing keys, unavailable/null totals, and contradictory gaps fail closed via `MissingHistoricalValueError`.
+- `LineItem.values` nulls are never rewritten; reported `0.0` remains a numeric contribution.
+- Totals and other required historical inputs keep strict `required_period_value` semantics.
 
 ---
 
-## Measured before / after reformulation gaps
+## Measured reformulation gaps (Lululemon committed standardized)
 
 Tolerance **formula** unchanged: `max(1.0, 0.5 * (detail_count + 1))`.
 
-### Before (NCIT omitted from standardized — prior committed behavior)
+NCIT retained series (unchanged source facts): **28555 / 15864 / 0.0 / `None`**.
 
-| Period | asset-detail gap | liability-detail gap | equity gap | liability envelope | equity envelope |
-|---|---:|---:|---:|---:|---:|
-| 2023-01-29 | 0.0 | **−28555.0** | **+28555.0** | 5.5 | 11.0 |
-| 2024-01-28 | 0.0 | **−15864.0** | **+15864.0** | 5.5 | 11.0 |
-| 2025-02-02 | 0.0 | 0.0 | 0.0 | 5.5 | 11.0 |
-| 2026-02-01 | 0.0 | 0.0 | 0.0 | 5.5 | 11.0 |
-
-- Asset detail count = 11 → envelope 6.0  
-- Liability detail count = 10 → envelope 5.5  
-- Equity uses asset+liability count = 21 → envelope 11.0  
-
-Causal row: omitted `non_current_income_taxes_payable` (28555 / 15864 / 0 / absent).
-
-### After (NCIT retained with `None` at 2026-02-01)
-
-`reformulate_balance_sheet` / workbook build raise:
-
-```text
-MissingHistoricalValueError: balance_sheet detail
-concept=non_current_income_taxes_payable|label=non-current income taxes payable
-line 'Non-current income taxes payable' has no supplied value for modeled period 2026-02-01
-```
-
-Parent `check_reformulation_integrity` for all four periods therefore **cannot run** inside current production scope.
-
-### Probe-only (not applied): treat standardized `None` as non-contributing (0 to sum)
-
-If detail summation skipped/`None`→non-contributing without writing invented zeros into standardized facts:
-
-| Period | asset-detail gap | liability-detail gap | equity gap |
-|---|---:|---:|---:|
-| 2023-01-29 | 0.0 | 0.0 | 0.0 |
-| 2024-01-28 | 0.0 | 0.0 | 0.0 |
-| 2025-02-02 | 0.0 | 0.0 | 0.0 |
-| 2026-02-01 | 0.0 | 0.0 | 0.0 |
+| Period | asset-detail gap | liability-detail gap | equity gap | asset env | liab env | equity env |
+|---|---:|---:|---:|---:|---:|---:|
+| 2023-01-29 | 0.0 | 0.0 | 0.0 | 6.0 | 6.0 | 11.5 |
+| 2024-01-28 | 0.0 | 0.0 | 0.0 | 6.0 | 6.0 | 11.5 |
+| 2025-02-02 | 0.0 | 0.0 | 0.0 | 6.0 | 6.0 | 11.5 |
+| 2026-02-01 | 0.0 | 0.0 | 0.0 | 6.0 | 6.0 | 11.5 |
 
 - Asset detail count = 11 → envelope 6.0  
-- Liability detail count = **11** → envelope **6.0** (formula unchanged; count +1)  
+- Liability detail count = **11** (NCIT included) → envelope **6.0**  
 - Equity count = 22 → envelope **11.5**  
-- Probe `check_reformulation_integrity` → **PASS**
+- Causal prior discrepancy: sparse NCIT absence at 2026-02-01; earlier years contributed 28555 / 15864; FY2025 reported zero; FY2026 explicit `None` non-contributing under gate.  
+- `check_reformulation_integrity` → **PASS** for all four periods.
 
----
-
-## Deterministic regeneration
-
-Two reconcile runs in separate temporary directories: all three artifacts byte-identical across runs.
-
-| Artifact | Before SHA-256 | Before size | After SHA-256 | After size | Notes |
-|---|---|---:|---|---:|---|
-| standardized.json | `ba1ba06857198361706c368df490e4b874f8f03e7b45eaeb0af59eaa02aa4f45` | 22289 | `29852347d78387be6fd9224246ab337b15a5176218cd01b2c20a0c8c3c00b361` | 22548 | +NCIT sparse row |
-| provenance.json | `2d4d770e7fede9d30a576ba82c031157895fee5224a3094f034fc466e546d269` | 698793 | `a31f7b05cddc16a61df91cdc8578bb69713069651af21160ff662ea562433075` | 699401 | NCIT moved omitted→retained_sparse; +`missing_period` |
-| conflicts.json | `d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0` | 4718 | *(unchanged)* | 4718 | required stable |
-
-Committed Lululemon `standardized.json` / `provenance.json` refreshed from verified regeneration only. Source PDFs and extracted JSON unchanged (hashes/sizes verified). Conflicts unchanged.
+Pre-repair aggregates that raised `MissingHistoricalValueError` before this child are **unavailable as live post-repair failures**; the measured post-repair gaps above replace them.
 
 ---
 
 ## Anchors confirmed
 
-- Common stock: 611 / 606 / 581 / 557 across the four periods (existing G3 test).  
+- Common stock: **611 / 606 / 581 / 557** across the four periods.  
 - Gift-card (G1) and PPE (G2) classification assertions pass.  
-- Unclassified non-subtotal BS detail set remains empty.
+- Unclassified non-subtotal BS detail set remains empty.  
+- NCIT `None` at 2026-02-01 and reported `0.0` at 2025-02-02 preserved after reformulation.
+
+---
+
+## Workbook probe (temporary directory)
+
+```text
+MissingLineError: Required concept 'pretax_income' not found in statement lines
+```
+
+Recorded only; **not repaired** (outside this child’s production scope). Parents stay UNRESOLVED pending that / other original acceptance criteria.
+
+---
+
+## Source / artifact hashes (before = after)
+
+No generated refresh authorized; committed Lululemon artifacts unchanged.
+
+| Artifact | SHA-256 | Size |
+|---|---|---:|
+| standardized.json | `29852347d78387be6fd9224246ab337b15a5176218cd01b2c20a0c8c3c00b361` | 22548 |
+| provenance.json | `a31f7b05cddc16a61df91cdc8578bb69713069651af21160ff662ea562433075` | 699401 |
+| conflicts.json | `d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0` | 4718 |
+
+Source PDFs and extracted JSON untouched (verified present; digests match locked baseline tests). Stray FR/demo mutations from the full suite were reverted.
 
 ---
 
@@ -109,44 +83,30 @@ Committed Lululemon `standardized.json` / `provenance.json` refreshed from verif
 PYTHONPATH=. pytest core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py \
   core/tests/test_classification.py core/tests/test_line_resolver.py \
   core/tests/test_reference_integrity.py core/tests/test_lululemon_benchmark.py -q
-→ 490 passed in 9.38s
+→ 499 passed in 9.34s
 
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q
-→ 132 passed in 27.17s
+→ 132 passed in 26.81s
 
 PYTHONPATH=. pytest core/tests -q
-→ 1042 passed in 93.81s
+→ 1051 passed in 90.29s
 ```
 
-Lululemon workbook probe in a temporary directory: **failed** with the `MissingHistoricalValueError` quoted above (no unrelated blocker repaired).
-
-Synthetic sparse BS regression added in `test_filing_reconciler.py` (leading / interior / trailing absence, explicit zero vs absence, complete rows, unchanged non-BS omission, export/reload, provenance grounding).
+Synthetic sparse coverage added in `test_classification.py` (leading/trailing/both/interior absence, reported zero vs `None`, missing keys, null/absent totals, contradictory gaps, complete-row neighbors). Equal asset/liability omission and rounding-envelope controls retained. Lululemon integrity test now asserts four-period PASS + G1/G2/G3 + next workbook exception.
 
 ---
 
 ## Diff scope (intentional)
 
-- `core/ingestion/filing_standardizer.py`
-- `core/tests/test_filing_reconciler.py`
+- `core/model/classification.py`
+- `core/tests/test_classification.py`
 - `core/tests/test_lululemon_benchmark.py`
-- `benchmark/lululemon/reconciled/standardized.json`
-- `benchmark/lululemon/reconciled/provenance.json`
 - `RESULT.md` (this file)
 
-FR benchmark / demo workbook / source / extracted / conflicts: not part of authorized refresh (stray FR/demo mutations from test side-effects were reverted).
+Committed standardized/provenance/conflicts, source PDFs, extracted JSON: **unchanged**.
 
 ---
 
-## Required plan change (do not edit IMPLEMENTATION.md here)
+## Parent / plan notes (do not edit IMPLEMENTATION.md here)
 
-Parent acceptance still requires all four periods to pass `check_reformulation_integrity` within unchanged tolerance **rules**. Sparse retention with explicit `None` is correct and in-scope, but `reformulate_balance_sheet` still calls `required_period_value`, which fail-closes on `None`.
-
-Next Plan revision must expand production scope beyond `filing_standardizer.py`, for example:
-
-1. **`core/model/classification.py`** (detail summation in `reformulate_balance_sheet`): treat explicit standardized `None` on a retained sparse BS detail as **non-contributing for that period’s sum** (not an invented source zero; `LineItem.values` stays `None`; reported `0.0` remains distinct).
-2. Preserve fail-closed behavior for genuinely required complete-axis lines / totals as existing tests require.
-3. Then replace the current measured-next-exception Lululemon assertion with direct four-period integrity assertions and confirm workbook generation.
-
-Until that scope exists, **retain Step 9M.2.4 — UNRESOLVED**. Do not invent zeros, carry-forward, or absent-after-zero inference to force PASS.
-
-**BLOCKER:** Parent four-period `check_reformulation_integrity` blocked by `MissingHistoricalValueError` on retained sparse `None` at 2026-02-01; fixing requires Plan-authorized production scope outside `filing_standardizer.py` (classification / nullable detail summation).
+Child 9M.2.4.1.1 acceptance for evidence-gated sparse reformulation is met. Keep **Step 9M.2.4.1 and Step 9M.2.4 — UNRESOLVED** until every original parent acceptance criterion passes (workbook generation still blocked by `pretax_income` / further scope). Return to Plan for parent closure assessment and next unused detailed ID. Step 9 remains incomplete.
