@@ -449,3 +449,31 @@ def test_pretax_label_does_not_resolve_as_tax_expense():
     assert pretax.item is not None and pretax.index == 0
     assert tax.item is not None and tax.index == 1
     assert tax.item.label == "Income tax expense"
+
+
+def test_income_before_tax_alias_removal_fails_closed(monkeypatch):
+    """Parity regressions detect removal of the income_before_tax explicit alias."""
+    from core.model import line_resolver as lr
+
+    items = [
+        _item("Income before income tax expense", 100, 110, concept="income_before_tax"),
+        _item("Income tax expense", -30, -33),
+    ]
+    assert resolve_line(items, "pretax_income", required=True).item is not None
+
+    monkeypatch.setattr(
+        lr,
+        "_EXPLICIT_CONCEPT_ALIASES",
+        {**lr._EXPLICIT_CONCEPT_ALIASES, "pretax_income": frozenset({"pretax income"})},
+    )
+    monkeypatch.setattr(
+        lr,
+        "_EXACT_ALIASES",
+        {
+            **lr._EXACT_ALIASES,
+            "pretax_income": lr._EXACT_ALIASES["pretax_income"]
+            - {"income before income tax expense"},
+        },
+    )
+    with pytest.raises(MissingLineError, match="pretax_income"):
+        resolve_line(items, "pretax_income", required=True)

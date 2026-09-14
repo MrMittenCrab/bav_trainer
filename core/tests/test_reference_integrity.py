@@ -2634,3 +2634,203 @@ def test_other_balance_judgment_cases_reach_reference_builder():
     assert by_label["Other non-current liabilities"].alternatives == (
         "Financial Liability",
     )
+
+
+# --- Step 9M.2.4.1.1.1: pretax calculation / emitted-formula parity ---
+
+_IS_SOURCE_REF = __import__("re").compile(
+    r"^=(?:'Income Statement'|\"Income Statement\")!\$?([A-Z]+)\$?(\d+)$",
+    __import__("re").IGNORECASE,
+)
+
+
+def _pretax_parity_fin(
+    *,
+    pretax_label: str = "Income before income tax expense",
+    pretax_concept: str = "income_before_tax",
+    pretax_values: tuple[float, float] = (400.0, 500.0),
+    tax_values: tuple[float, float] = (-60.0, -80.0),
+    reorder: bool = False,
+):
+    """Synthetic IS fixture — distinct pretax vs tax inputs; separate from Lululemon."""
+    pretax = _li(pretax_label, pretax_values[0], pretax_values[1], concept=pretax_concept)
+    tax = _li("Income tax expense", tax_values[0], tax_values[1])
+    revenue = _li("Revenue", 1000, 1100)
+    ie = _li("Finance costs", -40, -50)
+    ii = _li("Finance income", 5, 6)
+    ni = _li("Profit for the year", 340, 420)
+    filler = _li("Other income", 1, 2)
+    if reorder:
+        # Pretax after tax and filler so row-index arithmetic alone cannot pass.
+        is_items = [revenue, ie, ii, tax, filler, pretax, ni]
+    else:
+        is_items = [revenue, ie, ii, pretax, tax, ni]
+    return _base_fin(income_statement=is_items)
+
+
+def _condensed_row(ws, label: str) -> int:
+    for row in range(1, (ws.max_row or 1) + 1):
+        if ws.cell(row=row, column=1).value == label:
+            return row
+    raise AssertionError(f"missing condensed label {label!r}")
+
+
+def _resolve_is_formula_to_source(wb, formula: str):
+    match = _IS_SOURCE_REF.fullmatch(str(formula).strip())
+    assert match is not None, f"expected Income Statement source link, got {formula!r}"
+    col_letter, row_s = match.group(1).upper(), int(match.group(2))
+    src = wb["Income Statement"]
+    col = 0
+    for i, ch in enumerate(reversed(col_letter)):
+        col += (ord(ch) - 64) * (26**i)
+    label = src.cell(row=row_s, column=1).value
+    value = src.cell(row=row_s, column=col).value
+    return label, value, row_s, col
+
+
+def _assert_pretax_python_and_formula_parity(fin, tmp_path, stem: str):
+    """Compare compute_anchor pretax/ETR to emitted Condensed formulas via source cells."""
+    from core.model.ratio_values import ratio_or_na
+
+    periods = [p.end_date for p in fin.periods]
+    pretax_res = resolve_line(fin.income_statement, "pretax_income", required=True)
+    tax_res = resolve_line(fin.income_statement, "tax_expense", required=True)
+    assert pretax_res.item is not None and tax_res.item is not None
+    assert pretax_res.index != tax_res.index
+
+    expected_pretax = [float(pretax_res.item.values[p]) for p in periods]
+    expected_tax = [float(tax_res.item.values[p]) for p in periods]
+    expected_etr = [
+        ratio_or_na(-expected_tax[i], expected_pretax[i]) for i in range(len(periods))
+    ]
+    # Inputs must be distinguishable so a wrong tax link cannot accidentally pass.
+    assert expected_pretax != expected_tax
+    assert all(p != t for p, t in zip(expected_pretax, expected_tax))
+
+    anchor = compute_anchor(fin, periods)
+    assert list(anchor.historical.pretax_income) == pytest.approx(expected_pretax)
+    for got, exp in zip(anchor.historical.effective_tax_rate, expected_etr):
+        if isinstance(exp, float):
+            assert got == pytest.approx(exp)
+        else:
+            assert got == exp
+
+    trainer, answer = build_training_workbook(fin, tmp_path / f"{stem}_Trainer.xlsx")
+    assert trainer.exists() and answer.exists()
+
+    wb = load_workbook(answer, data_only=False)
+    condensed = wb["Condensed Financials"]
+    pretax_row = _condensed_row(condensed, "Pretax Income")
+    tax_row = _condensed_row(condensed, "Tax Expense")
+    etr_row = _condensed_row(condensed, "Effective Tax Rate")
+    assert pretax_row != tax_row
+
+    for j, period in enumerate(periods):
+        col = 2 + j
+        pretax_f = condensed.cell(row=pretax_row, column=col).value
+        tax_f = condensed.cell(row=tax_row, column=col).value
+        etr_f = condensed.cell(row=etr_row, column=col).value
+
+        pretax_label, pretax_src_val, pretax_src_row, _ = _resolve_is_formula_to_source(
+            wb, pretax_f
+        )
+        tax_label, tax_src_val, tax_src_row, _ = _resolve_is_formula_to_source(wb, tax_f)
+
+        assert pretax_label == pretax_res.item.label
+        assert tax_label == tax_res.item.label
+        assert pretax_label != tax_label
+        assert pretax_src_row != tax_src_row
+        assert pretax_src_val == pytest.approx(expected_pretax[j])
+        assert tax_src_val == pytest.approx(expected_tax[j])
+        # Wrong source link would pull tax into pretax (or vice versa).
+        assert pretax_src_val == pytest.approx(float(pretax_res.item.values[period]))
+        assert pretax_src_val != pytest.approx(expected_tax[j])
+        assert tax_src_val != pytest.approx(expected_pretax[j])
+
+        assert float(pretax_src_val) == pytest.approx(anchor.historical.pretax_income[j])
+        formula_etr = ratio_or_na(-float(tax_src_val), float(pretax_src_val))
+        py_etr = anchor.historical.effective_tax_rate[j]
+        if isinstance(py_etr, float):
+            assert formula_etr == pytest.approx(py_etr)
+        else:
+            assert formula_etr == py_etr
+
+        # Emitting ETR must reference the condensed pretax/tax rows (not raw literals).
+        col_letter = chr(ord("A") + col - 1)
+        assert isinstance(etr_f, str) and etr_f.startswith("=")
+        assert f"{col_letter}{pretax_row}" in etr_f.replace("$", "")
+        assert f"{col_letter}{tax_row}" in etr_f.replace("$", "")
+        assert "NA()" in etr_f.upper()
+
+    wb.close()
+    return expected_pretax, expected_tax, expected_etr
+
+
+def test_income_before_tax_python_and_excel_formula_parity(tmp_path):
+    """Alias-identity fixture: Python pretax/ETR match resolved emitted source links."""
+    fin = _pretax_parity_fin(reorder=True)
+    _assert_pretax_python_and_formula_parity(fin, tmp_path, "PRETAX_ALIAS")
+
+
+def test_pretax_parity_canonical_label_fallback_and_export_reload(tmp_path):
+    """Canonical concept, label fallback, reordered rows, and export/reload parity."""
+    from core.data.standardized_io import standardized_from_payload, standardized_to_payload
+
+    canonical = _pretax_parity_fin(
+        pretax_label="Carrying pretax amount",
+        pretax_concept="pretax_income",
+        pretax_values=(250.0, 310.0),
+        tax_values=(-40.0, -55.0),
+        reorder=True,
+    )
+    _assert_pretax_python_and_formula_parity(canonical, tmp_path, "PRETAX_CANON")
+
+    label_only = _pretax_parity_fin(
+        pretax_label="Income before income tax expense",
+        pretax_concept="",
+        pretax_values=(180.0, 210.0),
+        tax_values=(-27.0, -42.0),
+        reorder=True,
+    )
+    _assert_pretax_python_and_formula_parity(label_only, tmp_path, "PRETAX_LABEL")
+
+    alias = _pretax_parity_fin(reorder=True)
+    restored = standardized_from_payload(standardized_to_payload(alias))
+    pretax = resolve_line(restored.income_statement, "pretax_income", required=True)
+    assert pretax.item is not None
+    assert pretax.item.concept == "income_before_tax"
+    assert pretax.item.label == "Income before income tax expense"
+    _assert_pretax_python_and_formula_parity(restored, tmp_path, "PRETAX_RELOAD")
+
+
+def test_pretax_parity_detects_alias_removal_and_wrong_source_link(tmp_path, monkeypatch):
+    """Parity coverage fails closed if income_before_tax alias is removed."""
+    from core.model import line_resolver as lr
+    from core.model.line_resolver import MissingLineError
+
+    fin = _pretax_parity_fin(reorder=True)
+    # Baseline must pass with the alias present.
+    _assert_pretax_python_and_formula_parity(fin, tmp_path, "PRETAX_BASE")
+
+    cleared = {
+        k: (frozenset() if k == "pretax_income" else v)
+        for k, v in lr._EXPLICIT_CONCEPT_ALIASES.items()
+    }
+    # Keep canonical-only P1 match; drop income_before_tax alias membership.
+    monkeypatch.setattr(
+        lr,
+        "_EXPLICIT_CONCEPT_ALIASES",
+        {**cleared, "pretax_income": frozenset({"pretax income"})},
+    )
+    # Also strip exact label alias so concept-only alias removal is isolated when
+    # the fixture supplies income_before_tax + the supplied label together.
+    label_aliases = {
+        k: (v - {"income before income tax expense"} if k == "pretax_income" else v)
+        for k, v in lr._EXACT_ALIASES.items()
+    }
+    monkeypatch.setattr(lr, "_EXACT_ALIASES", label_aliases)
+
+    with pytest.raises(MissingLineError, match="pretax_income"):
+        compute_anchor(fin, [p.end_date for p in fin.periods])
+    with pytest.raises(MissingLineError, match="pretax_income"):
+        build_training_workbook(fin, tmp_path / "PRETAX_NOALIAS_Trainer.xlsx")
