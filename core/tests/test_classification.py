@@ -1138,6 +1138,26 @@ def test_deterministic_standard_accounting_concepts_create_no_judgment_cases():
             "Operating Working Capital Liability",
         ),
         (
+            "Gift card liabilities",
+            "",
+            "Operating Working Capital Liability",
+        ),
+        (
+            "Gift-card liabilities",
+            "gift_card_liabilities",
+            "Operating Working Capital Liability",
+        ),
+        (
+            "Gift cards liabilities",
+            "",
+            "Operating Working Capital Liability",
+        ),
+        (
+            "Noncurrent gift-cards liabilities",
+            "noncurrent_gift_cards_liabilities",
+            "Operating Long-Term Liability",
+        ),
+        (
             "Unearned revenue",
             "unearned_revenue",
             "Operating Working Capital Liability",
@@ -1240,6 +1260,80 @@ def test_customer_prepayment_unsupported_pairs_fail_closed_or_safe(label, concep
         return
     # Safe existing classification only — never the prepayment liability reason.
     assert "Customer prepayment" not in decision.reason
+
+
+@pytest.mark.parametrize(
+    ("label", "concept"),
+    [
+        # Reported failing plural label (empty concept) escapes via other-current fallback.
+        ("Recognition of gift card liabilities within other current liabilities", ""),
+        # Singular/plural card and liability wording; spaced/hyphenated forms.
+        ("Recognition of gift card liabilities", ""),
+        ("Recognition of gift-card liabilities", ""),
+        ("Recognition of gift cards liabilities", ""),
+        ("Recognition of gift-cards liabilities", ""),
+        ("Derecognition of gift card liabilities", ""),
+        ("Change in gift-card liabilities", ""),
+        ("Increase in gift cards liabilities", ""),
+        ("Decrease in gift-cards liabilities", ""),
+        ("Amortization of gift card liabilities", ""),
+        ("Additions to gift-card liabilities", ""),
+        ("Reductions in gift cards liabilities", ""),
+        # Current / noncurrent / other-liability / long-term fallback contexts.
+        ("Change in gift-card liabilities in other current liability", ""),
+        ("Increase in gift cards liabilities within other non-current liabilities", ""),
+        ("Decrease in gift-cards liabilities within long-term liabilities", ""),
+        ("Recognition of gift card liabilities within other noncurrent liabilities", ""),
+        ("Additions to gift card liabilities in long-term liability", ""),
+        # Movement labels with supported balance concepts.
+        ("Recognition of gift card liabilities", "gift_card_liabilities"),
+        ("Change in gift-card liabilities", "gift_card_liability"),
+        ("Increase in gift cards liabilities", "gift_cards_liabilities"),
+        # Movement concepts with balance labels.
+        (
+            "Gift card liabilities",
+            "recognition_of_gift_card_liabilities",
+        ),
+        (
+            "Gift-card liabilities",
+            "change_in_gift_card_liabilities",
+        ),
+        (
+            "Gift cards liabilities",
+            "amortization_of_gift_cards_liabilities",
+        ),
+        # Empty and unrelated concepts still raise when label is a plural movement.
+        ("Recognition of gift card liabilities", "miscellaneous_balance"),
+        ("Change in gift-cards liabilities", "other_current_liabilities"),
+        # Liability-fallback escapes with plural gift-card topic + movement.
+        ("Recognition of other current liabilities", "gift_card_liabilities"),
+        ("Change in other non-current liability", "gift_cards_liabilities"),
+        ("Increase in long-term liabilities", "gift_card_liabilities"),
+        ("Decrease in other noncurrent liabilities", "gift_card_liability"),
+    ],
+)
+def test_plural_gift_card_movements_raise_unclassified(label, concept):
+    """Plural gift-card movements must raise — not classify via liability fallbacks."""
+    with pytest.raises(UnclassifiedBalanceSheetLineError):
+        classify_balance_sheet_line(_li(label, 10, 12, concept=concept))
+
+
+def test_plural_gift_card_reported_row_override_still_wins():
+    item = _li(
+        "Recognition of gift card liabilities within other current liabilities",
+        10,
+        12,
+        concept="",
+    )
+    with pytest.raises(UnclassifiedBalanceSheetLineError):
+        classify_balance_sheet_line(item)
+
+    overridden = classify_balance_sheet_line(
+        item, override="Operating Working Capital Liability"
+    )
+    assert overridden.category == "Operating Working Capital Liability"
+    assert overridden.overridden is True
+    assert overridden.reason == "User override"
 
 
 @pytest.mark.parametrize(

@@ -1,14 +1,14 @@
-# RESULT.md — Step 9M.2.1 Repair Customer-Prepayment Movement Exclusions and Liability Fallbacks (G1)
+# RESULT.md — Step 9M.2.1 Repair Plural Gift-Card Movement Detection and Liability Fallback Escapes (G1)
 
 **Status:** PASS  
 **Completion:** DONE  
 **Next step:** Step **9M.2.2** — Generic Property-and-Equipment Classification and PPE Identity (G2)
 
-**Plan base:** `da4b3e1b7b6ffc4c987ad5a0ec21ea893f595703`  
+**Plan base:** `44e7651968651e38715e08ef8692d7acffb46eb3`  
 `TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged).  
 No commit / push / sync / checkpoint. No G2–G7 or forecasting/valuation work.
 
-Supersedes premature Step 9M.2.1 G1 PASS (gift-card / deferred-revenue balance classification) that left recognition movements and liability-fallback escapes unrepaired.
+Supersedes prior Step 9M.2.1 G1 PASS (recognition-movement exclusions) that left plural `gift card liabilities` wording able to escape through liability label fallbacks.
 
 ---
 
@@ -16,32 +16,31 @@ Supersedes premature Step 9M.2.1 G1 PASS (gift-card / deferred-revenue balance c
 
 In `core/model/classification.py`:
 
-1. Added missing recognition movement markers (`recognition of` / `recognitionof`) alongside existing change / increase / decrease / amortization / additions / reductions / derecognition markers.
-2. Detect customer-prepayment *movements* via bounded movement markers plus prepayment label phrases, exact balance concepts, or prepayment concept stems.
-3. Raise `UnclassifiedBalanceSheetLineError` for those movements **before** current / noncurrent / other-liability / long-term label fallbacks can reclassify them.
-4. Preserve valid balance classification, noncurrent-before-current maturity, asset/receivable exclusions, override precedence, and deferred-tax / lease / financial / equity treatment.
+1. Extended customer-prepayment label phrases with plural liability forms: `gift card liabilities`, `gift-card liabilities`, `gift cards liabilities`, `gift-cards liabilities` (singular forms retained).
+2. Added matching exact concept aliases (`giftcardliabilities`, `giftcardsliabilities`, current/noncurrent variants) so label and concept topic recognition stay aligned for balance classification and movement protection.
+3. Unchanged movement gate still raises `UnclassifiedBalanceSheetLineError` before concept classification and current / noncurrent / other-liability / long-term fallbacks.
 
-Tests: parameterized movement regressions (label-only, movement+balance concept, movement concept+balance label, noncurrent/long-term/other-liability fallback escapes) assert hard raises; movement override still wins; prior positive / soft-negative / judgment / reformulation / Lululemon guards retained.
+Tests: reported failing label with empty concept; parameterized plural/spaced/hyphenated wording; recognition/derecognition/change/increase/decrease/amortization/additions/reductions; fallback-context escapes; movement+balance concept and movement-concept+balance-label pairs; positive current/noncurrent plural balance controls; explicit override control. Prior asset / unrelated / judgment / reformulation / Lululemon guards retained.
 
 ---
 
 ## Regression evidence vs base
 
-New movement-raise cases were run against `da4b3e1` `classification.py` before the repair:
+New plural-gift-card raise cases were run against `44e7651` `classification.py` before the repair:
 
-- **12 failed** (DID NOT RAISE), including `Recognition of deferred revenue` (empty and balance concept), noncurrent contract recognition, and other-current / noncurrent / long-term liability fallback escapes.
-- After repair: those cases raise; valid balances still classify.
+- **7 failed** (DID NOT RAISE / override precondition), including the reported label `Recognition of gift card liabilities within other current liabilities` and other-current / noncurrent / long-term liability fallback escapes.
+- After repair: those cases raise; valid plural balances still classify; override still wins.
 
 ---
 
-## G1 repair closure evidence
+## G1 plural repair closure evidence
 
 | Check | Result |
 |---|---|
-| Recognition / other excluded movements raise | **pass** |
-| Liability fallbacks cannot re-admit excluded movements | **pass** |
-| Valid current/noncurrent prepayment balances | **pass** |
-| Override precedence on movement rows | **pass** |
+| Reported plural recognition label raises | **pass** |
+| Plural wording + liability fallbacks cannot re-admit movements | **pass** |
+| Valid current/noncurrent plural gift-card balances | **pass** |
+| Override precedence on reported row | **pass** |
 | Lululemon gift-card all four periods → OWCL | **pass** |
 | Build unclassified set | `{Property and equipment, net, Common stock}` only |
 | Temp-dir build first exception | `Property and equipment, net` (G2) |
@@ -67,16 +66,14 @@ Before and after digests are identical for all three committed Lululemon artifac
 
 ```text
 PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_lululemon_benchmark.py -q
-→ 161 passed in 3.30s
+→ 195 passed in 3.04s
 
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q
-→ 132 passed in 27.86s
+→ 132 passed in 27.04s
 
 PYTHONPATH=. pytest core/tests -q
-→ 803 passed in 89.71s
+→ 837 passed in 87.59s
 ```
-
-Prior premature G1 PASS recorded 768 core passes; this run is newly executed (+35 from movement-raise coverage and related additions).
 
 Incidental FR/DEMO workbook/provenance refreshes from the suite were restored; final working-tree diff is `core/model/classification.py`, `core/tests/test_classification.py`, and this `RESULT.md`.
 
@@ -86,9 +83,8 @@ Incidental FR/DEMO workbook/provenance refreshes from the suite were restored; f
 
 | Criterion | Result |
 |---|---|
-| Movement exclusions consistent; recognition covered | **pass** |
-| Excluded movements cannot regain liability via fallbacks | **pass** |
-| Hard `UnclassifiedBalanceSheetLineError` for unsupported movements | **pass** |
+| Plural gift-card movements raise (incl. reported label) | **pass** |
+| No liability fallback escapes unless explicitly overridden | **pass** |
 | Valid balances + reformulation + Lululemon G1 retained | **pass** |
 | Required checks + immutability / hash / no-issuer guards | **pass** |
 | Diff scoped to allowed files | **pass** |
