@@ -1,23 +1,24 @@
-# RESULT.md — Step 9M.1.1 Filing-JSON Hardening Acceptance and Closure
+# RESULT.md — Step 9M.1.1 Filing-JSON Hardening Closed
 
-**Review status:** PASS
+**Review status:** PASS (supplied incoming review)
 **Completion:** DONE
 **Next step:** None
 
-**Implementation base (plan):** `af02e2e575ab95e5ecd6b2047d395b4002098a07`
-**HEAD at completion:** `1760bd37b9c32e9b1e9e87a6dcc1d206fc444bb4`
-**Historical plan:** `d3b808b:IMPLEMENTATION.md`
-**Historical completion claim:** `a707408:RESULT.md` (incomplete relative to plan; defects repaired this step)
+**Implementation base (plan):** `f1e7e21b4ee095c65b35d1db45e0a9ee2635e175`
+**Reviewed revision:** `f1e7e21b4ee095c65b35d1db45e0a9ee2635e175`
+**Historical verification revision:** `f1e7e21b4ee095c65b35d1db45e0a9ee2635e175`
+(Prior plan/base context retained for audit: plan `1760bd3`, earlier base `af02e2e`, historical claim `a707408:RESULT.md`.)
 
-**Writable this step:** filing hardening modules/tests + `RESULT.md`.
+**Writable this step:** `RESULT.md` only (documentation closure).
 `TARGET.md` / `IMPLEMENTATION.md`: unchanged (read-only).
-No commit / push / sync / checkpoint. No Step 9M.2.
+Code, tests, source inputs, generated artifacts, and workbooks: unchanged.
+No commit / push / sync / checkpoint. No further project step.
 
 ---
 
 ## What shipped
 
-Hardening defects remaining after `a707408` were repaired:
+Hardening defects remaining after `a707408` were repaired (accepted at reviewed revision `f1e7e21`):
 
 1. **Exact ISO dates** — `_parse_date` no longer truncates; rejects `…junk`, `T00:00:00`, `/` separators, and impossible calendar days.
 2. **Windows absolute paths** — validator rejects `PureWindowsPath` absolutes (e.g. `C:\…`) before any source read/hash.
@@ -32,9 +33,9 @@ Forecasting / valuation remain dormant. Committed benchmark/release artifacts we
 | Requirement | Code | Named tests | Measured evidence | Remaining defect |
 |---|---|---|---|---|
 | Strict required metadata | `filing_json._required_nonempty_str` / `_required_positive_int` | `test_parser_rejects_missing_required_fields` | blank/missing company fields, bad `fiscal_year`, blank currency/source_file → `ValueError` | none |
-| Exact ISO dates (no truncate) | `filing_json._parse_date` | `test_parser_rejects_non_exact_iso_dates`, `test_parser_accepts_exact_iso_date` | junk/`T`/`/`/Feb-30 rejected; `2025-08-31` accepted | none (fixed this step) |
-| Portable source-root containment before access | `filing_validator.validate_extracted_filing` + `PureWindowsPath` | `test_validate_rejects_escaping_source_paths`, `test_validate_allows_nested_relative_source_path`, `test_validate_and_reconcile_reject_invalid_source_path` | abs/`..`/Windows abs → `invalid_source_path`, `computed_source_sha256 is None`; nested relative OK | none (Windows case fixed this step) |
-| Complete bound-source registry | `BoundSourceFile`, `reconcile_filings` → `source_files` | `test_complete_bound_source_registry_retains_losers_and_supplemental_only`, FR live assert in `test_migration_reproduces_fy2025_anchors_and_conflict_parity` | loser filing with no selected statements still in registry; FR live = 5/5 with years | none (fixed this step) |
+| Exact ISO dates (no truncate) | `filing_json._parse_date` | `test_parser_rejects_non_exact_iso_dates`, `test_parser_accepts_exact_iso_date` | junk/`T`/`/`/Feb-30 rejected; `2025-08-31` accepted | none (fixed at `f1e7e21`) |
+| Portable source-root containment before access | `filing_validator.validate_extracted_filing` + `PureWindowsPath` | `test_validate_rejects_escaping_source_paths`, `test_validate_allows_nested_relative_source_path`, `test_validate_and_reconcile_reject_invalid_source_path` | abs/`..`/Windows abs → `invalid_source_path`, `computed_source_sha256 is None`; nested relative OK | none (Windows case fixed at `f1e7e21`) |
+| Complete bound-source registry | `BoundSourceFile`, `reconcile_filings` → `source_files` | `test_complete_bound_source_registry_retains_losers_and_supplemental_only`, FR live assert in `test_migration_reproduces_fy2025_anchors_and_conflict_parity` | loser filing with no selected statements still in registry; FR live = 5/5 with years | none (fixed at `f1e7e21`) |
 | Source-bound supplemental provenance | `SupplementalObservation` + `_supplemental_observation_payload` | `test_supplemental_observations_retain_source_binding` | filing_year, source_file, SHA-256, page, derivation retained | none |
 | Deterministic supplemental conflicts | `_group_supplemental_conflicts`, conflicts payload | FR + reconciler share/note disagreement tests | overlap=3, supplemental=3; reason `cross_filing_supplemental_disagreement` | none |
 | Fail-closed share promotion | `resolve_historical_share_basis` via `_historical_shares` | share-basis / FR share tests | disagreements retained; promotion only via explicit basis policy | none (policy evolved; see below) |
@@ -52,7 +53,9 @@ Live reconcile adds `filing_year` on each `source_files[]` entry. Committed `ben
 
 ---
 
-## Measured verification (fresh this step)
+## Measured verification (historical — not re-executed this closure)
+
+Recorded at historical verification revision `f1e7e21`. Presented here as preserved evidence only; this documentation-only closure did **not** re-run tests or regenerate artifacts.
 
 ### Commands
 
@@ -103,7 +106,7 @@ fd5a1ec87b61c4835d3b7bfda79996afa6c5ed9bbf2082e35413fb18ee696f1f  provenance.jso
 
 Incidental suite touches to `example/DEMO_HK_Trainer.xlsx` / benchmark provenance were restored; final diff excludes them.
 
-### Final changed-file list
+### Implementation changed-file list (at `f1e7e21`; not modified this closure)
 
 ```text
 core/ingestion/filing_json.py
@@ -118,14 +121,25 @@ RESULT.md
 
 ---
 
+## Documentation-only closure verification
+
+```text
+git diff --check
+→ clean
+```
+
+No test rerun required for this documentation-only closure.
+
+---
+
 ## Acceptance
 
 | Criterion | Result |
 |---|---|
-| Every 9M.1.1 requirement has explicit evidence (formatting not substituted) | **pass** |
-| Required verification passes; no known remaining hardening defect | **pass** |
-| Review status PASS; completion DONE; next step None | **pass** |
-| Only writable files changed; no commit/push; no next stage started | **pass** |
+| Every 9M.1.1 requirement has explicit evidence (formatting not substituted) | **pass** (preserved) |
+| Required verification passes; no known remaining hardening defect | **pass** (historical at `f1e7e21`) |
+| Reviewed SHA recorded; review PASS; completion DONE; next step None | **pass** |
+| Only `RESULT.md` changed this closure; no commit/push; no next stage started | **pass** |
 
 **Unresolved issues:** none on Step 9M.1.1 hardening scope.
 
