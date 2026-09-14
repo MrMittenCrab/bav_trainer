@@ -1,4 +1,4 @@
-"""Step 9H.1 — historical-v1 exit gate (release contract, not curriculum expansion)."""
+"""Step 9H.1 / 9N.2 — historical active-catalog freeze (release contract)."""
 
 from __future__ import annotations
 
@@ -10,9 +10,12 @@ from openpyxl import load_workbook
 
 from core.data.interface import DocumentManifest, DocumentType
 from core.engine.component_catalog import (
+    CAPEX_COMPONENT_CATALOG,
     COMPONENT_CATALOG,
     DEFERRED_COMPONENT_SPECS,
+    DEFERRED_TAX_COMPONENT_CATALOG,
     FIXED_ASSET_COMPONENT_CATALOG,
+    GOODWILL_INTANGIBLES_COMPONENT_CATALOG,
     LEASE_LIABILITY_COMPONENT_CATALOG,
     LEASE_ROU_COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
@@ -41,6 +44,7 @@ from core.trainer.workbook import build_training_workbook, group_components_by_f
 
 ROOT = Path(__file__).resolve().parents[2]
 
+# Step 9 historical active namespace: family orders 1–121 (through capex).
 ACTIVE_CATALOGS = (
     COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
@@ -55,9 +59,44 @@ ACTIVE_CATALOGS = (
     NORMALIZED_PER_SHARE_COMPONENT_CATALOG,
     FIXED_ASSET_COMPONENT_CATALOG,
     LEASE_LIABILITY_COMPONENT_CATALOG,
-    LEASE_ROU_COMPONENT_CATALOG,
     OWNERSHIP_ATTRIBUTION_COMPONENT_CATALOG,
+    GOODWILL_INTANGIBLES_COMPONENT_CATALOG,
+    LEASE_ROU_COMPONENT_CATALOG,
+    DEFERRED_TAX_COMPONENT_CATALOG,
+    CAPEX_COMPONENT_CATALOG,
 )
+
+# Explicit post–9M optional catalog family id → order mappings (98–121).
+EXPECTED_POST_V1_FAMILY_ORDERS = {
+    # Goodwill / intangibles 98–111
+    "goodwill_change": 98,
+    "goodwill_growth": 99,
+    "average_goodwill": 100,
+    "goodwill_to_revenue": 101,
+    "intangible_assets_change": 102,
+    "intangible_assets_growth": 103,
+    "average_intangible_assets": 104,
+    "intangible_assets_to_revenue": 105,
+    "goodwill_and_intangibles_change": 106,
+    "goodwill_and_intangibles_growth": 107,
+    "average_goodwill_and_intangibles": 108,
+    "goodwill_and_intangibles_to_revenue": 109,
+    "intangible_payments": 110,
+    "intangible_payments_to_revenue": 111,
+    # Lease ROU 112–115
+    "rou_assets_change": 112,
+    "rou_assets_growth": 113,
+    "average_rou_assets": 114,
+    "rou_assets_to_revenue": 115,
+    # Deferred tax 116–119
+    "net_deferred_tax_position": 116,
+    "deferred_tax_assets_change": 117,
+    "deferred_tax_liabilities_change": 118,
+    "net_deferred_tax_position_change": 119,
+    # Capex 120–121
+    "ppe_capex": 120,
+    "ppe_capex_to_revenue": 121,
+}
 
 
 def _fill_rgb(cell) -> str:
@@ -95,13 +134,18 @@ def _assert_deferred_isolation(trainer: Path, answer: Path) -> None:
 
 
 def test_historical_v1_active_catalog_namespace_is_frozen():
+    """Freeze the current Step 9 historical active catalog namespace (orders 1–121)."""
     families = [family for catalog in ACTIVE_CATALOGS for family in catalog]
     ids = [family.id for family in families]
     orders = [family.order for family in families]
+    by_id = {family.id: family.order for family in families}
 
     assert len(ids) == len(set(ids))
     assert len(orders) == len(set(orders))
-    assert sorted(orders) == list(range(1, 98))
+    assert sorted(orders) == list(range(1, 122))
+
+    for family_id, expected_order in EXPECTED_POST_V1_FAMILY_ORDERS.items():
+        assert by_id[family_id] == expected_order
 
     deferred_ids = {spec.id for spec in DEFERRED_COMPONENT_SPECS}
     assert deferred_ids.isdisjoint(ids)

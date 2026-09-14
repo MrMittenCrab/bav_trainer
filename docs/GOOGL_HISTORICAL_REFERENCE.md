@@ -5,7 +5,7 @@ Internal development reference for Step 9 historical convergence. Evidence is li
 Audit tool: `scripts/audit_reference_workbook.py`  
 GOOGL SHA-256 (pre/post inspection): `81faf2882d0df07ecf5def45695431c1935b4f7a94c1e017367596a063063896`  
 
-**Coverage refresh (Step 9N.1):** Inventory, gap matrix, and queue corrected for lease-payment evidence. Implemented surfaces remain liability + ROU **balance** diagnostics only; CF repayment / amortization analysis is **absent**. Exit gate **FAIL** — unresolved source-supported lease-repayment gap + frozen-catalog regression (see `RESULT.md`).
+**Coverage refresh (Step 9N.2):** Catalog-freeze regression cleared (`ACTIVE_CATALOGS` orders 1–121; `core/tests` 571 passed). Implemented lease surfaces remain liability + ROU **balance** diagnostics only; CF repayment / amortization analysis is **absent**. Exit gate **FAIL** — unresolved source-supported lease-repayment gap (see `RESULT.md`).
 
 ## Role of the reference
 
@@ -136,8 +136,8 @@ Forward GOOGL sheets (Guidance & Consensus, Model_*, Scenario_Summary, Implied C
 
 ### Materially blocking (exit gate)
 
-1. **Repair historical-v1 active-catalog freeze** — `test_historical_v1_active_catalog_namespace_is_frozen` fails (`ACTIVE_CATALOGS` includes lease ROU orders 112–115 while asserting `range(1, 98)`; goodwill/deferred-tax/capex catalogs omitted from the freeze list). Blocks criterion 5. **Next implementation.**
-2. **Lease repayment diagnostics (unresolved source-supported gap)** — FR CF `repayments_of_lease_liabilities` FY2021–FY2025 = −148,248 / −136,889 / −140,646 / −146,403 / −140,483 (JPY mn; ~4.1–7.0% of revenue; ~27–32% of lease-liability stock). Liability/ROU modules expose **balances** only (families 87–90, 112–115); payment and amortization diagnostics are absent. ΔLL ≠ −repayments. Blocks criteria 1, 2, and 6 until implemented or validly deferred for a concrete curriculum reason (none established). Visible blocker; **not** the next implementation while tests remain red.
+1. ~~**Repair historical-v1 active-catalog freeze**~~ — **cleared in Step 9N.2.** Freeze now covers orders 1–121 (goodwill/intangibles 98–111, lease ROU 112–115, deferred tax 116–119, capex 120–121). Measured: exit-gate **7 passed**; `core/tests` **571 passed**; FR benchmark **26 passed** (481 / 10 capex / 3+3 conflicts).
+2. **Lease repayment diagnostics (unresolved source-supported gap)** — FR CF `repayments_of_lease_liabilities` FY2021–FY2025 = −148,248 / −136,889 / −140,646 / −146,403 / −140,483 (JPY mn; ~4.1–7.0% of revenue; ~27–32% of lease-liability stock). Liability/ROU modules expose **balances** only (families 87–90, 112–115); payment and amortization diagnostics are absent. ΔLL ≠ −repayments. Blocks criteria 1, 2, and 6. **Next implementation.**
 
 ### Explicitly deferred — source absent
 
@@ -212,15 +212,15 @@ Explicit concept resolution is registered in `core/model/line_resolver.py` for:
 
 ## Next historical implementation candidate (exactly one)
 
-**Name:** Repair historical-v1 active-catalog freeze for post–9M modules
+**Name:** Source-supported lease-repayment diagnostics
 
-**Problem:** `core/tests/test_historical_v1_exit_gate.py::test_historical_v1_active_catalog_namespace_is_frozen` expects contiguous orders `1..97`, but `ACTIVE_CATALOGS` includes `LEASE_ROU_COMPONENT_CATALOG` (112–115). Goodwill/intangibles (98–111), deferred tax (116–119), and capex (120–121) are active historical catalogs omitted from that freeze list. Prior measurement (Step 9N, not rerun in 9N.1): **1 failed, 570 passed** on `python -m pytest core/tests -q`.
+**Problem:** Fast Retailing supplies material CF `repayments_of_lease_liabilities` (FY2021–FY2025; ~4.1–7.0% of revenue; ~27–32% of lease-liability stock), but Trainer lease modules expose liability/ROU **balances** only. Balance change ≠ repayment cash. Blocks exit criteria 1, 2, and 6.
 
-**Also visible (not next):** source-supported **lease repayment diagnostics** gap — see queue item 2 and `RESULT.md` Task 1 measurements.
+**Distinct from (remain deferred):** lease discount-rate analysis; complete lease roll-forward; ROU acquisition-payment diagnostics.
 
-**Actions:** Align `ACTIVE_CATALOGS` + order/id freeze assertions with the chosen contract (expand to all active historical optional catalogs through capex, **or** document a v1-only freeze that excludes post–v1 catalogs). Keep deferred forecast/valuation specs disjoint.
+**Actions:** Add source-gated repayment diagnostics (intensity / conversion context as appropriate) when CF repayment facts resolve; omit when absent; do not invent rates, roll-forward plugs, or ROU acquisition payments.
 
-**Acceptance:** `pytest core/tests -q` green; Fast Retailing 481 / `capex_specs=10` / blank·filled Check parity / 3 overlap + 3 supplemental unchanged; no new analytical modules in the freeze-repair step.
+**Acceptance:** Module tests + FR regression; omit on DEMO if repayments absent; no Step 10 advancement.
 
 ### Capex source, sign, and practice (Step 9M.9 — complete; preserved)
 
@@ -235,11 +235,14 @@ Explicit concept resolution is registered in `core/model/line_resolver.py` for:
 
 ### Explicitly out of scope for this candidate
 
-- New analytical schedules (interpretation, reinvestment, lease **repayment** module, SBC, acquisition, segments, forensics) — repayment remains the post-freeze curriculum blocker
+- Discount-rate / IBR analysis, complete lease roll-forward, ROU acquisition-payment diagnostics
+- Interpretation essays, reinvestment bridge, SBC, acquisition, segments, forensics
 - Forecasting / valuation
-- Source fixture or benchmark baseline edits
+- Source fixture or benchmark baseline edits unrelated to repayment gating
 
-**Step 9N.1 note:** Corrected lease-payment dispositions. Balance diagnostics ≠ repayment/amortization. Exit gate FAIL on (1) frozen-catalog regression and (2) unresolved material lease-repayment gap. Next implementation remains catalog-freeze repair.
+**Step 9N.2 note:** Catalog freeze repaired (orders 1–121; suite green). Exit gate still FAIL on unresolved material lease-repayment gap. Next implementation is source-supported lease-repayment diagnostics.
+
+**Step 9N.1 note:** Corrected lease-payment dispositions. Balance diagnostics ≠ repayment/amortization. Catalog-freeze blocker since cleared in 9N.2.
 
 **Step 9N note:** Prior exit assessment incorrectly deferred repayments as duplicative of liability amortization; superseded by 9N.1.
 
