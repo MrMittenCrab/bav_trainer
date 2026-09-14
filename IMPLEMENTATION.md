@@ -1,41 +1,40 @@
-# Step 9N — Historical Exit-Gate Assessment
+# Step 9N.1 — Repair Lease-Payment Exit-Gate Evidence
 
-**Base:** `60926d632efe7721bff1183521ef929a4dee2cdd`
+**Base:** `f4172600c5348c9b5baf442ac00ffced1f47fcc8`
 
-**Goal:** Determine whether Step 9 satisfies all six exit criteria and identify exactly one next implementation.
+**Goal:** Correct lease-payment dispositions and reassess historical curriculum closure.
 
-**Writable files:** `docs/GOOGL_HISTORICAL_REFERENCE.md`, `RESULT.md`.
+**Writable files:** `RESULT.md`, `docs/GOOGL_HISTORICAL_REFERENCE.md`.
 
 **Read-only:** `TARGET.md`, `IMPLEMENTATION.md`. Cursor must never modify either file.
 
-### Task 1: Resolve the historical gap queue
+### Task 1: Establish supplied facts and actual coverage
 
-- Compare the documented gap matrix and queue with `TARGET.md` exit criteria, `RESULT.md`, and `benchmark/fast_retailing/BASELINE.md`.
-- Inspect referenced source contracts, implementation, and tests only where needed to substantiate a decision.
-- Classify each remaining historical candidate as implemented, materially blocking, or explicitly deferred with a concrete source or curriculum reason.
-- Specifically assess structured interpretation, capex reinvestment, SBC, acquisition attribution, lease payments, tax adjustments, segments, and forensic screens.
-- Update the reference document’s queue and stale candidate statements; preserve completed G1–G7 and capex acceptance.
+- Read the previous assessment in `RESULT.md`.
+- Trace `repayments_of_lease_liabilities` and `payments_for_rou_assets` through `benchmark/fast_retailing/reconciled/standardized.json`, relevant provenance entries, and referenced extracted filing rows.
+- Record FY2021–FY2025 values, units, sign conventions, and source references. Measure repayment materiality against supplied revenue and lease-liability balances; assess ROU acquisition payments separately.
+- Verify coverage in `core/model/lease_liability.py`, `core/model/lease_rou.py`, their component catalogs, and corresponding tests: liability balances, intensity, change/growth, ROU balance context, and treatment-conditioned lease interest. Identify payment and amortization diagnostics as absent.
 
-### Task 2: Measure historical regression readiness
+### Task 2: Correct dispositions and affected exit criteria
 
-- Run `python -m pytest core/tests -q`.
-- Confirm executed coverage includes real-company filing validation/reconciliation, provenance, optional-module gating, workbook generation, Trainer/Answer-Key parity, non-disclosing Check, cross-company robustness, and forecast isolation.
-- Verify Fast Retailing assertions retain 481 practice cells, 10 capex cells, blank/filled Check parity, and 3 overlap / 3 supplemental conflicts.
-- Run `git diff --check`.
-- Record failures or missing coverage as gate blockers; do not change code, tests, source fixtures, or benchmark baselines in this step.
+- Replace unsupported repayment-duplication and amortization claims throughout both writable files, including the gap matrix, queue, and completion statements.
+- Separate source-supported repayment diagnostics from discount-rate analysis and a complete lease roll-forward. Missing rates do not prevent analysis of reported repayments; balance changes do not measure amortization or repayments.
+- Classify repayment analysis as an unresolved source-supported gap unless a concrete, measured curriculum reason supports deferral. Do not use missing contracts or ROU acquisition-payment materiality to dismiss repayments.
+- Reassess exit criteria 1, 2, and 6 with explicit pass/fail/unverified dispositions and evidence. Preserve unaffected evidence and the recorded criterion 5 regression blocker.
+- Synchronize the queue and exactly one next implementation across both documents. Retain catalog-freeze repair as the next implementation unless the corrected assessment establishes a higher-priority blocker; keep every unresolved blocker visible.
 
-### Task 3: Record the gate decision
+### Task 3: Verify and record the repair
 
-- Write a six-row exit-criteria assessment to `RESULT.md`, with pass/fail/unverified status and repository evidence for each criterion.
-- Record commands, measured totals, skips, failures, and verification limitations separately from previously recorded results.
-- If every criterion passes, select one bounded Step 10 driver-based forecasting implementation grounded in the verified historical model.
-- Otherwise, select exactly one highest-value Step 9 defect, evidence gap, or source-supported curriculum gap, naming its files, actions, tests, and acceptance criteria.
-- Replace the reference document’s next-candidate section with the same selection.
+- Run `python -m pytest core/tests/test_lease_liability.py core/tests/test_lease_rou.py -q`.
+- Run `git diff --check` and inspect the changed-file list.
+- Record corrected source measurements, coverage findings, commands, measured outcomes, and limitations in `RESULT.md`.
+- Label previous full-suite and benchmark results as prior measurements; do not imply they were rerun.
 
 ### Acceptance criteria
 
-- Every exit criterion has an evidence-backed disposition.
-- Remaining historical gaps have explicit dispositions; absent input contracts alone do not justify deferring available, materially useful facts.
-- Step 9 completion requires passing regressions and no unresolved material blocker or unverified criterion.
-- Exactly one concrete next implementation is recorded; Step 10 is selected when the exit gate passes.
-- Completion records and measured verification appear in `RESULT.md`; only the two permitted files change.
+- Both documents distinguish implemented balance diagnostics from absent repayment/amortization analysis.
+- Lease-payment dispositions cite supplied facts, measured materiality, and actual module coverage.
+- Exit criteria 1, 2, and 6 no longer rely on unsupported curriculum-closure claims.
+- Step 9 remains incomplete while material gaps or regression blockers remain; no Step 10 advancement.
+- Exactly one next implementation is recorded consistently.
+- Only the two writable documents change; no code, tests, fixtures, or baselines are modified.
