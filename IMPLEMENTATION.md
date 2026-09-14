@@ -1,46 +1,42 @@
-# Step 9 — Repair Release Layout Contract Bypasses
+# Step 9 — Repair Start/End Border and Hyperlink Theme Parity
 
-**Base:** `4bd447678a726f77e48b8ef6742c4f145b5e5b39`
+**Base:** `cc805d39596399947a7ba9faecd68143f41d59f2`
 **Incoming review:** PROBLEMS
-**Goal:** Reject judgment-header corruption and visible formatting mismatches in persisted release pairs.
+**Goal:** Reject persisted-pair start/end border mismatches and changed effective colors behind theme indices 10–11.
 
 **Read-only:** `TARGET.md`, `IMPLEMENTATION.md`; Cursor must never modify either file.
 **Writable:** `scripts/audit_fast_retailing_benchmark.py`, `core/tests/test_fast_retailing_benchmark.py`, `RESULT.md`.
 
-### Task 1: Restrict judgment-content exemptions
+### Task 1: Complete the affected formatting comparisons
 
-- Replace whole-column exemptions in `_verify_visible_layout_parity` with explicit response coordinates for actual cases on Accounting Judgment and Normalization Judgment.
-- Follow the case-row conventions used by `_judgment_case_rows` in `core/trainer/workbook.py`; require matching case coordinates in both workbooks.
-- Exempt only response cells in columns F:H and existing semantic practice cells from permitted content/Note comparisons.
-- Compare headers, including Accounting Judgment!F4, and all other non-response cells normally.
-- Continue comparing formatting at every visible cell, including exempt response and practice cells.
+- Add `border_start` and `border_end` to `_border_components`, including its absent-border branch; normalize each side through `_side_token`.
+- Extend `_THEME_SCHEME_ORDER` with `hlink` and `folHlink` at indices 10 and 11, preserving indices 0–9.
+- Resolve both hyperlink theme colors through the existing effective-color and tint normalization.
+- Preserve component-specific failures containing sheet, cell, and Trainer/Answer Key values.
 
-### Task 2: Compare complete effective formatting
+### Task 2: Add persisted-pair regressions
 
-- Replace partial `_format_signature` and border tokens with complete normalized font, fill, border, alignment, number-format, and protection comparisons.
-- Include wrapping, shrink-to-fit, rotation, indentation, font decorations, pattern/gradient fills, and all border sides and flags.
-- Dispatch color normalization on `Color.type`; preserve RGB, theme/indexed identity, tint, and automatic-color semantics without reading inactive descriptor values.
-- Resolve workbook theme/palette references so identical color indices with different effective colors fail.
-- Keep comparisons independent of workbook-local style IDs.
-- Report sheet, cell, differing formatting component, and Trainer/Answer Key values through existing contract failures.
+- Reuse temporary release-pair copies, sidecar helpers, and save/reload mutation helpers.
+- Parameterize Trainer/Answer Key mutations for both `start` and `end`: absent versus present side, changed style, and changed color with matching style.
+- For each theme index 10 and 11, assign identical references to matching visible cells in both workbooks, then change only the corresponding theme definition in one workbook.
+- Cover formatting on content-exempt judgment-response cells as well as ordinary visible cells.
+- Assert `border_start`, `border_end`, or `font_color` failures with the expected sheet and coordinate.
+- Add positive controls for matching start/end borders and matching hyperlink theme references, including nonzero tint.
+- Extend audit/CLI regressions to cover both border sides and both hyperlink theme indices: fail `5_workbook_generation`, skip both Check stages, and exit nonzero.
+- Compare copied workbook and sidecar hashes immediately before and after verification on successful and failing paths; retain source-release fingerprint checks and the explicit-pair no-generation regression.
 
-### Task 3: Add bypass regressions and verify
+### Task 3: Verify and record
 
-- Extend persisted-pair corruption tests using temporary workbook copies and existing sidecar helpers.
-- Parameterize one-sided mutations across Trainer and Answer Key: Accounting Judgment!F4 text and Note, non-case F:H content, `wrap_text`, distinct theme colors, tint, and changed theme definitions behind identical references.
-- Cover omitted formatting components with focused parameterized cases.
-- Add positive controls for legitimate judgment-response differences and equivalent formatting with different style IDs.
-- Assert specific contract failures; verify demonstrated bypasses fail `5_workbook_generation`, skip Check stages, and produce nonzero CLI exit.
-- Preserve the explicit-pair no-generation regression; compare workbook and sidecar hashes before and after successful and failed verification.
 - Run `python -m pytest core/tests/test_fast_retailing_benchmark.py core/tests/test_historical_v1_exit_gate.py -q`.
-- Run `python -m pytest core/tests -q` and `git diff --check`.
+- Run `python -m pytest core/tests -q`.
+- Run `git diff --check`.
 - Run `python scripts/audit_fast_retailing_benchmark.py --standardized-json release/fast_retailing/supporting/standardized.json --provenance-json release/fast_retailing/supporting/provenance.json --conflicts-json release/fast_retailing/supporting/conflicts.json --trainer release/fast_retailing/FastRetailing_Trainer.xlsx --answer-key release/fast_retailing/FastRetailing_Answer_Key.xlsx --verify-release-pair --require-check-counts --no-baseline`.
-- Record completion revision, exact commands, measured results, corruption coverage, artifact hashes, and PASS/PROBLEMS/BLOCKED status in `RESULT.md`.
+- Update `RESULT.md` with completion revision, exact commands, measured results, new regression coverage, artifact hashes, changed files, and PASS/PROBLEMS/BLOCKED status.
 
 ### Acceptance criteria
 
-- Judgment headers and non-response content cannot bypass parity checks.
-- Wrapping and effective theme-color mismatches fail, including on response cells.
+- One-sided start/end border differences and changed effective theme colors at indices 10–11 fail persisted-pair verification.
+- Matching formatting passes; existing judgment-content exemptions and formatting regressions remain intact.
 - Unchanged release verification passes with pristine counts `(0, 0, 491, 491)` and filled counts `(491, 0, 0, 491)`.
-- Required regressions pass; release artifacts remain unchanged.
+- Required tests pass; verification leaves workbooks and sidecars unchanged.
 - Only writable files change; no commit or push.
