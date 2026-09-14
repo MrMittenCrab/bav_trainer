@@ -226,6 +226,153 @@ def _classify_by_concept(item: LineItem) -> ClassificationDecision | None:
         _generic_financial_concept_decision(item)
         or _generic_other_balance_concept_decision(item)
         or _deterministic_accounting_concept_decision(item)
+        or _customer_prepayment_liability_decision(item)
+    )
+
+
+# Exact concept tokens for customer-prepayment / deferred-revenue liability balances.
+# Movement, asset, and unbound substrings are intentionally excluded.
+_CUSTOMER_PREPAYMENT_LIABILITY_CONCEPTS = frozenset(
+    {
+        "unredeemedgiftcardliability",
+        "giftcardliability",
+        "giftcardsliability",
+        "unearnedrevenue",
+        "unearnedrevenueliability",
+        "deferredrevenue",
+        "deferredrevenues",
+        "deferredrevenueliability",
+        "contractliability",
+        "contractliabilities",
+        "currentdeferredrevenue",
+        "currentdeferredrevenueliability",
+        "noncurrentdeferredrevenue",
+        "noncurrentdeferredrevenueliability",
+        "longtermdeferredrevenue",
+        "longtermdeferredrevenueliability",
+        "currentcontractliability",
+        "currentcontractliabilities",
+        "noncurrentcontractliability",
+        "noncurrentcontractliabilities",
+        "longtermcontractliability",
+        "longtermcontractliabilities",
+        "currentunearnedrevenue",
+        "currentunearnedrevenueliability",
+        "noncurrentunearnedrevenue",
+        "noncurrentunearnedrevenueliability",
+        "currentgiftcardliability",
+        "noncurrentgiftcardliability",
+        "currentunredeemedgiftcardliability",
+        "noncurrentunredeemedgiftcardliability",
+    }
+)
+
+_CUSTOMER_PREPAYMENT_LABEL_PHRASES = (
+    "gift card liability",
+    "gift-card liability",
+    "gift cards liability",
+    "gift-cards liability",
+    "unredeemed gift card",
+    "unredeemed gift-card",
+    "unearned revenue",
+    "deferred revenue",
+    "contract liability",
+    "contract liabilities",
+)
+
+_CUSTOMER_PREPAYMENT_MOVEMENT_CONCEPT_MARKERS = (
+    "changein",
+    "derecognition",
+    "increasein",
+    "decreasein",
+    "amortizationof",
+    "recognitionof",
+    "additionsto",
+    "reductionsin",
+)
+
+_CUSTOMER_PREPAYMENT_MOVEMENT_LABEL_MARKERS = (
+    "derecognition",
+    "change in",
+    "increase in",
+    "decrease in",
+    "amortization of",
+    "additions to",
+    "reductions in",
+)
+
+
+def _customer_prepayment_label_hit(low: str) -> bool:
+    """True when the label uses explicit prepayment-liability wording."""
+    if any(marker in low for marker in _CUSTOMER_PREPAYMENT_MOVEMENT_LABEL_MARKERS):
+        return False
+    if "asset" in low or "receivable" in low:
+        return False
+    return any(phrase in low for phrase in _CUSTOMER_PREPAYMENT_LABEL_PHRASES)
+
+
+def _customer_prepayment_excluded(concept_token: str, low: str) -> bool:
+    """Reject movement/derecognition concepts and contradictory asset wording."""
+    if concept_token and any(
+        marker in concept_token for marker in _CUSTOMER_PREPAYMENT_MOVEMENT_CONCEPT_MARKERS
+    ):
+        return True
+    if "asset" in concept_token and "liab" not in concept_token:
+        return True
+    if "receivable" in concept_token:
+        return True
+    if "asset" in low or "receivable" in low:
+        return True
+    if any(marker in low for marker in _CUSTOMER_PREPAYMENT_MOVEMENT_LABEL_MARKERS):
+        return True
+    return False
+
+
+def _explicitly_noncurrent_prepayment(concept_token: str, low: str) -> bool:
+    """Noncurrent / long-term markers win over unqualified WC default."""
+    if any(tok in concept_token for tok in ("noncurrent", "longterm")):
+        return True
+    if any(
+        tok in low
+        for tok in ("non-current", "noncurrent", "long-term", "long term")
+    ):
+        return True
+    return False
+
+
+def _customer_prepayment_liability_decision(
+    item: LineItem,
+) -> ClassificationDecision | None:
+    """Classify explicit gift-card / unearned / deferred-revenue / contract liabilities.
+
+    Deterministic operating liability; no guided-judgment case. Unqualified balances
+    default to working capital; explicitly noncurrent variants are long-term.
+    """
+    concept_token = _concept_token(item.concept or "")
+    low = _norm(item.label)
+
+    if _customer_prepayment_excluded(concept_token, low):
+        return None
+
+    concept_hit = concept_token in _CUSTOMER_PREPAYMENT_LIABILITY_CONCEPTS
+    label_hit = _customer_prepayment_label_hit(low)
+
+    # Exact concept aliases require compatible liability wording; label-only
+    # wording remains supported for unqualified deferred-revenue presentations.
+    if concept_hit and not label_hit:
+        return None
+    if not concept_hit and not label_hit:
+        return None
+
+    category = (
+        "Operating Long-Term Liability"
+        if _explicitly_noncurrent_prepayment(concept_token, low)
+        else "Operating Working Capital Liability"
+    )
+    return ClassificationDecision(
+        category,
+        ambiguous=False,
+        reason="Customer prepayment / deferred-revenue liability",
     )
 
 
@@ -495,6 +642,11 @@ def classify_balance_sheet_line(
 
     low = _norm(item.label)
 
+    # Label-only customer prepayments (empty / non-alias concepts).
+    prepayment = _customer_prepayment_liability_decision(item)
+    if prepayment is not None:
+        return prepayment
+
     # Ambiguous judgment calls — real default + flag
     if (
         _match_any(
@@ -630,8 +782,6 @@ def classify_balance_sheet_line(
             "trade payable",
             "payable",
             "accrued",
-            "deferred revenue",
-            "contract liability",
         ),
     ):
         return ClassificationDecision("Operating Working Capital Liability")

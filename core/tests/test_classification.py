@@ -1114,3 +1114,287 @@ def test_deterministic_standard_accounting_concepts_create_no_judgment_cases():
         "Non-controlling interests",
     }
     assert not any(case.label in forbidden_labels for case in cases)
+
+
+# --- Customer prepayment / gift-card / deferred-revenue liabilities (G1) ---
+
+
+@pytest.mark.parametrize(
+    ("label", "concept", "expected_category"),
+    [
+        (
+            "Unredeemed gift card liability",
+            "unredeemed_gift_card_liability",
+            "Operating Working Capital Liability",
+        ),
+        (
+            "Gift card liability",
+            "gift_card_liability",
+            "Operating Working Capital Liability",
+        ),
+        (
+            "Gift-card liability",
+            "gift_card_liability",
+            "Operating Working Capital Liability",
+        ),
+        (
+            "Unearned revenue",
+            "unearned_revenue",
+            "Operating Working Capital Liability",
+        ),
+        (
+            "Deferred revenue",
+            "deferred_revenue",
+            "Operating Working Capital Liability",
+        ),
+        (
+            "Contract liabilities",
+            "contract_liabilities",
+            "Operating Working Capital Liability",
+        ),
+        (
+            "Deferred revenue",
+            "",
+            "Operating Working Capital Liability",
+        ),
+        (
+            "Contract liability",
+            "",
+            "Operating Working Capital Liability",
+        ),
+        (
+            "Unredeemed gift card liability",
+            "",
+            "Operating Working Capital Liability",
+        ),
+        (
+            "Current deferred revenue",
+            "current_deferred_revenue",
+            "Operating Working Capital Liability",
+        ),
+        (
+            "Non-current deferred revenue",
+            "noncurrent_deferred_revenue",
+            "Operating Long-Term Liability",
+        ),
+        (
+            "Noncurrent contract liabilities",
+            "noncurrent_contract_liabilities",
+            "Operating Long-Term Liability",
+        ),
+        (
+            "Long-term unearned revenue",
+            "long_term_deferred_revenue",
+            "Operating Long-Term Liability",
+        ),
+        (
+            "Deferred revenue",
+            "noncurrent_deferred_revenue",
+            "Operating Long-Term Liability",
+        ),
+    ],
+)
+def test_customer_prepayment_liabilities_classify_deterministically(
+    label, concept, expected_category
+):
+    decision = classify_balance_sheet_line(_li(label, 10, 12, concept=concept))
+    assert decision.category == expected_category
+    assert decision.ambiguous is False
+    assert decision.judgment_code is None
+    assert decision.overridden is False
+    assert "prepayment" in decision.reason.lower() or "deferred" in decision.reason.lower()
+
+
+@pytest.mark.parametrize(
+    ("label", "concept"),
+    [
+        ("Gift cards", "gift_cards"),
+        ("Gift", "gift"),
+        ("Revenue", "revenue"),
+        ("Contract", "contract"),
+        ("Card liability", "card_liability"),
+        ("Miscellaneous balance", "unredeemed_gift_card_liability"),
+        ("Miscellaneous balance", "deferred_revenue"),
+        ("Contract asset", "contract_asset"),
+        ("Contract assets", "contract_assets"),
+        ("Gift card receivable", "gift_card_receivable"),
+        (
+            "Derecognition of unredeemed gift card liability",
+            "derecognition_of_unredeemed_gift_card_liability",
+        ),
+        (
+            "Unredeemed gift card liability",
+            "change_in_unredeemed_gift_card_liability",
+        ),
+        (
+            "Change in unredeemed gift card liability",
+            "unredeemed_gift_card_liability",
+        ),
+    ],
+)
+def test_customer_prepayment_unsupported_pairs_fail_closed_or_safe(label, concept):
+    """Unsupported / contradictory pairs must not use the new liability rule."""
+    try:
+        decision = classify_balance_sheet_line(_li(label, 10, 12, concept=concept))
+    except UnclassifiedBalanceSheetLineError:
+        return
+    # Safe existing classification only — never the prepayment liability reason.
+    assert "Customer prepayment" not in decision.reason
+
+
+def test_customer_prepayment_does_not_create_judgment_cases():
+    fin = StandardizedFinancials(
+        ticker="PREPAY",
+        company_name="Prepayment Co",
+        currency="HKD",
+        units="HKD in Millions",
+        jurisdiction="HK",
+        periods=_periods(),
+        income_statement=[],
+        balance_sheet=[
+            _li(
+                "Unredeemed gift card liability",
+                8,
+                9,
+                concept="unredeemed_gift_card_liability",
+            ),
+            _li("Deferred revenue", 5, 6, concept="deferred_revenue"),
+            _li(
+                "Non-current deferred revenue",
+                3,
+                4,
+                concept="noncurrent_deferred_revenue",
+            ),
+            _li("Cash and cash equivalents", 40, 42, concept="cash"),
+            _li("Share capital and reserves", 24, 23, concept="retained_earnings"),
+        ],
+        cash_flow=[],
+    )
+    periods = [P1, P2]
+    reform = reformulate_balance_sheet(fin, periods)
+    cases = classification_judgment_cases(fin, periods, reform)
+    forbidden = {
+        "Unredeemed gift card liability",
+        "Deferred revenue",
+        "Non-current deferred revenue",
+    }
+    assert not any(case.label in forbidden for case in cases)
+
+
+def test_customer_prepayment_override_still_wins():
+    item = _li(
+        "Unredeemed gift card liability",
+        10,
+        12,
+        concept="unredeemed_gift_card_liability",
+    )
+    default = classify_balance_sheet_line(item)
+    assert default.category == "Operating Working Capital Liability"
+    assert default.overridden is False
+
+    overridden = classify_balance_sheet_line(item, override="Financial Liability")
+    assert overridden.category == "Financial Liability"
+    assert overridden.overridden is True
+    assert overridden.reason == "User override"
+
+
+def test_customer_prepayment_preserves_deferred_tax_lease_and_equity():
+    dtl = classify_balance_sheet_line(
+        _li("Deferred tax liabilities", 10, 12, concept="deferred_tax_liabilities")
+    )
+    assert dtl.category == "Operating Long-Term Liability"
+    assert dtl.ambiguous is True
+
+    lease = classify_balance_sheet_line(
+        _li("Lease liabilities", 10, 12, concept="lease_liability_current")
+    )
+    assert lease.category == "Operating Long-Term Liability"
+    assert lease.judgment_code == "lease_liability_operating_vs_financing"
+
+    equity = classify_balance_sheet_line(
+        _li("Share capital", 10, 12, concept="share_capital")
+    )
+    assert equity.category == "Equity"
+
+    cash = classify_balance_sheet_line(
+        _li("Cash and cash equivalents", 10, 12, concept="cash")
+    )
+    assert cash.category == "Financial Asset"
+
+
+def test_customer_prepayment_reformulation_reduces_nowc_and_nola_not_net_debt():
+    """Current prepayments cut NOWC; noncurrent cut NOLA; neither raises Net Debt."""
+    fin = StandardizedFinancials(
+        ticker="GC",
+        company_name="Gift Card Co",
+        currency="USD",
+        units="USD in Thousands",
+        jurisdiction="US",
+        periods=_periods(),
+        income_statement=[],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 100, 110, concept="cash"),
+            _li("Accounts receivable", 40, 42, concept="accounts_receivable"),
+            _li("Property, plant and equipment", 80, 85, concept="ppe"),
+            _li("Accounts payable", 15, 16, concept="accounts_payable"),
+            _li(
+                "Unredeemed gift card liability",
+                20,
+                22,
+                concept="unredeemed_gift_card_liability",
+            ),
+            _li(
+                "Non-current deferred revenue",
+                10,
+                11,
+                concept="noncurrent_deferred_revenue",
+            ),
+            _li("Long-term debt", 30, 28, concept="long_term_debt"),
+            _li("Share capital and reserves", 145, 160, concept="retained_earnings"),
+            _li("Total assets", 220, 237, concept="total_assets"),
+            _li("Total liabilities", 75, 77, concept="total_liabilities"),
+            _li("Total equity", 145, 160, concept="total_equity"),
+        ],
+        cash_flow=[],
+    )
+    periods = [P1, P2]
+    reform = reformulate_balance_sheet(fin, periods)
+    check_reformulation_integrity(reform, periods)
+
+    # NOWC = AR - AP - gift card = 40-15-20 = 5 ; 42-16-22 = 4
+    assert reform.nowc == (5.0, 4.0)
+    # NOLA = PPE - noncurrent deferred = 80-10 = 70 ; 85-11 = 74
+    assert reform.nola == (70.0, 74.0)
+    # Net Debt = LT debt - cash = 30-100 = -70 ; 28-110 = -82
+    assert reform.net_debt == (-70.0, -82.0)
+    assert reform.implied_equity == reform.reported_equity
+
+    without_prepay = reformulate_balance_sheet(
+        StandardizedFinancials(
+            ticker="GC",
+            company_name="Gift Card Co",
+            currency="USD",
+            units="USD in Thousands",
+            jurisdiction="US",
+            periods=_periods(),
+            income_statement=[],
+            balance_sheet=[
+                _li("Cash and cash equivalents", 100, 110, concept="cash"),
+                _li("Accounts receivable", 40, 42, concept="accounts_receivable"),
+                _li("Property, plant and equipment", 80, 85, concept="ppe"),
+                _li("Accounts payable", 15, 16, concept="accounts_payable"),
+                _li("Long-term debt", 30, 28, concept="long_term_debt"),
+                _li(
+                    "Share capital and reserves",
+                    175,
+                    193,
+                    concept="retained_earnings",
+                ),
+            ],
+            cash_flow=[],
+        ),
+        periods,
+    )
+    assert reform.nowc[0] < without_prepay.nowc[0]
+    assert reform.nola[0] < without_prepay.nola[0]
+    assert reform.net_debt[0] == without_prepay.net_debt[0]

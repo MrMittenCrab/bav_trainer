@@ -76,7 +76,6 @@ DILUTED_WAS_ANCHORS = {
 }
 
 BUILD_BLOCKER_LABELS = {
-    "Unredeemed gift card liability",
     "Property and equipment, net",
     "Common stock",
 }
@@ -440,11 +439,30 @@ def test_reconciled_axis_anchors_and_conflicts():
         assert by_year[year]["source_sha256"] == digest
 
 
-def test_build_blocker_is_unclassified_balance_sheet_lines(tmp_path: Path):
-    """Current generic build is blocked before any LULU-specific fix.
+def test_gift_card_liability_classifies_across_all_periods():
+    """G1: unchanged Lululemon gift-card row is operating WC liability in every period."""
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    item = next(
+        row
+        for row in fin.balance_sheet
+        if row.concept == "unredeemed_gift_card_liability"
+        and row.label == "Unredeemed gift card liability"
+    )
+    assert set(item.values) >= set(EXPECTED_PERIODS)
+    decision = classify_balance_sheet_line(item)
+    assert decision.category == "Operating Working Capital Liability"
+    assert decision.ambiguous is False
+    assert decision.judgment_code is None
+    assert decision.overridden is False
+    for period in EXPECTED_PERIODS:
+        assert item.values[period] is not None
 
-    First raise is Unredeemed gift card liability; PPE and Common stock also
-    fail closed under the same generic classifier.
+
+def test_build_blocker_is_unclassified_balance_sheet_lines(tmp_path: Path):
+    """After G1, build remains blocked on PPE and Common stock only.
+
+    First raise is Property and equipment, net; Common stock also fails closed
+    under the same generic classifier.
     """
     fin = standardized_from_payload(_load_json(STD_JSON))
 
@@ -458,8 +476,21 @@ def test_build_blocker_is_unclassified_balance_sheet_lines(tmp_path: Path):
             unclassified.add(item.label)
     assert unclassified == BUILD_BLOCKER_LABELS
 
+    gift = next(
+        row
+        for row in fin.balance_sheet
+        if row.label == "Unredeemed gift card liability"
+        and row.concept == "unredeemed_gift_card_liability"
+    )
+    assert (
+        classify_balance_sheet_line(gift).category
+        == "Operating Working Capital Liability"
+    )
+
     out = tmp_path / "Lululemon"
-    with pytest.raises(UnclassifiedBalanceSheetLineError, match="Unredeemed gift card liability"):
+    with pytest.raises(
+        UnclassifiedBalanceSheetLineError, match="Property and equipment, net"
+    ):
         build_training_workbook(fin, out)
 
 

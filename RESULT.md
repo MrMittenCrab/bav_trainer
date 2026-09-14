@@ -1,40 +1,41 @@
-# RESULT.md — Step 9M.2 Repair Failure-Path Artifact Immutability Verification
+# RESULT.md — Step 9M.2.1 Generic Gift-Card / Deferred-Revenue Liability Classification (G1)
 
 **Status:** PASS  
 **Completion:** DONE  
-**Next step:** Step **9M.2.1** — Generic Gift-Card / Deferred-Revenue Liability Classification (G1)
+**Next step:** Step **9M.2.2** — Generic Property-and-Equipment Classification and PPE Identity (G2)
 
-**Plan base:** `9bb3880dc75fbca5ff9c8f0b14585bb405818bd2`  
+**Plan base:** `9c0a6aab0e9e7cc70bdb6c24d2f9cd90daee4d81`  
 `TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged).  
-No commit / push / sync / checkpoint. No Step 9M.2.1 or forecasting/valuation work.
+No commit / push / sync / checkpoint. No G2–G7 or forecasting/valuation work.
 
-Supersedes prior Step 9M.2 PASS (artifact isolation).
-
----
-
-## Repair
-
-In `core/tests/test_lululemon_benchmark.py`:
-
-1. Extracted `_guarded_deterministic_reconcile`: both reconcile passes, stdout checks, inter-run match, and committed-baseline comparisons run under `try`; committed-byte reread/equality runs in `finally`.
-2. Unchanged committed bytes preserve the original failure; mutations raise `AssertionError` naming affected artifacts.
-3. Failure-path coverage:
-   - subprocess failure at pass 1 and pass 2;
-   - comparison failure at inter-run and committed-baseline;
-   - each path propagates the injected failure and still executes final verification.
-4. Parameterized temp-mutation guard across `ARTIFACT_NAMES` × `{pass1, inter_run, baseline}`: mutation before injected failure is detected and named; altered temp copies are not restored.
-5. Retained `test_reconcile_drift_is_detected_without_rewriting_expected`.
+Supersedes prior Step 9M.2 PASS (failure-path immutability).
 
 ---
 
-## Failure-path coverage
+## What changed
 
-| Path | Propagates failure | Final reread runs | Mutation named |
-|---|---|---|---|
-| subprocess fail pass 1 / 2 | yes | yes | n/a (committed unchanged) |
-| inter-run comparison fail | yes | yes | n/a |
-| committed-baseline comparison fail | yes | yes | n/a |
-| temp mutation + injected fail (3 artifacts × 3 sites) | immutability AssertionError | yes | yes; copy left altered |
+In `core/model/classification.py`:
+
+1. Added guarded deterministic `_customer_prepayment_liability_decision` for explicit gift-card, unearned-revenue, deferred-revenue, and contract-liability balances.
+2. Bounded concept aliases + compatible liability label phrases; rejects generic “gift”/“card”/“contract”/“revenue”, asset/receivable wording, and movement/derecognition concepts/labels.
+3. Unqualified balances → `Operating Working Capital Liability`; explicitly noncurrent/long-term → `Operating Long-Term Liability` (noncurrent checked first).
+4. Wired into the concept chain and label path; removed deferred-revenue/contract-liability from the broad payable WC substring list so maturity handling stays consistent.
+5. Overrides and existing deferred-tax / lease / financial / equity rules retain precedence.
+
+Tests: parameterized positive/negative/maturity coverage, no guided-judgment cases, override wins, synthetic two-period reformulation (NOWC/NOLA down; Net Debt unchanged). Lululemon: gift-card classifies all four periods; blockers now exactly PPE + Common stock; build probe first-raises `Property and equipment, net`.
+
+---
+
+## G1 closure evidence
+
+| Check | Result |
+|---|---|
+| `unredeemed_gift_card_liability` / `Unredeemed gift card liability` → OWCL | **pass** (all four LULU periods) |
+| Build unclassified set | `{Property and equipment, net, Common stock}` only |
+| Temp-dir build first exception | `Property and equipment, net` (G2) |
+| Source facts / committed reconcile bytes | **unchanged** |
+
+**Remaining visible blockers:** G2 (PPE wording/identity), G3 (Common stock). G4–G7 unchanged.
 
 ---
 
@@ -46,25 +47,26 @@ In `core/tests/test_lululemon_benchmark.py`:
 | conflicts.json | `d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0` | 4718 | yes |
 | provenance.json | `2d4d770e7fede9d30a576ba82c031157895fee5224a3094f034fc466e546d269` | 698793 | yes |
 
-Before and after digests are identical for all three committed artifacts.
+Before and after digests are identical for all three committed Lululemon artifacts.
 
 ---
 
-## Measured verification
+## Measured verification (this step)
 
 ```text
-PYTHONPATH=. pytest core/tests/test_lululemon_benchmark.py -q
-→ 22 passed in 3.24s
+PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_lululemon_benchmark.py -q
+→ 126 passed in 3.13s
 
-PYTHONPATH=. pytest core/tests/test_lululemon_benchmark.py \
-  core/tests/test_fast_retailing_benchmark.py -q
-→ 154 passed in 31.01s
+PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q
+→ 132 passed in 27.77s
 
 PYTHONPATH=. pytest core/tests -q
-→ 736 passed in 90.24s
+→ 768 passed in 86.87s
 ```
 
-Incidental FR/DEMO workbook/provenance refreshes from the suite were restored; final working-tree diff is `core/tests/test_lululemon_benchmark.py` (+ this `RESULT.md`).
+Prior Step 9M.2 recorded 736 core passes; this run is newly executed (+32 from G1 coverage and related additions).
+
+Incidental FR/DEMO workbook/provenance refreshes from the suite were restored; final working-tree diff is `core/model/classification.py`, `core/tests/test_classification.py`, `core/tests/test_lululemon_benchmark.py`, and this `RESULT.md`.
 
 ---
 
@@ -72,12 +74,11 @@ Incidental FR/DEMO workbook/provenance refreshes from the suite were restored; f
 
 | Criterion | Result |
 |---|---|
-| Final committed-byte verification after success, subprocess failure, comparison failure | **pass** |
-| Unchanged artifacts preserve original failure; temp mutations detected without rewrite | **pass** |
-| Both successful reconcile runs match each other and all three committed artifacts | **pass** |
-| Focused LULU + combined benchmark + full core regressions | **pass** (22 / 154 / 736) |
-| Committed Lululemon artifact hashes unchanged | **pass** |
+| Positive / negative / maturity / override / reformulation tests | **pass** |
+| Lululemon G1 resolved; G2/G3 still explicit | **pass** |
+| Required checks + immutability / hash / no-issuer guards | **pass** |
+| Diff scoped to allowed files | **pass** |
 
 **Plan changes needed:** none.
 
-**Unresolved:** G1–G7 as previously recorded; Step 9 **not** complete. Propose **Step 9M.2.1 — Generic Gift-Card / Deferred-Revenue Liability Classification (G1)**.
+**Unresolved:** G2–G7 as previously recorded; Step 9 **not** complete. Propose **Step 9M.2.2 — Generic Property-and-Equipment Classification and PPE Identity (G2)**.
