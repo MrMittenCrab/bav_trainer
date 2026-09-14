@@ -1,45 +1,48 @@
-# Step 9 — Persistent Fast Retailing Release Pair
+# Step 9 — Release Source Fidelity and Structural Parity
 
-**Base:** `1547e262e68229e93b51d5fe0dbb8f4b6db04cce`
+**Base:** `68f90e5e85ec1e47a9cdb3a5b5c3067251262f98`
 **Incoming review:** PROBLEMS
-**Goal:** Generate and verify persistent, human-reviewable Fast Retailing historical Trainer and Answer Key through the production pipeline before resuming normal Step 9 work.
+**Goal:** Reject persisted Fast Retailing releases with corrupted historical source facts, hidden historical sheets, or mismatched visible layouts.
 
 **Read-only:** `TARGET.md`, `IMPLEMENTATION.md`; Cursor must never modify either file.
-**Writable files:** `scripts/build_fast_retailing_release.py` (new), `scripts/audit_fast_retailing_benchmark.py`, `core/tests/test_fast_retailing_benchmark.py`, `release/fast_retailing/` (new), `RESULT.md`.
+**Writable:** `scripts/audit_fast_retailing_benchmark.py`, `core/tests/test_fast_retailing_benchmark.py`, `RESULT.md`.
 
-### Task 1: Add the reproducible release build
+### Task 1: Verify persisted source fidelity
 
-- Add `python scripts/build_fast_retailing_release.py`, resolving paths relative to the repository.
-- Validate the existing source-manifest hashes and FY2021–FY2025 extracted filings against `benchmark/fast_retailing/source/`.
-- Use the existing production reconciliation, standardization, reference-model, and workbook-generation entry points; do not copy temporary benchmark workbooks or duplicate financial calculations.
-- Persist `FastRetailing_Trainer.xlsx` and `FastRetailing_Answer_Key.xlsx` under `release/fast_retailing/`, with any sidecars required by normal Check.
-- Preserve generated standardized data, provenance, and conflicts in a supporting subdirectory; retain existing source facts and benchmark fixtures unchanged.
-- Add a concise release README documenting dependencies, build command, workbook paths, and normal Check usage.
-- Fail with a nonzero exit on validation, generation, or verification failure. Keep forecasting and valuation dormant.
+- Pass the loaded `StandardizedFinancials` into `_verify_release_pair_contract`.
+- Replace the numeric-cell population heuristic with exhaustive comparison of persisted historical source cells in both workbooks against standardized inputs.
+- Resolve source rows and periods using existing production naming/mapping conventions; cover statement facts and supplied historical share data, preserving units, signs, zeros, and missing-value semantics.
+- Reject missing required source sheets, rows, periods, blanked facts, altered values, and formulas substituted for source literals.
+- Check each workbook independently against inputs so identical corruption in both files fails.
+- Report workbook, sheet, cell, source identity, period, expected value, and actual value on failure. Do not generate replacement workbooks.
 
-### Task 2: Verify the actual release pair
+### Task 2: Enforce visibility and layout parity
 
-- Extend the existing benchmark audit to accept explicit release workbook paths and generated standardized input while preserving its default test interface.
-- Reuse benchmark checks against the persisted pair; do not regenerate substitute workbooks during release verification.
-- Require all audit stages to pass and assert Check counts explicitly: pristine Trainer `(correct, incorrect, blank, total) = (0, 0, 491, 491)`; answer-filled copy `(491, 0, 0, 491)`.
-- Perform all mutating Check and answer-fill operations on temporary copies with required sidecars; leave release workbooks pristine.
-- Verify matching semantic practice cells, populated historical source facts, blank yellow Trainer cells without Notes, Answer Key formulas with non-empty Notes, and visible structural parity.
-- Preserve existing benchmark expectations for company identity, FY2021–FY2025 periods, historical anchors, share basis, optional modules, and retained conflicts.
-- Add regression coverage for explicit-pair verification, missing or mismatched artifacts, failed counts, and unchanged release files after verification.
+- Determine visibility from `sheet_state`, not sheet-name prefixes.
+- Require historical source and active practice sheets to be visible in both workbooks; reject jointly hidden historical sheets as well as visibility mismatches.
+- Preserve intentionally hidden metadata and dormant forecast placeholders.
+- Compare sheet order/state and visible historical structure: cell coordinates, labels, dates, units, non-practice values/formulas, merged ranges, row heights, column widths, hidden rows/columns, freeze panes, and cell formatting.
+- Compare effective formatting rather than workbook-local style IDs.
+- Allow only the defined practice-content and Answer-Key Note differences; retain existing blank-yellow Trainer and formula-plus-Note Answer Key checks.
+- Surface failures through existing audit stage reporting and nonzero CLI exit.
 
-### Task 3: Build, verify, and record
+### Task 3: Add corruption regressions and verify
 
-- Run the release build and verify the persistent pair.
-- Repeat the build and compare workbook content, semantic maps, and audit payloads for reproducibility; exclude only documented packaging timestamps.
+- Use temporary copies of the persisted pair and required sidecars for corruption tests.
+- Parameterize source mutations across Trainer, Answer Key, and both together; cover earlier-year statement facts, zero values, historical shares, deleted facts, and missing source sheets.
+- Cover `hidden` and `veryHidden` historical sheets, including both workbooks hidden identically.
+- Cover mismatched labels, merged ranges, dimensions, row/column visibility, freeze panes, and formatting.
+- Assert specific contract failures, not merely failed Check counts; prove explicit-pair verification does not invoke workbook generation.
+- Verify the unchanged persisted pair passes all stages with pristine counts `(0, 0, 491, 491)` and filled counts `(491, 0, 0, 491)`.
+- Assert workbook and sidecar hashes remain unchanged after successful and failed verification.
 - Run `python -m pytest core/tests/test_fast_retailing_benchmark.py core/tests/test_historical_v1_exit_gate.py -q`.
 - Run `python -m pytest core/tests -q` and `git diff --check`.
-- Inspect the final changed-file list; exclude incidental test-generated changes while preserving pre-existing user changes.
-- Record revision, exact commands, measured results, artifact paths and SHA-256 hashes, reproducibility comparison, and review status in `RESULT.md`.
-- Use only PASS, PROBLEMS, or BLOCKED for review status. Carry any unfinished release requirement forward explicitly; keep further forecasting work deferred.
+- Run the explicit-pair audit CLI against `release/fast_retailing/` with its supporting inputs, `--verify-release-pair --require-check-counts --no-baseline`.
+- Record revision, exact commands, measured results, artifact hashes, corruption coverage, and PASS/PROBLEMS/BLOCKED status in `RESULT.md`.
 
 ### Acceptance criteria
 
-- Exactly two user-facing release workbooks persist under `release/fast_retailing/` and are reproducible from checked-in source-grounded inputs.
-- Existing Fast Retailing benchmark checks verify that persisted pair successfully.
-- Release Trainer remains pristine and the matching Answer Key remains usable for human review.
-- Required checks pass; only writable files change. No commit or push.
+- Every required persisted source fact matches standardized input in both workbooks.
+- Hidden required historical sheets and visible structural mismatches fail release verification.
+- Pristine release verification and required regressions pass without modifying release artifacts.
+- Only writable files change; no commit or push. Further stage work remains deferred.
