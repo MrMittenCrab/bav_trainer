@@ -1,48 +1,48 @@
-# Step 9M.2.2 — Generic Property-and-Equipment Classification and PPE Identity (G2)
+# Step 9M.2.2 — Repair PPE Balance Boundaries and Liability Preservation (G2)
 
-**Base:** `f718ef4d90a8c6a0ab22766c8b2b9ba73be3634a`
-**Previous step:** Step 9M.2.1 — PASS per supplied review.
-**Goal:** Classify generic property-and-equipment balances and resolve their PPE identity without changing source facts.
+**Base:** `ba110d4283616b3f336292d0cad35befe60569a8`
+**Status:** PROBLEMS — repair G2 before advancing.
+**Goal:** Recognize PPE balances without reclassifying payables or admitting PPE movements.
 
 ## Constraints
 
 - Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`.
-- Limit changes to `core/model/classification.py`, `core/model/line_resolver.py`, `core/tests/test_classification.py`, `core/tests/test_line_resolver.py`, `core/tests/test_fixed_asset.py`, `core/tests/test_lululemon_benchmark.py`, and `RESULT.md`.
-- Preserve source inputs, committed reconciliation artifacts, baseline hashes, and failure-path immutability guards. Generate verification artifacts only in temporary directories.
+- Limit changes to `core/model/classification.py`, `core/tests/test_classification.py`, `core/tests/test_line_resolver.py`, `core/tests/test_lululemon_benchmark.py`, and `RESULT.md`.
+- Preserve source facts, committed reconciliation artifacts, baseline hashes, and failure-path immutability guards. Generate verification artifacts only in temporary directories.
 - No issuer-specific rules, source relabeling, benchmark overrides, G3–G7 implementation, or forecasting/valuation work.
 
-## Task 1 — Classify property-and-equipment balances
+## Task 1 — Bound PPE classification and close fallback escapes
 
-- Recognize `Property and equipment, net` and bounded generic property-and-equipment balance wording as `Operating Long-Term Asset`, without a new judgment case.
-- Support exact PPE balance concepts `property_plant_equipment` and `property_plant_and_equipment`.
-- Preserve explicit override precedence and existing PP&E classification behavior.
-- Prevent the new matching from admitting purchases, proceeds, depreciation, impairment, or other PPE movement rows as PPE balances; retain unrelated liability and asset treatment.
-- Add public-classifier regressions for the reported row, label-only and concept-only recognition, wording variants, misleading movement labels/concepts, and override precedence.
+- Replace PPE phrase-substring matching with normalized whole-label balance matching; retain supported punctuation, plant wording, and leading/trailing `net` variants.
+- Preserve exact balance concepts `property_plant_equipment` and `property_plant_and_equipment`, neutral-label concept recognition, and explicit override precedence.
+- Prevent PPE label recognition inside `_classify_by_concept` or label fallbacks from preempting existing payable/liability classification.
+- Reject PPE movement variants regardless of marker position, including trailing additions, disposals, payments, sales, and changes, with singular/plural forms.
+- Ensure movement rejection cannot fall through to legacy plant/PPE asset matching. Preserve legitimate PPE balances and unrelated classification behavior.
 
-## Task 2 — Resolve canonical PPE identity
+## Task 2 — Add public-path regressions
 
-- In `line_resolver.py`, recognize `property_plant_and_equipment` as an explicit alias of canonical `property_plant_equipment`; leave stored `LineItem.concept` unchanged.
-- Treat canonical and alias concepts at the same explicit-concept priority, ahead of label matches; multiple matching rows must raise `AmbiguousLineError`.
-- Add exact normalized net-balance label aliases, including `property and equipment net` and `property plant and equipment net`.
-- Test alias-only recognition with a neutral label, label-only recognition, concept precedence, duplicate canonical/alias ambiguity, and rejection of movement-label near matches.
-- Verify fixed-asset availability and independently calculated PPE averages, turnover, and intensity using synthetic source values. Preserve first-period blanks and missing/ambiguous-source behavior.
+- Assert `Accounts payable for property and equipment` and `Property and equipment payable` remain `Operating Working Capital Liability`, with empty, unrelated, and applicable payable concepts.
+- Assert `Property and equipment additions` and equivalent trailing movement variants raise `UnclassifiedBalanceSheetLineError`; cover generic and plant wording.
+- Cover movement labels with empty, unrelated, and exact PPE balance concepts, plus balance labels carrying movement concepts.
+- Replace the regression that expects `Purchases of property, plant and equipment` to classify as an asset with fail-closed expectations.
+- Retain positive balance, concept-only, no-judgment, and override tests; verify explicit overrides still win for rejected movements.
+- Extend resolver near-match tests for the reported movement variants with no explicit balance identity; preserve canonical/alias priority, ambiguity, and stored concepts.
 
-## Task 3 — Verify benchmark progression and record completion
+## Task 3 — Verify G2 and record measured completion
 
-- On unchanged Lululemon standardized input, assert the PPE row classifies and resolves to the original item/index with all four period values intact; `fixed_asset_applicable` becomes true.
-- Update benchmark expectations to exactly `{Common stock}` as the unclassified set and `Common stock` as the temporary build probe’s first exception.
-- Retain G1 gift-card coverage, deterministic reconciliation, committed hashes, failure-path immutability, and no-issuer-branch guards.
+- Confirm unchanged Lululemon PPE resolves to its original item/index with all four values intact and `fixed_asset_applicable` true.
+- Preserve exactly `{Common stock}` as the unclassified set and `Common stock` as the temporary build probe’s first exception.
+- Retain G1 coverage, fixed-asset calculations, deterministic reconciliation, and artifact immutability guards.
 - Run:
   - `PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_line_resolver.py core/tests/test_fixed_asset.py core/tests/test_lululemon_benchmark.py -q`
   - `PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q`
   - `PYTHONPATH=. pytest core/tests -q`
-- Record completion, measured results, artifact hashes before/after verification, remaining blockers, and final diff scope in `RESULT.md`.
-- Distinguish the supplied prior review’s 177 passing tests and seven reproduced base failures from the excluded mismatched log. Record new failures or execution restrictions explicitly; do not reuse unsupported full-suite claims.
+- Update `RESULT.md` to supersede the unsupported G2 closure with repaired behavior, measured command results, artifact hashes before/after, remaining blockers, and final diff scope. Record failures or execution restrictions explicitly.
 
 ## Acceptance and next step
 
-- Generic PPE classification and canonical resolution succeed without source mutation, unsafe new matches, or silent ambiguity.
-- Lululemon fixed-asset availability is restored; the build advances to the exact G3 `Common stock` blocker.
-- Required checks pass and committed artifacts remain unchanged; any verification restriction is explicitly recorded.
-- On failure, retain **Step 9M.2.2 — Generic Property-and-Equipment Classification and PPE Identity (G2)**.
+- PPE balance matching preserves payable/liability categories and rejects movement variants through the public classifier, including legacy fallback paths.
+- Valid PPE classification, resolver identity, fixed-asset behavior, and the exact Lululemon G3 blocker remain intact.
+- Required checks pass and committed artifacts remain unchanged; incomplete verification does not establish PASS.
+- On failure, retain **Step 9M.2.2 — Repair PPE Balance Boundaries and Liability Preservation (G2)**.
 - On PASS, propose **Step 9M.2.3 — Generic Common-Stock Equity Classification (G3)**; Step 9 remains incomplete.
