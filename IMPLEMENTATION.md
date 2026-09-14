@@ -1,8 +1,8 @@
-# Step 9M.2.2 — Repair PPE Balance Boundaries and Liability Preservation (G2)
+# Step 9M.2.2 — Normalize PPE Topic Detection and Reject Punctuation Movements (G2)
 
-**Base:** `ba110d4283616b3f336292d0cad35befe60569a8`
+**Base:** `ab19f79ba93ce5eca0b59a92644ec0ece2d06476`
 **Status:** PROBLEMS — repair G2 before advancing.
-**Goal:** Recognize PPE balances without reclassifying payables or admitting PPE movements.
+**Goal:** Reject PPE movements consistently across punctuation variants through the public classifier.
 
 ## Constraints
 
@@ -11,24 +11,22 @@
 - Preserve source facts, committed reconciliation artifacts, baseline hashes, and failure-path immutability guards. Generate verification artifacts only in temporary directories.
 - No issuer-specific rules, source relabeling, benchmark overrides, G3–G7 implementation, or forecasting/valuation work.
 
-## Task 1 — Bound PPE classification and close fallback escapes
+## Task 1 — Normalize PPE topic detection consistently
 
-- Replace PPE phrase-substring matching with normalized whole-label balance matching; retain supported punctuation, plant wording, and leading/trailing `net` variants.
-- Preserve exact balance concepts `property_plant_equipment` and `property_plant_and_equipment`, neutral-label concept recognition, and explicit override precedence.
-- Prevent PPE label recognition inside `_classify_by_concept` or label fallbacks from preempting existing payable/liability classification.
-- Reject PPE movement variants regardless of marker position, including trailing additions, disposals, payments, sales, and changes, with singular/plural forms.
-- Ensure movement rejection cannot fall through to legacy plant/PPE asset matching. Preserve legitimate PPE balances and unrelated classification behavior.
+- Apply `_ppe_label_key` consistently to label topic detection and its phrase vocabulary, including comma, Oxford-comma, ampersand, and whitespace variants.
+- Keep topic recognition distinct from whole-label balance recognition; do not broaden balance matching to substrings.
+- Ensure `_is_ppe_movement` rejects normalized PPE topics before concept classification and legacy asset fallbacks, while explicit overrides retain precedence.
+- Preserve exact PPE balance concepts, neutral-label concept recognition, supported `net` balances, payable/liability classification, and unrelated behavior.
 
-## Task 2 — Add public-path regressions
+## Task 2 — Add public-path punctuation regressions
 
-- Assert `Accounts payable for property and equipment` and `Property and equipment payable` remain `Operating Working Capital Liability`, with empty, unrelated, and applicable payable concepts.
-- Assert `Property and equipment additions` and equivalent trailing movement variants raise `UnclassifiedBalanceSheetLineError`; cover generic and plant wording.
-- Cover movement labels with empty, unrelated, and exact PPE balance concepts, plus balance labels carrying movement concepts.
-- Replace the regression that expects `Purchases of property, plant and equipment` to classify as an asset with fail-closed expectations.
-- Retain positive balance, concept-only, no-judgment, and override tests; verify explicit overrides still win for rejected movements.
-- Extend resolver near-match tests for the reported movement variants with no explicit balance identity; preserve canonical/alias priority, ambiguity, and stored concepts.
+- Through `classify_balance_sheet_line`, assert `Property plant & equipment additions` and `Property, plant, and equipment disposals` raise `UnclassifiedBalanceSheetLineError`.
+- Parameterize both reported labels with empty, unrelated, and both exact PPE balance concepts so concept recognition cannot mask label-topic failures.
+- Cover normalized topic variants with leading/trailing singular/plural movement markers, including additions, disposals, payments, sales, and changes.
+- Add matching punctuation balance controls that remain `Operating Long-Term Asset`; retain payable, movement-concept, no-judgment, and explicit-override coverage.
+- Extend resolver near-match regressions with both reported labels without explicit balance identity; preserve canonical/alias priority, ambiguity, and stored concepts.
 
-## Task 3 — Verify G2 and record measured completion
+## Task 3 — Verify and record measured completion
 
 - Confirm unchanged Lululemon PPE resolves to its original item/index with all four values intact and `fixed_asset_applicable` true.
 - Preserve exactly `{Common stock}` as the unclassified set and `Common stock` as the temporary build probe’s first exception.
@@ -37,12 +35,12 @@
   - `PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_line_resolver.py core/tests/test_fixed_asset.py core/tests/test_lululemon_benchmark.py -q`
   - `PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q`
   - `PYTHONPATH=. pytest core/tests -q`
-- Update `RESULT.md` to supersede the unsupported G2 closure with repaired behavior, measured command results, artifact hashes before/after, remaining blockers, and final diff scope. Record failures or execution restrictions explicitly.
+- Update `RESULT.md` to supersede the prior G2 PASS with the punctuation repair, measured command results, artifact hashes before/after, remaining blockers, and final diff scope. Record failures or execution restrictions explicitly.
 
 ## Acceptance and next step
 
-- PPE balance matching preserves payable/liability categories and rejects movement variants through the public classifier, including legacy fallback paths.
-- Valid PPE classification, resolver identity, fixed-asset behavior, and the exact Lululemon G3 blocker remain intact.
+- Both reported movements and their punctuation variants fail closed through the public classifier, including legacy fallback paths.
+- Valid PPE balances, payable/liability categories, override precedence, resolver identity, and the exact Lululemon G3 blocker remain intact.
 - Required checks pass and committed artifacts remain unchanged; incomplete verification does not establish PASS.
-- On failure, retain **Step 9M.2.2 — Repair PPE Balance Boundaries and Liability Preservation (G2)**.
+- On failure, retain **Step 9M.2.2 — Normalize PPE Topic Detection and Reject Punctuation Movements (G2)**.
 - On PASS, propose **Step 9M.2.3 — Generic Common-Stock Equity Classification (G3)**; Step 9 remains incomplete.
