@@ -1,34 +1,30 @@
-# Step 9M.2 — Repair Lululemon Benchmark Artifact Isolation
+# Step 9M.2 — Repair Failure-Path Artifact Immutability Verification
 
-**Base:** `32df12b1c253005575a76db5c768094f87c43489`
+**Base:** `9bb3880dc75fbca5ff9c8f0b14585bb405818bd2`
 **Status:** PROBLEMS
-**Goal:** Detect reconciliation fixture drift without modifying committed benchmark evidence.
+**Goal:** Verify committed reconciliation bytes even when reconciliation or comparison fails.
 
 ## Constraints
 
 - Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`.
 - Limit changes to `core/tests/test_lululemon_benchmark.py` and `RESULT.md`.
-- Keep committed reconciliation artifacts, baseline hashes, source inputs, and production behavior unchanged.
-- Preserve existing source-binding, financial-anchor, conflict, and build-blocker assertions.
-- Do not begin Step 9M.2.1 or forecasting/valuation work.
+- Preserve committed artifacts, baseline hashes, source inputs, production behavior, and existing benchmark assertions.
+- Keep generated artifacts and workbooks in temporary directories; never refresh or restore expected fixtures inside tests.
 
-## Task 1 — Isolate reconciliation outputs
+## Task 1 — Guarantee verification on failure
 
-In `core/tests/test_lululemon_benchmark.py`:
+- In `test_generic_reconcile_is_deterministic`, snapshot all three committed artifacts before either reconciliation run.
+- Put both subprocess runs, stdout assertions, inter-run comparisons, and committed-baseline comparisons inside `try`.
+- Move the committed-byte reread and equality assertion into `finally`.
+- Preserve the original exception when committed bytes are unchanged; report immutability failures with affected artifact names.
 
-- Remove the reconciliation subprocess targeting `RECONCILED`.
-- Run both reconciliation passes exclusively into separate `tmp_path` directories.
-- Read the committed `standardized.json`, `provenance.json`, and `conflicts.json` bytes before either run.
-- Assert both generated artifact sets match each other and the untouched committed bytes exactly.
-- Verify committed bytes remain unchanged after execution, including when comparison fails; never refresh or restore fixtures inside tests.
+## Task 2 — Cover the guarded failure paths
 
-## Task 2 — Prove drift is detected
-
-- Add a regression using a temporary copy of the expected artifacts and the same comparison path as the benchmark test.
-- Parameterize drift across all three artifact names; alter only temporary expected copies.
-- Require each mismatch to fail comparison and identify the affected artifact.
-- Confirm the altered expected copy remains unchanged by the comparison.
-- Keep generated workbooks and other test outputs in temporary directories.
+- Exercise the same guarded execution path used by the benchmark, using monkeypatching and temporary expected artifacts.
+- Inject subprocess failure at each reconciliation pass and comparison failure at both inter-run and committed-baseline comparisons.
+- Assert each failure propagates and the final reread verifies all three artifacts.
+- Using temporary expected copies only, simulate artifact mutation before an injected failure; parameterize across `ARTIFACT_NAMES` and require the final guard to detect and identify the mutation without restoring it.
+- Retain the existing parameterized drift regression. New regressions must fail if final verification is moved back after the guarded block.
 
 ## Task 3 — Verify and record
 
@@ -38,16 +34,15 @@ Run:
 - `PYTHONPATH=. pytest core/tests/test_lululemon_benchmark.py core/tests/test_fast_retailing_benchmark.py -q`
 - `PYTHONPATH=. pytest core/tests -q`
 
-Capture reconciliation artifact hashes before and after verification and inspect repository changes. Do not regenerate committed evidence to make a comparison pass.
+Capture SHA-256 hashes of `benchmark/lululemon/reconciled/{standardized,provenance,conflicts}.json` before and after verification; inspect repository changes.
 
-Update `RESULT.md` with the repair, actual test results, before/after artifact hashes, and any remaining failures. Supersede the previous PASS assessment with measured repair status.
+Update `RESULT.md` with the repair, measured command results, failure-path coverage, before/after hashes, and remaining failures. Supersede the previous PASS assessment.
 
 ## Acceptance and next step
 
-- Reconciliation tests write exclusively to temporary directories.
-- Two generated runs match all three untouched committed artifacts byte-for-byte.
-- Drift in any expected artifact fails comparison without rewriting evidence.
-- Focused Lululemon, combined benchmark, and full core regressions pass.
-- Committed Lululemon artifact hashes remain unchanged.
-- On failure, retain **Step 9M.2 — Repair Lululemon Benchmark Artifact Isolation**.
+- Final committed-byte verification runs after success, subprocess failure, and comparison failure.
+- Unchanged artifacts preserve the original failure; temporary artifact mutations are detected without rewriting evidence.
+- Both successful reconciliation runs still match each other and all three committed artifacts byte-for-byte.
+- Required checks pass and committed artifact hashes remain unchanged.
+- On failure, retain **Step 9M.2 — Repair Failure-Path Artifact Immutability Verification**.
 - On PASS, propose **Step 9M.2.1 — Generic Gift-Card / Deferred-Revenue Liability Classification (G1)**; Step 9 remains incomplete.
