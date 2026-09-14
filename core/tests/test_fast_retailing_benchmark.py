@@ -253,6 +253,31 @@ def test_migration_reproduces_fy2025_anchors_and_conflict_parity():
             assert item["filing_year"]
             assert item["source"]["page"] > 0
 
+    # Committed provenance may predate filing_year on source_files; live
+    # reconciliation must retain all five bound filings with hashes + year.
+    from core.ingestion.filing_reconciler import reconcile_filings
+    from core.ingestion.filing_standardizer import reconciliation_provenance_payload
+
+    validated = []
+    for path in sorted(EXTRACTED.glob("FY*.json")):
+        filing = load_extracted_filing(path)
+        report = validate_extracted_filing(filing, source_root=SOURCE)
+        assert report.ok
+        validated.append((filing, report))
+    live_prov = reconciliation_provenance_payload(reconcile_filings(validated))
+    assert len(live_prov["source_files"]) == 5
+    live_names = {item["source_file"] for item in live_prov["source_files"]}
+    committed_names = {item["source_file"] for item in provenance["source_files"]}
+    assert live_names == committed_names
+    assert len(committed_names) == 5
+    for item in live_prov["source_files"]:
+        assert item["filing_year"]
+        assert item["source_file"]
+        assert item["source_sha256"]
+    for item in provenance["source_files"]:
+        assert item["source_file"]
+        assert item["source_sha256"]
+
     notes = provenance["note_facts"]
     lease_total = next(
         n

@@ -269,16 +269,6 @@ def reconciliation_provenance_payload(
             "status": "outside_model_axis",
         }
 
-    source_files = sorted(
-        {
-            (
-                value.selected.source_file,
-                value.selected.source_sha256,
-            )
-            for value in reconciled.values
-        }
-    )
-
     return {
         "company_name": reconciled.company_name,
         "ticker": reconciled.ticker,
@@ -288,7 +278,12 @@ def reconciliation_provenance_payload(
         "unit_scale": reconciled.unit_scale,
         "periods": [p.isoformat() for p in model_periods],
         "source_files": [
-            {"source_file": name, "source_sha256": sha} for name, sha in source_files
+            {
+                "filing_year": bound.filing_year,
+                "source_file": bound.source_file,
+                "source_sha256": bound.source_sha256,
+            }
+            for bound in reconciled.source_files
         ],
         "values": values,
         "omitted_incomplete_axis": omitted,

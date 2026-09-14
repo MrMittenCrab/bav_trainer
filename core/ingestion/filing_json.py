@@ -50,12 +50,15 @@ def _required_positive_int(payload: dict, key: str, *, context: str) -> int:
 def _parse_date(value: object, *, context: str = "date") -> date:
     if value is None:
         raise ValueError(f"{context} is required")
-    if not isinstance(value, str):
+    if not isinstance(value, str) or len(value) != 10:
         raise ValueError(f"invalid date: {value!r}")
     try:
-        return date.fromisoformat(value[:10])
+        parsed = date.fromisoformat(value)
     except ValueError as exc:
         raise ValueError(f"invalid date: {value!r}") from exc
+    if parsed.isoformat() != value:
+        raise ValueError(f"invalid date: {value!r}")
+    return parsed
 
 
 def _parse_source(payload: object, *, require_page: bool = True) -> SourceRef:

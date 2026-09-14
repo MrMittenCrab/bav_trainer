@@ -122,6 +122,68 @@ def test_matching_comparative_no_conflict(tmp_path: Path):
     assert reconciled.conflicts == ()
 
 
+def test_complete_bound_source_registry_retains_losers_and_supplemental_only(
+    tmp_path: Path,
+):
+    """Every validated bound filing stays in the registry, even without selections."""
+    # All of FY2024's statement observations lose to FY2025; note fact remains.
+    f2024 = _filing(
+        year=2024,
+        source_file="a2024.pdf",
+        revenue_values={
+            date(2024, 12, 31): (90.0, PresentationRole.CURRENT_PERIOD),
+        },
+        note_facts=(
+            SupplementalFact(
+                fact_type="lease_liability_total",
+                period=date(2024, 12, 31),
+                value=10.0,
+                status="reported",
+                source=SourceRef(page=7, note="17 Leases"),
+            ),
+        ),
+    )
+    f2025 = _filing(
+        year=2025,
+        source_file="a2025.pdf",
+        revenue_values={
+            date(2024, 12, 31): (100.0, PresentationRole.COMPARATIVE),
+            date(2025, 12, 31): (110.0, PresentationRole.CURRENT_PERIOD),
+        },
+    )
+    pair_2024 = _validated(tmp_path, f2024, b"2024")
+    pair_2025 = _validated(tmp_path, f2025, b"2025")
+    reconciled = reconcile_filings([pair_2024, pair_2025])
+
+    assert {(s.filing_year, s.source_file) for s in reconciled.source_files} == {
+        (2024, "a2024.pdf"),
+        (2025, "a2025.pdf"),
+    }
+    assert all(s.source_sha256 for s in reconciled.source_files)
+
+    selected_files = {v.selected.source_file for v in reconciled.values}
+    assert selected_files == {"a2025.pdf"}
+    assert any(obs.source_file == "a2024.pdf" for obs in reconciled.note_facts)
+
+    provenance = reconciliation_provenance_payload(reconciled)
+    registry = {
+        (item["filing_year"], item["source_file"], item["source_sha256"])
+        for item in provenance["source_files"]
+    }
+    expected = {
+        (bound.filing_year, bound.source_file, bound.source_sha256)
+        for bound in reconciled.source_files
+    }
+    assert registry == expected
+    assert len(provenance["source_files"]) == 2
+    for item in provenance["source_files"]:
+        assert item["filing_year"]
+        assert item["source_file"]
+        assert item["source_sha256"]
+    # Selected-only reconstruction would omit a2024.pdf entirely.
+    assert "a2024.pdf" not in selected_files
+
+
 def _assert_observation_fields(obs, *, filing_year, source_file, source_sha256, pdf_page, role, value):
     assert obs.filing_year == filing_year
     assert obs.source_file == source_file

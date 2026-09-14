@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from ..data.filing import ExtractedFiling, ExtractedStatementRow, PresentationRole
 
@@ -72,7 +72,13 @@ def validate_extracted_filing(
         source_file = filing.filing.source_file
         root = Path(source_root).resolve()
         raw = Path(source_file)
-        if raw.is_absolute() or ".." in raw.parts:
+        # Reject POSIX/Windows absolute paths and any ".." segment before
+        # existence checks or hashing so escaped candidates are never read.
+        if (
+            raw.is_absolute()
+            or PureWindowsPath(source_file).is_absolute()
+            or ".." in raw.parts
+        ):
             issues.append(
                 FilingValidationIssue(
                     "error",

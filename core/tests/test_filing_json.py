@@ -284,6 +284,7 @@ def test_current_period_consistency(tmp_path: Path):
 @pytest.mark.parametrize(
     "mutate,match",
     [
+        (lambda p: p.pop("company", None), "company"),
         (lambda p: p.__setitem__("company", "not-an-object"), "company"),
         (lambda p: p["company"].__setitem__("name", ""), r"company\.name"),
         (lambda p: p["company"].__setitem__("name", "   "), r"company\.name"),
@@ -311,6 +312,33 @@ def test_parser_rejects_missing_required_fields(tmp_path: Path, mutate, match):
         load_extracted_filing(path)
 
 
+@pytest.mark.parametrize(
+    "bad_date",
+    [
+        "2025-08-31junk",
+        "2025-08-31T00:00:00",
+        "2025/08/31",
+        "2025-02-30",
+    ],
+)
+def test_parser_rejects_non_exact_iso_dates(tmp_path: Path, bad_date: str):
+    payload = _minimal_filing_payload()
+    payload["filing"]["period_end"] = bad_date
+    path = tmp_path / "bad_date.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(ValueError, match="invalid date"):
+        load_extracted_filing(path)
+
+
+def test_parser_accepts_exact_iso_date(tmp_path: Path):
+    payload = _minimal_filing_payload()
+    payload["filing"]["period_end"] = "2025-08-31"
+    path = tmp_path / "exact_date.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    filing = load_extracted_filing(path)
+    assert filing.filing.period_end == date(2025, 8, 31)
+
+
 def test_parser_allows_empty_stock_code(tmp_path: Path):
     payload = _minimal_filing_payload()
     payload["company"]["stock_code"] = ""
@@ -327,6 +355,7 @@ def test_parser_allows_empty_stock_code(tmp_path: Path):
         "/Users/name/report.pdf",
         "../report.pdf",
         "subdir/../../report.pdf",
+        r"C:\Users\name\report.pdf",
     ],
 )
 def test_validate_rejects_escaping_source_paths(tmp_path: Path, source_file: str):

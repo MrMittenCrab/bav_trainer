@@ -72,6 +72,13 @@ class SupplementalConflict:
 
 
 @dataclass(frozen=True)
+class BoundSourceFile:
+    filing_year: int
+    source_file: str
+    source_sha256: str
+
+
+@dataclass(frozen=True)
 class ReconciledCompanyData:
     company_name: str
     ticker: str
@@ -85,6 +92,7 @@ class ReconciledCompanyData:
     note_facts: tuple[SupplementalObservation, ...]
     share_facts: tuple[SupplementalObservation, ...]
     supplemental_conflicts: tuple[SupplementalConflict, ...] = ()
+    source_files: tuple[BoundSourceFile, ...] = ()
     omitted_incomplete_axis: tuple[dict, ...] = ()
 
 
@@ -307,6 +315,21 @@ def reconcile_filings(
     supplemental_conflicts = _group_supplemental_conflicts(
         (*note_facts_t, *share_facts_t)
     )
+    # Explicit registry of every validated bound source — not derived from
+    # selected statement observations (losers and supplemental-only stay).
+    source_files = tuple(
+        sorted(
+            (
+                BoundSourceFile(
+                    filing_year=filing.filing.fiscal_year,
+                    source_file=filing.filing.source_file,
+                    source_sha256=report.computed_source_sha256 or "",
+                )
+                for filing, report in filings
+            ),
+            key=lambda s: (s.filing_year, s.source_file, s.source_sha256),
+        )
+    )
 
     return ReconciledCompanyData(
         company_name=company_name,
@@ -321,4 +344,5 @@ def reconcile_filings(
         note_facts=note_facts_t,
         share_facts=share_facts_t,
         supplemental_conflicts=supplemental_conflicts,
+        source_files=source_files,
     )
