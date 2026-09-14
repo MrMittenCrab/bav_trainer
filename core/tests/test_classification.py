@@ -1904,6 +1904,95 @@ def test_common_stock_excluded_pairs_do_not_use_equity_rule(label, concept):
     assert "Ordinary common-stock" not in decision.reason
 
 
+@pytest.mark.parametrize(
+    ("label", "concept", "category", "judgment_code"),
+    [
+        ("Long-term debt", "common_stock", "Financial Liability", None),
+        ("Accounts payable", "common_stock", "Operating Working Capital Liability", None),
+        ("Notes payable", "common_stock", "Financial Liability", None),
+        (
+            "Other current liabilities",
+            "common_stock",
+            "Operating Working Capital Liability",
+            None,
+        ),
+        (
+            "Other non-current liabilities",
+            "common_stock",
+            "Operating Long-Term Liability",
+            None,
+        ),
+        (
+            "Other noncurrent liabilities",
+            "common_stock",
+            "Operating Long-Term Liability",
+            None,
+        ),
+    ],
+)
+def test_common_stock_concept_with_supported_liability_labels(
+    label, concept, category, judgment_code
+):
+    """Liability labels paired with common_stock keep supported liability categories."""
+    decision = classify_balance_sheet_line(_li(label, 100, 110, concept=concept))
+    assert decision.category == category
+    assert decision.judgment_code == judgment_code
+    assert decision.ambiguous is (judgment_code is not None)
+    assert "Ordinary common-stock" not in decision.reason
+
+
+@pytest.mark.parametrize(
+    ("label", "concept"),
+    [
+        ("Common stock", "accounts_payable"),
+        ("Common stock", "other_current_liabilities"),
+        ("Common stock", "other_noncurrent_liabilities"),
+        ("Common stock", "miscellaneous_liability"),
+        ("Miscellaneous liability", "common_stock"),
+        ("Liability balance", "common_stock"),
+    ],
+)
+def test_common_stock_unsupported_liability_contradictions_raise(label, concept):
+    """Unsupported liability/common-stock contradictions fail closed."""
+    with pytest.raises(UnclassifiedBalanceSheetLineError):
+        classify_balance_sheet_line(_li(label, 100, 110, concept=concept))
+
+
+def test_common_stock_label_with_debt_concept_remains_financial_liability():
+    """Decisive debt concepts still win over whole-label Common stock."""
+    decision = classify_balance_sheet_line(
+        _li("Common stock", 100, 110, concept="long_term_debt")
+    )
+    assert decision.category == "Financial Liability"
+    assert "Ordinary common-stock" not in decision.reason
+
+
+@pytest.mark.parametrize(
+    ("label", "concept"),
+    [
+        ("Cash paid for common stock", "common_stock"),
+        ("Common stock", "cash_paid_for_common_stock"),
+        ("Cash paid for common stock", ""),
+        ("Cash paid for common stock", "unrelated_xyz"),
+        ("cash paid for common stock", ""),
+        ("CASH PAID FOR COMMON STOCK", ""),
+        ("  Cash   paid  for  common   stock  ", ""),
+        ("Cash-paid for common stock", "common_stock"),
+        ("Cash paid for common stock.", "common_stock"),
+        ("Cash paid for common stock", "cash"),
+        ("Cash paid for common stock", "accounts_payable"),
+        ("Cash paid for common stock payable", "common_stock"),
+        ("Cash paid for common stock in retained earnings", ""),
+        ("Payments for common stock", ""),
+        ("Payment for common stock", "common_stock"),
+    ],
+)
+def test_common_stock_payment_movements_raise_unclassified(label, concept):
+    """Payment movements fail closed before cash/liability/equity fallbacks."""
+    with pytest.raises(UnclassifiedBalanceSheetLineError):
+        classify_balance_sheet_line(_li(label, 100, 110, concept=concept))
+
+
 def test_common_stock_investment_retains_financial_asset_behavior():
     decision = classify_balance_sheet_line(
         _li("Investment in common stock", 100, 110, concept="common_stock")
@@ -1942,6 +2031,13 @@ def test_common_stock_override_still_wins():
     assert forced.category == "Equity"
     assert forced.overridden is True
 
+    payment = _li("Cash paid for common stock", 100, 110, concept="common_stock")
+    with pytest.raises(UnclassifiedBalanceSheetLineError):
+        classify_balance_sheet_line(payment)
+    payment_forced = classify_balance_sheet_line(payment, override="Equity")
+    assert payment_forced.category == "Equity"
+    assert payment_forced.overridden is True
+
 
 def test_common_stock_preserves_existing_equity_components_and_g1_g2():
     retained = classify_balance_sheet_line(
@@ -1953,6 +2049,17 @@ def test_common_stock_preserves_existing_equity_components_and_g1_g2():
         _li("Share capital", 100, 110, concept="share_capital")
     )
     assert share_capital.category == "Equity"
+
+    paid_in = classify_balance_sheet_line(
+        _li("Paid-in capital", 100, 110, concept="")
+    )
+    assert paid_in.category == "Equity"
+    assert "Ordinary common-stock" not in paid_in.reason
+
+    additional_paid_in = classify_balance_sheet_line(
+        _li("Additional paid-in capital", 100, 110, concept="")
+    )
+    assert additional_paid_in.category == "Equity"
 
     gift = classify_balance_sheet_line(
         _li(

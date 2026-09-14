@@ -602,14 +602,29 @@ _COMMON_STOCK_BALANCE_LABELS = frozenset(
     }
 )
 
-# Concept markers that disqualify ordinary common-stock equity identity.
-_COMMON_STOCK_EXCLUDED_CONCEPT_MARKERS = (
+# Redeemable / preferred / investment instruments — not ordinary common stock.
+_COMMON_STOCK_INSTRUMENT_CONCEPT_MARKERS = (
     "redeem",
     "redemption",
     "mandatory",
     "preferred",
     "preference",
     "investment",
+)
+
+_COMMON_STOCK_INSTRUMENT_LABEL_MARKERS = (
+    "redeem",
+    "redemption",
+    "mandatory",
+    "preferred",
+    "preference",
+    "investment",
+)
+
+# Issuance / repurchase / payment / purchase / sale / change movements.
+# Concept uses ``paid`` (covers cash_paid_for_...); labels use ``paid for`` /
+# ``cash paid`` so paid-in capital is not treated as a payment movement.
+_COMMON_STOCK_MOVEMENT_CONCEPT_MARKERS = (
     "issuance",
     "issue",
     "proceed",
@@ -617,6 +632,7 @@ _COMMON_STOCK_EXCLUDED_CONCEPT_MARKERS = (
     "repurchase",
     "payment",
     "payments",
+    "paid",
     "purchase",
     "purchases",
     "saleof",
@@ -626,20 +642,16 @@ _COMMON_STOCK_EXCLUDED_CONCEPT_MARKERS = (
     "decreasein",
 )
 
-# Label markers that disqualify ordinary common-stock equity identity.
-_COMMON_STOCK_EXCLUDED_LABEL_MARKERS = (
-    "redeem",
-    "redemption",
-    "mandatory",
-    "preferred",
-    "preference",
-    "investment",
+_COMMON_STOCK_MOVEMENT_LABEL_MARKERS = (
     "issuance",
     "issue of",
     "issued",
     "proceeds",
     "repurchase",
     "payment",
+    "payments",
+    "paid for",
+    "cash paid",
     "purchase",
     "sale of",
     "sales of",
@@ -648,19 +660,104 @@ _COMMON_STOCK_EXCLUDED_LABEL_MARKERS = (
     "decrease in",
 )
 
+# Liability wording that contradicts ordinary common-stock equity recognition.
+_COMMON_STOCK_LIABILITY_LABEL_MARKERS = (
+    "liab",
+    "payable",
+    "bank borrow",
+    "borrowing",
+    "long-term debt",
+    "long term debt",
+    "notes payable",
+    "commercial paper",
+    "bonds payable",
+    "loan payable",
+)
 
-def _common_stock_excluded(concept_token: str, low: str) -> bool:
-    """Reject redeemable/preferred/investment/movement common-stock rows."""
+_COMMON_STOCK_LIABILITY_CONCEPT_MARKERS = (
+    "liab",
+    "payable",
+    "borrow",
+    "bond",
+    "loan",
+    "debt",
+    "commercialpaper",
+)
+
+
+def _common_stock_has_movement(concept_token: str, low: str) -> bool:
+    """True when concept or label uses a common-stock movement / activity marker."""
     if concept_token and any(
-        marker in concept_token for marker in _COMMON_STOCK_EXCLUDED_CONCEPT_MARKERS
+        marker in concept_token for marker in _COMMON_STOCK_MOVEMENT_CONCEPT_MARKERS
     ):
         return True
-    return any(marker in low for marker in _COMMON_STOCK_EXCLUDED_LABEL_MARKERS)
+    return any(marker in low for marker in _COMMON_STOCK_MOVEMENT_LABEL_MARKERS)
+
+
+def _common_stock_content(concept_token: str, low: str) -> bool:
+    """True when concept or label identifies a common-stock topic."""
+    if concept_token in _COMMON_STOCK_BALANCE_CONCEPTS:
+        return True
+    if concept_token and "commonstock" in concept_token:
+        return True
+    return "common stock" in low
+
+
+def _is_common_stock_movement(concept_token: str, low: str) -> bool:
+    """Common-stock movements must fail closed (no cash/liability/equity fallback)."""
+    return _common_stock_has_movement(concept_token, low) and _common_stock_content(
+        concept_token, low
+    )
+
+
+def _common_stock_instrument_excluded(concept_token: str, low: str) -> bool:
+    """Reject redeemable / preferred / investment common-stock instruments."""
+    if concept_token and any(
+        marker in concept_token for marker in _COMMON_STOCK_INSTRUMENT_CONCEPT_MARKERS
+    ):
+        return True
+    return any(marker in low for marker in _COMMON_STOCK_INSTRUMENT_LABEL_MARKERS)
+
+
+def _common_stock_label_has_liability(low: str) -> bool:
+    """True when the label uses liability / debt / payable wording."""
+    if any(marker in low for marker in _COMMON_STOCK_LIABILITY_LABEL_MARKERS):
+        return True
+    return low.endswith(" debt") or " debt " in f" {low} "
+
+
+def _common_stock_concept_has_liability(concept_token: str) -> bool:
+    """True when the concept encodes liability / debt / payable identity."""
+    if not concept_token:
+        return False
+    return any(
+        marker in concept_token for marker in _COMMON_STOCK_LIABILITY_CONCEPT_MARKERS
+    )
+
+
+def _common_stock_has_liability_contradiction(concept_token: str, low: str) -> bool:
+    """Liability wording on either field blocks ordinary common-stock equity."""
+    return _common_stock_label_has_liability(low) or _common_stock_concept_has_liability(
+        concept_token
+    )
+
+
+def _common_stock_excluded(concept_token: str, low: str) -> bool:
+    """Reject instrument, movement, or liability-contradiction common-stock rows."""
+    if _common_stock_instrument_excluded(concept_token, low):
+        return True
+    if _common_stock_has_movement(concept_token, low):
+        return True
+    return _common_stock_has_liability_contradiction(concept_token, low)
 
 
 def _common_stock_balance_label_hit(low: str) -> bool:
     """True when the entire label is ordinary common-stock balance identity."""
-    if _common_stock_excluded("", low):
+    if _common_stock_instrument_excluded("", low):
+        return False
+    if _common_stock_has_movement("", low):
+        return False
+    if _common_stock_label_has_liability(low):
         return False
     return low in _COMMON_STOCK_BALANCE_LABELS
 
@@ -670,8 +767,9 @@ def _common_stock_balance_decision(item: LineItem) -> ClassificationDecision | N
 
     Deterministic; no guided-judgment case. Exact ``common_stock`` concepts and
     whole-label ``Common stock`` identities are supported. Redeemable,
-    preferred, investment, and issuance/repurchase/payment movements are
-    rejected so neither recognition route can bypass the guards.
+    preferred, investment, issuance/repurchase/payment movements, and
+    contradictory liability pairings are rejected so neither recognition route
+    can bypass the guards.
     """
     concept_token = _concept_token(item.concept or "")
     low = _norm(item.label)
@@ -963,6 +1061,13 @@ def classify_balance_sheet_line(
 
     # PPE movements must fail closed before legacy plant/PPE asset matching.
     if _is_ppe_movement(concept_token, low):
+        raise UnclassifiedBalanceSheetLineError(
+            f"Cannot safely classify balance-sheet line {item.label!r}; "
+            f"provide classificationOverrides[{item.label!r}]"
+        )
+
+    # Common-stock movements must fail closed before cash/liability/equity fallbacks.
+    if _is_common_stock_movement(concept_token, low):
         raise UnclassifiedBalanceSheetLineError(
             f"Cannot safely classify balance-sheet line {item.label!r}; "
             f"provide classificationOverrides[{item.label!r}]"

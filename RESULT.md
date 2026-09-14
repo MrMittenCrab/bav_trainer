@@ -1,13 +1,15 @@
-# RESULT.md — Step 9M.2.3 Generic Common-Stock Equity Classification (G3)
+# RESULT.md — Step 9M.2.3 Repair Common-Stock Liability and Movement Exclusions (G3)
 
 **Status:** PASS  
 **Completion:** DONE  
-**Next step:** Step **9M.2.4** — Lululemon Liability-Detail Reformulation Integrity (build blocker; higher priority than G4 Capex Concept Identity)
+**Next step:** Step **9M.2.4** — Lululemon Liability-Detail Reformulation Integrity (build blocker; G4 remains deferred)
 
-**Plan base (IMPLEMENTATION.md):** `a86b9368095880bc3ad018d8d55b5ad3b41514fe`  
-**Workspace HEAD at completion:** `5ccd7255d96f4b67b219fddf710f3e57333f5206`  
+**Plan base (IMPLEMENTATION.md):** `b06b501860a6c148ab6e5319aa8293f0936d6ba5`  
+**Workspace HEAD at completion:** `772c93b4d5217ae59a24797e687ec82d9620cba1`  
 `TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged).  
 No commit / push / sync / checkpoint. No G4–G7 implementation or forecasting/valuation work.
+
+This supersedes the prior Step 9M.2.3 G3 PASS claim: ordinary common-stock Equity recognition is retained, but contradictory liabilities and cash-payment movements are now excluded / fail-closed.
 
 ---
 
@@ -15,26 +17,32 @@ No commit / push / sync / checkpoint. No G4–G7 implementation or forecasting/v
 
 In `core/model/classification.py`:
 
-1. Added guarded ordinary common-stock equity recognition for exact concept token `commonstock` and whole-label `common stock`.
-2. Excluded redeemable/redemption, mandatory, preferred/preference, investment, and issuance/proceeds/repurchase/payment/purchase/sale/change movements from either recognition route.
-3. Wired `_common_stock_balance_decision` into the concept chain and the label-only public path; overrides and existing equity-component / G1 / G2 behavior preserved.
+1. Split instrument, movement, and liability-contradiction guards for ordinary common-stock recognition.
+2. Reject liability wording on either label or concept so exact `common_stock` / whole-label `Common stock` cannot classify contradictory liabilities as Equity.
+3. Detect payment movements via concept `paid` / label `paid for` and `cash paid` (preserving paid-in capital).
+4. Raise `UnclassifiedBalanceSheetLineError` for common-stock movements before cash, liability, or equity-component fallbacks.
+5. Preserve supported liability fallthrough (`Long-term debt`, payables, other liabilities), investment/redeemable controls, overrides, and G1/G2 behavior.
 
-In tests:
+In `core/tests/test_classification.py`:
 
-1. Public-classifier regressions for exact-concept + neutral label, whole-label + empty/unrelated concepts, and case/whitespace variants → `Equity`, `ambiguous=False`.
-2. Cross-route exclusion coverage for redeemable, mandatory redemption, preferred, investments, issuance proceeds, and repurchase/payment movements.
-3. Controls for liability/investment fallthrough, existing equity components, G1/G2, override precedence, and no judgment case.
-4. Lululemon: Common stock classifies as Equity with original four-period values; unclassified set empty; temp-dir build asserts `ReformulationIntegrityError` (`liability-detail gap`).
+1. Supported liability-label + `common_stock` regressions with exact categories.
+2. Unsupported liability contradictions raise.
+3. `Cash paid for common stock` / `cash_paid_for_common_stock` / punctuation-normalization / fallback-wording movements raise.
+4. Paid-in-capital and payment-override controls retained.
+
+`core/tests/test_lululemon_benchmark.py`: no edits required; existing G3 / build-blocker assertions still hold.
 
 ---
 
-## G3 evidence
+## G3 repair evidence
 
 | Check | Result |
 |---|---|
 | Exact `common_stock` / whole-label `Common stock` → Equity, non-ambiguous | **pass** |
-| Excluded instruments/movements cannot bypass either route | **pass** |
-| Liability / investment / equity-component / G1 / G2 / override controls | **pass** |
+| Liability labels + `common_stock` → supported liability categories (not Equity) | **pass** |
+| Unsupported liability contradictions raise | **pass** |
+| Cash-paid / payment movements raise (no cash/liability/equity fallback) | **pass** |
+| Investment / redeemable / equity-component / G1 / G2 / override controls | **pass** |
 | Lululemon Common stock values/identity intact (611 / 606 / 581 / 557) | **pass** |
 | Unclassified BS detail set | `{}` (empty) |
 | Temp-dir build first exception | `ReformulationIntegrityError` (`liability-detail gap`) |
@@ -60,16 +68,24 @@ Before and after digests are identical for all three committed Lululemon artifac
 
 ```text
 PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_line_resolver.py core/tests/test_fixed_asset.py core/tests/test_lululemon_benchmark.py -q
-→ 355 passed in 4.38s
+→ 383 passed in 4.05s
 
 PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q
-→ 132 passed in 27.36s
+→ 132 passed in 26.85s
 
 PYTHONPATH=. pytest core/tests -q
-→ 973 passed in 89.17s
+→ 1001 passed in 85.76s
 ```
 
 0 failures; no execution restrictions.
+
+Temp-dir build probe:
+
+```text
+ReformulationIntegrityError
+2023-01-29: liability-detail gap=-2.856e+04 (... envelope=5.5); equity gap=2.856e+04
+2024-01-28: liability-detail gap=-1.586e+04 (... envelope=5.5); equity gap=1.586e+04
+```
 
 Incidental FR/DEMO workbook/provenance refreshes from the suite were restored; final working-tree diff is scoped to allowed files plus this `RESULT.md`.
 
@@ -79,12 +95,12 @@ Incidental FR/DEMO workbook/provenance refreshes from the suite were restored; f
 
 | Criterion | Result |
 |---|---|
-| Ordinary common-stock balances classify deterministically as Equity | **pass** |
-| Excluded instruments/movements cannot bypass guards | **pass** |
-| Lululemon has no unclassified BS detail rows; build advances past G3 | **pass** |
-| Required checks + immutability / hash / no-issuer guards | **pass** |
+| Both recognition routes exclude contradictory liabilities; supported liability behavior survives | **pass** |
+| Common-stock payment movements fail closed unless explicitly overridden | **pass** |
+| Valid common-stock balances and classification controls pass; source facts / committed artifacts unchanged | **pass** |
+| Required checks measured and green | **pass** |
 | Diff scoped to allowed files | **pass** |
 
-**Plan changes needed:** none for this step’s scope. Measured build now blocks on `ReformulationIntegrityError` (missing liability detail vs Total Liabilities in earlier periods), so the next bounded plan should address that integrity gap before G4.
+**Plan changes needed:** none for this step’s scope. Measured build still blocks on `ReformulationIntegrityError` (missing liability detail vs Total Liabilities in earlier periods), so the next bounded plan should address that integrity gap before G4.
 
 **Unresolved:** reformulation integrity gap, then G4–G7 as previously recorded; Step 9 **not** complete. Propose **Step 9M.2.4 — Lululemon Liability-Detail Reformulation Integrity** (defer Generic Capex Concept Identity until the build probe advances).
