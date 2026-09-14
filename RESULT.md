@@ -1,16 +1,24 @@
-# RESULT.md — Step 9M.2.4.1.1.1 Restore Isolation References and Historical Totals Accounting
+# RESULT.md — Step 9M.2.4.1.1.1 Correct Closure Dependencies Against Original Acceptance
 
-**Status:** PROBLEMS — UNRESOLVED (isolation refs + historical totals accounting repaired; original acceptance / parents not closed)  
-**Step:** 9M.2.4.1.1.1 — Restore Isolation References and Historical Totals Accounting  
-**Parents:** Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
-**Base:** `4035dbf2d87e7bd731b3679c05ca8c2e04879d83`  
+**Status:** COMPLETE (closure dependencies corrected; original technical acceptance supported; parents remain Plan-owned UNRESOLVED)  
+**Step:** 9M.2.4.1.1.1 — Correct Closure Dependencies Against Original Acceptance  
+**Parents:** Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED** (Plan closure pending; not a technical-acceptance blocker)  
+**Base:** `5aecbc25ae2680cdf0b4d782a74475ad83462902`  
 **Verified code revision (isolated runs):** `590c73a4eba8ee2901687f8f2d03e63aacc865bd`  
-**Workspace HEAD:** `9b33033c528ac517765d49eaed1cbf06c98bdc84` (plan-only delta vs base: `IMPLEMENTATION.md`)  
+**Workspace HEAD:** `0bb096c97a83cc9b2082f7fca2a82be55acb561d` (plan-only delta vs base: `IMPLEMENTATION.md`)  
 `TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged by this run).  
 No commit / push / sync / checkpoint. No branch create/switch. No G4–G7 or forecasting/valuation work.  
-No production or test changes. Authoritative diff scope: `RESULT.md` only.
+No production or test changes. Authoritative diff scope: `RESULT.md` only. No suite re-execution this repair.
 
-Technical acceptance, evidence availability, and Plan-owned closure remain separate. A complete ledger does **not** close parents while A5 / B8 / E10 (and other explicit UNVERIFIED items) remain. Unsupported COMPLETE / “fully restored/preserved” claims are **withdrawn**.
+### Three-way status (kept separate)
+
+| Layer | Outcome |
+|---|---|
+| Evidence-accounting completion | **COMPLETE** — every ledger obligation has PASS or explicit UNVERIFIED with cited missing evidence; isolation refs and historical totals accounting retained from prior RESULT |
+| Original technical acceptance | **SUPPORTED** — all originating technical criteria PASS; no remaining technical blocker by criterion/missing proof/demonstrated failure |
+| Pending Plan closure | **OPEN** — A5 / B8 / E10 record Plan-owned parent closure only; do **not** block technical acceptance or readiness for Plan assessment |
+
+Unsupported COMPLETE / “fully restored/preserved” claims that closed parents, or that treated A5/B8/E10/E11/A2-ED/B7-MID as automatic technical blockers, are **withdrawn**.
 
 ---
 
@@ -43,8 +51,8 @@ Compared `4035dbf2^:RESULT.md` (Correct Completion Accounting and Isolated Verif
 
 - Retain detailed step ID: **9M.2.4.1.1.1**.
 - Do **not** renumber historical work.
-- Proposed exhausted children through **`9M.2.4.1.1.1.7`** are withdrawn for new work.
-- First available ID for genuinely new bounded work: **`9M.2.4.1.1.1.8`** (only after original acceptance passes and Plan assesses closure).
+- Proposed exhausted children through **`9M.2.4.1.1.1.8`** are withdrawn for new work (`.8` already used / reserved by prior plan `9b33033`).
+- First available ID for genuinely new bounded work: **`9M.2.4.1.1.1.9`** (Plan-selected only; not a prerequisite for Plan parent-closure assessment).
 
 ---
 
@@ -60,6 +68,15 @@ Compared `4035dbf2^:RESULT.md` (Correct Completion Accounting and Isolated Verif
 | Diagnostic | Temporary reproduction under later code; not a substitute for historical gate semantics |
 | Overlay | Same fixture/assertion run against identified production revision in isolated worktree (cited RESULT) |
 | Unavailable / UNVERIFIED | Required measurement absent from cited records; cannot invent |
+
+### Dependency classes (this repair)
+
+| Class | Meaning | Blocks original technical acceptance? |
+|---|---|---|
+| Technical | Originating acceptance criterion from cited plans | **Yes** — must PASS (or FAIL with demonstrated failure) |
+| Documentary UNVERIFIED | Unavailable historical diagnostic / mid-stage aggregate; explicit missing-evidence accounting | **No** — retain UNVERIFIED; do not invent; not an automatic technical blocker |
+| Plan closure | Administrative parent-closure assessment (A5 / B8 / E10) | **No** — pending Plan closure must not prevent technical acceptance or readiness for Plan assessment |
+| Non-requirement | Later accounting distinction not in original parent acceptance (E11 full-company parity) | **No** — preserve UNVERIFIED/unavailable; workbook probes allow success **or** exact next exception (A3) |
 
 ---
 
@@ -474,122 +491,129 @@ Node: `core/tests/test_reference_integrity.py::test_pretax_etr_parity_coverage_m
 
 ---
 
-## Task 3 — Criterion-level acceptance ledger (reassessed)
+## Task 3 — Criterion-level acceptance ledger (reassessed; dependency-mapped)
 
 Statuses: **PASS** = isolated measurement on `590c73a` and/or reconfirmed committed artifacts; **PASS (historical|overlay|artifact-recovered)** = cited prior revision / artifact; **UNVERIFIED** = missing measurement or Plan-only closure; **FAIL** = demonstrated failure.  
-Reassessed especially A2, A4, E4, E8–E10, E12–E13 after restoring isolation refs and historical totals accounting. Bundled obligations remain split where evidence differs. Unsupported COMPLETE withdrawn.
+Dependency (Dep): **Tech** = blocks technical acceptance; **Doc** = documentary UNVERIFIED only; **Plan** = pending Plan closure only; **NonReq** = not an original technical acceptance requirement.  
+Reassessed A2-ED, A5, B7-MID, B8, E10, E11 against originating wording at `aa6adc1`, `a370a02`, `2e88322`, `88ce931`, `da07d28`, plus verification obligations from `a62893f`, `0f1d2c3`, `b5a33cd`. Bundled obligations remain split where evidence differs. Unsupported COMPLETE withdrawn. Prior circular use of A5/B8/E10/E11 as technical blockers withdrawn.
 
 ### From `aa6adc1` (9M.2.4 — Lululemon Liability-Detail Reformulation Integrity)
 
-| # | Criterion (retained wording) | Evidence | Status |
-|---|---|---|---|
-| A1 | All four periods pass `check_reformulation_integrity` within unchanged tolerance rules | Isolated gaps all 0.0; envelopes above; `test_four_period_reformulation_integrity` | **PASS** |
-| A2 | Recorded liability and corresponding equity discrepancies explained and repaired with causal rows | Historical before `cdf0c9f`: liability −28555/−15864 and **implied-equity** +28555/+15864; causal NCIT; H1 totals for that stage; live after all 0.0 | **PASS (historical before + live after)** — equity here = implied-equity |
-| A2-ED | Historical equity-**detail** gaps at original defect | Equity-detail gate did not exist at `cdf0c9f` | **UNVERIFIED** |
-| A3 | Temp-dir Lululemon build: success or exact next exception | `MissingLineError: Required concept 'interest_expense' not found in statement lines` (isolated probe) | **PASS** (recorded; not a success gate) |
-| A4 | Genuine inconsistencies fail closed; artifacts unchanged | Isolated immutability nodes (subprocess/comparison/mutation/drift distinct) + auth aggregate unchanged across suites; manifests/logs restored | **PASS** |
-| A5 | Parent 9M.2.4 closed for Plan | Requires Plan assessment of every original criterion | **UNVERIFIED** |
+| # | Criterion (retained wording) | Evidence | Status | Dep |
+|---|---|---|---|---|
+| A1 | All four periods pass `check_reformulation_integrity` within unchanged tolerance rules | Isolated gaps all 0.0; envelopes above; `test_four_period_reformulation_integrity` | **PASS** | Tech |
+| A2 | Recorded liability and corresponding equity discrepancies explained and repaired with causal rows | Historical before `cdf0c9f`: liability −28555/−15864 and **implied-equity** +28555/+15864; causal NCIT; H1 totals for that stage; live after all 0.0 | **PASS (historical before + live after)** — equity here = implied-equity | Tech |
+| A2-ED | Historical equity-**detail** gaps at original defect | Equity-detail gate did not exist at `cdf0c9f`; originating A2 equity = implied-equity (`aa6adc1`) | **UNVERIFIED** — missing evidence: no equity-detail gate/measurement at original defect | Doc |
+| A3 | Temp-dir Lululemon build: success or exact next exception | `MissingLineError: Required concept 'interest_expense' not found in statement lines` (isolated probe) | **PASS** (recorded; not a success gate) | Tech |
+| A4 | Genuine inconsistencies fail closed; artifacts unchanged | Isolated immutability nodes (subprocess/comparison/mutation/drift distinct) + auth aggregate unchanged across suites; manifests/logs restored | **PASS** | Tech |
+| A5 | Parent 9M.2.4 closed for Plan | Requires Plan assessment of every original technical criterion | **UNVERIFIED** — Plan closure pending | Plan |
 
 ### From `a370a02` (9M.2.4.1 — Preserve Sparse Liability Facts)
 
-| # | Criterion | Evidence | Status |
-|---|---|---|---|
-| B1 | NCIT sparse series 28555 / 15864 / reported 0 / `None` | Isolated live + committed standardized + `test_non_current_income_taxes_payable_restored_sparse_axis` | **PASS** |
-| B2 | Sparse absence ≠ reported zero through standardization / export-reload | Sparse position table + NCIT provenance `retained_sparse_axis` / `missing_period` vs reported 0 | **PASS** |
-| B3 | Provenance preserves selected/superseded/outside-axis; no invented facts | Concrete NCIT table; no `superseded` status keys — agreeing obs retained in `observations[]`; hash unchanged | **PASS** |
-| B4 | Failure-path immutability | Isolated subprocess / comparison / mutation / drift nodes (17) | **PASS** |
-| B5 | Common stock 611 / 606 / 581 / 557 | Isolated live + `test_common_stock_classifies_across_all_periods` | **PASS** |
-| B6 | Dual reconcile identical to committed; conflicts stable | Isolated dual-run full hash table (both output hashes + committed comparisons) | **PASS** |
-| B7 | Four-period integrity after sparse retention (parent mandatory) | Blocked at `c50912c` by `MissingHistoricalValueError`; later restored at `17114fc`+; live PASS | **PASS (historical exception + live after)** |
-| B7-MID | Gap aggregates during MissingHistoricalValueError stage | Unavailable — no usable reformulation; reformulation-resolved totals UNVERIFIED | **UNVERIFIED** |
-| B8 | Parent 9M.2.4.1 closed | Plan closure pending | **UNVERIFIED** |
+| # | Criterion | Evidence | Status | Dep |
+|---|---|---|---|---|
+| B1 | NCIT sparse series 28555 / 15864 / reported 0 / `None` | Isolated live + committed standardized + `test_non_current_income_taxes_payable_restored_sparse_axis` | **PASS** | Tech |
+| B2 | Sparse absence ≠ reported zero through standardization / export-reload | Sparse position table + NCIT provenance `retained_sparse_axis` / `missing_period` vs reported 0 | **PASS** | Tech |
+| B3 | Provenance preserves selected/superseded/outside-axis; no invented facts | Concrete NCIT table; no `superseded` status keys — agreeing obs retained in `observations[]`; hash unchanged | **PASS** | Tech |
+| B4 | Failure-path immutability | Isolated subprocess / comparison / mutation / drift nodes (17) | **PASS** | Tech |
+| B5 | Common stock 611 / 606 / 581 / 557 | Isolated live + `test_common_stock_classifies_across_all_periods` | **PASS** | Tech |
+| B6 | Dual reconcile identical to committed; conflicts stable | Isolated dual-run full hash table (both output hashes + committed comparisons) | **PASS** | Tech |
+| B7 | Four-period integrity after sparse retention (parent mandatory) | Blocked at `c50912c` by `MissingHistoricalValueError`; later restored at `17114fc`+; live PASS | **PASS (historical exception + live after)** | Tech |
+| B7-MID | Gap aggregates during MissingHistoricalValueError stage | Unavailable — no usable reformulation; reformulation-resolved totals UNVERIFIED. Originating mandatory acceptance is B7 integrity (PASS), not mid-exception aggregates | **UNVERIFIED** — missing evidence: no usable reformulation return in `c50912c` RESULT | Doc |
+| B8 | Parent 9M.2.4.1 closed | Plan closure pending | **UNVERIFIED** — Plan closure pending | Plan |
 
 ### From `2e88322` (9M.2.4.1.1 — Evidence-Grounded Sparse-Detail)
 
-| # | Criterion | Evidence | Status |
-|---|---|---|---|
-| C1 | Independent asset/liability evidence gates before usable sparse results | `test_sparse_absence_fails_without_independent_totals`, `…_when_total_row_null`, `…_on_contradictory_gap` | **PASS** |
-| C2 | Leading/interior/trailing absence, zero, complete-row coverage | Sparse position table above | **PASS** |
-| C3 | Missing keys / contradictory / equal omissions / rounding boundaries | Missing-key + equal-omission + A/L/E rounding accept/reject nodes (safeguard table) | **PASS** |
-| C4 | Four-period Lululemon integrity after sparse repair | Same as A1; H1 totals at `17114fc` artifact-recovered | **PASS** |
-| C5 | Synthetic before-failure / after-success for sparse eligibility | Overlay table: sparse_std + sparse_agg before FAIL / after PASS | **PASS (overlay)** |
+| # | Criterion | Evidence | Status | Dep |
+|---|---|---|---|---|
+| C1 | Independent asset/liability evidence gates before usable sparse results | `test_sparse_absence_fails_without_independent_totals`, `…_when_total_row_null`, `…_on_contradictory_gap` | **PASS** | Tech |
+| C2 | Leading/interior/trailing absence, zero, complete-row coverage | Sparse position table above | **PASS** | Tech |
+| C3 | Missing keys / contradictory / equal omissions / rounding boundaries | Missing-key + equal-omission + A/L/E rounding accept/reject nodes (safeguard table) | **PASS** | Tech |
+| C4 | Four-period Lululemon integrity after sparse repair | Same as A1; H1 totals at `17114fc` artifact-recovered | **PASS** | Tech |
+| C5 | Synthetic before-failure / after-success for sparse eligibility | Overlay table: sparse_std + sparse_agg before FAIL / after PASS | **PASS (overlay)** | Tech |
 
 ### From `88ce931` (9M.2.4.1.1 — Repair Sparse Equity-Detail)
 
-| # | Criterion | Evidence | Status |
-|---|---|---|---|
-| D1 | Sparse equity omission fails despite zero implied-equity gaps | Overlay: before `17114fc` DID NOT RAISE; after `8c0098c` PASS; live `test_sparse_equity_omission_fails_despite_zero_identity_gaps` | **PASS (overlay + live)** |
-| D2 | Signed contra-equity; subtotal exclusion; override controls | Exact nodes in safeguard table | **PASS** |
-| D3 | Equity missing keys / unavailable totals / envelope boundaries | Exact nodes in safeguard table | **PASS** |
-| D4 | Implied-equity remains separate from equity-detail gate | Test design + Lululemon implied env 11.5 vs E-detail env 2.5; live `equity_gap` vs equity_detail_gap | **PASS** |
+| # | Criterion | Evidence | Status | Dep |
+|---|---|---|---|---|
+| D1 | Sparse equity omission fails despite zero implied-equity gaps | Overlay: before `17114fc` DID NOT RAISE; after `8c0098c` PASS; live `test_sparse_equity_omission_fails_despite_zero_identity_gaps` | **PASS (overlay + live)** | Tech |
+| D2 | Signed contra-equity; subtotal exclusion; override controls | Exact nodes in safeguard table | **PASS** | Tech |
+| D3 | Equity missing keys / unavailable totals / envelope boundaries | Exact nodes in safeguard table | **PASS** | Tech |
+| D4 | Implied-equity remains separate from equity-detail gate | Test design + Lululemon implied env 11.5 vs E-detail env 2.5; live `equity_gap` vs equity_detail_gap | **PASS** | Tech |
 
 ### From `a62893f` / `0f1d2c3` / `b5a33cd` / current step obligations
 
-| # | Criterion | Evidence | Status |
-|---|---|---|---|
-| E1 | All 12 pretax/ETR matrix cases | Individual 12-ID table; isolated matrix group | **PASS** |
-| E2 | Header corruption + link/arithmetic rejection (formula inspection, not Excel recalc) | Header + source-link mutation nodes | **PASS** |
-| E3 | Zero-pretax + alias-removal retained | Zero-denominator + alias-removal nodes | **PASS** |
-| E4 | Four-period integrity + causal liability/equity explanation | A1 + A2 (implied-equity) + H1 historical totals accounting; A2-ED remains UNVERIFIED | **PASS** with A2-ED caveat |
-| E5 | Asset/liability/signed equity-detail gates; fail-closed | C*/D* + safeguard table | **PASS** |
-| E6 | Sparse ≠ zero; provenance preserved | B2–B3 concrete table | **PASS** |
-| E7 | NCIT / Common stock / G1–G2–G3 / empty unclassified | Live NCIT+CS; gift-card/PPE/common-stock + integrity empty-unclassified nodes | **PASS** |
-| E8 | Required suites; deterministic artifact comparisons; failure-path immutability | Isolated suites + dual-reconcile + auth hash guards + **restored** manifests/logs mapped to `590c73a` | **PASS** |
-| E9 | Dual-reconcile criterion-level evidence supplied | Dual table with both output hashes and committed comparisons | **PASS** |
-| E10 | Every parent original criterion closed | A5 / B8 | **UNVERIFIED** — parents stay UNRESOLVED |
-| E11 | Full-company Python↔Excel pretax parity on unmodified Lululemon | Workbook blocked by `interest_expense` | **UNVERIFIED / unavailable** |
-| E12 (`0f1d2c3`) | Criterion-split ledger with revision/artifact/command/outcome | This RESULT (isolation refs + historical totals accounting) | **PASS** |
-| E13 (`0f1d2c3`) | Synthetic before/after + historical stages distinguished from diagnostics | Overlay + stage + H1/H2/c50912c UNVERIFIED tables | **PASS** |
-| E14 (`0f1d2c3`) | Itemized non-BS omission evidence | Non-BS table with assertion locations | **PASS** |
+| # | Criterion | Evidence | Status | Dep |
+|---|---|---|---|---|
+| E1 | All 12 pretax/ETR matrix cases | Individual 12-ID table; isolated matrix group | **PASS** | Tech |
+| E2 | Header corruption + link/arithmetic rejection (formula inspection, not Excel recalc) | Header + source-link mutation nodes | **PASS** | Tech |
+| E3 | Zero-pretax + alias-removal retained | Zero-denominator + alias-removal nodes | **PASS** | Tech |
+| E4 | Four-period integrity + causal liability/equity explanation | A1 + A2 (implied-equity) + H1 historical totals accounting; A2-ED remains Doc UNVERIFIED only | **PASS** | Tech |
+| E5 | Asset/liability/signed equity-detail gates; fail-closed | C*/D* + safeguard table | **PASS** | Tech |
+| E6 | Sparse ≠ zero; provenance preserved | B2–B3 concrete table | **PASS** | Tech |
+| E7 | NCIT / Common stock / G1–G2–G3 / empty unclassified | Live NCIT+CS; gift-card/PPE/common-stock + integrity empty-unclassified nodes | **PASS** | Tech |
+| E8 | Required suites; deterministic artifact comparisons; failure-path immutability | Isolated suites + dual-reconcile + auth hash guards + **restored** manifests/logs mapped to `590c73a` | **PASS** | Tech |
+| E9 | Dual-reconcile criterion-level evidence supplied | Dual table with both output hashes and committed comparisons | **PASS** | Tech |
+| E10 | Every parent original criterion closed | A5 / B8 — Plan assessment | **UNVERIFIED** — Plan closure pending; not a Tech blocker | Plan |
+| E11 | Full-company Python↔Excel pretax parity on unmodified Lululemon | Workbook blocked by `interest_expense`; a62893f/0f1d2c3/b5a33cd: workbook success is **not** an original parent acceptance requirement; A3 already records exact next exception | **UNVERIFIED / unavailable** — retained; removed as Tech requirement | NonReq |
+| E12 (`0f1d2c3`) | Criterion-split ledger with revision/artifact/command/outcome | This RESULT (isolation refs + historical totals + dependency map) | **PASS** | Tech |
+| E13 (`0f1d2c3`) | Synthetic before/after + historical stages distinguished from diagnostics | Overlay + stage + H1/H2/c50912c UNVERIFIED tables | **PASS** | Tech |
+| E14 (`0f1d2c3`) | Itemized non-BS omission evidence | Non-BS table with assertion locations | **PASS** | Tech |
 
-Dependent PASS note: prior A4/E8 PASS that relied on non-isolated suite runs + restore-after-write remains **withdrawn**; current A4/E8 PASS rests only on isolated evidence with restored log/manifest references. Prior header COMPLETE claiming criterion/original acceptance closure remains **withdrawn**.
+Dependent PASS note: prior A4/E8 PASS that relied on non-isolated suite runs + restore-after-write remains **withdrawn**; current A4/E8 PASS rests only on isolated evidence with restored log/manifest references. Prior header COMPLETE claiming criterion/original acceptance closure of **parents** remains **withdrawn**. Prior summaries that treated A5/B8/E10/E11/A2-ED/B7-MID as automatic technical blockers are **withdrawn**.
+
+**Technical-blocker inventory:** none remaining. All Tech-class criteria are **PASS**. Remaining UNVERIFIED are Doc (A2-ED, B7-MID), Plan (A5, B8, E10), or NonReq (E11).
 
 ---
 
-## Task 3 verification (this repair)
+## Task 3 verification (this repair — documentation only)
 
 | Check | Outcome |
 |---|---|
-| Deleted isolation refs restored or accounted | **PASS** — manifests/logs restored; filenames expanded from inspected-now tree; committed vs inspected distinguished |
-| Every required historical total has evidence or UNVERIFIED | **PASS** — H1 for cdf0c9f/17114fc/8c0098c; c50912c reformulation-resolved **UNVERIFIED**; H2 cites `470aa435^`; isolated table kept distinct |
-| Summaries agree with ledger | **PASS** — header PROBLEMS; A2-ED / B7-MID / A5 / B8 / E10 / E11 UNVERIFIED retained |
+| Every ledger obligation mapped to Tech / Doc / Plan / NonReq against cited original wording | **PASS** — `aa6adc1`, `a370a02`, `2e88322`, `88ce931`, `da07d28`, `a62893f`, `0f1d2c3`, `b5a33cd` acceptance blocks re-read |
+| No criterion weakened or added through summary wording | **PASS** — A2 equity remains implied-equity; A3 remains success-or-exception; E11 not elevated to Tech |
+| Genuine UNVERIFIED retained with exact missing evidence | **PASS** — A2-ED (gate absent), B7-MID (`c50912c` no usable reformulation), E11 (`interest_expense`), A5/B8/E10 (Plan) |
+| E11 and pending Plan closure no longer create circular/additional Tech blockers | **PASS** — Tech-blocker inventory empty; three-way status separates layers |
+| A2-ED / B7-MID not treated as automatic Tech blockers | **PASS** — Dep=Doc; originating A2/B7 Tech criteria PASS |
+| Numbering: `.8` corrected; `.9` reserved for new work | **PASS** |
+| Evidence body preserved (isolation, totals, gaps, NCIT, synthetic, pretax, suites) | **PASS** — no deletions of measured tables |
 | Authoritative diff only `RESULT.md` | **PASS** (measured below) |
-| Suites re-run this repair? | **No** — reuse preserved isolated measurements; isolation tree inspected read-only |
+| Suites re-run this repair? | **No** — reuse preserved isolated measurements at `590c73a`; no fresh suite claim |
 
 Commands this repair (read-only / RESULT write only):
 
 ```text
-git diff '4035dbf2^' 4035dbf2 -- RESULT.md
-git show {cdf0c9f,c50912c,17114fc,8c0098c,'470aa435^'}:RESULT.md
-git show {cdf0c9f,c50912c,17114fc,8c0098c}:benchmark/lululemon/reconciled/standardized.json  # SHA-256 + total_* values
-ls/read …/bav_9m241111_iso_5qp50x15/{manifests,logs}/**
+git show {aa6adc1,a370a02,2e88322,88ce931,da07d28,a62893f,0f1d2c3,b5a33cd}:IMPLEMENTATION.md  # acceptance wording
+git log -1 --oneline {aa6adc1,a370a02,2e88322,88ce931,da07d28,a62893f,0f1d2c3,b5a33cd,5aecbc2,9b33033}
+git rev-parse HEAD   # 0bb096c97a83cc9b2082f7fca2a82be55acb561d
 git status --short   # expect RESULT.md only after write
+# Preserved (not re-run): isolation suites/probes at 590c73a; auth agg b1123a35…0a1
 ```
 
-No suite re-execution. No disposable-copy re-run required (isolation evidence already measured; tree still accessible for filename expansion).
+No suite re-execution. No disposable-copy re-run. Isolation tree not required for this dependency-mapping repair.
 
 ---
 
 ## Final authoritative scope
 
 - Authoritative tracked aggregate excl. `RESULT.md` from isolation run: `b1123a35…0a1` (221 files).  
-- This repair: RESULT.md evidence only; **no** suite re-execution; **no** copy-back; isolation tree read-only inspected.  
+- This repair: RESULT.md dependency/summary correction only; **no** suite re-execution; **no** copy-back; **no** invented measurements.  
 - Diff scope: `RESULT.md` only.  
-- `interest_expense` build exception preserved separately from synthetic parity and unavailable full-company parity (E11).
+- `interest_expense` build exception preserved (A3 PASS; E11 NonReq UNVERIFIED/unavailable).
 
 ---
 
 ## Closure note (does not rewrite the plan)
 
-Isolation log/manifest references deleted after `4035dbf2^` are restored (filenames expanded where the isolation base was inspectable now). Historical four-period resolved totals are artifact-recovered or explicitly **UNVERIFIED**. Criterion-specific evidence retained. Unsupported COMPLETE / blanket fully-restored claims withdrawn.
+Closure dependencies corrected against original acceptance wording. Evidence-accounting remains complete. Original **technical** acceptance is **SUPPORTED** (Tech-class criteria all PASS; Tech-blocker inventory empty). Parents stay **UNRESOLVED** solely for Plan-owned closure (A5 / B8 / E10) — pending closure does **not** block technical acceptance or readiness for Plan assessment.
 
-Explicit UNVERIFIED retained (not invented):
+Explicit UNVERIFIED retained (not invented; not Tech blockers):
 
-- A2-ED — historical equity-detail at original liability defect (gate absent)
-- B7-MID — gap aggregates / reformulation-resolved totals during `MissingHistoricalValueError` stage (`c50912c`)
-- A5 / B8 / E10 — parent Plan closure
-- E11 — full-company workbook pretax parity (`interest_expense` blocker)
+- A2-ED — Doc — historical equity-detail at original liability defect (gate absent); originating A2 uses implied-equity
+- B7-MID — Doc — gap aggregates / reformulation-resolved totals during `MissingHistoricalValueError` stage (`c50912c`); originating B7 integrity PASS
+- A5 / B8 / E10 — Plan — parent Plan closure
+- E11 — NonReq — full-company workbook pretax parity (`interest_expense` blocker); not an original parent Tech requirement
 
-Complete accounting does **not** establish technical parent completion. Keep **Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — UNRESOLVED**. Return to Plan for parent closure assessment only after original acceptance is judged complete. Genuinely new bounded work first uses **9M.2.4.1.1.1.8**. Step 9 remains incomplete.
+Keep **Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — UNRESOLVED** pending Plan closure assessment. Return to Plan for that assessment now that original technical acceptance is supported. Reserve **9M.2.4.1.1.1.9** for genuinely new bounded work. Step 9 remains incomplete.
 
-**Required plan note (do not edit IMPLEMENTATION.md here):** original acceptance still open while A2-ED / B7-MID / E11 / Plan-closure UNVERIFIED remain; next Plan action is closure assessment or bounded follow-up under **9M.2.4.1.1.1.8**, not a claim that this RESULT closes parents.
+**Required plan note (do not edit IMPLEMENTATION.md here):** original technical acceptance supported; documentary UNVERIFIED (A2-ED, B7-MID) and NonReq E11 retained without blocking Tech; Plan should assess parent closure (A5/B8/E10) and may select new work under **9M.2.4.1.1.1.9**. Do not treat pending Plan closure as a prerequisite for that assessment.
