@@ -1,48 +1,46 @@
-# Step 9 — Release Source Fidelity and Structural Parity
+# Step 9 — Repair Release Layout Contract Bypasses
 
-**Base:** `68f90e5e85ec1e47a9cdb3a5b5c3067251262f98`
+**Base:** `4bd447678a726f77e48b8ef6742c4f145b5e5b39`
 **Incoming review:** PROBLEMS
-**Goal:** Reject persisted Fast Retailing releases with corrupted historical source facts, hidden historical sheets, or mismatched visible layouts.
+**Goal:** Reject judgment-header corruption and visible formatting mismatches in persisted release pairs.
 
 **Read-only:** `TARGET.md`, `IMPLEMENTATION.md`; Cursor must never modify either file.
 **Writable:** `scripts/audit_fast_retailing_benchmark.py`, `core/tests/test_fast_retailing_benchmark.py`, `RESULT.md`.
 
-### Task 1: Verify persisted source fidelity
+### Task 1: Restrict judgment-content exemptions
 
-- Pass the loaded `StandardizedFinancials` into `_verify_release_pair_contract`.
-- Replace the numeric-cell population heuristic with exhaustive comparison of persisted historical source cells in both workbooks against standardized inputs.
-- Resolve source rows and periods using existing production naming/mapping conventions; cover statement facts and supplied historical share data, preserving units, signs, zeros, and missing-value semantics.
-- Reject missing required source sheets, rows, periods, blanked facts, altered values, and formulas substituted for source literals.
-- Check each workbook independently against inputs so identical corruption in both files fails.
-- Report workbook, sheet, cell, source identity, period, expected value, and actual value on failure. Do not generate replacement workbooks.
+- Replace whole-column exemptions in `_verify_visible_layout_parity` with explicit response coordinates for actual cases on Accounting Judgment and Normalization Judgment.
+- Follow the case-row conventions used by `_judgment_case_rows` in `core/trainer/workbook.py`; require matching case coordinates in both workbooks.
+- Exempt only response cells in columns F:H and existing semantic practice cells from permitted content/Note comparisons.
+- Compare headers, including Accounting Judgment!F4, and all other non-response cells normally.
+- Continue comparing formatting at every visible cell, including exempt response and practice cells.
 
-### Task 2: Enforce visibility and layout parity
+### Task 2: Compare complete effective formatting
 
-- Determine visibility from `sheet_state`, not sheet-name prefixes.
-- Require historical source and active practice sheets to be visible in both workbooks; reject jointly hidden historical sheets as well as visibility mismatches.
-- Preserve intentionally hidden metadata and dormant forecast placeholders.
-- Compare sheet order/state and visible historical structure: cell coordinates, labels, dates, units, non-practice values/formulas, merged ranges, row heights, column widths, hidden rows/columns, freeze panes, and cell formatting.
-- Compare effective formatting rather than workbook-local style IDs.
-- Allow only the defined practice-content and Answer-Key Note differences; retain existing blank-yellow Trainer and formula-plus-Note Answer Key checks.
-- Surface failures through existing audit stage reporting and nonzero CLI exit.
+- Replace partial `_format_signature` and border tokens with complete normalized font, fill, border, alignment, number-format, and protection comparisons.
+- Include wrapping, shrink-to-fit, rotation, indentation, font decorations, pattern/gradient fills, and all border sides and flags.
+- Dispatch color normalization on `Color.type`; preserve RGB, theme/indexed identity, tint, and automatic-color semantics without reading inactive descriptor values.
+- Resolve workbook theme/palette references so identical color indices with different effective colors fail.
+- Keep comparisons independent of workbook-local style IDs.
+- Report sheet, cell, differing formatting component, and Trainer/Answer Key values through existing contract failures.
 
-### Task 3: Add corruption regressions and verify
+### Task 3: Add bypass regressions and verify
 
-- Use temporary copies of the persisted pair and required sidecars for corruption tests.
-- Parameterize source mutations across Trainer, Answer Key, and both together; cover earlier-year statement facts, zero values, historical shares, deleted facts, and missing source sheets.
-- Cover `hidden` and `veryHidden` historical sheets, including both workbooks hidden identically.
-- Cover mismatched labels, merged ranges, dimensions, row/column visibility, freeze panes, and formatting.
-- Assert specific contract failures, not merely failed Check counts; prove explicit-pair verification does not invoke workbook generation.
-- Verify the unchanged persisted pair passes all stages with pristine counts `(0, 0, 491, 491)` and filled counts `(491, 0, 0, 491)`.
-- Assert workbook and sidecar hashes remain unchanged after successful and failed verification.
+- Extend persisted-pair corruption tests using temporary workbook copies and existing sidecar helpers.
+- Parameterize one-sided mutations across Trainer and Answer Key: Accounting Judgment!F4 text and Note, non-case F:H content, `wrap_text`, distinct theme colors, tint, and changed theme definitions behind identical references.
+- Cover omitted formatting components with focused parameterized cases.
+- Add positive controls for legitimate judgment-response differences and equivalent formatting with different style IDs.
+- Assert specific contract failures; verify demonstrated bypasses fail `5_workbook_generation`, skip Check stages, and produce nonzero CLI exit.
+- Preserve the explicit-pair no-generation regression; compare workbook and sidecar hashes before and after successful and failed verification.
 - Run `python -m pytest core/tests/test_fast_retailing_benchmark.py core/tests/test_historical_v1_exit_gate.py -q`.
 - Run `python -m pytest core/tests -q` and `git diff --check`.
-- Run the explicit-pair audit CLI against `release/fast_retailing/` with its supporting inputs, `--verify-release-pair --require-check-counts --no-baseline`.
-- Record revision, exact commands, measured results, artifact hashes, corruption coverage, and PASS/PROBLEMS/BLOCKED status in `RESULT.md`.
+- Run `python scripts/audit_fast_retailing_benchmark.py --standardized-json release/fast_retailing/supporting/standardized.json --provenance-json release/fast_retailing/supporting/provenance.json --conflicts-json release/fast_retailing/supporting/conflicts.json --trainer release/fast_retailing/FastRetailing_Trainer.xlsx --answer-key release/fast_retailing/FastRetailing_Answer_Key.xlsx --verify-release-pair --require-check-counts --no-baseline`.
+- Record completion revision, exact commands, measured results, corruption coverage, artifact hashes, and PASS/PROBLEMS/BLOCKED status in `RESULT.md`.
 
 ### Acceptance criteria
 
-- Every required persisted source fact matches standardized input in both workbooks.
-- Hidden required historical sheets and visible structural mismatches fail release verification.
-- Pristine release verification and required regressions pass without modifying release artifacts.
-- Only writable files change; no commit or push. Further stage work remains deferred.
+- Judgment headers and non-response content cannot bypass parity checks.
+- Wrapping and effective theme-color mismatches fail, including on response cells.
+- Unchanged release verification passes with pristine counts `(0, 0, 491, 491)` and filled counts `(491, 0, 0, 491)`.
+- Required regressions pass; release artifacts remain unchanged.
+- Only writable files change; no commit or push.
