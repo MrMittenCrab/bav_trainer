@@ -1,52 +1,51 @@
-# Step 9M.2.4.1.1.1 — Correct Completion Accounting and Isolated Verification
+# Step 9M.2.4.1.1.1 — Restore Criterion-Specific Evidence and Original Acceptance
 
-**Base:** `590c73a4eba8ee2901687f8f2d03e63aacc865bd`
+**Base:** `470aa43533c32bbf696aad254a03f155dc2ea6a8`
 **Status:** PROBLEMS — UNRESOLVED; repair of the same step.
-**Parents:** Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 remain UNRESOLVED until their original acceptance criteria pass.
-**Goal:** Correct unsupported completion and numbering; replace artifact-mutating suite evidence with protected isolated verification.
+**Parents:** Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 remain UNRESOLVED until every original acceptance criterion passes.
+**Goal:** Restore deleted evidence and original criterion wording; correct unsupported dependent PASS claims while preserving isolated verification.
 
 ## Constraints
 
 - Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`; only `RESULT.md` may change in the authoritative workspace.
-- No production or test changes. Preserve source PDFs, extracted JSON, standardized facts, provenance, conflicts, release/demo workbooks, and baseline hashes.
-- Disposable verification copies may generate or overwrite machine-generated artifacts within their isolated roots only; never copy generated artifacts back.
-- Use only permitted writable temporary storage. Unavailable isolation or execution access remains a blocker; do not bypass permissions.
+- No production/test changes, generated refreshes, baseline updates, commits, or pushes. Preserve source PDFs, extracted JSON, standardized facts, provenance, conflicts, and release/demo workbooks.
 - Preserve classification metadata, source identity, concept/override precedence, ambiguity errors, required-value semantics, subtotal/detail boundaries, and non-balance-sheet completeness.
-- No invented facts, zeros, carry-forward, balancing plugs, issuer-specific rules, benchmark overrides, tolerance inflation, suppressed errors, G4–G7, forecasting, valuation, or unrelated repairs.
+- Any necessary execution must use permitted independent disposable copies with authoritative files protected throughout, including failure paths; no writable links or generated copy-back. Access restrictions remain blockers.
+- No invented facts, measurements, zeros, carry-forward, balancing plugs, issuer-specific rules, benchmark overrides, tolerance inflation, suppressed errors, G4–G7, forecasting, valuation, or unrelated repair.
 
-## Task 1 — Correct accounting and numbering
+## Task 1 — Restore original obligations and historical measurements
 
-- Replace the operative COMPLETE status and acceptance-met claim in `RESULT.md` with PROBLEMS — UNRESOLVED; retain the current detailed step ID.
-- Replace the proposed exhausted child `9M.2.4.1.1.1.5` with `9M.2.4.1.1.1.6` only as the first available ID for genuinely new bounded work; do not renumber historical work.
-- Preserve the criterion ledger against `aa6adc1`, `a370a02`, `2e88322`, `88ce931`, `a62893f`, and `0f1d2c3`, including original wording and source revision.
-- Separate technical acceptance, evidence availability, and Plan-owned closure. A complete ledger cannot establish acceptance while required obligations remain unresolved.
-- Retain prior suite counts as historical observations; withdraw their use as proof of isolated execution or artifact immutability. Record that reverting FR/demo mutations did not satisfy protection during execution.
-- Reassess dependent PASS summaries, including A4/E8; assign FAIL or UNVERIFIED wherever supporting evidence does not establish the complete obligation.
+- Compare `470aa435^:RESULT.md` with the reviewed RESULT; restore useful deleted evidence without reinstating unsupported COMPLETE or non-isolated immutability claims.
+- Recover exact criterion wording and required evidence obligations from `aa6adc1`, `a370a02`, `2e88322`, `88ce931`, `a62893f`, `0f1d2c3`, and `b5a33cd`; retain source revision and map every obligation to a separate ledger entry.
+- Restore four-period before/after resolved totals, asset/liability/equity-detail/implied-equity gaps, actual detail counts, tolerance formulas/envelopes, and causal included/excluded row identities and amounts.
+- Verify historical counts and envelopes against their cited records: pre-repair A/L counts 11/10 and envelopes 6.0/5.5, implied 11.0; repaired A/L/E-detail counts 11/11/4 and envelopes 6.0/6.0/2.5, implied 11.5. Do not relabel recovered measurements as fresh.
+- Keep original liability defect, sparse-value exception, and equity-omission regression distinct. Gate-absent historical equity-detail measurements and aggregates unavailable after exceptions remain explicitly UNVERIFIED; current diagnostics cannot replace them.
 
-## Task 2 — Establish artifact-protecting isolation
+## Task 2 — Restore itemized provenance and safeguard evidence
 
-- Create independent disposable copies of the verified revision for each required suite, preserving required repository-relative inputs and baseline artifacts without writable hard links or symlinks into the authoritative workspace.
-- Inspect suite subprocesses and output paths, including the Fast Retailing reconciliation refresh and demo/release generation; ensure imports, working directories, caches, temporary files, and generated outputs resolve within permitted isolated storage.
-- Record the revision, copy method, resolved roots, input/baseline manifests, and protection mechanism before execution. A temporary pytest directory alone does not redirect repository-relative writes.
-- Protect the authoritative workspace from test writes throughout execution; hash all tracked files except the authorized `RESULT.md` update before and after each suite, including failure paths. Do not use restoration as evidence of immutability.
-- If protection cannot be established, record the exact restriction and leave verification UNVERIFIED.
+- Restore NCIT row/period/amount/source/page/disposition records for selected, non-selected agreeing, outside-axis, and missing-period observations; distinguish retained observations from an actual `superseded` status.
+- Restore exact fixture/assertion locations for non-balance-sheet omissions, latest-available label/concept selection, nullable export/reload, sparse positions, reported zero, and complete rows.
+- Restore identified production/test revisions, fixture assertions, commands, exits, and before-failure/after-success outcomes for sparse standardization, eligible aggregation, and equity omission.
+- Give each inherited safeguard an exact test node/parameter or artifact location and measured outcome: independent totals, missing keys, contradictory/equal omissions, rounding boundaries, contra-equity, subtotal/override controls, empty unclassified detail, and G1/G2/G3.
+- Retain individual outcomes for all 12 pretax/ETR cases, saved/reloaded header mutations, source-link/arithmetic mutations, zero-pretax behavior, and resolver safeguards; distinguish formula inspection/reference evaluation from Excel recalculation.
 
-## Task 3 — Rerun and record evidence
+## Task 3 — Reassess statuses and preserve isolated verification
 
-- In its isolated copy, run `PYTHONPATH=. pytest core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py core/tests/test_classification.py core/tests/test_line_resolver.py core/tests/test_reference_integrity.py core/tests/test_lululemon_benchmark.py -q`.
-- In separate isolated copies, run `PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q` and `PYTHONPATH=. pytest core/tests -q`.
-- Record exact commands, execution roots, code/input revisions, exit codes, measured counts, log locations, isolated artifact changes, authoritative before/after hashes, and final diff scope.
-- Preserve traceable dual-reconciliation evidence for standardized/provenance/conflicts artifacts, both run hashes, immutable committed comparisons, and separate subprocess-failure, comparison-failure, mutation-detection, and drift-detection outcomes.
-- Retain criterion-specific evidence for all 12 pretax/ETR cases, saved/reloaded header mutations, source-link/arithmetic mutations, zero-pretax behavior, and resolver safeguards; distinguish formula inspection/reference evaluation from Excel recalculation.
-- Probe unmodified Lululemon input in isolation; record generation success or the exact next exception. Keep synthetic parity, real-company resolution, and unavailable full-company parity separate.
+- Reassess every PASS, especially A2, B2–B3, C2–C5, D2–D4, E4–E7, and E12–E14; split bundled obligations and propagate missing evidence into dependent summaries. Use FAIL for demonstrated failure and UNVERIFIED for missing proof.
+- Preserve the isolated focused/FR/full results, exact commands, verified revision, roots, logs, manifests, hashes, and isolated artifact changes. Keep historical non-isolated counts explicitly withdrawn as immutability proof.
+- Retain dual-reconciliation input hashes, both output hashes and committed comparisons for all three artifacts; restore separate subprocess-failure, comparison-failure, mutation-detection, and drift-detection outcomes.
+- Reuse traceable evidence with its original execution classification; rerun only missing measurements in protected isolation. Record inaccessible evidence and execution restrictions precisely; suite totals and unchanged hashes cannot replace criterion-specific proof.
+- Record final RESULT-only diff scope and distinguish technical acceptance, evidence availability, and Plan-owned closure. Preserve the exact `interest_expense` build exception separately from synthetic parity and unavailable full-company parity.
 
 ## Original acceptance retained
 
-- All four periods pass `check_reformulation_integrity` under unchanged tolerances; original liability and corresponding equity discrepancies have complete causal and historical evidence, including resolved totals, detail counts, gaps, envelopes, and causal row identities/amounts.
-- Independent asset, liability, and signed equity-detail gates reject unsupported sparse omissions before usable results; implied-equity remains separate. Missing keys/totals, contradictory evidence, equal omissions, and excessive gaps fail closed.
-- Sparse absence remains distinct from reported zero through standardization, export/reload, and reformulation; selected, superseded, and outside-axis observations remain preserved.
-- Synthetic before/after proof, sparse-position/zero/complete-row cases, latest-available label/concept selection, contra-equity, subtotal/override controls, non-balance-sheet omissions, empty unclassified detail, and G1/G2/G3 safeguards retain criterion-specific evidence.
-- Preserve NCIT 28555 / 15864 / reported 0 / `None` and Common stock 611 / 606 / 581 / 557.
-- All 12 parity cases, workbook mutation controls, required suites, deterministic comparisons, and failure-path immutability pass; authoritative source facts and committed artifacts remain unchanged throughout execution.
-- Every original obligation has supported PASS or explicit FAIL/UNVERIFIED accounting. Historical gates that did not exist and aggregates unavailable after exceptions remain explicitly unavailable; workbook generation success is not an original parent acceptance requirement.
-- On unresolved acceptance, next step: **Step 9M.2.4.1.1.1 — Correct Completion Accounting and Isolated Verification**. Only after original acceptance passes, return to Plan for closure assessment; genuinely new bounded work first uses **9M.2.4.1.1.1.6**. Step 9 remains incomplete.
+- All four Lululemon periods pass `check_reformulation_integrity` within unchanged tolerance rules; the recorded liability and corresponding equity discrepancies are explained and repaired.
+- Required tests pass, genuine inconsistencies still fail closed, and source facts and committed artifacts remain unchanged.
+- Unsupported sparse equity omissions fail closed before usable reformulation results; balanced assets and liabilities alone cannot authorize missing equity detail.
+- Independent asset, liability, and signed equity-detail gates retain separate implied-equity reconciliation; missing keys/totals, contradictory evidence, equal omissions, and excessive gaps fail closed.
+- Sparse absence remains distinct from reported zero through standardization, export/reload, and reformulation; selected, superseded, and outside-axis observations remain preserved without invented facts.
+- Historical causal evidence includes resolved totals, counts, gaps, and envelopes; synthetic before/after, sparse-position/zero/complete-row, latest-available identity, contra-equity, subtotal/override, non-balance-sheet omission, empty unclassified-detail, and G1/G2/G3 obligations retain criterion-specific proof.
+- NCIT remains 28555 / 15864 / reported 0 / `None`; Common stock remains 611 / 606 / 581 / 557.
+- All 12 parity cases and workbook mutation controls pass; required suites, deterministic comparisons, and failure-path immutability pass with authoritative artifacts protected throughout execution.
+- Every original obligation retains its original wording and supported PASS or explicit FAIL/UNVERIFIED accounting. Complete accounting does not establish technical completion; workbook generation success is not an original parent acceptance requirement.
+- On unresolved evidence or failure, next step: **Step 9M.2.4.1.1.1 — Restore Criterion-Specific Evidence and Original Acceptance**. Only after original acceptance passes, return to Plan for closure assessment. First unused child for genuinely new bounded work: **9M.2.4.1.1.1.7**. Step 9 remains incomplete.
