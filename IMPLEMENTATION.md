@@ -1,46 +1,48 @@
-# Step 9M.2.1 — Repair Plural Gift-Card Movement Detection and Liability Fallback Escapes (G1)
+# Step 9M.2.2 — Generic Property-and-Equipment Classification and PPE Identity (G2)
 
-**Base:** `44e7651968651e38715e08ef8692d7acffb46eb3`
-**Status:** PROBLEMS
-**Goal:** Make plural gift-card movement rows raise instead of escaping through liability classification.
+**Base:** `f718ef4d90a8c6a0ab22766c8b2b9ba73be3634a`
+**Previous step:** Step 9M.2.1 — PASS per supplied review.
+**Goal:** Classify generic property-and-equipment balances and resolve their PPE identity without changing source facts.
 
 ## Constraints
 
 - Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`.
-- Limit changes to `core/model/classification.py`, `core/tests/test_classification.py`, and `RESULT.md`.
-- Preserve source inputs, committed reconciliation artifacts, baseline hashes, and failure-path immutability guards; generate test artifacts only in temporary directories.
-- No issuer-specific rules, source relabeling, benchmark overrides, G2–G7 implementation, or forecasting/valuation work.
+- Limit changes to `core/model/classification.py`, `core/model/line_resolver.py`, `core/tests/test_classification.py`, `core/tests/test_line_resolver.py`, `core/tests/test_fixed_asset.py`, `core/tests/test_lululemon_benchmark.py`, and `RESULT.md`.
+- Preserve source inputs, committed reconciliation artifacts, baseline hashes, and failure-path immutability guards. Generate verification artifacts only in temporary directories.
+- No issuer-specific rules, source relabeling, benchmark overrides, G3–G7 implementation, or forecasting/valuation work.
 
-## Task 1 — Repair plural gift-card detection
+## Task 1 — Classify property-and-equipment balances
 
-- Extend customer-prepayment topic matching to cover `gift card liabilities`, `gift-card liabilities`, `gift cards liabilities`, and `gift-cards liabilities`, retaining singular forms.
-- Keep label topic recognition consistent between balance classification and movement protection, using bounded wording.
-- Ensure movement protection raises `UnclassifiedBalanceSheetLineError` before concept classification or current, noncurrent, other-liability, and long-term label fallbacks.
-- Preserve explicit override precedence, noncurrent-before-current handling, contradictory-asset exclusions, and unrelated classification behavior.
+- Recognize `Property and equipment, net` and bounded generic property-and-equipment balance wording as `Operating Long-Term Asset`, without a new judgment case.
+- Support exact PPE balance concepts `property_plant_equipment` and `property_plant_and_equipment`.
+- Preserve explicit override precedence and existing PP&E classification behavior.
+- Prevent the new matching from admitting purchases, proceeds, depreciation, impairment, or other PPE movement rows as PPE balances; retain unrelated liability and asset treatment.
+- Add public-classifier regressions for the reported row, label-only and concept-only recognition, wording variants, misleading movement labels/concepts, and override precedence.
 
-## Task 2 — Add public-classifier regressions
+## Task 2 — Resolve canonical PPE identity
 
-- Add the exact failing label `Recognition of gift card liabilities within other current liabilities` with an empty concept; assert `UnclassifiedBalanceSheetLineError`.
-- Parameterize singular/plural card and liability wording, spaced/hyphenated forms, and current, noncurrent, other-liability, and long-term fallback contexts.
-- Cover recognition, derecognition, change, increase, decrease, amortization, additions, and reductions across representative plural cases.
-- Include empty and unrelated concepts, movement labels paired with supported balance concepts, and movement concepts paired with balance labels.
-- Assert hard raises through `classify_balance_sheet_line`; absence of the customer-prepayment reason is insufficient.
-- Add positive current/noncurrent plural balance controls and an explicit override control for the reported failing row. Retain existing asset, unrelated-classification, judgment, and reformulation checks.
-- Demonstrate that the new defect regressions fail against the base revision before applying the repair, then pass afterward.
+- In `line_resolver.py`, recognize `property_plant_and_equipment` as an explicit alias of canonical `property_plant_equipment`; leave stored `LineItem.concept` unchanged.
+- Treat canonical and alias concepts at the same explicit-concept priority, ahead of label matches; multiple matching rows must raise `AmbiguousLineError`.
+- Add exact normalized net-balance label aliases, including `property and equipment net` and `property plant and equipment net`.
+- Test alias-only recognition with a neutral label, label-only recognition, concept precedence, duplicate canonical/alias ambiguity, and rejection of movement-label near matches.
+- Verify fixed-asset availability and independently calculated PPE averages, turnover, and intensity using synthetic source values. Preserve first-period blanks and missing/ambiguous-source behavior.
 
-## Task 3 — Verify and record completion
+## Task 3 — Verify benchmark progression and record completion
 
+- On unchanged Lululemon standardized input, assert the PPE row classifies and resolves to the original item/index with all four period values intact; `fixed_asset_applicable` becomes true.
+- Update benchmark expectations to exactly `{Common stock}` as the unclassified set and `Common stock` as the temporary build probe’s first exception.
+- Retain G1 gift-card coverage, deterministic reconciliation, committed hashes, failure-path immutability, and no-issuer-branch guards.
 - Run:
-  - `PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_lululemon_benchmark.py -q`
+  - `PYTHONPATH=. pytest core/tests/test_classification.py core/tests/test_line_resolver.py core/tests/test_fixed_asset.py core/tests/test_lululemon_benchmark.py -q`
   - `PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q`
   - `PYTHONPATH=. pytest core/tests -q`
-- Preserve Lululemon gift-card classification across all four periods, exactly `Property and equipment, net` and `Common stock` as unclassified rows, and the temporary build probe’s exact PPE blocker.
-- Verify deterministic reconciliation, committed hashes, failure-path immutability, and no-issuer-branch guards.
-- Update `RESULT.md` to supersede the previous G1 PASS with the plural repair outcome, base-failure/post-fix evidence, newly measured verification, before/after artifact hashes, remaining G2/G3 blockers, and final diff scope. Record failures or restrictions explicitly.
+- Record completion, measured results, artifact hashes before/after verification, remaining blockers, and final diff scope in `RESULT.md`.
+- Distinguish the supplied prior review’s 177 passing tests and seven reproduced base failures from the excluded mismatched log. Record new failures or execution restrictions explicitly; do not reuse unsupported full-suite claims.
 
 ## Acceptance and next step
 
-- Plural gift-card movements, including the reported label, raise without liability fallback escapes unless explicitly overridden.
-- Valid balances and existing classification/reformulation behavior remain correct; required checks pass and committed artifacts remain unchanged.
-- On failure, retain **Step 9M.2.1 — Repair Plural Gift-Card Movement Detection and Liability Fallback Escapes (G1)**.
-- On PASS, propose **Step 9M.2.2 — Generic Property-and-Equipment Classification and PPE Identity (G2)**; Step 9 remains incomplete.
+- Generic PPE classification and canonical resolution succeed without source mutation, unsafe new matches, or silent ambiguity.
+- Lululemon fixed-asset availability is restored; the build advances to the exact G3 `Common stock` blocker.
+- Required checks pass and committed artifacts remain unchanged; any verification restriction is explicitly recorded.
+- On failure, retain **Step 9M.2.2 — Generic Property-and-Equipment Classification and PPE Identity (G2)**.
+- On PASS, propose **Step 9M.2.3 — Generic Common-Stock Equity Classification (G3)**; Step 9 remains incomplete.
