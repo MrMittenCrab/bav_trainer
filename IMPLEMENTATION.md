@@ -1,52 +1,49 @@
-# Step 9M.2.4.1.1.1 — Restore Isolation References and Historical Totals Accounting
+# Step 9M.2.4.1.1.1 — Correct Closure Dependencies Against Original Acceptance
 
-**Base:** `4035dbf2d87e7bd731b3679c05ca8c2e04879d83`
+**Base:** `5aecbc25ae2680cdf0b4d782a74475ad83462902`
 **Status:** PROBLEMS — UNRESOLVED; repair of the same step.
-**Parents:** Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 remain UNRESOLVED until every original acceptance criterion passes.
-**Scope:** Repair evidence references, historical totals accounting, and dependent completion claims in `RESULT.md`.
+**Parents:** Steps 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 remain UNRESOLVED until their original acceptance criteria pass.
+**Scope:** Correct acceptance dependencies and next-step numbering in `RESULT.md`.
 
 ## Constraints
 
-- Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`; only `RESULT.md` may change in the authoritative workspace.
-- No production/test changes, generated refreshes, baseline updates, commits, or pushes. Preserve source PDFs, extracted JSON, standardized facts, provenance, conflicts, and release/demo workbooks.
-- Preserve classification metadata, source identity, concept/override precedence, ambiguity errors, required-value semantics, subtotal/detail boundaries, and non-balance-sheet completeness.
-- Any necessary execution requires permitted independent disposable copies with authoritative files protected throughout, including failure paths; no writable links or generated copy-back. Access restrictions remain blockers.
-- No invented facts, measurements, zeros, carry-forward, balancing plugs, issuer-specific rules, benchmark overrides, tolerance inflation, suppressed errors, G4–G7, forecasting, valuation, or unrelated repair.
+- Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`; only Plan revises the plan. Direct completion records and verification to `RESULT.md`.
+- Only `RESULT.md` may change, where permissions allow. Access restrictions remain blockers; do not bypass them.
+- No production/test changes, generated refreshes, baseline updates, commits, or pushes. Preserve source facts, provenance, conflicts, and committed artifacts.
+- No invented measurements, weakened acceptance, suppressed errors, unrelated blocker repair, G4–G7, forecasting, or valuation.
 
-## Task 1 — Restore deleted isolation evidence references
+## Task 1 — Map actual technical acceptance dependencies
 
-- Compare `4035dbf2^:RESULT.md` with `4035dbf2:RESULT.md`; restore deleted log/manifest references without deleting the restored criterion-specific evidence.
-- Retain the full isolation base and restore its `manifests/isolation_setup.json`, `auth_before_*.json`, `auth_after_*.json`, `suite_runs.json`, and `logs/focused.log`, `fr.log`, `full.log` references; expand individual filenames where recoverable.
-- Map references to verified revision `590c73a4eba8ee2901687f8f2d03e63aacc865bd`, execution roots, exact commands, exits, suite counts, authoritative hash boundaries, and isolated artifact changes.
-- Distinguish references recovered from committed records from files inspected now. Preserve unavailable paths and source revisions, explicitly mark inaccessible verification UNVERIFIED, and propagate missing support to dependent claims.
-- Preserve source-input hashes, both reconciliation output hashes and committed comparisons for all three artifacts, and separate subprocess-failure, comparison-failure, mutation-detection, and drift-detection outcomes.
+- Compare the acceptance ledger with original plans at `aa6adc1`, `a370a02`, `2e88322`, `88ce931`, and `da07d28`; retain subsequent verification obligations from `a62893f`, `0f1d2c3`, and `b5a33cd`.
+- For each ledger obligation, identify its source criterion, evidence status, and whether it blocks technical acceptance, documents unavailable historical evidence, or records pending Plan closure.
+- Separate A5/B8/E10 administrative closure from technical criteria. Pending Plan closure must not itself prevent technical acceptance or readiness for Plan assessment.
+- Preserve E11 full-company parity as UNVERIFIED/unavailable, but remove it as an added technical acceptance requirement. Original workbook probes permit success or the exact next exception; retain `MissingLineError: Required concept 'interest_expense' not found in statement lines`.
+- Preserve A2-ED and B7-MID as UNVERIFIED with their exact missing evidence. Determine their acceptance impact from the originating obligation; neither invent historical measurements nor treat every unavailable diagnostic as an automatic technical blocker.
 
-## Task 2 — Supply historical resolved totals or explicit missing-evidence accounting
+## Task 2 — Repair summaries and preserve evidence
 
-- Inspect directly relevant records at `cdf0c9f`, `c50912c`, `17114fc`, `8c0098c`, and `470aa435^`; record four-period resolved asset, liability, and equity totals for each historical stage where supported.
-- For each unavailable stage/period/total, enter UNVERIFIED with the precise missing evidence or exception; “totals existed” and current totals do not satisfy historical accounting.
-- Keep historical measurements, later-code diagnostics, overlays, and isolated repaired measurements distinct. Gate-absent equity-detail measurements and unavailable post-exception aggregates remain UNVERIFIED.
-- Retain causal included/excluded rows and amounts, all four reconciliation gaps, actual detail counts, and unchanged tolerance formulas/envelopes: pre-repair A/L 11/10 with 6.0/5.5 and implied 11.0; repaired A/L/E-detail 11/11/4 with 6.0/6.0/2.5 and implied 11.5.
-- Preserve existing NCIT provenance itemization, synthetic before/after assertions, sparse/zero/export-reload evidence, safeguards, and individual pretax/ETR outcomes.
+- Make the header, status definitions, ledger, dependent-claim notes, verification summary, closure note, and required plan note agree with the dependency mapping.
+- Report separately: evidence-accounting completion, original technical acceptance, and pending Plan closure. Identify any remaining technical blocker by criterion and missing proof or demonstrated failure.
+- Retain isolation roots, expanded manifest/log references, verified revisions, commands, exits, suite counts, authoritative hash boundaries, and separate failure-path outcomes.
+- Retain historical totals and their evidence classes, causal rows, four-period gaps/counts/envelopes, NCIT provenance, synthetic before/after assertions, safeguards, deterministic comparisons, and individual pretax/ETR outcomes.
+- Correct every proposed new-work use of `9M.2.4.1.1.1.8`; it is already used. Reserve `9M.2.4.1.1.1.9` for genuinely new bounded work selected by Plan. Preserve historical IDs.
 
-## Task 3 — Correct dependent claims and verify the evidence-only repair
+## Task 3 — Verify the bounded record repair
 
-- Withdraw unsupported COMPLETE and blanket “fully restored/preserved” statements in the header, restoration summary, ledger, and closure note.
-- Reassess A2, A4, E4, E8–E10, E12–E13, and every other dependent claim against restored references and historical totals; split obligations with differing evidence and use FAIL for demonstrated failures or UNVERIFIED for missing proof.
-- Retain original criterion wording and source revisions from `aa6adc1`, `a370a02`, `2e88322`, `88ce931`, `a62893f`, `0f1d2c3`, and `b5a33cd`; complete accounting does not satisfy missing technical evidence.
-- Verify each deleted reference is restored or explicitly accounted for, every required historical total has evidence or UNVERIFIED accounting, summaries agree with the ledger, and the authoritative diff changes only `RESULT.md`.
-- Reuse traceable measurements without relabeling them fresh; rerun only missing verification when protected isolation is permitted. Record commands, outcomes, and access blockers in `RESULT.md`.
+- Check every acceptance dependency against its cited original wording; no criterion may be weakened or added through summary wording.
+- Confirm genuine UNVERIFIED entries and supporting references remain, while E11 and pending Plan closure no longer create circular or additional technical acceptance blockers.
+- Review the complete diff for consistent statuses, numbering, preserved evidence, and changes limited to `RESULT.md`.
+- Record read-only checks and outcomes in `RESULT.md`. Reuse traceable measurements with their original revisions; do not claim fresh suite execution or rerun suites for this documentation repair.
 
 ## Original acceptance retained
 
-- All four Lululemon periods pass `check_reformulation_integrity` within unchanged tolerance rules; the recorded liability and corresponding equity discrepancies are explained and repaired.
-- Required tests pass, genuine inconsistencies still fail closed, and source facts and committed artifacts remain unchanged.
-- Unsupported sparse equity omissions fail closed before usable reformulation results; balanced assets and liabilities alone cannot authorize missing equity detail.
-- Independent asset, liability, and signed equity-detail gates retain separate implied-equity reconciliation; missing keys/totals, contradictory evidence, equal omissions, and excessive gaps fail closed.
-- Sparse absence remains distinct from reported zero through standardization, export/reload, and reformulation; selected, superseded, and outside-axis observations remain preserved without invented facts.
-- Historical causal evidence includes resolved totals, counts, gaps, and envelopes; synthetic before/after, sparse-position/zero/complete-row, latest-available identity, contra-equity, subtotal/override, non-balance-sheet omission, empty unclassified-detail, and G1/G2/G3 obligations retain criterion-specific proof.
-- NCIT remains 28555 / 15864 / reported 0 / `None`; Common stock remains 611 / 606 / 581 / 557.
-- All 12 parity cases and workbook mutation controls pass; required suites, deterministic comparisons, and failure-path immutability pass with authoritative artifacts protected throughout execution.
-- Every original obligation retains its original wording and supported PASS or explicit FAIL/UNVERIFIED accounting. Complete accounting does not establish technical completion; workbook generation success is not an original parent acceptance requirement.
+- Supplied pretax income resolves generically and consistently in Python and Excel; tax expense remains distinct, and explicit-concept precedence, ambiguity errors, and missing-required-value failures remain intact.
+- All four Lululemon periods pass `check_reformulation_integrity` under unchanged tolerances; original liability and corresponding equity discrepancies are explained and repaired.
+- Independent asset, liability, and signed equity-detail gates reject unsupported sparse omissions before usable results; implied-equity reconciliation remains separate. Missing keys/totals, contradictory evidence, equal omissions, and excessive gaps fail closed.
+- Sparse absence remains distinct from reported zero through standardization, export/reload, and reformulation; source identity, selected/superseded/outside-axis observations, and non-balance-sheet completeness remain preserved without invented facts.
+- NCIT remains 28555 / 15864 / reported 0 / `None`; Common stock remains 611 / 606 / 581 / 557. G1/G2/G3, empty unclassified-detail, subtotal/override, contra-equity, and sparse-position controls retain criterion-specific proof.
+- Historical causal totals, counts, gaps, envelopes, synthetic before/after evidence, all 12 pretax/ETR cases, and workbook mutation controls retain supported outcomes or explicit missing-evidence accounting.
+- Required suites, deterministic artifact comparisons, and failure-path immutability pass with authoritative artifacts protected throughout execution. Complete accounting alone does not satisfy missing required technical proof.
+- This repair passes when dependencies match original acceptance, evidence remains intact, and summaries and numbering agree. Parent closure remains Plan-owned.
 
-**Next step:** On unresolved evidence or failure, **Step 9M.2.4.1.1.1 — Restore Isolation References and Historical Totals Accounting**. Only after original acceptance passes, return to Plan for closure assessment. Preserve the exact `interest_expense` exception separately from synthetic parity and unavailable full-company parity. First unused child for genuinely new bounded work: **9M.2.4.1.1.1.8**. Step 9 remains incomplete.
+**Next step:** If this repair remains incomplete, **Step 9M.2.4.1.1.1 — Correct Closure Dependencies Against Original Acceptance**. Once original technical acceptance is supported, return to Plan for parent closure assessment; pending closure is not a prerequisite for that assessment. Reserve **9M.2.4.1.1.1.9** for genuinely new work. Step 9 remains incomplete.
