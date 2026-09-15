@@ -3951,6 +3951,54 @@ INVENTORY_ANALYSIS_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
             "seasonality, markdowns, or management causes.",
         ),
     ),
+    ComponentFamily(
+        id="inventory_balance_implied_cf_adjustment",
+        order=150,
+        title="Balance-implied inventory CF adjustment",
+        short_hint=(
+            "Balance-implied inventory CF adjustment = −(current inventory − "
+            "prior inventory), the negative of the inventory balance movement. "
+            "This is not the reported operating cash-flow reconciliation "
+            "adjustment. Opening-period comparison is not practiced."
+        ),
+        semantic_key="inventory_analysis.inventory_balance_implied_cf_adjustment",
+        category="inventory_analysis",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("inventory_change",),
+        hints=(
+            "Balance-implied inventory CF adjustment = −(current inventory − "
+            "prior inventory).",
+            "This is the negative of the inventory balance movement, not the "
+            "reported operating cash-flow reconciliation adjustment.",
+            "Do not treat this as cash paid for inventory.",
+        ),
+    ),
+    ComponentFamily(
+        id="inventory_cf_adjustment_difference",
+        order=151,
+        title="Unexplained inventory CF difference",
+        short_hint=(
+            "Unexplained inventory CF difference = reported operating CF "
+            "inventory adjustment − balance-implied adjustment. A nonzero "
+            "difference needs further evidence; it does not establish an "
+            "error, cash paid for inventory, FX, acquisitions, write-downs, "
+            "or another specific cause. Do not insert a balancing plug."
+        ),
+        semantic_key="inventory_analysis.inventory_cf_adjustment_difference",
+        category="inventory_analysis",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("inventory_balance_implied_cf_adjustment",),
+        hints=(
+            "Unexplained inventory CF difference = reported operating CF "
+            "inventory adjustment − balance-implied adjustment.",
+            "A nonzero difference needs further evidence; it does not "
+            "establish an error, cash paid for inventory, FX, acquisitions, "
+            "write-downs, or another specific cause.",
+            "Do not insert a balancing plug.",
+        ),
+    ),
 )
 
 
@@ -3963,6 +4011,8 @@ def expand_inventory_analysis_specs(
     include_revenue_scale: bool = False,
     include_intensity_effect: bool = False,
     include_reconstructed: bool = False,
+    include_balance_implied: bool = False,
+    include_cf_difference: bool = False,
 ) -> tuple[ComponentSpec, ...]:
     """Expand inventory-analysis families into period-specific concrete specs."""
     if include_revenue_scale and not include_intensity:
@@ -3981,6 +4031,16 @@ def expand_inventory_analysis_specs(
         raise ValueError(
             "expand_inventory_analysis_specs reconstructed change requires "
             "inventory_revenue_scale_effect and inventory_intensity_effect"
+        )
+    if include_balance_implied and not include_change:
+        raise ValueError(
+            "expand_inventory_analysis_specs balance-implied requires "
+            "inventory_change"
+        )
+    if include_cf_difference and not include_balance_implied:
+        raise ValueError(
+            "expand_inventory_analysis_specs CF difference requires "
+            "inventory_balance_implied_cf_adjustment"
         )
     if len(periods) != len(set(periods)):
         raise ValueError(
@@ -4005,6 +4065,10 @@ def expand_inventory_analysis_specs(
         omit.add("inventory_intensity_effect")
     if not include_reconstructed:
         omit.add("reconstructed_inventory_change")
+    if not include_balance_implied:
+        omit.add("inventory_balance_implied_cf_adjustment")
+    if not include_cf_difference:
+        omit.add("inventory_cf_adjustment_difference")
     families = tuple(
         family
         for family in INVENTORY_ANALYSIS_COMPONENT_CATALOG

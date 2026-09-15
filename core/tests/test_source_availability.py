@@ -535,6 +535,8 @@ def test_lululemon_unchanged_facts_gate_interest_and_keep_supported_outputs(tmp_
     assert "inventory_revenue_scale_effect" in families
     assert "inventory_intensity_effect" in families
     assert "reconstructed_inventory_change" in families
+    assert "inventory_balance_implied_cf_adjustment" in families
+    assert "inventory_cf_adjustment_difference" in families
     wb = load_workbook(answer, data_only=False)
     labels = _labels(wb["Condensed Financials"])
     assert "Interest Expense" not in labels

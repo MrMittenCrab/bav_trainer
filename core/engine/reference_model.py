@@ -82,9 +82,12 @@ from ..model.reported_margin import (
     resolve_reported_margin_sources,
 )
 from ..model.inventory_analysis import (
+    CHANGE_IN_INVENTORIES_CONCEPT,
     INVENTORIES_CONCEPT,
     compute_inventory_analysis_series,
     inventory_analysis_applicable,
+    inventory_balance_implied_cf_adjustment_applicable,
+    inventory_cf_adjustment_difference_applicable,
     inventory_change_applicable,
     inventory_intensity_applicable,
     inventory_intensity_effect_applicable,
@@ -893,6 +896,12 @@ class ReferenceModelBuilder:
                     self.fin
                 ),
                 include_reconstructed=reconstructed_inventory_change_applicable(
+                    self.fin
+                ),
+                include_balance_implied=inventory_balance_implied_cf_adjustment_applicable(
+                    self.fin
+                ),
+                include_cf_difference=inventory_cf_adjustment_difference_applicable(
                     self.fin
                 ),
             )
@@ -4633,6 +4642,49 @@ class ReferenceModelBuilder:
                     value="Reconstructed change in inventory",
                 )
 
+            cf_row = None
+            implied_row = None
+            cf_diff_row = None
+            cf_src = None
+            if inv_series.change_in_inventories is not None:
+                cf_src = self._resolved_source_row(
+                    self.fin.cash_flow,
+                    CHANGE_IN_INVENTORIES_CONCEPT,
+                    required=True,
+                )
+                assert cf_src is not None
+                assert inv_sources.change_in_inventories is not None
+                cf_row = cursor + 1
+                cursor = cf_row
+                ws.cell(
+                    row=cf_row,
+                    column=1,
+                    value="Inventory CF adjustment (reported)",
+                )
+            if (
+                inv_series.inventory_balance_implied_cf_adjustment is not None
+                and self._n > 1
+            ):
+                implied_row = cursor + 1
+                cursor = implied_row
+                ws.cell(
+                    row=implied_row,
+                    column=1,
+                    value="Balance-implied inventory CF adjustment",
+                )
+            if (
+                inv_series.inventory_cf_adjustment_difference is not None
+                and self._n > 1
+            ):
+                assert cf_row is not None and implied_row is not None
+                cf_diff_row = cursor + 1
+                cursor = cf_diff_row
+                ws.cell(
+                    row=cf_diff_row,
+                    column=1,
+                    value="Unexplained inventory CF difference",
+                )
+
             def _inv_expected(value: float | str | None) -> float | str:
                 assert value is not None
                 return value if isinstance(value, str) else float(value)
@@ -4671,6 +4723,10 @@ class ReferenceModelBuilder:
                         intensity_f,
                         _inv_expected(inv_series.inventory_intensity[j]),
                     )
+                if cf_row is not None and cf_src is not None:
+                    cf_f = f"='Cash Flow Statement'!{src_col}{cf_src}"
+                    c = ws.cell(row=cf_row, column=out_col_idx, value=cf_f)
+                    c.number_format = NUM_FMT
                 if j == 0:
                     continue
                 prev_col = self._col(2 + j - 1)
@@ -4766,6 +4822,46 @@ class ReferenceModelBuilder:
                             inv_series.reconstructed_inventory_change[j]
                         ),
                     )
+                if implied_row is not None and change_row is not None:
+                    implied_f = f"=-{out_col}{change_row}"
+                    c = ws.cell(
+                        row=implied_row, column=out_col_idx, value=implied_f
+                    )
+                    c.number_format = NUM_FMT
+                    assert inv_series.inventory_balance_implied_cf_adjustment is not None
+                    self._register_inventory_analysis(
+                        "inventory_balance_implied_cf_adjustment",
+                        j,
+                        "ALT DuPont",
+                        implied_row,
+                        out_col_idx,
+                        implied_f,
+                        _inv_expected(
+                            inv_series.inventory_balance_implied_cf_adjustment[j]
+                        ),
+                    )
+                if (
+                    cf_diff_row is not None
+                    and cf_row is not None
+                    and implied_row is not None
+                ):
+                    cf_diff_f = f"={out_col}{cf_row}-{out_col}{implied_row}"
+                    c = ws.cell(
+                        row=cf_diff_row, column=out_col_idx, value=cf_diff_f
+                    )
+                    c.number_format = NUM_FMT
+                    assert inv_series.inventory_cf_adjustment_difference is not None
+                    self._register_inventory_analysis(
+                        "inventory_cf_adjustment_difference",
+                        j,
+                        "ALT DuPont",
+                        cf_diff_row,
+                        out_col_idx,
+                        cf_diff_f,
+                        _inv_expected(
+                            inv_series.inventory_cf_adjustment_difference[j]
+                        ),
+                    )
 
             self.rowmap["dupont_inventory_reported_row"] = inventory_row
             if revenue_row is not None:
@@ -4785,6 +4881,16 @@ class ReferenceModelBuilder:
             if reconstructed_row is not None:
                 self.rowmap["dupont_reconstructed_inventory_change_row"] = (
                     reconstructed_row
+                )
+            if cf_row is not None:
+                self.rowmap["dupont_inventory_cf_adjustment_reported_row"] = cf_row
+            if implied_row is not None:
+                self.rowmap["dupont_inventory_balance_implied_cf_adjustment_row"] = (
+                    implied_row
+                )
+            if cf_diff_row is not None:
+                self.rowmap["dupont_inventory_cf_adjustment_difference_row"] = (
+                    cf_diff_row
                 )
             next_section_after = cursor
 

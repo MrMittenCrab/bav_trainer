@@ -981,3 +981,47 @@ def test_inventories_explicit_concept_outranks_label():
     assert resolved.index == 1
     assert resolved.item.concept == "inventories"
 
+
+def test_change_in_inventories_explicit_concept_and_label_only_rejection():
+    change = resolve_line(
+        [_item("Neutral", 1, 2, concept="change_in_inventories")],
+        "change_in_inventories",
+        required=True,
+    )
+    assert change.item is not None
+    assert change.item.concept == "change_in_inventories"
+    for label in (
+        "Inventories",
+        "(Increase)/decrease in inventories",
+        "Change in inventories",
+    ):
+        assert (
+            resolve_line(
+                [_item(label, 1, 2)], "change_in_inventories", required=False
+            ).item
+            is None
+        )
+
+
+def test_change_in_inventories_competing_concepts_are_ambiguous():
+    with pytest.raises(AmbiguousLineError):
+        resolve_line(
+            [
+                _item("First", 1, 2, concept="change_in_inventories"),
+                _item("Second", 3, 4, concept="change_in_inventories"),
+            ],
+            "change_in_inventories",
+            required=False,
+        )
+
+
+def test_change_in_inventories_explicit_concept_outranks_label():
+    items = [
+        _item("(Increase)/decrease in inventories", 1, 2),
+        _item("Other inventory movement", 80, 90, concept="change_in_inventories"),
+    ]
+    resolved = resolve_line(items, "change_in_inventories", required=True)
+    assert resolved.item is not None
+    assert resolved.index == 1
+    assert resolved.item.concept == "change_in_inventories"
+

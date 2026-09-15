@@ -236,6 +236,8 @@ _INVENTORY_ANALYSIS_FAMILY_SERIES = (
     "inventory_revenue_scale_effect",
     "inventory_intensity_effect",
     "reconstructed_inventory_change",
+    "inventory_balance_implied_cf_adjustment",
+    "inventory_cf_adjustment_difference",
 )
 
 _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
@@ -929,6 +931,9 @@ def inventory_analysis_expected_series(
     """Map inventory-analysis practice families from an InventoryAnalysisSeries."""
     series: dict[str, tuple[float | str | None, ...]] = {
         "inventory_change": inventory_analysis.inventory_change,
+        "inventory_balance_implied_cf_adjustment": (
+            inventory_analysis.inventory_balance_implied_cf_adjustment
+        ),
     }
     if inventory_analysis.inventory_intensity is not None:
         series["inventory_intensity"] = inventory_analysis.inventory_intensity
@@ -943,6 +948,10 @@ def inventory_analysis_expected_series(
     if inventory_analysis.reconstructed_inventory_change is not None:
         series["reconstructed_inventory_change"] = (
             inventory_analysis.reconstructed_inventory_change
+        )
+    if inventory_analysis.inventory_cf_adjustment_difference is not None:
+        series["inventory_cf_adjustment_difference"] = (
+            inventory_analysis.inventory_cf_adjustment_difference
         )
     catalog_ids = {family.id for family in INVENTORY_ANALYSIS_COMPONENT_CATALOG}
     if not set(series) <= catalog_ids:

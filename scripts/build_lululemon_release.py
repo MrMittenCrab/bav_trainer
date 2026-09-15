@@ -29,7 +29,7 @@ ANSWER_NAME = "Lululemon_Answer_Key.xlsx"
 README = RELEASE / "README.md"
 AVAILABILITY = RELEASE / "availability.json"
 
-EXPECTED_SPECS = 370
+EXPECTED_SPECS = 376
 
 
 def _sha256(path: Path) -> str:

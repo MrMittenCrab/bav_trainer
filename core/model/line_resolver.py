@@ -164,6 +164,7 @@ _EXACT_ALIASES: dict[str, frozenset[str]] = {
     "gross_profit": frozenset(),
     "operating_profit": frozenset(),
     "inventories": frozenset(),
+    "change_in_inventories": frozenset(),
 }
 
 # Explicit LineItem.concept aliases at priority 1 (stored concept left unchanged).

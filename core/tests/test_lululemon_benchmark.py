@@ -1558,6 +1558,11 @@ def test_source_supported_inventory_analysis_four_period_diagnostics(tmp_path: P
     independent_scale = [None]
     independent_intensity_effect = [None]
     independent_recon = [None]
+    independent_implied = [None]
+    independent_cf_diff = [None]
+    cf_item = next(
+        row for row in fin.cash_flow if row.concept == "change_in_inventories"
+    )
     for j, period in enumerate(EXPECTED_PERIODS):
         inv = required_period_value(stored, period, field="inventories")
         rev = required_period_value(revenue_item, period, field="revenue")
@@ -1572,22 +1577,41 @@ def test_source_supported_inventory_analysis_four_period_diagnostics(tmp_path: P
             )
             prior_intensity = prior_inv / prior_rev
             change = inv - prior_inv
+            implied = -change
+            reported_cf = required_period_value(
+                cf_item, period, field="change_in_inventories"
+            )
+            cf_diff = reported_cf - implied
             scale = prior_intensity * (rev - prior_rev)
             intensity_effect = rev * (intensity - prior_intensity)
             independent_change.append(change)
+            independent_implied.append(implied)
+            independent_cf_diff.append(cf_diff)
             independent_scale.append(scale)
             independent_intensity_effect.append(intensity_effect)
             independent_recon.append(scale + intensity_effect)
             assert independent_recon[j] == pytest.approx(change, abs=1e-8)
+            assert implied + cf_diff == pytest.approx(reported_cf, abs=1e-8)
     assert independent_intensity[-1] == pytest.approx(1700753.0 / 11102600.0)
     assert independent_intensity[-1] == pytest.approx(0.15318510979410227)
     assert independent_change[-1] == pytest.approx(258672.0)
+    assert independent_implied[-1] == pytest.approx(-258672.0)
+    assert independent_cf_diff == [None, -57181.0, -37606.0, 69962.0]
+    assert independent_implied[-1] + independent_cf_diff[-1] == pytest.approx(
+        -188710.0, abs=1e-8
+    )
     assert independent_scale[-1] == pytest.approx(70070.30142954475)
     assert independent_intensity_effect[-1] == pytest.approx(188601.69857045508)
 
     series = compute_inventory_analysis_series(fin, list(EXPECTED_PERIODS))
     assert series.inventory_intensity == tuple(independent_intensity)
     assert series.inventory_change[1:] == tuple(independent_change[1:])
+    assert series.inventory_balance_implied_cf_adjustment[1:] == tuple(
+        independent_implied[1:]
+    )
+    assert series.inventory_cf_adjustment_difference[1:] == tuple(
+        independent_cf_diff[1:]
+    )
     assert series.reconstructed_inventory_change[1:] == tuple(independent_recon[1:])
 
     builder = ReferenceModelBuilder(fin)
@@ -1601,9 +1625,11 @@ def test_source_supported_inventory_analysis_four_period_diagnostics(tmp_path: P
             "inventory_revenue_scale_effect",
             "inventory_intensity_effect",
             "reconstructed_inventory_change",
+            "inventory_balance_implied_cf_adjustment",
+            "inventory_cf_adjustment_difference",
         }
     }
-    assert len(inv_ids) == 16
+    assert len(inv_ids) == 22
     assert len(builder.expected_specs) == LEASE_DT_LULULEMON_SPECS
 
     restored = standardized_from_payload(standardized_to_payload(fin))
@@ -1630,11 +1656,12 @@ def test_source_supported_inventory_analysis_four_period_diagnostics(tmp_path: P
     note_cell = next(
         c
         for c in smap.all_ordered()
-        if c.family_id == "reconstructed_inventory_change"
+        if c.family_id == "inventory_cf_adjustment_difference"
     )
     nrow, ncol = parse_cell_ref(note_cell.cell)
     note = (ws.cell(nrow, ncol).comment.text or "") if ws.cell(nrow, ncol).comment else ""
-    assert "arithmetic" in note.lower() or "decomposition" in note.lower()
+    assert "further evidence" in note.lower()
+    assert "balancing plug" in note.lower()
     awb.close()
     assert stored.concept == "inventories"
     assert stored.values == {
@@ -1669,8 +1696,8 @@ NET_DT_POSITIONS = {
     date(2025, 2, 2): -81103.0,
     date(2026, 2, 1): -28241.0,
 }
-PRIOR_LULULEMON_SPECS = 345
-LEASE_DT_LULULEMON_SPECS = 370
+PRIOR_LULULEMON_SPECS = 351
+LEASE_DT_LULULEMON_SPECS = 376
 
 
 def _fill_rgb(cell) -> str:

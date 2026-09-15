@@ -111,6 +111,6 @@ Measured against reconciled standardized payload without forcing a workbook:
 - Temporary Trainer/Answer Key artifacts are not committed (build did not succeed).
 - Comparative IS dates 2021-01-31 / 2022-01-30 appear inside FY2022 extracted filings but are not on the reconciled canonical period axis.
 
-## Current measured (Step 9M.2.4.1.1.1.27)
+## Current measured (Step 9M.2.4.1.1.1.28)
 
-Release generation succeeds on the existing reconciled payload. Practice identities: **370** (preserved 354 + 16 inventory growth/intensity). Independent latest inventory intensity `1700753/11102600` = `0.15318510979410227`; latest inventory change `258672`; revenue-scale / intensity effects `70070.30142954475 / 188601.69857045508`. Fast Retailing is 569 with the same five families (21 exercises). Reconstructed inventory changes reconcile to adjacent inventory changes within `1e-8`.
+Release generation succeeds on the existing reconciled payload. Practice identities: **376** (preserved 370 + 6 inventory BS-vs-CF comparison). Independent latest negative inventory movement `B_t = -258672`; reported CF adjustment `-188710`; unexplained difference `69962`. Adjacent differences `-57181 / -37606 / 69962` with `B_t + D_t = reported CF` within `1e-8`. Fast Retailing is 577 with the same comparison families (8 exercises); differences `40164 / 10234 / 1666 / 6643`; latest unexplained `6643`. A nonzero difference needs further evidence and does not establish an error, cash paid for inventory, FX, acquisitions, write-downs, or another specific cause.

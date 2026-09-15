@@ -25,7 +25,7 @@ PROV_JSON = RECONCILED / "provenance.json"
 CONFLICTS_JSON = RECONCILED / "conflicts.json"
 MANIFEST = BENCH / "source_manifest.json"
 BASELINE = BENCH / "BASELINE.md"
-EXPECTED_PRACTICE_TOTAL = 569
+EXPECTED_PRACTICE_TOTAL = 577
 EXPECTED_BLANK_CHECK = (0, 0, EXPECTED_PRACTICE_TOTAL, EXPECTED_PRACTICE_TOTAL)
 EXPECTED_FILLED_CHECK = (EXPECTED_PRACTICE_TOTAL, 0, 0, EXPECTED_PRACTICE_TOTAL)
 
@@ -1505,7 +1505,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--require-check-counts",
         action="store_true",
-        help="Require pristine (0,0,569,569) and filled (569,0,0,569) Check counts",
+        help="Require pristine (0,0,577,577) and filled (577,0,0,577) Check counts",
     )
     parser.add_argument(
         "--verify-release-pair",
