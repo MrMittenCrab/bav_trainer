@@ -1,168 +1,205 @@
-# RESULT.md — Step 9M.2.4.1.1.1.17 Restore Source-Supported Capex Coverage and Regenerate Release
+# RESULT.md — Step 9M.2.4.1.1.1.18 Assess Lululemon Interest Source Evidence
 
-**Status:** COMPLETE (this child; measured G4 capex coverage + generic safeguards + Fast Retailing release contract)  
-**Step:** 9M.2.4.1.1.1.17 — Restore Source-Supported Capex Coverage and Regenerate Release  
-**Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED** (Plan closure pending)  
+**Status:** COMPLETE (this child; documentary four-period interest assessment only)  
+**Step:** 9M.2.4.1.1.1.18 — Assess Lululemon Interest Source Evidence  
+**Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
 **INPUT_STATUS:** PENDING  
-**Base:** `04aa1c4a6864883062e4ccbe901d61d2e774a76c`  
-**Workspace HEAD:** `0ce0d61a20eca1dc83c3a754430d19e275d0c7ef` (plan commit; production overlay uncommitted)  
-`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged by this run).  
-No commit / push / sync / checkpoint. No branch create/switch. No interest-source invention. No forecasting/valuation.
-
-Isolation base: `/tmp/bav_9m24111117_iso_nXG6`  
-Verified overlay aggregate SHA-256 (221 tracked files excl. `RESULT.md`, after production overlay, before suites):  
-`844b5163039f5c6670d8494f8963babd92ff9ada123eb9edbf9ab56e08040ffc`
+**Base (plan):** `cbecd085c9f6b9305b3272ba65c5aca210875871`  
+**Workspace HEAD:** `db97498ca48ac57fae1fed71d922ea12ca61f5ea`  
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged).  
+No production/test edits. No invented interest. No forecasting/valuation. No commit / push / sync / checkpoint / branch change.
 
 ---
 
-## Task 1 — Benchmark baseline (HEAD `0ce0d61`, isolated `before/`)
+## Task 1 — Missing-input contract (inspected vs executed)
 
-Commands: `git archive HEAD` → `$ISO/before`; `cd $ISO/before && PYTHONPATH=. python3 $ISO/probes/probe_modules.py`
+### Inspected code (not mutated)
 
-### Input hashes (unchanged throughout)
+| Path | SHA-256 | Size | Role |
+|---|---|---:|---|
+| `core/model/line_resolver.py` | `d02fa65932612c5ffa985497189e7c17094e5945311f3f8b7f00ec55d40f19ca` | 9154 | P1 exact concept; P2 label aliases; P3 none for interest |
+| `core/model/financial_math.py` | `5ee2243feaff734cc08aefc69c8f4f3b0e48da9a5e97f48e40e559268e396733` | 8454 | `compute_anchor` requires both interest lines |
+| `core/engine/reference_model.py` | `ac11b3445d10b62b0fdba3c7fbbdd8e94339b9d851dfea0108e9637442b20fbb` | 203399 | Excel condensed IS requires both source rows |
+| `core/tests/test_lululemon_benchmark.py` | `9eddf31a71efffdd840aa107430fe62ad9ee318ac7e439afa31ea12c47384d4c` | 26860 | expects `interest_expense` MissingLineError |
+| `core/tests/test_reference_integrity.py` | `8262bd625d0b0c7ff204c59c5534edd39661f72f83a46dfed1b8ff3b21c78b77` | 130966 | explicit zero still requires the line; absent line fails |
+
+**Required concepts:** `interest_expense` and `interest_income`. Both are mandatory on the income statement for Python and Excel.
+
+**Resolution precedence** (`resolve_line`):
+
+1. P1 exact normalized `LineItem.concept` (`interest_expense` / `interest_income`). No `_EXPLICIT_CONCEPT_ALIASES` for either.
+2. P2 exact normalized labels: expense `{finance cost, finance costs, interest expense, interest expenses}`; income `{finance income, interest income}`.
+3. P3 safe patterns: none for interest.
+
+`other_income_expense_net` is not a resolver concept (`ValueError: Unknown financial concept`). Label `Other income (expense), net` matches neither alias set.
+
+**Python path** (`compute_anchor`): `resolve_line(..., required=True)` then `required_period_series` for every modeled period. Missing line → `MissingLineError`. Present line with a missing/None period → `MissingHistoricalValueError`. Net interest is `-(interest_expense + interest_income)` (demo sign: expense typically negative, income positive). `historical_lease.lease_interest_expense` is an optional adjustment only when `fin.historical_lease` is supplied.
+
+**Excel path** (`ReferenceModelBuilder` / `build_training_workbook`): `_resolved_source_row(..., required=True)` for both concepts before Condensed Financials Interest Expense / Interest Income formulas. Same resolver. First raise when both are absent is `interest_expense`.
+
+**Existing tests (inspected):** `test_lululemon_benchmark.py` asserts workbook `MissingLineError` matching `interest_expense`. `test_reference_integrity.py` shows explicit **reported zero** still requires the line; a missing `interest_income` line fails closed. Absence ≠ reported zero.
+
+### Input hashes (re-measured)
 
 | Path | SHA-256 | Size |
 |---|---|---:|
-| `benchmark/lululemon/reconciled/standardized.json` | `29852347d78387be6fd9224246ab337b15a5176218cd01b2c20a0c8c3c00b361` | 22548 |
-| `benchmark/lululemon/reconciled/provenance.json` | `a31f7b05cddc16a61df91cdc8578bb69713069651af21160ff662ea562433075` | 699401 |
-| `benchmark/lululemon/reconciled/conflicts.json` | `d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0` | 4718 |
-| `benchmark/fast_retailing/reconciled/standardized.json` | `5a1d445c8f5013ef4045fb7f9725c6c234d4f814b04cad95856df4e5e2ff92e1` | 30952 |
-| `extracted/LULU_FY2022.json` | `706cd75845133425b1821b9ff989ef1131005bdfb2321a76b1a6e91f710a6f18` | 60110 |
-| `extracted/LULU_FY2023.json` | `745876dbac871a45b0bd9857c921529bf786f178cfc304af6c0fb12a12373b2e` | 60225 |
-| `extracted/LULU_FY2024.json` | `a0bc4ccef0974b1ae08e5aa0c4601989476061e98afedd0f860655d0d75dc372` | 60984 |
-| `extracted/LULU_FY2025.json` | `3887f0d452d9c8887133e25e5a9bad018918de66f0e50419afafab3f072892dd` | 58912 |
 | `source/LULU_FY2022_Annual_Report.pdf` | `b344d1e7a710259fa06f88773dee0b3827334820ce2b881fe6b95ca2ae275e4e` | 4913067 |
 | `source/LULU_FY2023_Annual_Report.pdf` | `cd47ea251d608d06a3e58b5d782f2d41d5a231a994d2f7993267a430cb13c0f1` | 5848446 |
 | `source/LULU_FY2024_Annual_Report.pdf` | `9268fd530db162babdd1ec4363cf388ebce57125d83b7e097aba6f98ba0ca7ec` | 5953217 |
 | `source/LULU_FY2025_Annual_Report.pdf` | `82e00f900cc912a7d79596409594156b7779c3a193783ea8fecf87bc013c71cc` | 6590658 |
+| `extracted/LULU_FY2022.json` | `706cd75845133425b1821b9ff989ef1131005bdfb2321a76b1a6e91f710a6f18` | 60110 |
+| `extracted/LULU_FY2023.json` | `745876dbac871a45b0bd9857c921529bf786f178cfc304af6c0fb12a12373b2e` | 60225 |
+| `extracted/LULU_FY2024.json` | `a0bc4ccef0974b1ae08e5aa0c4601989476061e98afedd0f860655d0d75dc372` | 60984 |
+| `extracted/LULU_FY2025.json` | `3887f0d452d9c8887133e25e5a9bad018918de66f0e50419afafab3f072892dd` | 58912 |
+| `reconciled/standardized.json` | `29852347d78387be6fd9224246ab337b15a5176218cd01b2c20a0c8c3c00b361` | 22548 |
+| `reconciled/provenance.json` | `a31f7b05cddc16a61df91cdc8578bb69713069651af21160ff662ea562433075` | 699401 |
+| `reconciled/conflicts.json` | `d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0` | 4718 |
 
-### Lululemon G4 — filing provenance and cash-flow meaning (accepted)
+Canonical periods: `2023-01-29`, `2024-01-28`, `2025-02-02`, `2026-02-01`. Units: USD thousands. `historical_lease`: `null`.
 
-Stored row: concept `capital_expenditures`, label `Purchase of property and equipment`, statement cash flow, section `cash flows from investing activities`. Negative values are reported investing outflows for PPE purchases (equivalent in meaning to `payments_for_ppe`; stored concept/values/signs/provenance not rewritten).
+### Extracted / reconciled interest trace (executed)
 
-| Period | status | selected amount | selected source |
-|---|---|---:|---|
-| 2023-01-29 | `selected` | −638657 | FY2024 comparative p54 `LULU_FY2024_Annual_Report.pdf` |
-| 2024-01-28 | `selected` | −651865 | FY2025 comparative p53 `LULU_FY2025_Annual_Report.pdf` |
-| 2025-02-02 | `selected` | −689232 | FY2025 comparative p53 `LULU_FY2025_Annual_Report.pdf` |
-| 2026-02-01 | `selected` | −680802 | FY2025 current_period p53 `LULU_FY2025_Annual_Report.pdf` |
+All four extracted filings: **zero** income-statement, cash-flow, or `note_facts` rows whose label/concept contains `interest`, `finance cost`, or `finance income`. `note_facts: []` on all four.
 
-`payments_for_ppe` row absent from standardized cash flow. `interest_expense` unresolved. `Other income (expense), net` (`other_income_expense_net`) 4163 / 43059 / 70380 / 28352 — **not** treated as interest.
+Reconciled IS has 16 rows. The only non-operating P&L bridge line is `other_income_expense_net` / `Other income (expense), net`. No `interest_expense` or `interest_income` row. Cash-flow 34 rows: no interest/finance labels. `conflicts.json` has 3 overlap conflicts, all cash-flow WC restatements — **none** interest-related. `supplemental_conflict_count=0`.
 
-### Lululemon before (HEAD)
+Selected `other_income_expense_net` (agreeing observations; not treated as interest):
 
-| Probe | Result |
-|---|---|
-| `capex_applicable` | **False** |
-| `capex_availability` | `payments_for_ppe=False`, `ambiguous=False` |
-| `resolve_line(..., "payments_for_ppe")` | no hit |
-| `resolve_capex_source` | `None` |
-| modules | capex False; fixed_asset True; lease_liability True; lease_rou False; lease_repayment False; deferred_tax False; goodwill_intangibles True |
-| workbook `build_training_workbook` | `MissingLineError: Required concept 'interest_expense' not found in statement lines` |
+| Period | Amount | Selected source |
+|---|---:|---|
+| 2023-01-29 | 4163 | FY2024 comparative p51 |
+| 2024-01-28 | 43059 | FY2025 comparative p51 |
+| 2025-02-02 | 70380 | FY2025 comparative p51 |
+| 2026-02-01 | 28352 | FY2025 current p51 |
 
-Independent stored diagnostics (available as facts; module gated off):
+Off-axis extracted comparatives (not on reconciled axis): FY2022 IS other income `2022-01-30=514`, `2021-01-31=-636` (`outside_model_axis` in provenance).
 
-| Period | payments_reported | ppe_capex (−reported) | revenue | ratio |
-|---|---:|---:|---:|---:|
-| 2023-01-29 | −638657.0 | 638657.0 | 8110518.0 | 0.07874429228811279 |
-| 2024-01-28 | −651865.0 | 651865.0 | 9619278.0 | 0.06776652052264213 |
-| 2025-02-02 | −689232.0 | 689232.0 | 10588126.0 | 0.0650948052563787 |
-| 2026-02-01 | −680802.0 | 680802.0 | 11102600.0 | 0.061319150469259454 |
-
-### Fast Retailing before (HEAD)
-
-| Probe | Result |
-|---|---|
-| capex concept | `payments_for_ppe` / `Payments for property, plant and equipment` |
-| `capex_applicable` | **True** |
-| `ppe_capex` | 56500.0 / 51271.0 / 61764.0 / 73728.0 / 135535.0 |
-| `expected_specs` | **491** (`capex_specs=10`, lease_liability=18, lease_rou=16, lease_repayment=10, fixed_asset=35, goodwill_intangibles=58, deferred_tax=17, ownership=34, per_share=18, per_share_attribution=16) |
-| blank Check | **0 / 0 / 491 / 491** |
-| filled Check | **491 / 0 / 0 / 491** |
-| modules | all True (capex, fixed_asset, lease_liability, lease_rou, lease_repayment, deferred_tax, goodwill_intangibles) |
-
----
-
-## Task 2 — Bounded generic capex support
-
-Authorized production: `core/model/line_resolver.py` explicit-concept alias `capital_expenditures` → `payments_for_ppe` (canonical `payments for ppe` retained at P1). `core/model/capex.py` docstring/comments only; resolution already goes through `resolve_line`. `core/engine/reference_model.py` unchanged (`_resolved_source_row` already uses the shared resolver). Stored concepts, values, signs, and provenance are not rewritten. Label-only inputs remain unsupported (`_EXACT_ALIASES["payments_for_ppe"]` empty).
-
-SHA-256 of overlay files:
-
-| Path | SHA-256 | Size |
-|---|---|---:|
-| `core/model/line_resolver.py` | `d02fa65932612c5ffa985497189e7c17094e5945311f3f8b7f00ec55d40f19ca` | 9154 |
-| `core/model/capex.py` | `00c5f822d6b599fa84d5ce415979e16fc6d96f4f96c8a940b5c6f588f6cf0531` | 3499 |
-| `core/tests/test_line_resolver.py` | `39c34620229940fbe1991d6e774b35ef44d803e2532b3aad99fcd6f8a132c962` | 19172 |
-| `core/tests/test_capex.py` | `2f47c1bbaa2402a63975c596f1ea6bde0ecb9e0b81ea4558ad66282d51849890` | 26324 |
-| `core/tests/test_lululemon_benchmark.py` | `9eddf31a71efffdd840aa107430fe62ad9ee318ac7e439afa31ea12c47384d4c` | 26860 |
-
----
-
-## Task 3 — After probes, suites, release
-
-After copy: `$ISO/after_probe` (HEAD archive + overlay). Same probe command as before.
-
-### Lululemon after (required coverage gain)
-
-| Probe | Before | After |
-|---|---|---|
-| `capex_applicable` | False | **True** |
-| `capex_availability.payments_for_ppe` | False | **True** |
-| `ambiguous` | False | False |
-| stored concept | `capital_expenditures` | `capital_expenditures` (unchanged) |
-| stored values | four-period series above | identical |
-| `resolve_capex_source` is stored row | no | **yes** (index 8) |
-| export/reload concept | n/a | `capital_expenditures`; values unchanged |
-| workbook | `interest_expense` MissingLineError | **same exception** (reported separately) |
-
-Independent four-period diagnostics after match the before stored arithmetic (module now available). `compute_capex_series` via `compute_anchor` still raises `interest_expense` (anchor path; not a capex-resolution miss). Synthetic alias fixture covers `compute_capex_series` + Excel source identity.
-
-### Fast Retailing after (no regression)
-
-Identical to before: `expected_specs=491`, `capex_specs=10`, `ppe_capex` anchors unchanged, blank Check `0/0/491/491`, filled Check `491/0/0/491`.
-
-### Isolated suites
-
-Artifact-writing tests ran only in disposable copies. Authoritative workspace was not used as cwd.
-
-| Suite | Root | Exact command | Exit | Counts | Overlay auth after vs before | Isolated tracked diffs vs pristine overlay |
-|---|---|---|---:|---|---|---|
-| resolver/capex/LULU | `…/after_probe` | `PYTHONPATH=. pytest core/tests/test_line_resolver.py core/tests/test_capex.py core/tests/test_lululemon_benchmark.py -q` | 0 | **76 passed in 5.56s** | same `844b5163…` | none |
-| parent regression | `…/focused` | `PYTHONPATH=. pytest core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py core/tests/test_classification.py core/tests/test_line_resolver.py core/tests/test_reference_integrity.py core/tests/test_lululemon_benchmark.py -q` | 0 | **543 passed in 13.12s** | same | none |
-| FR benchmark | `…/fr` | `PYTHONPATH=. pytest core/tests/test_fast_retailing_benchmark.py -q` | 0 | **132 passed in 29.97s** | changed | `benchmark/fast_retailing/BASELINE.md`; `benchmark/fast_retailing/reconciled/provenance.json` `fd5a1ec8…` → `26d9a170881f10b466405339c7f38fa06241c011acd3aab74be650dfc0d0777d` (874954 → 875119) — **not copied back** |
-| full | `…/full` | `PYTHONPATH=. pytest core/tests -q` | 0 | **1099 passed in 92.08s** | changed | FR BASELINE + provenance as above; `example/DEMO_HK_Trainer.xlsx` `2f3f771d…` → `840a023cd9bd…` (size 26790) — **not copied back** |
-
-Prior isolated parent **537** / full **1089** at `590c73a` vs this overlay: +6 parent (5 resolver + 1 LULU G4 node), +10 full (those six + 4 capex alias nodes). FR count unchanged at **132**.
-
-Logs: `$ISO/logs/capex_focused.log`, `focused.log`, `fr.log`, `full.log`.
-
-### Fast Retailing release (two independent builds)
+### Executed code-path verification
 
 ```text
-cd $ISO/release_r{1,2} && PYTHONPATH=. python scripts/build_fast_retailing_release.py
-→ exit 0 both; r1 file hashes == r2 file hashes
+PYTHONPATH=. python3 <probe on reconciled standardized.json>
+resolve_line(IS, interest_expense, required=True) → MissingLineError: Required concept 'interest_expense' not found in statement lines
+resolve_line(IS, interest_income, required=True) → MissingLineError: Required concept 'interest_income' not found in statement lines
+resolve_line(..., required=False) → item=None, index=None for both
+compute_anchor → MissingLineError interest_expense
+ReferenceModelBuilder → MissingLineError interest_expense
+build_training_workbook(/tmp/lulu_interest_probe) → MissingLineError interest_expense
+resolve_line(..., "other_income_expense_net") → ValueError: Unknown financial concept
 ```
 
-Build audit (`verify_release_pair=True`, `require_check_counts=True`) passed. Independent spot-check on r1: 491 Trainer practice cells blank, yellow, no comments; 491 Answer-Key formulas with non-empty Notes.
+```text
+PYTHONPATH=. pytest core/tests/test_lululemon_benchmark.py -q
+→ 27 passed in 3.32s
+```
 
-| Artifact | Committed SHA-256 | Regenerated r1=r2 | r1==committed |
+---
+
+## Task 2 — Filing evidence
+
+### Search coverage
+
+Terms: `interest`, `interest expense`, `interest income`, `interest paid`, `interest received`, `finance cost(s)`, `finance income`, `other income (expense)`, `revolving credit`, `credit facility`, `borrowings outstanding`, `lease interest`, `operating lease expense`, `supplemental cash flow`, `cash paid`.
+
+Sections: IS; CF body; MD&A Other income (expense), net; Interest Rate Risk; Note Revolving Credit Facilities; Note Leases; income-tax policy (interest/penalties); Note Supplemental Cash Flow Information.
+
+FY2022/FY2023: `pypdf` text readable. FY2024/FY2025: custom font encoding; text decoded and **page images** inspected for IS (both), FY2025 MD&A p39, and supplemental CF (both p79).
+
+### Income statement — required concepts
+
+No filing presents a standalone `Interest expense` / `Finance costs` or `Interest income` / `Finance income` line.
+
+After `Income from operations` every filing presents only `Other income (expense), net`, then `Income before income tax expense`.
+
+| Period | IS label present | Amount | Sign | Currency/unit | PDF page / hash | Extraction |
+|---|---|---:|---|---|---|---|
+| 2023-01-29 | Other income (expense), net | 4163 | + (net other income) | USD thousands | FY2022 p50 `b344d1e7…`; FY2023 p56; FY2024 p51 | extracted + selected |
+| 2024-01-28 | Other income (expense), net | 43059 | + | USD thousands | FY2023 p56; FY2024 p51; FY2025 p51 | extracted + selected |
+| 2025-02-02 | Other income (expense), net | 70380 | + | USD thousands | FY2024 p51; FY2025 p51 | extracted + selected |
+| 2026-02-01 | Other income (expense), net | 28352 | + | USD thousands | FY2025 p51 `82e00f90…` | extracted + selected |
+
+**Not equivalent** to `interest_expense` or `interest_income`. Mixed line. Resolver aliases do not match.
+
+### MD&A — qualitative interest income (not a usable amount)
+
+| Filing | Page | Wording | Quantified interest income? |
 |---|---|---|---|
-| `FastRetailing_Trainer.xlsx` | `4b657461757cfb43…` (36764) | `115a46e535e0d7252b7292bfb7a5c63833ad4486de68ebe4e8ef7e5aeeaa86a9` (36765) | no (1-byte zip rebuild) |
-| `FastRetailing_Answer_Key.xlsx` | `a1d397933971535c…` (123565) | `f0cd4ff5386090e6204b7988ad4fd54ddf04fd15fdedfca6a2b6617b8489e124` (123566) | no (1-byte zip rebuild) |
-| `FastRetailing_Answer_Key.component_map.json` | `dbdf3bb3388073321e0b80b566a4e5c9e69d4dfac4de177ca8873163f5ff5a34` | same | **yes** |
-| `FastRetailing_Answer_Key.assumptions.json` | `73fbb33f222a978828042ebde1fbbc3cd285c40efda6be5217c2cfbae1fda21a` | same | **yes** |
-| `rowmap.json` | `90790f47917b161e5f291c332983539c3428f9beebb4e19df1bc39a437395a0b` | same | **yes** |
-| `README.md` | `a7ee4b1c6a8e6a8acdff9cb1eea5654c0f21cc80ea6d8ee614e87b1f3f04384d` | same | **yes** |
-| `supporting/standardized.json` | `5a1d445c8f5013ef4045fb7f9725c6c234d4f814b04cad95856df4e5e2ff92e1` | same | **yes** |
-| `supporting/conflicts.json` | `12b910485985df8390634a7fa5361132bf674b5df403858afb03c9a8c56c44a5` | same | **yes** |
-| `supporting/provenance.json` | `fd5a1ec87b61c4835d3b7bfda79996afa6c5ed9bbf2082e35413fb18ee696f1f` (874954) | `26d9a170881f10b466405339c7f38fa06241c011acd3aab74be650dfc0d0777d` (875119) | no (known reconcile provenance refresh; not a capex semantic change) |
+| FY2022 | 35 | Increase in other income, net “primarily due to an increase in interest income from higher interest rates, partially offset by an increase in other expenses.” Other income 4,163 / 514. | No |
+| FY2023 | 39 | Increase “primarily due to an increase in interest income as a result of higher cash balances and higher interest rates.” Other income 43,059 / 4,163. | No |
+| FY2024 | 39 (decoded) | Increase “primarily due to an increase in interest income as a result of higher average cash balances.” Other income 70,380 / 43,059. | No |
+| FY2025 | 39 (image) | Decrease “primarily due to a decrease in interest income as a result of lower average cash balances and lower interest rates.” Other income 28,352 / 70,380. | No |
 
-Release copies did not mutate non-release tracked files. Validated r1 outputs published to workspace `release/fast_retailing/`.
+Primary-cause language does not isolate a gross interest-income amount. FY2022 explicitly mentions offsetting other expenses.
 
-### GAPS.md
+### Cash interest paid — supplemental CF note (not IS interest_expense)
 
-Updated **only** current-stage table (G4 pass; measured build exception `interest_expense`) and G4 entry → **CLOSED**. G1–G3/G5–G8 text not rewritten.
+Cross-filing overlapping years **agree**. Not in extracted JSON (`note_facts` empty). Not on the CF statement body.
+
+| Period | Interest paid | Unit | Pages | Meaning |
+|---|---:|---|---|---|
+| 2023-01-29 | 116 | USD thousands | FY2022 p77; FY2023 p83; FY2024 p79 | cash paid, not accrual IS expense |
+| 2024-01-28 | 234 | USD thousands | FY2023 p83; FY2024 p79; FY2025 p79 | cash paid |
+| 2025-02-02 | 478 | USD thousands | FY2024 p79; FY2025 p79 | cash paid |
+| 2026-02-01 | 1028 | USD thousands | FY2025 p79 | cash paid |
+
+**Not equivalent** to `interest_expense`. No disclosure that cash interest paid equals IS interest expense.
+
+### Credit facilities — no outstanding borrowings (≠ reported zero interest)
+
+| Period-end | Facility outstanding | Page |
+|---|---|---|
+| 2023-01-29 | No borrowings besides letters of credit $6.5m | FY2022 p66–67 |
+| 2024-01-28 | No borrowings besides letters of credit $6.3m | FY2023 p72–73 |
+| 2025-02-02 | No borrowings besides letters of credit $6.1m | FY2024 p68 (decoded) |
+| 2026-02-01 | No borrowings besides letters of credit $6.4m | FY2025 p61/68 (decoded) |
+
+Unused facility + commitment-fee language is **not** a reported `interest_expense` of 0. Do not infer zero.
+
+### Lease interest — not separately disclosed
+
+Lease notes report a single **operating lease expense** (plus short-term/variable). No discrete lease-interest amount.
+
+- FY2022 p72: operating lease expense 245,767 / 215,549 / 193,498 (thousands).
+- FY2023 p79: 282,888 / 245,767 / 215,549.
+- `historical_lease` remains `null`. Not `lease_interest_expense`.
+
+### Tax-related interest policy (no amount)
+
+- FY2022 p60: tax interest/penalties recognized in **other income (expense), net**.
+- FY2023 p65 / FY2024 p60 / FY2025 p59: recognized in **income tax expense**.
+
+No quantified tax-interest amount. Not a standalone `interest_expense`.
+
+---
+
+## Task 3 — Four-period disposition
+
+| Required concept | 2023-01-29 | 2024-01-28 | 2025-02-02 | 2026-02-01 |
+|---|---|---|---|---|
+| `interest_expense` | **not found** in inspected IS | **not found** | **not found** | **not found** |
+| `interest_income` | **not found** as a standalone quantified amount | **not found** | **not found** | **not found** |
+
+Related disclosures (recorded, **not usable** as the required inputs):
+
+| Related item | Classification | Why not usable |
+|---|---|---|
+| Other income (expense), net 4163 / 43059 / 70380 / 28352 | source-supported mixed IS line | not gross interest; no equivalence; not a resolver concept |
+| MD&A “primarily interest income” | qualitative only | no isolated amount |
+| Cash interest paid 116 / 234 / 478 / 1028 | source-supported but omitted from extracted `note_facts` | cash ≠ IS expense; equivalence not established |
+| Unused revolvers | narrative | absence of borrowings ≠ reported zero interest |
+| Operating lease expense | source-supported lease cost | not lease interest; `historical_lease` null |
+| Tax interest/penalties policy | policy only | no amount; booked in other income or tax |
+
+No comparative conflict on interest: the required lines were never extracted. Other-income selected values agree across overlapping filings.
+
+### Next bounded change (no production in this step)
+
+Evidence does **not** support a production alias, inferred zero, or weakening of `required=True`.
+
+**Accounting / product decision required (Plan):** whether the historical engine may proceed when a non-financial issuer presents only `Other income (expense), net` and never reports standalone interest lines. That decision is out of this assessment. Do not invent defaults.
+
+**Smallest later extraction-only change (does not unblock the workbook):** add supplemental `Interest paid` 116 / 234 / 478 / 1028 to `note_facts` with the page/hash citations above (touches G7). Independent expected values are those four cash amounts. Regression: existing interest MissingLineError must still fire; no alias of cash paid or other-income into `interest_expense` / `interest_income`. No release regeneration from extraction-only notes.
+
+Workbook availability and parent closure are **not** claimed here.
 
 ---
 
@@ -170,30 +207,27 @@ Updated **only** current-stage table (G4 pass; measured build exception `interes
 
 | Criterion | Evidence | Status |
 |---|---|---|
-| Four-period Lululemon capex availability unavailable → available | before/after probes | **PASS** |
-| Independently checked four-period diagnostics | stored payments negated; ratios vs `REVENUE_ANCHORS`; LULU test node | **PASS** |
-| Stored concept/values/signs/provenance unchanged | `capital_expenditures`; values hash-stable standardized | **PASS** |
-| Generic alias / ambiguity / missing / sign / zero / label-only / round-trip / Python↔Excel | `test_capex.py` + `test_line_resolver.py` | **PASS** |
-| Lululemon workbook availability reported separately | still `interest_expense` MissingLineError | **PASS** (recorded; not repaired) |
-| FR module/practice/Check unchanged | 491 / 10 capex specs / 0-0-491 and 491-0-0 | **PASS** |
-| Isolated required suites | 76 / 543 / 132 / 1099 | **PASS** |
-| Dual release determinism + pair contract | r1==r2; audit + yellow/blank/Notes spot-check | **PASS** |
-| Failure-path immutability | parent focused suite; FR/full isolated writes not copied back | **PASS** |
+| Four-period disposition for both required concepts | matrix above; not found / not equivalent | **PASS** |
+| Usable amounts have verified meaning | **none proposed** as required-input amounts | **PASS** |
+| Absence / ambiguity / reported zero kept distinct | unused facility ≠ zero; cash paid ≠ expense; other-income ≠ interest income | **PASS** |
+| Independently verifiable citations + hashes | PDF pages + SHA-256 + JSON provenance | **PASS** |
+| Both code paths compared to assessment | executed MissingLineError on both concepts; first raise `interest_expense` | **PASS** |
+| No production / workbook / release / parent closure claimed | none performed | **PASS** |
 
-Original parent technical acceptance retained (A2-ED / B7-MID Doc UNVERIFIED; A5 / B8 / E10 Plan UNVERIFIED; E11 NonReq UNVERIFIED/`interest_expense`). Interest not invented from `Other income (expense), net`.
+Original parent technical acceptance retained (A2-ED / B7-MID Doc UNVERIFIED; A5 / B8 / E10 Plan UNVERIFIED; E11 NonReq UNVERIFIED/`interest_expense`). Capex G4 and Fast Retailing 491-cell contract untouched.
 
 ---
 
 ## Remaining blockers (carried forward)
 
-- Lululemon Trainer/Answer-Key build: `MissingLineError: Required concept 'interest_expense' not found in statement lines`
-- Parent Plan closure (A5 / B8 / E10)
-- Remaining source-supported Lululemon gaps G5+ (leases/deferred-tax aliases, etc.)
+- Lululemon Trainer/Answer-Key: `MissingLineError: Required concept 'interest_expense' not found in statement lines` — **source-supported standalone interest lines are not present**; next step is a Plan accounting-policy decision, not an inferred input.
+- Parent Plan closure (A5 / B8 / E10).
+- G5+ remaining Lululemon gaps; G7 empty `note_facts` (cash interest paid is one unextracted note fact).
 
 ---
 
 ## Closure note (does not rewrite the plan)
 
-Step **9M.2.4.1.1.1.17** measured acceptance **PASS**. G4 capex coverage restored generically. Fast Retailing release regenerated without practice-count regression. Keep **INPUT_STATUS: PENDING**. Parents stay **UNRESOLVED**. Return to Plan for original parent acceptance assessment and remaining Step 9 prioritization (interest-source/build completion is next Lululemon workbook blocker; do not invent interest).
+Step **9M.2.4.1.1.1.18** measured acceptance **PASS**. Four-period interest assessment complete. Keep **INPUT_STATUS: PENDING**. Parents stay **UNRESOLVED**.
 
-**Required plan note (do not edit IMPLEMENTATION.md here):** child 9M.2.4.1.1.1.17 technically complete; G4 CLOSED; FR `expected_specs=491` unchanged; Lululemon workbook still `interest_expense`; Plan should assess parent closure and next Step 9 work.
+**Required plan note (do not edit IMPLEMENTATION.md here):** both required interest concepts are **not found** as standalone IS facts in the four supplied filings. Other income (expense), net and cash interest paid are present but not equivalent. Do not invent zeros. Plan must decide the generic missing-interest contract before any production/test change; optional later `note_facts` capture of Interest paid 116 / 234 / 478 / 1028 would not satisfy the current required-input paths.

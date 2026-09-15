@@ -15,6 +15,7 @@ Categories match IMPLEMENTATION.md Task 4:
 | validate-source (4 filings) | **pass** |
 | reconcile | **pass** (overlap=3, supplemental=0, sources=4/4) |
 | capex module (G4) | **pass** — stored CF `capital_expenditures` resolves through `payments_for_ppe`; four-period diagnostics available |
+| interest source evidence (G9) | **assessed** — standalone `interest_expense` / `interest_income` **not found** on any of the four IS presentations; other-income and cash interest paid are not equivalent |
 | ReferenceModelBuilder / build | **fail** — `MissingLineError: Required concept 'interest_expense' not found in statement lines` |
 
 ## Gaps (priority order)
@@ -80,6 +81,14 @@ Categories match IMPLEMENTATION.md Task 4:
 - **Category:** 4
 - **Stage:** n/a (outside workbook engine for this step)
 - **Evidence:** TARGET.md asks for economic interpretation of WC, RNOA, dilution, etc. Engine still blocked at reformulation; no LULU-specific qualitative grading layer required here.
+
+### G9 — Required interest lines absent from supplied filings — **OPEN** (Step 9M.2.4.1.1.1.18 assessed)
+
+- **Category:** 1 (unextracted note facts) and 3 (required-input contract vs US mixed-line presentation)
+- **Stage:** `compute_anchor` / `ReferenceModelBuilder` / `build`
+- **Evidence (Step 9M.2.4.1.1.1.18):** all four IS pages present only `Other income (expense), net` (4163 / 43059 / 70380 / 28352) between operating income and pretax. No `interest_expense` / `interest_income` / finance-cost/income line. MD&A says other-income changes were “primarily” interest income but gives no isolated amount. Supplemental cash “Interest paid” 116 / 234 / 478 / 1028 (USD thousands; cross-filing consistent) is cash, not IS expense, and is omitted from empty `note_facts`. Revolvers unused (letters of credit only) — not a reported zero. Lease notes disclose operating lease expense, not lease interest. `historical_lease` is null.
+- **Why it matters:** Python and Excel both `required=True` for both interest concepts; first raise is `interest_expense`. Other-income is not a resolver concept. Do not infer zero or alias mixed/cash amounts.
+- **Proposed next step:** Plan accounting-policy decision on the generic missing-interest contract. Optional later `note_facts` capture of Interest paid would not satisfy the current required IS paths.
 
 ## Closed / non-gaps this step
 
