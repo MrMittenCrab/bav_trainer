@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from ..engine.component_catalog import (
     ACQUISITION_CASH_COMPONENT_CATALOG,
     CASH_ROLLFORWARD_COMPONENT_CATALOG,
+    GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG,
     INVENTORY_ANALYSIS_COMPONENT_CATALOG,
     REPORTED_MARGIN_COMPONENT_CATALOG,
     SHARE_REPURCHASE_COMPONENT_CATALOG,
@@ -40,6 +43,7 @@ from .earnings_quality_change import compute_earnings_quality_change_series
 from .deferred_tax import DeferredTaxSeries
 from .financial_math import AnchorMetrics
 from .fixed_asset import FixedAssetSeries
+from .geographic_segment import GeographicSegmentSeries
 from .goodwill_intangibles import (
     GoodwillIntangiblesAvailability,
     GoodwillIntangiblesSeries,
@@ -238,6 +242,17 @@ _INVENTORY_ANALYSIS_FAMILY_SERIES = (
     "reconstructed_inventory_change",
     "inventory_balance_implied_cf_adjustment",
     "inventory_cf_adjustment_difference",
+)
+_GEOGRAPHIC_FAMILY_SERIES = (
+    "geographic_revenue_share",
+    "geographic_revenue_growth",
+    "geographic_reported_operating_margin",
+    "geographic_calculated_segment_revenue_total",
+    "geographic_calculated_segment_operating_profit_total",
+    "geographic_signed_reconciling_contribution",
+    "geographic_reconstructed_consolidated_operating_profit",
+    "geographic_consolidated_revenue_difference",
+    "geographic_consolidated_operating_profit_difference",
 )
 
 _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
@@ -969,6 +984,63 @@ def inventory_analysis_expected_series(
     }
 
 
+def _geographic_component_identity(component_id: str) -> str:
+    parts = component_id.split("__")
+    if len(parts) == 2:
+        return ""
+    if len(parts) != 3:
+        raise ValueError(f"malformed geographic component id {component_id!r}")
+    return parts[1]
+
+
+def geographic_expected_value_for_component(
+    geographic: GeographicSegmentSeries,
+    component: ResolvedComponent,
+) -> float | str | None:
+    """Look up one geographic practice expected from the validated series."""
+    catalog_ids = {family.id for family in GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG}
+    if component.family_id not in catalog_ids:
+        raise ValueError(
+            f"geographic_expected_value_for_component unknown family "
+            f"{component.family_id!r}"
+        )
+    if not component.period_end:
+        raise ValueError(
+            f"geographic component {component.id!r} is missing period_end"
+        )
+    period = date.fromisoformat(component.period_end)
+    identity = _geographic_component_identity(component.id)
+    family_id = component.family_id
+    if family_id == "geographic_revenue_share":
+        return geographic.revenue_share[period][identity]
+    if family_id == "geographic_revenue_growth":
+        return geographic.revenue_growth[period][identity]
+    if family_id == "geographic_reported_operating_margin":
+        return geographic.reported_operating_margin[period][identity]
+    if family_id == "geographic_calculated_segment_revenue_total":
+        return geographic.calculated_segment_revenue_total[period]
+    if family_id == "geographic_calculated_segment_operating_profit_total":
+        return geographic.calculated_segment_operating_profit_total[period]
+    if family_id == "geographic_signed_reconciling_contribution":
+        contributions = geographic.signed_reconciling_contributions[period]
+        if isinstance(contributions, str):
+            return contributions
+        for name, amount in contributions:
+            if name == identity:
+                return amount
+        raise ValueError(
+            f"geographic signed contribution {identity!r} missing for "
+            f"{period.isoformat()}"
+        )
+    if family_id == "geographic_reconstructed_consolidated_operating_profit":
+        return geographic.reconstructed_consolidated_operating_profit[period]
+    if family_id == "geographic_consolidated_revenue_difference":
+        return geographic.consolidated_revenue_difference[period]
+    if family_id == "geographic_consolidated_operating_profit_difference":
+        return geographic.consolidated_operating_profit_difference[period]
+    raise ValueError(f"Unknown geographic family {family_id!r}")
+
+
 def ownership_attribution_expected_series(
     ownership_attribution: OwnershipAttributionSeries,
 ) -> dict[str, tuple[float | str | None, ...]]:
@@ -1087,6 +1159,7 @@ def expected_value_for_component(
     cash_rollforward: CashRollforwardSeries | None = None,
     reported_margin: ReportedMarginSeries | None = None,
     inventory_analysis: InventoryAnalysisSeries | None = None,
+    geographic: GeographicSegmentSeries | None = None,
 ) -> float | str | None:
     """Return the treatment-conditioned expected value for one practice component."""
     family_id = component.family_id
@@ -1206,6 +1279,12 @@ def expected_value_for_component(
                 f"Inventory-analysis family {family_id!r} requires its unique "
                 "source dependencies"
             )
+    elif family_id in _GEOGRAPHIC_FAMILY_SERIES:
+        if geographic is None:
+            raise ValueError(
+                f"Geographic family {family_id!r} requires a GeographicSegmentSeries"
+            )
+        return geographic_expected_value_for_component(geographic, component)
     elif family_id in _FIXED_ASSET_FAMILY_SERIES:
         if fixed_asset is None:
             raise ValueError(

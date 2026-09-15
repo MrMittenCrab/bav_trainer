@@ -28,6 +28,7 @@ EARNINGS_NORMALIZATION_SHEET = "Earnings Normalization"
 EARNINGS_QUALITY_SHEET = "Earnings Quality"
 WORKING_CAPITAL_SHEET = "Working Capital Analysis"
 PER_SHARE_SHEET = "Per Share Analysis"
+GEOGRAPHIC_SHEET = "Geographic Segment Analysis"
 
 
 @dataclass(frozen=True)
@@ -621,6 +622,20 @@ def validate_live_model_structure(
             answer_key_wb[PER_SHARE_SHEET],
             sheet_name=PER_SHARE_SHEET,
             editable_cells=per_share_practice,
+        )
+
+    geographic_practice = {
+        cell for tab, cell in practice_cells if tab == GEOGRAPHIC_SHEET
+    }
+    if geographic_practice:
+        for wb, label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
+            if GEOGRAPHIC_SHEET not in wb.sheetnames:
+                raise ValueError(f"{label} is missing Geographic Segment Analysis sheet")
+        _validate_trusted_sheet_cells(
+            trainer_wb[GEOGRAPHIC_SHEET],
+            answer_key_wb[GEOGRAPHIC_SHEET],
+            sheet_name=GEOGRAPHIC_SHEET,
+            editable_cells=geographic_practice,
         )
 
     _validate_trusted_sheet_cells(

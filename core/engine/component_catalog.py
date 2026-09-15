@@ -4365,3 +4365,362 @@ def catalog_by_id() -> dict[str, ComponentFamily]:
 
 def catalog_ids() -> list[str]:
     return [c.id for c in COMPONENT_CATALOG]
+
+
+GEOGRAPHIC_SHEET_NAME = "Geographic Segment Analysis"
+GEOGRAPHIC_SEGMENT_IDENTITIES = ("americas", "china_mainland", "rest_of_world")
+GEOGRAPHIC_SEGMENT_LABELS = {
+    "americas": "Americas",
+    "china_mainland": "China Mainland",
+    "rest_of_world": "Rest of World",
+}
+
+
+def geographic_component_id(
+    family_id: str,
+    period: date,
+    identity: str = "",
+) -> str:
+    stamp = period.strftime("%Y%m%d")
+    if identity:
+        return f"{family_id}__{identity}__{stamp}"
+    return f"{family_id}__{stamp}"
+
+
+def geographic_spec_identity(spec: ComponentSpec) -> str:
+    parts = spec.id.split("__")
+    if len(parts) == 2:
+        return ""
+    if len(parts) != 3:
+        raise ValueError(f"malformed geographic spec id {spec.id!r}")
+    return parts[1]
+
+
+def geographic_identity_label(identity: str) -> str:
+    if identity in GEOGRAPHIC_SEGMENT_LABELS:
+        return GEOGRAPHIC_SEGMENT_LABELS[identity]
+    local = identity.rsplit(".", 1)[-1]
+    return local.replace("_", " ").title()
+
+
+GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="geographic_revenue_share",
+        order=152,
+        title="Geographic revenue mix",
+        short_hint=(
+            "Revenue mix = segment net revenue / reported consolidated net "
+            "revenue. Zero consolidated revenue is undefined (#N/A). This is "
+            "mix arithmetic, not a causal explanation of growth or margins."
+        ),
+        semantic_key="geographic.revenue_share",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        hints=(
+            "Revenue mix = segment net revenue / reported consolidated net revenue.",
+            "Zero consolidated revenue yields the undefined-ratio result.",
+            "Mix arithmetic only; not a causal explanation.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_revenue_growth",
+        order=153,
+        title="Geographic adjacent-period revenue growth",
+        short_hint=(
+            "Adjacent-period revenue growth = (current − prior) / prior using "
+            "the immediately preceding model period. Opening growth is absent. "
+            "A missing adjacent snapshot makes growth unavailable. Zero prior "
+            "revenue is undefined (#N/A). Not a causal explanation."
+        ),
+        semantic_key="geographic.revenue_growth",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        hints=(
+            "Adjacent-period growth uses the immediately preceding model period.",
+            "Opening growth is absent; a gap is unavailable, not compressed.",
+            "Zero prior revenue yields the undefined-ratio result.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_reported_operating_margin",
+        order=154,
+        title="Geographic reported operating margin",
+        short_hint=(
+            "Reported operating margin = segment income from operations / "
+            "segment net revenue. This is not BAV NOPAT margin. Zero revenue "
+            "is undefined (#N/A). Negative profit is preserved."
+        ),
+        semantic_key="geographic.reported_operating_margin",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        hints=(
+            "Reported operating margin = income from operations / net revenue.",
+            "Keep this distinct from BAV NOPAT margin.",
+            "Zero revenue yields the undefined-ratio result.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_calculated_segment_revenue_total",
+        order=155,
+        title="Calculated geographic segment revenue total",
+        short_hint=(
+            "Calculated segment revenue total = Americas + China Mainland + "
+            "Rest of World. Distinct from any reported segment_total."
+        ),
+        semantic_key="geographic.calculated_segment_revenue_total",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        hints=(
+            "Sum the three reported geographic segment revenues.",
+            "This calculated total is distinct from any reported segment_total.",
+        ),
+        tolerance=0.0,
+    ),
+    ComponentFamily(
+        id="geographic_calculated_segment_operating_profit_total",
+        order=156,
+        title="Calculated geographic segment operating-profit total",
+        short_hint=(
+            "Calculated segment operating-profit total = Americas + China "
+            "Mainland + Rest of World income from operations. Distinct from "
+            "any reported segment_total."
+        ),
+        semantic_key="geographic.calculated_segment_operating_profit_total",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        hints=(
+            "Sum the three reported geographic segment operating profits.",
+            "This calculated total is distinct from any reported segment_total.",
+        ),
+        tolerance=0.0,
+    ),
+    ComponentFamily(
+        id="geographic_signed_reconciling_contribution",
+        order=157,
+        title="Signed geographic reconciling contribution",
+        short_hint=(
+            "Apply the explicit ADD or SUBTRACT operation to the reported "
+            "reconciling amount. ADD keeps the reported sign; SUBTRACT "
+            "negates it. Corporate-column and itemized items are not combined. "
+            "Arithmetic only; not a causal explanation."
+        ),
+        semantic_key="geographic.signed_reconciling_contribution",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        hints=(
+            "ADD uses the reported sign; SUBTRACT negates the reported amount.",
+            "Do not combine corporate-column ADD with itemized SUBTRACT items.",
+            "Bridge arithmetic only; not a causal explanation.",
+        ),
+        tolerance=0.0,
+    ),
+    ComponentFamily(
+        id="geographic_reconstructed_consolidated_operating_profit",
+        order=158,
+        title="Reconstructed consolidated operating profit",
+        short_hint=(
+            "Reconstructed consolidated operating profit = calculated segment "
+            "operating-profit total plus signed reconciling contributions in "
+            "stable identity order. Distinct from reported consolidated "
+            "operating profit until the difference is taken."
+        ),
+        semantic_key="geographic.reconstructed_consolidated_operating_profit",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        depends_on_current=(
+            "geographic_calculated_segment_operating_profit_total",
+            "geographic_signed_reconciling_contribution",
+        ),
+        hints=(
+            "Add signed reconciling contributions to the calculated segment total.",
+            "Preserve identity order and ADD/SUBTRACT semantics.",
+            "This reconstructed amount is not automatically the reported total.",
+        ),
+        tolerance=0.0,
+    ),
+    ComponentFamily(
+        id="geographic_consolidated_revenue_difference",
+        order=159,
+        title="Geographic consolidated revenue difference",
+        short_hint=(
+            "Difference = calculated segment revenue total − reported "
+            "consolidated revenue. A nonzero difference needs further "
+            "evidence; it is not a plug and does not invent missing zeros."
+        ),
+        semantic_key="geographic.consolidated_revenue_difference",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        depends_on_current=("geographic_calculated_segment_revenue_total",),
+        hints=(
+            "Difference = calculated segment revenue total − reported consolidated revenue.",
+            "A nonzero difference needs further evidence; do not insert a plug.",
+        ),
+        tolerance=0.0,
+    ),
+    ComponentFamily(
+        id="geographic_consolidated_operating_profit_difference",
+        order=160,
+        title="Geographic consolidated operating-profit difference",
+        short_hint=(
+            "Difference = reconstructed consolidated operating profit − "
+            "reported consolidated operating profit. A nonzero difference "
+            "needs further evidence; it is not a plug."
+        ),
+        semantic_key="geographic.consolidated_operating_profit_difference",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        depends_on_current=(
+            "geographic_reconstructed_consolidated_operating_profit",
+        ),
+        hints=(
+            "Difference = reconstructed operating profit − reported consolidated operating profit.",
+            "A nonzero difference needs further evidence; do not insert a plug.",
+        ),
+        tolerance=0.0,
+    ),
+)
+
+
+def expand_geographic_segment_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    available_periods: tuple[date, ...],
+    growth_identities: dict[date, tuple[str, ...]],
+    bridge_identities: dict[date, tuple[str, ...]],
+) -> tuple[ComponentSpec, ...]:
+    """Expand geographic families by segment/bridge identity and fiscal period."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in "
+            "expand_geographic_segment_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_geographic_segment_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    available = set(available_periods)
+    families = {family.id: family for family in GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG}
+    specs: list[ComponentSpec] = []
+    order = start_order
+    period_index = {period: index for index, period in enumerate(periods)}
+
+    def _append(
+        family: ComponentFamily,
+        period: date,
+        *,
+        identity: str = "",
+        depends_on: tuple[str, ...] = (),
+        title: str | None = None,
+        semantic_key: str | None = None,
+    ) -> None:
+        nonlocal order
+        period_end = period.isoformat()
+        specs.append(
+            ComponentSpec(
+                id=geographic_component_id(family.id, period, identity),
+                family_id=family.id,
+                order=order,
+                family_order=family.order,
+                title=title or family.title,
+                short_hint=family.short_hint,
+                semantic_key=semantic_key
+                or (
+                    f"{family.semantic_key}.{identity}.{period_end}"
+                    if identity
+                    else f"{family.semantic_key}.{period_end}"
+                ),
+                category=family.category,
+                tab_template=family.tab_template,
+                period_index=period_index[period],
+                period_end=period_end,
+                depends_on=depends_on,
+                hints=family.hints,
+                tolerance=family.tolerance,
+            )
+        )
+        order += 1
+
+    share = families["geographic_revenue_share"]
+    growth = families["geographic_revenue_growth"]
+    margin = families["geographic_reported_operating_margin"]
+    rev_total = families["geographic_calculated_segment_revenue_total"]
+    ifop_total = families["geographic_calculated_segment_operating_profit_total"]
+    signed = families["geographic_signed_reconciling_contribution"]
+    reconstructed = families["geographic_reconstructed_consolidated_operating_profit"]
+    rev_diff = families["geographic_consolidated_revenue_difference"]
+    ifop_diff = families["geographic_consolidated_operating_profit_difference"]
+
+    for period in periods:
+        if period not in available:
+            continue
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            label = geographic_identity_label(identity)
+            _append(
+                share,
+                period,
+                identity=identity,
+                title=f"{label} revenue mix",
+            )
+        growth_ids = growth_identities.get(period, ())
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            if identity not in growth_ids:
+                continue
+            label = geographic_identity_label(identity)
+            _append(
+                growth,
+                period,
+                identity=identity,
+                title=f"{label} adjacent-period revenue growth",
+            )
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            label = geographic_identity_label(identity)
+            _append(
+                margin,
+                period,
+                identity=identity,
+                title=f"{label} reported operating margin",
+            )
+        _append(rev_total, period)
+        _append(ifop_total, period)
+        period_bridges = bridge_identities.get(period, ())
+        for identity in period_bridges:
+            _append(
+                signed,
+                period,
+                identity=identity,
+                title=(
+                    f"{geographic_identity_label(identity)} signed reconciling "
+                    "contribution"
+                ),
+            )
+        reconstructed_deps = [
+            geographic_component_id(ifop_total.id, period),
+            *(
+                geographic_component_id(signed.id, period, identity)
+                for identity in period_bridges
+            ),
+        ]
+        _append(
+            reconstructed,
+            period,
+            depends_on=tuple(reconstructed_deps),
+        )
+        _append(
+            rev_diff,
+            period,
+            depends_on=(geographic_component_id(rev_total.id, period),),
+        )
+        _append(
+            ifop_diff,
+            period,
+            depends_on=(geographic_component_id(reconstructed.id, period),),
+        )
+    return tuple(specs)

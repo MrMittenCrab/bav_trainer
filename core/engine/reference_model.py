@@ -12,6 +12,12 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
+from ..data.historical_segments import (
+    IFOP_SEGMENT_TOTAL,
+    OP_ADD,
+    OP_SUBTRACT,
+    REVENUE_SEGMENT_TOTAL,
+)
 from ..data.interface import LineItem, StandardizedFinancials
 from ..data.line_identity import line_identity
 from ..model.classification import BALANCE_SHEET_CATEGORIES
@@ -25,6 +31,10 @@ from ..model.earnings_quality_change import compute_earnings_quality_change_seri
 from ..model.fixed_asset import (
     compute_fixed_asset_series,
     fixed_asset_applicable,
+)
+from ..model.geographic_segment import (
+    compute_geographic_segment_series,
+    geographic_segment_applicable,
 )
 from ..model.goodwill_intangibles import (
     compute_goodwill_intangibles_series,
@@ -142,12 +152,18 @@ from ..model.working_capital import (
 )
 from .component_catalog import (
     DEFERRED_COMPONENT_SPECS,
+    GEOGRAPHIC_SEGMENT_IDENTITIES,
+    GEOGRAPHIC_SHEET_NAME,
     expand_acquisition_cash_specs,
     expand_share_repurchase_specs,
     expand_cash_rollforward_specs,
     expand_reported_margin_specs,
     expand_inventory_analysis_specs,
+    expand_geographic_segment_specs,
     expand_capex_specs,
+    geographic_component_id,
+    geographic_identity_label,
+    geographic_spec_identity,
     expand_fixed_asset_specs,
     expand_goodwill_intangibles_specs,
     expand_historical_specs,
@@ -190,6 +206,7 @@ EARNINGS_QUALITY_SHEET = "Earnings Quality"
 WORKING_CAPITAL_SHEET = "Working Capital Analysis"
 PER_SHARE_SHEET = "Per Share Analysis"
 OWNERSHIP_ATTRIBUTION_SHEET = "Ownership Attribution"
+GEOGRAPHIC_SHEET = GEOGRAPHIC_SHEET_NAME
 JUDGMENT_INSTRUCTION = (
     "The supplied treatment is the model's reference treatment, not a universal "
     "accounting truth. Compare it with the listed alternative(s), choose the "
@@ -215,6 +232,32 @@ NORMALIZATION_JUDGMENT_STEP_NOTE = (
     "G:H are ungraded reasoning. Do not edit the generated Earnings Normalization "
     "treatment link directly."
 )
+
+
+def _geographic_expand_inputs(series) -> tuple[
+    tuple[date, ...],
+    dict[date, tuple[str, ...]],
+    dict[date, tuple[str, ...]],
+]:
+    available: list[date] = []
+    growth_identities: dict[date, tuple[str, ...]] = {}
+    bridge_identities: dict[date, tuple[str, ...]] = {}
+    for period in series.periods:
+        if is_source_unavailable(series.presentation_family[period]):
+            continue
+        available.append(period)
+        growth_ids = tuple(
+            name
+            for name in GEOGRAPHIC_SEGMENT_IDENTITIES
+            if series.revenue_growth[period][name] is not None
+            and not is_source_unavailable(series.revenue_growth[period][name])
+        )
+        if growth_ids:
+            growth_identities[period] = growth_ids
+        contributions = series.signed_reconciling_contributions[period]
+        if not is_source_unavailable(contributions):
+            bridge_identities[period] = tuple(name for name, _ in contributions)
+    return tuple(available), growth_identities, bridge_identities
 
 
 class ReferenceModelBuilder:
@@ -908,6 +951,50 @@ class ReferenceModelBuilder:
         else:
             self.inventory_analysis_series = None
             self.inventory_analysis_specs = ()
+        if geographic_segment_applicable(self.fin):
+            self.geographic_series = compute_geographic_segment_series(
+                self.fin,
+                self.periods,
+            )
+            available_periods, growth_identities, bridge_identities = (
+                _geographic_expand_inputs(self.geographic_series)
+            )
+            self.geographic_specs = expand_geographic_segment_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + len(self.profitability_change_specs)
+                    + len(self.roe_attribution_specs)
+                    + len(self.quality_change_specs)
+                    + len(self.per_share_specs)
+                    + len(self.per_share_attribution_specs)
+                    + len(self.normalized_per_share_specs)
+                    + len(self.fixed_asset_specs)
+                    + len(self.lease_liability_specs)
+                    + len(self.ownership_attribution_specs)
+                    + len(self.goodwill_intangibles_specs)
+                    + len(self.lease_rou_specs)
+                    + len(self.deferred_tax_specs)
+                    + len(self.capex_specs)
+                    + len(self.lease_repayment_specs)
+                    + len(self.acquisition_cash_specs)
+                    + len(self.share_repurchase_specs)
+                    + len(self.cash_rollforward_specs)
+                    + len(self.reported_margin_specs)
+                    + len(self.inventory_analysis_specs)
+                    + 1
+                ),
+                available_periods=available_periods,
+                growth_identities=growth_identities,
+                bridge_identities=bridge_identities,
+            )
+        else:
+            self.geographic_series = None
+            self.geographic_specs = ()
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
@@ -933,6 +1020,7 @@ class ReferenceModelBuilder:
             + self.cash_rollforward_specs
             + self.reported_margin_specs
             + self.inventory_analysis_specs
+            + self.geographic_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -1008,6 +1096,10 @@ class ReferenceModelBuilder:
         }
         self._inventory_analysis_spec_index = {
             (s.family_id, s.period_index): s for s in self.inventory_analysis_specs
+        }
+        self._geographic_spec_index = {
+            (s.family_id, s.period_index, geographic_spec_identity(s)): s
+            for s in self.geographic_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -1123,6 +1215,8 @@ class ReferenceModelBuilder:
             self._build_working_capital_analysis(wb)
         if self.per_share_series is not None:
             self._build_per_share_analysis(wb)
+        if self.geographic_series is not None:
+            self._build_geographic_segment(wb)
         if self.include_deferred_forecast:
             for scenario in ("Bear", "Base", "Bull"):
                 self._build_model_tab(wb, scenario)
@@ -1771,6 +1865,23 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._inventory_analysis_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_geographic(
+        self,
+        family_id: str,
+        period_index: int,
+        identity: str,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._geographic_spec_index[(family_id, period_index, identity)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -6771,6 +6882,419 @@ class ReferenceModelBuilder:
         self.rowmap["normalized_per_share_eps_change_row"] = normalized_eps_change_row
         self.rowmap["normalized_per_share_effect_row"] = normalization_effect_row
         self.rowmap["normalized_per_share_change_check_row"] = change_check_row
+
+    def _build_geographic_segment(self, wb: Workbook) -> None:
+        if self.geographic_series is None:
+            raise RuntimeError(
+                "geographic_series required when building Geographic Segment Analysis"
+            )
+        if self.fin.historical_segment is None:
+            raise RuntimeError("historical_segment required when building geographic schedule")
+
+        series = self.geographic_series
+        snapshots = {snap.period: snap for snap in self.fin.historical_segment.periods}
+        ws = wb.create_sheet(GEOGRAPHIC_SHEET)
+        ws["A1"] = f"{self.fin.company_name} — Geographic Segment Analysis"
+        ws["A1"].font = BOLD
+        ws["A2"] = (
+            "Source-supported geographic revenue mix, adjacent-period growth, "
+            "reported operating margins, and consolidated bridges. Reported "
+            "operating margin is income from operations / net revenue, not BAV "
+            "NOPAT margin."
+        )
+        ws["A3"] = f"Units: {self.fin.units}"
+        ws["A4"] = (
+            "Calculated segment totals are distinct from any reported segment_total. "
+            "Corporate-column ADD and itemized SUBTRACT are not combined. "
+            "Do not infer missing reconciling zeros or compress period gaps."
+        )
+        ws.column_dimensions["A"].width = 56
+
+        header_row = 6
+        ws.cell(row=header_row, column=1, value="Metric").font = BOLD
+        for j, pd in enumerate(self.periods):
+            cell = ws.cell(row=header_row, column=2 + j, value=pd)
+            cell.number_format = "mmm dd, yyyy"
+            cell.font = BOLD
+            ws.column_dimensions[self._col(2 + j)].width = 16
+
+        def _section(row: int, title: str) -> None:
+            ws.cell(row=row, column=1, value=title).font = BOLD
+
+        def _label(row: int, text: str) -> None:
+            ws.cell(row=row, column=1, value=text)
+
+        def _geo_expected(value: float | str | None) -> float | str:
+            assert value is not None
+            return value if isinstance(value, str) else float(value)
+
+        def _put_number(row: int, col_idx: int, value: float) -> None:
+            cell = ws.cell(row=row, column=col_idx, value=float(value))
+            cell.number_format = NUM_FMT
+
+        def _put_formula(row: int, col_idx: int, formula: str, *, pct: bool = False):
+            cell = ws.cell(row=row, column=col_idx, value=formula)
+            cell.number_format = PCT_FMT if pct else NUM_FMT
+            return cell
+
+        def _ratio_formula(num_ref: str, den_ref: str) -> str:
+            return f"=IF({den_ref}=0,NA(),{num_ref}/{den_ref})"
+
+        def _growth_formula(curr_ref: str, prev_ref: str) -> str:
+            return f"=IF({prev_ref}=0,NA(),({curr_ref}-{prev_ref})/{prev_ref})"
+
+        def _register(
+            family_id: str,
+            period_index: int,
+            identity: str,
+            row: int,
+            col_idx: int,
+            formula: str,
+            expected: float | str | None,
+        ) -> None:
+            self._register_geographic(
+                family_id,
+                period_index,
+                identity,
+                GEOGRAPHIC_SHEET,
+                row,
+                col_idx,
+                formula,
+                _geo_expected(expected),
+            )
+
+        cursor = 8
+        _section(cursor, "NET REVENUE")
+        family_row = cursor + 1
+        rev_rows = {}
+        cursor = family_row
+        _label(family_row, "Presentation family")
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            cursor += 1
+            rev_rows[identity] = cursor
+            _label(cursor, f"{geographic_identity_label(identity)} net revenue")
+        cursor += 1
+        rev_total_row = cursor
+        _label(rev_total_row, "Calculated segment revenue total")
+        cursor += 1
+        rev_reported_total_row = cursor
+        _label(rev_reported_total_row, "Reported segment revenue total")
+        cursor += 1
+        rev_cons_row = cursor
+        _label(rev_cons_row, "Reported consolidated revenue")
+        cursor += 1
+        rev_diff_row = cursor
+        _label(rev_diff_row, "Difference vs reported consolidated revenue")
+
+        cursor += 2
+        _section(cursor, "REVENUE MIX")
+        share_rows = {}
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            cursor += 1
+            share_rows[identity] = cursor
+            _label(cursor, f"{geographic_identity_label(identity)} revenue mix")
+
+        cursor += 2
+        _section(cursor, "ADJACENT-PERIOD REVENUE GROWTH")
+        growth_rows = {}
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            cursor += 1
+            growth_rows[identity] = cursor
+            _label(
+                cursor,
+                f"{geographic_identity_label(identity)} adjacent-period revenue growth",
+            )
+
+        cursor += 2
+        _section(cursor, "INCOME FROM OPERATIONS")
+        ifop_rows = {}
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            cursor += 1
+            ifop_rows[identity] = cursor
+            _label(
+                cursor,
+                f"{geographic_identity_label(identity)} income from operations",
+            )
+        cursor += 1
+        ifop_total_row = cursor
+        _label(ifop_total_row, "Calculated segment operating-profit total")
+        cursor += 1
+        ifop_reported_total_row = cursor
+        _label(ifop_reported_total_row, "Reported segment operating-profit total")
+        cursor += 1
+        ifop_cons_row = cursor
+        _label(ifop_cons_row, "Reported consolidated operating profit")
+
+        cursor += 2
+        _section(cursor, "REPORTED OPERATING MARGIN")
+        margin_rows = {}
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            cursor += 1
+            margin_rows[identity] = cursor
+            _label(
+                cursor,
+                f"{geographic_identity_label(identity)} reported operating margin",
+            )
+
+        all_bridges = sorted(
+            {
+                name
+                for contrib in series.signed_reconciling_contributions.values()
+                if not isinstance(contrib, str)
+                for name, _ in contrib
+            }
+        )
+        cursor += 2
+        _section(cursor, "RECONCILING ITEMS AND CONSOLIDATED BRIDGE")
+        bridge_source_rows: dict[str, int] = {}
+        bridge_signed_rows: dict[str, int] = {}
+        for identity in all_bridges:
+            cursor += 1
+            bridge_source_rows[identity] = cursor
+            _label(cursor, f"{geographic_identity_label(identity)} (reported)")
+            cursor += 1
+            bridge_signed_rows[identity] = cursor
+            _label(
+                cursor,
+                f"{geographic_identity_label(identity)} signed contribution",
+            )
+        cursor += 1
+        reconstructed_row = cursor
+        _label(reconstructed_row, "Reconstructed consolidated operating profit")
+        cursor += 1
+        ifop_diff_row = cursor
+        _label(
+            ifop_diff_row,
+            "Difference vs reported consolidated operating profit",
+        )
+
+        self.rowmap["geographic_header_row"] = header_row
+        self.rowmap["geographic_revenue_rows"] = dict(rev_rows)
+        self.rowmap["geographic_ifop_rows"] = dict(ifop_rows)
+
+        for j, period in enumerate(self.periods):
+            col_idx = 2 + j
+            col = self._col(col_idx)
+            snapshot = snapshots.get(period)
+            unavailable = snapshot is None or is_source_unavailable(
+                series.presentation_family[period]
+            )
+            if unavailable:
+                for row in (
+                    family_row,
+                    *rev_rows.values(),
+                    rev_total_row,
+                    rev_reported_total_row,
+                    rev_cons_row,
+                    rev_diff_row,
+                    *share_rows.values(),
+                    *growth_rows.values(),
+                    *ifop_rows.values(),
+                    ifop_total_row,
+                    ifop_reported_total_row,
+                    ifop_cons_row,
+                    *margin_rows.values(),
+                    *bridge_source_rows.values(),
+                    *bridge_signed_rows.values(),
+                    reconstructed_row,
+                    ifop_diff_row,
+                ):
+                    if j == 0 and row in growth_rows.values():
+                        ws.cell(row=row, column=col_idx, value="N/A")
+                    else:
+                        self._stamp_unavailable(
+                            ws, row, col_idx, SOURCE_UNAVAILABLE
+                        )
+                continue
+
+            ws.cell(row=family_row, column=col_idx, value=snapshot.presentation_family)
+            for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+                _put_number(
+                    rev_rows[identity],
+                    col_idx,
+                    float(series.net_revenue[period][identity]),
+                )
+                _put_number(
+                    ifop_rows[identity],
+                    col_idx,
+                    float(series.income_from_operations[period][identity]),
+                )
+
+            rev_total_f = "=" + "+".join(
+                f"{col}{rev_rows[name]}" for name in GEOGRAPHIC_SEGMENT_IDENTITIES
+            )
+            _put_formula(rev_total_row, col_idx, rev_total_f)
+            _register(
+                "geographic_calculated_segment_revenue_total",
+                j,
+                "",
+                rev_total_row,
+                col_idx,
+                rev_total_f,
+                series.calculated_segment_revenue_total[period],
+            )
+            if REVENUE_SEGMENT_TOTAL in snapshot.values:
+                _put_number(
+                    rev_reported_total_row,
+                    col_idx,
+                    float(snapshot.values[REVENUE_SEGMENT_TOTAL]),
+                )
+            _put_number(
+                rev_cons_row,
+                col_idx,
+                float(series.reported_consolidated_revenue[period]),
+            )
+            rev_diff_f = f"={col}{rev_total_row}-{col}{rev_cons_row}"
+            _put_formula(rev_diff_row, col_idx, rev_diff_f)
+            _register(
+                "geographic_consolidated_revenue_difference",
+                j,
+                "",
+                rev_diff_row,
+                col_idx,
+                rev_diff_f,
+                series.consolidated_revenue_difference[period],
+            )
+
+            for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+                share_f = _ratio_formula(
+                    f"{col}{rev_rows[identity]}", f"{col}{rev_cons_row}"
+                )
+                _put_formula(share_rows[identity], col_idx, share_f, pct=True)
+                _register(
+                    "geographic_revenue_share",
+                    j,
+                    identity,
+                    share_rows[identity],
+                    col_idx,
+                    share_f,
+                    series.revenue_share[period][identity],
+                )
+                margin_f = _ratio_formula(
+                    f"{col}{ifop_rows[identity]}", f"{col}{rev_rows[identity]}"
+                )
+                _put_formula(margin_rows[identity], col_idx, margin_f, pct=True)
+                _register(
+                    "geographic_reported_operating_margin",
+                    j,
+                    identity,
+                    margin_rows[identity],
+                    col_idx,
+                    margin_f,
+                    series.reported_operating_margin[period][identity],
+                )
+
+            ifop_total_f = "=" + "+".join(
+                f"{col}{ifop_rows[name]}" for name in GEOGRAPHIC_SEGMENT_IDENTITIES
+            )
+            _put_formula(ifop_total_row, col_idx, ifop_total_f)
+            _register(
+                "geographic_calculated_segment_operating_profit_total",
+                j,
+                "",
+                ifop_total_row,
+                col_idx,
+                ifop_total_f,
+                series.calculated_segment_operating_profit_total[period],
+            )
+            if IFOP_SEGMENT_TOTAL in snapshot.values:
+                _put_number(
+                    ifop_reported_total_row,
+                    col_idx,
+                    float(snapshot.values[IFOP_SEGMENT_TOTAL]),
+                )
+            _put_number(
+                ifop_cons_row,
+                col_idx,
+                float(series.reported_consolidated_operating_profit[period]),
+            )
+
+            for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+                growth_value = series.revenue_growth[period][identity]
+                growth_row = growth_rows[identity]
+                if j == 0 or growth_value is None:
+                    ws.cell(row=growth_row, column=col_idx, value="N/A")
+                    continue
+                if is_source_unavailable(growth_value):
+                    self._stamp_unavailable(ws, growth_row, col_idx, SOURCE_UNAVAILABLE)
+                    continue
+                prev_col = self._col(col_idx - 1)
+                growth_f = _growth_formula(
+                    f"{col}{rev_rows[identity]}",
+                    f"{prev_col}{rev_rows[identity]}",
+                )
+                _put_formula(growth_row, col_idx, growth_f, pct=True)
+                _register(
+                    "geographic_revenue_growth",
+                    j,
+                    identity,
+                    growth_row,
+                    col_idx,
+                    growth_f,
+                    growth_value,
+                )
+
+            signed_refs: list[str] = []
+            contributions = series.signed_reconciling_contributions[period]
+            present = {
+                name: amount
+                for name, amount in (
+                    contributions if not isinstance(contributions, str) else ()
+                )
+            }
+            for identity in all_bridges:
+                source_row = bridge_source_rows[identity]
+                signed_row = bridge_signed_rows[identity]
+                if identity not in snapshot.bridge_operations:
+                    continue
+                amount = float(snapshot.values[identity])
+                _put_number(source_row, col_idx, amount)
+                operation = snapshot.bridge_operations[identity]
+                source_ref = f"{col}{source_row}"
+                if operation == OP_ADD:
+                    signed_f = f"={source_ref}"
+                elif operation == OP_SUBTRACT:
+                    signed_f = f"=-{source_ref}"
+                else:
+                    raise ValueError(
+                        f"unsupported geographic bridge operation {operation!r}"
+                    )
+                _put_formula(signed_row, col_idx, signed_f)
+                _register(
+                    "geographic_signed_reconciling_contribution",
+                    j,
+                    identity,
+                    signed_row,
+                    col_idx,
+                    signed_f,
+                    present[identity],
+                )
+                signed_refs.append(f"{col}{signed_row}")
+
+            recon_f = f"={col}{ifop_total_row}"
+            if signed_refs:
+                recon_f += "+" + "+".join(signed_refs)
+            _put_formula(reconstructed_row, col_idx, recon_f)
+            _register(
+                "geographic_reconstructed_consolidated_operating_profit",
+                j,
+                "",
+                reconstructed_row,
+                col_idx,
+                recon_f,
+                series.reconstructed_consolidated_operating_profit[period],
+            )
+            ifop_diff_f = f"={col}{reconstructed_row}-{col}{ifop_cons_row}"
+            _put_formula(ifop_diff_row, col_idx, ifop_diff_f)
+            _register(
+                "geographic_consolidated_operating_profit_difference",
+                j,
+                "",
+                ifop_diff_row,
+                col_idx,
+                ifop_diff_f,
+                series.consolidated_operating_profit_difference[period],
+            )
 
     def _build_model_tab(self, wb: Workbook, scenario: str) -> None:
         ws = wb.create_sheet(f"Model_{scenario}")
