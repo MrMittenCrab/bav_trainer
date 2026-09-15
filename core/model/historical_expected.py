@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from ..engine.component_catalog import (
+    ACQUISITION_CASH_COMPONENT_CATALOG,
     CAPEX_COMPONENT_CATALOG,
     COMPONENT_CATALOG,
     DEFERRED_TAX_COMPONENT_CATALOG,
@@ -24,6 +25,7 @@ from ..engine.component_catalog import (
     WORKING_CAPITAL_COMPONENT_CATALOG,
 )
 from ..engine.semantic_map import ResolvedComponent
+from .acquisition_cash import AcquisitionCashSeries
 from .capex import CapexSeries
 from .earnings_quality import EarningsQualitySeries
 from .earnings_quality_change import compute_earnings_quality_change_series
@@ -176,6 +178,19 @@ _CAPEX_CASH_AFTER_FAMILY_SERIES = (
 _LEASE_REPAYMENT_FAMILY_SERIES = (
     "lease_repayments",
     "lease_repayments_to_revenue",
+)
+
+_ACQUISITION_CASH_FAMILY_SERIES = (
+    "acquisition_cash_outflow",
+    "acquisition_cash_to_revenue",
+    "cash_after_ppe_capex_and_acquisitions",
+)
+_ACQUISITION_CASH_BASE_FAMILY_SERIES = (
+    "acquisition_cash_outflow",
+    "acquisition_cash_to_revenue",
+)
+_ACQUISITION_CASH_RESIDUAL_FAMILY_SERIES = (
+    "cash_after_ppe_capex_and_acquisitions",
 )
 
 _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
@@ -729,6 +744,36 @@ def lease_repayment_expected_series(
     }
 
 
+def acquisition_cash_expected_series(
+    acquisition_cash: AcquisitionCashSeries,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map acquisition-cash practice families from an AcquisitionCashSeries."""
+    series: dict[str, tuple[float | str | None, ...]] = {
+        "acquisition_cash_outflow": acquisition_cash.acquisition_cash_outflow,
+        "acquisition_cash_to_revenue": acquisition_cash.acquisition_cash_to_revenue,
+    }
+    if acquisition_cash.cash_after_ppe_capex_and_acquisitions is not None:
+        series["cash_after_ppe_capex_and_acquisitions"] = (
+            acquisition_cash.cash_after_ppe_capex_and_acquisitions
+        )
+    catalog_ids = {family.id for family in ACQUISITION_CASH_COMPONENT_CATALOG}
+    required = set(_ACQUISITION_CASH_BASE_FAMILY_SERIES)
+    if acquisition_cash.cash_after_ppe_capex_and_acquisitions is not None:
+        required |= set(_ACQUISITION_CASH_RESIDUAL_FAMILY_SERIES)
+    if set(series) != required or not required <= catalog_ids:
+        missing = sorted(required - set(series))
+        extra = sorted(set(series) - required)
+        raise ValueError(
+            "acquisition_cash_expected_series family mismatch; "
+            f"missing={missing} extra={extra}"
+        )
+    return {
+        family_id: series[family_id]
+        for family_id in _ACQUISITION_CASH_FAMILY_SERIES
+        if family_id in series
+    }
+
+
 def ownership_attribution_expected_series(
     ownership_attribution: OwnershipAttributionSeries,
 ) -> dict[str, tuple[float | str | None, ...]]:
@@ -842,6 +887,7 @@ def expected_value_for_component(
     goodwill_intangibles_availability: GoodwillIntangiblesAvailability | None = None,
     capex: CapexSeries | None = None,
     lease_repayment: LeaseRepaymentSeries | None = None,
+    acquisition_cash: AcquisitionCashSeries | None = None,
 ) -> float | str | None:
     """Return the treatment-conditioned expected value for one practice component."""
     family_id = component.family_id
@@ -901,6 +947,18 @@ def expected_value_for_component(
                 f"Lease-repayment family {family_id!r} requires a LeaseRepaymentSeries"
             )
         series = lease_repayment_expected_series(lease_repayment)
+    elif family_id in _ACQUISITION_CASH_FAMILY_SERIES:
+        if acquisition_cash is None:
+            raise ValueError(
+                f"Acquisition-cash family {family_id!r} requires an "
+                "AcquisitionCashSeries"
+            )
+        series = acquisition_cash_expected_series(acquisition_cash)
+        if family_id not in series:
+            raise ValueError(
+                f"Acquisition-cash family {family_id!r} requires unambiguous "
+                "operating cash flow and PP&E capex"
+            )
     elif family_id in _FIXED_ASSET_FAMILY_SERIES:
         if fixed_asset is None:
             raise ValueError(

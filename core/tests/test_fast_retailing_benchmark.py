@@ -785,6 +785,15 @@ def test_fast_retailing_capex_module_activates():
     assert "operating_cash_flow_less_sbc" not in {
         s.family_id for s in builder.expected_specs
     }
+    assert "acquisition_cash_outflow" not in {
+        s.family_id for s in builder.expected_specs
+    }
+    assert "acquisition_cash_to_revenue" not in {
+        s.family_id for s in builder.expected_specs
+    }
+    assert "cash_after_ppe_capex_and_acquisitions" not in {
+        s.family_id for s in builder.expected_specs
+    }
 
 
 def test_fast_retailing_lease_repayment_module_activates():

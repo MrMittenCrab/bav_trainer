@@ -15,6 +15,7 @@ from ..model.historical_expected import expected_value_for_component
 from ..model.normalization import NormalizationCase, compute_normalization_series
 from ..model.period_axis import canonical_fiscal_periods
 from ..engine.component_catalog import (
+    ACQUISITION_CASH_COMPONENT_CATALOG,
     CAPEX_COMPONENT_CATALOG,
     DEFERRED_TAX_COMPONENT_CATALOG,
     FIXED_ASSET_COMPONENT_CATALOG,
@@ -30,6 +31,10 @@ from ..engine.component_catalog import (
     QUALITY_COMPONENT_CATALOG,
 )
 from ..model.fixed_asset import compute_fixed_asset_series, fixed_asset_applicable
+from ..model.acquisition_cash import (
+    compute_acquisition_cash_series,
+    acquisition_cash_applicable,
+)
 from ..model.capex import compute_capex_series, capex_applicable
 from ..model.lease_repayment import (
     compute_lease_repayment_series,
@@ -312,6 +317,17 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                         list(modeled_periods),
                         anchor,
                     )
+            acquisition_cash_family_ids = {
+                family.id for family in ACQUISITION_CASH_COMPONENT_CATALOG
+            }
+            acquisition_cash = None
+            if any(comp.family_id in acquisition_cash_family_ids for comp in comps):
+                if acquisition_cash_applicable(financials):
+                    acquisition_cash = compute_acquisition_cash_series(
+                        financials,
+                        list(modeled_periods),
+                        anchor,
+                    )
             dynamic_expected = {
                 comp.id: expected_value_for_component(
                     anchor,
@@ -328,6 +344,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     goodwill_intangibles_availability=gi_availability,
                     capex=capex,
                     lease_repayment=lease_repayment,
+                    acquisition_cash=acquisition_cash,
                 )
                 for comp in comps
             }

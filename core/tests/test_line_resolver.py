@@ -689,3 +689,45 @@ def test_rou_deferred_tax_alias_removal_fails_closed(
     )
     with pytest.raises(MissingLineError, match=canonical):
         resolve_line(items, canonical, required=True)
+
+
+def test_acquisition_net_of_cash_acquired_rejects_unsupported_label_only_inputs():
+    """Acquisition cash remains explicit-concept; nearby labels do not activate."""
+    for label in (
+        "Acquisition, net of cash acquired",
+        "Acquisitions",
+        "Business acquisitions",
+        "Payments for acquisition of right-of-use assets",
+        "Payments for intangible assets",
+    ):
+        assert (
+            resolve_line(
+                [_item(label, -100, -110)],
+                "acquisition_net_of_cash_acquired",
+                required=False,
+            ).item
+            is None
+        )
+    with pytest.raises(MissingLineError):
+        resolve_line(
+            [_item("Acquisition, net of cash acquired", -100, -110)],
+            "acquisition_net_of_cash_acquired",
+            required=True,
+        )
+
+
+def test_acquisition_net_of_cash_acquired_explicit_concept_outranks_label():
+    items = [
+        _item("Acquisition, net of cash acquired", -1, -2),
+        _item(
+            "Other acquisition carrying amount",
+            -100,
+            -110,
+            concept="acquisition_net_of_cash_acquired",
+        ),
+    ]
+    resolved = resolve_line(items, "acquisition_net_of_cash_acquired", required=True)
+    assert resolved.item is not None
+    assert resolved.index == 1
+    assert resolved.item.label == "Other acquisition carrying amount"
+    assert resolved.item.concept == "acquisition_net_of_cash_acquired"

@@ -110,3 +110,7 @@ Measured against reconciled standardized payload without forcing a workbook:
 - Forecasting / valuation remain deferred.
 - Temporary Trainer/Answer Key artifacts are not committed (build did not succeed).
 - Comparative IS dates 2021-01-31 / 2022-01-30 appear inside FY2022 extracted filings but are not on the reconciled canonical period axis.
+
+## Current measured (Step 9M.2.4.1.1.1.23)
+
+Release generation now succeeds on the existing reconciled payload. Practice identities: **305** (preserved 293 + 12 acquisition-cash). Unique CF `acquisition_net_of_cash_acquired` values `0 / 0 / -154146 / 0`; analytical outflows `0 / 0 / 154146 / 0`; cash after PP&E capex and acquisitions `327806 / 1644299 / 1429335 / 921675`. Fast Retailing remains 501 with no acquisition source.

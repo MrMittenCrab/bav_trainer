@@ -516,6 +516,9 @@ def test_lululemon_unchanged_facts_gate_interest_and_keep_supported_outputs(tmp_
     assert "sbc_to_revenue" in families
     assert "sbc_to_operating_cash_flow" in families
     assert "operating_cash_flow_less_sbc" in families
+    assert "acquisition_cash_outflow" in families
+    assert "acquisition_cash_to_revenue" in families
+    assert "cash_after_ppe_capex_and_acquisitions" in families
     wb = load_workbook(answer, data_only=False)
     labels = _labels(wb["Condensed Financials"])
     assert "Interest Expense" not in labels

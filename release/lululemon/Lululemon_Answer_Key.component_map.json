@@ -5636,8 +5636,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_change.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C87",
-      "formula": "=C86-B86",
+      "cell": "C95",
+      "formula": "=C94-B94",
       "expected_value": -61.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5660,8 +5660,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_change.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D87",
-      "formula": "=D86-C86",
+      "cell": "D95",
+      "formula": "=D94-C94",
       "expected_value": 135435.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5684,8 +5684,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_change.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E87",
-      "formula": "=E86-D86",
+      "cell": "E95",
+      "formula": "=E94-D94",
       "expected_value": 25393.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5708,8 +5708,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_growth.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C88",
-      "formula": "=IF(B86=0,NA(),C86/B86-1)",
+      "cell": "C96",
+      "formula": "=IF(B94=0,NA(),C94/B94-1)",
       "expected_value": -0.0025265076209410207,
       "tolerance": 0.01,
       "depends_on": [
@@ -5735,8 +5735,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_growth.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D88",
-      "formula": "=IF(C86=0,NA(),D86/C86-1)",
+      "cell": "D96",
+      "formula": "=IF(C94=0,NA(),D94/C94-1)",
       "expected_value": 5.623676452269236,
       "tolerance": 0.01,
       "depends_on": [
@@ -5762,8 +5762,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_growth.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E88",
-      "formula": "=IF(D86=0,NA(),E86/D86-1)",
+      "cell": "E96",
+      "formula": "=IF(D94=0,NA(),E94/D94-1)",
       "expected_value": 0.1591857972141075,
       "tolerance": 0.01,
       "depends_on": [
@@ -5789,8 +5789,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C89",
-      "formula": "=(B86+C86)/2",
+      "cell": "C97",
+      "formula": "=(B94+C94)/2",
       "expected_value": 24113.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5812,8 +5812,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D89",
-      "formula": "=(C86+D86)/2",
+      "cell": "D97",
+      "formula": "=(C94+D94)/2",
       "expected_value": 91800.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5835,8 +5835,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E89",
-      "formula": "=(D86+E86)/2",
+      "cell": "E97",
+      "formula": "=(D94+E94)/2",
       "expected_value": 172214.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5858,8 +5858,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C90",
-      "formula": "=IF('Condensed Financials'!C34=0,NA(),C89/'Condensed Financials'!C34)",
+      "cell": "C98",
+      "formula": "=IF('Condensed Financials'!C34=0,NA(),C97/'Condensed Financials'!C34)",
       "expected_value": 0.0025067889710641486,
       "tolerance": 0.01,
       "depends_on": [
@@ -5885,8 +5885,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D90",
-      "formula": "=IF('Condensed Financials'!D34=0,NA(),D89/'Condensed Financials'!D34)",
+      "cell": "D98",
+      "formula": "=IF('Condensed Financials'!D34=0,NA(),D97/'Condensed Financials'!D34)",
       "expected_value": 0.008670136717300115,
       "tolerance": 0.01,
       "depends_on": [
@@ -5912,8 +5912,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E90",
-      "formula": "=IF('Condensed Financials'!E34=0,NA(),E89/'Condensed Financials'!E34)",
+      "cell": "E98",
+      "formula": "=IF('Condensed Financials'!E34=0,NA(),E97/'Condensed Financials'!E34)",
       "expected_value": 0.015511186568911787,
       "tolerance": 0.01,
       "depends_on": [
@@ -5939,8 +5939,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C92",
-      "formula": "=C91-B91",
+      "cell": "C100",
+      "formula": "=C99-B99",
       "expected_value": -21961.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5962,8 +5962,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D92",
-      "formula": "=D91-C91",
+      "cell": "D100",
+      "formula": "=D99-C99",
       "expected_value": 11673.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5985,8 +5985,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E92",
-      "formula": "=E91-D91",
+      "cell": "E100",
+      "formula": "=E99-D99",
       "expected_value": -5390.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6008,8 +6008,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C93",
-      "formula": "=IF(B91=0,NA(),C91/B91-1)",
+      "cell": "C101",
+      "formula": "=IF(B99=0,NA(),C99/B99-1)",
       "expected_value": -1.0,
       "tolerance": 0.01,
       "depends_on": [
@@ -6034,8 +6034,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D93",
-      "formula": "=IF(C91=0,NA(),D91/C91-1)",
+      "cell": "D101",
+      "formula": "=IF(C99=0,NA(),D99/C99-1)",
       "expected_value": "#N/A",
       "tolerance": 0.01,
       "depends_on": [
@@ -6060,8 +6060,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E93",
-      "formula": "=IF(D91=0,NA(),E91/D91-1)",
+      "cell": "E101",
+      "formula": "=IF(D99=0,NA(),E99/D99-1)",
       "expected_value": -0.4617493360747023,
       "tolerance": 0.01,
       "depends_on": [
@@ -6086,8 +6086,8 @@
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C94",
-      "formula": "=(B91+C91)/2",
+      "cell": "C102",
+      "formula": "=(B99+C99)/2",
       "expected_value": 10980.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6109,8 +6109,8 @@
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D94",
-      "formula": "=(C91+D91)/2",
+      "cell": "D102",
+      "formula": "=(C99+D99)/2",
       "expected_value": 5836.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6132,8 +6132,8 @@
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E94",
-      "formula": "=(D91+E91)/2",
+      "cell": "E102",
+      "formula": "=(D99+E99)/2",
       "expected_value": 8978.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6155,8 +6155,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C95",
-      "formula": "=IF('Condensed Financials'!C34=0,NA(),C94/'Condensed Financials'!C34)",
+      "cell": "C103",
+      "formula": "=IF('Condensed Financials'!C34=0,NA(),C102/'Condensed Financials'!C34)",
       "expected_value": 0.0011415097889883213,
       "tolerance": 0.01,
       "depends_on": [
@@ -6182,8 +6182,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D95",
-      "formula": "=IF('Condensed Financials'!D34=0,NA(),D94/'Condensed Financials'!D34)",
+      "cell": "D103",
+      "formula": "=IF('Condensed Financials'!D34=0,NA(),D102/'Condensed Financials'!D34)",
       "expected_value": 0.0005512306899256771,
       "tolerance": 0.01,
       "depends_on": [
@@ -6209,8 +6209,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E95",
-      "formula": "=IF('Condensed Financials'!E34=0,NA(),E94/'Condensed Financials'!E34)",
+      "cell": "E103",
+      "formula": "=IF('Condensed Financials'!E34=0,NA(),E102/'Condensed Financials'!E34)",
       "expected_value": 0.0008086394177940303,
       "tolerance": 0.01,
       "depends_on": [
@@ -6236,8 +6236,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C97",
-      "formula": "=C96-B96",
+      "cell": "C105",
+      "formula": "=C104-B104",
       "expected_value": -22022.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6259,8 +6259,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D97",
-      "formula": "=D96-C96",
+      "cell": "D105",
+      "formula": "=D104-C104",
       "expected_value": 147108.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6282,8 +6282,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E97",
-      "formula": "=E96-D96",
+      "cell": "E105",
+      "formula": "=E104-D104",
       "expected_value": 20003.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6305,8 +6305,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C98",
-      "formula": "=IF(B96=0,NA(),C96/B96-1)",
+      "cell": "C106",
+      "formula": "=IF(B104=0,NA(),C104/B104-1)",
       "expected_value": -0.47764884502765426,
       "tolerance": 0.01,
       "depends_on": [
@@ -6331,8 +6331,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D98",
-      "formula": "=IF(C96=0,NA(),D96/C96-1)",
+      "cell": "D106",
+      "formula": "=IF(C104=0,NA(),D104/C104-1)",
       "expected_value": 6.108375202424947,
       "tolerance": 0.01,
       "depends_on": [
@@ -6357,8 +6357,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E98",
-      "formula": "=IF(D96=0,NA(),E96/D96-1)",
+      "cell": "E106",
+      "formula": "=IF(D104=0,NA(),E104/D104-1)",
       "expected_value": 0.11684609588120871,
       "tolerance": 0.01,
       "depends_on": [
@@ -6383,8 +6383,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C99",
-      "formula": "=(B96+C96)/2",
+      "cell": "C107",
+      "formula": "=(B104+C104)/2",
       "expected_value": 35094.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6406,8 +6406,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D99",
-      "formula": "=(C96+D96)/2",
+      "cell": "D107",
+      "formula": "=(C104+D104)/2",
       "expected_value": 97637.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6429,8 +6429,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E99",
-      "formula": "=(D96+E96)/2",
+      "cell": "E107",
+      "formula": "=(D104+E104)/2",
       "expected_value": 181192.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6452,8 +6452,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C100",
-      "formula": "=IF('Condensed Financials'!C34=0,NA(),C99/'Condensed Financials'!C34)",
+      "cell": "C108",
+      "formula": "=IF('Condensed Financials'!C34=0,NA(),C107/'Condensed Financials'!C34)",
       "expected_value": 0.0036482987600524697,
       "tolerance": 0.01,
       "depends_on": [
@@ -6479,8 +6479,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D100",
-      "formula": "=IF('Condensed Financials'!D34=0,NA(),D99/'Condensed Financials'!D34)",
+      "cell": "D108",
+      "formula": "=IF('Condensed Financials'!D34=0,NA(),D107/'Condensed Financials'!D34)",
       "expected_value": 0.009221367407225792,
       "tolerance": 0.01,
       "depends_on": [
@@ -6506,8 +6506,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E100",
-      "formula": "=IF('Condensed Financials'!E34=0,NA(),E99/'Condensed Financials'!E34)",
+      "cell": "E108",
+      "formula": "=IF('Condensed Financials'!E34=0,NA(),E107/'Condensed Financials'!E34)",
       "expected_value": 0.016319825986705817,
       "tolerance": 0.01,
       "depends_on": [
@@ -7583,6 +7583,334 @@
       "family_order": 125,
       "period_index": 3,
       "period_end": "2026-02-01"
+    },
+    {
+      "id": "acquisition_cash_outflow__20230129",
+      "order": 294,
+      "title": "Acquisition cash outflow (\u2212reported)",
+      "short_hint": "Presented as \u2212reported acquisition cash, net of cash acquired. Mechanical cash-use diagnostic only; not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward.",
+      "semantic_key": "acquisition_cash.acquisition_cash_outflow.2023-01-29",
+      "category": "acquisition_cash",
+      "tab": "ALT DuPont",
+      "cell": "B87",
+      "formula": "=-B86",
+      "expected_value": -0.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Acquisition cash outflow = \u2212(reported acquisition, net of cash acquired).",
+        "Do not apply absolute value; keep the \u2212reported sign convention consistently.",
+        "Net-of-acquired-cash reporting is retained as filed; explicit zeros remain valid.",
+        "Mechanical cash-use diagnostic only \u2014 not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "acquisition_cash_outflow",
+      "family_order": 129,
+      "period_index": 0,
+      "period_end": "2023-01-29"
+    },
+    {
+      "id": "acquisition_cash_outflow__20240128",
+      "order": 295,
+      "title": "Acquisition cash outflow (\u2212reported)",
+      "short_hint": "Presented as \u2212reported acquisition cash, net of cash acquired. Mechanical cash-use diagnostic only; not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward.",
+      "semantic_key": "acquisition_cash.acquisition_cash_outflow.2024-01-28",
+      "category": "acquisition_cash",
+      "tab": "ALT DuPont",
+      "cell": "C87",
+      "formula": "=-C86",
+      "expected_value": -0.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Acquisition cash outflow = \u2212(reported acquisition, net of cash acquired).",
+        "Do not apply absolute value; keep the \u2212reported sign convention consistently.",
+        "Net-of-acquired-cash reporting is retained as filed; explicit zeros remain valid.",
+        "Mechanical cash-use diagnostic only \u2014 not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "acquisition_cash_outflow",
+      "family_order": 129,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "acquisition_cash_outflow__20250202",
+      "order": 296,
+      "title": "Acquisition cash outflow (\u2212reported)",
+      "short_hint": "Presented as \u2212reported acquisition cash, net of cash acquired. Mechanical cash-use diagnostic only; not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward.",
+      "semantic_key": "acquisition_cash.acquisition_cash_outflow.2025-02-02",
+      "category": "acquisition_cash",
+      "tab": "ALT DuPont",
+      "cell": "D87",
+      "formula": "=-D86",
+      "expected_value": 154146.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Acquisition cash outflow = \u2212(reported acquisition, net of cash acquired).",
+        "Do not apply absolute value; keep the \u2212reported sign convention consistently.",
+        "Net-of-acquired-cash reporting is retained as filed; explicit zeros remain valid.",
+        "Mechanical cash-use diagnostic only \u2014 not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "acquisition_cash_outflow",
+      "family_order": 129,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "acquisition_cash_outflow__20260201",
+      "order": 297,
+      "title": "Acquisition cash outflow (\u2212reported)",
+      "short_hint": "Presented as \u2212reported acquisition cash, net of cash acquired. Mechanical cash-use diagnostic only; not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward.",
+      "semantic_key": "acquisition_cash.acquisition_cash_outflow.2026-02-01",
+      "category": "acquisition_cash",
+      "tab": "ALT DuPont",
+      "cell": "E87",
+      "formula": "=-E86",
+      "expected_value": -0.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Acquisition cash outflow = \u2212(reported acquisition, net of cash acquired).",
+        "Do not apply absolute value; keep the \u2212reported sign convention consistently.",
+        "Net-of-acquired-cash reporting is retained as filed; explicit zeros remain valid.",
+        "Mechanical cash-use diagnostic only \u2014 not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "acquisition_cash_outflow",
+      "family_order": 129,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "acquisition_cash_to_revenue__20230129",
+      "order": 298,
+      "title": "Acquisition cash / Revenue",
+      "short_hint": "Acquisition cash outflow divided by same-period Revenue. Reported net of cash acquired. Mechanical cash-use diagnostic only; not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward.",
+      "semantic_key": "acquisition_cash.acquisition_cash_to_revenue.2023-01-29",
+      "category": "acquisition_cash",
+      "tab": "ALT DuPont",
+      "cell": "B88",
+      "formula": "=IF('Condensed Financials'!B34=0,NA(),B87/'Condensed Financials'!B34)",
+      "expected_value": -0.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "acquisition_cash_outflow__20230129",
+        "revenue_link__20230129"
+      ],
+      "hints": [
+        "Acquisition cash / Revenue uses the \u2212reported net-of-acquired-cash presentation.",
+        "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        "Mechanical cash-use diagnostic only \u2014 not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "acquisition_cash_to_revenue",
+      "family_order": 130,
+      "period_index": 0,
+      "period_end": "2023-01-29"
+    },
+    {
+      "id": "acquisition_cash_to_revenue__20240128",
+      "order": 299,
+      "title": "Acquisition cash / Revenue",
+      "short_hint": "Acquisition cash outflow divided by same-period Revenue. Reported net of cash acquired. Mechanical cash-use diagnostic only; not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward.",
+      "semantic_key": "acquisition_cash.acquisition_cash_to_revenue.2024-01-28",
+      "category": "acquisition_cash",
+      "tab": "ALT DuPont",
+      "cell": "C88",
+      "formula": "=IF('Condensed Financials'!C34=0,NA(),C87/'Condensed Financials'!C34)",
+      "expected_value": -0.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "acquisition_cash_outflow__20240128",
+        "revenue_link__20240128"
+      ],
+      "hints": [
+        "Acquisition cash / Revenue uses the \u2212reported net-of-acquired-cash presentation.",
+        "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        "Mechanical cash-use diagnostic only \u2014 not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "acquisition_cash_to_revenue",
+      "family_order": 130,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "acquisition_cash_to_revenue__20250202",
+      "order": 300,
+      "title": "Acquisition cash / Revenue",
+      "short_hint": "Acquisition cash outflow divided by same-period Revenue. Reported net of cash acquired. Mechanical cash-use diagnostic only; not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward.",
+      "semantic_key": "acquisition_cash.acquisition_cash_to_revenue.2025-02-02",
+      "category": "acquisition_cash",
+      "tab": "ALT DuPont",
+      "cell": "D88",
+      "formula": "=IF('Condensed Financials'!D34=0,NA(),D87/'Condensed Financials'!D34)",
+      "expected_value": 0.014558383608204134,
+      "tolerance": 0.01,
+      "depends_on": [
+        "acquisition_cash_outflow__20250202",
+        "revenue_link__20250202"
+      ],
+      "hints": [
+        "Acquisition cash / Revenue uses the \u2212reported net-of-acquired-cash presentation.",
+        "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        "Mechanical cash-use diagnostic only \u2014 not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "acquisition_cash_to_revenue",
+      "family_order": 130,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "acquisition_cash_to_revenue__20260201",
+      "order": 301,
+      "title": "Acquisition cash / Revenue",
+      "short_hint": "Acquisition cash outflow divided by same-period Revenue. Reported net of cash acquired. Mechanical cash-use diagnostic only; not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward.",
+      "semantic_key": "acquisition_cash.acquisition_cash_to_revenue.2026-02-01",
+      "category": "acquisition_cash",
+      "tab": "ALT DuPont",
+      "cell": "E88",
+      "formula": "=IF('Condensed Financials'!E34=0,NA(),E87/'Condensed Financials'!E34)",
+      "expected_value": -0.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "acquisition_cash_outflow__20260201",
+        "revenue_link__20260201"
+      ],
+      "hints": [
+        "Acquisition cash / Revenue uses the \u2212reported net-of-acquired-cash presentation.",
+        "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        "Mechanical cash-use diagnostic only \u2014 not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "acquisition_cash_to_revenue",
+      "family_order": 130,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "cash_after_ppe_capex_and_acquisitions__20230129",
+      "order": 302,
+      "title": "Operating cash after PP&E capex and acquisitions",
+      "short_hint": "Reported CFO minus PP&E capex minus acquisition cash outflow (net of cash acquired). Mechanical cash-use diagnostic only; not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward.",
+      "semantic_key": "acquisition_cash.cash_after_ppe_capex_and_acquisitions.2023-01-29",
+      "category": "acquisition_cash",
+      "tab": "ALT DuPont",
+      "cell": "B91",
+      "formula": "=B81-B77-B87",
+      "expected_value": 327806.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "ppe_capex__20230129",
+        "acquisition_cash_outflow__20230129"
+      ],
+      "hints": [
+        "Operating cash after PP&E capex and acquisitions = reported CFO \u2212 PP&E capex \u2212 acquisition cash outflow.",
+        "Acquisition cash is the \u2212reported net-of-acquired-cash line; PP&E capex keeps its established \u2212reported contract.",
+        "Mechanical cash-use diagnostic only \u2014 not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_after_ppe_capex_and_acquisitions",
+      "family_order": 131,
+      "period_index": 0,
+      "period_end": "2023-01-29"
+    },
+    {
+      "id": "cash_after_ppe_capex_and_acquisitions__20240128",
+      "order": 303,
+      "title": "Operating cash after PP&E capex and acquisitions",
+      "short_hint": "Reported CFO minus PP&E capex minus acquisition cash outflow (net of cash acquired). Mechanical cash-use diagnostic only; not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward.",
+      "semantic_key": "acquisition_cash.cash_after_ppe_capex_and_acquisitions.2024-01-28",
+      "category": "acquisition_cash",
+      "tab": "ALT DuPont",
+      "cell": "C91",
+      "formula": "=C81-C77-C87",
+      "expected_value": 1644299.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "ppe_capex__20240128",
+        "acquisition_cash_outflow__20240128"
+      ],
+      "hints": [
+        "Operating cash after PP&E capex and acquisitions = reported CFO \u2212 PP&E capex \u2212 acquisition cash outflow.",
+        "Acquisition cash is the \u2212reported net-of-acquired-cash line; PP&E capex keeps its established \u2212reported contract.",
+        "Mechanical cash-use diagnostic only \u2014 not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_after_ppe_capex_and_acquisitions",
+      "family_order": 131,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "cash_after_ppe_capex_and_acquisitions__20250202",
+      "order": 304,
+      "title": "Operating cash after PP&E capex and acquisitions",
+      "short_hint": "Reported CFO minus PP&E capex minus acquisition cash outflow (net of cash acquired). Mechanical cash-use diagnostic only; not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward.",
+      "semantic_key": "acquisition_cash.cash_after_ppe_capex_and_acquisitions.2025-02-02",
+      "category": "acquisition_cash",
+      "tab": "ALT DuPont",
+      "cell": "D91",
+      "formula": "=D81-D77-D87",
+      "expected_value": 1429335.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "ppe_capex__20250202",
+        "acquisition_cash_outflow__20250202"
+      ],
+      "hints": [
+        "Operating cash after PP&E capex and acquisitions = reported CFO \u2212 PP&E capex \u2212 acquisition cash outflow.",
+        "Acquisition cash is the \u2212reported net-of-acquired-cash line; PP&E capex keeps its established \u2212reported contract.",
+        "Mechanical cash-use diagnostic only \u2014 not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_after_ppe_capex_and_acquisitions",
+      "family_order": 131,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "cash_after_ppe_capex_and_acquisitions__20260201",
+      "order": 305,
+      "title": "Operating cash after PP&E capex and acquisitions",
+      "short_hint": "Reported CFO minus PP&E capex minus acquisition cash outflow (net of cash acquired). Mechanical cash-use diagnostic only; not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward.",
+      "semantic_key": "acquisition_cash.cash_after_ppe_capex_and_acquisitions.2026-02-01",
+      "category": "acquisition_cash",
+      "tab": "ALT DuPont",
+      "cell": "E91",
+      "formula": "=E81-E77-E87",
+      "expected_value": 921675.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "ppe_capex__20260201",
+        "acquisition_cash_outflow__20260201"
+      ],
+      "hints": [
+        "Operating cash after PP&E capex and acquisitions = reported CFO \u2212 PP&E capex \u2212 acquisition cash outflow.",
+        "Acquisition cash is the \u2212reported net-of-acquired-cash line; PP&E capex keeps its established \u2212reported contract.",
+        "Mechanical cash-use diagnostic only \u2014 not comprehensive free cash flow, acquisition profitability, purchase-price allocation, or a goodwill roll-forward."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_after_ppe_capex_and_acquisitions",
+      "family_order": 131,
+      "period_index": 3,
+      "period_end": "2026-02-01"
     }
   ],
   "rowmap": {
@@ -8534,220 +8862,292 @@
       "row": 83,
       "col": 5
     },
-    "goodwill_intangibles.goodwill_change.2024-01-28": {
+    "acquisition_cash.acquisition_cash_outflow.2023-01-29": {
+      "tab": "ALT DuPont",
+      "cell": "B87",
+      "row": 87,
+      "col": 2
+    },
+    "acquisition_cash.acquisition_cash_to_revenue.2023-01-29": {
+      "tab": "ALT DuPont",
+      "cell": "B88",
+      "row": 88,
+      "col": 2
+    },
+    "acquisition_cash.acquisition_cash_outflow.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C87",
       "row": 87,
       "col": 3
     },
-    "goodwill_intangibles.goodwill_growth.2024-01-28": {
+    "acquisition_cash.acquisition_cash_to_revenue.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C88",
       "row": 88,
       "col": 3
     },
-    "goodwill_intangibles.average_goodwill.2024-01-28": {
-      "tab": "ALT DuPont",
-      "cell": "C89",
-      "row": 89,
-      "col": 3
-    },
-    "goodwill_intangibles.goodwill_to_revenue.2024-01-28": {
-      "tab": "ALT DuPont",
-      "cell": "C90",
-      "row": 90,
-      "col": 3
-    },
-    "goodwill_intangibles.goodwill_change.2025-02-02": {
+    "acquisition_cash.acquisition_cash_outflow.2025-02-02": {
       "tab": "ALT DuPont",
       "cell": "D87",
       "row": 87,
       "col": 4
     },
-    "goodwill_intangibles.goodwill_growth.2025-02-02": {
+    "acquisition_cash.acquisition_cash_to_revenue.2025-02-02": {
       "tab": "ALT DuPont",
       "cell": "D88",
       "row": 88,
       "col": 4
     },
-    "goodwill_intangibles.average_goodwill.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D89",
-      "row": 89,
-      "col": 4
-    },
-    "goodwill_intangibles.goodwill_to_revenue.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D90",
-      "row": 90,
-      "col": 4
-    },
-    "goodwill_intangibles.goodwill_change.2026-02-01": {
+    "acquisition_cash.acquisition_cash_outflow.2026-02-01": {
       "tab": "ALT DuPont",
       "cell": "E87",
       "row": 87,
       "col": 5
     },
-    "goodwill_intangibles.goodwill_growth.2026-02-01": {
+    "acquisition_cash.acquisition_cash_to_revenue.2026-02-01": {
       "tab": "ALT DuPont",
       "cell": "E88",
       "row": 88,
       "col": 5
     },
-    "goodwill_intangibles.average_goodwill.2026-02-01": {
+    "acquisition_cash.cash_after_ppe_capex_and_acquisitions.2023-01-29": {
       "tab": "ALT DuPont",
-      "cell": "E89",
-      "row": 89,
+      "cell": "B91",
+      "row": 91,
+      "col": 2
+    },
+    "acquisition_cash.cash_after_ppe_capex_and_acquisitions.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C91",
+      "row": 91,
+      "col": 3
+    },
+    "acquisition_cash.cash_after_ppe_capex_and_acquisitions.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D91",
+      "row": 91,
+      "col": 4
+    },
+    "acquisition_cash.cash_after_ppe_capex_and_acquisitions.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E91",
+      "row": 91,
       "col": 5
     },
-    "goodwill_intangibles.goodwill_to_revenue.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E90",
-      "row": 90,
-      "col": 5
-    },
-    "goodwill_intangibles.intangible_assets_change.2024-01-28": {
-      "tab": "ALT DuPont",
-      "cell": "C92",
-      "row": 92,
-      "col": 3
-    },
-    "goodwill_intangibles.intangible_assets_growth.2024-01-28": {
-      "tab": "ALT DuPont",
-      "cell": "C93",
-      "row": 93,
-      "col": 3
-    },
-    "goodwill_intangibles.average_intangible_assets.2024-01-28": {
-      "tab": "ALT DuPont",
-      "cell": "C94",
-      "row": 94,
-      "col": 3
-    },
-    "goodwill_intangibles.intangible_assets_to_revenue.2024-01-28": {
+    "goodwill_intangibles.goodwill_change.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C95",
       "row": 95,
       "col": 3
     },
-    "goodwill_intangibles.intangible_assets_change.2025-02-02": {
+    "goodwill_intangibles.goodwill_growth.2024-01-28": {
       "tab": "ALT DuPont",
-      "cell": "D92",
-      "row": 92,
-      "col": 4
+      "cell": "C96",
+      "row": 96,
+      "col": 3
     },
-    "goodwill_intangibles.intangible_assets_growth.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D93",
-      "row": 93,
-      "col": 4
-    },
-    "goodwill_intangibles.average_intangible_assets.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D94",
-      "row": 94,
-      "col": 4
-    },
-    "goodwill_intangibles.intangible_assets_to_revenue.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D95",
-      "row": 95,
-      "col": 4
-    },
-    "goodwill_intangibles.intangible_assets_change.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E92",
-      "row": 92,
-      "col": 5
-    },
-    "goodwill_intangibles.intangible_assets_growth.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E93",
-      "row": 93,
-      "col": 5
-    },
-    "goodwill_intangibles.average_intangible_assets.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E94",
-      "row": 94,
-      "col": 5
-    },
-    "goodwill_intangibles.intangible_assets_to_revenue.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E95",
-      "row": 95,
-      "col": 5
-    },
-    "goodwill_intangibles.goodwill_and_intangibles_change.2024-01-28": {
+    "goodwill_intangibles.average_goodwill.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C97",
       "row": 97,
       "col": 3
     },
-    "goodwill_intangibles.goodwill_and_intangibles_growth.2024-01-28": {
+    "goodwill_intangibles.goodwill_to_revenue.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C98",
       "row": 98,
       "col": 3
     },
-    "goodwill_intangibles.average_goodwill_and_intangibles.2024-01-28": {
+    "goodwill_intangibles.goodwill_change.2025-02-02": {
       "tab": "ALT DuPont",
-      "cell": "C99",
-      "row": 99,
-      "col": 3
+      "cell": "D95",
+      "row": 95,
+      "col": 4
     },
-    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-01-28": {
+    "goodwill_intangibles.goodwill_growth.2025-02-02": {
       "tab": "ALT DuPont",
-      "cell": "C100",
-      "row": 100,
-      "col": 3
+      "cell": "D96",
+      "row": 96,
+      "col": 4
     },
-    "goodwill_intangibles.goodwill_and_intangibles_change.2025-02-02": {
+    "goodwill_intangibles.average_goodwill.2025-02-02": {
       "tab": "ALT DuPont",
       "cell": "D97",
       "row": 97,
       "col": 4
     },
-    "goodwill_intangibles.goodwill_and_intangibles_growth.2025-02-02": {
+    "goodwill_intangibles.goodwill_to_revenue.2025-02-02": {
       "tab": "ALT DuPont",
       "cell": "D98",
       "row": 98,
       "col": 4
     },
-    "goodwill_intangibles.average_goodwill_and_intangibles.2025-02-02": {
+    "goodwill_intangibles.goodwill_change.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "D99",
-      "row": 99,
-      "col": 4
+      "cell": "E95",
+      "row": 95,
+      "col": 5
     },
-    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-02-02": {
+    "goodwill_intangibles.goodwill_growth.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "D100",
-      "row": 100,
-      "col": 4
+      "cell": "E96",
+      "row": 96,
+      "col": 5
     },
-    "goodwill_intangibles.goodwill_and_intangibles_change.2026-02-01": {
+    "goodwill_intangibles.average_goodwill.2026-02-01": {
       "tab": "ALT DuPont",
       "cell": "E97",
       "row": 97,
       "col": 5
     },
-    "goodwill_intangibles.goodwill_and_intangibles_growth.2026-02-01": {
+    "goodwill_intangibles.goodwill_to_revenue.2026-02-01": {
       "tab": "ALT DuPont",
       "cell": "E98",
       "row": 98,
       "col": 5
     },
+    "goodwill_intangibles.intangible_assets_change.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C100",
+      "row": 100,
+      "col": 3
+    },
+    "goodwill_intangibles.intangible_assets_growth.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C101",
+      "row": 101,
+      "col": 3
+    },
+    "goodwill_intangibles.average_intangible_assets.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C102",
+      "row": 102,
+      "col": 3
+    },
+    "goodwill_intangibles.intangible_assets_to_revenue.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C103",
+      "row": 103,
+      "col": 3
+    },
+    "goodwill_intangibles.intangible_assets_change.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D100",
+      "row": 100,
+      "col": 4
+    },
+    "goodwill_intangibles.intangible_assets_growth.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D101",
+      "row": 101,
+      "col": 4
+    },
+    "goodwill_intangibles.average_intangible_assets.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D102",
+      "row": 102,
+      "col": 4
+    },
+    "goodwill_intangibles.intangible_assets_to_revenue.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D103",
+      "row": 103,
+      "col": 4
+    },
+    "goodwill_intangibles.intangible_assets_change.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E100",
+      "row": 100,
+      "col": 5
+    },
+    "goodwill_intangibles.intangible_assets_growth.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E101",
+      "row": 101,
+      "col": 5
+    },
+    "goodwill_intangibles.average_intangible_assets.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E102",
+      "row": 102,
+      "col": 5
+    },
+    "goodwill_intangibles.intangible_assets_to_revenue.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E103",
+      "row": 103,
+      "col": 5
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_change.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C105",
+      "row": 105,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_growth.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C106",
+      "row": 106,
+      "col": 3
+    },
+    "goodwill_intangibles.average_goodwill_and_intangibles.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C107",
+      "row": 107,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C108",
+      "row": 108,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_change.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D105",
+      "row": 105,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_growth.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D106",
+      "row": 106,
+      "col": 4
+    },
+    "goodwill_intangibles.average_goodwill_and_intangibles.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D107",
+      "row": 107,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D108",
+      "row": 108,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_change.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E105",
+      "row": 105,
+      "col": 5
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_growth.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E106",
+      "row": 106,
+      "col": 5
+    },
     "goodwill_intangibles.average_goodwill_and_intangibles.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "E99",
-      "row": 99,
+      "cell": "E107",
+      "row": 107,
       "col": 5
     },
     "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "E100",
-      "row": 100,
+      "cell": "E108",
+      "row": 108,
       "col": 5
     },
     "quality.operating_cash_flow.2023-01-29": {

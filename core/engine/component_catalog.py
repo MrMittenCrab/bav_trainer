@@ -3147,6 +3147,151 @@ def expand_lease_repayment_specs(
     return tuple(specs)
 
 
+ACQUISITION_CASH_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="acquisition_cash_outflow",
+        order=129,
+        title="Acquisition cash outflow (−reported)",
+        short_hint=(
+            "Presented as −reported acquisition cash, net of cash acquired. "
+            "Mechanical cash-use diagnostic only; not comprehensive free cash "
+            "flow, acquisition profitability, purchase-price allocation, or a "
+            "goodwill roll-forward."
+        ),
+        semantic_key="acquisition_cash.acquisition_cash_outflow",
+        category="acquisition_cash",
+        tab_template="ALT DuPont",
+        hints=(
+            "Acquisition cash outflow = −(reported acquisition, net of cash acquired).",
+            "Do not apply absolute value; keep the −reported sign convention consistently.",
+            "Net-of-acquired-cash reporting is retained as filed; explicit zeros remain valid.",
+            "Mechanical cash-use diagnostic only — not comprehensive free cash flow, "
+            "acquisition profitability, purchase-price allocation, or a goodwill "
+            "roll-forward.",
+        ),
+    ),
+    ComponentFamily(
+        id="acquisition_cash_to_revenue",
+        order=130,
+        title="Acquisition cash / Revenue",
+        short_hint=(
+            "Acquisition cash outflow divided by same-period Revenue. Reported "
+            "net of cash acquired. Mechanical cash-use diagnostic only; not "
+            "comprehensive free cash flow, acquisition profitability, "
+            "purchase-price allocation, or a goodwill roll-forward."
+        ),
+        semantic_key="acquisition_cash.acquisition_cash_to_revenue",
+        category="acquisition_cash",
+        tab_template="ALT DuPont",
+        depends_on_current=("acquisition_cash_outflow", "revenue_link"),
+        hints=(
+            "Acquisition cash / Revenue uses the −reported net-of-acquired-cash "
+            "presentation.",
+            "A zero Revenue denominator makes the ratio undefined (#N/A).",
+            "Mechanical cash-use diagnostic only — not comprehensive free cash flow, "
+            "acquisition profitability, purchase-price allocation, or a goodwill "
+            "roll-forward.",
+        ),
+    ),
+    ComponentFamily(
+        id="cash_after_ppe_capex_and_acquisitions",
+        order=131,
+        title="Operating cash after PP&E capex and acquisitions",
+        short_hint=(
+            "Reported CFO minus PP&E capex minus acquisition cash outflow "
+            "(net of cash acquired). Mechanical cash-use diagnostic only; not "
+            "comprehensive free cash flow, acquisition profitability, "
+            "purchase-price allocation, or a goodwill roll-forward."
+        ),
+        semantic_key="acquisition_cash.cash_after_ppe_capex_and_acquisitions",
+        category="acquisition_cash",
+        tab_template="ALT DuPont",
+        depends_on_current=("ppe_capex", "acquisition_cash_outflow"),
+        hints=(
+            "Operating cash after PP&E capex and acquisitions = reported CFO − "
+            "PP&E capex − acquisition cash outflow.",
+            "Acquisition cash is the −reported net-of-acquired-cash line; PP&E "
+            "capex keeps its established −reported contract.",
+            "Mechanical cash-use diagnostic only — not comprehensive free cash flow, "
+            "acquisition profitability, purchase-price allocation, or a goodwill "
+            "roll-forward.",
+        ),
+    ),
+)
+
+
+_ACQUISITION_CASH_RESIDUAL_FAMILY_IDS = frozenset(
+    {
+        "cash_after_ppe_capex_and_acquisitions",
+    }
+)
+
+
+def expand_acquisition_cash_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    include_cash_after_capex: bool = False,
+) -> tuple[ComponentSpec, ...]:
+    """Expand acquisition-cash families into period-specific concrete specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_acquisition_cash_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_acquisition_cash_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    families = ACQUISITION_CASH_COMPONENT_CATALOG
+    if not include_cash_after_capex:
+        families = tuple(
+            family
+            for family in ACQUISITION_CASH_COMPONENT_CATALOG
+            if family.id not in _ACQUISITION_CASH_RESIDUAL_FAMILY_IDS
+        )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in families:
+        if family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        else:
+            indices = range(len(periods))
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            if j > 0:
+                prev = periods[j - 1]
+                for dep_fam in family.depends_on_previous:
+                    deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 DEFERRED_TAX_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
     ComponentFamily(
         id="net_deferred_tax_position",

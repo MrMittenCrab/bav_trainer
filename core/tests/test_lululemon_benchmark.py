@@ -942,6 +942,152 @@ def test_source_supported_sbc_four_period_diagnostics(tmp_path: Path):
     assert stored.values == SBC_REPORTED
 
 
+ACQUISITION_REPORTED = {
+    date(2023, 1, 29): 0.0,
+    date(2024, 1, 28): 0.0,
+    date(2025, 2, 2): -154146.0,
+    date(2026, 2, 1): 0.0,
+}
+ACQUISITION_OUTFLOW = {
+    date(2023, 1, 29): 0.0,
+    date(2024, 1, 28): 0.0,
+    date(2025, 2, 2): 154146.0,
+    date(2026, 2, 1): 0.0,
+}
+CASH_AFTER_PPE_CAPEX_AND_ACQUISITIONS = {
+    date(2023, 1, 29): 327806.0,
+    date(2024, 1, 28): 1644299.0,
+    date(2025, 2, 2): 1429335.0,
+    date(2026, 2, 1): 921675.0,
+}
+
+
+def test_source_supported_acquisition_cash_four_period_diagnostics(tmp_path: Path):
+    from core.model.acquisition_cash import (
+        acquisition_cash_applicable,
+        cash_after_ppe_capex_and_acquisitions_applicable,
+        compute_acquisition_cash_series,
+        resolve_acquisition_cash_source,
+    )
+
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    original_index, stored = next(
+        (idx, row)
+        for idx, row in enumerate(fin.cash_flow)
+        if row.concept == "acquisition_net_of_cash_acquired"
+        and row.label == "Acquisition, net of cash acquired"
+    )
+    assert stored.values == ACQUISITION_REPORTED
+    assert acquisition_cash_applicable(fin) is True
+    assert cash_after_ppe_capex_and_acquisitions_applicable(fin) is True
+    item = resolve_acquisition_cash_source(fin)
+    assert item is stored
+    resolved = resolve_line(
+        fin.cash_flow, "acquisition_net_of_cash_acquired", required=True
+    )
+    assert resolved.index == original_index
+    assert resolved.item is stored
+    assert workbook_row_for(resolved, start_row=SOURCE_START_ROW) == (
+        SOURCE_START_ROW + original_index
+    )
+
+    revenue = resolve_line(fin.income_statement, "revenue", required=True).item
+    assert revenue is not None
+    cfo_item = resolve_operating_cash_source(fin)
+    assert cfo_item is not None
+    capex_item = resolve_capex_source(fin)
+    assert capex_item is not None
+    independent_outflow = []
+    independent_residual = []
+    independent_ratios = []
+    for period in EXPECTED_PERIODS:
+        reported = required_period_value(
+            stored, period, field="acquisition_net_of_cash_acquired"
+        )
+        rev = required_period_value(revenue, period, field="revenue")
+        cfo = required_period_value(cfo_item, period, field="operating_cash_flow")
+        pay = required_period_value(capex_item, period, field="payments_for_ppe")
+        outflow = -reported
+        residual = cfo - (-pay) - outflow
+        independent_outflow.append(outflow)
+        independent_residual.append(residual)
+        independent_ratios.append(outflow / rev if rev else None)
+        assert reported == ACQUISITION_REPORTED[period]
+        assert outflow == ACQUISITION_OUTFLOW[period]
+        assert residual == CASH_AFTER_PPE_CAPEX_AND_ACQUISITIONS[period]
+        assert rev == REVENUE_ANCHORS[period]
+    assert independent_outflow == [0.0, 0.0, 154146.0, 0.0]
+    assert independent_residual == [327806.0, 1644299.0, 1429335.0, 921675.0]
+
+    series = compute_acquisition_cash_series(
+        fin, list(EXPECTED_PERIODS), compute_anchor(fin, list(EXPECTED_PERIODS))
+    )
+    assert series.payments_reported == (0.0, 0.0, -154146.0, 0.0)
+    assert series.acquisition_cash_outflow == tuple(independent_outflow)
+    assert series.cash_after_ppe_capex_and_acquisitions == tuple(independent_residual)
+    for j, ratio in enumerate(independent_ratios):
+        assert series.acquisition_cash_to_revenue[j] == pytest.approx(ratio)
+
+    builder = ReferenceModelBuilder(fin)
+    acq_ids = {
+        s.semantic_key
+        for s in builder.expected_specs
+        if s.family_id
+        in {
+            "acquisition_cash_outflow",
+            "acquisition_cash_to_revenue",
+            "cash_after_ppe_capex_and_acquisitions",
+        }
+    }
+    assert len(acq_ids) == 12
+    assert len(builder.expected_specs) == LEASE_DT_LULULEMON_SPECS
+
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    rt_item = resolve_acquisition_cash_source(restored)
+    assert rt_item is not None
+    assert rt_item.concept == "acquisition_net_of_cash_acquired"
+    assert rt_item.label == "Acquisition, net of cash acquired"
+    assert rt_item.values == ACQUISITION_REPORTED
+
+    out = tmp_path / "LululemonAcq"
+    trainer, answer = build_training_workbook(fin, out)
+    assert trainer.exists() and answer.exists()
+    smap = load_semantic_map(answer)
+    assert len(smap.all_ordered()) == LEASE_DT_LULULEMON_SPECS
+    awb = load_workbook(answer, data_only=False)
+    ws = awb["ALT DuPont"]
+    reported_row = next(
+        r
+        for r in range(1, (ws.max_row or 1) + 1)
+        if ws.cell(r, 1).value == "Acquisition, net of cash acquired (reported)"
+    )
+    residual_row = next(
+        r
+        for r in range(1, (ws.max_row or 1) + 1)
+        if ws.cell(r, 1).value == "Operating cash after PP&E capex and acquisitions"
+    )
+    src_f = str(ws.cell(reported_row, 2).value).replace(" ", "")
+    assert src_f.startswith("='CashFlowStatement'!") or src_f.startswith(
+        "='Cash Flow Statement'!"
+    )
+    residual_f = str(ws.cell(residual_row, 2).value).replace(" ", "")
+    assert residual_f.startswith("=") and residual_f.count("-") >= 2
+    note_cell = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "cash_after_ppe_capex_and_acquisitions"
+    )
+    nrow, ncol = parse_cell_ref(note_cell.cell)
+    note = (ws.cell(nrow, ncol).comment.text or "") if ws.cell(nrow, ncol).comment else ""
+    assert "net of cash acquired" in note.lower()
+    assert "free cash flow" in note.lower()
+    assert "purchase-price" in note.lower() or "purchase price" in note.lower()
+    assert "goodwill" in note.lower()
+    awb.close()
+    assert stored.concept == "acquisition_net_of_cash_acquired"
+    assert stored.values == ACQUISITION_REPORTED
+
+
 ROU_BALANCES = {
     date(2023, 1, 29): 969419.0,
     date(2024, 1, 28): 1265610.0,
@@ -966,8 +1112,8 @@ NET_DT_POSITIONS = {
     date(2025, 2, 2): -81103.0,
     date(2026, 2, 1): -28241.0,
 }
-PRIOR_LULULEMON_SPECS = 268
-LEASE_DT_LULULEMON_SPECS = 293
+PRIOR_LULULEMON_SPECS = 280
+LEASE_DT_LULULEMON_SPECS = 305
 
 
 def _fill_rgb(cell) -> str:
