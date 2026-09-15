@@ -1255,6 +1255,153 @@ def test_source_supported_share_repurchase_four_period_diagnostics(tmp_path: Pat
     assert stored.values == REPURCHASE_REPORTED
 
 
+CASH_MOVEMENT_FROM_FLOWS = {
+    date(2023, 1, 29): -105004.0,
+    date(2024, 1, 28): 1089104.0,
+    date(2025, 2, 2): -259635.0,
+    date(2026, 2, 1): -177134.0,
+}
+
+
+def test_source_supported_cash_rollforward_four_period_diagnostics(tmp_path: Path):
+    from core.model.cash_rollforward import (
+        cash_rollforward_applicable,
+        compute_cash_rollforward_series,
+        resolve_cash_rollforward_sources,
+    )
+
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    original_index, stored = next(
+        (idx, row)
+        for idx, row in enumerate(fin.cash_flow)
+        if row.concept == "net_cash_from_operating_activities"
+        and row.label == "Net cash provided by operating activities"
+    )
+    fx_item = next(
+        row for row in fin.cash_flow if row.concept == "effect_of_fx_on_cash"
+    )
+    change_item = next(row for row in fin.cash_flow if row.concept == "change_in_cash")
+    beginning_item = next(
+        row for row in fin.cash_flow if row.concept == "cash_beginning"
+    )
+    ending_item = next(row for row in fin.cash_flow if row.concept == "cash_ending")
+    investing_item = next(
+        row
+        for row in fin.cash_flow
+        if row.concept == "net_cash_from_investing_activities"
+    )
+    financing_item = next(
+        row
+        for row in fin.cash_flow
+        if row.concept == "net_cash_from_financing_activities"
+    )
+    assert cash_rollforward_applicable(fin) is True
+    sources = resolve_cash_rollforward_sources(fin)
+    assert sources.operating is stored
+    assert sources.fx is fx_item
+    resolved = resolve_line(
+        fin.cash_flow, "net_cash_from_operating_activities", required=True
+    )
+    assert resolved.index == original_index
+    assert resolved.item is stored
+    assert workbook_row_for(resolved, start_row=SOURCE_START_ROW) == (
+        SOURCE_START_ROW + original_index
+    )
+
+    independent_movement = []
+    independent_move_diff = []
+    independent_ending = []
+    independent_end_diff = []
+    for period in EXPECTED_PERIODS:
+        cfo = required_period_value(
+            stored, period, field="net_cash_from_operating_activities"
+        )
+        cfi = required_period_value(
+            investing_item, period, field="net_cash_from_investing_activities"
+        )
+        cff = required_period_value(
+            financing_item, period, field="net_cash_from_financing_activities"
+        )
+        fx = required_period_value(fx_item, period, field="effect_of_fx_on_cash")
+        reported_change = required_period_value(
+            change_item, period, field="change_in_cash"
+        )
+        beginning = required_period_value(
+            beginning_item, period, field="cash_beginning"
+        )
+        ending = required_period_value(ending_item, period, field="cash_ending")
+        movement = cfo + cfi + cff + fx
+        independent_movement.append(movement)
+        independent_move_diff.append(movement - reported_change)
+        ending_from_flows = beginning + movement
+        independent_ending.append(ending_from_flows)
+        independent_end_diff.append(ending_from_flows - ending)
+        assert movement == CASH_MOVEMENT_FROM_FLOWS[period]
+    assert independent_movement == [-105004.0, 1089104.0, -259635.0, -177134.0]
+    assert independent_move_diff == [0.0, 0.0, 0.0, 0.0]
+    assert independent_end_diff == [0.0, 0.0, 0.0, 0.0]
+
+    series = compute_cash_rollforward_series(fin, list(EXPECTED_PERIODS))
+    assert series.cash_movement_from_flows == tuple(independent_movement)
+    assert series.cash_movement_difference == tuple(independent_move_diff)
+    assert series.cash_ending_from_flows == tuple(independent_ending)
+    assert series.cash_ending_difference == tuple(independent_end_diff)
+
+    builder = ReferenceModelBuilder(fin)
+    cr_ids = {
+        s.semantic_key
+        for s in builder.expected_specs
+        if s.family_id
+        in {
+            "cash_movement_from_flows",
+            "cash_movement_difference",
+            "cash_ending_from_flows",
+            "cash_ending_difference",
+        }
+    }
+    assert len(cr_ids) == 16
+    assert len(builder.expected_specs) == LEASE_DT_LULULEMON_SPECS
+
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    rt = resolve_cash_rollforward_sources(restored)
+    assert rt.operating is not None
+    assert rt.operating.concept == "net_cash_from_operating_activities"
+    assert rt.fx.concept == "effect_of_fx_on_cash"
+    assert rt.change.concept == "change_in_cash"
+
+    out = tmp_path / "LululemonCR"
+    trainer, answer = build_training_workbook(fin, out)
+    assert trainer.exists() and answer.exists()
+    smap = load_semantic_map(answer)
+    assert len(smap.all_ordered()) == LEASE_DT_LULULEMON_SPECS
+    awb = load_workbook(answer, data_only=False)
+    ws = awb["ALT DuPont"]
+    reported_row = next(
+        r
+        for r in range(1, (ws.max_row or 1) + 1)
+        if ws.cell(r, 1).value == "Net cash from operating activities (reported)"
+    )
+    src_f = str(ws.cell(reported_row, 2).value).replace(" ", "")
+    assert src_f.startswith("='CashFlowStatement'!") or src_f.startswith(
+        "='Cash Flow Statement'!"
+    )
+    note_cell = next(
+        c for c in smap.all_ordered() if c.family_id == "cash_movement_difference"
+    )
+    nrow, ncol = parse_cell_ref(note_cell.cell)
+    note = (ws.cell(nrow, ncol).comment.text or "") if ws.cell(nrow, ncol).comment else ""
+    assert "plug" in note.lower()
+    assert "statement" in note.lower()
+    awb.close()
+    assert stored.concept == "net_cash_from_operating_activities"
+    assert fx_item.values == {
+        date(2023, 1, 29): -34043.0,
+        date(2024, 1, 28): -4100.0,
+        date(2025, 2, 2): -81666.0,
+        date(2026, 2, 1): 91163.0,
+    }
+
+
 ROU_BALANCES = {
     date(2023, 1, 29): 969419.0,
     date(2024, 1, 28): 1265610.0,
@@ -1279,8 +1426,8 @@ NET_DT_POSITIONS = {
     date(2025, 2, 2): -81103.0,
     date(2026, 2, 1): -28241.0,
 }
-PRIOR_LULULEMON_SPECS = 292
-LEASE_DT_LULULEMON_SPECS = 317
+PRIOR_LULULEMON_SPECS = 308
+LEASE_DT_LULULEMON_SPECS = 333
 
 
 def _fill_rgb(cell) -> str:

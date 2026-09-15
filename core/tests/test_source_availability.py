@@ -522,6 +522,10 @@ def test_lululemon_unchanged_facts_gate_interest_and_keep_supported_outputs(tmp_
     assert "share_repurchase_outflow" in families
     assert "share_repurchase_to_revenue" in families
     assert "cash_after_ppe_capex_acquisitions_and_repurchases" in families
+    assert "cash_movement_from_flows" in families
+    assert "cash_movement_difference" in families
+    assert "cash_ending_from_flows" in families
+    assert "cash_ending_difference" in families
     wb = load_workbook(answer, data_only=False)
     labels = _labels(wb["Condensed Financials"])
     assert "Interest Expense" not in labels

@@ -16,6 +16,7 @@ from ..model.normalization import NormalizationCase, compute_normalization_serie
 from ..model.period_axis import canonical_fiscal_periods
 from ..engine.component_catalog import (
     ACQUISITION_CASH_COMPONENT_CATALOG,
+    CASH_ROLLFORWARD_COMPONENT_CATALOG,
     SHARE_REPURCHASE_COMPONENT_CATALOG,
     CAPEX_COMPONENT_CATALOG,
     DEFERRED_TAX_COMPONENT_CATALOG,
@@ -39,6 +40,10 @@ from ..model.acquisition_cash import (
 from ..model.share_repurchase import (
     compute_share_repurchase_series,
     share_repurchase_applicable,
+)
+from ..model.cash_rollforward import (
+    compute_cash_rollforward_series,
+    cash_rollforward_applicable,
 )
 from ..model.capex import compute_capex_series, capex_applicable
 from ..model.lease_repayment import (
@@ -344,6 +349,16 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                         list(modeled_periods),
                         anchor,
                     )
+            cash_rollforward_family_ids = {
+                family.id for family in CASH_ROLLFORWARD_COMPONENT_CATALOG
+            }
+            cash_rollforward = None
+            if any(comp.family_id in cash_rollforward_family_ids for comp in comps):
+                if cash_rollforward_applicable(financials):
+                    cash_rollforward = compute_cash_rollforward_series(
+                        financials,
+                        list(modeled_periods),
+                    )
             dynamic_expected = {
                 comp.id: expected_value_for_component(
                     anchor,
@@ -362,6 +377,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     lease_repayment=lease_repayment,
                     acquisition_cash=acquisition_cash,
                     share_repurchase=share_repurchase,
+                    cash_rollforward=cash_rollforward,
                 )
                 for comp in comps
             }

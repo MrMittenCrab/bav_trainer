@@ -614,7 +614,7 @@ def test_fast_retailing_split_lease_liability_module_activates():
     assert len(builder.deferred_tax_specs) == 17
     assert len(builder.capex_specs) == 20
     assert len(builder.lease_repayment_specs) == 10
-    assert len(builder.expected_specs) == 501
+    assert len(builder.expected_specs) == 521
 
     reform = reformulate_balance_sheet(fin, periods)
     cases = classification_judgment_cases(fin, periods, reform)
@@ -643,10 +643,10 @@ def test_fast_retailing_audit_stages_include_lease_module():
     )
     assert "deferred_tax_specs=17" in (stages["4_reference_model_builder"].message or "")
     assert "capex_specs=20" in (stages["4_reference_model_builder"].message or "")
-    assert "expected_specs=501" in (stages["4_reference_model_builder"].message or "")
-    assert "blank=501" in (stages["6_blank_check"].message or "")
-    assert "total=501" in (stages["6_blank_check"].message or "")
-    assert "correct=501" in (stages["7_filled_check"].message or "")
+    assert "expected_specs=521" in (stages["4_reference_model_builder"].message or "")
+    assert "blank=521" in (stages["6_blank_check"].message or "")
+    assert "total=521" in (stages["6_blank_check"].message or "")
+    assert "correct=521" in (stages["7_filled_check"].message or "")
 
 
 def test_fast_retailing_lease_rou_module_activates():
@@ -670,7 +670,7 @@ def test_fast_retailing_lease_rou_module_activates():
     builder = ReferenceModelBuilder(fin)
     assert builder.lease_rou_series is not None
     assert len(builder.lease_rou_specs) == 16
-    assert len(builder.expected_specs) == 501
+    assert len(builder.expected_specs) == 521
 
 
 def test_fast_retailing_goodwill_intangibles_module_activates():
@@ -712,7 +712,7 @@ def test_fast_retailing_goodwill_intangibles_module_activates():
     builder = ReferenceModelBuilder(fin)
     assert builder.goodwill_intangibles_series is not None
     assert len(builder.goodwill_intangibles_specs) == 58
-    assert len(builder.expected_specs) == 501
+    assert len(builder.expected_specs) == 521
 
 
 def test_fast_retailing_deferred_tax_module_activates():
@@ -747,7 +747,7 @@ def test_fast_retailing_deferred_tax_module_activates():
     builder = ReferenceModelBuilder(fin)
     assert builder.deferred_tax_series is not None
     assert len(builder.deferred_tax_specs) == 17
-    assert len(builder.expected_specs) == 501
+    assert len(builder.expected_specs) == 521
 
 
 def test_fast_retailing_capex_module_activates():
@@ -777,7 +777,7 @@ def test_fast_retailing_capex_module_activates():
     assert builder.capex_series is not None
     assert len(builder.capex_specs) == 20
     assert len(builder.lease_repayment_specs) == 10
-    assert len(builder.expected_specs) == 501
+    assert len(builder.expected_specs) == 521
     assert "sbc_to_revenue" not in {s.family_id for s in builder.expected_specs}
     assert "sbc_to_operating_cash_flow" not in {
         s.family_id for s in builder.expected_specs
@@ -803,6 +803,68 @@ def test_fast_retailing_capex_module_activates():
     assert "cash_after_ppe_capex_acquisitions_and_repurchases" not in {
         s.family_id for s in builder.expected_specs
     }
+    assert "cash_movement_from_flows" in {s.family_id for s in builder.expected_specs}
+    assert "cash_movement_difference" in {s.family_id for s in builder.expected_specs}
+    assert "cash_ending_from_flows" in {s.family_id for s in builder.expected_specs}
+    assert "cash_ending_difference" in {s.family_id for s in builder.expected_specs}
+
+
+def test_fast_retailing_cash_rollforward_five_period_diagnostics():
+    from core.model.cash_rollforward import (
+        cash_rollforward_applicable,
+        compute_cash_rollforward_series,
+        resolve_cash_rollforward_sources,
+    )
+    from core.model.source_values import required_period_value
+
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    periods = list(canonical_fiscal_periods(fin))
+    assert cash_rollforward_applicable(fin) is True
+    sources = resolve_cash_rollforward_sources(fin)
+    assert sources.operating is not None
+    assert sources.operating.concept == "operating_cash_flow"
+    assert sources.investing.concept == "investing_cash_flow"
+    assert sources.financing.concept == "financing_cash_flow"
+    assert sources.fx.concept == "effect_of_exchange_rate_on_cash"
+    assert sources.change.concept == "net_change_in_cash"
+
+    independent_movement = []
+    independent_move_diff = []
+    independent_end_diff = []
+    for period in periods:
+        cfo = required_period_value(
+            sources.operating, period, field="net_cash_from_operating_activities"
+        )
+        cfi = required_period_value(
+            sources.investing, period, field="net_cash_from_investing_activities"
+        )
+        cff = required_period_value(
+            sources.financing, period, field="net_cash_from_financing_activities"
+        )
+        fx = required_period_value(sources.fx, period, field="effect_of_fx_on_cash")
+        reported_change = required_period_value(
+            sources.change, period, field="change_in_cash"
+        )
+        beginning = required_period_value(
+            sources.beginning, period, field="cash_beginning"
+        )
+        ending = required_period_value(sources.ending, period, field="cash_ending")
+        movement = cfo + cfi + cff + fx
+        independent_movement.append(movement)
+        independent_move_diff.append(movement - reported_change)
+        independent_end_diff.append(beginning + movement - ending)
+    assert independent_movement == [84204.0, 180556.0, -455013.0, 290280.0, -300321.0]
+    assert independent_move_diff == [0.0, 0.0, -2.0, 1.0, -1.0]
+    assert independent_end_diff == [-1.0, 0.0, -1.0, 0.0, 0.0]
+
+    series = compute_cash_rollforward_series(fin, periods)
+    assert series.cash_movement_from_flows == tuple(independent_movement)
+    assert series.cash_movement_difference == tuple(independent_move_diff)
+    assert series.cash_ending_difference == tuple(independent_end_diff)
+    builder = ReferenceModelBuilder(fin)
+    assert len(builder.cash_rollforward_specs) == 20
+    assert len(builder.expected_specs) == 521
+    assert sources.change.values[date(2023, 8, 31)] == -455011.0
 
 
 def test_fast_retailing_lease_repayment_module_activates():
@@ -832,7 +894,7 @@ def test_fast_retailing_lease_repayment_module_activates():
     assert len(builder.capex_specs) == 20
     assert len(builder.lease_liability_specs) == 18
     assert len(builder.lease_rou_specs) == 16
-    assert len(builder.expected_specs) == 501
+    assert len(builder.expected_specs) == 521
 
 
 def test_fast_retailing_historical_lease_interest_axis_and_treatment():
@@ -928,16 +990,16 @@ def test_fast_retailing_historical_lease_interest_axis_and_treatment():
     builder = ReferenceModelBuilder(fin)
     assert len(builder.lease_liability_specs) == 18
     assert len(builder.goodwill_intangibles_specs) == 58
-    assert len(builder.expected_specs) == 501
+    assert len(builder.expected_specs) == 521
     result = run_audit()
     stages = {stage.stage: stage for stage in result["stages"]}
     assert stages["4_reference_model_builder"].status == "pass"
     assert "lease_specs=18" in (stages["4_reference_model_builder"].message or "")
-    assert "expected_specs=501" in (stages["4_reference_model_builder"].message or "")
+    assert "expected_specs=521" in (stages["4_reference_model_builder"].message or "")
     assert stages["6_blank_check"].status == "pass"
-    assert "blank=501" in (stages["6_blank_check"].message or "")
+    assert "blank=521" in (stages["6_blank_check"].message or "")
     assert stages["7_filled_check"].status == "pass"
-    assert "correct=501" in (stages["7_filled_check"].message or "")
+    assert "correct=521" in (stages["7_filled_check"].message or "")
 
 
 def test_fast_retailing_ownership_attribution_g5():
@@ -1007,7 +1069,7 @@ def test_fast_retailing_ownership_attribution_g5():
 
     builder = ReferenceModelBuilder(fin)
     assert len(builder.ownership_attribution_specs) == 34
-    assert len(builder.expected_specs) == 501
+    assert len(builder.expected_specs) == 521
     assert builder.per_share_series is not None
 
     result = run_audit()
@@ -1022,10 +1084,10 @@ def test_fast_retailing_ownership_attribution_g5():
         "7_filled_check",
     ):
         assert stages[name].status == "pass", f"{name}: {stages[name].message}"
-    assert "expected_specs=501" in (stages["4_reference_model_builder"].message or "")
+    assert "expected_specs=521" in (stages["4_reference_model_builder"].message or "")
     assert "ownership_specs=34" in (stages["4_reference_model_builder"].message or "")
-    assert "blank=501" in (stages["6_blank_check"].message or "")
-    assert "correct=501" in (stages["7_filled_check"].message or "")
+    assert "blank=521" in (stages["6_blank_check"].message or "")
+    assert "correct=521" in (stages["7_filled_check"].message or "")
 
 
 def test_fast_retailing_share_basis_and_per_share_g6():
@@ -1137,7 +1199,7 @@ def test_fast_retailing_share_basis_and_per_share_g6():
     assert len(builder.ownership_attribution_specs) == 34
     assert len(builder.lease_liability_specs) == 18
     assert len(builder.goodwill_intangibles_specs) == 58
-    assert len(builder.expected_specs) == 501
+    assert len(builder.expected_specs) == 521
 
     parent = resolve_line(
         fin.income_statement, "profit_attributable_to_owners", required=True
@@ -1181,8 +1243,8 @@ def test_fast_retailing_share_basis_and_per_share_g6():
         assert (blank.correct, blank.incorrect, blank.blank, blank.total) == (
             0,
             0,
-            501,
-            501,
+            521,
+            521,
         )
         smap = load_semantic_map(answer)
         wb = load_workbook(trainer, data_only=False)
@@ -1193,10 +1255,10 @@ def test_fast_retailing_share_basis_and_per_share_g6():
         wb.close()
         filled = check_workbook(trainer)
         assert (filled.correct, filled.incorrect, filled.blank, filled.total) == (
-            501,
+            521,
             0,
             0,
-            501,
+            521,
         )
         wb = load_workbook(answer)
         ws = wb[PER_SHARE_SHEET]
@@ -1826,8 +1888,8 @@ def test_explicit_pair_verification_does_not_generate(tmp_path: Path, monkeypatc
     )
     assert stages["6_blank_check"].status == "pass"
     assert stages["7_filled_check"].status == "pass"
-    assert "blank=501" in (stages["6_blank_check"].message or "")
-    assert "correct=501" in (stages["7_filled_check"].message or "")
+    assert "blank=521" in (stages["6_blank_check"].message or "")
+    assert "correct=521" in (stages["7_filled_check"].message or "")
     assert _release_pair_fingerprints() == before
 
 

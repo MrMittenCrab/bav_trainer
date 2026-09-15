@@ -3447,6 +3447,173 @@ def expand_share_repurchase_specs(
     return tuple(specs)
 
 
+CASH_ROLLFORWARD_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="cash_movement_from_flows",
+        order=135,
+        title="Cash movement from flows",
+        short_hint=(
+            "CFO + CFI + CFF + FX using reported signed cash-flow totals in "
+            "statement units, including the FX effect. Keep reported signs; do "
+            "not reverse flows, omit FX, substitute balance-sheet cash, insert a "
+            "balancing plug, or infer debt funding."
+        ),
+        semantic_key="cash_rollforward.cash_movement_from_flows",
+        category="cash_rollforward",
+        tab_template="ALT DuPont",
+        hints=(
+            "Cash movement from flows = reported CFO + CFI + CFF + FX.",
+            "Use signed statement-unit totals, including FX.",
+            "Do not substitute balance-sheet cash, insert a balancing plug, or "
+            "infer debt funding.",
+        ),
+    ),
+    ComponentFamily(
+        id="cash_movement_difference",
+        order=136,
+        title="Cash movement difference",
+        short_hint=(
+            "Calculated cash movement from flows minus reported cash change, in "
+            "statement units. A nonzero difference is a reported reconciliation "
+            "gap; do not insert a balancing plug, assert a cause, substitute "
+            "balance-sheet cash, or infer debt funding."
+        ),
+        semantic_key="cash_rollforward.cash_movement_difference",
+        category="cash_rollforward",
+        tab_template="ALT DuPont",
+        depends_on_current=("cash_movement_from_flows",),
+        hints=(
+            "Cash movement difference = cash movement from flows − reported cash "
+            "change.",
+            "Preserve nonzero calculated-minus-reported gaps in statement units.",
+            "Do not insert a balancing plug, assert a cause, substitute "
+            "balance-sheet cash, or infer debt funding.",
+        ),
+    ),
+    ComponentFamily(
+        id="cash_ending_from_flows",
+        order=137,
+        title="Cash ending from flows",
+        short_hint=(
+            "Reported cash beginning plus cash movement from flows (CFO + CFI + "
+            "CFF + FX), in statement units. Keep signed flows and FX as reported; "
+            "do not substitute balance-sheet cash, insert a balancing plug, or "
+            "infer debt funding."
+        ),
+        semantic_key="cash_rollforward.cash_ending_from_flows",
+        category="cash_rollforward",
+        tab_template="ALT DuPont",
+        depends_on_current=("cash_movement_from_flows",),
+        hints=(
+            "Cash ending from flows = reported cash beginning + cash movement "
+            "from flows.",
+            "Movement includes signed CFO, CFI, CFF, and FX in statement units.",
+            "Do not substitute balance-sheet cash, insert a balancing plug, or "
+            "infer debt funding.",
+        ),
+    ),
+    ComponentFamily(
+        id="cash_ending_difference",
+        order=138,
+        title="Cash ending difference",
+        short_hint=(
+            "Cash ending from flows minus reported cash ending, in statement "
+            "units. A nonzero difference is a reported reconciliation gap; do "
+            "not insert a balancing plug, assert a cause, substitute "
+            "balance-sheet cash, or infer debt funding."
+        ),
+        semantic_key="cash_rollforward.cash_ending_difference",
+        category="cash_rollforward",
+        tab_template="ALT DuPont",
+        depends_on_current=("cash_ending_from_flows",),
+        hints=(
+            "Cash ending difference = cash ending from flows − reported cash "
+            "ending.",
+            "Preserve nonzero calculated-minus-reported gaps in statement units.",
+            "Do not insert a balancing plug, assert a cause, substitute "
+            "balance-sheet cash, or infer debt funding.",
+        ),
+    ),
+)
+
+
+def expand_cash_rollforward_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    include_movement_difference: bool = False,
+    include_ending_from_flows: bool = False,
+    include_ending_difference: bool = False,
+) -> tuple[ComponentSpec, ...]:
+    """Expand cash-roll-forward families into period-specific concrete specs."""
+    if include_ending_difference and not include_ending_from_flows:
+        raise ValueError(
+            "expand_cash_rollforward_specs ending difference requires "
+            "cash_ending_from_flows"
+        )
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_cash_rollforward_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_cash_rollforward_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    omit: set[str] = set()
+    if not include_movement_difference:
+        omit.add("cash_movement_difference")
+    if not include_ending_from_flows:
+        omit.add("cash_ending_from_flows")
+    if not include_ending_difference:
+        omit.add("cash_ending_difference")
+    families = tuple(
+        family
+        for family in CASH_ROLLFORWARD_COMPONENT_CATALOG
+        if family.id not in omit
+    )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in families:
+        if family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        else:
+            indices = range(len(periods))
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            if j > 0:
+                prev = periods[j - 1]
+                for dep_fam in family.depends_on_previous:
+                    deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 DEFERRED_TAX_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
     ComponentFamily(
         id="net_deferred_tax_position",

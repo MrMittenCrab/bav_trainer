@@ -5636,8 +5636,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_change.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C103",
-      "formula": "=C102-B102",
+      "cell": "C116",
+      "formula": "=C115-B115",
       "expected_value": -61.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5660,8 +5660,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_change.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D103",
-      "formula": "=D102-C102",
+      "cell": "D116",
+      "formula": "=D115-C115",
       "expected_value": 135435.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5684,8 +5684,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_change.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E103",
-      "formula": "=E102-D102",
+      "cell": "E116",
+      "formula": "=E115-D115",
       "expected_value": 25393.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5708,8 +5708,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_growth.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C104",
-      "formula": "=IF(B102=0,NA(),C102/B102-1)",
+      "cell": "C117",
+      "formula": "=IF(B115=0,NA(),C115/B115-1)",
       "expected_value": -0.0025265076209410207,
       "tolerance": 0.01,
       "depends_on": [
@@ -5735,8 +5735,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_growth.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D104",
-      "formula": "=IF(C102=0,NA(),D102/C102-1)",
+      "cell": "D117",
+      "formula": "=IF(C115=0,NA(),D115/C115-1)",
       "expected_value": 5.623676452269236,
       "tolerance": 0.01,
       "depends_on": [
@@ -5762,8 +5762,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_growth.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E104",
-      "formula": "=IF(D102=0,NA(),E102/D102-1)",
+      "cell": "E117",
+      "formula": "=IF(D115=0,NA(),E115/D115-1)",
       "expected_value": 0.1591857972141075,
       "tolerance": 0.01,
       "depends_on": [
@@ -5789,8 +5789,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C105",
-      "formula": "=(B102+C102)/2",
+      "cell": "C118",
+      "formula": "=(B115+C115)/2",
       "expected_value": 24113.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5812,8 +5812,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D105",
-      "formula": "=(C102+D102)/2",
+      "cell": "D118",
+      "formula": "=(C115+D115)/2",
       "expected_value": 91800.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5835,8 +5835,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E105",
-      "formula": "=(D102+E102)/2",
+      "cell": "E118",
+      "formula": "=(D115+E115)/2",
       "expected_value": 172214.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5858,8 +5858,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C106",
-      "formula": "=IF('Condensed Financials'!C34=0,NA(),C105/'Condensed Financials'!C34)",
+      "cell": "C119",
+      "formula": "=IF('Condensed Financials'!C34=0,NA(),C118/'Condensed Financials'!C34)",
       "expected_value": 0.0025067889710641486,
       "tolerance": 0.01,
       "depends_on": [
@@ -5885,8 +5885,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D106",
-      "formula": "=IF('Condensed Financials'!D34=0,NA(),D105/'Condensed Financials'!D34)",
+      "cell": "D119",
+      "formula": "=IF('Condensed Financials'!D34=0,NA(),D118/'Condensed Financials'!D34)",
       "expected_value": 0.008670136717300115,
       "tolerance": 0.01,
       "depends_on": [
@@ -5912,8 +5912,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E106",
-      "formula": "=IF('Condensed Financials'!E34=0,NA(),E105/'Condensed Financials'!E34)",
+      "cell": "E119",
+      "formula": "=IF('Condensed Financials'!E34=0,NA(),E118/'Condensed Financials'!E34)",
       "expected_value": 0.015511186568911787,
       "tolerance": 0.01,
       "depends_on": [
@@ -5939,8 +5939,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C108",
-      "formula": "=C107-B107",
+      "cell": "C121",
+      "formula": "=C120-B120",
       "expected_value": -21961.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5962,8 +5962,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D108",
-      "formula": "=D107-C107",
+      "cell": "D121",
+      "formula": "=D120-C120",
       "expected_value": 11673.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5985,8 +5985,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E108",
-      "formula": "=E107-D107",
+      "cell": "E121",
+      "formula": "=E120-D120",
       "expected_value": -5390.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6008,8 +6008,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C109",
-      "formula": "=IF(B107=0,NA(),C107/B107-1)",
+      "cell": "C122",
+      "formula": "=IF(B120=0,NA(),C120/B120-1)",
       "expected_value": -1.0,
       "tolerance": 0.01,
       "depends_on": [
@@ -6034,8 +6034,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D109",
-      "formula": "=IF(C107=0,NA(),D107/C107-1)",
+      "cell": "D122",
+      "formula": "=IF(C120=0,NA(),D120/C120-1)",
       "expected_value": "#N/A",
       "tolerance": 0.01,
       "depends_on": [
@@ -6060,8 +6060,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E109",
-      "formula": "=IF(D107=0,NA(),E107/D107-1)",
+      "cell": "E122",
+      "formula": "=IF(D120=0,NA(),E120/D120-1)",
       "expected_value": -0.4617493360747023,
       "tolerance": 0.01,
       "depends_on": [
@@ -6086,8 +6086,8 @@
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C110",
-      "formula": "=(B107+C107)/2",
+      "cell": "C123",
+      "formula": "=(B120+C120)/2",
       "expected_value": 10980.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6109,8 +6109,8 @@
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D110",
-      "formula": "=(C107+D107)/2",
+      "cell": "D123",
+      "formula": "=(C120+D120)/2",
       "expected_value": 5836.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6132,8 +6132,8 @@
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E110",
-      "formula": "=(D107+E107)/2",
+      "cell": "E123",
+      "formula": "=(D120+E120)/2",
       "expected_value": 8978.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6155,8 +6155,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C111",
-      "formula": "=IF('Condensed Financials'!C34=0,NA(),C110/'Condensed Financials'!C34)",
+      "cell": "C124",
+      "formula": "=IF('Condensed Financials'!C34=0,NA(),C123/'Condensed Financials'!C34)",
       "expected_value": 0.0011415097889883213,
       "tolerance": 0.01,
       "depends_on": [
@@ -6182,8 +6182,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D111",
-      "formula": "=IF('Condensed Financials'!D34=0,NA(),D110/'Condensed Financials'!D34)",
+      "cell": "D124",
+      "formula": "=IF('Condensed Financials'!D34=0,NA(),D123/'Condensed Financials'!D34)",
       "expected_value": 0.0005512306899256771,
       "tolerance": 0.01,
       "depends_on": [
@@ -6209,8 +6209,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E111",
-      "formula": "=IF('Condensed Financials'!E34=0,NA(),E110/'Condensed Financials'!E34)",
+      "cell": "E124",
+      "formula": "=IF('Condensed Financials'!E34=0,NA(),E123/'Condensed Financials'!E34)",
       "expected_value": 0.0008086394177940303,
       "tolerance": 0.01,
       "depends_on": [
@@ -6236,8 +6236,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C113",
-      "formula": "=C112-B112",
+      "cell": "C126",
+      "formula": "=C125-B125",
       "expected_value": -22022.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6259,8 +6259,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D113",
-      "formula": "=D112-C112",
+      "cell": "D126",
+      "formula": "=D125-C125",
       "expected_value": 147108.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6282,8 +6282,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E113",
-      "formula": "=E112-D112",
+      "cell": "E126",
+      "formula": "=E125-D125",
       "expected_value": 20003.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6305,8 +6305,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C114",
-      "formula": "=IF(B112=0,NA(),C112/B112-1)",
+      "cell": "C127",
+      "formula": "=IF(B125=0,NA(),C125/B125-1)",
       "expected_value": -0.47764884502765426,
       "tolerance": 0.01,
       "depends_on": [
@@ -6331,8 +6331,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D114",
-      "formula": "=IF(C112=0,NA(),D112/C112-1)",
+      "cell": "D127",
+      "formula": "=IF(C125=0,NA(),D125/C125-1)",
       "expected_value": 6.108375202424947,
       "tolerance": 0.01,
       "depends_on": [
@@ -6357,8 +6357,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E114",
-      "formula": "=IF(D112=0,NA(),E112/D112-1)",
+      "cell": "E127",
+      "formula": "=IF(D125=0,NA(),E125/D125-1)",
       "expected_value": 0.11684609588120871,
       "tolerance": 0.01,
       "depends_on": [
@@ -6383,8 +6383,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C115",
-      "formula": "=(B112+C112)/2",
+      "cell": "C128",
+      "formula": "=(B125+C125)/2",
       "expected_value": 35094.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6406,8 +6406,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D115",
-      "formula": "=(C112+D112)/2",
+      "cell": "D128",
+      "formula": "=(C125+D125)/2",
       "expected_value": 97637.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6429,8 +6429,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E115",
-      "formula": "=(D112+E112)/2",
+      "cell": "E128",
+      "formula": "=(D125+E125)/2",
       "expected_value": 181192.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6452,8 +6452,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C116",
-      "formula": "=IF('Condensed Financials'!C34=0,NA(),C115/'Condensed Financials'!C34)",
+      "cell": "C129",
+      "formula": "=IF('Condensed Financials'!C34=0,NA(),C128/'Condensed Financials'!C34)",
       "expected_value": 0.0036482987600524697,
       "tolerance": 0.01,
       "depends_on": [
@@ -6479,8 +6479,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D116",
-      "formula": "=IF('Condensed Financials'!D34=0,NA(),D115/'Condensed Financials'!D34)",
+      "cell": "D129",
+      "formula": "=IF('Condensed Financials'!D34=0,NA(),D128/'Condensed Financials'!D34)",
       "expected_value": 0.009221367407225792,
       "tolerance": 0.01,
       "depends_on": [
@@ -6506,8 +6506,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E116",
-      "formula": "=IF('Condensed Financials'!E34=0,NA(),E115/'Condensed Financials'!E34)",
+      "cell": "E129",
+      "formula": "=IF('Condensed Financials'!E34=0,NA(),E128/'Condensed Financials'!E34)",
       "expected_value": 0.016319825986705817,
       "tolerance": 0.01,
       "depends_on": [
@@ -8247,6 +8247,430 @@
       "family_order": 134,
       "period_index": 3,
       "period_end": "2026-02-01"
+    },
+    {
+      "id": "cash_movement_from_flows__20230129",
+      "order": 318,
+      "title": "Cash movement from flows",
+      "short_hint": "CFO + CFI + CFF + FX using reported signed cash-flow totals in statement units, including the FX effect. Keep reported signs; do not reverse flows, omit FX, substitute balance-sheet cash, insert a balancing plug, or infer debt funding.",
+      "semantic_key": "cash_rollforward.cash_movement_from_flows.2023-01-29",
+      "category": "cash_rollforward",
+      "tab": "ALT DuPont",
+      "cell": "B106",
+      "formula": "=B102+B103+B104+B105",
+      "expected_value": -105004.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Cash movement from flows = reported CFO + CFI + CFF + FX.",
+        "Use signed statement-unit totals, including FX.",
+        "Do not substitute balance-sheet cash, insert a balancing plug, or infer debt funding."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_movement_from_flows",
+      "family_order": 135,
+      "period_index": 0,
+      "period_end": "2023-01-29"
+    },
+    {
+      "id": "cash_movement_from_flows__20240128",
+      "order": 319,
+      "title": "Cash movement from flows",
+      "short_hint": "CFO + CFI + CFF + FX using reported signed cash-flow totals in statement units, including the FX effect. Keep reported signs; do not reverse flows, omit FX, substitute balance-sheet cash, insert a balancing plug, or infer debt funding.",
+      "semantic_key": "cash_rollforward.cash_movement_from_flows.2024-01-28",
+      "category": "cash_rollforward",
+      "tab": "ALT DuPont",
+      "cell": "C106",
+      "formula": "=C102+C103+C104+C105",
+      "expected_value": 1089104.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Cash movement from flows = reported CFO + CFI + CFF + FX.",
+        "Use signed statement-unit totals, including FX.",
+        "Do not substitute balance-sheet cash, insert a balancing plug, or infer debt funding."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_movement_from_flows",
+      "family_order": 135,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "cash_movement_from_flows__20250202",
+      "order": 320,
+      "title": "Cash movement from flows",
+      "short_hint": "CFO + CFI + CFF + FX using reported signed cash-flow totals in statement units, including the FX effect. Keep reported signs; do not reverse flows, omit FX, substitute balance-sheet cash, insert a balancing plug, or infer debt funding.",
+      "semantic_key": "cash_rollforward.cash_movement_from_flows.2025-02-02",
+      "category": "cash_rollforward",
+      "tab": "ALT DuPont",
+      "cell": "D106",
+      "formula": "=D102+D103+D104+D105",
+      "expected_value": -259635.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Cash movement from flows = reported CFO + CFI + CFF + FX.",
+        "Use signed statement-unit totals, including FX.",
+        "Do not substitute balance-sheet cash, insert a balancing plug, or infer debt funding."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_movement_from_flows",
+      "family_order": 135,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "cash_movement_from_flows__20260201",
+      "order": 321,
+      "title": "Cash movement from flows",
+      "short_hint": "CFO + CFI + CFF + FX using reported signed cash-flow totals in statement units, including the FX effect. Keep reported signs; do not reverse flows, omit FX, substitute balance-sheet cash, insert a balancing plug, or infer debt funding.",
+      "semantic_key": "cash_rollforward.cash_movement_from_flows.2026-02-01",
+      "category": "cash_rollforward",
+      "tab": "ALT DuPont",
+      "cell": "E106",
+      "formula": "=E102+E103+E104+E105",
+      "expected_value": -177134.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Cash movement from flows = reported CFO + CFI + CFF + FX.",
+        "Use signed statement-unit totals, including FX.",
+        "Do not substitute balance-sheet cash, insert a balancing plug, or infer debt funding."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_movement_from_flows",
+      "family_order": 135,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "cash_movement_difference__20230129",
+      "order": 322,
+      "title": "Cash movement difference",
+      "short_hint": "Calculated cash movement from flows minus reported cash change, in statement units. A nonzero difference is a reported reconciliation gap; do not insert a balancing plug, assert a cause, substitute balance-sheet cash, or infer debt funding.",
+      "semantic_key": "cash_rollforward.cash_movement_difference.2023-01-29",
+      "category": "cash_rollforward",
+      "tab": "ALT DuPont",
+      "cell": "B108",
+      "formula": "=B106-B107",
+      "expected_value": 0.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "cash_movement_from_flows__20230129"
+      ],
+      "hints": [
+        "Cash movement difference = cash movement from flows \u2212 reported cash change.",
+        "Preserve nonzero calculated-minus-reported gaps in statement units.",
+        "Do not insert a balancing plug, assert a cause, substitute balance-sheet cash, or infer debt funding."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_movement_difference",
+      "family_order": 136,
+      "period_index": 0,
+      "period_end": "2023-01-29"
+    },
+    {
+      "id": "cash_movement_difference__20240128",
+      "order": 323,
+      "title": "Cash movement difference",
+      "short_hint": "Calculated cash movement from flows minus reported cash change, in statement units. A nonzero difference is a reported reconciliation gap; do not insert a balancing plug, assert a cause, substitute balance-sheet cash, or infer debt funding.",
+      "semantic_key": "cash_rollforward.cash_movement_difference.2024-01-28",
+      "category": "cash_rollforward",
+      "tab": "ALT DuPont",
+      "cell": "C108",
+      "formula": "=C106-C107",
+      "expected_value": 0.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "cash_movement_from_flows__20240128"
+      ],
+      "hints": [
+        "Cash movement difference = cash movement from flows \u2212 reported cash change.",
+        "Preserve nonzero calculated-minus-reported gaps in statement units.",
+        "Do not insert a balancing plug, assert a cause, substitute balance-sheet cash, or infer debt funding."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_movement_difference",
+      "family_order": 136,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "cash_movement_difference__20250202",
+      "order": 324,
+      "title": "Cash movement difference",
+      "short_hint": "Calculated cash movement from flows minus reported cash change, in statement units. A nonzero difference is a reported reconciliation gap; do not insert a balancing plug, assert a cause, substitute balance-sheet cash, or infer debt funding.",
+      "semantic_key": "cash_rollforward.cash_movement_difference.2025-02-02",
+      "category": "cash_rollforward",
+      "tab": "ALT DuPont",
+      "cell": "D108",
+      "formula": "=D106-D107",
+      "expected_value": 0.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "cash_movement_from_flows__20250202"
+      ],
+      "hints": [
+        "Cash movement difference = cash movement from flows \u2212 reported cash change.",
+        "Preserve nonzero calculated-minus-reported gaps in statement units.",
+        "Do not insert a balancing plug, assert a cause, substitute balance-sheet cash, or infer debt funding."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_movement_difference",
+      "family_order": 136,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "cash_movement_difference__20260201",
+      "order": 325,
+      "title": "Cash movement difference",
+      "short_hint": "Calculated cash movement from flows minus reported cash change, in statement units. A nonzero difference is a reported reconciliation gap; do not insert a balancing plug, assert a cause, substitute balance-sheet cash, or infer debt funding.",
+      "semantic_key": "cash_rollforward.cash_movement_difference.2026-02-01",
+      "category": "cash_rollforward",
+      "tab": "ALT DuPont",
+      "cell": "E108",
+      "formula": "=E106-E107",
+      "expected_value": 0.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "cash_movement_from_flows__20260201"
+      ],
+      "hints": [
+        "Cash movement difference = cash movement from flows \u2212 reported cash change.",
+        "Preserve nonzero calculated-minus-reported gaps in statement units.",
+        "Do not insert a balancing plug, assert a cause, substitute balance-sheet cash, or infer debt funding."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_movement_difference",
+      "family_order": 136,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "cash_ending_from_flows__20230129",
+      "order": 326,
+      "title": "Cash ending from flows",
+      "short_hint": "Reported cash beginning plus cash movement from flows (CFO + CFI + CFF + FX), in statement units. Keep signed flows and FX as reported; do not substitute balance-sheet cash, insert a balancing plug, or infer debt funding.",
+      "semantic_key": "cash_rollforward.cash_ending_from_flows.2023-01-29",
+      "category": "cash_rollforward",
+      "tab": "ALT DuPont",
+      "cell": "B110",
+      "formula": "=B109+B106",
+      "expected_value": 1154867.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "cash_movement_from_flows__20230129"
+      ],
+      "hints": [
+        "Cash ending from flows = reported cash beginning + cash movement from flows.",
+        "Movement includes signed CFO, CFI, CFF, and FX in statement units.",
+        "Do not substitute balance-sheet cash, insert a balancing plug, or infer debt funding."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_ending_from_flows",
+      "family_order": 137,
+      "period_index": 0,
+      "period_end": "2023-01-29"
+    },
+    {
+      "id": "cash_ending_from_flows__20240128",
+      "order": 327,
+      "title": "Cash ending from flows",
+      "short_hint": "Reported cash beginning plus cash movement from flows (CFO + CFI + CFF + FX), in statement units. Keep signed flows and FX as reported; do not substitute balance-sheet cash, insert a balancing plug, or infer debt funding.",
+      "semantic_key": "cash_rollforward.cash_ending_from_flows.2024-01-28",
+      "category": "cash_rollforward",
+      "tab": "ALT DuPont",
+      "cell": "C110",
+      "formula": "=C109+C106",
+      "expected_value": 2243971.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "cash_movement_from_flows__20240128"
+      ],
+      "hints": [
+        "Cash ending from flows = reported cash beginning + cash movement from flows.",
+        "Movement includes signed CFO, CFI, CFF, and FX in statement units.",
+        "Do not substitute balance-sheet cash, insert a balancing plug, or infer debt funding."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_ending_from_flows",
+      "family_order": 137,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "cash_ending_from_flows__20250202",
+      "order": 328,
+      "title": "Cash ending from flows",
+      "short_hint": "Reported cash beginning plus cash movement from flows (CFO + CFI + CFF + FX), in statement units. Keep signed flows and FX as reported; do not substitute balance-sheet cash, insert a balancing plug, or infer debt funding.",
+      "semantic_key": "cash_rollforward.cash_ending_from_flows.2025-02-02",
+      "category": "cash_rollforward",
+      "tab": "ALT DuPont",
+      "cell": "D110",
+      "formula": "=D109+D106",
+      "expected_value": 1984336.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "cash_movement_from_flows__20250202"
+      ],
+      "hints": [
+        "Cash ending from flows = reported cash beginning + cash movement from flows.",
+        "Movement includes signed CFO, CFI, CFF, and FX in statement units.",
+        "Do not substitute balance-sheet cash, insert a balancing plug, or infer debt funding."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_ending_from_flows",
+      "family_order": 137,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "cash_ending_from_flows__20260201",
+      "order": 329,
+      "title": "Cash ending from flows",
+      "short_hint": "Reported cash beginning plus cash movement from flows (CFO + CFI + CFF + FX), in statement units. Keep signed flows and FX as reported; do not substitute balance-sheet cash, insert a balancing plug, or infer debt funding.",
+      "semantic_key": "cash_rollforward.cash_ending_from_flows.2026-02-01",
+      "category": "cash_rollforward",
+      "tab": "ALT DuPont",
+      "cell": "E110",
+      "formula": "=E109+E106",
+      "expected_value": 1807202.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "cash_movement_from_flows__20260201"
+      ],
+      "hints": [
+        "Cash ending from flows = reported cash beginning + cash movement from flows.",
+        "Movement includes signed CFO, CFI, CFF, and FX in statement units.",
+        "Do not substitute balance-sheet cash, insert a balancing plug, or infer debt funding."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_ending_from_flows",
+      "family_order": 137,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "cash_ending_difference__20230129",
+      "order": 330,
+      "title": "Cash ending difference",
+      "short_hint": "Cash ending from flows minus reported cash ending, in statement units. A nonzero difference is a reported reconciliation gap; do not insert a balancing plug, assert a cause, substitute balance-sheet cash, or infer debt funding.",
+      "semantic_key": "cash_rollforward.cash_ending_difference.2023-01-29",
+      "category": "cash_rollforward",
+      "tab": "ALT DuPont",
+      "cell": "B112",
+      "formula": "=B110-B111",
+      "expected_value": 0.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "cash_ending_from_flows__20230129"
+      ],
+      "hints": [
+        "Cash ending difference = cash ending from flows \u2212 reported cash ending.",
+        "Preserve nonzero calculated-minus-reported gaps in statement units.",
+        "Do not insert a balancing plug, assert a cause, substitute balance-sheet cash, or infer debt funding."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_ending_difference",
+      "family_order": 138,
+      "period_index": 0,
+      "period_end": "2023-01-29"
+    },
+    {
+      "id": "cash_ending_difference__20240128",
+      "order": 331,
+      "title": "Cash ending difference",
+      "short_hint": "Cash ending from flows minus reported cash ending, in statement units. A nonzero difference is a reported reconciliation gap; do not insert a balancing plug, assert a cause, substitute balance-sheet cash, or infer debt funding.",
+      "semantic_key": "cash_rollforward.cash_ending_difference.2024-01-28",
+      "category": "cash_rollforward",
+      "tab": "ALT DuPont",
+      "cell": "C112",
+      "formula": "=C110-C111",
+      "expected_value": 0.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "cash_ending_from_flows__20240128"
+      ],
+      "hints": [
+        "Cash ending difference = cash ending from flows \u2212 reported cash ending.",
+        "Preserve nonzero calculated-minus-reported gaps in statement units.",
+        "Do not insert a balancing plug, assert a cause, substitute balance-sheet cash, or infer debt funding."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_ending_difference",
+      "family_order": 138,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "cash_ending_difference__20250202",
+      "order": 332,
+      "title": "Cash ending difference",
+      "short_hint": "Cash ending from flows minus reported cash ending, in statement units. A nonzero difference is a reported reconciliation gap; do not insert a balancing plug, assert a cause, substitute balance-sheet cash, or infer debt funding.",
+      "semantic_key": "cash_rollforward.cash_ending_difference.2025-02-02",
+      "category": "cash_rollforward",
+      "tab": "ALT DuPont",
+      "cell": "D112",
+      "formula": "=D110-D111",
+      "expected_value": 0.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "cash_ending_from_flows__20250202"
+      ],
+      "hints": [
+        "Cash ending difference = cash ending from flows \u2212 reported cash ending.",
+        "Preserve nonzero calculated-minus-reported gaps in statement units.",
+        "Do not insert a balancing plug, assert a cause, substitute balance-sheet cash, or infer debt funding."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_ending_difference",
+      "family_order": 138,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "cash_ending_difference__20260201",
+      "order": 333,
+      "title": "Cash ending difference",
+      "short_hint": "Cash ending from flows minus reported cash ending, in statement units. A nonzero difference is a reported reconciliation gap; do not insert a balancing plug, assert a cause, substitute balance-sheet cash, or infer debt funding.",
+      "semantic_key": "cash_rollforward.cash_ending_difference.2026-02-01",
+      "category": "cash_rollforward",
+      "tab": "ALT DuPont",
+      "cell": "E112",
+      "formula": "=E110-E111",
+      "expected_value": 0.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "cash_ending_from_flows__20260201"
+      ],
+      "hints": [
+        "Cash ending difference = cash ending from flows \u2212 reported cash ending.",
+        "Preserve nonzero calculated-minus-reported gaps in statement units.",
+        "Do not insert a balancing plug, assert a cause, substitute balance-sheet cash, or infer debt funding."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "cash_ending_difference",
+      "family_order": 138,
+      "period_index": 3,
+      "period_end": "2026-02-01"
     }
   ],
   "rowmap": {
@@ -9342,220 +9766,316 @@
       "row": 99,
       "col": 5
     },
-    "goodwill_intangibles.goodwill_change.2024-01-28": {
+    "cash_rollforward.cash_movement_from_flows.2023-01-29": {
       "tab": "ALT DuPont",
-      "cell": "C103",
-      "row": 103,
-      "col": 3
+      "cell": "B106",
+      "row": 106,
+      "col": 2
     },
-    "goodwill_intangibles.goodwill_growth.2024-01-28": {
+    "cash_rollforward.cash_movement_difference.2023-01-29": {
       "tab": "ALT DuPont",
-      "cell": "C104",
-      "row": 104,
-      "col": 3
+      "cell": "B108",
+      "row": 108,
+      "col": 2
     },
-    "goodwill_intangibles.average_goodwill.2024-01-28": {
+    "cash_rollforward.cash_ending_from_flows.2023-01-29": {
       "tab": "ALT DuPont",
-      "cell": "C105",
-      "row": 105,
-      "col": 3
+      "cell": "B110",
+      "row": 110,
+      "col": 2
     },
-    "goodwill_intangibles.goodwill_to_revenue.2024-01-28": {
+    "cash_rollforward.cash_ending_difference.2023-01-29": {
+      "tab": "ALT DuPont",
+      "cell": "B112",
+      "row": 112,
+      "col": 2
+    },
+    "cash_rollforward.cash_movement_from_flows.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C106",
       "row": 106,
       "col": 3
     },
-    "goodwill_intangibles.goodwill_change.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D103",
-      "row": 103,
-      "col": 4
-    },
-    "goodwill_intangibles.goodwill_growth.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D104",
-      "row": 104,
-      "col": 4
-    },
-    "goodwill_intangibles.average_goodwill.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D105",
-      "row": 105,
-      "col": 4
-    },
-    "goodwill_intangibles.goodwill_to_revenue.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D106",
-      "row": 106,
-      "col": 4
-    },
-    "goodwill_intangibles.goodwill_change.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E103",
-      "row": 103,
-      "col": 5
-    },
-    "goodwill_intangibles.goodwill_growth.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E104",
-      "row": 104,
-      "col": 5
-    },
-    "goodwill_intangibles.average_goodwill.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E105",
-      "row": 105,
-      "col": 5
-    },
-    "goodwill_intangibles.goodwill_to_revenue.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E106",
-      "row": 106,
-      "col": 5
-    },
-    "goodwill_intangibles.intangible_assets_change.2024-01-28": {
+    "cash_rollforward.cash_movement_difference.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C108",
       "row": 108,
       "col": 3
     },
-    "goodwill_intangibles.intangible_assets_growth.2024-01-28": {
-      "tab": "ALT DuPont",
-      "cell": "C109",
-      "row": 109,
-      "col": 3
-    },
-    "goodwill_intangibles.average_intangible_assets.2024-01-28": {
+    "cash_rollforward.cash_ending_from_flows.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C110",
       "row": 110,
       "col": 3
     },
-    "goodwill_intangibles.intangible_assets_to_revenue.2024-01-28": {
+    "cash_rollforward.cash_ending_difference.2024-01-28": {
       "tab": "ALT DuPont",
-      "cell": "C111",
-      "row": 111,
+      "cell": "C112",
+      "row": 112,
       "col": 3
     },
-    "goodwill_intangibles.intangible_assets_change.2025-02-02": {
+    "cash_rollforward.cash_movement_from_flows.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D106",
+      "row": 106,
+      "col": 4
+    },
+    "cash_rollforward.cash_movement_difference.2025-02-02": {
       "tab": "ALT DuPont",
       "cell": "D108",
       "row": 108,
       "col": 4
     },
-    "goodwill_intangibles.intangible_assets_growth.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D109",
-      "row": 109,
-      "col": 4
-    },
-    "goodwill_intangibles.average_intangible_assets.2025-02-02": {
+    "cash_rollforward.cash_ending_from_flows.2025-02-02": {
       "tab": "ALT DuPont",
       "cell": "D110",
       "row": 110,
       "col": 4
     },
-    "goodwill_intangibles.intangible_assets_to_revenue.2025-02-02": {
+    "cash_rollforward.cash_ending_difference.2025-02-02": {
       "tab": "ALT DuPont",
-      "cell": "D111",
-      "row": 111,
+      "cell": "D112",
+      "row": 112,
       "col": 4
     },
-    "goodwill_intangibles.intangible_assets_change.2026-02-01": {
+    "cash_rollforward.cash_movement_from_flows.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E106",
+      "row": 106,
+      "col": 5
+    },
+    "cash_rollforward.cash_movement_difference.2026-02-01": {
       "tab": "ALT DuPont",
       "cell": "E108",
       "row": 108,
       "col": 5
     },
-    "goodwill_intangibles.intangible_assets_growth.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E109",
-      "row": 109,
-      "col": 5
-    },
-    "goodwill_intangibles.average_intangible_assets.2026-02-01": {
+    "cash_rollforward.cash_ending_from_flows.2026-02-01": {
       "tab": "ALT DuPont",
       "cell": "E110",
       "row": 110,
       "col": 5
     },
-    "goodwill_intangibles.intangible_assets_to_revenue.2026-02-01": {
+    "cash_rollforward.cash_ending_difference.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "E111",
-      "row": 111,
+      "cell": "E112",
+      "row": 112,
       "col": 5
     },
-    "goodwill_intangibles.goodwill_and_intangibles_change.2024-01-28": {
-      "tab": "ALT DuPont",
-      "cell": "C113",
-      "row": 113,
-      "col": 3
-    },
-    "goodwill_intangibles.goodwill_and_intangibles_growth.2024-01-28": {
-      "tab": "ALT DuPont",
-      "cell": "C114",
-      "row": 114,
-      "col": 3
-    },
-    "goodwill_intangibles.average_goodwill_and_intangibles.2024-01-28": {
-      "tab": "ALT DuPont",
-      "cell": "C115",
-      "row": 115,
-      "col": 3
-    },
-    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-01-28": {
+    "goodwill_intangibles.goodwill_change.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C116",
       "row": 116,
       "col": 3
     },
-    "goodwill_intangibles.goodwill_and_intangibles_change.2025-02-02": {
+    "goodwill_intangibles.goodwill_growth.2024-01-28": {
       "tab": "ALT DuPont",
-      "cell": "D113",
-      "row": 113,
-      "col": 4
+      "cell": "C117",
+      "row": 117,
+      "col": 3
     },
-    "goodwill_intangibles.goodwill_and_intangibles_growth.2025-02-02": {
+    "goodwill_intangibles.average_goodwill.2024-01-28": {
       "tab": "ALT DuPont",
-      "cell": "D114",
-      "row": 114,
-      "col": 4
+      "cell": "C118",
+      "row": 118,
+      "col": 3
     },
-    "goodwill_intangibles.average_goodwill_and_intangibles.2025-02-02": {
+    "goodwill_intangibles.goodwill_to_revenue.2024-01-28": {
       "tab": "ALT DuPont",
-      "cell": "D115",
-      "row": 115,
-      "col": 4
+      "cell": "C119",
+      "row": 119,
+      "col": 3
     },
-    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-02-02": {
+    "goodwill_intangibles.goodwill_change.2025-02-02": {
       "tab": "ALT DuPont",
       "cell": "D116",
       "row": 116,
       "col": 4
     },
+    "goodwill_intangibles.goodwill_growth.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D117",
+      "row": 117,
+      "col": 4
+    },
+    "goodwill_intangibles.average_goodwill.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D118",
+      "row": 118,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_to_revenue.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D119",
+      "row": 119,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_change.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E116",
+      "row": 116,
+      "col": 5
+    },
+    "goodwill_intangibles.goodwill_growth.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E117",
+      "row": 117,
+      "col": 5
+    },
+    "goodwill_intangibles.average_goodwill.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E118",
+      "row": 118,
+      "col": 5
+    },
+    "goodwill_intangibles.goodwill_to_revenue.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E119",
+      "row": 119,
+      "col": 5
+    },
+    "goodwill_intangibles.intangible_assets_change.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C121",
+      "row": 121,
+      "col": 3
+    },
+    "goodwill_intangibles.intangible_assets_growth.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C122",
+      "row": 122,
+      "col": 3
+    },
+    "goodwill_intangibles.average_intangible_assets.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C123",
+      "row": 123,
+      "col": 3
+    },
+    "goodwill_intangibles.intangible_assets_to_revenue.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C124",
+      "row": 124,
+      "col": 3
+    },
+    "goodwill_intangibles.intangible_assets_change.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D121",
+      "row": 121,
+      "col": 4
+    },
+    "goodwill_intangibles.intangible_assets_growth.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D122",
+      "row": 122,
+      "col": 4
+    },
+    "goodwill_intangibles.average_intangible_assets.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D123",
+      "row": 123,
+      "col": 4
+    },
+    "goodwill_intangibles.intangible_assets_to_revenue.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D124",
+      "row": 124,
+      "col": 4
+    },
+    "goodwill_intangibles.intangible_assets_change.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E121",
+      "row": 121,
+      "col": 5
+    },
+    "goodwill_intangibles.intangible_assets_growth.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E122",
+      "row": 122,
+      "col": 5
+    },
+    "goodwill_intangibles.average_intangible_assets.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E123",
+      "row": 123,
+      "col": 5
+    },
+    "goodwill_intangibles.intangible_assets_to_revenue.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E124",
+      "row": 124,
+      "col": 5
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_change.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C126",
+      "row": 126,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_growth.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C127",
+      "row": 127,
+      "col": 3
+    },
+    "goodwill_intangibles.average_goodwill_and_intangibles.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C128",
+      "row": 128,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C129",
+      "row": 129,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_change.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D126",
+      "row": 126,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_growth.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D127",
+      "row": 127,
+      "col": 4
+    },
+    "goodwill_intangibles.average_goodwill_and_intangibles.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D128",
+      "row": 128,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D129",
+      "row": 129,
+      "col": 4
+    },
     "goodwill_intangibles.goodwill_and_intangibles_change.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "E113",
-      "row": 113,
+      "cell": "E126",
+      "row": 126,
       "col": 5
     },
     "goodwill_intangibles.goodwill_and_intangibles_growth.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "E114",
-      "row": 114,
+      "cell": "E127",
+      "row": 127,
       "col": 5
     },
     "goodwill_intangibles.average_goodwill_and_intangibles.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "E115",
-      "row": 115,
+      "cell": "E128",
+      "row": 128,
       "col": 5
     },
     "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "E116",
-      "row": 116,
+      "cell": "E129",
+      "row": 129,
       "col": 5
     },
     "quality.operating_cash_flow.2023-01-29": {

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ..engine.component_catalog import (
     ACQUISITION_CASH_COMPONENT_CATALOG,
+    CASH_ROLLFORWARD_COMPONENT_CATALOG,
     SHARE_REPURCHASE_COMPONENT_CATALOG,
     CAPEX_COMPONENT_CATALOG,
     COMPONENT_CATALOG,
@@ -27,6 +28,7 @@ from ..engine.component_catalog import (
 )
 from ..engine.semantic_map import ResolvedComponent
 from .acquisition_cash import AcquisitionCashSeries
+from .cash_rollforward import CashRollforwardSeries
 from .share_repurchase import ShareRepurchaseSeries
 from .capex import CapexSeries
 from .earnings_quality import EarningsQualitySeries
@@ -207,6 +209,14 @@ _SHARE_REPURCHASE_BASE_FAMILY_SERIES = (
 _SHARE_REPURCHASE_RESIDUAL_FAMILY_SERIES = (
     "cash_after_ppe_capex_acquisitions_and_repurchases",
 )
+
+_CASH_ROLLFORWARD_FAMILY_SERIES = (
+    "cash_movement_from_flows",
+    "cash_movement_difference",
+    "cash_ending_from_flows",
+    "cash_ending_difference",
+)
+_CASH_ROLLFORWARD_BASE_FAMILY_SERIES = ("cash_movement_from_flows",)
 
 _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
     "parent_profit_source_link",
@@ -819,6 +829,41 @@ def share_repurchase_expected_series(
     }
 
 
+def cash_rollforward_expected_series(
+    cash_rollforward: CashRollforwardSeries,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map cash-roll-forward practice families from a CashRollforwardSeries."""
+    series: dict[str, tuple[float | str | None, ...]] = {
+        "cash_movement_from_flows": cash_rollforward.cash_movement_from_flows,
+    }
+    if cash_rollforward.cash_movement_difference is not None:
+        series["cash_movement_difference"] = cash_rollforward.cash_movement_difference
+    if cash_rollforward.cash_ending_from_flows is not None:
+        series["cash_ending_from_flows"] = cash_rollforward.cash_ending_from_flows
+    if cash_rollforward.cash_ending_difference is not None:
+        series["cash_ending_difference"] = cash_rollforward.cash_ending_difference
+    catalog_ids = {family.id for family in CASH_ROLLFORWARD_COMPONENT_CATALOG}
+    required = set(_CASH_ROLLFORWARD_BASE_FAMILY_SERIES)
+    if cash_rollforward.cash_movement_difference is not None:
+        required.add("cash_movement_difference")
+    if cash_rollforward.cash_ending_from_flows is not None:
+        required.add("cash_ending_from_flows")
+    if cash_rollforward.cash_ending_difference is not None:
+        required.add("cash_ending_difference")
+    if set(series) != required or not required <= catalog_ids:
+        missing = sorted(required - set(series))
+        extra = sorted(set(series) - required)
+        raise ValueError(
+            "cash_rollforward_expected_series family mismatch; "
+            f"missing={missing} extra={extra}"
+        )
+    return {
+        family_id: series[family_id]
+        for family_id in _CASH_ROLLFORWARD_FAMILY_SERIES
+        if family_id in series
+    }
+
+
 def ownership_attribution_expected_series(
     ownership_attribution: OwnershipAttributionSeries,
 ) -> dict[str, tuple[float | str | None, ...]]:
@@ -934,6 +979,7 @@ def expected_value_for_component(
     lease_repayment: LeaseRepaymentSeries | None = None,
     acquisition_cash: AcquisitionCashSeries | None = None,
     share_repurchase: ShareRepurchaseSeries | None = None,
+    cash_rollforward: CashRollforwardSeries | None = None,
 ) -> float | str | None:
     """Return the treatment-conditioned expected value for one practice component."""
     family_id = component.family_id
@@ -1016,6 +1062,18 @@ def expected_value_for_component(
             raise ValueError(
                 f"Share-repurchase family {family_id!r} requires unambiguous "
                 "operating cash flow, PP&E capex, and acquisition cash"
+            )
+    elif family_id in _CASH_ROLLFORWARD_FAMILY_SERIES:
+        if cash_rollforward is None:
+            raise ValueError(
+                f"Cash-roll-forward family {family_id!r} requires a "
+                "CashRollforwardSeries"
+            )
+        series = cash_rollforward_expected_series(cash_rollforward)
+        if family_id not in series:
+            raise ValueError(
+                f"Cash-roll-forward family {family_id!r} requires its unique "
+                "source dependencies"
             )
     elif family_id in _FIXED_ASSET_FAMILY_SERIES:
         if fixed_asset is None:

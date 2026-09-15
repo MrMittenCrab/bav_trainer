@@ -111,6 +111,6 @@ Measured against reconciled standardized payload without forcing a workbook:
 - Temporary Trainer/Answer Key artifacts are not committed (build did not succeed).
 - Comparative IS dates 2021-01-31 / 2022-01-30 appear inside FY2022 extracted filings but are not on the reconciled canonical period axis.
 
-## Current measured (Step 9M.2.4.1.1.1.24)
+## Current measured (Step 9M.2.4.1.1.1.25)
 
-Release generation now succeeds on the existing reconciled payload. Practice identities: **317** (preserved 305 + 12 share-repurchase). Unique CF `repurchase_of_common_stock` values `-444001 / -558652 / -1636879 / -1178349`; analytical outflows `444001 / 558652 / 1636879 / 1178349`; cash after PP&E capex, acquisitions and repurchases `-116195 / 1085647 / -207544 / -256674`. Fast Retailing remains 501 with no repurchase source.
+Release generation succeeds on the existing reconciled payload. Practice identities: **333** (preserved 317 + 16 cash-roll-forward). Independent cash movement from flows `-105004 / 1089104 / -259635 / -177134`; both movement and ending difference series are zero. Fast Retailing is 521 with the same four families (20 exercises) and nonzero reported gaps preserved.

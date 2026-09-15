@@ -31,6 +31,7 @@ from core.engine.component_catalog import (
     QUALITY_COMPONENT_CATALOG,
     ROE_ATTRIBUTION_COMPONENT_CATALOG,
     SHARE_REPURCHASE_COMPONENT_CATALOG,
+    CASH_ROLLFORWARD_COMPONENT_CATALOG,
     WORKING_CAPITAL_COMPONENT_CATALOG,
 )
 from core.engine.reference_model import DEFERRED_PLACEHOLDER, DEFERRED_TAB_NAMES
@@ -47,7 +48,7 @@ from core.trainer.workbook import build_training_workbook, group_components_by_f
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# Step 9 historical active namespace: family orders 1–134 (through share repurchase).
+# Step 9 historical active namespace: family orders 1–138 (through cash roll-forward).
 ACTIVE_CATALOGS = (
     COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
@@ -70,9 +71,10 @@ ACTIVE_CATALOGS = (
     LEASE_REPAYMENT_COMPONENT_CATALOG,
     ACQUISITION_CASH_COMPONENT_CATALOG,
     SHARE_REPURCHASE_COMPONENT_CATALOG,
+    CASH_ROLLFORWARD_COMPONENT_CATALOG,
 )
 
-# Explicit post–v1 optional catalog family id → order mappings (98–134).
+# Explicit post–v1 optional catalog family id → order mappings (98–138).
 EXPECTED_POST_V1_FAMILY_ORDERS = {
     # Goodwill / intangibles 98–111
     "goodwill_change": 98,
@@ -120,6 +122,11 @@ EXPECTED_POST_V1_FAMILY_ORDERS = {
     "share_repurchase_outflow": 132,
     "share_repurchase_to_revenue": 133,
     "cash_after_ppe_capex_acquisitions_and_repurchases": 134,
+    # Cash roll-forward 135–138
+    "cash_movement_from_flows": 135,
+    "cash_movement_difference": 136,
+    "cash_ending_from_flows": 137,
+    "cash_ending_difference": 138,
 }
 
 
@@ -158,7 +165,7 @@ def _assert_deferred_isolation(trainer: Path, answer: Path) -> None:
 
 
 def test_historical_v1_active_catalog_namespace_is_frozen():
-    """Freeze the current Step 9 historical active catalog namespace (orders 1–134)."""
+    """Freeze the current Step 9 historical active catalog namespace (orders 1–138)."""
     families = [family for catalog in ACTIVE_CATALOGS for family in catalog]
     ids = [family.id for family in families]
     orders = [family.order for family in families]
@@ -166,7 +173,7 @@ def test_historical_v1_active_catalog_namespace_is_frozen():
 
     assert len(ids) == len(set(ids))
     assert len(orders) == len(set(orders))
-    assert sorted(orders) == list(range(1, 135))
+    assert sorted(orders) == list(range(1, 139))
 
     for family_id, expected_order in EXPECTED_POST_V1_FAMILY_ORDERS.items():
         assert by_id[family_id] == expected_order

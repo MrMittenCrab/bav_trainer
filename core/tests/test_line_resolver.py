@@ -775,3 +775,108 @@ def test_repurchase_of_common_stock_explicit_concept_outranks_label():
     assert resolved.index == 1
     assert resolved.item.label == "Other repurchase carrying amount"
     assert resolved.item.concept == "repurchase_of_common_stock"
+
+
+def test_cash_rollforward_explicit_aliases_and_label_only_rejection():
+    operating = resolve_line(
+        [_item("Neutral", 1, 2, concept="net_cash_from_operating_activities")],
+        "net_cash_from_operating_activities",
+        required=True,
+    )
+    assert operating.item is not None
+    assert operating.item.concept == "net_cash_from_operating_activities"
+
+    alias_operating = resolve_line(
+        [_item("Neutral FR", 1, 2, concept="operating_cash_flow")],
+        "net_cash_from_operating_activities",
+        required=True,
+    )
+    assert alias_operating.item is not None
+    assert alias_operating.item.concept == "operating_cash_flow"
+
+    investing = resolve_line(
+        [_item("Neutral", 1, 2, concept="investing_cash_flow")],
+        "net_cash_from_investing_activities",
+        required=True,
+    )
+    assert investing.item is not None
+    assert investing.item.concept == "investing_cash_flow"
+
+    financing = resolve_line(
+        [_item("Neutral", 1, 2, concept="financing_cash_flow")],
+        "net_cash_from_financing_activities",
+        required=True,
+    )
+    assert financing.item is not None
+
+    fx = resolve_line(
+        [_item("Neutral", 1, 2, concept="effect_of_exchange_rate_on_cash")],
+        "effect_of_fx_on_cash",
+        required=True,
+    )
+    assert fx.item is not None
+    assert fx.item.concept == "effect_of_exchange_rate_on_cash"
+
+    change = resolve_line(
+        [_item("Neutral", 1, 2, concept="net_change_in_cash")],
+        "change_in_cash",
+        required=True,
+    )
+    assert change.item is not None
+    assert change.item.concept == "net_change_in_cash"
+
+    for concept, label in (
+        ("net_cash_from_operating_activities", "Net cash from operating activities"),
+        ("net_cash_from_operating_activities", "Cash generated from operations"),
+        ("effect_of_fx_on_cash", "Effect of foreign currency exchange rate changes"),
+        ("effect_of_fx_on_cash", "Foreign exchange losses/(gains)"),
+        ("change_in_cash", "Increase (decrease) in cash and cash equivalents"),
+        ("cash_beginning", "Cash and cash equivalents, beginning of period"),
+        ("cash_ending", "Cash and cash equivalents, end of period"),
+        ("cash_beginning", "Cash and cash equivalents"),
+    ):
+        assert (
+            resolve_line([_item(label, 1, 2)], concept, required=False).item is None
+        )
+
+
+def test_cash_rollforward_competing_aliases_are_ambiguous():
+    with pytest.raises(AmbiguousLineError):
+        resolve_line(
+            [
+                _item("First", 1, 2, concept="effect_of_fx_on_cash"),
+                _item("Second", 3, 4, concept="effect_of_exchange_rate_on_cash"),
+            ],
+            "effect_of_fx_on_cash",
+            required=False,
+        )
+    with pytest.raises(AmbiguousLineError):
+        resolve_line(
+            [
+                _item("First", 1, 2, concept="change_in_cash"),
+                _item("Second", 3, 4, concept="net_change_in_cash"),
+            ],
+            "change_in_cash",
+            required=False,
+        )
+    with pytest.raises(AmbiguousLineError):
+        resolve_line(
+            [
+                _item("First", 1, 2, concept="net_cash_from_operating_activities"),
+                _item("Second", 3, 4, concept="operating_cash_flow"),
+            ],
+            "net_cash_from_operating_activities",
+            required=False,
+        )
+
+
+def test_cash_rollforward_explicit_concept_outranks_label():
+    items = [
+        _item("Net cash from operating activities", 1, 2),
+        _item("Other operating total", 80, 90, concept="operating_cash_flow"),
+    ]
+    resolved = resolve_line(items, "net_cash_from_operating_activities", required=True)
+    assert resolved.item is not None
+    assert resolved.index == 1
+    assert resolved.item.concept == "operating_cash_flow"
+

@@ -52,6 +52,21 @@ from ..model.share_repurchase import (
     share_repurchase_applicable,
     resolve_share_repurchase_source,
 )
+from ..model.cash_rollforward import (
+    BEGINNING_CONCEPT,
+    CHANGE_CONCEPT,
+    ENDING_CONCEPT,
+    FINANCING_CONCEPT,
+    FX_CONCEPT,
+    INVESTING_CONCEPT,
+    OPERATING_CONCEPT,
+    compute_cash_rollforward_series,
+    cash_rollforward_applicable,
+    cash_ending_difference_applicable,
+    cash_ending_from_flows_applicable,
+    cash_movement_difference_applicable,
+    resolve_cash_rollforward_sources,
+)
 from ..model.capex import (
     compute_capex_series,
     capex_applicable,
@@ -101,6 +116,7 @@ from .component_catalog import (
     DEFERRED_COMPONENT_SPECS,
     expand_acquisition_cash_specs,
     expand_share_repurchase_specs,
+    expand_cash_rollforward_specs,
     expand_capex_specs,
     expand_fixed_asset_specs,
     expand_goodwill_intangibles_specs,
@@ -720,6 +736,46 @@ class ReferenceModelBuilder:
         else:
             self.share_repurchase_series = None
             self.share_repurchase_specs = ()
+        if cash_rollforward_applicable(self.fin):
+            self.cash_rollforward_series = compute_cash_rollforward_series(
+                self.fin,
+                self.periods,
+            )
+            self.cash_rollforward_specs = expand_cash_rollforward_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + len(self.profitability_change_specs)
+                    + len(self.roe_attribution_specs)
+                    + len(self.quality_change_specs)
+                    + len(self.per_share_specs)
+                    + len(self.per_share_attribution_specs)
+                    + len(self.normalized_per_share_specs)
+                    + len(self.fixed_asset_specs)
+                    + len(self.lease_liability_specs)
+                    + len(self.ownership_attribution_specs)
+                    + len(self.goodwill_intangibles_specs)
+                    + len(self.lease_rou_specs)
+                    + len(self.deferred_tax_specs)
+                    + len(self.capex_specs)
+                    + len(self.lease_repayment_specs)
+                    + len(self.acquisition_cash_specs)
+                    + len(self.share_repurchase_specs)
+                    + 1
+                ),
+                include_movement_difference=cash_movement_difference_applicable(
+                    self.fin
+                ),
+                include_ending_from_flows=cash_ending_from_flows_applicable(self.fin),
+                include_ending_difference=cash_ending_difference_applicable(self.fin),
+            )
+        else:
+            self.cash_rollforward_series = None
+            self.cash_rollforward_specs = ()
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
@@ -742,6 +798,7 @@ class ReferenceModelBuilder:
             + self.lease_repayment_specs
             + self.acquisition_cash_specs
             + self.share_repurchase_specs
+            + self.cash_rollforward_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -808,6 +865,9 @@ class ReferenceModelBuilder:
         }
         self._share_repurchase_spec_index = {
             (s.family_id, s.period_index): s for s in self.share_repurchase_specs
+        }
+        self._cash_rollforward_spec_index = {
+            (s.family_id, s.period_index): s for s in self.cash_rollforward_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -1523,6 +1583,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._share_repurchase_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_cash_rollforward(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._cash_rollforward_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -3755,6 +3831,266 @@ class ReferenceModelBuilder:
                     "dupont_cash_after_ppe_capex_acquisitions_and_repurchases_row"
                 ] = residual_row
                 next_section_after = residual_row
+
+        if self.cash_rollforward_series is not None:
+            cr_series = self.cash_rollforward_series
+            cr_sources = resolve_cash_rollforward_sources(self.fin)
+            assert cr_sources.operating is not None
+            assert cr_sources.investing is not None
+            assert cr_sources.financing is not None
+            assert cr_sources.fx is not None
+            operating_src = self._resolved_source_row(
+                self.fin.cash_flow, OPERATING_CONCEPT, required=True
+            )
+            investing_src = self._resolved_source_row(
+                self.fin.cash_flow, INVESTING_CONCEPT, required=True
+            )
+            financing_src = self._resolved_source_row(
+                self.fin.cash_flow, FINANCING_CONCEPT, required=True
+            )
+            fx_src = self._resolved_source_row(
+                self.fin.cash_flow, FX_CONCEPT, required=True
+            )
+            assert operating_src is not None
+            assert investing_src is not None
+            assert financing_src is not None
+            assert fx_src is not None
+
+            cr_section_row = next_section_after + 2
+            operating_row = cr_section_row + 1
+            investing_row = cr_section_row + 2
+            financing_row = cr_section_row + 3
+            fx_row = cr_section_row + 4
+            movement_row = cr_section_row + 5
+            cursor = movement_row
+
+            ws.cell(
+                row=cr_section_row,
+                column=1,
+                value="CASH ROLL-FORWARD CONTEXT",
+            ).font = BOLD
+            ws.cell(
+                row=operating_row,
+                column=1,
+                value="Net cash from operating activities (reported)",
+            )
+            ws.cell(
+                row=investing_row,
+                column=1,
+                value="Net cash from investing activities (reported)",
+            )
+            ws.cell(
+                row=financing_row,
+                column=1,
+                value="Net cash from financing activities (reported)",
+            )
+            ws.cell(
+                row=fx_row,
+                column=1,
+                value="Effect of FX on cash (reported)",
+            )
+            ws.cell(
+                row=movement_row,
+                column=1,
+                value="Cash movement from flows",
+            )
+
+            change_row = None
+            movement_diff_row = None
+            beginning_row = None
+            ending_from_flows_row = None
+            ending_row = None
+            ending_diff_row = None
+
+            if cr_series.cash_movement_difference is not None:
+                change_src = self._resolved_source_row(
+                    self.fin.cash_flow, CHANGE_CONCEPT, required=True
+                )
+                assert change_src is not None
+                assert cr_sources.change is not None
+                change_row = cursor + 1
+                movement_diff_row = cursor + 2
+                cursor = movement_diff_row
+                ws.cell(row=change_row, column=1, value="Reported cash change")
+                ws.cell(
+                    row=movement_diff_row,
+                    column=1,
+                    value="Cash movement difference",
+                )
+
+            if cr_series.cash_ending_from_flows is not None:
+                beginning_src = self._resolved_source_row(
+                    self.fin.cash_flow, BEGINNING_CONCEPT, required=True
+                )
+                assert beginning_src is not None
+                assert cr_sources.beginning is not None
+                beginning_row = cursor + 1
+                ending_from_flows_row = cursor + 2
+                cursor = ending_from_flows_row
+                ws.cell(
+                    row=beginning_row,
+                    column=1,
+                    value="Cash beginning (reported)",
+                )
+                ws.cell(
+                    row=ending_from_flows_row,
+                    column=1,
+                    value="Cash ending from flows",
+                )
+
+            if cr_series.cash_ending_difference is not None:
+                ending_src = self._resolved_source_row(
+                    self.fin.cash_flow, ENDING_CONCEPT, required=True
+                )
+                assert ending_src is not None
+                assert cr_sources.ending is not None
+                assert ending_from_flows_row is not None
+                ending_row = cursor + 1
+                ending_diff_row = cursor + 2
+                cursor = ending_diff_row
+                ws.cell(row=ending_row, column=1, value="Cash ending (reported)")
+                ws.cell(
+                    row=ending_diff_row,
+                    column=1,
+                    value="Cash ending difference",
+                )
+
+            for j in range(self._n):
+                out_col_idx = 2 + j
+                out_col = self._col(out_col_idx)
+                src_col = self._col(2 + j)
+                operating_f = f"='Cash Flow Statement'!{src_col}{operating_src}"
+                investing_f = f"='Cash Flow Statement'!{src_col}{investing_src}"
+                financing_f = f"='Cash Flow Statement'!{src_col}{financing_src}"
+                fx_f = f"='Cash Flow Statement'!{src_col}{fx_src}"
+                movement_f = (
+                    f"={out_col}{operating_row}+{out_col}{investing_row}"
+                    f"+{out_col}{financing_row}+{out_col}{fx_row}"
+                )
+                for row, formula in (
+                    (operating_row, operating_f),
+                    (investing_row, investing_f),
+                    (financing_row, financing_f),
+                    (fx_row, fx_f),
+                    (movement_row, movement_f),
+                ):
+                    c = ws.cell(row=row, column=out_col_idx, value=formula)
+                    c.number_format = NUM_FMT
+                self._register_cash_rollforward(
+                    "cash_movement_from_flows",
+                    j,
+                    "ALT DuPont",
+                    movement_row,
+                    out_col_idx,
+                    movement_f,
+                    float(cr_series.cash_movement_from_flows[j]),
+                )
+                if (
+                    cr_series.cash_movement_difference is not None
+                    and change_row is not None
+                    and movement_diff_row is not None
+                ):
+                    change_src = self._resolved_source_row(
+                        self.fin.cash_flow, CHANGE_CONCEPT, required=True
+                    )
+                    assert change_src is not None
+                    change_f = f"='Cash Flow Statement'!{src_col}{change_src}"
+                    diff_f = f"={out_col}{movement_row}-{out_col}{change_row}"
+                    c = ws.cell(row=change_row, column=out_col_idx, value=change_f)
+                    c.number_format = NUM_FMT
+                    c = ws.cell(
+                        row=movement_diff_row, column=out_col_idx, value=diff_f
+                    )
+                    c.number_format = NUM_FMT
+                    self._register_cash_rollforward(
+                        "cash_movement_difference",
+                        j,
+                        "ALT DuPont",
+                        movement_diff_row,
+                        out_col_idx,
+                        diff_f,
+                        float(cr_series.cash_movement_difference[j]),
+                    )
+                if (
+                    cr_series.cash_ending_from_flows is not None
+                    and beginning_row is not None
+                    and ending_from_flows_row is not None
+                ):
+                    beginning_src = self._resolved_source_row(
+                        self.fin.cash_flow, BEGINNING_CONCEPT, required=True
+                    )
+                    assert beginning_src is not None
+                    beginning_f = f"='Cash Flow Statement'!{src_col}{beginning_src}"
+                    ending_flows_f = (
+                        f"={out_col}{beginning_row}+{out_col}{movement_row}"
+                    )
+                    c = ws.cell(
+                        row=beginning_row, column=out_col_idx, value=beginning_f
+                    )
+                    c.number_format = NUM_FMT
+                    c = ws.cell(
+                        row=ending_from_flows_row,
+                        column=out_col_idx,
+                        value=ending_flows_f,
+                    )
+                    c.number_format = NUM_FMT
+                    self._register_cash_rollforward(
+                        "cash_ending_from_flows",
+                        j,
+                        "ALT DuPont",
+                        ending_from_flows_row,
+                        out_col_idx,
+                        ending_flows_f,
+                        float(cr_series.cash_ending_from_flows[j]),
+                    )
+                if (
+                    cr_series.cash_ending_difference is not None
+                    and ending_row is not None
+                    and ending_diff_row is not None
+                    and ending_from_flows_row is not None
+                ):
+                    ending_src = self._resolved_source_row(
+                        self.fin.cash_flow, ENDING_CONCEPT, required=True
+                    )
+                    assert ending_src is not None
+                    ending_f = f"='Cash Flow Statement'!{src_col}{ending_src}"
+                    ending_diff_f = (
+                        f"={out_col}{ending_from_flows_row}-{out_col}{ending_row}"
+                    )
+                    c = ws.cell(row=ending_row, column=out_col_idx, value=ending_f)
+                    c.number_format = NUM_FMT
+                    c = ws.cell(
+                        row=ending_diff_row, column=out_col_idx, value=ending_diff_f
+                    )
+                    c.number_format = NUM_FMT
+                    self._register_cash_rollforward(
+                        "cash_ending_difference",
+                        j,
+                        "ALT DuPont",
+                        ending_diff_row,
+                        out_col_idx,
+                        ending_diff_f,
+                        float(cr_series.cash_ending_difference[j]),
+                    )
+
+            self.rowmap["dupont_cash_operating_reported_row"] = operating_row
+            self.rowmap["dupont_cash_investing_reported_row"] = investing_row
+            self.rowmap["dupont_cash_financing_reported_row"] = financing_row
+            self.rowmap["dupont_cash_fx_reported_row"] = fx_row
+            self.rowmap["dupont_cash_movement_from_flows_row"] = movement_row
+            if change_row is not None:
+                self.rowmap["dupont_cash_reported_change_row"] = change_row
+            if movement_diff_row is not None:
+                self.rowmap["dupont_cash_movement_difference_row"] = movement_diff_row
+            if beginning_row is not None:
+                self.rowmap["dupont_cash_beginning_reported_row"] = beginning_row
+            if ending_from_flows_row is not None:
+                self.rowmap["dupont_cash_ending_from_flows_row"] = ending_from_flows_row
+            if ending_row is not None:
+                self.rowmap["dupont_cash_ending_reported_row"] = ending_row
+            if ending_diff_row is not None:
+                self.rowmap["dupont_cash_ending_difference_row"] = ending_diff_row
+            next_section_after = cursor
 
         if self.goodwill_intangibles_series is None:
             return

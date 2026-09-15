@@ -154,6 +154,13 @@ _EXACT_ALIASES: dict[str, frozenset[str]] = {
     "stock_based_compensation": frozenset(),
     "acquisition_net_of_cash_acquired": frozenset(),
     "repurchase_of_common_stock": frozenset(),
+    "net_cash_from_operating_activities": frozenset(),
+    "net_cash_from_investing_activities": frozenset(),
+    "net_cash_from_financing_activities": frozenset(),
+    "effect_of_fx_on_cash": frozenset(),
+    "cash_beginning": frozenset(),
+    "cash_ending": frozenset(),
+    "change_in_cash": frozenset(),
 }
 
 # Explicit LineItem.concept aliases at priority 1 (stored concept left unchanged).
@@ -192,6 +199,36 @@ _EXPLICIT_CONCEPT_ALIASES: dict[str, frozenset[str]] = {
         {
             "deferred tax liabilities",
             "deferred tax liability",
+        }
+    ),
+    "net_cash_from_operating_activities": frozenset(
+        {
+            "net cash from operating activities",
+            "operating cash flow",
+        }
+    ),
+    "net_cash_from_investing_activities": frozenset(
+        {
+            "net cash from investing activities",
+            "investing cash flow",
+        }
+    ),
+    "net_cash_from_financing_activities": frozenset(
+        {
+            "net cash from financing activities",
+            "financing cash flow",
+        }
+    ),
+    "effect_of_fx_on_cash": frozenset(
+        {
+            "effect of fx on cash",
+            "effect of exchange rate on cash",
+        }
+    ),
+    "change_in_cash": frozenset(
+        {
+            "change in cash",
+            "net change in cash",
         }
     ),
 }

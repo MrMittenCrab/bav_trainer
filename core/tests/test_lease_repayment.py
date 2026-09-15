@@ -602,4 +602,4 @@ def test_fast_retailing_fy2021_fy2025_repayment_anchors_and_ratios():
     assert len(builder.capex_specs) == 20
     assert len(builder.lease_liability_specs) == 18
     assert len(builder.lease_rou_specs) == 16
-    assert len(builder.expected_specs) == 501
+    assert len(builder.expected_specs) == 521
