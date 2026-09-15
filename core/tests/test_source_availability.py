@@ -18,9 +18,12 @@ from core.model.period_axis import canonical_fiscal_periods
 from core.model.ratio_values import SOURCE_UNAVAILABLE, UNDEFINED_RATIO, is_source_unavailable
 from core.model.source_availability import (
     REASON_ABSENT_LINE,
+    REASON_AVAILABLE,
     REASON_MISSING_PERIOD_VALUE,
     assess_concept_availability,
     assess_interest_availability,
+    comparable_interest_history_available,
+    historical_average_after_tax_cod,
 )
 from core.model.source_values import MissingHistoricalValueError
 from core.trainer.checker import check_workbook
@@ -224,17 +227,23 @@ def test_partial_period_absence_gates_only_dependent_periods(tmp_path: Path):
 
         required_period_value(item, P2, field="interest_expense")
     builder = ReferenceModelBuilder(fin)
-    _, answer = build_training_workbook(fin, tmp_path / "Partial_Trainer.xlsx")
-    wb = load_workbook(answer, data_only=False)
-    labels = _labels(wb["Condensed Financials"])
-    ws = wb["Condensed Financials"]
-    assert ws.cell(row=labels["Net Interest"], column=2).value not in (None, SOURCE_UNAVAILABLE)
+    trainer, answer = build_training_workbook(fin, tmp_path / "Partial_Trainer.xlsx")
+    answer_wb = load_workbook(answer, data_only=False)
+    labels = _labels(answer_wb["Condensed Financials"])
+    ws = answer_wb["Condensed Financials"]
     assert str(ws.cell(row=labels["Net Interest"], column=2).value).startswith("=")
     assert ws.cell(row=labels["Net Interest"], column=3).value == SOURCE_UNAVAILABLE
+    answer_wb.close()
+    _assert_condensed_interest_not_linked_to_blank(
+        trainer,
+        answer,
+        source_label="Finance costs",
+        condensed_label="Interest Expense",
+        period_count=2,
+    )
     families = {(s.family_id, s.period_index) for s in builder.expected_specs}
     assert ("net_interest_fy", 0) in families
     assert ("net_interest_fy", 1) not in families
-    wb.close()
 
 
 def test_reported_zero_is_available_not_gated(tmp_path: Path):
@@ -260,7 +269,13 @@ def test_reported_zero_is_available_not_gated(tmp_path: Path):
     labels = _labels(wb["Condensed Financials"])
     assert "Interest Expense" in labels
     assert "Interest Income" in labels
-    assert wb["Condensed Financials"].cell(row=labels["NOPAT"], column=2).value != SOURCE_UNAVAILABLE
+    ws = wb["Condensed Financials"]
+    assert ws.cell(row=labels["NOPAT"], column=2).value != SOURCE_UNAVAILABLE
+    for label in ("Interest Expense", "Interest Income"):
+        for col in (2, 3):
+            value = ws.cell(row=labels[label], column=col).value
+            assert str(value).startswith("=")
+            assert value != SOURCE_UNAVAILABLE
     wb.close()
 
 
@@ -384,6 +399,10 @@ def test_adjacent_period_dependencies_and_undefined_ratio_distinct():
     assert is_source_unavailable(anchor.dupont["NOPAT Margin"][0])
     assert not is_source_unavailable(anchor.dupont["RNOA"][1])
     assert not is_source_unavailable(anchor.hist_avg_after_tax_cod)
+    avail = assess_interest_availability(three, periods)
+    assert avail.output("hist_avg_after_tax_cod").available is True
+    assert avail.output("hist_avg_after_tax_cod").reason == REASON_AVAILABLE
+    assert P1 not in avail.output("hist_avg_after_tax_cod").missing_periods
 
     zero_debt = _base_fin(
         balance_sheet=[
@@ -512,3 +531,343 @@ def test_lululemon_unchanged_facts_gate_interest_and_keep_supported_outputs(tmp_
     filled = check_workbook(trainer)
     assert filled.correct == filled.total
     wb.close()
+
+
+def _three_fin() -> StandardizedFinancials:
+    return StandardizedFinancials(
+        ticker="SYN3",
+        company_name="Three Period Co",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=_periods(P1, P2, P3),
+        income_statement=[
+            _li("Revenue", 1000, 1100, v3=1210),
+            _li("Finance costs", -40, -50, v3=-55),
+            _li("Finance income", 5, 6, v3=7),
+            _li("Profit before tax", 200, 220, v3=240),
+            _li("Income tax expense", -30, -33, v3=-36),
+            _li("Profit for the year", 170, 187, v3=204),
+        ],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 100, 110, v3=120),
+            _li("Trade receivables", 80, 90, v3=100),
+            _li("Property, plant and equipment", 400, 420, v3=440),
+            _li("Trade payables", 50, 55, v3=60),
+            _li("Bank borrowings", 200, 210, v3=220),
+            _li("Total equity", 330, 355, v3=380),
+        ],
+        cash_flow=[_li("Net cash from operating activities", 50, 60, v3=70)],
+    )
+
+
+def _drop_period_value(item: LineItem, period: date, mode: str) -> None:
+    if mode == "omitted":
+        del item.values[period]
+    else:
+        item.values[period] = None
+
+
+def _interest_items(fin: StandardizedFinancials) -> tuple[LineItem, LineItem]:
+    expense = next(i for i in fin.income_statement if i.label == "Finance costs")
+    income = next(i for i in fin.income_statement if i.label == "Finance income")
+    return expense, income
+
+
+def _assert_python_metadata_hist_avg_agree(fin: StandardizedFinancials, periods: list[date]) -> None:
+    avail = assess_interest_availability(fin, periods)
+    anchor = compute_anchor(fin, periods)
+    hist_avg = avail.output("hist_avg_after_tax_cod")
+    python_unavailable = is_source_unavailable(anchor.hist_avg_after_tax_cod)
+    assert hist_avg.available is (not python_unavailable)
+    shared = historical_average_after_tax_cod(
+        [value for value in anchor.dupont["After-tax CoD"] if value is not None],
+        interest_history_available=comparable_interest_history_available(
+            [value for value in anchor.dupont["After-tax CoD"] if value is not None],
+            anchor.historical.net_interest,
+        ),
+    )
+    if python_unavailable:
+        assert is_source_unavailable(shared)
+    else:
+        assert shared == pytest.approx(float(anchor.hist_avg_after_tax_cod))
+
+
+def _assert_condensed_interest_not_linked_to_blank(
+    trainer: Path,
+    answer: Path,
+    *,
+    source_label: str,
+    condensed_label: str,
+    period_count: int,
+) -> None:
+    for path in (trainer, answer):
+        wb = load_workbook(path, data_only=False)
+        src_ws = wb["Income Statement"]
+        con_ws = wb["Condensed Financials"]
+        src_labels = _labels(src_ws)
+        con_labels = _labels(con_ws)
+        if condensed_label not in con_labels:
+            wb.close()
+            continue
+        src_row = src_labels[source_label]
+        con_row = con_labels[condensed_label]
+        for j in range(period_count):
+            source_val = src_ws.cell(row=src_row, column=2 + j).value
+            condensed_val = con_ws.cell(row=con_row, column=2 + j).value
+            if source_val is None:
+                assert condensed_val == SOURCE_UNAVAILABLE
+                assert not (
+                    isinstance(condensed_val, str) and str(condensed_val).startswith("=")
+                )
+            else:
+                assert str(condensed_val).startswith("=")
+                assert condensed_val != SOURCE_UNAVAILABLE
+        wb.close()
+
+
+@pytest.mark.parametrize("mode", ["omitted", "none"])
+@pytest.mark.parametrize("which", ["expense", "income", "both"])
+@pytest.mark.parametrize("slot", ["opening", "interior", "latest"])
+def test_interest_missing_independently_or_together_by_slot(
+    tmp_path: Path, mode: str, which: str, slot: str
+):
+    fin = _three_fin()
+    periods = [P1, P2, P3]
+    target = {"opening": P1, "interior": P2, "latest": P3}[slot]
+    expense, income = _interest_items(fin)
+    if which in ("expense", "both"):
+        _drop_period_value(expense, target, mode)
+    if which in ("income", "both"):
+        _drop_period_value(income, target, mode)
+    avail = assess_interest_availability(fin, periods)
+    concept = "interest_expense" if which != "income" else "interest_income"
+    row = (
+        avail.interest_expense.for_period(target)
+        if concept == "interest_expense"
+        else avail.interest_income.for_period(target)
+    )
+    assert row.available is False
+    assert row.reason == REASON_MISSING_PERIOD_VALUE
+    assert avail.output("net_interest", target).available is False
+    hist_avg = avail.output("hist_avg_after_tax_cod")
+    if slot == "opening":
+        assert hist_avg.available is True
+        assert target not in hist_avg.missing_periods
+    else:
+        assert hist_avg.available is False
+        assert target in hist_avg.missing_periods
+    _assert_python_metadata_hist_avg_agree(fin, periods)
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    trainer, answer = build_training_workbook(
+        restored, tmp_path / f"Slot_{slot}_{which}_{mode}_Trainer.xlsx"
+    )
+    _assert_condensed_interest_not_linked_to_blank(
+        trainer,
+        answer,
+        source_label="Finance costs",
+        condensed_label="Interest Expense",
+        period_count=3,
+    )
+    _assert_condensed_interest_not_linked_to_blank(
+        trainer,
+        answer,
+        source_label="Finance income",
+        condensed_label="Interest Income",
+        period_count=3,
+    )
+    builder = ReferenceModelBuilder(restored)
+    families = {(s.family_id, s.period_index) for s in builder.expected_specs}
+    slot_index = {"opening": 0, "interior": 1, "latest": 2}[slot]
+    assert ("net_interest_fy", slot_index) not in families
+    if slot != "opening":
+        assert ("after_tax_cod", slot_index) not in families
+        assert "after_tax_cod" not in {s.family_id for s in builder.expected_specs if s.period_index == slot_index}
+    smap = load_semantic_map(answer)
+    assert {c.family_id for c in smap.all_ordered()} == {s.family_id for s in builder.expected_specs}
+    blank = check_workbook(trainer)
+    assert blank.blank == blank.total
+    assert blank.incorrect == 0
+
+
+def test_opening_only_omission_hist_avg_cod_is_0_374(tmp_path: Path):
+    fin = _base_fin()
+    expense, _income = _interest_items(fin)
+    del expense.values[P1]
+    periods = [P1, P2]
+    net_int_p2 = -((-50.0) + 6.0)
+    etr_p2 = -(-33.0) / 220.0
+    niat_p2 = net_int_p2 * (1.0 - etr_p2)
+    independent_cod = niat_p2 / 100.0
+    assert independent_cod == pytest.approx(0.374)
+    avail = assess_interest_availability(fin, periods)
+    assert avail.output("hist_avg_after_tax_cod").available is True
+    anchor = compute_anchor(fin, periods)
+    assert anchor.hist_avg_after_tax_cod == pytest.approx(0.374)
+    assert is_source_unavailable(anchor.historical.net_interest[0])
+    assert anchor.historical.net_interest[1] == pytest.approx(44.0)
+    _assert_python_metadata_hist_avg_agree(fin, periods)
+    trainer, answer = build_training_workbook(fin, tmp_path / "OpeningCod_Trainer.xlsx")
+    _assert_condensed_interest_not_linked_to_blank(
+        trainer,
+        answer,
+        source_label="Finance costs",
+        condensed_label="Interest Expense",
+        period_count=2,
+    )
+    builder = ReferenceModelBuilder(fin)
+    families = {(s.family_id, s.period_index) for s in builder.expected_specs}
+    assert ("after_tax_cod", 1) in families
+    assert ("net_interest_fy", 0) not in families
+    assert ("net_interest_fy", 1) in families
+
+
+def test_mixed_numeric_undefined_comparable_cod_averages_numeric():
+    fin = _three_fin()
+    cash = next(i for i in fin.balance_sheet if i.label == "Cash and cash equivalents")
+    debt = next(i for i in fin.balance_sheet if i.label == "Bank borrowings")
+    cash.values = {P1: 100.0, P2: 110.0, P3: 120.0}
+    debt.values = {P1: 100.0, P2: 110.0, P3: 220.0}
+    equity = next(i for i in fin.balance_sheet if i.label == "Total equity")
+    equity.values = {P1: 430.0, P2: 455.0, P3: 380.0}
+    periods = [P1, P2, P3]
+    anchor = compute_anchor(fin, periods)
+    assert anchor.dupont["After-tax CoD"][1] == UNDEFINED_RATIO
+    niat_p3 = -((-55.0) + 7.0) * (1.0 - (-(-36.0) / 240.0))
+    independent = niat_p3 / 50.0
+    assert anchor.dupont["After-tax CoD"][2] == pytest.approx(independent)
+    assert anchor.hist_avg_after_tax_cod == pytest.approx(independent)
+    avail = assess_interest_availability(fin, periods)
+    assert avail.output("hist_avg_after_tax_cod").available is True
+    _assert_python_metadata_hist_avg_agree(fin, periods)
+
+
+def test_missing_comparable_interest_keeps_hist_avg_unavailable():
+    fin = _three_fin()
+    expense, _income = _interest_items(fin)
+    del expense.values[P2]
+    periods = [P1, P2, P3]
+    avail = assess_interest_availability(fin, periods)
+    assert avail.output("after_tax_cod", P2).available is False
+    assert avail.output("after_tax_cod", P3).available is True
+    assert avail.output("hist_avg_after_tax_cod").available is False
+    assert P2 in avail.output("hist_avg_after_tax_cod").missing_periods
+    anchor = compute_anchor(fin, periods)
+    assert is_source_unavailable(anchor.hist_avg_after_tax_cod)
+    assert not is_source_unavailable(anchor.dupont["After-tax CoD"][2])
+    _assert_python_metadata_hist_avg_agree(fin, periods)
+
+
+def test_no_numeric_comparable_cod_uses_fallback_only_when_interest_present():
+    zero_debt = _base_fin(
+        balance_sheet=[
+            _li("Cash and cash equivalents", 100, 110),
+            _li("Trade receivables", 80, 90),
+            _li("Property, plant and equipment", 400, 420),
+            _li("Trade payables", 50, 55),
+            _li("Bank borrowings", 100, 110),
+            _li("Total equity", 430, 455),
+        ]
+    )
+    periods = [P1, P2]
+    z_anchor = compute_anchor(zero_debt, periods)
+    assert z_anchor.dupont["After-tax CoD"][1] == UNDEFINED_RATIO
+    assert z_anchor.hist_avg_after_tax_cod == pytest.approx(0.04)
+    z_avail = assess_interest_availability(zero_debt, periods)
+    assert z_avail.output("hist_avg_after_tax_cod").available is True
+    _assert_python_metadata_hist_avg_agree(zero_debt, periods)
+
+    missing = _base_fin(
+        balance_sheet=[
+            _li("Cash and cash equivalents", 100, 110),
+            _li("Trade receivables", 80, 90),
+            _li("Property, plant and equipment", 400, 420),
+            _li("Trade payables", 50, 55),
+            _li("Bank borrowings", 100, 110),
+            _li("Total equity", 430, 455),
+        ]
+    )
+    expense, _income = _interest_items(missing)
+    del expense.values[P2]
+    m_anchor = compute_anchor(missing, periods)
+    assert is_source_unavailable(m_anchor.hist_avg_after_tax_cod)
+    m_avail = assess_interest_availability(missing, periods)
+    assert m_avail.output("hist_avg_after_tax_cod").available is False
+    _assert_python_metadata_hist_avg_agree(missing, periods)
+
+
+def test_single_period_history_agrees_on_metadata_and_python(tmp_path: Path):
+    present = StandardizedFinancials(
+        ticker="SYN1",
+        company_name="Single Period Co",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=_periods(P1),
+        income_statement=[
+            _li("Revenue", 1000, 1100),
+            _li("Finance costs", -40, -50),
+            _li("Finance income", 5, 6),
+            _li("Profit before tax", 200, 220),
+            _li("Income tax expense", -30, -33),
+            _li("Profit for the year", 170, 187),
+        ],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 100, 110),
+            _li("Trade receivables", 80, 90),
+            _li("Property, plant and equipment", 400, 420),
+            _li("Trade payables", 50, 55),
+            _li("Bank borrowings", 200, 210),
+            _li("Total equity", 330, 355),
+        ],
+        cash_flow=[_li("Net cash from operating activities", 50, 60)],
+    )
+    for item in (*present.income_statement, *present.balance_sheet, *present.cash_flow):
+        item.values.pop(P2, None)
+    periods = [P1]
+    p_anchor = compute_anchor(present, periods)
+    assert p_anchor.hist_avg_after_tax_cod == pytest.approx(0.04)
+    p_avail = assess_interest_availability(present, periods)
+    assert p_avail.output("hist_avg_after_tax_cod").available is True
+    _assert_python_metadata_hist_avg_agree(present, periods)
+
+    absent = StandardizedFinancials(
+        ticker="SYN1A",
+        company_name="Single Period Absent Co",
+        currency="HKD",
+        units="HKD mn",
+        jurisdiction="HK",
+        periods=_periods(P1),
+        income_statement=[
+            _li("Revenue", 1000, 1100),
+            _li("Profit before tax", 200, 220),
+            _li("Income tax expense", -30, -33),
+            _li("Profit for the year", 170, 187),
+        ],
+        balance_sheet=[
+            _li("Cash and cash equivalents", 100, 110),
+            _li("Trade receivables", 80, 90),
+            _li("Property, plant and equipment", 400, 420),
+            _li("Trade payables", 50, 55),
+            _li("Bank borrowings", 200, 210),
+            _li("Total equity", 330, 355),
+        ],
+        cash_flow=[_li("Net cash from operating activities", 50, 60)],
+    )
+    for item in (*absent.income_statement, *absent.balance_sheet, *absent.cash_flow):
+        item.values.pop(P2, None)
+    a_anchor = compute_anchor(absent, periods)
+    assert is_source_unavailable(a_anchor.hist_avg_after_tax_cod)
+    a_avail = assess_interest_availability(absent, periods)
+    assert a_avail.output("hist_avg_after_tax_cod").available is False
+    _assert_python_metadata_hist_avg_agree(absent, periods)
+    trainer, answer = build_training_workbook(absent, tmp_path / "SingleAbsent_Trainer.xlsx")
+    wb = load_workbook(answer, data_only=False)
+    labels = _labels(wb["Condensed Financials"])
+    assert "Interest Expense" not in labels
+    assert wb["Condensed Financials"].cell(row=labels["NOPAT"], column=2).value == SOURCE_UNAVAILABLE
+    wb.close()
+    builder = ReferenceModelBuilder(absent)
+    assert "nopat_fy" not in {s.family_id for s in builder.expected_specs}
+    smap = load_semantic_map(answer)
+    assert all(not is_source_unavailable(c.expected_value) for c in smap.all_ordered())

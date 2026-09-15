@@ -25,6 +25,7 @@ REASON_MISSING_PERIOD_VALUE = "missing_period_value"
 REASON_DEPENDENT_UNAVAILABLE = "dependent_unavailable"
 
 INTEREST_CONCEPTS = ("interest_expense", "interest_income")
+SUPPORTED_UNDEFINED_RATIO_COD_FALLBACK = 0.04
 
 
 @dataclass(frozen=True)
@@ -177,6 +178,86 @@ def assess_concept_availability(
     return ConceptAvailability(concept=concept, line_present=True, periods=tuple(rows))
 
 
+def historical_average_after_tax_cod(
+    comparable_cod: Sequence[object],
+    *,
+    interest_history_available: bool,
+) -> float | str:
+    """Average comparable after-tax CoD values under shared eligibility.
+
+    Opening-period interest is not a comparable CoD input. Any comparable CoD
+    that is source-unavailable makes the aggregate unavailable. Numeric
+    comparable ratios are averaged; undefined ratios are skipped. When no
+    numeric comparable ratio exists, supported interest history uses the
+    existing 4% undefined-ratio fallback; unavailable history does not.
+    """
+    numeric_cod = [
+        value for value in comparable_cod if isinstance(value, (int, float))
+    ]
+    if any(is_source_unavailable(value) for value in comparable_cod) or (
+        not numeric_cod and not interest_history_available
+    ):
+        return SOURCE_UNAVAILABLE
+    if numeric_cod:
+        return sum(numeric_cod) / len(numeric_cod)
+    return SUPPORTED_UNDEFINED_RATIO_COD_FALLBACK
+
+
+def comparable_interest_history_available(
+    comparable_cod: Sequence[object],
+    net_interest: Sequence[object],
+) -> bool:
+    """Whether required CoD history has interest; opening absence is ignored."""
+    series = comparable_cod if comparable_cod else net_interest
+    return not any(is_source_unavailable(value) for value in series)
+
+
+def assess_aggregate_cod_availability(
+    comparable_cod: Sequence[OutputAvailability],
+    net_interest_by_period: Mapping[date, OutputAvailability],
+    periods: Sequence[date],
+) -> OutputAvailability:
+    """Gate hist-avg CoD by comparable-period interest, not opening absence."""
+    if comparable_cod:
+        required: Sequence[OutputAvailability] = comparable_cod
+    elif periods:
+        required = (net_interest_by_period[periods[0]],)
+    else:
+        return OutputAvailability(
+            output="hist_avg_after_tax_cod",
+            period=None,
+            available=True,
+            reason=REASON_AVAILABLE,
+        )
+    missing_concepts: list[str] = []
+    missing_periods: list[date] = []
+    reasons: list[str] = []
+    for row in required:
+        if row.available:
+            continue
+        missing_concepts.extend(row.missing_concepts)
+        missing_periods.extend(row.missing_periods)
+        reasons.append(row.reason)
+    if not missing_concepts:
+        return OutputAvailability(
+            output="hist_avg_after_tax_cod",
+            period=None,
+            available=True,
+            reason=REASON_AVAILABLE,
+        )
+    unique_concepts = tuple(dict.fromkeys(missing_concepts))
+    unique_periods = tuple(dict.fromkeys(missing_periods))
+    reason = reasons[0] if len(set(reasons)) == 1 else REASON_DEPENDENT_UNAVAILABLE
+    return OutputAvailability(
+        output="hist_avg_after_tax_cod",
+        period=None,
+        available=False,
+        reason=reason,
+        missing_concepts=unique_concepts,
+        missing_periods=unique_periods,
+    )
+
+
 def _combine_period_facts(
     output: str,
     period: date | None,
@@ -321,58 +402,11 @@ def assess_interest_availability(
         )
 
     comparable_cod = [row for row in outputs if row.output == "after_tax_cod"]
-    if comparable_cod and not all(row.available for row in comparable_cod):
-        missing_c = tuple(
-            dict.fromkeys(
-                concept
-                for row in comparable_cod
-                for concept in row.missing_concepts
-            )
+    outputs.append(
+        assess_aggregate_cod_availability(
+            comparable_cod, net_interest_by_period, periods
         )
-        missing_p = tuple(
-            dict.fromkeys(
-                period for row in comparable_cod for period in row.missing_periods
-            )
-        )
-        hist_avg = OutputAvailability(
-            output="hist_avg_after_tax_cod",
-            period=None,
-            available=False,
-            reason=REASON_DEPENDENT_UNAVAILABLE,
-            missing_concepts=missing_c,
-            missing_periods=missing_p,
-        )
-    elif any(not net_interest_by_period[period].available for period in periods):
-        missing_c = tuple(
-            dict.fromkeys(
-                concept
-                for period in periods
-                for concept in net_interest_by_period[period].missing_concepts
-            )
-        )
-        missing_p = tuple(
-            dict.fromkeys(
-                period
-                for modeled in periods
-                for period in net_interest_by_period[modeled].missing_periods
-            )
-        )
-        hist_avg = OutputAvailability(
-            output="hist_avg_after_tax_cod",
-            period=None,
-            available=False,
-            reason=REASON_DEPENDENT_UNAVAILABLE,
-            missing_concepts=missing_c,
-            missing_periods=missing_p,
-        )
-    else:
-        hist_avg = OutputAvailability(
-            output="hist_avg_after_tax_cod",
-            period=None,
-            available=True,
-            reason=REASON_AVAILABLE,
-        )
-    outputs.append(hist_avg)
+    )
     return InterestAvailability(
         interest_expense=expense,
         interest_income=income,

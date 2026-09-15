@@ -14,7 +14,11 @@ from .classification import (
 from .line_resolver import resolve_line
 from .lease_liability import lease_liability_treatment
 from .ratio_values import SOURCE_UNAVAILABLE, UNDEFINED_RATIO, is_source_unavailable, ratio_or_na
-from .source_availability import assess_concept_availability
+from .source_availability import (
+    assess_concept_availability,
+    comparable_interest_history_available,
+    historical_average_after_tax_cod,
+)
 from .source_values import MissingHistoricalValueError, required_period_series, required_period_value
 
 
@@ -210,17 +214,12 @@ def compute_anchor(
         dupont["ROE (decomposed)"].append(decomposed)
         dupont["Actual ROE"].append(actual)
 
-    numeric_cod = [
-        value for value in cod_series if isinstance(value, (int, float))
-    ]
-    if any(is_source_unavailable(value) for value in cod_series) or (
-        not numeric_cod and any(is_source_unavailable(value) for value in net_int)
-    ):
-        hist_avg_cod: float | str = SOURCE_UNAVAILABLE
-    elif numeric_cod:
-        hist_avg_cod = sum(numeric_cod) / len(numeric_cod)
-    else:
-        hist_avg_cod = 0.04
+    hist_avg_cod = historical_average_after_tax_cod(
+        cod_series,
+        interest_history_available=comparable_interest_history_available(
+            cod_series, net_int
+        ),
+    )
     last = n - 1
     total_capital = net_debt[last] + equity[last]
     leverage = net_debt[last] / total_capital if total_capital else 0

@@ -874,6 +874,24 @@ class ReferenceModelBuilder:
         dup = self.anchor.dupont
         condensed = wb["Condensed Financials"]
         dupont = wb["ALT DuPont"]
+        for key, concept_avail in (
+            (
+                "condensed_interest_expense_row",
+                self.interest_availability.interest_expense,
+            ),
+            (
+                "condensed_interest_income_row",
+                self.interest_availability.interest_income,
+            ),
+        ):
+            row = self.rowmap.get(key)
+            if row is None:
+                continue
+            for j, period in enumerate(self.periods):
+                if not concept_avail.available_on(period):
+                    self._stamp_unavailable(
+                        condensed, row, 2 + j, SOURCE_UNAVAILABLE
+                    )
         for j in range(self._n):
             col = 2 + j
             self._stamp_unavailable(
@@ -1557,8 +1575,17 @@ class ReferenceModelBuilder:
             if src_row is None:
                 continue
             ws.cell(row=r, column=1, value=label).font = Font(bold=bold)
+            concept_avail = {
+                "Interest Expense": self.interest_availability.interest_expense,
+                "Interest Income": self.interest_availability.interest_income,
+            }.get(label)
             for j in range(self._n):
                 col = self._col(2 + j)
+                if concept_avail is not None and not concept_avail.available_on(
+                    self.periods[j]
+                ):
+                    ws.cell(row=r, column=2 + j, value=SOURCE_UNAVAILABLE)
+                    continue
                 formula = f"='Income Statement'!{col}{src_row}"
                 ws.cell(row=r, column=2 + j, value=formula)
                 if family_id is not None and expected_series is not None:
@@ -1576,6 +1603,10 @@ class ReferenceModelBuilder:
                 self.rowmap["condensed_ni_row"] = r
             if label == "Revenue":
                 self.rowmap["condensed_revenue_row"] = r
+            if label == "Interest Expense":
+                self.rowmap["condensed_interest_expense_row"] = r
+            if label == "Interest Income":
+                self.rowmap["condensed_interest_income_row"] = r
             r += 1
 
         lease_interest_src = self.rowmap.get("supplemental_lease_interest_expense_row")

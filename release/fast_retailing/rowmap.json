@@ -192,6 +192,8 @@
   "condensed_class_value_col0": 3,
   "condensed_revenue_row": 44,
   "condensed_ni_row": 45,
+  "condensed_interest_expense_row": 48,
+  "condensed_interest_income_row": 49,
   "condensed_etr_row": 51,
   "condensed_net_interest_row": 52,
   "condensed_niat_row": 53,

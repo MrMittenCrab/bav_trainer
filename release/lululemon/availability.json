@@ -572,7 +572,7 @@
       ],
       "output": "hist_avg_after_tax_cod",
       "period": null,
-      "reason": "dependent_unavailable"
+      "reason": "absent_line"
     }
   ]
 }
