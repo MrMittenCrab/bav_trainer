@@ -522,7 +522,7 @@ def test_demo_omits_reported_margin_fast_retailing_activates(tmp_path):
     assert reported_margin_applicable(fr)
     fr_builder = ReferenceModelBuilder(fr)
     assert len(fr_builder.reported_margin_specs) == 27
-    assert len(fr_builder.expected_specs) == 548
+    assert len(fr_builder.expected_specs) == 569
     assert "reconstructed_operating_margin_change" in {
         s.family_id for s in fr_builder.expected_specs
     }

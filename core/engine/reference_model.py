@@ -81,6 +81,17 @@ from ..model.reported_margin import (
     reported_operating_margin_applicable,
     resolve_reported_margin_sources,
 )
+from ..model.inventory_analysis import (
+    INVENTORIES_CONCEPT,
+    compute_inventory_analysis_series,
+    inventory_analysis_applicable,
+    inventory_change_applicable,
+    inventory_intensity_applicable,
+    inventory_intensity_effect_applicable,
+    inventory_revenue_scale_effect_applicable,
+    reconstructed_inventory_change_applicable,
+    resolve_inventory_analysis_sources,
+)
 from ..model.capex import (
     compute_capex_series,
     capex_applicable,
@@ -132,6 +143,7 @@ from .component_catalog import (
     expand_share_repurchase_specs,
     expand_cash_rollforward_specs,
     expand_reported_margin_specs,
+    expand_inventory_analysis_specs,
     expand_capex_specs,
     expand_fixed_asset_specs,
     expand_goodwill_intangibles_specs,
@@ -839,6 +851,54 @@ class ReferenceModelBuilder:
         else:
             self.reported_margin_series = None
             self.reported_margin_specs = ()
+        if inventory_analysis_applicable(self.fin):
+            self.inventory_analysis_series = compute_inventory_analysis_series(
+                self.fin,
+                self.periods,
+            )
+            self.inventory_analysis_specs = expand_inventory_analysis_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + len(self.profitability_change_specs)
+                    + len(self.roe_attribution_specs)
+                    + len(self.quality_change_specs)
+                    + len(self.per_share_specs)
+                    + len(self.per_share_attribution_specs)
+                    + len(self.normalized_per_share_specs)
+                    + len(self.fixed_asset_specs)
+                    + len(self.lease_liability_specs)
+                    + len(self.ownership_attribution_specs)
+                    + len(self.goodwill_intangibles_specs)
+                    + len(self.lease_rou_specs)
+                    + len(self.deferred_tax_specs)
+                    + len(self.capex_specs)
+                    + len(self.lease_repayment_specs)
+                    + len(self.acquisition_cash_specs)
+                    + len(self.share_repurchase_specs)
+                    + len(self.cash_rollforward_specs)
+                    + len(self.reported_margin_specs)
+                    + 1
+                ),
+                include_intensity=inventory_intensity_applicable(self.fin),
+                include_change=inventory_change_applicable(self.fin),
+                include_revenue_scale=inventory_revenue_scale_effect_applicable(
+                    self.fin
+                ),
+                include_intensity_effect=inventory_intensity_effect_applicable(
+                    self.fin
+                ),
+                include_reconstructed=reconstructed_inventory_change_applicable(
+                    self.fin
+                ),
+            )
+        else:
+            self.inventory_analysis_series = None
+            self.inventory_analysis_specs = ()
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
@@ -863,6 +923,7 @@ class ReferenceModelBuilder:
             + self.share_repurchase_specs
             + self.cash_rollforward_specs
             + self.reported_margin_specs
+            + self.inventory_analysis_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -935,6 +996,9 @@ class ReferenceModelBuilder:
         }
         self._reported_margin_spec_index = {
             (s.family_id, s.period_index): s for s in self.reported_margin_specs
+        }
+        self._inventory_analysis_spec_index = {
+            (s.family_id, s.period_index): s for s in self.inventory_analysis_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -1682,6 +1746,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._reported_margin_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_inventory_analysis(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._inventory_analysis_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -4471,6 +4551,239 @@ class ReferenceModelBuilder:
                 )
             if reconstructed_row is not None:
                 self.rowmap["dupont_reconstructed_operating_margin_change_row"] = (
+                    reconstructed_row
+                )
+            next_section_after = cursor
+
+        if self.inventory_analysis_series is not None:
+            inv_series = self.inventory_analysis_series
+            inv_sources = resolve_inventory_analysis_sources(self.fin)
+            assert inv_sources.inventories is not None
+            inventory_src = self._resolved_source_row(
+                self.fin.balance_sheet, INVENTORIES_CONCEPT, required=True
+            )
+            assert inventory_src is not None
+
+            inv_section_row = next_section_after + 2
+            inventory_row = inv_section_row + 1
+            cursor = inventory_row
+            ws.cell(
+                row=inv_section_row,
+                column=1,
+                value="INVENTORY GROWTH AND INTENSITY CONTEXT",
+            ).font = BOLD
+            ws.cell(row=inventory_row, column=1, value="Inventory (reported)")
+
+            revenue_row = None
+            intensity_row = None
+            change_row = None
+            scale_row = None
+            intensity_effect_row = None
+            reconstructed_row = None
+
+            if inv_series.revenue is not None:
+                revenue_src = self._resolved_source_row(
+                    self.fin.income_statement, REVENUE_CONCEPT, required=True
+                )
+                assert revenue_src is not None
+                assert inv_sources.revenue is not None
+                revenue_row = cursor + 1
+                cursor = revenue_row
+                ws.cell(row=revenue_row, column=1, value="Revenue (reported)")
+            if inv_series.inventory_intensity is not None:
+                assert revenue_row is not None
+                intensity_row = cursor + 1
+                cursor = intensity_row
+                ws.cell(row=intensity_row, column=1, value="Inventory intensity")
+            if inv_series.inventory_change is not None and self._n > 1:
+                change_row = cursor + 1
+                cursor = change_row
+                ws.cell(row=change_row, column=1, value="Change in inventory")
+            if (
+                inv_series.inventory_revenue_scale_effect is not None
+                and self._n > 1
+            ):
+                assert intensity_row is not None and revenue_row is not None
+                scale_row = cursor + 1
+                cursor = scale_row
+                ws.cell(
+                    row=scale_row,
+                    column=1,
+                    value="Revenue-scale effect on inventory",
+                )
+            if inv_series.inventory_intensity_effect is not None and self._n > 1:
+                assert intensity_row is not None and revenue_row is not None
+                intensity_effect_row = cursor + 1
+                cursor = intensity_effect_row
+                ws.cell(
+                    row=intensity_effect_row,
+                    column=1,
+                    value="Intensity effect on inventory",
+                )
+            if (
+                inv_series.reconstructed_inventory_change is not None
+                and self._n > 1
+            ):
+                assert scale_row is not None and intensity_effect_row is not None
+                reconstructed_row = cursor + 1
+                cursor = reconstructed_row
+                ws.cell(
+                    row=reconstructed_row,
+                    column=1,
+                    value="Reconstructed change in inventory",
+                )
+
+            def _inv_expected(value: float | str | None) -> float | str:
+                assert value is not None
+                return value if isinstance(value, str) else float(value)
+
+            for j in range(self._n):
+                out_col_idx = 2 + j
+                out_col = self._col(out_col_idx)
+                src_col = self._col(2 + j)
+                inv_f = f"='Balance Sheet'!{src_col}{inventory_src}"
+                c = ws.cell(row=inventory_row, column=out_col_idx, value=inv_f)
+                c.number_format = NUM_FMT
+                if revenue_row is not None:
+                    revenue_src = self._resolved_source_row(
+                        self.fin.income_statement, REVENUE_CONCEPT, required=True
+                    )
+                    assert revenue_src is not None
+                    rev_f = f"='Income Statement'!{src_col}{revenue_src}"
+                    c = ws.cell(row=revenue_row, column=out_col_idx, value=rev_f)
+                    c.number_format = NUM_FMT
+                if intensity_row is not None and revenue_row is not None:
+                    intensity_f = (
+                        f"=IF({out_col}{revenue_row}=0,NA(),"
+                        f"{out_col}{inventory_row}/{out_col}{revenue_row})"
+                    )
+                    c = ws.cell(
+                        row=intensity_row, column=out_col_idx, value=intensity_f
+                    )
+                    c.number_format = PCT_FMT
+                    assert inv_series.inventory_intensity is not None
+                    self._register_inventory_analysis(
+                        "inventory_intensity",
+                        j,
+                        "ALT DuPont",
+                        intensity_row,
+                        out_col_idx,
+                        intensity_f,
+                        _inv_expected(inv_series.inventory_intensity[j]),
+                    )
+                if j == 0:
+                    continue
+                prev_col = self._col(2 + j - 1)
+                if change_row is not None:
+                    change_f = (
+                        f"={out_col}{inventory_row}-{prev_col}{inventory_row}"
+                    )
+                    c = ws.cell(
+                        row=change_row, column=out_col_idx, value=change_f
+                    )
+                    c.number_format = NUM_FMT
+                    assert inv_series.inventory_change is not None
+                    self._register_inventory_analysis(
+                        "inventory_change",
+                        j,
+                        "ALT DuPont",
+                        change_row,
+                        out_col_idx,
+                        change_f,
+                        _inv_expected(inv_series.inventory_change[j]),
+                    )
+                if (
+                    scale_row is not None
+                    and intensity_row is not None
+                    and revenue_row is not None
+                ):
+                    scale_f = (
+                        f"={prev_col}{intensity_row}*"
+                        f"({out_col}{revenue_row}-{prev_col}{revenue_row})"
+                    )
+                    c = ws.cell(row=scale_row, column=out_col_idx, value=scale_f)
+                    c.number_format = NUM_FMT
+                    assert inv_series.inventory_revenue_scale_effect is not None
+                    self._register_inventory_analysis(
+                        "inventory_revenue_scale_effect",
+                        j,
+                        "ALT DuPont",
+                        scale_row,
+                        out_col_idx,
+                        scale_f,
+                        _inv_expected(
+                            inv_series.inventory_revenue_scale_effect[j]
+                        ),
+                    )
+                if (
+                    intensity_effect_row is not None
+                    and intensity_row is not None
+                    and revenue_row is not None
+                ):
+                    intensity_effect_f = (
+                        f"={out_col}{revenue_row}*"
+                        f"({out_col}{intensity_row}-{prev_col}{intensity_row})"
+                    )
+                    c = ws.cell(
+                        row=intensity_effect_row,
+                        column=out_col_idx,
+                        value=intensity_effect_f,
+                    )
+                    c.number_format = NUM_FMT
+                    assert inv_series.inventory_intensity_effect is not None
+                    self._register_inventory_analysis(
+                        "inventory_intensity_effect",
+                        j,
+                        "ALT DuPont",
+                        intensity_effect_row,
+                        out_col_idx,
+                        intensity_effect_f,
+                        _inv_expected(inv_series.inventory_intensity_effect[j]),
+                    )
+                if (
+                    reconstructed_row is not None
+                    and scale_row is not None
+                    and intensity_effect_row is not None
+                ):
+                    reconstructed_f = (
+                        f"={out_col}{scale_row}+{out_col}{intensity_effect_row}"
+                    )
+                    c = ws.cell(
+                        row=reconstructed_row,
+                        column=out_col_idx,
+                        value=reconstructed_f,
+                    )
+                    c.number_format = NUM_FMT
+                    assert inv_series.reconstructed_inventory_change is not None
+                    self._register_inventory_analysis(
+                        "reconstructed_inventory_change",
+                        j,
+                        "ALT DuPont",
+                        reconstructed_row,
+                        out_col_idx,
+                        reconstructed_f,
+                        _inv_expected(
+                            inv_series.reconstructed_inventory_change[j]
+                        ),
+                    )
+
+            self.rowmap["dupont_inventory_reported_row"] = inventory_row
+            if revenue_row is not None:
+                self.rowmap["dupont_inventory_revenue_row"] = revenue_row
+            if intensity_row is not None:
+                self.rowmap["dupont_inventory_intensity_row"] = intensity_row
+            if change_row is not None:
+                self.rowmap["dupont_inventory_change_row"] = change_row
+            if scale_row is not None:
+                self.rowmap["dupont_inventory_revenue_scale_effect_row"] = (
+                    scale_row
+                )
+            if intensity_effect_row is not None:
+                self.rowmap["dupont_inventory_intensity_effect_row"] = (
+                    intensity_effect_row
+                )
+            if reconstructed_row is not None:
+                self.rowmap["dupont_reconstructed_inventory_change_row"] = (
                     reconstructed_row
                 )
             next_section_after = cursor

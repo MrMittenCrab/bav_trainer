@@ -5636,8 +5636,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_change.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C127",
-      "formula": "=C126-B126",
+      "cell": "C136",
+      "formula": "=C135-B135",
       "expected_value": -61.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5660,8 +5660,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_change.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D127",
-      "formula": "=D126-C126",
+      "cell": "D136",
+      "formula": "=D135-C135",
       "expected_value": 135435.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5684,8 +5684,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_change.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E127",
-      "formula": "=E126-D126",
+      "cell": "E136",
+      "formula": "=E135-D135",
       "expected_value": 25393.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5708,8 +5708,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_growth.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C128",
-      "formula": "=IF(B126=0,NA(),C126/B126-1)",
+      "cell": "C137",
+      "formula": "=IF(B135=0,NA(),C135/B135-1)",
       "expected_value": -0.0025265076209410207,
       "tolerance": 0.01,
       "depends_on": [
@@ -5735,8 +5735,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_growth.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D128",
-      "formula": "=IF(C126=0,NA(),D126/C126-1)",
+      "cell": "D137",
+      "formula": "=IF(C135=0,NA(),D135/C135-1)",
       "expected_value": 5.623676452269236,
       "tolerance": 0.01,
       "depends_on": [
@@ -5762,8 +5762,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_growth.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E128",
-      "formula": "=IF(D126=0,NA(),E126/D126-1)",
+      "cell": "E137",
+      "formula": "=IF(D135=0,NA(),E135/D135-1)",
       "expected_value": 0.1591857972141075,
       "tolerance": 0.01,
       "depends_on": [
@@ -5789,8 +5789,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C129",
-      "formula": "=(B126+C126)/2",
+      "cell": "C138",
+      "formula": "=(B135+C135)/2",
       "expected_value": 24113.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5812,8 +5812,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D129",
-      "formula": "=(C126+D126)/2",
+      "cell": "D138",
+      "formula": "=(C135+D135)/2",
       "expected_value": 91800.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5835,8 +5835,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E129",
-      "formula": "=(D126+E126)/2",
+      "cell": "E138",
+      "formula": "=(D135+E135)/2",
       "expected_value": 172214.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5858,8 +5858,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C130",
-      "formula": "=IF('Condensed Financials'!C34=0,NA(),C129/'Condensed Financials'!C34)",
+      "cell": "C139",
+      "formula": "=IF('Condensed Financials'!C34=0,NA(),C138/'Condensed Financials'!C34)",
       "expected_value": 0.0025067889710641486,
       "tolerance": 0.01,
       "depends_on": [
@@ -5885,8 +5885,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D130",
-      "formula": "=IF('Condensed Financials'!D34=0,NA(),D129/'Condensed Financials'!D34)",
+      "cell": "D139",
+      "formula": "=IF('Condensed Financials'!D34=0,NA(),D138/'Condensed Financials'!D34)",
       "expected_value": 0.008670136717300115,
       "tolerance": 0.01,
       "depends_on": [
@@ -5912,8 +5912,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E130",
-      "formula": "=IF('Condensed Financials'!E34=0,NA(),E129/'Condensed Financials'!E34)",
+      "cell": "E139",
+      "formula": "=IF('Condensed Financials'!E34=0,NA(),E138/'Condensed Financials'!E34)",
       "expected_value": 0.015511186568911787,
       "tolerance": 0.01,
       "depends_on": [
@@ -5939,8 +5939,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C132",
-      "formula": "=C131-B131",
+      "cell": "C141",
+      "formula": "=C140-B140",
       "expected_value": -21961.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5962,8 +5962,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D132",
-      "formula": "=D131-C131",
+      "cell": "D141",
+      "formula": "=D140-C140",
       "expected_value": 11673.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5985,8 +5985,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E132",
-      "formula": "=E131-D131",
+      "cell": "E141",
+      "formula": "=E140-D140",
       "expected_value": -5390.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6008,8 +6008,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C133",
-      "formula": "=IF(B131=0,NA(),C131/B131-1)",
+      "cell": "C142",
+      "formula": "=IF(B140=0,NA(),C140/B140-1)",
       "expected_value": -1.0,
       "tolerance": 0.01,
       "depends_on": [
@@ -6034,8 +6034,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D133",
-      "formula": "=IF(C131=0,NA(),D131/C131-1)",
+      "cell": "D142",
+      "formula": "=IF(C140=0,NA(),D140/C140-1)",
       "expected_value": "#N/A",
       "tolerance": 0.01,
       "depends_on": [
@@ -6060,8 +6060,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E133",
-      "formula": "=IF(D131=0,NA(),E131/D131-1)",
+      "cell": "E142",
+      "formula": "=IF(D140=0,NA(),E140/D140-1)",
       "expected_value": -0.4617493360747023,
       "tolerance": 0.01,
       "depends_on": [
@@ -6086,8 +6086,8 @@
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C134",
-      "formula": "=(B131+C131)/2",
+      "cell": "C143",
+      "formula": "=(B140+C140)/2",
       "expected_value": 10980.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6109,8 +6109,8 @@
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D134",
-      "formula": "=(C131+D131)/2",
+      "cell": "D143",
+      "formula": "=(C140+D140)/2",
       "expected_value": 5836.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6132,8 +6132,8 @@
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E134",
-      "formula": "=(D131+E131)/2",
+      "cell": "E143",
+      "formula": "=(D140+E140)/2",
       "expected_value": 8978.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6155,8 +6155,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C135",
-      "formula": "=IF('Condensed Financials'!C34=0,NA(),C134/'Condensed Financials'!C34)",
+      "cell": "C144",
+      "formula": "=IF('Condensed Financials'!C34=0,NA(),C143/'Condensed Financials'!C34)",
       "expected_value": 0.0011415097889883213,
       "tolerance": 0.01,
       "depends_on": [
@@ -6182,8 +6182,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D135",
-      "formula": "=IF('Condensed Financials'!D34=0,NA(),D134/'Condensed Financials'!D34)",
+      "cell": "D144",
+      "formula": "=IF('Condensed Financials'!D34=0,NA(),D143/'Condensed Financials'!D34)",
       "expected_value": 0.0005512306899256771,
       "tolerance": 0.01,
       "depends_on": [
@@ -6209,8 +6209,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E135",
-      "formula": "=IF('Condensed Financials'!E34=0,NA(),E134/'Condensed Financials'!E34)",
+      "cell": "E144",
+      "formula": "=IF('Condensed Financials'!E34=0,NA(),E143/'Condensed Financials'!E34)",
       "expected_value": 0.0008086394177940303,
       "tolerance": 0.01,
       "depends_on": [
@@ -6236,8 +6236,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C137",
-      "formula": "=C136-B136",
+      "cell": "C146",
+      "formula": "=C145-B145",
       "expected_value": -22022.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6259,8 +6259,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D137",
-      "formula": "=D136-C136",
+      "cell": "D146",
+      "formula": "=D145-C145",
       "expected_value": 147108.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6282,8 +6282,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E137",
-      "formula": "=E136-D136",
+      "cell": "E146",
+      "formula": "=E145-D145",
       "expected_value": 20003.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6305,8 +6305,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C138",
-      "formula": "=IF(B136=0,NA(),C136/B136-1)",
+      "cell": "C147",
+      "formula": "=IF(B145=0,NA(),C145/B145-1)",
       "expected_value": -0.47764884502765426,
       "tolerance": 0.01,
       "depends_on": [
@@ -6331,8 +6331,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D138",
-      "formula": "=IF(C136=0,NA(),D136/C136-1)",
+      "cell": "D147",
+      "formula": "=IF(C145=0,NA(),D145/C145-1)",
       "expected_value": 6.108375202424947,
       "tolerance": 0.01,
       "depends_on": [
@@ -6357,8 +6357,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E138",
-      "formula": "=IF(D136=0,NA(),E136/D136-1)",
+      "cell": "E147",
+      "formula": "=IF(D145=0,NA(),E145/D145-1)",
       "expected_value": 0.11684609588120871,
       "tolerance": 0.01,
       "depends_on": [
@@ -6383,8 +6383,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C139",
-      "formula": "=(B136+C136)/2",
+      "cell": "C148",
+      "formula": "=(B145+C145)/2",
       "expected_value": 35094.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6406,8 +6406,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D139",
-      "formula": "=(C136+D136)/2",
+      "cell": "D148",
+      "formula": "=(C145+D145)/2",
       "expected_value": 97637.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6429,8 +6429,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E139",
-      "formula": "=(D136+E136)/2",
+      "cell": "E148",
+      "formula": "=(D145+E145)/2",
       "expected_value": 181192.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6452,8 +6452,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C140",
-      "formula": "=IF('Condensed Financials'!C34=0,NA(),C139/'Condensed Financials'!C34)",
+      "cell": "C149",
+      "formula": "=IF('Condensed Financials'!C34=0,NA(),C148/'Condensed Financials'!C34)",
       "expected_value": 0.0036482987600524697,
       "tolerance": 0.01,
       "depends_on": [
@@ -6479,8 +6479,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D140",
-      "formula": "=IF('Condensed Financials'!D34=0,NA(),D139/'Condensed Financials'!D34)",
+      "cell": "D149",
+      "formula": "=IF('Condensed Financials'!D34=0,NA(),D148/'Condensed Financials'!D34)",
       "expected_value": 0.009221367407225792,
       "tolerance": 0.01,
       "depends_on": [
@@ -6506,8 +6506,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E140",
-      "formula": "=IF('Condensed Financials'!E34=0,NA(),E139/'Condensed Financials'!E34)",
+      "cell": "E149",
+      "formula": "=IF('Condensed Financials'!E34=0,NA(),E148/'Condensed Financials'!E34)",
       "expected_value": 0.016319825986705817,
       "tolerance": 0.01,
       "depends_on": [
@@ -9223,6 +9223,430 @@
       "family_order": 144,
       "period_index": 3,
       "period_end": "2026-02-01"
+    },
+    {
+      "id": "inventory_intensity__20230129",
+      "order": 355,
+      "title": "Inventory intensity",
+      "short_hint": "Inventory intensity = ending inventory / annual revenue. This is not inventory days or turnover. Zero revenue is undefined (#N/A).",
+      "semantic_key": "inventory_analysis.inventory_intensity.2023-01-29",
+      "category": "inventory_analysis",
+      "tab": "ALT DuPont",
+      "cell": "B128",
+      "formula": "=IF(B127=0,NA(),B126/B127)",
+      "expected_value": 0.17845555610628075,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Inventory intensity = ending inventory / annual revenue.",
+        "This is not inventory days or turnover.",
+        "Zero revenue yields the undefined-ratio result."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "inventory_intensity",
+      "family_order": 145,
+      "period_index": 0,
+      "period_end": "2023-01-29"
+    },
+    {
+      "id": "inventory_intensity__20240128",
+      "order": 356,
+      "title": "Inventory intensity",
+      "short_hint": "Inventory intensity = ending inventory / annual revenue. This is not inventory days or turnover. Zero revenue is undefined (#N/A).",
+      "semantic_key": "inventory_analysis.inventory_intensity.2024-01-28",
+      "category": "inventory_analysis",
+      "tab": "ALT DuPont",
+      "cell": "C128",
+      "formula": "=IF(C127=0,NA(),C126/C127)",
+      "expected_value": 0.13759889255721688,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Inventory intensity = ending inventory / annual revenue.",
+        "This is not inventory days or turnover.",
+        "Zero revenue yields the undefined-ratio result."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "inventory_intensity",
+      "family_order": 145,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "inventory_intensity__20250202",
+      "order": 357,
+      "title": "Inventory intensity",
+      "short_hint": "Inventory intensity = ending inventory / annual revenue. This is not inventory days or turnover. Zero revenue is undefined (#N/A).",
+      "semantic_key": "inventory_analysis.inventory_intensity.2025-02-02",
+      "category": "inventory_analysis",
+      "tab": "ALT DuPont",
+      "cell": "D128",
+      "formula": "=IF(D127=0,NA(),D126/D127)",
+      "expected_value": 0.13619794475434086,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Inventory intensity = ending inventory / annual revenue.",
+        "This is not inventory days or turnover.",
+        "Zero revenue yields the undefined-ratio result."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "inventory_intensity",
+      "family_order": 145,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "inventory_intensity__20260201",
+      "order": 358,
+      "title": "Inventory intensity",
+      "short_hint": "Inventory intensity = ending inventory / annual revenue. This is not inventory days or turnover. Zero revenue is undefined (#N/A).",
+      "semantic_key": "inventory_analysis.inventory_intensity.2026-02-01",
+      "category": "inventory_analysis",
+      "tab": "ALT DuPont",
+      "cell": "E128",
+      "formula": "=IF(E127=0,NA(),E126/E127)",
+      "expected_value": 0.15318510979410227,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Inventory intensity = ending inventory / annual revenue.",
+        "This is not inventory days or turnover.",
+        "Zero revenue yields the undefined-ratio result."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "inventory_intensity",
+      "family_order": 145,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "inventory_change__20240128",
+      "order": 359,
+      "title": "Change in inventory",
+      "short_hint": "Change in inventory = current inventory \u2212 prior inventory (signed). Opening-period change is not practiced. This is not proof of cash movement, markdowns, or management causes.",
+      "semantic_key": "inventory_analysis.inventory_change.2024-01-28",
+      "category": "inventory_analysis",
+      "tab": "ALT DuPont",
+      "cell": "C129",
+      "formula": "=C126-B126",
+      "expected_value": -123765.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Change in inventory = current inventory \u2212 prior inventory.",
+        "The movement is signed; it is not proof of cash movement.",
+        "Do not infer markdowns or management causes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "inventory_change",
+      "family_order": 146,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "inventory_change__20250202",
+      "order": 360,
+      "title": "Change in inventory",
+      "short_hint": "Change in inventory = current inventory \u2212 prior inventory (signed). Opening-period change is not practiced. This is not proof of cash movement, markdowns, or management causes.",
+      "semantic_key": "inventory_analysis.inventory_change.2025-02-02",
+      "category": "inventory_analysis",
+      "tab": "ALT DuPont",
+      "cell": "D129",
+      "formula": "=D126-C126",
+      "expected_value": 118479.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Change in inventory = current inventory \u2212 prior inventory.",
+        "The movement is signed; it is not proof of cash movement.",
+        "Do not infer markdowns or management causes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "inventory_change",
+      "family_order": 146,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "inventory_change__20260201",
+      "order": 361,
+      "title": "Change in inventory",
+      "short_hint": "Change in inventory = current inventory \u2212 prior inventory (signed). Opening-period change is not practiced. This is not proof of cash movement, markdowns, or management causes.",
+      "semantic_key": "inventory_analysis.inventory_change.2026-02-01",
+      "category": "inventory_analysis",
+      "tab": "ALT DuPont",
+      "cell": "E129",
+      "formula": "=E126-D126",
+      "expected_value": 258672.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Change in inventory = current inventory \u2212 prior inventory.",
+        "The movement is signed; it is not proof of cash movement.",
+        "Do not infer markdowns or management causes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "inventory_change",
+      "family_order": 146,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "inventory_revenue_scale_effect__20240128",
+      "order": 362,
+      "title": "Revenue-scale effect on inventory",
+      "short_hint": "Revenue-scale effect = prior inventory intensity \u00d7 (current revenue \u2212 prior revenue). Uses the prior-intensity / current-revenue attribution convention. Signed; not a cash-movement proof.",
+      "semantic_key": "inventory_analysis.inventory_revenue_scale_effect.2024-01-28",
+      "category": "inventory_analysis",
+      "tab": "ALT DuPont",
+      "cell": "C130",
+      "formula": "=B128*(C127-B127)",
+      "expected_value": 269246.60483091214,
+      "tolerance": 0.01,
+      "depends_on": [
+        "inventory_intensity__20230129"
+      ],
+      "hints": [
+        "Revenue-scale effect = prior inventory intensity \u00d7 (current revenue \u2212 prior revenue).",
+        "This uses the prior-intensity / current-revenue convention.",
+        "Signed arithmetic only; not proof of cash movement."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "inventory_revenue_scale_effect",
+      "family_order": 147,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "inventory_revenue_scale_effect__20250202",
+      "order": 363,
+      "title": "Revenue-scale effect on inventory",
+      "short_hint": "Revenue-scale effect = prior inventory intensity \u00d7 (current revenue \u2212 prior revenue). Uses the prior-intensity / current-revenue attribution convention. Signed; not a cash-movement proof.",
+      "semantic_key": "inventory_analysis.inventory_revenue_scale_effect.2025-02-02",
+      "category": "inventory_analysis",
+      "tab": "ALT DuPont",
+      "cell": "D130",
+      "formula": "=C128*(D127-C127)",
+      "expected_value": 133312.41185627447,
+      "tolerance": 0.01,
+      "depends_on": [
+        "inventory_intensity__20240128"
+      ],
+      "hints": [
+        "Revenue-scale effect = prior inventory intensity \u00d7 (current revenue \u2212 prior revenue).",
+        "This uses the prior-intensity / current-revenue convention.",
+        "Signed arithmetic only; not proof of cash movement."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "inventory_revenue_scale_effect",
+      "family_order": 147,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "inventory_revenue_scale_effect__20260201",
+      "order": 364,
+      "title": "Revenue-scale effect on inventory",
+      "short_hint": "Revenue-scale effect = prior inventory intensity \u00d7 (current revenue \u2212 prior revenue). Uses the prior-intensity / current-revenue attribution convention. Signed; not a cash-movement proof.",
+      "semantic_key": "inventory_analysis.inventory_revenue_scale_effect.2026-02-01",
+      "category": "inventory_analysis",
+      "tab": "ALT DuPont",
+      "cell": "E130",
+      "formula": "=D128*(E127-D127)",
+      "expected_value": 70070.30142954475,
+      "tolerance": 0.01,
+      "depends_on": [
+        "inventory_intensity__20250202"
+      ],
+      "hints": [
+        "Revenue-scale effect = prior inventory intensity \u00d7 (current revenue \u2212 prior revenue).",
+        "This uses the prior-intensity / current-revenue convention.",
+        "Signed arithmetic only; not proof of cash movement."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "inventory_revenue_scale_effect",
+      "family_order": 147,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "inventory_intensity_effect__20240128",
+      "order": 365,
+      "title": "Intensity effect on inventory",
+      "short_hint": "Intensity effect = current revenue \u00d7 (current inventory intensity \u2212 prior inventory intensity). Uses the prior-intensity / current-revenue attribution convention. Signed; not proof of deterioration, seasonality, or markdowns.",
+      "semantic_key": "inventory_analysis.inventory_intensity_effect.2024-01-28",
+      "category": "inventory_analysis",
+      "tab": "ALT DuPont",
+      "cell": "C131",
+      "formula": "=C127*(C128-B128)",
+      "expected_value": -393011.60483091197,
+      "tolerance": 0.01,
+      "depends_on": [
+        "inventory_intensity__20240128",
+        "inventory_intensity__20230129"
+      ],
+      "hints": [
+        "Intensity effect = current revenue \u00d7 (current intensity \u2212 prior intensity).",
+        "This uses the prior-intensity / current-revenue convention.",
+        "Signed arithmetic only; not proof of deterioration, seasonality, or markdowns."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "inventory_intensity_effect",
+      "family_order": 148,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "inventory_intensity_effect__20250202",
+      "order": 366,
+      "title": "Intensity effect on inventory",
+      "short_hint": "Intensity effect = current revenue \u00d7 (current inventory intensity \u2212 prior inventory intensity). Uses the prior-intensity / current-revenue attribution convention. Signed; not proof of deterioration, seasonality, or markdowns.",
+      "semantic_key": "inventory_analysis.inventory_intensity_effect.2025-02-02",
+      "category": "inventory_analysis",
+      "tab": "ALT DuPont",
+      "cell": "D131",
+      "formula": "=D127*(D128-C128)",
+      "expected_value": -14833.411856274559,
+      "tolerance": 0.01,
+      "depends_on": [
+        "inventory_intensity__20250202",
+        "inventory_intensity__20240128"
+      ],
+      "hints": [
+        "Intensity effect = current revenue \u00d7 (current intensity \u2212 prior intensity).",
+        "This uses the prior-intensity / current-revenue convention.",
+        "Signed arithmetic only; not proof of deterioration, seasonality, or markdowns."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "inventory_intensity_effect",
+      "family_order": 148,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "inventory_intensity_effect__20260201",
+      "order": 367,
+      "title": "Intensity effect on inventory",
+      "short_hint": "Intensity effect = current revenue \u00d7 (current inventory intensity \u2212 prior inventory intensity). Uses the prior-intensity / current-revenue attribution convention. Signed; not proof of deterioration, seasonality, or markdowns.",
+      "semantic_key": "inventory_analysis.inventory_intensity_effect.2026-02-01",
+      "category": "inventory_analysis",
+      "tab": "ALT DuPont",
+      "cell": "E131",
+      "formula": "=E127*(E128-D128)",
+      "expected_value": 188601.69857045508,
+      "tolerance": 0.01,
+      "depends_on": [
+        "inventory_intensity__20260201",
+        "inventory_intensity__20250202"
+      ],
+      "hints": [
+        "Intensity effect = current revenue \u00d7 (current intensity \u2212 prior intensity).",
+        "This uses the prior-intensity / current-revenue convention.",
+        "Signed arithmetic only; not proof of deterioration, seasonality, or markdowns."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "inventory_intensity_effect",
+      "family_order": 148,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "reconstructed_inventory_change__20240128",
+      "order": 368,
+      "title": "Reconstructed change in inventory",
+      "short_hint": "Reconstructed inventory change = revenue-scale effect + intensity effect. Arithmetic decomposition that reconciles to the inventory change when defined. Not inventory days/turnover and not proof of cash movement, deterioration, seasonality, markdowns, or management causes.",
+      "semantic_key": "inventory_analysis.reconstructed_inventory_change.2024-01-28",
+      "category": "inventory_analysis",
+      "tab": "ALT DuPont",
+      "cell": "C132",
+      "formula": "=C130+C131",
+      "expected_value": -123764.99999999983,
+      "tolerance": 0.01,
+      "depends_on": [
+        "inventory_revenue_scale_effect__20240128",
+        "inventory_intensity_effect__20240128"
+      ],
+      "hints": [
+        "Reconstructed inventory change = revenue-scale effect + intensity effect.",
+        "When defined, this reconciles to the adjacent inventory change.",
+        "Arithmetic decomposition only; not cash movement, deterioration, seasonality, markdowns, or management causes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "reconstructed_inventory_change",
+      "family_order": 149,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "reconstructed_inventory_change__20250202",
+      "order": 369,
+      "title": "Reconstructed change in inventory",
+      "short_hint": "Reconstructed inventory change = revenue-scale effect + intensity effect. Arithmetic decomposition that reconciles to the inventory change when defined. Not inventory days/turnover and not proof of cash movement, deterioration, seasonality, markdowns, or management causes.",
+      "semantic_key": "inventory_analysis.reconstructed_inventory_change.2025-02-02",
+      "category": "inventory_analysis",
+      "tab": "ALT DuPont",
+      "cell": "D132",
+      "formula": "=D130+D131",
+      "expected_value": 118478.99999999991,
+      "tolerance": 0.01,
+      "depends_on": [
+        "inventory_revenue_scale_effect__20250202",
+        "inventory_intensity_effect__20250202"
+      ],
+      "hints": [
+        "Reconstructed inventory change = revenue-scale effect + intensity effect.",
+        "When defined, this reconciles to the adjacent inventory change.",
+        "Arithmetic decomposition only; not cash movement, deterioration, seasonality, markdowns, or management causes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "reconstructed_inventory_change",
+      "family_order": 149,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "reconstructed_inventory_change__20260201",
+      "order": 370,
+      "title": "Reconstructed change in inventory",
+      "short_hint": "Reconstructed inventory change = revenue-scale effect + intensity effect. Arithmetic decomposition that reconciles to the inventory change when defined. Not inventory days/turnover and not proof of cash movement, deterioration, seasonality, markdowns, or management causes.",
+      "semantic_key": "inventory_analysis.reconstructed_inventory_change.2026-02-01",
+      "category": "inventory_analysis",
+      "tab": "ALT DuPont",
+      "cell": "E132",
+      "formula": "=E130+E131",
+      "expected_value": 258671.99999999983,
+      "tolerance": 0.01,
+      "depends_on": [
+        "inventory_revenue_scale_effect__20260201",
+        "inventory_intensity_effect__20260201"
+      ],
+      "hints": [
+        "Reconstructed inventory change = revenue-scale effect + intensity effect.",
+        "When defined, this reconciles to the adjacent inventory change.",
+        "Arithmetic decomposition only; not cash movement, deterioration, seasonality, markdowns, or management causes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "reconstructed_inventory_change",
+      "family_order": 149,
+      "period_index": 3,
+      "period_end": "2026-02-01"
     }
   ],
   "rowmap": {
@@ -10540,220 +10964,316 @@
       "row": 123,
       "col": 5
     },
-    "goodwill_intangibles.goodwill_change.2024-01-28": {
+    "inventory_analysis.inventory_intensity.2023-01-29": {
       "tab": "ALT DuPont",
-      "cell": "C127",
-      "row": 127,
-      "col": 3
+      "cell": "B128",
+      "row": 128,
+      "col": 2
     },
-    "goodwill_intangibles.goodwill_growth.2024-01-28": {
+    "inventory_analysis.inventory_intensity.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C128",
       "row": 128,
       "col": 3
     },
-    "goodwill_intangibles.average_goodwill.2024-01-28": {
+    "inventory_analysis.inventory_change.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C129",
       "row": 129,
       "col": 3
     },
-    "goodwill_intangibles.goodwill_to_revenue.2024-01-28": {
+    "inventory_analysis.inventory_revenue_scale_effect.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C130",
       "row": 130,
       "col": 3
     },
-    "goodwill_intangibles.goodwill_change.2025-02-02": {
+    "inventory_analysis.inventory_intensity_effect.2024-01-28": {
       "tab": "ALT DuPont",
-      "cell": "D127",
-      "row": 127,
-      "col": 4
+      "cell": "C131",
+      "row": 131,
+      "col": 3
     },
-    "goodwill_intangibles.goodwill_growth.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D128",
-      "row": 128,
-      "col": 4
-    },
-    "goodwill_intangibles.average_goodwill.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D129",
-      "row": 129,
-      "col": 4
-    },
-    "goodwill_intangibles.goodwill_to_revenue.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D130",
-      "row": 130,
-      "col": 4
-    },
-    "goodwill_intangibles.goodwill_change.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E127",
-      "row": 127,
-      "col": 5
-    },
-    "goodwill_intangibles.goodwill_growth.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E128",
-      "row": 128,
-      "col": 5
-    },
-    "goodwill_intangibles.average_goodwill.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E129",
-      "row": 129,
-      "col": 5
-    },
-    "goodwill_intangibles.goodwill_to_revenue.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E130",
-      "row": 130,
-      "col": 5
-    },
-    "goodwill_intangibles.intangible_assets_change.2024-01-28": {
+    "inventory_analysis.reconstructed_inventory_change.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C132",
       "row": 132,
       "col": 3
     },
-    "goodwill_intangibles.intangible_assets_growth.2024-01-28": {
+    "inventory_analysis.inventory_intensity.2025-02-02": {
       "tab": "ALT DuPont",
-      "cell": "C133",
-      "row": 133,
-      "col": 3
+      "cell": "D128",
+      "row": 128,
+      "col": 4
     },
-    "goodwill_intangibles.average_intangible_assets.2024-01-28": {
+    "inventory_analysis.inventory_change.2025-02-02": {
       "tab": "ALT DuPont",
-      "cell": "C134",
-      "row": 134,
-      "col": 3
+      "cell": "D129",
+      "row": 129,
+      "col": 4
     },
-    "goodwill_intangibles.intangible_assets_to_revenue.2024-01-28": {
+    "inventory_analysis.inventory_revenue_scale_effect.2025-02-02": {
       "tab": "ALT DuPont",
-      "cell": "C135",
-      "row": 135,
-      "col": 3
+      "cell": "D130",
+      "row": 130,
+      "col": 4
     },
-    "goodwill_intangibles.intangible_assets_change.2025-02-02": {
+    "inventory_analysis.inventory_intensity_effect.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D131",
+      "row": 131,
+      "col": 4
+    },
+    "inventory_analysis.reconstructed_inventory_change.2025-02-02": {
       "tab": "ALT DuPont",
       "cell": "D132",
       "row": 132,
       "col": 4
     },
-    "goodwill_intangibles.intangible_assets_growth.2025-02-02": {
+    "inventory_analysis.inventory_intensity.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "D133",
-      "row": 133,
-      "col": 4
+      "cell": "E128",
+      "row": 128,
+      "col": 5
     },
-    "goodwill_intangibles.average_intangible_assets.2025-02-02": {
+    "inventory_analysis.inventory_change.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "D134",
-      "row": 134,
-      "col": 4
+      "cell": "E129",
+      "row": 129,
+      "col": 5
     },
-    "goodwill_intangibles.intangible_assets_to_revenue.2025-02-02": {
+    "inventory_analysis.inventory_revenue_scale_effect.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "D135",
-      "row": 135,
-      "col": 4
+      "cell": "E130",
+      "row": 130,
+      "col": 5
     },
-    "goodwill_intangibles.intangible_assets_change.2026-02-01": {
+    "inventory_analysis.inventory_intensity_effect.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E131",
+      "row": 131,
+      "col": 5
+    },
+    "inventory_analysis.reconstructed_inventory_change.2026-02-01": {
       "tab": "ALT DuPont",
       "cell": "E132",
       "row": 132,
       "col": 5
     },
-    "goodwill_intangibles.intangible_assets_growth.2026-02-01": {
+    "goodwill_intangibles.goodwill_change.2024-01-28": {
       "tab": "ALT DuPont",
-      "cell": "E133",
-      "row": 133,
-      "col": 5
+      "cell": "C136",
+      "row": 136,
+      "col": 3
     },
-    "goodwill_intangibles.average_intangible_assets.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E134",
-      "row": 134,
-      "col": 5
-    },
-    "goodwill_intangibles.intangible_assets_to_revenue.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E135",
-      "row": 135,
-      "col": 5
-    },
-    "goodwill_intangibles.goodwill_and_intangibles_change.2024-01-28": {
+    "goodwill_intangibles.goodwill_growth.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C137",
       "row": 137,
       "col": 3
     },
-    "goodwill_intangibles.goodwill_and_intangibles_growth.2024-01-28": {
+    "goodwill_intangibles.average_goodwill.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C138",
       "row": 138,
       "col": 3
     },
-    "goodwill_intangibles.average_goodwill_and_intangibles.2024-01-28": {
+    "goodwill_intangibles.goodwill_to_revenue.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C139",
       "row": 139,
       "col": 3
     },
-    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-01-28": {
+    "goodwill_intangibles.goodwill_change.2025-02-02": {
       "tab": "ALT DuPont",
-      "cell": "C140",
-      "row": 140,
-      "col": 3
+      "cell": "D136",
+      "row": 136,
+      "col": 4
     },
-    "goodwill_intangibles.goodwill_and_intangibles_change.2025-02-02": {
+    "goodwill_intangibles.goodwill_growth.2025-02-02": {
       "tab": "ALT DuPont",
       "cell": "D137",
       "row": 137,
       "col": 4
     },
-    "goodwill_intangibles.goodwill_and_intangibles_growth.2025-02-02": {
+    "goodwill_intangibles.average_goodwill.2025-02-02": {
       "tab": "ALT DuPont",
       "cell": "D138",
       "row": 138,
       "col": 4
     },
-    "goodwill_intangibles.average_goodwill_and_intangibles.2025-02-02": {
+    "goodwill_intangibles.goodwill_to_revenue.2025-02-02": {
       "tab": "ALT DuPont",
       "cell": "D139",
       "row": 139,
       "col": 4
     },
-    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-02-02": {
+    "goodwill_intangibles.goodwill_change.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "D140",
-      "row": 140,
-      "col": 4
+      "cell": "E136",
+      "row": 136,
+      "col": 5
     },
-    "goodwill_intangibles.goodwill_and_intangibles_change.2026-02-01": {
+    "goodwill_intangibles.goodwill_growth.2026-02-01": {
       "tab": "ALT DuPont",
       "cell": "E137",
       "row": 137,
       "col": 5
     },
-    "goodwill_intangibles.goodwill_and_intangibles_growth.2026-02-01": {
+    "goodwill_intangibles.average_goodwill.2026-02-01": {
       "tab": "ALT DuPont",
       "cell": "E138",
       "row": 138,
       "col": 5
     },
-    "goodwill_intangibles.average_goodwill_and_intangibles.2026-02-01": {
+    "goodwill_intangibles.goodwill_to_revenue.2026-02-01": {
       "tab": "ALT DuPont",
       "cell": "E139",
       "row": 139,
       "col": 5
     },
+    "goodwill_intangibles.intangible_assets_change.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C141",
+      "row": 141,
+      "col": 3
+    },
+    "goodwill_intangibles.intangible_assets_growth.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C142",
+      "row": 142,
+      "col": 3
+    },
+    "goodwill_intangibles.average_intangible_assets.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C143",
+      "row": 143,
+      "col": 3
+    },
+    "goodwill_intangibles.intangible_assets_to_revenue.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C144",
+      "row": 144,
+      "col": 3
+    },
+    "goodwill_intangibles.intangible_assets_change.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D141",
+      "row": 141,
+      "col": 4
+    },
+    "goodwill_intangibles.intangible_assets_growth.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D142",
+      "row": 142,
+      "col": 4
+    },
+    "goodwill_intangibles.average_intangible_assets.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D143",
+      "row": 143,
+      "col": 4
+    },
+    "goodwill_intangibles.intangible_assets_to_revenue.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D144",
+      "row": 144,
+      "col": 4
+    },
+    "goodwill_intangibles.intangible_assets_change.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E141",
+      "row": 141,
+      "col": 5
+    },
+    "goodwill_intangibles.intangible_assets_growth.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E142",
+      "row": 142,
+      "col": 5
+    },
+    "goodwill_intangibles.average_intangible_assets.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E143",
+      "row": 143,
+      "col": 5
+    },
+    "goodwill_intangibles.intangible_assets_to_revenue.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E144",
+      "row": 144,
+      "col": 5
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_change.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C146",
+      "row": 146,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_growth.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C147",
+      "row": 147,
+      "col": 3
+    },
+    "goodwill_intangibles.average_goodwill_and_intangibles.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C148",
+      "row": 148,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C149",
+      "row": 149,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_change.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D146",
+      "row": 146,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_growth.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D147",
+      "row": 147,
+      "col": 4
+    },
+    "goodwill_intangibles.average_goodwill_and_intangibles.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D148",
+      "row": 148,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D149",
+      "row": 149,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_change.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E146",
+      "row": 146,
+      "col": 5
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_growth.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E147",
+      "row": 147,
+      "col": 5
+    },
+    "goodwill_intangibles.average_goodwill_and_intangibles.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E148",
+      "row": 148,
+      "col": 5
+    },
     "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "E140",
-      "row": 140,
+      "cell": "E149",
+      "row": 149,
       "col": 5
     },
     "quality.operating_cash_flow.2023-01-29": {

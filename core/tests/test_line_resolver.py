@@ -946,3 +946,38 @@ def test_reported_margin_explicit_concept_outranks_label():
     assert resolved.index == 1
     assert resolved.item.concept == "operating_income"
 
+
+def test_inventories_explicit_concept_and_label_only_rejection():
+    inventories = resolve_line(
+        [_item("Neutral", 1, 2, concept="inventories")],
+        "inventories",
+        required=True,
+    )
+    assert inventories.item is not None
+    assert inventories.item.concept == "inventories"
+    for label in ("Inventories", "Inventory", "Merchandise inventories"):
+        assert resolve_line([_item(label, 1, 2)], "inventories", required=False).item is None
+
+
+def test_inventories_competing_concepts_are_ambiguous():
+    with pytest.raises(AmbiguousLineError):
+        resolve_line(
+            [
+                _item("First", 1, 2, concept="inventories"),
+                _item("Second", 3, 4, concept="inventories"),
+            ],
+            "inventories",
+            required=False,
+        )
+
+
+def test_inventories_explicit_concept_outranks_label():
+    items = [
+        _item("Inventories", 1, 2),
+        _item("Other stock", 80, 90, concept="inventories"),
+    ]
+    resolved = resolve_line(items, "inventories", required=True)
+    assert resolved.item is not None
+    assert resolved.index == 1
+    assert resolved.item.concept == "inventories"
+

@@ -111,6 +111,6 @@ Measured against reconciled standardized payload without forcing a workbook:
 - Temporary Trainer/Answer Key artifacts are not committed (build did not succeed).
 - Comparative IS dates 2021-01-31 / 2022-01-30 appear inside FY2022 extracted filings but are not on the reconciled canonical period axis.
 
-## Current measured (Step 9M.2.4.1.1.1.26)
+## Current measured (Step 9M.2.4.1.1.1.27)
 
-Release generation succeeds on the existing reconciled payload. Practice identities: **354** (preserved 333 + 21 reported-margin-bridge). Independent latest gross/operating margins `6284132/11102600` and `2210615/11102600`. Fast Retailing is 548 with the same six families (27 exercises). Reconstructed operating-margin changes reconcile to adjacent reported operating-margin differences.
+Release generation succeeds on the existing reconciled payload. Practice identities: **370** (preserved 354 + 16 inventory growth/intensity). Independent latest inventory intensity `1700753/11102600` = `0.15318510979410227`; latest inventory change `258672`; revenue-scale / intensity effects `70070.30142954475 / 188601.69857045508`. Fast Retailing is 569 with the same five families (21 exercises). Reconstructed inventory changes reconcile to adjacent inventory changes within `1e-8`.

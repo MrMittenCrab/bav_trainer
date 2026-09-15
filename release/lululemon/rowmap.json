@@ -766,9 +766,16 @@
   "dupont_gross_margin_change_row": 121,
   "dupont_net_operating_expense_burden_change_row": 122,
   "dupont_reconstructed_operating_margin_change_row": 123,
-  "dupont_goodwill_row": 126,
-  "dupont_intangible_assets_row": 131,
-  "dupont_goodwill_and_intangibles_row": 136,
+  "dupont_inventory_reported_row": 126,
+  "dupont_inventory_revenue_row": 127,
+  "dupont_inventory_intensity_row": 128,
+  "dupont_inventory_change_row": 129,
+  "dupont_inventory_revenue_scale_effect_row": 130,
+  "dupont_inventory_intensity_effect_row": 131,
+  "dupont_reconstructed_inventory_change_row": 132,
+  "dupont_goodwill_row": 135,
+  "dupont_intangible_assets_row": 140,
+  "dupont_goodwill_and_intangibles_row": 145,
   "quality_cfo_row": 5,
   "quality_ni_row": 6,
   "quality_conversion_row": 7,
@@ -2121,220 +2128,316 @@
     "row": 123,
     "col": 5
   },
-  "goodwill_intangibles.goodwill_change.2024-01-28": {
+  "inventory_analysis.inventory_intensity.2023-01-29": {
     "tab": "ALT DuPont",
-    "cell": "C127",
-    "row": 127,
-    "col": 3
+    "cell": "B128",
+    "row": 128,
+    "col": 2
   },
-  "goodwill_intangibles.goodwill_growth.2024-01-28": {
+  "inventory_analysis.inventory_intensity.2024-01-28": {
     "tab": "ALT DuPont",
     "cell": "C128",
     "row": 128,
     "col": 3
   },
-  "goodwill_intangibles.average_goodwill.2024-01-28": {
+  "inventory_analysis.inventory_change.2024-01-28": {
     "tab": "ALT DuPont",
     "cell": "C129",
     "row": 129,
     "col": 3
   },
-  "goodwill_intangibles.goodwill_to_revenue.2024-01-28": {
+  "inventory_analysis.inventory_revenue_scale_effect.2024-01-28": {
     "tab": "ALT DuPont",
     "cell": "C130",
     "row": 130,
     "col": 3
   },
-  "goodwill_intangibles.goodwill_change.2025-02-02": {
+  "inventory_analysis.inventory_intensity_effect.2024-01-28": {
     "tab": "ALT DuPont",
-    "cell": "D127",
-    "row": 127,
-    "col": 4
+    "cell": "C131",
+    "row": 131,
+    "col": 3
   },
-  "goodwill_intangibles.goodwill_growth.2025-02-02": {
-    "tab": "ALT DuPont",
-    "cell": "D128",
-    "row": 128,
-    "col": 4
-  },
-  "goodwill_intangibles.average_goodwill.2025-02-02": {
-    "tab": "ALT DuPont",
-    "cell": "D129",
-    "row": 129,
-    "col": 4
-  },
-  "goodwill_intangibles.goodwill_to_revenue.2025-02-02": {
-    "tab": "ALT DuPont",
-    "cell": "D130",
-    "row": 130,
-    "col": 4
-  },
-  "goodwill_intangibles.goodwill_change.2026-02-01": {
-    "tab": "ALT DuPont",
-    "cell": "E127",
-    "row": 127,
-    "col": 5
-  },
-  "goodwill_intangibles.goodwill_growth.2026-02-01": {
-    "tab": "ALT DuPont",
-    "cell": "E128",
-    "row": 128,
-    "col": 5
-  },
-  "goodwill_intangibles.average_goodwill.2026-02-01": {
-    "tab": "ALT DuPont",
-    "cell": "E129",
-    "row": 129,
-    "col": 5
-  },
-  "goodwill_intangibles.goodwill_to_revenue.2026-02-01": {
-    "tab": "ALT DuPont",
-    "cell": "E130",
-    "row": 130,
-    "col": 5
-  },
-  "goodwill_intangibles.intangible_assets_change.2024-01-28": {
+  "inventory_analysis.reconstructed_inventory_change.2024-01-28": {
     "tab": "ALT DuPont",
     "cell": "C132",
     "row": 132,
     "col": 3
   },
-  "goodwill_intangibles.intangible_assets_growth.2024-01-28": {
+  "inventory_analysis.inventory_intensity.2025-02-02": {
     "tab": "ALT DuPont",
-    "cell": "C133",
-    "row": 133,
-    "col": 3
+    "cell": "D128",
+    "row": 128,
+    "col": 4
   },
-  "goodwill_intangibles.average_intangible_assets.2024-01-28": {
+  "inventory_analysis.inventory_change.2025-02-02": {
     "tab": "ALT DuPont",
-    "cell": "C134",
-    "row": 134,
-    "col": 3
+    "cell": "D129",
+    "row": 129,
+    "col": 4
   },
-  "goodwill_intangibles.intangible_assets_to_revenue.2024-01-28": {
+  "inventory_analysis.inventory_revenue_scale_effect.2025-02-02": {
     "tab": "ALT DuPont",
-    "cell": "C135",
-    "row": 135,
-    "col": 3
+    "cell": "D130",
+    "row": 130,
+    "col": 4
   },
-  "goodwill_intangibles.intangible_assets_change.2025-02-02": {
+  "inventory_analysis.inventory_intensity_effect.2025-02-02": {
+    "tab": "ALT DuPont",
+    "cell": "D131",
+    "row": 131,
+    "col": 4
+  },
+  "inventory_analysis.reconstructed_inventory_change.2025-02-02": {
     "tab": "ALT DuPont",
     "cell": "D132",
     "row": 132,
     "col": 4
   },
-  "goodwill_intangibles.intangible_assets_growth.2025-02-02": {
+  "inventory_analysis.inventory_intensity.2026-02-01": {
     "tab": "ALT DuPont",
-    "cell": "D133",
-    "row": 133,
-    "col": 4
+    "cell": "E128",
+    "row": 128,
+    "col": 5
   },
-  "goodwill_intangibles.average_intangible_assets.2025-02-02": {
+  "inventory_analysis.inventory_change.2026-02-01": {
     "tab": "ALT DuPont",
-    "cell": "D134",
-    "row": 134,
-    "col": 4
+    "cell": "E129",
+    "row": 129,
+    "col": 5
   },
-  "goodwill_intangibles.intangible_assets_to_revenue.2025-02-02": {
+  "inventory_analysis.inventory_revenue_scale_effect.2026-02-01": {
     "tab": "ALT DuPont",
-    "cell": "D135",
-    "row": 135,
-    "col": 4
+    "cell": "E130",
+    "row": 130,
+    "col": 5
   },
-  "goodwill_intangibles.intangible_assets_change.2026-02-01": {
+  "inventory_analysis.inventory_intensity_effect.2026-02-01": {
+    "tab": "ALT DuPont",
+    "cell": "E131",
+    "row": 131,
+    "col": 5
+  },
+  "inventory_analysis.reconstructed_inventory_change.2026-02-01": {
     "tab": "ALT DuPont",
     "cell": "E132",
     "row": 132,
     "col": 5
   },
-  "goodwill_intangibles.intangible_assets_growth.2026-02-01": {
+  "goodwill_intangibles.goodwill_change.2024-01-28": {
     "tab": "ALT DuPont",
-    "cell": "E133",
-    "row": 133,
-    "col": 5
+    "cell": "C136",
+    "row": 136,
+    "col": 3
   },
-  "goodwill_intangibles.average_intangible_assets.2026-02-01": {
-    "tab": "ALT DuPont",
-    "cell": "E134",
-    "row": 134,
-    "col": 5
-  },
-  "goodwill_intangibles.intangible_assets_to_revenue.2026-02-01": {
-    "tab": "ALT DuPont",
-    "cell": "E135",
-    "row": 135,
-    "col": 5
-  },
-  "goodwill_intangibles.goodwill_and_intangibles_change.2024-01-28": {
+  "goodwill_intangibles.goodwill_growth.2024-01-28": {
     "tab": "ALT DuPont",
     "cell": "C137",
     "row": 137,
     "col": 3
   },
-  "goodwill_intangibles.goodwill_and_intangibles_growth.2024-01-28": {
+  "goodwill_intangibles.average_goodwill.2024-01-28": {
     "tab": "ALT DuPont",
     "cell": "C138",
     "row": 138,
     "col": 3
   },
-  "goodwill_intangibles.average_goodwill_and_intangibles.2024-01-28": {
+  "goodwill_intangibles.goodwill_to_revenue.2024-01-28": {
     "tab": "ALT DuPont",
     "cell": "C139",
     "row": 139,
     "col": 3
   },
-  "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-01-28": {
+  "goodwill_intangibles.goodwill_change.2025-02-02": {
     "tab": "ALT DuPont",
-    "cell": "C140",
-    "row": 140,
-    "col": 3
+    "cell": "D136",
+    "row": 136,
+    "col": 4
   },
-  "goodwill_intangibles.goodwill_and_intangibles_change.2025-02-02": {
+  "goodwill_intangibles.goodwill_growth.2025-02-02": {
     "tab": "ALT DuPont",
     "cell": "D137",
     "row": 137,
     "col": 4
   },
-  "goodwill_intangibles.goodwill_and_intangibles_growth.2025-02-02": {
+  "goodwill_intangibles.average_goodwill.2025-02-02": {
     "tab": "ALT DuPont",
     "cell": "D138",
     "row": 138,
     "col": 4
   },
-  "goodwill_intangibles.average_goodwill_and_intangibles.2025-02-02": {
+  "goodwill_intangibles.goodwill_to_revenue.2025-02-02": {
     "tab": "ALT DuPont",
     "cell": "D139",
     "row": 139,
     "col": 4
   },
-  "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-02-02": {
+  "goodwill_intangibles.goodwill_change.2026-02-01": {
     "tab": "ALT DuPont",
-    "cell": "D140",
-    "row": 140,
-    "col": 4
+    "cell": "E136",
+    "row": 136,
+    "col": 5
   },
-  "goodwill_intangibles.goodwill_and_intangibles_change.2026-02-01": {
+  "goodwill_intangibles.goodwill_growth.2026-02-01": {
     "tab": "ALT DuPont",
     "cell": "E137",
     "row": 137,
     "col": 5
   },
-  "goodwill_intangibles.goodwill_and_intangibles_growth.2026-02-01": {
+  "goodwill_intangibles.average_goodwill.2026-02-01": {
     "tab": "ALT DuPont",
     "cell": "E138",
     "row": 138,
     "col": 5
   },
-  "goodwill_intangibles.average_goodwill_and_intangibles.2026-02-01": {
+  "goodwill_intangibles.goodwill_to_revenue.2026-02-01": {
     "tab": "ALT DuPont",
     "cell": "E139",
     "row": 139,
     "col": 5
   },
+  "goodwill_intangibles.intangible_assets_change.2024-01-28": {
+    "tab": "ALT DuPont",
+    "cell": "C141",
+    "row": 141,
+    "col": 3
+  },
+  "goodwill_intangibles.intangible_assets_growth.2024-01-28": {
+    "tab": "ALT DuPont",
+    "cell": "C142",
+    "row": 142,
+    "col": 3
+  },
+  "goodwill_intangibles.average_intangible_assets.2024-01-28": {
+    "tab": "ALT DuPont",
+    "cell": "C143",
+    "row": 143,
+    "col": 3
+  },
+  "goodwill_intangibles.intangible_assets_to_revenue.2024-01-28": {
+    "tab": "ALT DuPont",
+    "cell": "C144",
+    "row": 144,
+    "col": 3
+  },
+  "goodwill_intangibles.intangible_assets_change.2025-02-02": {
+    "tab": "ALT DuPont",
+    "cell": "D141",
+    "row": 141,
+    "col": 4
+  },
+  "goodwill_intangibles.intangible_assets_growth.2025-02-02": {
+    "tab": "ALT DuPont",
+    "cell": "D142",
+    "row": 142,
+    "col": 4
+  },
+  "goodwill_intangibles.average_intangible_assets.2025-02-02": {
+    "tab": "ALT DuPont",
+    "cell": "D143",
+    "row": 143,
+    "col": 4
+  },
+  "goodwill_intangibles.intangible_assets_to_revenue.2025-02-02": {
+    "tab": "ALT DuPont",
+    "cell": "D144",
+    "row": 144,
+    "col": 4
+  },
+  "goodwill_intangibles.intangible_assets_change.2026-02-01": {
+    "tab": "ALT DuPont",
+    "cell": "E141",
+    "row": 141,
+    "col": 5
+  },
+  "goodwill_intangibles.intangible_assets_growth.2026-02-01": {
+    "tab": "ALT DuPont",
+    "cell": "E142",
+    "row": 142,
+    "col": 5
+  },
+  "goodwill_intangibles.average_intangible_assets.2026-02-01": {
+    "tab": "ALT DuPont",
+    "cell": "E143",
+    "row": 143,
+    "col": 5
+  },
+  "goodwill_intangibles.intangible_assets_to_revenue.2026-02-01": {
+    "tab": "ALT DuPont",
+    "cell": "E144",
+    "row": 144,
+    "col": 5
+  },
+  "goodwill_intangibles.goodwill_and_intangibles_change.2024-01-28": {
+    "tab": "ALT DuPont",
+    "cell": "C146",
+    "row": 146,
+    "col": 3
+  },
+  "goodwill_intangibles.goodwill_and_intangibles_growth.2024-01-28": {
+    "tab": "ALT DuPont",
+    "cell": "C147",
+    "row": 147,
+    "col": 3
+  },
+  "goodwill_intangibles.average_goodwill_and_intangibles.2024-01-28": {
+    "tab": "ALT DuPont",
+    "cell": "C148",
+    "row": 148,
+    "col": 3
+  },
+  "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-01-28": {
+    "tab": "ALT DuPont",
+    "cell": "C149",
+    "row": 149,
+    "col": 3
+  },
+  "goodwill_intangibles.goodwill_and_intangibles_change.2025-02-02": {
+    "tab": "ALT DuPont",
+    "cell": "D146",
+    "row": 146,
+    "col": 4
+  },
+  "goodwill_intangibles.goodwill_and_intangibles_growth.2025-02-02": {
+    "tab": "ALT DuPont",
+    "cell": "D147",
+    "row": 147,
+    "col": 4
+  },
+  "goodwill_intangibles.average_goodwill_and_intangibles.2025-02-02": {
+    "tab": "ALT DuPont",
+    "cell": "D148",
+    "row": 148,
+    "col": 4
+  },
+  "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-02-02": {
+    "tab": "ALT DuPont",
+    "cell": "D149",
+    "row": 149,
+    "col": 4
+  },
+  "goodwill_intangibles.goodwill_and_intangibles_change.2026-02-01": {
+    "tab": "ALT DuPont",
+    "cell": "E146",
+    "row": 146,
+    "col": 5
+  },
+  "goodwill_intangibles.goodwill_and_intangibles_growth.2026-02-01": {
+    "tab": "ALT DuPont",
+    "cell": "E147",
+    "row": 147,
+    "col": 5
+  },
+  "goodwill_intangibles.average_goodwill_and_intangibles.2026-02-01": {
+    "tab": "ALT DuPont",
+    "cell": "E148",
+    "row": 148,
+    "col": 5
+  },
   "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2026-02-01": {
     "tab": "ALT DuPont",
-    "cell": "E140",
-    "row": 140,
+    "cell": "E149",
+    "row": 149,
     "col": 5
   },
   "quality.operating_cash_flow.2023-01-29": {

@@ -544,7 +544,7 @@ def test_demo_and_fast_retailing_omit_share_repurchase(tmp_path):
     assert not share_repurchase_applicable(fr)
     fr_builder = ReferenceModelBuilder(fr)
     assert fr_builder.share_repurchase_specs == ()
-    assert len(fr_builder.expected_specs) == 548
+    assert len(fr_builder.expected_specs) == 569
     assert "share_repurchase_outflow" not in {
         s.family_id for s in fr_builder.expected_specs
     }

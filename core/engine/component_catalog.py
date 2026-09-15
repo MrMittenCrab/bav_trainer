@@ -3841,6 +3841,215 @@ def expand_reported_margin_specs(
     return tuple(specs)
 
 
+INVENTORY_ANALYSIS_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="inventory_intensity",
+        order=145,
+        title="Inventory intensity",
+        short_hint=(
+            "Inventory intensity = ending inventory / annual revenue. This is "
+            "not inventory days or turnover. Zero revenue is undefined (#N/A)."
+        ),
+        semantic_key="inventory_analysis.inventory_intensity",
+        category="inventory_analysis",
+        tab_template="ALT DuPont",
+        hints=(
+            "Inventory intensity = ending inventory / annual revenue.",
+            "This is not inventory days or turnover.",
+            "Zero revenue yields the undefined-ratio result.",
+        ),
+    ),
+    ComponentFamily(
+        id="inventory_change",
+        order=146,
+        title="Change in inventory",
+        short_hint=(
+            "Change in inventory = current inventory − prior inventory "
+            "(signed). Opening-period change is not practiced. This is not "
+            "proof of cash movement, markdowns, or management causes."
+        ),
+        semantic_key="inventory_analysis.inventory_change",
+        category="inventory_analysis",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        hints=(
+            "Change in inventory = current inventory − prior inventory.",
+            "The movement is signed; it is not proof of cash movement.",
+            "Do not infer markdowns or management causes.",
+        ),
+    ),
+    ComponentFamily(
+        id="inventory_revenue_scale_effect",
+        order=147,
+        title="Revenue-scale effect on inventory",
+        short_hint=(
+            "Revenue-scale effect = prior inventory intensity × (current "
+            "revenue − prior revenue). Uses the prior-intensity / "
+            "current-revenue attribution convention. Signed; not a "
+            "cash-movement proof."
+        ),
+        semantic_key="inventory_analysis.inventory_revenue_scale_effect",
+        category="inventory_analysis",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_previous=("inventory_intensity",),
+        hints=(
+            "Revenue-scale effect = prior inventory intensity × (current "
+            "revenue − prior revenue).",
+            "This uses the prior-intensity / current-revenue convention.",
+            "Signed arithmetic only; not proof of cash movement.",
+        ),
+    ),
+    ComponentFamily(
+        id="inventory_intensity_effect",
+        order=148,
+        title="Intensity effect on inventory",
+        short_hint=(
+            "Intensity effect = current revenue × (current inventory "
+            "intensity − prior inventory intensity). Uses the "
+            "prior-intensity / current-revenue attribution convention. "
+            "Signed; not proof of deterioration, seasonality, or markdowns."
+        ),
+        semantic_key="inventory_analysis.inventory_intensity_effect",
+        category="inventory_analysis",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("inventory_intensity",),
+        depends_on_previous=("inventory_intensity",),
+        hints=(
+            "Intensity effect = current revenue × (current intensity − "
+            "prior intensity).",
+            "This uses the prior-intensity / current-revenue convention.",
+            "Signed arithmetic only; not proof of deterioration, seasonality, "
+            "or markdowns.",
+        ),
+    ),
+    ComponentFamily(
+        id="reconstructed_inventory_change",
+        order=149,
+        title="Reconstructed change in inventory",
+        short_hint=(
+            "Reconstructed inventory change = revenue-scale effect + "
+            "intensity effect. Arithmetic decomposition that reconciles to "
+            "the inventory change when defined. Not inventory days/turnover "
+            "and not proof of cash movement, deterioration, seasonality, "
+            "markdowns, or management causes."
+        ),
+        semantic_key="inventory_analysis.reconstructed_inventory_change",
+        category="inventory_analysis",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=(
+            "inventory_revenue_scale_effect",
+            "inventory_intensity_effect",
+        ),
+        hints=(
+            "Reconstructed inventory change = revenue-scale effect + "
+            "intensity effect.",
+            "When defined, this reconciles to the adjacent inventory change.",
+            "Arithmetic decomposition only; not cash movement, deterioration, "
+            "seasonality, markdowns, or management causes.",
+        ),
+    ),
+)
+
+
+def expand_inventory_analysis_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    include_intensity: bool = False,
+    include_change: bool = False,
+    include_revenue_scale: bool = False,
+    include_intensity_effect: bool = False,
+    include_reconstructed: bool = False,
+) -> tuple[ComponentSpec, ...]:
+    """Expand inventory-analysis families into period-specific concrete specs."""
+    if include_revenue_scale and not include_intensity:
+        raise ValueError(
+            "expand_inventory_analysis_specs revenue-scale requires "
+            "inventory_intensity"
+        )
+    if include_intensity_effect and not include_intensity:
+        raise ValueError(
+            "expand_inventory_analysis_specs intensity effect requires "
+            "inventory_intensity"
+        )
+    if include_reconstructed and not (
+        include_revenue_scale and include_intensity_effect
+    ):
+        raise ValueError(
+            "expand_inventory_analysis_specs reconstructed change requires "
+            "inventory_revenue_scale_effect and inventory_intensity_effect"
+        )
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in "
+            "expand_inventory_analysis_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_inventory_analysis_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    omit: set[str] = set()
+    if not include_intensity:
+        omit.add("inventory_intensity")
+    if not include_change:
+        omit.add("inventory_change")
+    if not include_revenue_scale:
+        omit.add("inventory_revenue_scale_effect")
+    if not include_intensity_effect:
+        omit.add("inventory_intensity_effect")
+    if not include_reconstructed:
+        omit.add("reconstructed_inventory_change")
+    families = tuple(
+        family
+        for family in INVENTORY_ANALYSIS_COMPONENT_CATALOG
+        if family.id not in omit
+    )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in families:
+        if family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        else:
+            indices = range(len(periods))
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            if j > 0:
+                prev = periods[j - 1]
+                for dep_fam in family.depends_on_previous:
+                    deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 DEFERRED_TAX_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
     ComponentFamily(
         id="net_deferred_tax_position",

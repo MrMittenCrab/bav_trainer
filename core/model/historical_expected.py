@@ -5,6 +5,7 @@ from __future__ import annotations
 from ..engine.component_catalog import (
     ACQUISITION_CASH_COMPONENT_CATALOG,
     CASH_ROLLFORWARD_COMPONENT_CATALOG,
+    INVENTORY_ANALYSIS_COMPONENT_CATALOG,
     REPORTED_MARGIN_COMPONENT_CATALOG,
     SHARE_REPURCHASE_COMPONENT_CATALOG,
     CAPEX_COMPONENT_CATALOG,
@@ -30,6 +31,7 @@ from ..engine.component_catalog import (
 from ..engine.semantic_map import ResolvedComponent
 from .acquisition_cash import AcquisitionCashSeries
 from .cash_rollforward import CashRollforwardSeries
+from .inventory_analysis import InventoryAnalysisSeries
 from .reported_margin import ReportedMarginSeries
 from .share_repurchase import ShareRepurchaseSeries
 from .capex import CapexSeries
@@ -227,6 +229,13 @@ _REPORTED_MARGIN_FAMILY_SERIES = (
     "gross_margin_change",
     "net_operating_expense_burden_change",
     "reconstructed_operating_margin_change",
+)
+_INVENTORY_ANALYSIS_FAMILY_SERIES = (
+    "inventory_intensity",
+    "inventory_change",
+    "inventory_revenue_scale_effect",
+    "inventory_intensity_effect",
+    "reconstructed_inventory_change",
 )
 
 _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
@@ -914,6 +923,43 @@ def reported_margin_expected_series(
     }
 
 
+def inventory_analysis_expected_series(
+    inventory_analysis: InventoryAnalysisSeries,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map inventory-analysis practice families from an InventoryAnalysisSeries."""
+    series: dict[str, tuple[float | str | None, ...]] = {
+        "inventory_change": inventory_analysis.inventory_change,
+    }
+    if inventory_analysis.inventory_intensity is not None:
+        series["inventory_intensity"] = inventory_analysis.inventory_intensity
+    if inventory_analysis.inventory_revenue_scale_effect is not None:
+        series["inventory_revenue_scale_effect"] = (
+            inventory_analysis.inventory_revenue_scale_effect
+        )
+    if inventory_analysis.inventory_intensity_effect is not None:
+        series["inventory_intensity_effect"] = (
+            inventory_analysis.inventory_intensity_effect
+        )
+    if inventory_analysis.reconstructed_inventory_change is not None:
+        series["reconstructed_inventory_change"] = (
+            inventory_analysis.reconstructed_inventory_change
+        )
+    catalog_ids = {family.id for family in INVENTORY_ANALYSIS_COMPONENT_CATALOG}
+    if not set(series) <= catalog_ids:
+        extra = sorted(set(series) - catalog_ids)
+        raise ValueError(
+            "inventory_analysis_expected_series family mismatch; "
+            f"extra={extra}"
+        )
+    if not series:
+        raise ValueError("inventory_analysis_expected_series has no applicable families")
+    return {
+        family_id: series[family_id]
+        for family_id in _INVENTORY_ANALYSIS_FAMILY_SERIES
+        if family_id in series
+    }
+
+
 def ownership_attribution_expected_series(
     ownership_attribution: OwnershipAttributionSeries,
 ) -> dict[str, tuple[float | str | None, ...]]:
@@ -1031,6 +1077,7 @@ def expected_value_for_component(
     share_repurchase: ShareRepurchaseSeries | None = None,
     cash_rollforward: CashRollforwardSeries | None = None,
     reported_margin: ReportedMarginSeries | None = None,
+    inventory_analysis: InventoryAnalysisSeries | None = None,
 ) -> float | str | None:
     """Return the treatment-conditioned expected value for one practice component."""
     family_id = component.family_id
@@ -1136,6 +1183,18 @@ def expected_value_for_component(
         if family_id not in series:
             raise ValueError(
                 f"Reported-margin family {family_id!r} requires its unique "
+                "source dependencies"
+            )
+    elif family_id in _INVENTORY_ANALYSIS_FAMILY_SERIES:
+        if inventory_analysis is None:
+            raise ValueError(
+                f"Inventory-analysis family {family_id!r} requires an "
+                "InventoryAnalysisSeries"
+            )
+        series = inventory_analysis_expected_series(inventory_analysis)
+        if family_id not in series:
+            raise ValueError(
+                f"Inventory-analysis family {family_id!r} requires its unique "
                 "source dependencies"
             )
     elif family_id in _FIXED_ASSET_FAMILY_SERIES:

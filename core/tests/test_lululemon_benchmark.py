@@ -1527,6 +1527,124 @@ def test_source_supported_reported_margin_four_period_diagnostics(tmp_path: Path
     }
 
 
+def test_source_supported_inventory_analysis_four_period_diagnostics(tmp_path: Path):
+    from core.model.inventory_analysis import (
+        compute_inventory_analysis_series,
+        inventory_analysis_applicable,
+        resolve_inventory_analysis_sources,
+    )
+
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    original_index, stored = next(
+        (idx, row)
+        for idx, row in enumerate(fin.balance_sheet)
+        if row.concept == "inventories" and row.label == "Inventories"
+    )
+    revenue_item = next(
+        row for row in fin.income_statement if row.concept == "revenue"
+    )
+    assert inventory_analysis_applicable(fin) is True
+    sources = resolve_inventory_analysis_sources(fin)
+    assert sources.inventories is stored
+    resolved = resolve_line(fin.balance_sheet, "inventories", required=True)
+    assert resolved.index == original_index
+    assert resolved.item is stored
+    assert workbook_row_for(resolved, start_row=SOURCE_START_ROW) == (
+        SOURCE_START_ROW + original_index
+    )
+
+    independent_intensity = []
+    independent_change = [None]
+    independent_scale = [None]
+    independent_intensity_effect = [None]
+    independent_recon = [None]
+    for j, period in enumerate(EXPECTED_PERIODS):
+        inv = required_period_value(stored, period, field="inventories")
+        rev = required_period_value(revenue_item, period, field="revenue")
+        intensity = inv / rev
+        independent_intensity.append(intensity)
+        if j > 0:
+            prior_inv = required_period_value(
+                stored, EXPECTED_PERIODS[j - 1], field="inventories"
+            )
+            prior_rev = required_period_value(
+                revenue_item, EXPECTED_PERIODS[j - 1], field="revenue"
+            )
+            prior_intensity = prior_inv / prior_rev
+            change = inv - prior_inv
+            scale = prior_intensity * (rev - prior_rev)
+            intensity_effect = rev * (intensity - prior_intensity)
+            independent_change.append(change)
+            independent_scale.append(scale)
+            independent_intensity_effect.append(intensity_effect)
+            independent_recon.append(scale + intensity_effect)
+            assert independent_recon[j] == pytest.approx(change, abs=1e-8)
+    assert independent_intensity[-1] == pytest.approx(1700753.0 / 11102600.0)
+    assert independent_intensity[-1] == pytest.approx(0.15318510979410227)
+    assert independent_change[-1] == pytest.approx(258672.0)
+    assert independent_scale[-1] == pytest.approx(70070.30142954475)
+    assert independent_intensity_effect[-1] == pytest.approx(188601.69857045508)
+
+    series = compute_inventory_analysis_series(fin, list(EXPECTED_PERIODS))
+    assert series.inventory_intensity == tuple(independent_intensity)
+    assert series.inventory_change[1:] == tuple(independent_change[1:])
+    assert series.reconstructed_inventory_change[1:] == tuple(independent_recon[1:])
+
+    builder = ReferenceModelBuilder(fin)
+    inv_ids = {
+        s.semantic_key
+        for s in builder.expected_specs
+        if s.family_id
+        in {
+            "inventory_intensity",
+            "inventory_change",
+            "inventory_revenue_scale_effect",
+            "inventory_intensity_effect",
+            "reconstructed_inventory_change",
+        }
+    }
+    assert len(inv_ids) == 16
+    assert len(builder.expected_specs) == LEASE_DT_LULULEMON_SPECS
+
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    rt = resolve_inventory_analysis_sources(restored)
+    assert rt.inventories is not None
+    assert rt.inventories.concept == "inventories"
+
+    out = tmp_path / "LululemonINV"
+    trainer, answer = build_training_workbook(fin, out)
+    assert trainer.exists() and answer.exists()
+    smap = load_semantic_map(answer)
+    assert len(smap.all_ordered()) == LEASE_DT_LULULEMON_SPECS
+    awb = load_workbook(answer, data_only=False)
+    ws = awb["ALT DuPont"]
+    reported_row = next(
+        r
+        for r in range(1, (ws.max_row or 1) + 1)
+        if ws.cell(r, 1).value == "Inventory (reported)"
+    )
+    src_f = str(ws.cell(reported_row, 2).value).replace(" ", "")
+    assert src_f.startswith("='BalanceSheet'!") or src_f.startswith(
+        "='Balance Sheet'!"
+    )
+    note_cell = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "reconstructed_inventory_change"
+    )
+    nrow, ncol = parse_cell_ref(note_cell.cell)
+    note = (ws.cell(nrow, ncol).comment.text or "") if ws.cell(nrow, ncol).comment else ""
+    assert "arithmetic" in note.lower() or "decomposition" in note.lower()
+    awb.close()
+    assert stored.concept == "inventories"
+    assert stored.values == {
+        date(2023, 1, 29): 1447367.0,
+        date(2024, 1, 28): 1323602.0,
+        date(2025, 2, 2): 1442081.0,
+        date(2026, 2, 1): 1700753.0,
+    }
+
+
 ROU_BALANCES = {
     date(2023, 1, 29): 969419.0,
     date(2024, 1, 28): 1265610.0,
@@ -1551,8 +1669,8 @@ NET_DT_POSITIONS = {
     date(2025, 2, 2): -81103.0,
     date(2026, 2, 1): -28241.0,
 }
-PRIOR_LULULEMON_SPECS = 329
-LEASE_DT_LULULEMON_SPECS = 354
+PRIOR_LULULEMON_SPECS = 345
+LEASE_DT_LULULEMON_SPECS = 370
 
 
 def _fill_rgb(cell) -> str:
