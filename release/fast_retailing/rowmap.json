@@ -1,4 +1,88 @@
 {
+  "interest_availability": {
+    "source_unavailable_status": "Source unavailable",
+    "interest_expense": {
+      "line_present": true,
+      "periods": [
+        {
+          "period": "2021-08-31",
+          "available": true,
+          "reason": "available",
+          "missing_concepts": [],
+          "missing_periods": []
+        },
+        {
+          "period": "2022-08-31",
+          "available": true,
+          "reason": "available",
+          "missing_concepts": [],
+          "missing_periods": []
+        },
+        {
+          "period": "2023-08-31",
+          "available": true,
+          "reason": "available",
+          "missing_concepts": [],
+          "missing_periods": []
+        },
+        {
+          "period": "2024-08-31",
+          "available": true,
+          "reason": "available",
+          "missing_concepts": [],
+          "missing_periods": []
+        },
+        {
+          "period": "2025-08-31",
+          "available": true,
+          "reason": "available",
+          "missing_concepts": [],
+          "missing_periods": []
+        }
+      ]
+    },
+    "interest_income": {
+      "line_present": true,
+      "periods": [
+        {
+          "period": "2021-08-31",
+          "available": true,
+          "reason": "available",
+          "missing_concepts": [],
+          "missing_periods": []
+        },
+        {
+          "period": "2022-08-31",
+          "available": true,
+          "reason": "available",
+          "missing_concepts": [],
+          "missing_periods": []
+        },
+        {
+          "period": "2023-08-31",
+          "available": true,
+          "reason": "available",
+          "missing_concepts": [],
+          "missing_periods": []
+        },
+        {
+          "period": "2024-08-31",
+          "available": true,
+          "reason": "available",
+          "missing_concepts": [],
+          "missing_periods": []
+        },
+        {
+          "period": "2025-08-31",
+          "available": true,
+          "reason": "available",
+          "missing_concepts": [],
+          "missing_periods": []
+        }
+      ]
+    },
+    "unavailable": []
+  },
   "Income Statement!concept=basic_eps|label=basic (yen, dollar)": 7,
   "Income Statement!concept=cost_of_sales|label=cost of sales": 8,
   "Income Statement!concept=diluted_eps|label=diluted (yen, dollar)": 9,
@@ -109,6 +193,7 @@
   "condensed_revenue_row": 44,
   "condensed_ni_row": 45,
   "condensed_etr_row": 51,
+  "condensed_net_interest_row": 52,
   "condensed_niat_row": 53,
   "condensed_nopat_row": 54,
   "condensed_owca_row": 57,
@@ -122,6 +207,14 @@
   "condensed_total_capital_row": 69,
   "condensed_check_row": 70,
   "condensed_nola_via_noa": true,
+  "dupont_sales_growth_row": 5,
+  "dupont_nopat_margin_row": 6,
+  "dupont_rnoa_row": 7,
+  "dupont_after_tax_cod_row": 8,
+  "dupont_spread_row": 9,
+  "dupont_flev_row": 10,
+  "dupont_roe_decomp_row": 11,
+  "dupont_actual_roe_row": 12,
   "dupont_average_noa_row": 15,
   "dupont_noa_turnover_row": 16,
   "dupont_noa_intensity_row": 17,

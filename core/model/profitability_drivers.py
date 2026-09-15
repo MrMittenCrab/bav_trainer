@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .financial_math import AnchorMetrics
-from .ratio_values import UNDEFINED_RATIO, ratio_or_na
+from .ratio_values import SOURCE_UNAVAILABLE, UNDEFINED_RATIO, is_source_unavailable, ratio_or_na
 
 
 @dataclass(frozen=True)
@@ -45,12 +45,19 @@ def compute_profitability_driver_series(
         average = (noa[i - 1] + noa[i]) / 2.0
         turnover = ratio_or_na(revenue[i], average)
         intensity = ratio_or_na(average, revenue[i])
-        if margin[i] == UNDEFINED_RATIO or turnover == UNDEFINED_RATIO:
-            driver_rnoa: float | str = UNDEFINED_RATIO
+        if is_source_unavailable(margin[i]) or is_source_unavailable(turnover):
+            driver_rnoa: float | str = SOURCE_UNAVAILABLE
+        elif margin[i] == UNDEFINED_RATIO or turnover == UNDEFINED_RATIO:
+            driver_rnoa = UNDEFINED_RATIO
         else:
             driver_rnoa = float(margin[i]) * float(turnover)
 
-        if driver_rnoa != UNDEFINED_RATIO:
+        if driver_rnoa != UNDEFINED_RATIO and not is_source_unavailable(driver_rnoa):
+            if is_source_unavailable(direct_rnoa[i]):
+                raise ValueError(
+                    "RNOA driver bridge is numeric while direct RNOA is source-unavailable: "
+                    f"period_index={i} driver={driver_rnoa}"
+                )
             if direct_rnoa[i] == UNDEFINED_RATIO:
                 raise ValueError(
                     "RNOA driver bridge is numeric while direct RNOA is undefined: "

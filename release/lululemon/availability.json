@@ -1,0 +1,578 @@
+{
+  "interest_expense": {
+    "line_present": false,
+    "periods": [
+      {
+        "available": false,
+        "missing_concepts": [
+          "interest_expense"
+        ],
+        "missing_periods": [
+          "2023-01-29"
+        ],
+        "period": "2023-01-29",
+        "reason": "absent_line"
+      },
+      {
+        "available": false,
+        "missing_concepts": [
+          "interest_expense"
+        ],
+        "missing_periods": [
+          "2024-01-28"
+        ],
+        "period": "2024-01-28",
+        "reason": "absent_line"
+      },
+      {
+        "available": false,
+        "missing_concepts": [
+          "interest_expense"
+        ],
+        "missing_periods": [
+          "2025-02-02"
+        ],
+        "period": "2025-02-02",
+        "reason": "absent_line"
+      },
+      {
+        "available": false,
+        "missing_concepts": [
+          "interest_expense"
+        ],
+        "missing_periods": [
+          "2026-02-01"
+        ],
+        "period": "2026-02-01",
+        "reason": "absent_line"
+      }
+    ]
+  },
+  "interest_income": {
+    "line_present": false,
+    "periods": [
+      {
+        "available": false,
+        "missing_concepts": [
+          "interest_income"
+        ],
+        "missing_periods": [
+          "2023-01-29"
+        ],
+        "period": "2023-01-29",
+        "reason": "absent_line"
+      },
+      {
+        "available": false,
+        "missing_concepts": [
+          "interest_income"
+        ],
+        "missing_periods": [
+          "2024-01-28"
+        ],
+        "period": "2024-01-28",
+        "reason": "absent_line"
+      },
+      {
+        "available": false,
+        "missing_concepts": [
+          "interest_income"
+        ],
+        "missing_periods": [
+          "2025-02-02"
+        ],
+        "period": "2025-02-02",
+        "reason": "absent_line"
+      },
+      {
+        "available": false,
+        "missing_concepts": [
+          "interest_income"
+        ],
+        "missing_periods": [
+          "2026-02-01"
+        ],
+        "period": "2026-02-01",
+        "reason": "absent_line"
+      }
+    ]
+  },
+  "source_unavailable_status": "Source unavailable",
+  "unavailable": [
+    {
+      "concept": "interest_expense",
+      "kind": "concept",
+      "missing_concepts": [
+        "interest_expense"
+      ],
+      "missing_periods": [
+        "2023-01-29"
+      ],
+      "period": "2023-01-29",
+      "reason": "absent_line"
+    },
+    {
+      "concept": "interest_expense",
+      "kind": "concept",
+      "missing_concepts": [
+        "interest_expense"
+      ],
+      "missing_periods": [
+        "2024-01-28"
+      ],
+      "period": "2024-01-28",
+      "reason": "absent_line"
+    },
+    {
+      "concept": "interest_expense",
+      "kind": "concept",
+      "missing_concepts": [
+        "interest_expense"
+      ],
+      "missing_periods": [
+        "2025-02-02"
+      ],
+      "period": "2025-02-02",
+      "reason": "absent_line"
+    },
+    {
+      "concept": "interest_expense",
+      "kind": "concept",
+      "missing_concepts": [
+        "interest_expense"
+      ],
+      "missing_periods": [
+        "2026-02-01"
+      ],
+      "period": "2026-02-01",
+      "reason": "absent_line"
+    },
+    {
+      "concept": "interest_income",
+      "kind": "concept",
+      "missing_concepts": [
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2023-01-29"
+      ],
+      "period": "2023-01-29",
+      "reason": "absent_line"
+    },
+    {
+      "concept": "interest_income",
+      "kind": "concept",
+      "missing_concepts": [
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2024-01-28"
+      ],
+      "period": "2024-01-28",
+      "reason": "absent_line"
+    },
+    {
+      "concept": "interest_income",
+      "kind": "concept",
+      "missing_concepts": [
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2025-02-02"
+      ],
+      "period": "2025-02-02",
+      "reason": "absent_line"
+    },
+    {
+      "concept": "interest_income",
+      "kind": "concept",
+      "missing_concepts": [
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2026-02-01"
+      ],
+      "period": "2026-02-01",
+      "reason": "absent_line"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2023-01-29"
+      ],
+      "output": "net_interest",
+      "period": "2023-01-29",
+      "reason": "absent_line"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2023-01-29"
+      ],
+      "output": "net_interest_after_tax",
+      "period": "2023-01-29",
+      "reason": "absent_line"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2023-01-29"
+      ],
+      "output": "nopat",
+      "period": "2023-01-29",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2023-01-29"
+      ],
+      "output": "nopat_margin",
+      "period": "2023-01-29",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2024-01-28"
+      ],
+      "output": "net_interest",
+      "period": "2024-01-28",
+      "reason": "absent_line"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2024-01-28"
+      ],
+      "output": "net_interest_after_tax",
+      "period": "2024-01-28",
+      "reason": "absent_line"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2024-01-28"
+      ],
+      "output": "nopat",
+      "period": "2024-01-28",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2024-01-28"
+      ],
+      "output": "nopat_margin",
+      "period": "2024-01-28",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2025-02-02"
+      ],
+      "output": "net_interest",
+      "period": "2025-02-02",
+      "reason": "absent_line"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2025-02-02"
+      ],
+      "output": "net_interest_after_tax",
+      "period": "2025-02-02",
+      "reason": "absent_line"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2025-02-02"
+      ],
+      "output": "nopat",
+      "period": "2025-02-02",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2025-02-02"
+      ],
+      "output": "nopat_margin",
+      "period": "2025-02-02",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2026-02-01"
+      ],
+      "output": "net_interest",
+      "period": "2026-02-01",
+      "reason": "absent_line"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2026-02-01"
+      ],
+      "output": "net_interest_after_tax",
+      "period": "2026-02-01",
+      "reason": "absent_line"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2026-02-01"
+      ],
+      "output": "nopat",
+      "period": "2026-02-01",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2026-02-01"
+      ],
+      "output": "nopat_margin",
+      "period": "2026-02-01",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2024-01-28"
+      ],
+      "output": "rnoa",
+      "period": "2024-01-28",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2024-01-28"
+      ],
+      "output": "after_tax_cod",
+      "period": "2024-01-28",
+      "reason": "absent_line"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2024-01-28"
+      ],
+      "output": "spread",
+      "period": "2024-01-28",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2024-01-28"
+      ],
+      "output": "roe_decomp",
+      "period": "2024-01-28",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2025-02-02"
+      ],
+      "output": "rnoa",
+      "period": "2025-02-02",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2025-02-02"
+      ],
+      "output": "after_tax_cod",
+      "period": "2025-02-02",
+      "reason": "absent_line"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2025-02-02"
+      ],
+      "output": "spread",
+      "period": "2025-02-02",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2025-02-02"
+      ],
+      "output": "roe_decomp",
+      "period": "2025-02-02",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2026-02-01"
+      ],
+      "output": "rnoa",
+      "period": "2026-02-01",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2026-02-01"
+      ],
+      "output": "after_tax_cod",
+      "period": "2026-02-01",
+      "reason": "absent_line"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2026-02-01"
+      ],
+      "output": "spread",
+      "period": "2026-02-01",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2026-02-01"
+      ],
+      "output": "roe_decomp",
+      "period": "2026-02-01",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2024-01-28",
+        "2025-02-02",
+        "2026-02-01"
+      ],
+      "output": "hist_avg_after_tax_cod",
+      "period": null,
+      "reason": "dependent_unavailable"
+    }
+  ]
+}

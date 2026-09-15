@@ -11,6 +11,7 @@ from datetime import date
 from pathlib import Path
 
 import pytest
+from openpyxl import load_workbook
 
 from core.data.standardized_io import (
     standardized_from_payload,
@@ -23,14 +24,15 @@ from core.model.classification import (
     classify_balance_sheet_line,
     is_balance_sheet_subtotal,
 )
-from core.engine.reference_model import SOURCE_START_ROW
+from core.engine.reference_model import SOURCE_START_ROW, ReferenceModelBuilder
 from core.model.capex import (
     capex_applicable,
     capex_availability,
     resolve_capex_source,
 )
 from core.model.fixed_asset import fixed_asset_applicable, fixed_asset_availability
-from core.model.line_resolver import MissingLineError, resolve_line, workbook_row_for
+from core.model.line_resolver import resolve_line, workbook_row_for
+from core.model.ratio_values import SOURCE_UNAVAILABLE
 from core.model.source_values import required_period_value
 from core.trainer.workbook import build_training_workbook
 
@@ -659,9 +661,25 @@ def test_four_period_reformulation_integrity(tmp_path: Path):
     assert pretax_rt.index == pretax.index
 
     out = tmp_path / "Lululemon"
-    # Next measured blocker after pretax resolution (out of this child scope).
-    with pytest.raises(MissingLineError, match="interest_expense"):
-        build_training_workbook(fin, out)
+    trainer, answer = build_training_workbook(fin, out)
+    assert trainer.exists() and answer.exists()
+    builder = ReferenceModelBuilder(fin)
+    families = {s.family_id for s in builder.expected_specs}
+    assert "nopat_fy" not in families
+    assert "net_interest_fy" not in families
+    assert "revenue_link" in families
+    wb = load_workbook(answer, data_only=False)
+    labels = {
+        wb["Condensed Financials"].cell(row=r, column=1).value: r
+        for r in range(1, wb["Condensed Financials"].max_row + 1)
+    }
+    assert "Interest Expense" not in labels
+    assert "Interest Income" not in labels
+    assert (
+        wb["Condensed Financials"].cell(row=labels["NOPAT"], column=2).value
+        == SOURCE_UNAVAILABLE
+    )
+    wb.close()
     assert ncit.values[date(2026, 2, 1)] is None
     assert pretax.item.values[date(2026, 2, 1)] == 2238967.0
 
@@ -739,8 +757,8 @@ def test_source_supported_capex_alias_four_period_diagnostics(tmp_path: Path):
     assert rt_resolved.index == original_index
 
     out = tmp_path / "LululemonCapex"
-    with pytest.raises(MissingLineError, match="interest_expense"):
-        build_training_workbook(fin, out)
+    trainer, answer = build_training_workbook(fin, out)
+    assert trainer.exists() and answer.exists()
     assert stored.concept == "capital_expenditures"
     assert stored.values == CAPEX_REPORTED_PAYMENTS
 

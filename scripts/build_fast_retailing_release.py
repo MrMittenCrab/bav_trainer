@@ -150,6 +150,7 @@ python scripts/build_fast_retailing_release.py
 - Answer Key: `{answer.relative_to(ROOT)}`
 - Answer Key semantic map: `{answer.with_suffix('.component_map.json').relative_to(ROOT)}`
 - Generated standardized / provenance / conflicts: `{SUPPORTING.relative_to(ROOT)}/`
+- Interest availability: `{RELEASE.relative_to(ROOT)}/availability.json`
 
 ## Check usage
 
@@ -166,6 +167,31 @@ or inserts answers. Open the Answer Key for formulas and Notes.
 Forecasting and valuation remain dormant in this historical release.
 """
     README.write_text(text, encoding="utf-8")
+
+
+def write_availability(standardized_json: Path) -> Path:
+    from core.data.standardized_io import standardized_from_payload
+    from core.model.period_axis import canonical_fiscal_periods
+    from core.model.source_availability import (
+        assess_interest_availability,
+        availability_payload,
+    )
+
+    payload = json.loads(standardized_json.read_text(encoding="utf-8"))
+    fin = standardized_from_payload(payload)
+    dest = RELEASE / "availability.json"
+    dest.write_text(
+        json.dumps(
+            availability_payload(
+                assess_interest_availability(fin, canonical_fiscal_periods(fin))
+            ),
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return dest
 
 
 def verify_release(trainer: Path, answer: Path) -> None:
@@ -198,6 +224,7 @@ def main() -> int:
         standardized = reconcile_to_supporting()
         trainer, answer = build_workbooks(standardized)
         write_readme(trainer, answer)
+        write_availability(standardized)
         verify_release(trainer, answer)
     except Exception as exc:  # noqa: BLE001 — CLI must fail nonzero with message
         print(f"error: {exc}", file=sys.stderr)
@@ -206,7 +233,7 @@ def main() -> int:
     print(f"Trainer: {trainer.relative_to(ROOT)}")
     print(f"Answer Key: {answer.relative_to(ROOT)}")
     print(f"Supporting: {SUPPORTING.relative_to(ROOT)}")
-    for path in (trainer, answer, answer.with_suffix(".component_map.json")):
+    for path in (trainer, answer, answer.with_suffix(".component_map.json"), RELEASE / "availability.json"):
         if path.is_file():
             print(f"  sha256 {path.name}={_sha256(path)}")
     return 0

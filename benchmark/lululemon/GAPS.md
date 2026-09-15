@@ -15,8 +15,8 @@ Categories match IMPLEMENTATION.md Task 4:
 | validate-source (4 filings) | **pass** |
 | reconcile | **pass** (overlap=3, supplemental=0, sources=4/4) |
 | capex module (G4) | **pass** — stored CF `capital_expenditures` resolves through `payments_for_ppe`; four-period diagnostics available |
-| interest source evidence (G9) | **assessed** — standalone `interest_expense` / `interest_income` **not found** on any of the four IS presentations; other-income and cash interest paid are not equivalent |
-| ReferenceModelBuilder / build | **fail** — `MissingLineError: Required concept 'interest_expense' not found in statement lines` |
+| interest source evidence (G9) | **assessed / gated** — standalone `interest_expense` / `interest_income` still **not found**; engine now omits interest-dependent outputs instead of failing the workbook |
+| ReferenceModelBuilder / build | **pass** — matched Trainer/Answer-Key pair; `expected_specs=248`; interest-dependent families excluded from practice/Check |
 
 ## Gaps (priority order)
 
@@ -50,7 +50,7 @@ Categories match IMPLEMENTATION.md Task 4:
 - **Category:** 3 (generic line-identity / optional-module contract)
 - **Stage:** module applicability (post-build)
 - **Evidence (before):** CF investing row `Purchase of property and equipment` / stored concept `capital_expenditures` present (−638,657 / −651,865 / −689,232 / −680,802); `capex_applicable=False` because resolver required exact `payments_for_ppe`.
-- **Evidence (after):** same stored concept, label, signs, values, and provenance; `capex_applicable=True` via shared explicit-concept alias `capital_expenditures` → `payments_for_ppe`. Independent four-period `ppe_capex` 638657 / 651865 / 689232 / 680802 against supplied revenue 8110518 / 9619278 / 10588126 / 11102600. Round-trip preserves `capital_expenditures`. Workbook still blocked on `interest_expense` (not reinterpreted).
+- **Evidence (after):** same stored concept, label, signs, values, and provenance; `capex_applicable=True` via shared explicit-concept alias `capital_expenditures` → `payments_for_ppe`. Independent four-period `ppe_capex` 638657 / 651865 / 689232 / 680802 against supplied revenue 8110518 / 9619278 / 10588126 / 11102600. Round-trip preserves `capital_expenditures`. Interest absence is now availability-gated (G9) rather than a capex reinterpretation.
 - **Why it mattered:** Source-supported historical capex intensity was invisible to the learner despite explicit CF facts.
 
 ### G5 — Lease ROU and deferred-tax concept aliases — **OPEN**
@@ -80,15 +80,16 @@ Categories match IMPLEMENTATION.md Task 4:
 
 - **Category:** 4
 - **Stage:** n/a (outside workbook engine for this step)
-- **Evidence:** TARGET.md asks for economic interpretation of WC, RNOA, dilution, etc. Engine still blocked at reformulation; no LULU-specific qualitative grading layer required here.
+- **Evidence:** TARGET.md asks for economic interpretation of WC, RNOA, dilution, etc. Workbook generation is no longer blocked at interest; no LULU-specific qualitative grading layer required here.
 
-### G9 — Required interest lines absent from supplied filings — **OPEN** (Step 9M.2.4.1.1.1.18 assessed)
+### G9 — Required interest lines absent from supplied filings — **OPEN (source completeness)** / engine gated (Step 9M.2.4.1.1.1.19)
 
-- **Category:** 1 (unextracted note facts) and 3 (required-input contract vs US mixed-line presentation)
+- **Category:** 1 (unextracted note facts) and 3 (availability-gated historical analysis)
 - **Stage:** `compute_anchor` / `ReferenceModelBuilder` / `build`
 - **Evidence (Step 9M.2.4.1.1.1.18):** all four IS pages present only `Other income (expense), net` (4163 / 43059 / 70380 / 28352) between operating income and pretax. No `interest_expense` / `interest_income` / finance-cost/income line. MD&A says other-income changes were “primarily” interest income but gives no isolated amount. Supplemental cash “Interest paid” 116 / 234 / 478 / 1028 (USD thousands; cross-filing consistent) is cash, not IS expense, and is omitted from empty `note_facts`. Revolvers unused (letters of credit only) — not a reported zero. Lease notes disclose operating lease expense, not lease interest. `historical_lease` is null.
-- **Why it matters:** Python and Excel both `required=True` for both interest concepts; first raise is `interest_expense`. Other-income is not a resolver concept. Do not infer zero or alias mixed/cash amounts.
-- **Proposed next step:** Plan accounting-policy decision on the generic missing-interest contract. Optional later `note_facts` capture of Interest paid would not satisfy the current required IS paths.
+- **Evidence (Step 9M.2.4.1.1.1.19):** generic source-availability gating. Unchanged facts. Python and Excel agree: Net Interest / NIAT / NOPAT / NOPAT Margin / RNOA / After-tax CoD / Spread / ROE decomposed / hist-avg CoD display `Source unavailable` and are excluded from the 248-cell practice/Check surface. Independent outputs remain (revenue 8110518 / 9619278 / 10588126 / 11102600; `ppe_capex` 638657 / 651865 / 689232 / 680802). `resolve_line(..., required=True)` still raises `MissingLineError` for explicit interest requests. No invented interest, no 4% fallback, no mixed-line/cash-interest alias.
+- **Why it matters:** Source-interest completeness remains unresolved. The learning product can now proceed on supported historical analysis without inventing the missing lines.
+- **Proposed next step:** Do not infer interest. Optional later `note_facts` capture of Interest paid still would not satisfy standalone IS interest. Remaining Lululemon gaps are G5–G8 and parent Plan closure.
 
 ## Closed / non-gaps this step
 
@@ -99,6 +100,4 @@ Categories match IMPLEMENTATION.md Task 4:
 
 ## Highest-value next implementation step
 
-**Step 9M.2.1 — Generic gift-card / deferred-revenue liability classification (G1)**
-
-Unblock reformulation with a company-agnostic classifier rule (plus tests that do not hard-code LULU), then re-measure G2/G3 on the same benchmark. Do **not** declare Step 9 complete.
+**Remaining Lululemon historical gaps after gated interest:** G5 (lease ROU / deferred-tax concept aliases), G7 (empty `note_facts`), G6 period-axis, G8 interpretation deferral, and parent Plan closure (A5 / B8 / E10). Source-interest completeness stays unresolved. Do **not** invent interest or declare Step 9 complete.

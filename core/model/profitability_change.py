@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from .financial_math import AnchorMetrics
 from .profitability_drivers import compute_profitability_driver_series
-from .ratio_values import UNDEFINED_RATIO
+from .ratio_values import SOURCE_UNAVAILABLE, UNDEFINED_RATIO, is_source_unavailable
 
 
 @dataclass(frozen=True)
@@ -20,6 +20,8 @@ class ProfitabilityChangeSeries:
 
 
 def _difference_or_na(current, prior) -> float | str:
+    if is_source_unavailable(current) or is_source_unavailable(prior):
+        return SOURCE_UNAVAILABLE
     if current == UNDEFINED_RATIO or prior == UNDEFINED_RATIO:
         return UNDEFINED_RATIO
     return float(current) - float(prior)
@@ -68,7 +70,11 @@ def compute_profitability_change_series(
             turnover[i],
             turnover[i - 1],
         )
-        if any(value == UNDEFINED_RATIO for value in required):
+        if any(is_source_unavailable(value) for value in required):
+            margin_effect[i] = SOURCE_UNAVAILABLE
+            turnover_effect[i] = SOURCE_UNAVAILABLE
+            driver_change[i] = SOURCE_UNAVAILABLE
+        elif any(value == UNDEFINED_RATIO for value in required):
             margin_effect[i] = UNDEFINED_RATIO
             turnover_effect[i] = UNDEFINED_RATIO
             driver_change[i] = UNDEFINED_RATIO
@@ -89,6 +95,11 @@ def compute_profitability_change_series(
             turnover_effect[i] = turnover_effect_value
             driver_change[i] = driver_delta
 
+            if is_source_unavailable(direct_delta):
+                raise ValueError(
+                    "RNOA change attribution is numeric while direct RNOA change is "
+                    f"source-unavailable: period_index={i} driver={driver_change[i]}"
+                )
             if direct_delta == UNDEFINED_RATIO:
                 raise ValueError(
                     "RNOA change attribution is numeric while direct RNOA change is undefined: "

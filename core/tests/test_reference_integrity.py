@@ -1905,7 +1905,6 @@ def test_alternative_classification_changes_and_invariants():
 
 def test_required_core_income_period_completeness(tmp_path):
     from core.engine.reference_model import ReferenceModelBuilder
-    from core.model.line_resolver import MissingLineError
     from core.model.source_values import MissingHistoricalValueError
 
     concepts = (
@@ -1913,8 +1912,6 @@ def test_required_core_income_period_completeness(tmp_path):
         ("Profit for the year", "net_income"),
         ("Profit before tax", "pretax_income"),
         ("Income tax expense", "tax_expense"),
-        ("Finance costs", "interest_expense"),
-        ("Finance income", "interest_income"),
     )
     for label, field in concepts:
         fin = _base_fin()
@@ -1950,7 +1947,7 @@ def test_required_core_income_period_completeness(tmp_path):
         with pytest.raises(MissingHistoricalValueError, match=field):
             compute_anchor(fin_none, periods)
 
-    # Whole required line absent.
+    # Whole required line absent — interest is now source-gated, not a hard build failure.
     is_no_inc = [
         _li("Revenue", 1000, 1100),
         _li("Finance costs", -40, -50),
@@ -1959,10 +1956,12 @@ def test_required_core_income_period_completeness(tmp_path):
         _li("Profit for the year", 170, 187),
     ]
     fin_absent = _base_fin(income_statement=is_no_inc)
-    with pytest.raises(MissingLineError, match="interest_income"):
-        ReferenceModelBuilder(fin_absent)
-    with pytest.raises(MissingLineError, match="interest_income"):
-        build_training_workbook(fin_absent, tmp_path / "AbsentInc_Trainer.xlsx")
+    builder = ReferenceModelBuilder(fin_absent)
+    families = {s.family_id for s in builder.expected_specs}
+    assert "net_interest_fy" not in families
+    assert "nopat_fy" not in families
+    trainer, answer = build_training_workbook(fin_absent, tmp_path / "AbsentInc_Trainer.xlsx")
+    assert trainer.exists() and answer.exists()
 
 
 def test_missing_net_income_fails_without_cfo_quality_module(tmp_path):

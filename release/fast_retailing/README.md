@@ -25,6 +25,7 @@ python scripts/build_fast_retailing_release.py
 - Answer Key: `release/fast_retailing/FastRetailing_Answer_Key.xlsx`
 - Answer Key semantic map: `release/fast_retailing/FastRetailing_Answer_Key.component_map.json`
 - Generated standardized / provenance / conflicts: `release/fast_retailing/supporting/`
+- Interest availability: `release/fast_retailing/availability.json`
 
 ## Check usage
 

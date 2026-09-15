@@ -9,7 +9,7 @@ from ..data.interface import LineItem, StandardizedFinancials
 from ..data.line_identity import line_identity
 from ..data.schema import normalize_label
 from .financial_math import AnchorMetrics
-from .ratio_values import UNDEFINED_RATIO
+from .ratio_values import SOURCE_UNAVAILABLE, UNDEFINED_RATIO, is_source_unavailable
 from .source_values import required_period_series, required_period_value
 
 NORMALIZATION_TREATMENTS = ("Recurring", "Non-recurring")
@@ -307,7 +307,9 @@ def compute_normalization_series(
         pretax.append(pretax_adj)
         after_tax.append(after)
         reported_nopat = hist.nopat[j]
-        if reported_nopat == UNDEFINED_RATIO or after == UNDEFINED_RATIO:
+        if is_source_unavailable(reported_nopat) or is_source_unavailable(after):
+            norm_nopat.append(SOURCE_UNAVAILABLE)
+        elif reported_nopat == UNDEFINED_RATIO or after == UNDEFINED_RATIO:
             norm_nopat.append(UNDEFINED_RATIO)
         else:
             norm_nopat.append(float(reported_nopat) + float(after))

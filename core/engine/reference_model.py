@@ -73,8 +73,14 @@ from ..model.per_share import compute_per_share_series, per_share_available
 from ..model.per_share_attribution import compute_per_share_attribution_series
 from ..model.profitability_change import compute_profitability_change_series
 from ..model.profitability_drivers import compute_profitability_driver_series
+from ..model.ratio_values import SOURCE_UNAVAILABLE, is_source_unavailable
 from ..model.roe_attribution import compute_roe_attribution_series
 from ..model.ri_engine import run_scenario, weighted_ivps
+from ..model.source_availability import (
+    assess_interest_availability,
+    availability_payload,
+    filter_available_specs,
+)
 from ..model.working_capital import (
     compute_working_capital_series,
     working_capital_applicable,
@@ -175,6 +181,24 @@ class ReferenceModelBuilder:
             self.periods,
             classification_overrides=overrides,
         )
+        self.interest_availability = assess_interest_availability(
+            financials, self.periods
+        )
+        self.rowmap["interest_availability"] = availability_payload(
+            self.interest_availability
+        )
+        from ..model.historical_expected import (
+            historical_expected_series,
+            per_share_expected_series,
+            profitability_change_expected_series,
+            profitability_driver_expected_series,
+            roe_attribution_expected_series,
+        )
+
+        self.historical_specs = filter_available_specs(
+            self.historical_specs,
+            historical_expected_series(self.anchor),
+        )
         self.judgment_cases: tuple[JudgmentCase, ...] = classification_judgment_cases(
             self.fin,
             self.periods,
@@ -193,6 +217,11 @@ class ReferenceModelBuilder:
             if self.normalization_cases
             else ()
         )
+        if self.normalization_specs:
+            self.normalization_specs = filter_available_specs(
+                self.normalization_specs,
+                {"normalized_nopat": tuple(self.anchor.historical.nopat)},
+            )
         self.quality_availability = earnings_quality_availability(self.fin)
         if self.quality_availability.operating_cash_flow:
             self.quality_series = compute_earnings_quality_series(
@@ -225,40 +254,49 @@ class ReferenceModelBuilder:
             self.working_capital_series = None
             self.working_capital_specs = ()
         self.profitability_driver_series = compute_profitability_driver_series(self.anchor)
-        self.profitability_driver_specs = expand_profitability_driver_specs(
-            self.periods,
-            start_order=(
-                len(self.historical_specs)
-                + len(self.normalization_specs)
-                + len(self.quality_specs)
-                + len(self.working_capital_specs)
-                + 1
+        self.profitability_driver_specs = filter_available_specs(
+            expand_profitability_driver_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + 1
+                ),
             ),
+            profitability_driver_expected_series(self.anchor),
         )
         self.profitability_change_series = compute_profitability_change_series(self.anchor)
-        self.profitability_change_specs = expand_profitability_change_specs(
-            self.periods,
-            start_order=(
-                len(self.historical_specs)
-                + len(self.normalization_specs)
-                + len(self.quality_specs)
-                + len(self.working_capital_specs)
-                + len(self.profitability_driver_specs)
-                + 1
+        self.profitability_change_specs = filter_available_specs(
+            expand_profitability_change_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + 1
+                ),
             ),
+            profitability_change_expected_series(self.anchor),
         )
         self.roe_attribution_series = compute_roe_attribution_series(self.anchor)
-        self.roe_attribution_specs = expand_roe_attribution_specs(
-            self.periods,
-            start_order=(
-                len(self.historical_specs)
-                + len(self.normalization_specs)
-                + len(self.quality_specs)
-                + len(self.working_capital_specs)
-                + len(self.profitability_driver_specs)
-                + len(self.profitability_change_specs)
-                + 1
+        self.roe_attribution_specs = filter_available_specs(
+            expand_roe_attribution_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + len(self.profitability_change_specs)
+                    + 1
+                ),
             ),
+            roe_attribution_expected_series(self.anchor),
         )
         if self.quality_series is not None:
             self.quality_change_series = compute_earnings_quality_change_series(
@@ -287,19 +325,22 @@ class ReferenceModelBuilder:
                 self.periods,
                 self.anchor,
             )
-            self.per_share_specs = expand_per_share_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + len(self.quality_change_specs)
-                    + 1
+            self.per_share_specs = filter_available_specs(
+                expand_per_share_specs(
+                    self.periods,
+                    start_order=(
+                        len(self.historical_specs)
+                        + len(self.normalization_specs)
+                        + len(self.quality_specs)
+                        + len(self.working_capital_specs)
+                        + len(self.profitability_driver_specs)
+                        + len(self.profitability_change_specs)
+                        + len(self.roe_attribution_specs)
+                        + len(self.quality_change_specs)
+                        + 1
+                    ),
                 ),
+                per_share_expected_series(self.per_share_series),
             )
             self.per_share_attribution_series = compute_per_share_attribution_series(
                 self.anchor,
@@ -787,6 +828,7 @@ class ReferenceModelBuilder:
                 ws["A1"] = DEFERRED_PLACEHOLDER
                 ws.sheet_state = "hidden"
 
+        self._apply_source_unavailable_display(wb)
         errors = self.semantic_map.validate_complete()
         if errors:
             raise ValueError("Component map validation failed:\n" + "\n".join(errors))
@@ -819,6 +861,201 @@ class ReferenceModelBuilder:
     def _col(self, idx: int) -> str:
         return get_column_letter(idx)
 
+    def _stamp_unavailable(self, ws, row: int, col: int, expected) -> None:
+        if not is_source_unavailable(expected):
+            return
+        cell = ws.cell(row=row, column=col)
+        cell.value = SOURCE_UNAVAILABLE
+        cell.number_format = "General"
+
+    def _apply_source_unavailable_display(self, wb: Workbook) -> None:
+        """Replace gated outputs with a consistent source-unavailable status."""
+        hist = self.anchor.historical
+        dup = self.anchor.dupont
+        condensed = wb["Condensed Financials"]
+        dupont = wb["ALT DuPont"]
+        for j in range(self._n):
+            col = 2 + j
+            self._stamp_unavailable(
+                condensed, self.rowmap["condensed_net_interest_row"], col, hist.net_interest[j]
+            )
+            self._stamp_unavailable(
+                condensed, self.rowmap["condensed_niat_row"], col, hist.net_interest_after_tax[j]
+            )
+            self._stamp_unavailable(
+                condensed, self.rowmap["condensed_nopat_row"], col, hist.nopat[j]
+            )
+            self._stamp_unavailable(
+                dupont, self.rowmap["dupont_nopat_margin_row"], col, dup["NOPAT Margin"][j]
+            )
+            self._stamp_unavailable(dupont, self.rowmap["dupont_rnoa_row"], col, dup["RNOA"][j])
+            self._stamp_unavailable(
+                dupont, self.rowmap["dupont_after_tax_cod_row"], col, dup["After-tax CoD"][j]
+            )
+            self._stamp_unavailable(
+                dupont, self.rowmap["dupont_spread_row"], col, dup["Spread"][j]
+            )
+            self._stamp_unavailable(
+                dupont, self.rowmap["dupont_roe_decomp_row"], col, dup["ROE (decomposed)"][j]
+            )
+            drivers = self.profitability_driver_series
+            self._stamp_unavailable(
+                dupont,
+                self.rowmap["dupont_driver_rnoa_row"],
+                col,
+                drivers.rnoa_from_margin_turnover[j],
+            )
+            if is_source_unavailable(drivers.rnoa_from_margin_turnover[j]) or is_source_unavailable(
+                dup["RNOA"][j]
+            ):
+                self._stamp_unavailable(
+                    dupont,
+                    self.rowmap["dupont_driver_check_row"],
+                    col,
+                    SOURCE_UNAVAILABLE,
+                )
+            changes = self.profitability_change_series
+            self._stamp_unavailable(
+                dupont,
+                self.rowmap["dupont_margin_change_row"],
+                col,
+                changes.nopat_margin_change[j],
+            )
+            self._stamp_unavailable(
+                dupont, self.rowmap["dupont_direct_rnoa_change_row"], col, changes.rnoa_change[j]
+            )
+            self._stamp_unavailable(
+                dupont,
+                self.rowmap["dupont_margin_effect_row"],
+                col,
+                changes.margin_effect_on_rnoa[j],
+            )
+            self._stamp_unavailable(
+                dupont,
+                self.rowmap["dupont_turnover_effect_row"],
+                col,
+                changes.turnover_effect_on_rnoa[j],
+            )
+            self._stamp_unavailable(
+                dupont,
+                self.rowmap["dupont_rnoa_change_from_drivers_row"],
+                col,
+                changes.rnoa_change_from_drivers[j],
+            )
+            if is_source_unavailable(changes.rnoa_change_from_drivers[j]) or is_source_unavailable(
+                changes.rnoa_change[j]
+            ):
+                self._stamp_unavailable(
+                    dupont,
+                    self.rowmap["dupont_rnoa_change_check_row"],
+                    col,
+                    SOURCE_UNAVAILABLE,
+                )
+            attribution = self.roe_attribution_series
+            self._stamp_unavailable(
+                dupont,
+                self.rowmap["dupont_financing_contribution_row"],
+                col,
+                attribution.financing_contribution_to_roe[j],
+            )
+            self._stamp_unavailable(
+                dupont,
+                self.rowmap["dupont_direct_roe_change_row"],
+                col,
+                attribution.roe_change[j],
+            )
+            self._stamp_unavailable(
+                dupont,
+                self.rowmap["dupont_operating_roe_effect_row"],
+                col,
+                attribution.operating_effect_on_roe_change[j],
+            )
+            self._stamp_unavailable(
+                dupont,
+                self.rowmap["dupont_leverage_roe_effect_row"],
+                col,
+                attribution.leverage_effect_on_roe_change[j],
+            )
+            self._stamp_unavailable(
+                dupont,
+                self.rowmap["dupont_spread_roe_effect_row"],
+                col,
+                attribution.spread_effect_on_roe_change[j],
+            )
+            self._stamp_unavailable(
+                dupont,
+                self.rowmap["dupont_financing_roe_effect_row"],
+                col,
+                attribution.financing_effect_on_roe_change[j],
+            )
+            self._stamp_unavailable(
+                dupont,
+                self.rowmap["dupont_driver_roe_change_row"],
+                col,
+                attribution.roe_change_from_drivers[j],
+            )
+            if is_source_unavailable(attribution.financing_contribution_to_roe[j]) or is_source_unavailable(
+                dup["ROE (decomposed)"][j]
+            ):
+                self._stamp_unavailable(
+                    dupont,
+                    self.rowmap["dupont_roe_level_attribution_check_row"],
+                    col,
+                    SOURCE_UNAVAILABLE,
+                )
+            if is_source_unavailable(attribution.roe_change_from_drivers[j]) or is_source_unavailable(
+                attribution.roe_change[j]
+            ):
+                self._stamp_unavailable(
+                    dupont,
+                    self.rowmap["dupont_roe_change_attribution_check_row"],
+                    col,
+                    SOURCE_UNAVAILABLE,
+                )
+        if self.per_share_series is not None and "Per Share Analysis" in wb.sheetnames:
+            ps = wb["Per Share Analysis"]
+            for j in range(self._n):
+                col = 2 + j
+                self._stamp_unavailable(
+                    ps,
+                    self.rowmap["per_share_nopat_row"],
+                    col,
+                    hist.nopat[j],
+                )
+                self._stamp_unavailable(
+                    ps,
+                    self.rowmap["per_share_nopat_ps_row"],
+                    col,
+                    self.per_share_series.nopat_per_diluted_share[j],
+                )
+        if self.normalization_cases and "Earnings Normalization" in wb.sheetnames:
+            from ..model.normalization import compute_normalization_series
+
+            series = compute_normalization_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+                self.normalization_cases,
+            )
+            ws = wb["Earnings Normalization"]
+            for j in range(self._n):
+                col = 3 + j
+                self._stamp_unavailable(
+                    ws, self.rowmap["earnings_norm_nopat_row"], col, series.normalized_nopat[j]
+                )
+                self._stamp_unavailable(
+                    ws, self.rowmap["earnings_norm_reported_nopat_row"], col, hist.nopat[j]
+                )
+                if is_source_unavailable(series.normalized_nopat[j]) or is_source_unavailable(
+                    hist.nopat[j]
+                ):
+                    self._stamp_unavailable(
+                        ws,
+                        self.rowmap["earnings_norm_check_row"],
+                        col,
+                        SOURCE_UNAVAILABLE,
+                    )
+
     def _register_historical(
         self,
         family_id: str,
@@ -830,6 +1067,8 @@ class ReferenceModelBuilder:
         expected: float | str,
         related: list[str] | None = None,
     ) -> None:
+        if is_source_unavailable(expected):
+            return
         spec = self._historical_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
@@ -846,6 +1085,8 @@ class ReferenceModelBuilder:
         expected: float | str,
         related: list[str] | None = None,
     ) -> None:
+        if is_source_unavailable(expected):
+            return
         spec = self._normalization_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
@@ -894,6 +1135,8 @@ class ReferenceModelBuilder:
         expected: float | str,
         related: list[str] | None = None,
     ) -> None:
+        if is_source_unavailable(expected):
+            return
         spec = self._per_share_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
@@ -958,6 +1201,8 @@ class ReferenceModelBuilder:
         expected: float | str,
         related: list[str] | None = None,
     ) -> None:
+        if is_source_unavailable(expected):
+            return
         spec = self._profitability_driver_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
@@ -974,6 +1219,8 @@ class ReferenceModelBuilder:
         expected: float | str,
         related: list[str] | None = None,
     ) -> None:
+        if is_source_unavailable(expected):
+            return
         spec = self._profitability_change_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
@@ -990,6 +1237,8 @@ class ReferenceModelBuilder:
         expected: float | str,
         related: list[str] | None = None,
     ) -> None:
+        if is_source_unavailable(expected):
+            return
         spec = self._roe_attribution_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
@@ -1289,10 +1538,10 @@ class ReferenceModelBuilder:
             self.fin.income_statement, "tax_expense", required=True
         )
         int_exp_src = self._resolved_source_row(
-            self.fin.income_statement, "interest_expense", required=True
+            self.fin.income_statement, "interest_expense", required=False
         )
         int_inc_src = self._resolved_source_row(
-            self.fin.income_statement, "interest_income", required=True
+            self.fin.income_statement, "interest_income", required=False
         )
         equity_src = self._resolved_source_row(self.fin.balance_sheet, "total_equity")
         row_nums: dict[str, int] = {}
@@ -1305,7 +1554,8 @@ class ReferenceModelBuilder:
             ("Interest Expense", int_exp_src, False, None, None),
             ("Interest Income", int_inc_src, False, None, None),
         ]:
-            assert src_row is not None
+            if src_row is None:
+                continue
             ws.cell(row=r, column=1, value=label).font = Font(bold=bold)
             for j in range(self._n):
                 col = self._col(2 + j)
@@ -1380,6 +1630,11 @@ class ReferenceModelBuilder:
                 lease_class_refs.append(f"$B${class_row}")
         for j in range(self._n):
             col = self._col(2 + j)
+            if is_source_unavailable(hist.net_interest[j]) or not (
+                "Interest Expense" in row_nums and "Interest Income" in row_nums
+            ):
+                ws.cell(row=r, column=2 + j, value=SOURCE_UNAVAILABLE)
+                continue
             reported = (
                 f"-({col}{row_nums['Interest Expense']}"
                 f"+{col}{row_nums['Interest Income']})"
@@ -1416,12 +1671,16 @@ class ReferenceModelBuilder:
                 hist.net_interest[j],
             )
         row_nums["Net Interest"] = net_int_row
+        self.rowmap["condensed_net_interest_row"] = net_int_row
         r += 1
 
         niat_row = r
         ws.cell(row=r, column=1, value="Net Interest After Tax")
         for j in range(self._n):
             col = self._col(2 + j)
+            if is_source_unavailable(hist.net_interest_after_tax[j]):
+                ws.cell(row=r, column=2 + j, value=SOURCE_UNAVAILABLE)
+                continue
             formula = (
                 f"=IF({col}{net_int_row}=0,0,"
                 f"IF(ISNA({col}{etr_row}),NA(),{col}{net_int_row}*(1-{col}{etr_row})))"
@@ -1444,6 +1703,9 @@ class ReferenceModelBuilder:
         ws.cell(row=r, column=1, value="NOPAT").font = BOLD
         for j in range(self._n):
             col = self._col(2 + j)
+            if is_source_unavailable(hist.nopat[j]):
+                ws.cell(row=r, column=2 + j, value=SOURCE_UNAVAILABLE)
+                continue
             formula = f"={col}{row_nums['Net Income']}+{col}{niat_row}"
             c = ws.cell(row=r, column=2 + j, value=formula)
             c.fill = GREEN
@@ -1671,6 +1933,14 @@ class ReferenceModelBuilder:
         flev_row = metric_rows["FLEV"]
         roe_row = metric_rows["ROE (decomposed)"]
         actual_row = metric_rows["Actual ROE"]
+        self.rowmap["dupont_sales_growth_row"] = sales_row
+        self.rowmap["dupont_nopat_margin_row"] = margin_row
+        self.rowmap["dupont_rnoa_row"] = rnoa_row
+        self.rowmap["dupont_after_tax_cod_row"] = cod_row
+        self.rowmap["dupont_spread_row"] = spread_row
+        self.rowmap["dupont_flev_row"] = flev_row
+        self.rowmap["dupont_roe_decomp_row"] = roe_row
+        self.rowmap["dupont_actual_roe_row"] = actual_row
 
         dup = self.anchor.dupont
         na = "N/A"
@@ -3671,6 +3941,7 @@ class ReferenceModelBuilder:
         self.rowmap["earnings_norm_detail_end"] = detail_end
         self.rowmap["earnings_norm_pretax_row"] = pretax_row
         self.rowmap["earnings_norm_after_tax_row"] = after_tax_row
+        self.rowmap["earnings_norm_reported_nopat_row"] = reported_nopat_row
         self.rowmap["earnings_norm_nopat_row"] = norm_nopat_row
         self.rowmap["earnings_norm_ni_row"] = norm_ni_row
         self.rowmap["earnings_norm_check_row"] = check_row

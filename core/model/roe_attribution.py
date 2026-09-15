@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from .financial_math import AnchorMetrics
 from .profitability_change import compute_profitability_change_series
-from .ratio_values import UNDEFINED_RATIO
+from .ratio_values import SOURCE_UNAVAILABLE, UNDEFINED_RATIO, is_source_unavailable
 
 
 @dataclass(frozen=True)
@@ -21,12 +21,16 @@ class ROEAttributionSeries:
 
 
 def _difference_or_na(current, prior) -> float | str:
+    if is_source_unavailable(current) or is_source_unavailable(prior):
+        return SOURCE_UNAVAILABLE
     if current == UNDEFINED_RATIO or prior == UNDEFINED_RATIO:
         return UNDEFINED_RATIO
     return float(current) - float(prior)
 
 
 def _product_or_na(left, right) -> float | str:
+    if is_source_unavailable(left) or is_source_unavailable(right):
+        return SOURCE_UNAVAILABLE
     if left == UNDEFINED_RATIO or right == UNDEFINED_RATIO:
         return UNDEFINED_RATIO
     return float(left) * float(right)
@@ -68,7 +72,12 @@ def compute_roe_attribution_series(
         contribution = _product_or_na(flev[i], spread[i])
         financing_contribution[i] = contribution
 
-        if contribution != UNDEFINED_RATIO:
+        if contribution != UNDEFINED_RATIO and not is_source_unavailable(contribution):
+            if is_source_unavailable(rnoa[i]) or is_source_unavailable(roe[i]):
+                raise ValueError(
+                    "ROE financing contribution is numeric while level ROE identity "
+                    f"is source-unavailable: period_index={i} contribution={contribution}"
+                )
             if rnoa[i] == UNDEFINED_RATIO or roe[i] == UNDEFINED_RATIO:
                 raise ValueError(
                     "ROE financing contribution is numeric while level ROE identity "
@@ -95,7 +104,11 @@ def compute_roe_attribution_series(
             spread[i],
             spread[i - 1],
         )
-        if any(value == UNDEFINED_RATIO for value in required_financing):
+        if any(is_source_unavailable(value) for value in required_financing):
+            leverage_effect[i] = SOURCE_UNAVAILABLE
+            spread_effect[i] = SOURCE_UNAVAILABLE
+            financing_effect[i] = SOURCE_UNAVAILABLE
+        elif any(value == UNDEFINED_RATIO for value in required_financing):
             leverage_effect[i] = UNDEFINED_RATIO
             spread_effect[i] = UNDEFINED_RATIO
             financing_effect[i] = UNDEFINED_RATIO
@@ -123,6 +136,8 @@ def compute_roe_attribution_series(
             if (
                 current_contribution != UNDEFINED_RATIO
                 and prior_contribution != UNDEFINED_RATIO
+                and not is_source_unavailable(current_contribution)
+                and not is_source_unavailable(prior_contribution)
             ):
                 direct_financing_change = (
                     float(current_contribution) - float(prior_contribution)
@@ -134,12 +149,23 @@ def compute_roe_attribution_series(
                         f"driver={financing_effect[i]}"
                     )
 
-        if operating == UNDEFINED_RATIO or financing_effect[i] == UNDEFINED_RATIO:
+        if is_source_unavailable(operating) or is_source_unavailable(financing_effect[i]):
+            driver_change[i] = SOURCE_UNAVAILABLE
+        elif operating == UNDEFINED_RATIO or financing_effect[i] == UNDEFINED_RATIO:
             driver_change[i] = UNDEFINED_RATIO
         else:
             driver_change[i] = float(operating) + float(financing_effect[i])
 
-        if driver_change[i] != UNDEFINED_RATIO and driver_change[i] is not None:
+        if (
+            driver_change[i] != UNDEFINED_RATIO
+            and not is_source_unavailable(driver_change[i])
+            and driver_change[i] is not None
+        ):
+            if is_source_unavailable(direct_delta):
+                raise ValueError(
+                    "ROE driver attribution is numeric while direct ROE change is "
+                    f"source-unavailable: period_index={i} driver={driver_change[i]}"
+                )
             if direct_delta == UNDEFINED_RATIO:
                 raise ValueError(
                     "ROE driver attribution is numeric while direct ROE change is "

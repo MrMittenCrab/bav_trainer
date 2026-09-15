@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from .normalization import NormalizationSeries
 from .per_share import PerShareSeries
-from .ratio_values import UNDEFINED_RATIO, ratio_or_na
+from .ratio_values import SOURCE_UNAVAILABLE, UNDEFINED_RATIO, is_source_unavailable, ratio_or_na
 
 
 @dataclass(frozen=True)
@@ -18,6 +18,8 @@ class NormalizedPerShareSeries:
 
 
 def _difference_or_na(current, prior) -> float | str:
+    if is_source_unavailable(current) or is_source_unavailable(prior):
+        return SOURCE_UNAVAILABLE
     if current == UNDEFINED_RATIO or prior == UNDEFINED_RATIO:
         return UNDEFINED_RATIO
     return float(current) - float(prior)
@@ -61,6 +63,10 @@ def compute_normalized_per_share_series(
     )
 
     for i in range(len(shares)):
+        if is_source_unavailable(adjustment_ps[i]) or is_source_unavailable(
+            normalized_eps[i]
+        ):
+            continue
         if (adjustment_ps[i] == UNDEFINED_RATIO) != (
             normalized_eps[i] == UNDEFINED_RATIO
         ):
@@ -90,6 +96,8 @@ def compute_normalized_per_share_series(
         normalized_change[i] = norm_chg
         normalization_effect[i] = effect
 
+        if is_source_unavailable(norm_chg) or is_source_unavailable(effect):
+            continue
         if (norm_chg == UNDEFINED_RATIO) != (effect == UNDEFINED_RATIO):
             raise ValueError(
                 "normalized diluted EPS change undefined state is inconsistent: "
