@@ -1,50 +1,54 @@
-# Step 9M.2.4.1.1.1.20 — Lululemon G5 Source-Supported Lease and Deferred-Tax Coverage
+# Step 9M.2.4.1.1.1.20 — Lululemon G5 Final-Artifact Acceptance
 
-AUTOCYCLE_PLAN: {"baseline": "At 237c265b81e71ced0d323814fe7924850baaf147, Lululemon has 248 practice cells but supplied right_of_use_lease_asset, deferred_tax_asset and deferred_tax_liability concepts do not activate existing diagnostics; Fast Retailing retains 491 cells. RESULT Trainer hashes are stale.", "finding_key": "explicit-concept-aliases-block-supported-lease-and-deferred-tax-analysis", "kind": "work", "objective": "Enable source-supported lease ROU and deferred-tax diagnostics", "plan_id": "3ea52e796f8f4e8294c4d13918cbaaff", "step_id": "9M.2.4.1.1.1.20", "success": "Unchanged Lululemon facts activate both existing diagnostic modules through generic explicit-concept aliases, adding verified practice coverage while preserving interest gating, capex and Fast Retailing's 491-cell contract; RESULT records final artifact hashes and unresolved parent acceptance.", "verification": "Read RESULT.md; inspect alias resolution and regression evidence; independently compare supplied balances and derived values with workbook formulas, semantic maps and Check coverage; recompute final release hashes and verify unchanged source/provenance artifacts and retained parent criteria.", "work_id": "ed0d79edb1bc4f9bbe126a527dab85b9"}
+AUTOCYCLE_PLAN: {"baseline": "At 237c265b81e71ced0d323814fe7924850baaf147, Lululemon has 248 practice cells but supplied right_of_use_lease_asset, deferred_tax_asset and deferred_tax_liability concepts do not activate existing diagnostics; Fast Retailing retains 491 cells. RESULT Trainer hashes are stale.", "finding_key": "explicit-concept-aliases-block-supported-lease-and-deferred-tax-analysis", "kind": "work", "objective": "Enable source-supported lease ROU and deferred-tax diagnostics", "plan_id": "621b9e4be5f84b4891ab7fdb167c04ec", "step_id": "9M.2.4.1.1.1.20", "success": "Unchanged Lululemon facts activate both existing diagnostic modules through generic explicit-concept aliases, adding verified practice coverage while preserving interest gating, capex and Fast Retailing's 491-cell contract; RESULT records final artifact hashes and unresolved parent acceptance.", "verification": "Read corrected RESULT.md; independently hash every listed release artifact from working-tree and checkpoint bytes and compare full digests and sizes; verify unchanged production, tests, source/provenance and release artifacts, retained workbook contracts, regression evidence and unresolved parent criteria.", "work_id": "ed0d79edb1bc4f9bbe126a527dab85b9"}
 
-**Base:** `237c265b81e71ced0d323814fe7924850baaf147`
+**Checkpoint:** `ad3365fd2a8696a1ec087c49f329ee0652edf8f8`
+**Work / attempt:** `ed0d79edb1bc4f9bbe126a527dab85b9` / `1e2e9169e8874f86a26f1974a4aede94`
 **INPUT_STATUS:** PENDING
 **Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1 and 9M.2.4 remain UNRESOLVED.
 
-## Constraints
+## Scope
 
-- Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`; respect permissions and unavailable access. No commits or pushes.
-- Numbering remains administratively frozen; the controller assigns identity for new work. Preserve prior recovery/work records without reopening verified ownership or rewriting historical approval.
-- Preserve source PDFs, extracted/reconciled facts, provenance, accepted capex changes and hash-bound recovery evidence.
-- No issuer-specific rules, invented interest, inferred zeros, cash-interest substitution, new note extraction, forecasting or valuation.
-- Limit edits to `core/model/line_resolver.py`, directly affected lease/deferred-tax modules and `core/engine/reference_model.py`, relevant tests, necessary release-generator changes, generated issuer releases, benchmark `GAPS.md` and `RESULT.md`.
+- One bounded acceptance repair within the existing identity; numbering remains administratively frozen.
+- Edit only `RESULT.md`. Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`; no commits, pushes or access-control changes.
+- Preserve production/tests, release bytes, source PDFs, extracted/reconciled facts, provenance, accepted capex edits and recovery evidence.
+- No release regeneration is needed. Perform inspection without saving workbooks; any mutating Check exercise must use disposable copies.
 
-## Task 1 — Activate existing diagnostics through explicit concept aliases
+## Task 1 — Verify final release bytes
 
-- Extend the shared explicit-concept alias contract: `right_of_use_lease_asset` → `right_of_use_assets`, `deferred_tax_asset` → `deferred_tax_assets`, and `deferred_tax_liability` → `deferred_tax_liabilities`.
-- Retain canonical concepts and stored identities; preserve explicit-concept precedence without adding label heuristics. Multiple canonical/alias candidates remain ambiguous, including equal-valued duplicates.
-- Ensure applicability, Python calculations and workbook source links resolve the same original rows. Retain existing missing/ambiguous-source omission and strict required-period-value behavior.
-- Activate existing ROU level/change/growth/average/intensity and deferred-tax level/net-position/change diagnostics only; preserve reported signs and existing opening-period conventions.
+- Enumerate both issuer release inventories and compute full SHA-256 digests and byte sizes for both Trainer/Answer-Key pairs and associated maps, availability and supporting artifacts.
+- Compare working-tree bytes with `git show ad3365fd2a8696a1ec087c49f329ee0652edf8f8:<path>` bytes; record the checkpoint reference and actual comparisons.
+- Confirm Lululemon Trainer `0fc9d5295adc00c3674f7e82d1a71bebd1a0715d19de039275774b7cb4ed8caf` and Fast Retailing Trainer `8bc7d7ccfb2cc75b55fd250c17188e27348d504c804a48fac719ce413c803fb9` by computation, not transcription.
+- If bytes differ, record the exact discrepancy and leave acceptance incomplete; do not overwrite artifacts to force agreement.
 
-## Task 2 — Verify source identity, numerical results and learner coverage
+## Task 2 — Correct the completion evidence
 
-- Extend resolver, lease-ROU, deferred-tax and Lululemon benchmark tests for canonical/alias equivalence, mixed aliases, duplicates, misleading labels, absent sources, missing periods, explicit `None`, reported zero and standardized-data round trips.
-- Independently verify four-period ROU balances `969419 / 1265610 / 1416256 / 1630181`, DTA `6402 / 9176 / 17085 / 24037`, DTL `55084 / 29522 / 98188 / 52278`, and net positions `-48682 / -20346 / -81103 / -28241`.
-- Verify derived changes, averages and revenue intensity against supplied facts; inspect source-linked formulas after export/reload in both workbooks. Never infer deferred-tax expense, cash-tax effects, recoverability, lease interest or repayment flows.
-- Verify added semantic identities and expected answers, blank yellow Trainer cells without Notes, matching Answer-Key formulas/Notes, visible parity and non-disclosing blank/correct/incorrect Check behavior.
-- Run focused resolver/module tests, availability and capex regressions, both benchmark suites, affected reference/trainer tests and `core/tests`; record actual commands and subprocess exits. Distinguish formula inspection from spreadsheet recalculation and disclose unavailable verification.
+- Replace stale and truncated release hash claims in `RESULT.md` with an unambiguous inventory of repository-relative paths, full digests and sizes; explicitly supersede the incorrect Trainer claims.
+- Distinguish the original implementation baseline, historical execution HEAD and reviewed checkpoint. Retain measured +12 lease-ROU / +13 deferred-tax coverage and existing regression evidence without claiming fresh test runs.
+- Preserve the hash-bound original and resumed recovery-log findings: original successful subprocess exits support capex progress; resumed focused wrappers exited 1 despite passing summaries.
+- Preserve snapshot-limited recovery authorization and historical batch identity. Assess capex progress separately from publication and this child's acceptance; do not reopen reviewed ownership.
+- Record final-artifact acceptance only after all inventory comparisons pass. Preserve spreadsheet recalculation as not performed.
 
-## Task 3 — Regenerate releases and record measured improvement
+## Task 3 — Close with read-only verification
 
-- Stage builds using both issuer release scripts; verify each matched pair and synchronized maps/availability/supporting artifacts before replacement. Retain exactly two user-facing workbooks per issuer.
-- Measure Lululemon coverage above the 248-cell baseline by module and semantic identity; preserve every previously supported cell, all 74 interest-unavailable displays per workbook and Fast Retailing’s 491-cell contract.
-- Verify repeat-build semantic determinism and source/provenance equality. Run mutating Check exercises on disposable copies; keep final Trainers blank.
-- After every final write, compute full SHA-256 hashes for both workbook pairs and associated release artifacts; record final-byte hashes in `RESULT.md`, explicitly superseding stale hashes.
-- Update Lululemon G5 with measured evidence. Record child acceptance separately from capex acceptance, recovery ownership/publication and unresolved parent acceptance.
+- Verify the diff is confined to `RESULT.md`; recompute the entire recorded release inventory after all checks and confirm every digest and size still matches checkpoint bytes.
+- Read back `RESULT.md` and validate each current hash claim against the computed inventory; no abbreviated digest may serve as final acceptance evidence.
+- Reuse reviewed regression evidence for unchanged code/artifacts. Record actual verification commands and exits; do not rerun artifact-writing suites merely to repair documentation.
 
-## Acceptance and carried-forward requirements
+## Original acceptance retained
 
-- Both source-supported modules activate without source mutation; Python values, source links, formulas, semantic maps and Check agree. Missing or contradictory evidence never produces fabricated analytical inputs.
-- Preserve successful gated Lululemon generation, partial-period interest displays and dependency closure, opening-only CoD `0.374`, supported-history undefined-ratio semantics and no unavailable-history 4% substitute.
-- Preserve supplied pretax resolution, distinct tax expense, explicit-concept precedence, ambiguity errors and strict missing-required-value failures outside optional gated analysis.
-- Preserve four-period capex `638657 / 651865 / 689232 / 680802`, reformulation tolerances, liability/equity discrepancy explanations, independent asset/liability/signed-equity detail gates, sparse omission handling and contradiction rejection.
-- Preserve source identities and comparative provenance; NCIT remains `28555 / 15864 / reported 0 / None`, and Common stock remains `611 / 606 / 581 / 557`.
-- Retain G1/G2/G3, empty-detail, subtotal/override, contra-equity, sparse-position, historical causal evidence, all 12 pretax/ETR cases, mutation controls, deterministic comparisons and failure immutability requirements.
-- Retain the original parent temporary-build criterion: success or exactly `MissingLineError: Required concept 'interest_expense' not found in statement lines`; this step must preserve successful gated generation.
-- Carry forward A2-ED/B7-MID documentary UNVERIFIED, A5/B8/E10 pending closure, E11 NonReq UNVERIFIED, G6 period-axis assessment, G7 note facts, G8 deferral, G9 standalone interest completeness and remaining TARGET Step 9 exit gates.
-- Carry both frozen requests `20260914-193338-000000004` and `20260915-042248-000000005` forward; keep INPUT_STATUS PENDING until all requests are satisfied. Child acceptance does not close parents or authorize blanket DONE.
+- Generic explicit aliases activate ROU and deferred-tax diagnostics with canonical identities, explicit-concept precedence, ambiguity rejection and strict required-period values preserved; no issuer-specific heuristics or source mutation.
+- Python values, original-row source links, derived formulas, semantic maps and Check agree; retain repeat-build semantic determinism, visual parity and non-disclosing blank/correct/incorrect Check behavior.
+- Lululemon retains all 248 prior identities and reaches 273; Fast Retailing retains 491. Trainers have blank yellow practice cells without Notes; matching Answer Keys have formulas and Notes; exactly two user-facing workbooks per issuer.
+- Preserve 74 Lululemon unavailable displays per workbook and zero for Fast Retailing, partial-period interest dependency closure, opening-only CoD `0.374`, undefined-ratio semantics and no unavailable-history 4% substitute.
+- Preserve pretax resolution, distinct tax expense, four-period capex `638657 / 651865 / 689232 / 680802`, reformulation tolerances and liability/equity discrepancy explanations.
+- Preserve independent asset/liability/signed-equity detail gates, sparse omission handling, contradiction rejection, source identities and comparative provenance; NCIT remains `28555 / 15864 / reported 0 / None`, Common stock `611 / 606 / 581 / 557`.
+- Retain G1/G2/G3, empty-detail, subtotal/override, contra-equity, sparse-position, historical causal evidence, all 12 pretax/ETR cases, mutation controls, deterministic comparisons and failure immutability.
+- Retain the parent temporary-build criterion: success or exactly `MissingLineError: Required concept 'interest_expense' not found in statement lines`; preserve current successful gated generation.
+- No invented interest, inferred zeros, cash-interest substitution, lease repayment flows, deferred-tax expense/recoverability, new note extraction, forecasting or valuation.
+
+## Carried-forward requirements
+
+- A2-ED/B7-MID documentary UNVERIFIED; A5/B8/E10 pending closure; E11 NonReq UNVERIFIED; G6 period-axis assessment, G7 note facts, G8 deferral, G9 standalone interest completeness and remaining TARGET Step 9 exit gates.
+- Frozen requests `20260914-193338-000000004` and `20260915-042248-000000005` remain PENDING: preserve recovery evidence and continue highest-priority benchmark-improving Step 9 work through the normal five stages after this acceptance defect is verified closed.
+- Child acceptance does not close unresolved parents or satisfy all frozen requests. No blanket DONE or prospective step-ID reservation.
