@@ -1,11 +1,31 @@
 {
+  "admitted_comparative_periods": [
+    "2022-01-30"
+  ],
   "company_name": "lululemon athletica inc.",
   "currency": "USD",
+  "excluded_comparative_periods": [
+    "2021-01-31"
+  ],
   "jurisdiction": "US",
   "note_facts": [],
   "omitted_incomplete_axis": [
     {
       "available_periods": [
+        "2023-01-29",
+        "2024-01-28",
+        "2025-02-02",
+        "2026-02-01"
+      ],
+      "label": "Accounts receivable, net",
+      "row_identity": "cash_flow|cash flows from operating activities|accounts receivable, net|change_in_accounts_receivable",
+      "statement": "cash_flow",
+      "status": "omitted_incomplete_axis",
+      "suggested_concept": "change_in_accounts_receivable"
+    },
+    {
+      "available_periods": [
+        "2022-01-30",
         "2023-01-29",
         "2024-01-28",
         "2025-02-02"
@@ -30,6 +50,7 @@
     },
     {
       "available_periods": [
+        "2022-01-30",
         "2023-01-29",
         "2024-01-28",
         "2025-02-02"
@@ -42,6 +63,7 @@
     },
     {
       "available_periods": [
+        "2022-01-30",
         "2023-01-29"
       ],
       "label": "Impairment of goodwill and other assets",
@@ -52,6 +74,7 @@
     },
     {
       "available_periods": [
+        "2022-01-30",
         "2023-01-29",
         "2024-01-28"
       ],
@@ -63,6 +86,7 @@
     },
     {
       "available_periods": [
+        "2022-01-30",
         "2023-01-29",
         "2024-01-28",
         "2025-02-02"
@@ -87,6 +111,7 @@
     },
     {
       "available_periods": [
+        "2022-01-30",
         "2023-01-29",
         "2024-01-28",
         "2025-02-02"
@@ -99,6 +124,7 @@
     },
     {
       "available_periods": [
+        "2022-01-30",
         "2023-01-29"
       ],
       "label": "Impairment of goodwill and other assets",
@@ -110,6 +136,7 @@
   ],
   "overlap_conflict_count": 3,
   "periods": [
+    "2022-01-30",
     "2023-01-29",
     "2024-01-28",
     "2025-02-02",
@@ -118,6 +145,7 @@
   "retained_sparse_axis": [
     {
       "available_periods": [
+        "2022-01-30",
         "2023-01-29",
         "2024-01-28",
         "2025-02-02"
@@ -521,7 +549,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "accounts_receivable"
     },
     "balance_sheet|balance_sheet|current assets|accounts receivable, net|accounts_receivable|2023-01-29": {
@@ -680,7 +708,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "cash_and_cash_equivalents"
     },
     "balance_sheet|balance_sheet|current assets|cash and cash equivalents|cash_and_cash_equivalents|2023-01-29": {
@@ -839,7 +867,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "inventories"
     },
     "balance_sheet|balance_sheet|current assets|inventories|inventories|2023-01-29": {
@@ -998,7 +1026,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "prepaid_and_receivable_income_taxes"
     },
     "balance_sheet|balance_sheet|current assets|prepaid and receivable income taxes|prepaid_and_receivable_income_taxes|2023-01-29": {
@@ -1157,7 +1185,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "prepaid_expenses_and_other_current_assets"
     },
     "balance_sheet|balance_sheet|current assets|prepaid expenses and other current assets|prepaid_expenses_and_other_current_assets|2023-01-29": {
@@ -1316,7 +1344,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "total_current_assets"
     },
     "balance_sheet|balance_sheet|current assets|total current assets|total_current_assets|2023-01-29": {
@@ -1475,7 +1503,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "accounts_payable"
     },
     "balance_sheet|balance_sheet|current liabilities|accounts payable|accounts_payable|2023-01-29": {
@@ -1634,7 +1662,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "accrued_compensation_and_related_expenses"
     },
     "balance_sheet|balance_sheet|current liabilities|accrued compensation and related expenses|accrued_compensation_and_related_expenses|2023-01-29": {
@@ -1793,7 +1821,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "accrued_liabilities_and_other"
     },
     "balance_sheet|balance_sheet|current liabilities|accrued liabilities and other|accrued_liabilities_and_other|2023-01-29": {
@@ -1952,7 +1980,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "current_income_taxes_payable"
     },
     "balance_sheet|balance_sheet|current liabilities|current income taxes payable|current_income_taxes_payable|2023-01-29": {
@@ -2111,7 +2139,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "lease_liability_current"
     },
     "balance_sheet|balance_sheet|current liabilities|current lease liabilities|lease_liability_current|2023-01-29": {
@@ -2270,7 +2298,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "other_current_liabilities"
     },
     "balance_sheet|balance_sheet|current liabilities|other current liabilities|other_current_liabilities|2023-01-29": {
@@ -2429,7 +2457,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "total_current_liabilities"
     },
     "balance_sheet|balance_sheet|current liabilities|total current liabilities|total_current_liabilities|2023-01-29": {
@@ -2588,7 +2616,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "unredeemed_gift_card_liability"
     },
     "balance_sheet|balance_sheet|current liabilities|unredeemed gift card liability|unredeemed_gift_card_liability|2023-01-29": {
@@ -2747,7 +2775,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "deferred_tax_asset"
     },
     "balance_sheet|balance_sheet|non-current assets|deferred income tax assets|deferred_tax_asset|2023-01-29": {
@@ -2906,7 +2934,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "goodwill"
     },
     "balance_sheet|balance_sheet|non-current assets|goodwill|goodwill|2023-01-29": {
@@ -3065,7 +3093,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "intangible_assets"
     },
     "balance_sheet|balance_sheet|non-current assets|intangible assets, net|intangible_assets|2023-01-29": {
@@ -3224,7 +3252,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "other_non_current_assets"
     },
     "balance_sheet|balance_sheet|non-current assets|other non-current assets|other_non_current_assets|2023-01-29": {
@@ -3383,7 +3411,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "property_plant_and_equipment"
     },
     "balance_sheet|balance_sheet|non-current assets|property and equipment, net|property_plant_and_equipment|2023-01-29": {
@@ -3542,7 +3570,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "right_of_use_lease_asset"
     },
     "balance_sheet|balance_sheet|non-current assets|right-of-use lease assets|right_of_use_lease_asset|2023-01-29": {
@@ -3701,7 +3729,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "deferred_tax_liability"
     },
     "balance_sheet|balance_sheet|non-current liabilities|deferred income tax liabilities|deferred_tax_liability|2023-01-29": {
@@ -3860,7 +3888,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "non_current_income_taxes_payable"
     },
     "balance_sheet|balance_sheet|non-current liabilities|non-current income taxes payable|non_current_income_taxes_payable|2023-01-29": {
@@ -3995,7 +4023,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "lease_liability_noncurrent"
     },
     "balance_sheet|balance_sheet|non-current liabilities|non-current lease liabilities|lease_liability_noncurrent|2023-01-29": {
@@ -4154,7 +4182,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "other_non_current_liabilities"
     },
     "balance_sheet|balance_sheet|non-current liabilities|other non-current liabilities|other_non_current_liabilities|2023-01-29": {
@@ -4313,7 +4341,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "accumulated_other_comprehensive_income"
     },
     "balance_sheet|balance_sheet|stockholders' equity|accumulated other comprehensive loss|accumulated_other_comprehensive_income|2023-01-29": {
@@ -4472,7 +4500,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "additional_paid_in_capital"
     },
     "balance_sheet|balance_sheet|stockholders' equity|additional paid-in capital|additional_paid_in_capital|2023-01-29": {
@@ -4631,7 +4659,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "common_stock"
     },
     "balance_sheet|balance_sheet|stockholders' equity|common stock|common_stock|2023-01-29": {
@@ -4790,7 +4818,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "retained_earnings"
     },
     "balance_sheet|balance_sheet|stockholders' equity|retained earnings|retained_earnings|2023-01-29": {
@@ -4949,7 +4977,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "total_equity"
     },
     "balance_sheet|balance_sheet|stockholders' equity|total stockholders' equity|total_equity|2023-01-29": {
@@ -5108,7 +5136,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "total_assets"
     },
     "balance_sheet|balance_sheet||total assets|total_assets|2023-01-29": {
@@ -5267,7 +5295,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "total_liabilities_and_equity"
     },
     "balance_sheet|balance_sheet||total liabilities and stockholders' equity|total_liabilities_and_equity|2023-01-29": {
@@ -5426,7 +5454,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "balance_sheet",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "total_liabilities"
     },
     "balance_sheet|balance_sheet||total liabilities|total_liabilities|2023-01-29": {
@@ -5620,7 +5648,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "net_cash_from_financing_activities"
     },
     "cash_flow|cash_flow|cash flows from financing activities|net cash used in financing activities|net_cash_from_financing_activities|2023-01-29": {
@@ -5830,7 +5858,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "other_financing_activities"
     },
     "cash_flow|cash_flow|cash flows from financing activities|other financing activities|other_financing_activities|2023-01-29": {
@@ -6040,7 +6068,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "proceeds_from_stock_based_compensation"
     },
     "cash_flow|cash_flow|cash flows from financing activities|proceeds from settlement of stock-based compensation|proceeds_from_stock_based_compensation|2023-01-29": {
@@ -6250,7 +6278,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "repurchase_of_common_stock"
     },
     "cash_flow|cash_flow|cash flows from financing activities|repurchase of common stock|repurchase_of_common_stock|2023-01-29": {
@@ -6460,7 +6488,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "shares_withheld_for_stock_based_compensation"
     },
     "cash_flow|cash_flow|cash flows from financing activities|shares withheld related to net share settlement of stock-based compensation|shares_withheld_for_stock_based_compensation|2023-01-29": {
@@ -6662,7 +6690,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "acquisition_net_of_cash_acquired"
     },
     "cash_flow|cash_flow|cash flows from investing activities|acquisition, net of cash acquired|acquisition_net_of_cash_acquired|2023-01-29": {
@@ -6856,7 +6884,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "net_cash_from_investing_activities"
     },
     "cash_flow|cash_flow|cash flows from investing activities|net cash used in investing activities|net_cash_from_investing_activities|2023-01-29": {
@@ -7066,7 +7094,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "other_investing_activities"
     },
     "cash_flow|cash_flow|cash flows from investing activities|other investing activities|other_investing_activities|2023-01-29": {
@@ -7276,7 +7304,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "capital_expenditures"
     },
     "cash_flow|cash_flow|cash flows from investing activities|purchase of property and equipment|capital_expenditures|2023-01-29": {
@@ -7486,7 +7514,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "settlement_of_net_investment_hedges"
     },
     "cash_flow|cash_flow|cash flows from investing activities|settlement of net investment hedges|settlement_of_net_investment_hedges|2023-01-29": {
@@ -7696,7 +7724,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "change_in_accounts_payable"
     },
     "cash_flow|cash_flow|cash flows from operating activities|accounts payable|change_in_accounts_payable|2023-01-29": {
@@ -7871,7 +7899,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "selected",
+      "status": "omitted_incomplete_axis",
       "suggested_concept": "change_in_accounts_receivable"
     },
     "cash_flow|cash_flow|cash flows from operating activities|accounts receivable, net|change_in_accounts_receivable|2024-01-28": {
@@ -7906,7 +7934,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "selected",
+      "status": "omitted_incomplete_axis",
       "suggested_concept": "change_in_accounts_receivable"
     },
     "cash_flow|cash_flow|cash flows from operating activities|accounts receivable, net|change_in_accounts_receivable|2025-02-02": {
@@ -7941,7 +7969,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "selected",
+      "status": "omitted_incomplete_axis",
       "suggested_concept": "change_in_accounts_receivable"
     },
     "cash_flow|cash_flow|cash flows from operating activities|accounts receivable, net|change_in_accounts_receivable|2026-02-01": {
@@ -7968,7 +7996,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "selected",
+      "status": "omitted_incomplete_axis",
       "suggested_concept": "change_in_accounts_receivable"
     },
     "cash_flow|cash_flow|cash flows from operating activities|accrued compensation and related expenses|change_in_accrued_compensation_and_related_expenses|2021-01-31": {
@@ -8030,7 +8058,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "change_in_accrued_compensation_and_related_expenses"
     },
     "cash_flow|cash_flow|cash flows from operating activities|accrued compensation and related expenses|change_in_accrued_compensation_and_related_expenses|2023-01-29": {
@@ -8240,7 +8268,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "change_in_accrued_liabilities_and_other"
     },
     "cash_flow|cash_flow|cash flows from operating activities|accrued liabilities and other|change_in_accrued_liabilities_and_other|2023-01-29": {
@@ -8450,7 +8478,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "change_in_income_taxes_payable"
     },
     "cash_flow|cash_flow|cash flows from operating activities|current and non-current income taxes payable|change_in_income_taxes_payable|2023-01-29": {
@@ -8660,7 +8688,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "deferred_income_taxes"
     },
     "cash_flow|cash_flow|cash flows from operating activities|deferred income taxes|deferred_income_taxes|2023-01-29": {
@@ -8870,7 +8898,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "depreciation_and_amortization"
     },
     "cash_flow|cash_flow|cash flows from operating activities|depreciation and amortization|depreciation_and_amortization|2023-01-29": {
@@ -9080,7 +9108,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "derecognition_of_unredeemed_gift_card_liability"
     },
     "cash_flow|cash_flow|cash flows from operating activities|derecognition of unredeemed gift card liability|derecognition_of_unredeemed_gift_card_liability|2023-01-29": {
@@ -9290,7 +9318,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "omitted_incomplete_axis",
       "suggested_concept": "gain_on_disposal_of_assets"
     },
     "cash_flow|cash_flow|cash flows from operating activities|gain on disposal of assets|gain_on_disposal_of_assets|2023-01-29": {
@@ -9503,7 +9531,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "omitted_incomplete_axis",
       "suggested_concept": "impairment_and_restructuring"
     },
     "cash_flow|cash_flow|cash flows from operating activities|impairment of goodwill and other assets, restructuring costs|impairment_and_restructuring|2023-01-29": {
@@ -9654,7 +9682,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "omitted_incomplete_axis",
       "suggested_concept": "impairment_and_restructuring"
     },
     "cash_flow|cash_flow|cash flows from operating activities|impairment of goodwill and other assets|impairment_and_restructuring|2023-01-29": {
@@ -9743,7 +9771,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "change_in_inventories"
     },
     "cash_flow|cash_flow|cash flows from operating activities|inventories|change_in_inventories|2023-01-29": {
@@ -9918,7 +9946,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "studio_obsolescence_provision"
     },
     "cash_flow|cash_flow|cash flows from operating activities|lululemon studio obsolescence provision|studio_obsolescence_provision|2023-01-29": {
@@ -10120,7 +10148,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "net_cash_from_operating_activities"
     },
     "cash_flow|cash_flow|cash flows from operating activities|net cash provided by operating activities|net_cash_from_operating_activities|2023-01-29": {
@@ -10330,7 +10358,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "cash_flow_net_income"
     },
     "cash_flow|cash_flow|cash flows from operating activities|net income|cash_flow_net_income|2023-01-29": {
@@ -10540,7 +10568,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "change_in_other_liabilities"
     },
     "cash_flow|cash_flow|cash flows from operating activities|other current and non-current liabilities|change_in_other_liabilities|2023-01-29": {
@@ -10750,7 +10778,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "change_in_other_non_current_assets"
     },
     "cash_flow|cash_flow|cash flows from operating activities|other non-current assets|change_in_other_non_current_assets|2023-01-29": {
@@ -10960,7 +10988,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "change_in_prepaid_and_receivable_income_taxes"
     },
     "cash_flow|cash_flow|cash flows from operating activities|prepaid and receivable income taxes|change_in_prepaid_and_receivable_income_taxes|2023-01-29": {
@@ -11170,7 +11198,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "change_in_prepaid_expenses_and_other_current_assets"
     },
     "cash_flow|cash_flow|cash flows from operating activities|prepaid expenses and other current assets|change_in_prepaid_expenses_and_other_current_assets|2023-01-29": {
@@ -11380,7 +11408,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "change_in_lease_assets_and_liabilities"
     },
     "cash_flow|cash_flow|cash flows from operating activities|right-of-use lease assets and current and non-current lease liabilities|change_in_lease_assets_and_liabilities|2023-01-29": {
@@ -11590,7 +11618,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "settlement_of_derivatives"
     },
     "cash_flow|cash_flow|cash flows from operating activities|settlement of derivatives not designated in a hedging relationship|settlement_of_derivatives|2023-01-29": {
@@ -11800,7 +11828,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "stock_based_compensation"
     },
     "cash_flow|cash_flow|cash flows from operating activities|stock-based compensation expense|stock_based_compensation|2023-01-29": {
@@ -12010,7 +12038,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "change_in_unredeemed_gift_card_liability"
     },
     "cash_flow|cash_flow|cash flows from operating activities|unredeemed gift card liability|change_in_unredeemed_gift_card_liability|2023-01-29": {
@@ -12220,7 +12248,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "cash_beginning"
     },
     "cash_flow|cash_flow||cash and cash equivalents, beginning of period|cash_beginning|2023-01-29": {
@@ -12430,7 +12458,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "cash_ending"
     },
     "cash_flow|cash_flow||cash and cash equivalents, end of period|cash_ending|2023-01-29": {
@@ -12640,7 +12668,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "effect_of_fx_on_cash"
     },
     "cash_flow|cash_flow||effect of foreign currency exchange rate changes on cash and cash equivalents|effect_of_fx_on_cash|2023-01-29": {
@@ -12850,7 +12878,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "cash_flow",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "change_in_cash"
     },
     "cash_flow|cash_flow||increase (decrease) in cash and cash equivalents|change_in_cash|2023-01-29": {
@@ -13060,7 +13088,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "foreign_currency_translation_adjustment"
     },
     "income_statement|income_statement|other comprehensive income (loss), net of tax|foreign currency translation adjustment|foreign_currency_translation_adjustment|2023-01-29": {
@@ -13270,7 +13298,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "net_investment_hedge_gains_losses"
     },
     "income_statement|income_statement|other comprehensive income (loss), net of tax|net investment hedge gains (losses)|net_investment_hedge_gains_losses|2023-01-29": {
@@ -13480,7 +13508,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "omitted_incomplete_axis",
       "suggested_concept": "acquisition_related_expenses"
     },
     "income_statement|income_statement||acquisition-related expenses|acquisition_related_expenses|2023-01-29": {
@@ -13604,7 +13632,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "amortization_of_intangible_assets"
     },
     "income_statement|income_statement||amortization of intangible assets|amortization_of_intangible_assets|2023-01-29": {
@@ -13814,7 +13842,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "basic_eps"
     },
     "income_statement|income_statement||basic earnings per share|basic_eps|2023-01-29": {
@@ -14024,7 +14052,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "comprehensive_income"
     },
     "income_statement|income_statement||comprehensive income|comprehensive_income|2023-01-29": {
@@ -14234,7 +14262,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "cost_of_goods_sold"
     },
     "income_statement|income_statement||cost of goods sold|cost_of_goods_sold|2023-01-29": {
@@ -14444,7 +14472,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "diluted_eps"
     },
     "income_statement|income_statement||diluted earnings per share|diluted_eps|2023-01-29": {
@@ -14654,7 +14682,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "omitted_incomplete_axis",
       "suggested_concept": "gain_on_disposal_of_assets"
     },
     "income_statement|income_statement||gain on disposal of assets|gain_on_disposal_of_assets|2023-01-29": {
@@ -14821,7 +14849,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "gross_profit"
     },
     "income_statement|income_statement||gross profit|gross_profit|2023-01-29": {
@@ -15077,7 +15105,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "omitted_incomplete_axis",
       "suggested_concept": "impairment_and_restructuring"
     },
     "income_statement|income_statement||impairment of goodwill and other assets, restructuring costs|impairment_and_restructuring|2023-01-29": {
@@ -15228,7 +15256,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "omitted_incomplete_axis",
       "suggested_concept": "impairment_and_restructuring"
     },
     "income_statement|income_statement||impairment of goodwill and other assets|impairment_and_restructuring|2023-01-29": {
@@ -15317,7 +15345,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "income_before_tax"
     },
     "income_statement|income_statement||income before income tax expense|income_before_tax|2023-01-29": {
@@ -15527,7 +15555,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "operating_income"
     },
     "income_statement|income_statement||income from operations|operating_income|2023-01-29": {
@@ -15737,7 +15765,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "income_tax_expense"
     },
     "income_statement|income_statement||income tax expense|income_tax_expense|2023-01-29": {
@@ -15947,7 +15975,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "net_income"
     },
     "income_statement|income_statement||net income|net_income|2023-01-29": {
@@ -16157,7 +16185,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "revenue"
     },
     "income_statement|income_statement||net revenue|revenue|2023-01-29": {
@@ -16367,7 +16395,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "other_comprehensive_income"
     },
     "income_statement|income_statement||other comprehensive income (loss), net of tax|other_comprehensive_income|2023-01-29": {
@@ -16577,7 +16605,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "other_income_expense_net"
     },
     "income_statement|income_statement||other income (expense), net|other_income_expense_net|2023-01-29": {
@@ -16787,7 +16815,7 @@
       },
       "selection_rule": "agreeing_observations",
       "statement": "income_statement",
-      "status": "outside_model_axis",
+      "status": "selected",
       "suggested_concept": "selling_general_and_administrative_expenses"
     },
     "income_statement|income_statement||selling, general and administrative expenses|selling_general_and_administrative_expenses|2023-01-29": {

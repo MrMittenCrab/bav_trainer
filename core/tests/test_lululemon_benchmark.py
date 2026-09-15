@@ -93,13 +93,16 @@ SOURCE_PDFS = {
 }
 
 EXPECTED_PERIODS = [
+    date(2022, 1, 30),
     date(2023, 1, 29),
     date(2024, 1, 28),
     date(2025, 2, 2),
     date(2026, 2, 1),
 ]
+FOUR_PERIOD_AXIS = EXPECTED_PERIODS[1:]
 
 REVENUE_ANCHORS = {
+    date(2022, 1, 30): 6256617.0,
     date(2023, 1, 29): 8110518.0,
     date(2024, 1, 28): 9619278.0,
     date(2025, 2, 2): 10588126.0,
@@ -107,6 +110,7 @@ REVENUE_ANCHORS = {
 }
 
 DILUTED_WAS_ANCHORS = {
+    date(2022, 1, 30): 130295.0,
     date(2023, 1, 29): 128017.0,
     date(2024, 1, 28): 127060.0,
     date(2025, 2, 2): 123935.0,
@@ -151,6 +155,22 @@ def test_four_filings_validate_and_remain_source_bound():
 
 
 def _reconcile_cmd(out: Path) -> list[str]:
+    return [
+        sys.executable,
+        "-m",
+        "core",
+        "reconcile",
+        str(EXTRACTED),
+        "--source-root",
+        str(SOURCE),
+        "-o",
+        str(out),
+        "--admit-period",
+        "2022-01-30",
+    ]
+
+
+def _default_reconcile_cmd(out: Path) -> list[str]:
     return [
         sys.executable,
         "-m",
@@ -269,6 +289,53 @@ def _guarded_deterministic_reconcile(
 def test_generic_reconcile_is_deterministic(tmp_path: Path):
     committed_before = _read_committed_artifacts()
     _guarded_deterministic_reconcile(tmp_path, committed_before=committed_before)
+
+
+def test_default_reconcile_keeps_filing_year_ends(tmp_path: Path):
+    """Admission is explicit; default Lululemon reconcile stays on filing year-ends."""
+    committed_before = _read_committed_artifacts()
+    out = tmp_path / "default"
+    completed = subprocess.run(
+        _default_reconcile_cmd(out),
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+        env=_subprocess_env(),
+    )
+    assert "overlap_conflicts=" in completed.stdout
+    payload = _load_json(out / "standardized.json")
+    provenance = _load_json(out / "provenance.json")
+    assert [p["end_date"] for p in payload["periods"]] == [
+        "2023-01-29",
+        "2024-01-28",
+        "2025-02-02",
+        "2026-02-01",
+    ]
+    assert "admitted_comparative_periods" not in provenance
+    assert provenance["periods"] == [
+        "2023-01-29",
+        "2024-01-28",
+        "2025-02-02",
+        "2026-02-01",
+    ]
+    _assert_committed_artifacts_unchanged(committed_before)
+
+
+def test_missing_bs_comparative_is_rejected_before_write(tmp_path: Path):
+    committed_before = _read_committed_artifacts()
+    out = tmp_path / "rejected"
+    completed = subprocess.run(
+        _default_reconcile_cmd(out) + ["--admit-period", "2021-01-31"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        env=_subprocess_env(),
+    )
+    assert completed.returncode != 0
+    assert "missing selected balance_sheet coverage" in completed.stdout
+    assert not out.exists() or not any(out.iterdir())
+    _assert_committed_artifacts_unchanged(committed_before)
 
 
 @pytest.mark.parametrize("fail_pass", [1, 2])
@@ -449,11 +516,18 @@ def test_reconciled_axis_anchors_and_conflicts():
     assert fin.jurisdiction == "US"
     assert [p.end_date for p in fin.periods] == EXPECTED_PERIODS
 
-    # Four FY2022–FY2025 filing year-ends are on the axis. Earlier comparative
-    # IS dates present in extracted filings are not promoted onto the canonical axis.
-    assert len(fin.periods) == 4
+    # Filing year-ends plus explicitly admitted 2022-01-30 comparative.
+    # 2021-01-31 remains outside the axis (no selected BS coverage).
+    assert len(fin.periods) == 5
+    assert [p.end_date for p in fin.periods][1:] == FOUR_PERIOD_AXIS
 
     revenue = next(item for item in fin.income_statement if item.concept == "revenue")
+    assert {p: revenue.values[p] for p in FOUR_PERIOD_AXIS} == {
+        date(2023, 1, 29): 8110518.0,
+        date(2024, 1, 28): 9619278.0,
+        date(2025, 2, 2): 10588126.0,
+        date(2026, 2, 1): 11102600.0,
+    }
     assert {p: revenue.values[p] for p in EXPECTED_PERIODS} == REVENUE_ANCHORS
 
     assert fin.historical_shares is not None
@@ -464,6 +538,22 @@ def test_reconciled_axis_anchors_and_conflicts():
     assert conflicts["overlap_conflict_count"] == 3
     assert conflicts["supplemental_conflict_count"] == 0
     assert len(conflicts["conflicts"]) == 3
+
+    assert provenance["admitted_comparative_periods"] == ["2022-01-30"]
+    assert provenance["excluded_comparative_periods"] == ["2021-01-31"]
+    assert provenance["periods"] == [p.isoformat() for p in EXPECTED_PERIODS]
+    assert any(
+        entry["suggested_concept"] == "change_in_accounts_receivable"
+        and entry["status"] == "omitted_incomplete_axis"
+        for entry in provenance["omitted_incomplete_axis"]
+    )
+    assert all(
+        item.concept != "change_in_accounts_receivable" for item in fin.cash_flow
+    )
+    assert any(
+        row["period"] == "2021-01-31" and row["status"] == "outside_model_axis"
+        for row in provenance["values"].values()
+    )
 
     source_files = provenance["source_files"]
     assert len(source_files) == 4
@@ -526,6 +616,7 @@ def test_ppe_classifies_resolves_and_enables_fixed_asset():
 
 
 COMMON_STOCK_VALUES = {
+    date(2022, 1, 30): 616.0,
     date(2023, 1, 29): 611.0,
     date(2024, 1, 28): 606.0,
     date(2025, 2, 2): 581.0,
@@ -564,6 +655,7 @@ def test_non_current_income_taxes_payable_restored_sparse_axis():
         and row.label == "Non-current income taxes payable"
     )
     assert item.values == {
+        date(2022, 1, 30): 38074.0,
         date(2023, 1, 29): 28555.0,
         date(2024, 1, 28): 15864.0,
         date(2025, 2, 2): 0.0,
@@ -578,6 +670,7 @@ def test_non_current_income_taxes_payable_restored_sparse_axis():
     assert len(retained) == 1
     assert retained[0]["missing_periods"] == ["2026-02-01"]
     assert retained[0]["available_periods"] == [
+        "2022-01-30",
         "2023-01-29",
         "2024-01-28",
         "2025-02-02",
@@ -641,17 +734,23 @@ def test_four_period_reformulation_integrity(tmp_path: Path):
         if row.concept == "non_current_income_taxes_payable"
     )
     assert ncit.values == {
+        date(2022, 1, 30): 38074.0,
         date(2023, 1, 29): 28555.0,
         date(2024, 1, 28): 15864.0,
         date(2025, 2, 2): 0.0,
         date(2026, 2, 1): None,
     }
+    assert ncit.values[date(2023, 1, 29)] == 28555.0
+    assert ncit.values[date(2024, 1, 28)] == 15864.0
+    assert ncit.values[date(2025, 2, 2)] == 0.0
+    assert ncit.values[date(2026, 2, 1)] is None
 
     reform = reformulate_balance_sheet(fin, EXPECTED_PERIODS)
-    assert reform.asset_detail_gap == (0.0, 0.0, 0.0, 0.0)
-    assert reform.liability_detail_gap == (0.0, 0.0, 0.0, 0.0)
-    assert reform.equity_detail_gap == (0.0, 0.0, 0.0, 0.0)
-    assert reform.equity_gap == (0.0, 0.0, 0.0, 0.0)
+    assert reform.asset_detail_gap == (0.0, 0.0, 0.0, 0.0, 0.0)
+    assert reform.liability_detail_gap == (0.0, 0.0, 0.0, 0.0, 0.0)
+    assert reform.equity_detail_gap == (0.0, 0.0, 0.0, 0.0, 0.0)
+    assert reform.equity_gap == (0.0, 0.0, 0.0, 0.0, 0.0)
+    assert reform.asset_detail_gap[1:] == (0.0, 0.0, 0.0, 0.0)
     check_reformulation_integrity(reform, EXPECTED_PERIODS)
     # Evidence gate must not invent a reported zero into source facts.
     assert ncit.values[date(2026, 2, 1)] is None
@@ -662,11 +761,13 @@ def test_four_period_reformulation_integrity(tmp_path: Path):
     assert pretax.item.concept == "income_before_tax"
     assert pretax.item.label == "Income before income tax expense"
     assert pretax.item.values == {
+        date(2022, 1, 30): 1333869.0,
         date(2023, 1, 29): 1332571.0,
         date(2024, 1, 28): 2175735.0,
         date(2025, 2, 2): 2576077.0,
         date(2026, 2, 1): 2238967.0,
     }
+    assert pretax.item.values[date(2023, 1, 29)] == 1332571.0
     pretax_row = workbook_row_for(pretax, start_row=SOURCE_START_ROW)
     assert pretax_row == SOURCE_START_ROW + pretax.index
     assert fin.income_statement[pretax.index] is pretax.item
@@ -709,6 +810,7 @@ def test_four_period_reformulation_integrity(tmp_path: Path):
 
 
 CAPEX_REPORTED_PAYMENTS = {
+    date(2022, 1, 30): -394502.0,
     date(2023, 1, 29): -638657.0,
     date(2024, 1, 28): -651865.0,
     date(2025, 2, 2): -689232.0,
@@ -759,16 +861,19 @@ def test_source_supported_capex_alias_four_period_diagnostics(tmp_path: Path):
         assert pay == CAPEX_REPORTED_PAYMENTS[period]
         assert rev == REVENUE_ANCHORS[period]
     assert payments == [
+        -394502.0,
         -638657.0,
         -651865.0,
         -689232.0,
         -680802.0,
     ]
-    assert ppe_capex == [638657.0, 651865.0, 689232.0, 680802.0]
-    assert ratios[0] == pytest.approx(638657.0 / 8110518.0)
-    assert ratios[1] == pytest.approx(651865.0 / 9619278.0)
-    assert ratios[2] == pytest.approx(689232.0 / 10588126.0)
-    assert ratios[3] == pytest.approx(680802.0 / 11102600.0)
+    assert ppe_capex == [394502.0, 638657.0, 651865.0, 689232.0, 680802.0]
+    assert ppe_capex[1:] == [638657.0, 651865.0, 689232.0, 680802.0]
+    assert ratios[0] == pytest.approx(394502.0 / 6256617.0)
+    assert ratios[1] == pytest.approx(638657.0 / 8110518.0)
+    assert ratios[2] == pytest.approx(651865.0 / 9619278.0)
+    assert ratios[3] == pytest.approx(689232.0 / 10588126.0)
+    assert ratios[4] == pytest.approx(680802.0 / 11102600.0)
 
     cfo_item = resolve_operating_cash_source(fin)
     assert cfo_item is not None
@@ -782,7 +887,8 @@ def test_source_supported_capex_alias_four_period_diagnostics(tmp_path: Path):
         value = cfo - (-pay)
         cash_after.append(value)
         cash_margins.append(value / REVENUE_ANCHORS[period])
-    assert cash_after == [327806.0, 1644299.0, 1583481.0, 921675.0]
+    assert cash_after == [994606.0, 327806.0, 1644299.0, 1583481.0, 921675.0]
+    assert cash_after[1:] == [327806.0, 1644299.0, 1583481.0, 921675.0]
     series = compute_capex_series(fin, list(EXPECTED_PERIODS), compute_anchor(fin, list(EXPECTED_PERIODS)))
     assert series.cash_after_ppe_capex == tuple(cash_after)
     for j, margin in enumerate(cash_margins):
@@ -794,7 +900,7 @@ def test_source_supported_capex_alias_four_period_diagnostics(tmp_path: Path):
         if s.family_id
         in {"cash_after_ppe_capex", "cash_after_ppe_capex_to_revenue"}
     }
-    assert len(cash_ids) == 8
+    assert len(cash_ids) == 10
 
     restored = standardized_from_payload(standardized_to_payload(fin))
     rt_item = resolve_capex_source(restored)
@@ -814,12 +920,14 @@ def test_source_supported_capex_alias_four_period_diagnostics(tmp_path: Path):
 
 
 SBC_REPORTED = {
+    date(2022, 1, 30): 69137.0,
     date(2023, 1, 29): 78075.0,
     date(2024, 1, 28): 93560.0,
     date(2025, 2, 2): 90011.0,
     date(2026, 2, 1): 62203.0,
 }
 CFO_LESS_SBC = {
+    date(2022, 1, 30): 1319971.0,
     date(2023, 1, 29): 888388.0,
     date(2024, 1, 28): 2202604.0,
     date(2025, 2, 2): 2182702.0,
@@ -865,17 +973,20 @@ def test_source_supported_sbc_four_period_diagnostics(tmp_path: Path):
         assert sbc == SBC_REPORTED[period]
         assert rev == REVENUE_ANCHORS[period]
         assert cfo - sbc == CFO_LESS_SBC[period]
-    assert independent_less == [888388.0, 2202604.0, 2182702.0, 1540274.0]
+    assert independent_less == [1319971.0, 888388.0, 2202604.0, 2182702.0, 1540274.0]
+    assert independent_less[1:] == [888388.0, 2202604.0, 2182702.0, 1540274.0]
 
     series = compute_earnings_quality_series(
         fin, list(EXPECTED_PERIODS), compute_anchor(fin, list(EXPECTED_PERIODS))
     )
     assert series.stock_based_compensation == (
+        69137.0,
         78075.0,
         93560.0,
         90011.0,
         62203.0,
     )
+    assert series.stock_based_compensation[1:] == (78075.0, 93560.0, 90011.0, 62203.0)
     assert series.operating_cash_flow_less_sbc == tuple(independent_less)
     for j, period in enumerate(EXPECTED_PERIODS):
         sbc = SBC_REPORTED[period]
@@ -895,7 +1006,7 @@ def test_source_supported_sbc_four_period_diagnostics(tmp_path: Path):
             "operating_cash_flow_less_sbc",
         }
     }
-    assert len(sbc_ids) == 12
+    assert len(sbc_ids) == 15
     assert len(builder.expected_specs) == LEASE_DT_LULULEMON_SPECS
 
     restored = standardized_from_payload(standardized_to_payload(fin))
@@ -943,18 +1054,21 @@ def test_source_supported_sbc_four_period_diagnostics(tmp_path: Path):
 
 
 ACQUISITION_REPORTED = {
+    date(2022, 1, 30): 0.0,
     date(2023, 1, 29): 0.0,
     date(2024, 1, 28): 0.0,
     date(2025, 2, 2): -154146.0,
     date(2026, 2, 1): 0.0,
 }
 ACQUISITION_OUTFLOW = {
+    date(2022, 1, 30): 0.0,
     date(2023, 1, 29): 0.0,
     date(2024, 1, 28): 0.0,
     date(2025, 2, 2): 154146.0,
     date(2026, 2, 1): 0.0,
 }
 CASH_AFTER_PPE_CAPEX_AND_ACQUISITIONS = {
+    date(2022, 1, 30): 994606.0,
     date(2023, 1, 29): 327806.0,
     date(2024, 1, 28): 1644299.0,
     date(2025, 2, 2): 1429335.0,
@@ -1016,13 +1130,14 @@ def test_source_supported_acquisition_cash_four_period_diagnostics(tmp_path: Pat
         assert outflow == ACQUISITION_OUTFLOW[period]
         assert residual == CASH_AFTER_PPE_CAPEX_AND_ACQUISITIONS[period]
         assert rev == REVENUE_ANCHORS[period]
-    assert independent_outflow == [0.0, 0.0, 154146.0, 0.0]
-    assert independent_residual == [327806.0, 1644299.0, 1429335.0, 921675.0]
+    assert independent_outflow == [0.0, 0.0, 0.0, 154146.0, 0.0]
+    assert independent_residual == [994606.0, 327806.0, 1644299.0, 1429335.0, 921675.0]
+    assert independent_residual[1:] == [327806.0, 1644299.0, 1429335.0, 921675.0]
 
     series = compute_acquisition_cash_series(
         fin, list(EXPECTED_PERIODS), compute_anchor(fin, list(EXPECTED_PERIODS))
     )
-    assert series.payments_reported == (0.0, 0.0, -154146.0, 0.0)
+    assert series.payments_reported == (0.0, 0.0, 0.0, -154146.0, 0.0)
     assert series.acquisition_cash_outflow == tuple(independent_outflow)
     assert series.cash_after_ppe_capex_and_acquisitions == tuple(independent_residual)
     for j, ratio in enumerate(independent_ratios):
@@ -1039,7 +1154,7 @@ def test_source_supported_acquisition_cash_four_period_diagnostics(tmp_path: Pat
             "cash_after_ppe_capex_and_acquisitions",
         }
     }
-    assert len(acq_ids) == 12
+    assert len(acq_ids) == 15
     assert len(builder.expected_specs) == LEASE_DT_LULULEMON_SPECS
 
     restored = standardized_from_payload(standardized_to_payload(fin))
@@ -1089,18 +1204,21 @@ def test_source_supported_acquisition_cash_four_period_diagnostics(tmp_path: Pat
 
 
 REPURCHASE_REPORTED = {
+    date(2022, 1, 30): -812602.0,
     date(2023, 1, 29): -444001.0,
     date(2024, 1, 28): -558652.0,
     date(2025, 2, 2): -1636879.0,
     date(2026, 2, 1): -1178349.0,
 }
 REPURCHASE_OUTFLOW = {
+    date(2022, 1, 30): 812602.0,
     date(2023, 1, 29): 444001.0,
     date(2024, 1, 28): 558652.0,
     date(2025, 2, 2): 1636879.0,
     date(2026, 2, 1): 1178349.0,
 }
 CASH_AFTER_PPE_CAPEX_ACQUISITIONS_AND_REPURCHASES = {
+    date(2022, 1, 30): 182004.0,
     date(2023, 1, 29): -116195.0,
     date(2024, 1, 28): 1085647.0,
     date(2025, 2, 2): -207544.0,
@@ -1170,13 +1288,14 @@ def test_source_supported_share_repurchase_four_period_diagnostics(tmp_path: Pat
         assert outflow == REPURCHASE_OUTFLOW[period]
         assert residual == CASH_AFTER_PPE_CAPEX_ACQUISITIONS_AND_REPURCHASES[period]
         assert rev == REVENUE_ANCHORS[period]
-    assert independent_outflow == [444001.0, 558652.0, 1636879.0, 1178349.0]
-    assert independent_residual == [-116195.0, 1085647.0, -207544.0, -256674.0]
+    assert independent_outflow == [812602.0, 444001.0, 558652.0, 1636879.0, 1178349.0]
+    assert independent_residual == [182004.0, -116195.0, 1085647.0, -207544.0, -256674.0]
+    assert independent_residual[1:] == [-116195.0, 1085647.0, -207544.0, -256674.0]
 
     series = compute_share_repurchase_series(
         fin, list(EXPECTED_PERIODS), compute_anchor(fin, list(EXPECTED_PERIODS))
     )
-    assert series.payments_reported == (-444001.0, -558652.0, -1636879.0, -1178349.0)
+    assert series.payments_reported == (-812602.0, -444001.0, -558652.0, -1636879.0, -1178349.0)
     assert series.share_repurchase_outflow == tuple(independent_outflow)
     assert series.cash_after_ppe_capex_acquisitions_and_repurchases == tuple(
         independent_residual
@@ -1195,7 +1314,7 @@ def test_source_supported_share_repurchase_four_period_diagnostics(tmp_path: Pat
             "cash_after_ppe_capex_acquisitions_and_repurchases",
         }
     }
-    assert len(rp_ids) == 12
+    assert len(rp_ids) == 15
     assert len(builder.expected_specs) == LEASE_DT_LULULEMON_SPECS
 
     restored = standardized_from_payload(standardized_to_payload(fin))
@@ -1256,6 +1375,7 @@ def test_source_supported_share_repurchase_four_period_diagnostics(tmp_path: Pat
 
 
 CASH_MOVEMENT_FROM_FLOWS = {
+    date(2022, 1, 30): 109354.0,
     date(2023, 1, 29): -105004.0,
     date(2024, 1, 28): 1089104.0,
     date(2025, 2, 2): -259635.0,
@@ -1337,9 +1457,10 @@ def test_source_supported_cash_rollforward_four_period_diagnostics(tmp_path: Pat
         independent_ending.append(ending_from_flows)
         independent_end_diff.append(ending_from_flows - ending)
         assert movement == CASH_MOVEMENT_FROM_FLOWS[period]
-    assert independent_movement == [-105004.0, 1089104.0, -259635.0, -177134.0]
-    assert independent_move_diff == [0.0, 0.0, 0.0, 0.0]
-    assert independent_end_diff == [0.0, 0.0, 0.0, 0.0]
+    assert independent_movement == [109354.0, -105004.0, 1089104.0, -259635.0, -177134.0]
+    assert independent_movement[1:] == [-105004.0, 1089104.0, -259635.0, -177134.0]
+    assert independent_move_diff == [0.0, 0.0, 0.0, 0.0, 0.0]
+    assert independent_end_diff == [0.0, 0.0, 0.0, 0.0, 0.0]
 
     series = compute_cash_rollforward_series(fin, list(EXPECTED_PERIODS))
     assert series.cash_movement_from_flows == tuple(independent_movement)
@@ -1359,7 +1480,7 @@ def test_source_supported_cash_rollforward_four_period_diagnostics(tmp_path: Pat
             "cash_ending_difference",
         }
     }
-    assert len(cr_ids) == 16
+    assert len(cr_ids) == 20
     assert len(builder.expected_specs) == LEASE_DT_LULULEMON_SPECS
 
     restored = standardized_from_payload(standardized_to_payload(fin))
@@ -1395,6 +1516,7 @@ def test_source_supported_cash_rollforward_four_period_diagnostics(tmp_path: Pat
     awb.close()
     assert stored.concept == "net_cash_from_operating_activities"
     assert fx_item.values == {
+        date(2022, 1, 30): -6876.0,
         date(2023, 1, 29): -34043.0,
         date(2024, 1, 28): -4100.0,
         date(2025, 2, 2): -81666.0,
@@ -1484,7 +1606,7 @@ def test_source_supported_reported_margin_four_period_diagnostics(tmp_path: Path
             "reconstructed_operating_margin_change",
         }
     }
-    assert len(rm_ids) == 21
+    assert len(rm_ids) == 27
     assert len(builder.expected_specs) == LEASE_DT_LULULEMON_SPECS
 
     restored = standardized_from_payload(standardized_to_payload(fin))
@@ -1520,6 +1642,7 @@ def test_source_supported_reported_margin_four_period_diagnostics(tmp_path: Path
     awb.close()
     assert stored.concept == "gross_profit"
     assert stored.values == {
+        date(2022, 1, 30): 3608565.0,
         date(2023, 1, 29): 4492340.0,
         date(2024, 1, 28): 5609405.0,
         date(2025, 2, 2): 6270811.0,
@@ -1596,7 +1719,8 @@ def test_source_supported_inventory_analysis_four_period_diagnostics(tmp_path: P
     assert independent_intensity[-1] == pytest.approx(0.15318510979410227)
     assert independent_change[-1] == pytest.approx(258672.0)
     assert independent_implied[-1] == pytest.approx(-258672.0)
-    assert independent_cf_diff == [None, -57181.0, -37606.0, 69962.0]
+    assert independent_cf_diff == [None, -92552.0, -57181.0, -37606.0, 69962.0]
+    assert independent_cf_diff[2:] == [-57181.0, -37606.0, 69962.0]
     assert independent_implied[-1] + independent_cf_diff[-1] == pytest.approx(
         -188710.0, abs=1e-8
     )
@@ -1629,7 +1753,7 @@ def test_source_supported_inventory_analysis_four_period_diagnostics(tmp_path: P
             "inventory_cf_adjustment_difference",
         }
     }
-    assert len(inv_ids) == 22
+    assert len(inv_ids) == 29
     assert len(builder.expected_specs) == LEASE_DT_LULULEMON_SPECS
 
     restored = standardized_from_payload(standardized_to_payload(fin))
@@ -1665,6 +1789,7 @@ def test_source_supported_inventory_analysis_four_period_diagnostics(tmp_path: P
     awb.close()
     assert stored.concept == "inventories"
     assert stored.values == {
+        date(2022, 1, 30): 966481.0,
         date(2023, 1, 29): 1447367.0,
         date(2024, 1, 28): 1323602.0,
         date(2025, 2, 2): 1442081.0,
@@ -1673,31 +1798,35 @@ def test_source_supported_inventory_analysis_four_period_diagnostics(tmp_path: P
 
 
 ROU_BALANCES = {
+    date(2022, 1, 30): 803543.0,
     date(2023, 1, 29): 969419.0,
     date(2024, 1, 28): 1265610.0,
     date(2025, 2, 2): 1416256.0,
     date(2026, 2, 1): 1630181.0,
 }
 DTA_BALANCES = {
+    date(2022, 1, 30): 6091.0,
     date(2023, 1, 29): 6402.0,
     date(2024, 1, 28): 9176.0,
     date(2025, 2, 2): 17085.0,
     date(2026, 2, 1): 24037.0,
 }
 DTL_BALANCES = {
+    date(2022, 1, 30): 53352.0,
     date(2023, 1, 29): 55084.0,
     date(2024, 1, 28): 29522.0,
     date(2025, 2, 2): 98188.0,
     date(2026, 2, 1): 52278.0,
 }
 NET_DT_POSITIONS = {
+    date(2022, 1, 30): -47261.0,
     date(2023, 1, 29): -48682.0,
     date(2024, 1, 28): -20346.0,
     date(2025, 2, 2): -81103.0,
     date(2026, 2, 1): -28241.0,
 }
-PRIOR_LULULEMON_SPECS = 351
-LEASE_DT_LULULEMON_SPECS = 376
+PRIOR_LULULEMON_SPECS = 453
+LEASE_DT_LULULEMON_SPECS = 486
 
 
 def _fill_rgb(cell) -> str:
@@ -1789,31 +1918,45 @@ def test_source_supported_lease_rou_and_deferred_tax_aliases(
     rou_series = compute_lease_rou_series(fin, periods, compute_anchor(fin, periods))
     dt_series = compute_deferred_tax_series(fin, periods)
     assert rou_series.rou_assets == (
+        803543.0,
         969419.0,
         1265610.0,
         1416256.0,
         1630181.0,
     )
-    assert rou_series.rou_assets_change == (None, 296191.0, 150646.0, 213925.0)
-    assert rou_series.average_rou_assets[1] == pytest.approx(1117514.5)
-    assert rou_series.average_rou_assets[2] == pytest.approx(1340933.0)
-    assert rou_series.average_rou_assets[3] == pytest.approx(1523218.5)
-    assert rou_series.rou_assets_growth[1] == pytest.approx(296191.0 / 969419.0)
-    assert rou_series.rou_assets_to_revenue[1] == pytest.approx(1117514.5 / 9619278.0)
-    assert rou_series.rou_assets_to_revenue[2] == pytest.approx(1340933.0 / 10588126.0)
-    assert rou_series.rou_assets_to_revenue[3] == pytest.approx(1523218.5 / 11102600.0)
-    assert dt_series.deferred_tax_assets == (6402.0, 9176.0, 17085.0, 24037.0)
-    assert dt_series.deferred_tax_liabilities == (55084.0, 29522.0, 98188.0, 52278.0)
-    assert dt_series.net_deferred_tax_position == (-48682.0, -20346.0, -81103.0, -28241.0)
-    assert dt_series.deferred_tax_assets_change == (None, 2774.0, 7909.0, 6952.0)
+    assert rou_series.rou_assets[1:] == (
+        969419.0,
+        1265610.0,
+        1416256.0,
+        1630181.0,
+    )
+    assert rou_series.rou_assets_change == (None, 165876.0, 296191.0, 150646.0, 213925.0)
+    assert rou_series.rou_assets_change[2:] == (296191.0, 150646.0, 213925.0)
+    assert rou_series.average_rou_assets[2] == pytest.approx(1117514.5)
+    assert rou_series.average_rou_assets[3] == pytest.approx(1340933.0)
+    assert rou_series.average_rou_assets[4] == pytest.approx(1523218.5)
+    assert rou_series.rou_assets_growth[2] == pytest.approx(296191.0 / 969419.0)
+    assert rou_series.rou_assets_to_revenue[2] == pytest.approx(1117514.5 / 9619278.0)
+    assert rou_series.rou_assets_to_revenue[3] == pytest.approx(1340933.0 / 10588126.0)
+    assert rou_series.rou_assets_to_revenue[4] == pytest.approx(1523218.5 / 11102600.0)
+    assert dt_series.deferred_tax_assets == (6091.0, 6402.0, 9176.0, 17085.0, 24037.0)
+    assert dt_series.deferred_tax_assets[1:] == (6402.0, 9176.0, 17085.0, 24037.0)
+    assert dt_series.deferred_tax_liabilities == (53352.0, 55084.0, 29522.0, 98188.0, 52278.0)
+    assert dt_series.deferred_tax_liabilities[1:] == (55084.0, 29522.0, 98188.0, 52278.0)
+    assert dt_series.net_deferred_tax_position == (-47261.0, -48682.0, -20346.0, -81103.0, -28241.0)
+    assert dt_series.net_deferred_tax_position[1:] == (-48682.0, -20346.0, -81103.0, -28241.0)
+    assert dt_series.deferred_tax_assets_change == (None, 311.0, 2774.0, 7909.0, 6952.0)
+    assert dt_series.deferred_tax_assets_change[2:] == (2774.0, 7909.0, 6952.0)
     assert dt_series.deferred_tax_liabilities_change == (
         None,
+        1732.0,
         -25562.0,
         68666.0,
         -45910.0,
     )
     assert dt_series.net_deferred_tax_position_change == (
         None,
+        -1421.0,
         28336.0,
         -60757.0,
         52862.0,
@@ -1867,10 +2010,10 @@ def test_source_supported_lease_rou_and_deferred_tax_aliases(
     assert without_keys <= with_keys
     added = with_keys - without_keys
     assert len(with_keys) == LEASE_DT_LULULEMON_SPECS
-    assert len(added) == 25
+    assert len(added) == 33
     assert {k.split(".")[0] for k in added} == {"lease_rou", "deferred_tax"}
-    assert sum(1 for k in added if k.startswith("lease_rou.")) == 12
-    assert sum(1 for k in added if k.startswith("deferred_tax.")) == 13
+    assert sum(1 for k in added if k.startswith("lease_rou.")) == 16
+    assert sum(1 for k in added if k.startswith("deferred_tax.")) == 17
 
     out = tmp_path / "LululemonLeaseDT"
     trainer, answer = build_training_workbook(fin, out)
@@ -1883,7 +2026,7 @@ def test_source_supported_lease_rou_and_deferred_tax_aliases(
         or c.semantic_key.startswith("deferred_tax.")
     ]
     assert len(smap.all_ordered()) == LEASE_DT_LULULEMON_SPECS
-    assert len(module_comps) == 25
+    assert len(module_comps) == 33
     assert {c.semantic_key for c in smap.all_ordered()} == with_keys
 
     for path in (trainer, answer):
@@ -1940,8 +2083,8 @@ def test_source_supported_lease_rou_and_deferred_tax_aliases(
     twb.close()
     awb.close()
 
-    assert _count_source_unavailable(trainer) == 74
-    assert _count_source_unavailable(answer) == 74
+    assert _count_source_unavailable(trainer) == 101
+    assert _count_source_unavailable(answer) == 101
 
     blank = check_workbook(trainer)
     assert (blank.correct, blank.incorrect, blank.blank, blank.total) == (
@@ -1950,6 +2093,41 @@ def test_source_supported_lease_rou_and_deferred_tax_aliases(
         LEASE_DT_LULULEMON_SPECS,
         LEASE_DT_LULULEMON_SPECS,
     )
+
+    injected_dir = tmp_path / "injected_blank_check"
+    injected_dir.mkdir()
+    injected_trainer = injected_dir / trainer.name
+    shutil.copy2(trainer, injected_trainer)
+    shutil.copy2(answer, injected_dir / answer.name)
+    for sidecar in (
+        answer.with_suffix(".component_map.json"),
+        answer.with_suffix(".assumptions.json"),
+        answer.with_suffix(".trainer.json"),
+    ):
+        if sidecar.is_file():
+            shutil.copy2(sidecar, injected_dir / sidecar.name)
+    injected_comp = next(c for c in smap.all_ordered())
+    inj_wb = load_workbook(injected_trainer, data_only=False)
+    inj_row, inj_col = parse_cell_ref(injected_comp.cell)
+    inj_cell = inj_wb[injected_comp.tab].cell(row=inj_row, column=inj_col)
+    inj_cell.value = 123456789
+    inj_wb.save(injected_trainer)
+    inj_wb.close()
+    injected = check_workbook(injected_trainer)
+    assert (injected.correct, injected.incorrect, injected.blank, injected.total) == (
+        0,
+        1,
+        LEASE_DT_LULULEMON_SPECS - 1,
+        LEASE_DT_LULULEMON_SPECS,
+    )
+    inj_wb = load_workbook(injected_trainer, data_only=False)
+    inj_cell = inj_wb[injected_comp.tab].cell(row=inj_row, column=inj_col)
+    assert inj_cell.value == 123456789
+    assert inj_cell.comment is None
+    inj_wb.close()
+    dumped_injected = repr(injected)
+    assert injected_comp.formula not in dumped_injected
+    assert injected_comp.short_hint not in dumped_injected
 
     filled_dir = tmp_path / "filled_check"
     filled_dir.mkdir()
@@ -2015,13 +2193,13 @@ def test_no_lulu_specific_production_branch():
 def test_committed_reconciled_hashes_are_stable():
     """Lock measured baseline artifact digests for Step 9M.2.4.1."""
     assert _sha256(STD_JSON) == (
-        "29852347d78387be6fd9224246ab337b15a5176218cd01b2c20a0c8c3c00b361"
+        "a3568c29e883c8ba57af23da7b4286641a3c5f929af311e2e9593c5f63ea2287"
     )
     assert _sha256(CONFLICTS_JSON) == (
         "d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0"
     )
     # provenance is large; lock size + digest together
-    assert PROV_JSON.stat().st_size == 699401
+    assert PROV_JSON.stat().st_size == 699438
     assert _sha256(PROV_JSON) == (
-        "a31f7b05cddc16a61df91cdc8578bb69713069651af21160ff662ea562433075"
+        "6799371215e02c888b3a5f687637b38dba4840bd1548cb1860a253f7a699cb12"
     )

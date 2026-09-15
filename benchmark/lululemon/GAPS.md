@@ -61,17 +61,16 @@ Categories match IMPLEMENTATION.md Task 4:
 - **Evidence (after):** same stored concepts, labels, signs, values, and provenance. Shared explicit-concept aliases `right_of_use_lease_asset` → `right_of_use_assets`, `deferred_tax_asset` → `deferred_tax_assets`, `deferred_tax_liability` → `deferred_tax_liabilities`. Independent four-period ROU 969419 / 1265610 / 1416256 / 1630181, DTA 6402 / 9176 / 17085 / 24037, DTL 55084 / 29522 / 98188 / 52278, net positions −48682 / −20346 / −81103 / −28241. Practice surface 248 → 273 (lease_rou +12, deferred_tax +13). Source links `'Balance Sheet'!B26` / `B21` / `B27`. No inferred lease interest, deferred-tax expense, cash-tax effects, recoverability, or repayment flows.
 - **Why it mattered:** Source-supported lease-asset intensity and deferred-tax diagnostics were invisible to the learner despite explicit BS facts.
 
-### G6 — Comparative FY2021 period not on canonical axis — **OPEN (low)** / assessed Step 9M.2.4.1.1.1.29
+### G6 — Comparative FY2021 period not on canonical axis — **OPEN (low)** / 2022-01-30 admitted Step 9M.2.4.1.1.1.30; 2021-01-31 still excluded
 
 - **Category:** 2 (generic ingestion/reconciliation period-axis policy) and/or 1 if earlier BS is desired from notes
-- **Stage:** reconcile (canonical axis unchanged)
-- **Evidence (before):** FY2022 extracted IS includes 2021-01-31 and 2022-01-30; reconciled axis starts at 2023-01-29 (four filing year-ends only).
-- **Evidence (Step 9M.2.4.1.1.1.29):** `reconcile_filings` still selects filing `period_end` dates only. Comparative observations stay in provenance as `outside_model_axis`.
-  - **2022-01-30 is eligible** as a fifth model period: complete selected IS/BS/CF (FY2022 PDF p50/p49/p53; FY2023 IS/CF agree). Diluted WAS 130295. Independent disposable override `replace(reconciled, periods=tuple(sorted({*reconciled.periods, date(2022,1,30)})))` built 486 exercises vs accepted 376; **0** existing expected-value changes; Check blank/filled `(486,0,0,486)` / `(486,0,0,486)`; Trainer 486 blank yellow without Notes; Answer Key 486 formulas with Notes. Canonical 376/577 untouched.
-  - Fail-closed missing **individual** CF row: `change_in_accounts_receivable` exists only on 2023–2026 (FY2024/FY2025); omitted on the five-period standardized CF (34→33), not zero-filled. Not a practice-family blocker.
-  - **2021-01-31 is not eligible:** FY2022 IS/CF only; **no BS in any supplied filing or PDF p49**. CF beginning cash 1093505 is not a substitute BS. Do not reject 2022-01-30 because FY2020 BS is missing.
-- **Why it matters:** Shorter canonical history for growth/DuPont bridges; not a current build blocker. Expansion is an explicit axis-policy change, not a silent reconcile side effect.
-- **Proposed next step:** A later implementation step (not this assessment) may add 2022-01-30 only via an explicit complete IS+BS+CF axis policy, keep incomplete IS/CF omission, and must not promote 2021-01-31 without a BS. Assessment completion does not deliver axis expansion or parent acceptance.
+- **Stage:** reconcile (canonical axis is now five periods via explicit admission)
+- **Evidence (before):** FY2022 extracted IS includes 2021-01-31 and 2022-01-30; reconciled axis started at 2023-01-29 (four filing year-ends only).
+- **Evidence (Step 9M.2.4.1.1.1.29):** assessment established 2022-01-30 IS/BS/CF eligibility and 2021-01-31 missing-BS ineligibility. Disposable five-period generation produced 486 exercises vs accepted 376 with **0** existing expected-value changes.
+- **Evidence (Step 9M.2.4.1.1.1.30):** generic `--admit-period` / `admit_periods` adds a comparative date only when selected IS+BS+CF coverage exists. Default remains filing year-ends. Canonical Lululemon reconcile admits `2022-01-30` only. Axis `2022-01-30, 2023-01-29, 2024-01-28, 2025-02-02, 2026-02-01`. Practice map **376 → 486** (+110, removed 0, changed existing expected values 0). Check blank/filled/incorrect-injection `(486,0,0,486)` / `(486,0,0,486)` / `(0,1,485,486)`; Trainer 486 blank yellow without Notes; Answer Key 486 formulas with nonempty Notes; unavailable displays **74 → 101**. CF `change_in_accounts_receivable` omitted on the five-period axis (34→33), not zero-filled. Provenance records `admitted_comparative_periods=["2022-01-30"]` and `excluded_comparative_periods=["2021-01-31"]`; 2021-01-31 observations remain `outside_model_axis`. Fast Retailing remains 577 with unchanged release hashes.
+  - **2021-01-31 remains ineligible:** FY2022 IS/CF only; **no BS in any supplied filing or PDF p49**. CF beginning cash is not a substitute BS. Requesting `2021-01-31` is rejected before writing outputs.
+- **Why it matters:** 2022-01-30 now supplies opening/comparable history. FY2020/FY2021 BS is still missing, so six-period history stays closed.
+- **Proposed next step:** Do not promote 2021-01-31 without a complete selected BS. Parent 9M.2.4.1.1.1 / Step 9 acceptance remain unresolved.
 
 ### G7 — Empty `note_facts` (segments, store KPIs, lease maturity detail) — **OPEN**
 

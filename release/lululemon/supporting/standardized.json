@@ -4,6 +4,7 @@
       "concept": "accounts_receivable",
       "label": "Accounts receivable, net",
       "values": {
+        "2022-01-30": 77001.0,
         "2023-01-29": 132906.0,
         "2024-01-28": 124769.0,
         "2025-02-02": 120173.0,
@@ -14,6 +15,7 @@
       "concept": "cash_and_cash_equivalents",
       "label": "Cash and cash equivalents",
       "values": {
+        "2022-01-30": 1259871.0,
         "2023-01-29": 1154867.0,
         "2024-01-28": 2243971.0,
         "2025-02-02": 1984336.0,
@@ -24,6 +26,7 @@
       "concept": "inventories",
       "label": "Inventories",
       "values": {
+        "2022-01-30": 966481.0,
         "2023-01-29": 1447367.0,
         "2024-01-28": 1323602.0,
         "2025-02-02": 1442081.0,
@@ -34,6 +37,7 @@
       "concept": "prepaid_and_receivable_income_taxes",
       "label": "Prepaid and receivable income taxes",
       "values": {
+        "2022-01-30": 118928.0,
         "2023-01-29": 185641.0,
         "2024-01-28": 183733.0,
         "2025-02-02": 182253.0,
@@ -44,6 +48,7 @@
       "concept": "prepaid_expenses_and_other_current_assets",
       "label": "Prepaid expenses and other current assets",
       "values": {
+        "2022-01-30": 192572.0,
         "2023-01-29": 238672.0,
         "2024-01-28": 184502.0,
         "2025-02-02": 251459.0,
@@ -54,6 +59,7 @@
       "concept": "total_current_assets",
       "label": "Total current assets",
       "values": {
+        "2022-01-30": 2614853.0,
         "2023-01-29": 3159453.0,
         "2024-01-28": 4060577.0,
         "2025-02-02": 3980302.0,
@@ -64,6 +70,7 @@
       "concept": "accounts_payable",
       "label": "Accounts payable",
       "values": {
+        "2022-01-30": 289728.0,
         "2023-01-29": 172732.0,
         "2024-01-28": 348441.0,
         "2025-02-02": 271406.0,
@@ -74,6 +81,7 @@
       "concept": "accrued_compensation_and_related_expenses",
       "label": "Accrued compensation and related expenses",
       "values": {
+        "2022-01-30": 204921.0,
         "2023-01-29": 248167.0,
         "2024-01-28": 326110.0,
         "2025-02-02": 204543.0,
@@ -84,6 +92,7 @@
       "concept": "accrued_liabilities_and_other",
       "label": "Accrued liabilities and other",
       "values": {
+        "2022-01-30": 330800.0,
         "2023-01-29": 399223.0,
         "2024-01-28": 348555.0,
         "2025-02-02": 559463.0,
@@ -94,6 +103,7 @@
       "concept": "current_income_taxes_payable",
       "label": "Current income taxes payable",
       "values": {
+        "2022-01-30": 133852.0,
         "2023-01-29": 174221.0,
         "2024-01-28": 12098.0,
         "2025-02-02": 183126.0,
@@ -104,6 +114,7 @@
       "concept": "lease_liability_current",
       "label": "Current lease liabilities",
       "values": {
+        "2022-01-30": 188996.0,
         "2023-01-29": 207972.0,
         "2024-01-28": 249270.0,
         "2025-02-02": 275154.0,
@@ -114,6 +125,7 @@
       "concept": "other_current_liabilities",
       "label": "Other current liabilities",
       "values": {
+        "2022-01-30": 48842.0,
         "2023-01-29": 38405.0,
         "2024-01-28": 40308.0,
         "2025-02-02": 37586.0,
@@ -124,6 +136,7 @@
       "concept": "total_current_liabilities",
       "label": "Total current liabilities",
       "values": {
+        "2022-01-30": 1405334.0,
         "2023-01-29": 1492198.0,
         "2024-01-28": 1631261.0,
         "2025-02-02": 1839630.0,
@@ -134,6 +147,7 @@
       "concept": "unredeemed_gift_card_liability",
       "label": "Unredeemed gift card liability",
       "values": {
+        "2022-01-30": 208195.0,
         "2023-01-29": 251478.0,
         "2024-01-28": 306479.0,
         "2025-02-02": 308352.0,
@@ -144,6 +158,7 @@
       "concept": "deferred_tax_asset",
       "label": "Deferred income tax assets",
       "values": {
+        "2022-01-30": 6091.0,
         "2023-01-29": 6402.0,
         "2024-01-28": 9176.0,
         "2025-02-02": 17085.0,
@@ -154,6 +169,7 @@
       "concept": "goodwill",
       "label": "Goodwill",
       "values": {
+        "2022-01-30": 386880.0,
         "2023-01-29": 24144.0,
         "2024-01-28": 24083.0,
         "2025-02-02": 159518.0,
@@ -164,6 +180,7 @@
       "concept": "intangible_assets",
       "label": "Intangible assets, net",
       "values": {
+        "2022-01-30": 71299.0,
         "2023-01-29": 21961.0,
         "2024-01-28": 0.0,
         "2025-02-02": 11673.0,
@@ -174,6 +191,7 @@
       "concept": "other_non_current_assets",
       "label": "Other non-current assets",
       "values": {
+        "2022-01-30": 132102.0,
         "2023-01-29": 156045.0,
         "2024-01-28": 186684.0,
         "2025-02-02": 237841.0,
@@ -184,6 +202,7 @@
       "concept": "property_plant_and_equipment",
       "label": "Property and equipment, net",
       "values": {
+        "2022-01-30": 927710.0,
         "2023-01-29": 1269614.0,
         "2024-01-28": 1545811.0,
         "2025-02-02": 1780617.0,
@@ -194,6 +213,7 @@
       "concept": "right_of_use_lease_asset",
       "label": "Right-of-use lease assets",
       "values": {
+        "2022-01-30": 803543.0,
         "2023-01-29": 969419.0,
         "2024-01-28": 1265610.0,
         "2025-02-02": 1416256.0,
@@ -204,6 +224,7 @@
       "concept": "deferred_tax_liability",
       "label": "Deferred income tax liabilities",
       "values": {
+        "2022-01-30": 53352.0,
         "2023-01-29": 55084.0,
         "2024-01-28": 29522.0,
         "2025-02-02": 98188.0,
@@ -214,6 +235,7 @@
       "concept": "non_current_income_taxes_payable",
       "label": "Non-current income taxes payable",
       "values": {
+        "2022-01-30": 38074.0,
         "2023-01-29": 28555.0,
         "2024-01-28": 15864.0,
         "2025-02-02": 0.0,
@@ -224,6 +246,7 @@
       "concept": "lease_liability_noncurrent",
       "label": "Non-current lease liabilities",
       "values": {
+        "2022-01-30": 692056.0,
         "2023-01-29": 862362.0,
         "2024-01-28": 1154012.0,
         "2025-02-02": 1300637.0,
@@ -234,6 +257,7 @@
       "concept": "other_non_current_liabilities",
       "label": "Other non-current liabilities",
       "values": {
+        "2022-01-30": 13616.0,
         "2023-01-29": 20040.0,
         "2024-01-28": 29201.0,
         "2025-02-02": 40790.0,
@@ -244,6 +268,7 @@
       "concept": "accumulated_other_comprehensive_income",
       "label": "Accumulated other comprehensive loss",
       "values": {
+        "2022-01-30": -195917.0,
         "2023-01-29": -252584.0,
         "2024-01-28": -264256.0,
         "2025-02-02": -424441.0,
@@ -254,6 +279,7 @@
       "concept": "additional_paid_in_capital",
       "label": "Additional paid-in capital",
       "values": {
+        "2022-01-30": 422507.0,
         "2023-01-29": 474645.0,
         "2024-01-28": 575369.0,
         "2025-02-02": 638190.0,
@@ -264,6 +290,7 @@
       "concept": "common_stock",
       "label": "Common stock",
       "values": {
+        "2022-01-30": 616.0,
         "2023-01-29": 611.0,
         "2024-01-28": 606.0,
         "2025-02-02": 581.0,
@@ -274,6 +301,7 @@
       "concept": "retained_earnings",
       "label": "Retained earnings",
       "values": {
+        "2022-01-30": 2512840.0,
         "2023-01-29": 2926127.0,
         "2024-01-28": 3920362.0,
         "2025-02-02": 4109717.0,
@@ -284,6 +312,7 @@
       "concept": "total_equity",
       "label": "Total stockholders' equity",
       "values": {
+        "2022-01-30": 2740046.0,
         "2023-01-29": 3148799.0,
         "2024-01-28": 4232081.0,
         "2025-02-02": 4324047.0,
@@ -294,6 +323,7 @@
       "concept": "total_assets",
       "label": "Total assets",
       "values": {
+        "2022-01-30": 4942478.0,
         "2023-01-29": 5607038.0,
         "2024-01-28": 7091941.0,
         "2025-02-02": 7603292.0,
@@ -304,6 +334,7 @@
       "concept": "total_liabilities_and_equity",
       "label": "Total liabilities and stockholders' equity",
       "values": {
+        "2022-01-30": 4942478.0,
         "2023-01-29": 5607038.0,
         "2024-01-28": 7091941.0,
         "2025-02-02": 7603292.0,
@@ -314,6 +345,7 @@
       "concept": "total_liabilities",
       "label": "Total liabilities",
       "values": {
+        "2022-01-30": 2202432.0,
         "2023-01-29": 2458239.0,
         "2024-01-28": 2859860.0,
         "2025-02-02": 3279245.0,
@@ -326,6 +358,7 @@
       "concept": "net_cash_from_financing_activities",
       "label": "Net cash used in financing activities",
       "values": {
+        "2022-01-30": -844987.0,
         "2023-01-29": -467487.0,
         "2024-01-28": -548828.0,
         "2025-02-02": -1652508.0,
@@ -336,6 +369,7 @@
       "concept": "other_financing_activities",
       "label": "Other financing activities",
       "values": {
+        "2022-01-30": -770.0,
         "2023-01-29": -32.0,
         "2024-01-28": -32.0,
         "2025-02-02": -32.0,
@@ -346,6 +380,7 @@
       "concept": "proceeds_from_stock_based_compensation",
       "label": "Proceeds from settlement of stock-based compensation",
       "values": {
+        "2022-01-30": 18194.0,
         "2023-01-29": 11704.0,
         "2024-01-28": 42430.0,
         "2025-02-02": 19813.0,
@@ -356,6 +391,7 @@
       "concept": "repurchase_of_common_stock",
       "label": "Repurchase of common stock",
       "values": {
+        "2022-01-30": -812602.0,
         "2023-01-29": -444001.0,
         "2024-01-28": -558652.0,
         "2025-02-02": -1636879.0,
@@ -366,6 +402,7 @@
       "concept": "shares_withheld_for_stock_based_compensation",
       "label": "Shares withheld related to net share settlement of stock-based compensation",
       "values": {
+        "2022-01-30": -49809.0,
         "2023-01-29": -35158.0,
         "2024-01-28": -32574.0,
         "2025-02-02": -35410.0,
@@ -376,6 +413,7 @@
       "concept": "acquisition_net_of_cash_acquired",
       "label": "Acquisition, net of cash acquired",
       "values": {
+        "2022-01-30": 0.0,
         "2023-01-29": 0.0,
         "2024-01-28": 0.0,
         "2025-02-02": -154146.0,
@@ -386,6 +424,7 @@
       "concept": "net_cash_from_investing_activities",
       "label": "Net cash used in investing activities",
       "values": {
+        "2022-01-30": -427891.0,
         "2023-01-29": -569937.0,
         "2024-01-28": -654132.0,
         "2025-02-02": -798174.0,
@@ -396,6 +435,7 @@
       "concept": "other_investing_activities",
       "label": "Other investing activities",
       "values": {
+        "2022-01-30": -10000.0,
         "2023-01-29": 20916.0,
         "2024-01-28": -658.0,
         "2025-02-02": -5009.0,
@@ -406,6 +446,7 @@
       "concept": "capital_expenditures",
       "label": "Purchase of property and equipment",
       "values": {
+        "2022-01-30": -394502.0,
         "2023-01-29": -638657.0,
         "2024-01-28": -651865.0,
         "2025-02-02": -689232.0,
@@ -416,6 +457,7 @@
       "concept": "settlement_of_net_investment_hedges",
       "label": "Settlement of net investment hedges",
       "values": {
+        "2022-01-30": -23389.0,
         "2023-01-29": 47804.0,
         "2024-01-28": -1609.0,
         "2025-02-02": 50213.0,
@@ -426,6 +468,7 @@
       "concept": "change_in_accounts_payable",
       "label": "Accounts payable",
       "values": {
+        "2022-01-30": 117655.0,
         "2023-01-29": -107280.0,
         "2024-01-28": 177367.0,
         "2025-02-02": -57044.0,
@@ -433,19 +476,10 @@
       }
     },
     {
-      "concept": "change_in_accounts_receivable",
-      "label": "Accounts receivable, net",
-      "values": {
-        "2023-01-29": -58987.0,
-        "2024-01-28": 6580.0,
-        "2025-02-02": 1626.0,
-        "2026-02-01": -65755.0
-      }
-    },
-    {
       "concept": "change_in_accrued_compensation_and_related_expenses",
       "label": "Accrued compensation and related expenses",
       "values": {
+        "2022-01-30": 75273.0,
         "2023-01-29": 47254.0,
         "2024-01-28": 70327.0,
         "2025-02-02": -112110.0,
@@ -456,6 +490,7 @@
       "concept": "change_in_accrued_liabilities_and_other",
       "label": "Accrued liabilities and other",
       "values": {
+        "2022-01-30": 103878.0,
         "2023-01-29": 65364.0,
         "2024-01-28": -71734.0,
         "2025-02-02": 193139.0,
@@ -466,6 +501,7 @@
       "concept": "change_in_income_taxes_payable",
       "label": "Current and non-current income taxes payable",
       "values": {
+        "2022-01-30": 120778.0,
         "2023-01-29": 35986.0,
         "2024-01-28": -173196.0,
         "2025-02-02": 157205.0,
@@ -476,6 +512,7 @@
       "concept": "deferred_income_taxes",
       "label": "Deferred income taxes",
       "values": {
+        "2022-01-30": -5180.0,
         "2023-01-29": 3042.0,
         "2024-01-28": -28383.0,
         "2025-02-02": 57451.0,
@@ -486,6 +523,7 @@
       "concept": "depreciation_and_amortization",
       "label": "Depreciation and amortization",
       "values": {
+        "2022-01-30": 224206.0,
         "2023-01-29": 291791.0,
         "2024-01-28": 379384.0,
         "2025-02-02": 446524.0,
@@ -496,6 +534,7 @@
       "concept": "derecognition_of_unredeemed_gift_card_liability",
       "label": "Derecognition of unredeemed gift card liability",
       "values": {
+        "2022-01-30": -18699.0,
         "2023-01-29": -23337.0,
         "2024-01-28": -28547.0,
         "2025-02-02": -36231.0,
@@ -506,6 +545,7 @@
       "concept": "change_in_inventories",
       "label": "Inventories",
       "values": {
+        "2022-01-30": -323609.0,
         "2023-01-29": -573438.0,
         "2024-01-28": 66584.0,
         "2025-02-02": -156085.0,
@@ -516,6 +556,7 @@
       "concept": "studio_obsolescence_provision",
       "label": "lululemon Studio obsolescence provision",
       "values": {
+        "2022-01-30": 0.0,
         "2023-01-29": 62928.0,
         "2024-01-28": 23709.0,
         "2025-02-02": 0.0,
@@ -526,6 +567,7 @@
       "concept": "net_cash_from_operating_activities",
       "label": "Net cash provided by operating activities",
       "values": {
+        "2022-01-30": 1389108.0,
         "2023-01-29": 966463.0,
         "2024-01-28": 2296164.0,
         "2025-02-02": 2272713.0,
@@ -536,6 +578,7 @@
       "concept": "cash_flow_net_income",
       "label": "Net income",
       "values": {
+        "2022-01-30": 975322.0,
         "2023-01-29": 854800.0,
         "2024-01-28": 1550190.0,
         "2025-02-02": 1814616.0,
@@ -546,6 +589,7 @@
       "concept": "change_in_other_liabilities",
       "label": "Other current and non-current liabilities",
       "values": {
+        "2022-01-30": 30073.0,
         "2023-01-29": -2925.0,
         "2024-01-28": 12230.0,
         "2025-02-02": 2488.0,
@@ -556,6 +600,7 @@
       "concept": "change_in_other_non_current_assets",
       "label": "Other non-current assets",
       "values": {
+        "2022-01-30": -17556.0,
         "2023-01-29": -36518.0,
         "2024-01-28": -53280.0,
         "2025-02-02": -73205.0,
@@ -566,6 +611,7 @@
       "concept": "change_in_prepaid_and_receivable_income_taxes",
       "label": "Prepaid and receivable income taxes",
       "values": {
+        "2022-01-30": 20108.0,
         "2023-01-29": -66714.0,
         "2024-01-28": 1908.0,
         "2025-02-02": -2031.0,
@@ -576,6 +622,7 @@
       "concept": "change_in_prepaid_expenses_and_other_current_assets",
       "label": "Prepaid expenses and other current assets",
       "values": {
+        "2022-01-30": -82404.0,
         "2023-01-29": -54833.0,
         "2024-01-28": 40587.0,
         "2025-02-02": -71789.0,
@@ -586,6 +633,7 @@
       "concept": "change_in_lease_assets_and_liabilities",
       "label": "Right-of-use lease assets and current and non-current lease liabilities",
       "values": {
+        "2022-01-30": 13494.0,
         "2023-01-29": 23905.0,
         "2024-01-28": 37535.0,
         "2025-02-02": 23501.0,
@@ -596,6 +644,7 @@
       "concept": "settlement_of_derivatives",
       "label": "Settlement of derivatives not designated in a hedging relationship",
       "values": {
+        "2022-01-30": 15191.0,
         "2023-01-29": -38649.0,
         "2024-01-28": 32527.0,
         "2025-02-02": -47763.0,
@@ -606,6 +655,7 @@
       "concept": "stock_based_compensation",
       "label": "Stock-based compensation expense",
       "values": {
+        "2022-01-30": 69137.0,
         "2023-01-29": 78075.0,
         "2024-01-28": 93560.0,
         "2025-02-02": 90011.0,
@@ -616,6 +666,7 @@
       "concept": "change_in_unredeemed_gift_card_liability",
       "label": "Unredeemed gift card liability",
       "values": {
+        "2022-01-30": 71441.0,
         "2023-01-29": 68266.0,
         "2024-01-28": 84315.0,
         "2025-02-02": 42410.0,
@@ -626,6 +677,7 @@
       "concept": "cash_beginning",
       "label": "Cash and cash equivalents, beginning of period",
       "values": {
+        "2022-01-30": 1150517.0,
         "2023-01-29": 1259871.0,
         "2024-01-28": 1154867.0,
         "2025-02-02": 2243971.0,
@@ -636,6 +688,7 @@
       "concept": "cash_ending",
       "label": "Cash and cash equivalents, end of period",
       "values": {
+        "2022-01-30": 1259871.0,
         "2023-01-29": 1154867.0,
         "2024-01-28": 2243971.0,
         "2025-02-02": 1984336.0,
@@ -646,6 +699,7 @@
       "concept": "effect_of_fx_on_cash",
       "label": "Effect of foreign currency exchange rate changes on cash and cash equivalents",
       "values": {
+        "2022-01-30": -6876.0,
         "2023-01-29": -34043.0,
         "2024-01-28": -4100.0,
         "2025-02-02": -81666.0,
@@ -656,6 +710,7 @@
       "concept": "change_in_cash",
       "label": "Increase (decrease) in cash and cash equivalents",
       "values": {
+        "2022-01-30": 109354.0,
         "2023-01-29": -105004.0,
         "2024-01-28": 1089104.0,
         "2025-02-02": -259635.0,
@@ -668,6 +723,7 @@
   "historical_lease": null,
   "historical_shares": {
     "adjustment_factors": {
+      "2022-01-30": 1.0,
       "2023-01-29": 1.0,
       "2024-01-28": 1.0,
       "2025-02-02": 1.0,
@@ -675,6 +731,7 @@
     },
     "basis": "reported",
     "diluted_weighted_average": {
+      "2022-01-30": 130295.0,
       "2023-01-29": 128017.0,
       "2024-01-28": 127060.0,
       "2025-02-02": 123935.0,
@@ -687,6 +744,7 @@
       "concept": "foreign_currency_translation_adjustment",
       "label": "Foreign currency translation adjustment",
       "values": {
+        "2022-01-30": -28494.0,
         "2023-01-29": -65571.0,
         "2024-01-28": -23077.0,
         "2025-02-02": -253209.0,
@@ -697,6 +755,7 @@
       "concept": "net_investment_hedge_gains_losses",
       "label": "Net investment hedge gains (losses)",
       "values": {
+        "2022-01-30": 9732.0,
         "2023-01-29": 8904.0,
         "2024-01-28": 11405.0,
         "2025-02-02": 93024.0,
@@ -707,6 +766,7 @@
       "concept": "amortization_of_intangible_assets",
       "label": "Amortization of intangible assets",
       "values": {
+        "2022-01-30": 8782.0,
         "2023-01-29": 8752.0,
         "2024-01-28": 5010.0,
         "2025-02-02": 2735.0,
@@ -717,6 +777,7 @@
       "concept": "basic_eps",
       "label": "Basic earnings per share",
       "values": {
+        "2022-01-30": 7.52,
         "2023-01-29": 6.7,
         "2024-01-28": 12.23,
         "2025-02-02": 14.67,
@@ -727,6 +788,7 @@
       "concept": "comprehensive_income",
       "label": "Comprehensive income",
       "values": {
+        "2022-01-30": 956560.0,
         "2023-01-29": 798133.0,
         "2024-01-28": 1538518.0,
         "2025-02-02": 1654431.0,
@@ -737,6 +799,7 @@
       "concept": "cost_of_goods_sold",
       "label": "Cost of goods sold",
       "values": {
+        "2022-01-30": 2648052.0,
         "2023-01-29": 3618178.0,
         "2024-01-28": 4009873.0,
         "2025-02-02": 4317315.0,
@@ -747,6 +810,7 @@
       "concept": "diluted_eps",
       "label": "Diluted earnings per share",
       "values": {
+        "2022-01-30": 7.49,
         "2023-01-29": 6.68,
         "2024-01-28": 12.2,
         "2025-02-02": 14.64,
@@ -757,6 +821,7 @@
       "concept": "gross_profit",
       "label": "Gross profit",
       "values": {
+        "2022-01-30": 3608565.0,
         "2023-01-29": 4492340.0,
         "2024-01-28": 5609405.0,
         "2025-02-02": 6270811.0,
@@ -767,6 +832,7 @@
       "concept": "income_before_tax",
       "label": "Income before income tax expense",
       "values": {
+        "2022-01-30": 1333869.0,
         "2023-01-29": 1332571.0,
         "2024-01-28": 2175735.0,
         "2025-02-02": 2576077.0,
@@ -777,6 +843,7 @@
       "concept": "operating_income",
       "label": "Income from operations",
       "values": {
+        "2022-01-30": 1333355.0,
         "2023-01-29": 1328408.0,
         "2024-01-28": 2132676.0,
         "2025-02-02": 2505697.0,
@@ -787,6 +854,7 @@
       "concept": "income_tax_expense",
       "label": "Income tax expense",
       "values": {
+        "2022-01-30": 358547.0,
         "2023-01-29": 477771.0,
         "2024-01-28": 625545.0,
         "2025-02-02": 761461.0,
@@ -797,6 +865,7 @@
       "concept": "net_income",
       "label": "Net income",
       "values": {
+        "2022-01-30": 975322.0,
         "2023-01-29": 854800.0,
         "2024-01-28": 1550190.0,
         "2025-02-02": 1814616.0,
@@ -807,6 +876,7 @@
       "concept": "revenue",
       "label": "Net revenue",
       "values": {
+        "2022-01-30": 6256617.0,
         "2023-01-29": 8110518.0,
         "2024-01-28": 9619278.0,
         "2025-02-02": 10588126.0,
@@ -817,6 +887,7 @@
       "concept": "other_comprehensive_income",
       "label": "Other comprehensive income (loss), net of tax",
       "values": {
+        "2022-01-30": -18762.0,
         "2023-01-29": -56667.0,
         "2024-01-28": -11672.0,
         "2025-02-02": -160185.0,
@@ -827,6 +898,7 @@
       "concept": "other_income_expense_net",
       "label": "Other income (expense), net",
       "values": {
+        "2022-01-30": 514.0,
         "2023-01-29": 4163.0,
         "2024-01-28": 43059.0,
         "2025-02-02": 70380.0,
@@ -837,6 +909,7 @@
       "concept": "selling_general_and_administrative_expenses",
       "label": "Selling, general and administrative expenses",
       "values": {
+        "2022-01-30": 2225034.0,
         "2023-01-29": 2757447.0,
         "2024-01-28": 3397218.0,
         "2025-02-02": 3762379.0,
@@ -846,6 +919,11 @@
   ],
   "jurisdiction": "US",
   "periods": [
+    {
+      "end_date": "2022-01-30",
+      "is_interim": false,
+      "label": "FY2022"
+    },
     {
       "end_date": "2023-01-29",
       "is_interim": false,

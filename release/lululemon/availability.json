@@ -8,6 +8,17 @@
           "interest_expense"
         ],
         "missing_periods": [
+          "2022-01-30"
+        ],
+        "period": "2022-01-30",
+        "reason": "absent_line"
+      },
+      {
+        "available": false,
+        "missing_concepts": [
+          "interest_expense"
+        ],
+        "missing_periods": [
           "2023-01-29"
         ],
         "period": "2023-01-29",
@@ -51,6 +62,17 @@
   "interest_income": {
     "line_present": false,
     "periods": [
+      {
+        "available": false,
+        "missing_concepts": [
+          "interest_income"
+        ],
+        "missing_periods": [
+          "2022-01-30"
+        ],
+        "period": "2022-01-30",
+        "reason": "absent_line"
+      },
       {
         "available": false,
         "missing_concepts": [
@@ -106,6 +128,18 @@
         "interest_expense"
       ],
       "missing_periods": [
+        "2022-01-30"
+      ],
+      "period": "2022-01-30",
+      "reason": "absent_line"
+    },
+    {
+      "concept": "interest_expense",
+      "kind": "concept",
+      "missing_concepts": [
+        "interest_expense"
+      ],
+      "missing_periods": [
         "2023-01-29"
       ],
       "period": "2023-01-29",
@@ -154,6 +188,18 @@
         "interest_income"
       ],
       "missing_periods": [
+        "2022-01-30"
+      ],
+      "period": "2022-01-30",
+      "reason": "absent_line"
+    },
+    {
+      "concept": "interest_income",
+      "kind": "concept",
+      "missing_concepts": [
+        "interest_income"
+      ],
+      "missing_periods": [
         "2023-01-29"
       ],
       "period": "2023-01-29",
@@ -202,6 +248,58 @@
         "interest_income"
       ],
       "missing_periods": [
+        "2022-01-30"
+      ],
+      "output": "net_interest",
+      "period": "2022-01-30",
+      "reason": "absent_line"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2022-01-30"
+      ],
+      "output": "net_interest_after_tax",
+      "period": "2022-01-30",
+      "reason": "absent_line"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2022-01-30"
+      ],
+      "output": "nopat",
+      "period": "2022-01-30",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2022-01-30"
+      ],
+      "output": "nopat_margin",
+      "period": "2022-01-30",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
         "2023-01-29"
       ],
       "output": "net_interest",
@@ -401,6 +499,58 @@
       ],
       "output": "nopat_margin",
       "period": "2026-02-01",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2023-01-29"
+      ],
+      "output": "rnoa",
+      "period": "2023-01-29",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2023-01-29"
+      ],
+      "output": "after_tax_cod",
+      "period": "2023-01-29",
+      "reason": "absent_line"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2023-01-29"
+      ],
+      "output": "spread",
+      "period": "2023-01-29",
+      "reason": "dependent_unavailable"
+    },
+    {
+      "kind": "output",
+      "missing_concepts": [
+        "interest_expense",
+        "interest_income"
+      ],
+      "missing_periods": [
+        "2023-01-29"
+      ],
+      "output": "roe_decomp",
+      "period": "2023-01-29",
       "reason": "dependent_unavailable"
     },
     {
@@ -566,6 +716,7 @@
         "interest_income"
       ],
       "missing_periods": [
+        "2023-01-29",
         "2024-01-28",
         "2025-02-02",
         "2026-02-01"

@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import date
 from pathlib import Path
 
 from .data.interface import DocumentManifest, DocumentType
@@ -193,7 +194,22 @@ def cmd_reconcile(args: argparse.Namespace) -> int:
         return 1
 
     try:
-        reconciled = reconcile_filings(validated)
+        admit_periods: tuple[date, ...] = ()
+        if args.admit_period:
+            parsed: list[date] = []
+            for raw in args.admit_period:
+                try:
+                    parsed.append(date.fromisoformat(raw))
+                except ValueError:
+                    print(
+                        f"error: invalid --admit-period {raw!r}; expected YYYY-MM-DD"
+                    )
+                    return 1
+            admit_periods = tuple(parsed)
+        reconciled = reconcile_filings(
+            validated,
+            admit_periods=admit_periods or None,
+        )
     except ValueError as exc:
         print(f"error: {exc}")
         return 1
@@ -293,6 +309,17 @@ def main(argv: list[str] | None = None) -> int:
         "--output",
         required=True,
         help="Output directory for standardized.json / provenance.json / conflicts.json",
+    )
+    p_reconcile.add_argument(
+        "--admit-period",
+        action="append",
+        default=None,
+        metavar="YYYY-MM-DD",
+        help=(
+            "Admit an additional comparative period that has selected "
+            "income-statement, balance-sheet, and cash-flow coverage. "
+            "Repeatable. Default keeps filing year-ends only."
+        ),
     )
     p_reconcile.set_defaults(func=cmd_reconcile)
 

@@ -347,7 +347,7 @@ def reconciliation_provenance_payload(
             "status": "outside_model_axis",
         }
 
-    return {
+    payload = {
         "company_name": reconciled.company_name,
         "ticker": reconciled.ticker,
         "stock_code": reconciled.stock_code,
@@ -375,6 +375,14 @@ def reconciliation_provenance_payload(
         "overlap_conflict_count": len(reconciled.conflicts),
         "supplemental_conflict_count": len(reconciled.supplemental_conflicts),
     }
+    if reconciled.requested_admit_periods:
+        payload["admitted_comparative_periods"] = [
+            period.isoformat() for period in reconciled.admitted_comparative_periods
+        ]
+        payload["excluded_comparative_periods"] = [
+            period.isoformat() for period in reconciled.excluded_comparative_periods
+        ]
+    return payload
 
 
 def reconciliation_conflicts_payload(

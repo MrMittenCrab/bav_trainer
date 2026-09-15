@@ -12,6 +12,7 @@ import json
 import shutil
 import sys
 import tempfile
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,7 +30,8 @@ ANSWER_NAME = "Lululemon_Answer_Key.xlsx"
 README = RELEASE / "README.md"
 AVAILABILITY = RELEASE / "availability.json"
 
-EXPECTED_SPECS = 376
+ADMIT_PERIODS = (date(2022, 1, 30),)
+EXPECTED_SPECS = 486
 
 
 def _sha256(path: Path) -> str:
@@ -48,6 +50,34 @@ def validate_extracted_filings() -> None:
             raise ValueError(
                 f"filing validation failed for {filing.filing.source_file}: {errors}"
             )
+
+
+def reconcile_canonical() -> None:
+    from core.data.standardized_io import standardized_to_payload
+    from core.ingestion.filing_cli import load_and_validate_extracted_dir
+    from core.ingestion.filing_reconciler import reconcile_filings
+    from core.ingestion.filing_standardizer import (
+        reconciliation_conflicts_payload,
+        reconciliation_provenance_payload,
+        standardize_reconciled,
+    )
+
+    validated = load_and_validate_extracted_dir(EXTRACTED, source_root=SOURCE)
+    if any(not report.ok for _, report in validated):
+        raise ValueError("reconcile aborted: validation errors present")
+    reconciled = reconcile_filings(validated, admit_periods=ADMIT_PERIODS)
+    fin = standardize_reconciled(reconciled)
+    artifacts = {
+        "standardized.json": standardized_to_payload(fin),
+        "provenance.json": reconciliation_provenance_payload(reconciled),
+        "conflicts.json": reconciliation_conflicts_payload(reconciled),
+    }
+    RECONCILED.mkdir(parents=True, exist_ok=True)
+    for name, payload in artifacts.items():
+        (RECONCILED / name).write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
 
 
 def copy_reconciled_supporting(dest: Path) -> Path:
@@ -215,6 +245,7 @@ def _replace_release(staged_dir: Path, staged_trainer: Path, staged_answer: Path
 def main() -> int:
     try:
         validate_extracted_filings()
+        reconcile_canonical()
         with tempfile.TemporaryDirectory(prefix="lulu_release_") as raw:
             staged = Path(raw)
             supporting = staged / "supporting"

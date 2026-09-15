@@ -48,6 +48,7 @@ def _filing(
     share_facts: tuple[SupplementalFact, ...] = (),
     extra_rows: tuple[ExtractedStatementRow, ...] = (),
     balance_sheet_rows: tuple[ExtractedStatementRow, ...] = (),
+    cash_flow_rows: tuple[ExtractedStatementRow, ...] = (),
 ) -> ExtractedFiling:
     period_end = date(year, 12, 31)
     return ExtractedFiling(
@@ -78,7 +79,7 @@ def _filing(
             *extra_rows,
         ),
         balance_sheet=balance_sheet_rows,
-        cash_flow=(),
+        cash_flow=cash_flow_rows,
         note_facts=note_facts,
         share_facts=share_facts,
     )
@@ -1737,3 +1738,292 @@ def test_historical_lease_fail_closed_gating(tmp_path: Path, notes_2024, notes_2
     )
     fin = standardize_reconciled(reconciled)
     assert fin.historical_lease is None
+
+
+def _cf_row(
+    *,
+    label: str,
+    concept: str,
+    section: str,
+    values: dict[date, tuple[float, PresentationRole]],
+) -> ExtractedStatementRow:
+    return ExtractedStatementRow(
+        label=label,
+        section=section,
+        suggested_concept=concept,
+        values={
+            period: FilingValue(value=value, presentation_role=role)
+            for period, (value, role) in values.items()
+        },
+        source=SourceRef(page=3, statement="Cash Flow"),
+    )
+
+
+def _three_statement_pair(
+    tmp_path: Path,
+    *,
+    comparative_bs: bool = True,
+    comparative_ar_change: bool = True,
+    fy2025_comparative_revenue: float = 100.0,
+):
+    """Two annual filings with a complete 2023 comparative on IS/CF and optional BS."""
+    p_comp = date(2023, 12, 31)
+    p2024 = date(2024, 12, 31)
+    p2025 = date(2025, 12, 31)
+    cash_2024 = _cf_row(
+        label="Net cash from operations",
+        concept="operating_cash_flow",
+        section="operating",
+        values={
+            p_comp: (8.0, PresentationRole.COMPARATIVE),
+            p2024: (9.0, PresentationRole.CURRENT_PERIOD),
+        },
+    )
+    cash_2025 = _cf_row(
+        label="Net cash from operations",
+        concept="operating_cash_flow",
+        section="operating",
+        values={
+            p2024: (9.0, PresentationRole.COMPARATIVE),
+            p2025: (11.0, PresentationRole.CURRENT_PERIOD),
+        },
+    )
+    ar_2024_values = {p2024: (1.0, PresentationRole.CURRENT_PERIOD)}
+    if comparative_ar_change:
+        ar_2024_values[p_comp] = (0.5, PresentationRole.COMPARATIVE)
+    ar_2024 = _cf_row(
+        label="Accounts receivable, net",
+        concept="change_in_accounts_receivable",
+        section="operating",
+        values=ar_2024_values,
+    )
+    ar_2025 = _cf_row(
+        label="Accounts receivable, net",
+        concept="change_in_accounts_receivable",
+        section="operating",
+        values={
+            p2024: (1.0, PresentationRole.COMPARATIVE),
+            p2025: (1.5, PresentationRole.CURRENT_PERIOD),
+        },
+    )
+    bs_2024 = []
+    if comparative_bs:
+        bs_2024.append(
+            _bs_row(
+                label="Cash",
+                concept="cash",
+                section="current assets",
+                values={
+                    p_comp: (40.0, PresentationRole.COMPARATIVE),
+                    p2024: (50.0, PresentationRole.CURRENT_PERIOD),
+                },
+            )
+        )
+    else:
+        bs_2024.append(
+            _bs_row(
+                label="Cash",
+                concept="cash",
+                section="current assets",
+                values={p2024: (50.0, PresentationRole.CURRENT_PERIOD)},
+            )
+        )
+    f2024 = _filing(
+        year=2024,
+        source_file="a2024.pdf",
+        revenue_values={
+            p_comp: (90.0, PresentationRole.COMPARATIVE),
+            p2024: (100.0, PresentationRole.CURRENT_PERIOD),
+        },
+        balance_sheet_rows=tuple(bs_2024),
+        cash_flow_rows=(cash_2024, ar_2024),
+    )
+    f2025 = _filing(
+        year=2025,
+        source_file="a2025.pdf",
+        revenue_values={
+            p2024: (fy2025_comparative_revenue, PresentationRole.COMPARATIVE),
+            p2025: (110.0, PresentationRole.CURRENT_PERIOD),
+        },
+        balance_sheet_rows=(
+            _bs_row(
+                label="Cash",
+                concept="cash",
+                section="current assets",
+                values={
+                    p2024: (50.0, PresentationRole.COMPARATIVE),
+                    p2025: (60.0, PresentationRole.CURRENT_PERIOD),
+                },
+            ),
+        ),
+        cash_flow_rows=(cash_2025, ar_2025),
+    )
+    return (
+        p_comp,
+        p2024,
+        p2025,
+        [
+            _validated(tmp_path, f2024, b"2024"),
+            _validated(tmp_path, f2025, b"2025"),
+        ],
+    )
+
+
+def test_default_reconciliation_keeps_filing_year_ends(tmp_path: Path):
+    p_comp, p2024, p2025, pairs = _three_statement_pair(tmp_path)
+    reconciled = reconcile_filings(pairs)
+    assert reconciled.periods == (p2024, p2025)
+    assert reconciled.requested_admit_periods == ()
+    assert reconciled.admitted_comparative_periods == ()
+    assert reconciled.excluded_comparative_periods == (p_comp,)
+    provenance = reconciliation_provenance_payload(reconciled)
+    assert "admitted_comparative_periods" not in provenance
+    assert provenance["periods"] == [p2024.isoformat(), p2025.isoformat()]
+    outside = [
+        item
+        for item in provenance["values"].values()
+        if item["status"] == "outside_model_axis" and item["period"] == p_comp.isoformat()
+    ]
+    assert outside
+    fin = standardize_reconciled(reconciled)
+    assert [period.end_date for period in fin.periods] == [p2024, p2025]
+
+
+def test_explicit_admission_adds_complete_comparative(tmp_path: Path):
+    p_comp, p2024, p2025, pairs = _three_statement_pair(tmp_path)
+    default = reconcile_filings(pairs)
+    admitted = reconcile_filings(pairs, admit_periods=(p_comp,))
+    assert default.periods == (p2024, p2025)
+    assert admitted.periods == (p_comp, p2024, p2025)
+    assert admitted.requested_admit_periods == (p_comp,)
+    assert admitted.admitted_comparative_periods == (p_comp,)
+    assert admitted.excluded_comparative_periods == ()
+    revenue = next(
+        value
+        for value in admitted.values
+        if value.period == p_comp and value.suggested_concept == "revenue"
+    )
+    assert revenue.selected.value == 90.0
+    cash = next(
+        value
+        for value in admitted.values
+        if value.period == p_comp and value.suggested_concept == "cash"
+    )
+    assert cash.selected.value == 40.0
+    provenance = reconciliation_provenance_payload(admitted)
+    assert provenance["admitted_comparative_periods"] == [p_comp.isoformat()]
+    assert provenance["excluded_comparative_periods"] == []
+    assert provenance["periods"] == [
+        p_comp.isoformat(),
+        p2024.isoformat(),
+        p2025.isoformat(),
+    ]
+    fin = standardize_reconciled(admitted)
+    rev_line = next(item for item in fin.income_statement if item.concept == "revenue")
+    assert rev_line.values[p_comp] == 90.0
+    assert rev_line.values[p2024] == 100.0
+    cash_line = next(item for item in fin.balance_sheet if item.concept == "cash")
+    assert cash_line.values[p_comp] == 40.0
+
+
+def test_admission_rejects_missing_statement_and_unsupported_date(tmp_path: Path):
+    p_comp, p2024, p2025, pairs = _three_statement_pair(
+        tmp_path, comparative_bs=False
+    )
+    with pytest.raises(
+        ValueError,
+        match="cannot admit comparative period 2023-12-31: missing selected balance_sheet coverage",
+    ):
+        reconcile_filings(pairs, admit_periods=(p_comp,))
+    ok_root = tmp_path / "ok"
+    ok_root.mkdir()
+    complete = _three_statement_pair(ok_root)[3]
+    with pytest.raises(
+        ValueError,
+        match="unsupported comparative period 2019-01-01: not present in documentary observations",
+    ):
+        reconcile_filings(complete, admit_periods=(date(2019, 1, 1),))
+    # Filing year-end requests are ignored; default axis is unchanged.
+    already = reconcile_filings(complete, admit_periods=(p2024,))
+    assert already.periods == (p2024, p2025)
+    assert already.admitted_comparative_periods == ()
+
+
+def test_admission_preserves_precedence_and_omits_incomplete_cf_row(tmp_path: Path):
+    p_comp, p2024, p2025, pairs = _three_statement_pair(
+        tmp_path,
+        comparative_ar_change=False,
+        fy2025_comparative_revenue=101.0,
+    )
+    reconciled = reconcile_filings(pairs, admit_periods=(p_comp,))
+    fy2024_rev = next(
+        value
+        for value in reconciled.values
+        if value.period == p2024 and value.suggested_concept == "revenue"
+    )
+    assert fy2024_rev.selected.value == 101.0
+    assert fy2024_rev.selected.presentation_role == PresentationRole.COMPARATIVE
+    assert fy2024_rev.selected.filing_year == 2025
+    conflict = next(c for c in reconciled.conflicts if c.period == p2024)
+    assert conflict.reason == "later_audited_presentation"
+    assert {obs.value for obs in fy2024_rev.observations} == {100.0, 101.0}
+
+    fin = standardize_reconciled(reconciled)
+    cf_concepts = {item.concept for item in fin.cash_flow}
+    assert "operating_cash_flow" in cf_concepts
+    assert "change_in_accounts_receivable" not in cf_concepts
+    ar_line = next(
+        (
+            item
+            for item in fin.cash_flow
+            if item.concept == "change_in_accounts_receivable"
+        ),
+        None,
+    )
+    assert ar_line is None
+    provenance = reconciliation_provenance_payload(reconciled)
+    omitted = [
+        item
+        for item in provenance["omitted_incomplete_axis"]
+        if item["suggested_concept"] == "change_in_accounts_receivable"
+    ]
+    assert len(omitted) == 1
+    assert p_comp.isoformat() not in omitted[0]["available_periods"]
+    assert p2024.isoformat() in omitted[0]["available_periods"]
+    omitted_values = [
+        item
+        for item in provenance["values"].values()
+        if item["suggested_concept"] == "change_in_accounts_receivable"
+        and item["status"] == "omitted_incomplete_axis"
+    ]
+    assert omitted_values
+    assert all(
+        item["selected"] is not None and item["period"] != p_comp.isoformat()
+        for item in omitted_values
+    )
+    assert not any(
+        item["period"] == p_comp.isoformat()
+        and item["suggested_concept"] == "change_in_accounts_receivable"
+        and item["status"] == "selected"
+        for item in provenance["values"].values()
+    )
+
+
+def test_admission_round_trip_identity_survives(tmp_path: Path):
+    from core.data.standardized_io import (
+        standardized_from_payload,
+        standardized_to_payload,
+    )
+
+    p_comp, p2024, p2025, pairs = _three_statement_pair(tmp_path)
+    reconciled = reconcile_filings(pairs, admit_periods=(p_comp,))
+    fin = standardize_reconciled(reconciled)
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    assert [period.end_date for period in restored.periods] == [p_comp, p2024, p2025]
+    revenue = next(item for item in restored.income_statement if item.concept == "revenue")
+    assert revenue.concept == "revenue"
+    assert revenue.values == {p_comp: 90.0, p2024: 100.0, p2025: 110.0}
+    cash = next(item for item in restored.balance_sheet if item.concept == "cash")
+    assert cash.concept == "cash"
+    assert cash.values[p_comp] == 40.0
+

@@ -474,6 +474,13 @@ def test_lululemon_unchanged_facts_gate_interest_and_keep_supported_outputs(tmp_
     fin = standardized_from_payload(payload)
     periods = canonical_fiscal_periods(fin)
     assert periods == [
+        date(2022, 1, 30),
+        date(2023, 1, 29),
+        date(2024, 1, 28),
+        date(2025, 2, 2),
+        date(2026, 2, 1),
+    ]
+    assert periods[1:] == [
         date(2023, 1, 29),
         date(2024, 1, 28),
         date(2025, 2, 2),
@@ -485,19 +492,32 @@ def test_lululemon_unchanged_facts_gate_interest_and_keep_supported_outputs(tmp_
     with pytest.raises(MissingLineError, match="interest_expense"):
         resolve_line(fin.income_statement, "interest_expense", required=True)
     anchor = compute_anchor(fin, periods)
-    assert anchor.historical.revenue == [8110518.0, 9619278.0, 10588126.0, 11102600.0]
+    assert anchor.historical.revenue == [
+        6256617.0,
+        8110518.0,
+        9619278.0,
+        10588126.0,
+        11102600.0,
+    ]
+    assert anchor.historical.revenue[1:] == [8110518.0, 9619278.0, 10588126.0, 11102600.0]
     assert all(is_source_unavailable(v) for v in anchor.historical.net_interest)
     assert all(is_source_unavailable(v) for v in anchor.historical.nopat)
     assert is_source_unavailable(anchor.hist_avg_after_tax_cod)
     ncit = next(
         i for i in fin.balance_sheet if i.concept == "non_current_income_taxes_payable"
     )
+    assert ncit.values[date(2022, 1, 30)] == 38074.0
     assert ncit.values[date(2023, 1, 29)] == 28555.0
     assert ncit.values[date(2024, 1, 28)] == 15864.0
     assert ncit.values[date(2025, 2, 2)] == 0.0
     assert ncit.values[date(2026, 2, 1)] is None
     common = next(i for i in fin.balance_sheet if i.label == "Common stock")
+    assert common.values[date(2023, 1, 29)] == 611.0
+    assert common.values[date(2024, 1, 28)] == 606.0
+    assert common.values[date(2025, 2, 2)] == 581.0
+    assert common.values[date(2026, 2, 1)] == 557.0
     assert common.values == {
+        date(2022, 1, 30): 616.0,
         date(2023, 1, 29): 611.0,
         date(2024, 1, 28): 606.0,
         date(2025, 2, 2): 581.0,

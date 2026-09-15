@@ -153,3 +153,45 @@ def test_validate_and_reconcile_reject_invalid_source_path(tmp_path: Path):
     assert bad_reconcile.returncode != 0
     assert "invalid_source_path" in bad_reconcile.stdout
     assert not out.exists() or not any(out.iterdir())
+
+
+def test_reconcile_help_lists_admit_period():
+    completed = _run("reconcile", "--help")
+    assert completed.returncode == 0
+    assert "--admit-period" in completed.stdout
+
+
+def test_reconcile_rejects_invalid_admit_period_before_write(tmp_path: Path):
+    extracted, source_root = _write_fixture(tmp_path)
+    out = tmp_path / "reconciled"
+    completed = _run(
+        "reconcile",
+        str(extracted),
+        "--source-root",
+        str(source_root),
+        "-o",
+        str(out),
+        "--admit-period",
+        "not-a-date",
+    )
+    assert completed.returncode != 0
+    assert "invalid --admit-period" in completed.stdout
+    assert not out.exists() or not any(out.iterdir())
+
+
+def test_reconcile_rejects_unsupported_admit_period_before_write(tmp_path: Path):
+    extracted, source_root = _write_fixture(tmp_path)
+    out = tmp_path / "reconciled"
+    completed = _run(
+        "reconcile",
+        str(extracted),
+        "--source-root",
+        str(source_root),
+        "-o",
+        str(out),
+        "--admit-period",
+        "2019-01-01",
+    )
+    assert completed.returncode != 0
+    assert "unsupported comparative period 2019-01-01" in completed.stdout
+    assert not out.exists() or not any(out.iterdir())

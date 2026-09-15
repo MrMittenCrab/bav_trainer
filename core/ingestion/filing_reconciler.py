@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
+from typing import Iterable
 
 from ..data.filing import (
     ExtractedFiling,
@@ -12,6 +13,8 @@ from ..data.filing import (
     SupplementalFact,
 )
 from .filing_validator import FilingValidationReport, source_row_identity
+
+_REQUIRED_STATEMENTS = ("income_statement", "balance_sheet", "cash_flow")
 
 ROLE_RANK = {
     PresentationRole.RESTATED_COMPARATIVE: 3,
@@ -94,6 +97,9 @@ class ReconciledCompanyData:
     supplemental_conflicts: tuple[SupplementalConflict, ...] = ()
     source_files: tuple[BoundSourceFile, ...] = ()
     omitted_incomplete_axis: tuple[dict, ...] = ()
+    requested_admit_periods: tuple[date, ...] = ()
+    admitted_comparative_periods: tuple[date, ...] = ()
+    excluded_comparative_periods: tuple[date, ...] = ()
 
 
 def _select_observation(
@@ -158,10 +164,64 @@ def _group_supplemental_conflicts(
     return tuple(conflicts)
 
 
+def _parse_admit_periods(
+    admit_periods: Iterable[date] | None,
+) -> tuple[date, ...]:
+    if not admit_periods:
+        return ()
+    return tuple(sorted(set(admit_periods)))
+
+
+def _statement_coverage(
+    buckets: dict[tuple[str, str, date], list],
+) -> dict[date, set[str]]:
+    coverage: dict[date, set[str]] = defaultdict(set)
+    for statement, _ident, period in buckets:
+        coverage[period].add(statement)
+    return coverage
+
+
+def _validate_comparative_admission(
+    *,
+    requested: tuple[date, ...],
+    filing_year_ends: set[date],
+    coverage: dict[date, set[str]],
+) -> tuple[date, ...]:
+    """Return comparative dates to add; reject missing-statement or unknown dates."""
+    observed = set(coverage)
+    admitted: list[date] = []
+    for period in requested:
+        if period in filing_year_ends:
+            continue
+        if period not in observed:
+            raise ValueError(
+                f"unsupported comparative period {period.isoformat()}: "
+                "not present in documentary observations"
+            )
+        missing = [
+            statement
+            for statement in _REQUIRED_STATEMENTS
+            if statement not in coverage.get(period, set())
+        ]
+        if missing:
+            raise ValueError(
+                f"cannot admit comparative period {period.isoformat()}: "
+                f"missing selected {'/'.join(missing)} coverage"
+            )
+        admitted.append(period)
+    return tuple(admitted)
+
+
 def reconcile_filings(
     filings: list[tuple[ExtractedFiling, FilingValidationReport]],
+    *,
+    admit_periods: Iterable[date] | None = None,
 ) -> ReconciledCompanyData:
-    """Reconcile validated filings for one company into documentary selections."""
+    """Reconcile validated filings for one company into documentary selections.
+
+    Default model periods are filing year-ends. ``admit_periods`` may add
+    comparative dates that already have selected IS, BS, and CF coverage.
+    """
     if not filings:
         raise ValueError("reconcile_filings requires at least one filing")
     for filing, report in filings:
@@ -232,6 +292,16 @@ def reconcile_filings(
     model_periods = tuple(
         sorted({filing.filing.period_end for filing, _ in filings})
     )
+    requested_admit = _parse_admit_periods(admit_periods)
+    coverage = _statement_coverage(buckets)
+    admitted = _validate_comparative_admission(
+        requested=requested_admit,
+        filing_year_ends=set(model_periods),
+        coverage=coverage,
+    )
+    if admitted:
+        model_periods = tuple(sorted({*model_periods, *admitted}))
+    excluded = tuple(sorted(set(coverage) - set(model_periods)))
     values: list[ReconciledValue] = []
     conflicts: list[ReconciliationConflict] = []
 
@@ -345,4 +415,7 @@ def reconcile_filings(
         share_facts=share_facts_t,
         supplemental_conflicts=supplemental_conflicts,
         source_files=source_files,
+        requested_admit_periods=requested_admit,
+        admitted_comparative_periods=admitted,
+        excluded_comparative_periods=excluded,
     )
