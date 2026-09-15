@@ -1,51 +1,47 @@
-# Step 9M.2.4.1.1.1.30 — Lululemon supported comparative-period admission
+# Step 9M.2.4.1.1.1.31 — Lululemon segment-disclosure readiness assessment
 
-AUTOCYCLE_PLAN: {"baseline": "At 1d399566dd24c8bc1f3e3044d0c69f6287f38a65, verified assessment establishes 2022-01-30 IS/BS/CF eligibility and excludes 2021-01-31 for missing BS. Disposable five-period generation produced 486 exercises, adding 110 with no removed identities or changed existing expectations; canonical releases remain 376/577.", "finding_key": "lululemon-comparative-history-excluded-from-canonical-period-axis", "inputs": [], "kind": "work", "objective": "Admit supported Lululemon comparative history into the canonical axis", "plan_id": "772fcbfc00aa47b88aed4ee9c07503dc", "step_id": "9M.2.4.1.1.1.30", "success": "Explicit validated comparative admission adds only 2022-01-30 to canonical Lululemon history, preserves documentary provenance and missing-data behavior, and produces a matched 486-exercise release retaining all 376 accepted identities and expectations; Fast Retailing remains unchanged at 577.", "verification": "Read RESULT; inspect admission policy and independently reproduce validation, reconciliation, standardization and disposable generation. Verify five dates, exclusion of 2021-01-31, provenance and omission records, the 110-identity addition with zero existing expectation changes, exported formulas/Notes and non-disclosing Check outcomes; compare canonical artifacts and unchanged Fast Retailing hashes against recorded evidence.", "work_id": "1df615c8e50b4b20932cb59593e7dd84"}
-
-INPUT_STATUS: PENDING
-Parents 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1 and 9M.2.4 remain UNRESOLVED.
-The controller assigns authoritative step and work identities.
+AUTOCYCLE_PLAN: {"baseline": "At 1775563af8d71c2b0a06f8640023c3937b7c13be, comparative admission is accepted with 486 Lululemon exercises and unchanged Fast Retailing 577; all four Lululemon filing JSONs retain empty note_facts and G7 remains open.", "finding_key": "lululemon-segment-economics-missing-source-grounded-handoff", "inputs": [], "kind": "work", "objective": "Assess source readiness for Lululemon historical segment economics", "plan_id": "1f524c22a0db4369a587dda04f0b206c", "step_id": "9M.2.4.1.1.1.31", "success": "A source-cited assessment determines whether the supplied Lululemon filings support a bounded historical segment-economics module, identifies comparable periods and reconciliation dependencies, and specifies either an executable handoff proposal or concrete missing evidence without changing source or production artifacts.", "verification": "Read RESULT; independently inspect cited PDF pages, filing JSONs and supplemental-fact ingestion paths; reproduce the coverage and comparability conclusions and verify protected artifact hashes remain unchanged.", "work_id": "dee5e0e04a9745e5bfc0423677563a4d"}
 
 ## Scope
 
-- One bounded G6 implementation: explicit comparative admission, canonical Lululemon regeneration and regression verification.
-- Modify only necessary ingestion code, its CLI wiring, `scripts/build_lululemon_release.py`, directly affected tests, generated `benchmark/lululemon/reconciled/` and `release/lululemon/` artifacts, G6 in `benchmark/lululemon/GAPS.md`, and `RESULT.md`.
-- This scope supersedes the completed assessment's production/generated-artifact freeze only for the listed changes; it does not broaden historical recovery authorization.
-- Cursor must not modify `TARGET.md` or `IMPLEMENTATION.md`. Preserve source PDFs/extracted JSON and Fast Retailing artifacts. No note extraction, commits, pushes, forecasting or valuation.
+- One bounded assessment of G7 segment economics using the four supplied Lululemon annual reports.
+- Write assessment and measured evidence only to `RESULT.md`; inspect directly relevant source PDFs, filing JSONs, ingestion contracts and historical reference coverage.
+- Preserve source PDFs, extracted JSON, reconciliation, production code, tests and releases. No note extraction, canonical regeneration, commits, pushes, forecasting or valuation.
+- Cursor must not modify `TARGET.md` or `IMPLEMENTATION.md`. The controller assigns authoritative step and work IDs.
 
-## Task 1 — Implement explicit comparative admission
+## Task 1 — Establish documentary segment coverage
 
-- Add a generic explicit comparative-date admission option to reconciliation and the reproducible ingestion entry point; preserve filing-year-end selection by default and avoid issuer-specific branches.
-- Admit requested dates only from validated selected documentary IS/BS/CF coverage; reject missing-statement and unsupported-date requests before writing outputs. Retain existing downstream completeness, contradiction and accounting gates.
-- Enable `2022-01-30` for the Lululemon canonical build. Reject `2021-01-31`: CF beginning cash does not establish BS coverage.
-- Preserve deterministic precedence, conflicts, superseded observations, original-row links, source hashes/pages, reported signs, units and diluted-share scaling. Make admitted/excluded dates auditable without discarding outside-axis observations.
-- Preserve sparse BS semantics and incomplete IS/CF omission; document missing comparative AR cash-flow coverage without zero filling.
+- Inspect segment disclosures in each supplied annual report; record source SHA-256, PDF page and printed page, reported segment labels, periods, units and disclosed measures.
+- Distinguish reportable segments from geographic revenue disaggregation, sales channels and store KPIs; identify reorganizations, restated comparatives and noncomparable definitions.
+- Build a coverage matrix for the accepted five-period axis. Identify whether segment revenue, profit and reconciliation to consolidated totals are explicitly available; cite representative anchors without creating extracted filing facts.
+- Record missing or contradictory evidence explicitly. Do not infer segment costs, assets, profit, allocations or earlier-period coverage.
 
-## Task 2 — Regenerate and verify the canonical release
+## Task 2 — Determine the smallest supported analytical handoff
 
-- Capture the checkpoint's 376 accepted semantic identities/expectations and artifact hashes before regeneration; retain a reproducible comparison to that baseline.
-- Regenerate Lululemon reconciliation, standardized data, provenance/conflicts, supporting copies, availability, semantic map and the existing Trainer/Answer-Key pair through production paths. Update the release script's count and generated documentation coherently.
-- Require the axis `2022-01-30, 2023-01-29, 2024-01-28, 2025-02-02, 2026-02-01`; verify 486 exercises, exactly 110 additions, zero removals and zero changed existing expected values despite coordinate shifts.
-- Independently verify new-period source values and added opening/comparable calculations. Confirm 486 blank yellow Trainer cells without Notes and 486 matching Answer-Key formulas with nonempty Notes, visual parity and populated source facts.
-- Check disposable copies: 486 blank; 486 correct after valid filling; one incorrect plus 485 blank after injection. Check must disclose no answers or hints. Verify 101 unavailable displays per Lululemon workbook, replacing the four-period 74; Fast Retailing remains 0.
+- Inspect supplemental-fact parsing, validation, reconciliation and standardization; identify what the existing contract can preserve and any concrete missing segment identity or comparability fields.
+- Specify one smallest useful historical module supported by the evidence, including required facts, units, source links, reconciliation checks and missing/ambiguous-input gates.
+- Describe proposed formula practice and concise Answer-Key Notes, with populated source facts and non-disclosing workbook-wide Check; no implementation or new exercise counts.
+- If evidence cannot support a coherent module, record the exact missing disclosure or contract dependency. Keep store KPIs, lease maturity detail and other G7 scope pending.
 
-## Task 3 — Regression evidence and disposition
+## Task 3 — Record disposition and advisory correction
 
-- Test unchanged default reconciliation, explicit admission, missing-statement rejection, deterministic precedence/provenance, incomplete AR omission, round-trip identity and failure immutability; use generic fixtures plus the supplied Lululemon benchmark.
-- Run relevant ingestion, Lululemon/Fast Retailing benchmark, historical model, workbook and Check regressions. Preserve four-period regression coverage instead of replacing accepted assertions with counts alone.
-- Record commands, exits, identity/value differences, provenance checks and before/after hashes in `RESULT.md`; distinguish formula-text Check from actual spreadsheet recalculation and state whether recalculation occurred.
-- Update G6 with measured delivery and the continuing 2021-01-31 BS dependency. Verify Fast Retailing's 577 identities/expectations and release hashes remain unchanged; do not declare parent or Step 9 acceptance.
+- Record inspected paths/pages, commands, outcomes, coverage matrix, proposed handoff and before/after protected-artifact hashes in `RESULT.md`.
+- Carry the verified Trainer SHA-256 `4e06ce78957a291857d9db074113f071021d057234ff0f7376afafbce4b76904` as an advisory correction to the preceding RESULT; comparative admission remains accepted.
+- Distinguish previously inspected 1253-test evidence from fresh assessment checks. Do not rerun production generation or claim spreadsheet recalculation.
+- State source readiness, unresolved dependencies and remaining G7 scope separately; do not declare parent or Step 9 acceptance or reserve a prospective ID.
 
-## Original unresolved acceptance retained
+## Acceptance and retained commitments
 
-- Preserve G5 aliases and accepted lease/deferred-tax/capex/SBC/acquisition/repurchase/cash-roll-forward/margin/inventory exercises; explicit-concept precedence, ambiguity rejection, strict values and deterministic mapping.
-- Preserve partial-period interest dependency closure, opening-only CoD `0.374`, undefined ratios, no unavailable-history 4% substitute, pretax resolution and distinct tax expense.
-- Preserve prior-period capex `638657 / 651865 / 689232 / 680802`, repurchase residuals `-116195 / 1085647 / -207544 / -256674`, cash/inventory reconciliation differences, reformulation tolerances and liability/equity discrepancy explanations.
-- Preserve independent asset/liability/signed-equity gates, sparse omissions, contradiction rejection, comparative provenance, prior-period NCIT `28555 / 15864 / reported 0 / None` and Common stock `611 / 606 / 581 / 557`.
-- Retain G1/G2/G3, empty-detail, subtotal/override, contra-equity, sparse-position, historical causal evidence, all twelve pretax/ETR cases, mutation controls and failure immutability.
-- Retain parent temporary-build acceptance: success or exactly `MissingLineError: Required concept 'interest_expense' not found in statement lines`; this step requires successful gated generation.
-- No invented interest, inferred zeros, cash-interest substitution, lease repayment inference or deferred-tax expense/recoverability claims.
-- Carry requests `20260914-193338-000000004` and `20260915-042248-000000005` through the normal five stages; remaining benchmark-improvement and parent-acceptance obligations stay pending without restarting completed publication recovery.
-- Preserve `.git/autocycle/reviewed-recovery-20260915-120942/evidence.json`, its five snapshot-matched edit identities, historical batch and work/attempt `b0ebb338d08f4e09a674d1ad1ee3da21` / `cc3fdf471a9c44c28fa7e8fed1d9e4fa`.
-- Retain hash-bound logs `cursor-20260915-033742-18263.log` and `cursor-20260915-034910-19408.log`; distinguish original successful subprocess exits, resumed wrapper failures and fresh implementation evidence.
-- Carry A2-ED/B7-MID documentary UNVERIFIED; A5/B8/E10 pending closure; E11 NonReq UNVERIFIED; G7 note facts, G8 deferral, G9 standalone interest completeness and remaining TARGET Step 9 exit gates. No blanket DONE or prospective ID reservation.
+- Every affirmative source-availability conclusion has a reproducible documentary citation; proposed calculations use only explicitly disclosed, comparable facts.
+- Assessment completion requires a supported handoff proposal or a concrete evidence-based dependency finding; missing evidence is never marked verified.
+- Preserve canonical Lululemon five-period history, 486 identities/expectations, 101 unavailable displays and the accepted 110 additions; Fast Retailing remains byte-identical at 577 with zero unavailable displays.
+- Retain G1/G2/G3, G5 aliases, accepted historical modules, explicit-concept precedence, ambiguity rejection, strict values, deterministic mapping and original-row provenance.
+- Retain independent asset/liability/signed-equity gates, sparse omissions, contradiction rejection, empty-detail and subtotal/override controls, contra-equity, historical causal evidence, all twelve pretax/ETR cases, mutation controls and failure immutability.
+- Preserve partial-period interest closure, opening-only CoD `0.374`, undefined ratios, pretax resolution and distinct tax expense; no invented interest, inferred zeros, cash-interest substitution, unavailable-history 4% substitute, lease repayment inference or deferred-tax expense/recoverability claims.
+- Preserve four-period capex `638657 / 651865 / 689232 / 680802`, repurchase residuals `-116195 / 1085647 / -207544 / -256674`, NCIT `28555 / 15864 / reported 0 / None`, Common stock `611 / 606 / 581 / 557`, cash/inventory differences, reformulation tolerances and liability/equity discrepancy explanations.
+- Retain parent temporary-build acceptance: success or exactly `MissingLineError: Required concept 'interest_expense' not found in statement lines`; accepted canonical generation succeeds.
+- Carry requests `20260914-193338-000000004` and `20260915-042248-000000005` through the normal five stages; benchmark-improvement and parent-acceptance obligations remain pending without restarting completed publication recovery.
+- Preserve `.git/autocycle/reviewed-recovery-20260915-120942/evidence.json`, its five snapshot-matched edit identities, historical batch and recovery work/attempt `b0ebb338d08f4e09a674d1ad1ee3da21` / `cc3fdf471a9c44c28fa7e8fed1d9e4fa`.
+- Retain hash-bound logs `cursor-20260915-033742-18263.log` and `cursor-20260915-034910-19408.log`; distinguish original subprocess success, resumed wrapper failures and fresh evidence.
+- Parents `9M.2.4.1.1.1`, `9M.2.4.1.1`, `9M.2.4.1` and `9M.2.4` remain unresolved; A2-ED/B7-MID documentary UNVERIFIED, A5/B8/E10 pending Plan closure and E11 NonReq UNVERIFIED remain distinct.
+- Carry G6 missing 2021-01-31 BS, remaining G7 note facts, G8 deferral, G9 standalone interest completeness and TARGET Step 9 exit gates. Historical blanket completion claims do not supersede these obligations.
