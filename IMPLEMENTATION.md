@@ -1,41 +1,46 @@
-# Step 9M.2.4.1.1.1.17 — Restore Source-Supported Capex Coverage and Regenerate Release
+# Step 9M.2.4.1.1.1.18 — Assess Lululemon Interest Source Evidence
 
-**Base:** `04aa1c4a6864883062e4ccbe901d61d2e774a76c`
-**Status:** PROBLEMS — UNRESOLVED.
+AUTOCYCLE_PLAN: {"baseline": "At cbecd085c9f6b9305b3272ba65c5aca210875871, four-period capex resolution passes; Lululemon workbook generation still raises MissingLineError for interest_expense, and Python and Excel require both interest_expense and interest_income.", "finding_key": "lululemon-missing-interest-source-evidence", "kind": "work", "objective": "Assess source support for Lululemon historical interest inputs", "plan_id": "8939e6f3970140dcb4764d4594ccf2e8", "step_id": "9M.2.4.1.1.1.18", "success": "An auditable four-period assessment identifies supported interest disclosures or explicit evidence gaps and specifies the next bounded implementation or concrete source-access blocker without inventing inputs.", "verification": "Read RESULT.md; verify cited PDF pages against source hashes, trace candidate disclosures through extracted and reconciled JSON, and compare both required-interest code paths with the recorded assessment.", "work_id": "108514e3c0794ea79140b29cd772bf91"}
+
+**Base:** `cbecd085c9f6b9305b3272ba65c5aca210875871`
 **INPUT_STATUS:** PENDING
-**Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 remain UNRESOLVED until their original acceptance passes and Plan assesses closure.
-**Scope:** Lululemon G4 capex resolution, generic regression coverage, measured benchmark improvement, and Fast Retailing release regeneration.
+**Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 remain UNRESOLVED.
+**Scope:** Source-evidence assessment only; controller assigns authoritative identity.
 
 ## Constraints
 
-- Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`.
-- Numbering is administratively frozen; do not repair historical numbering unless it prevents execution.
-- Authorize bounded production/test changes and generated release refreshes below, subject to actual filesystem permissions; unavailable write access remains BLOCKED.
-- Preserve source facts, provenance, conflicts, period identity, accounting tolerances, and existing release contracts. No invented interest values, issuer-specific production rules, forecasting, valuation, commits, or pushes.
-- Run artifact-writing tests/builds in independent disposable copies; publish only validated authorized outputs.
+- Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`; respect actual filesystem permissions.
+- Limit persisted assessment changes to `RESULT.md` and interest/current-stage findings in `benchmark/lululemon/GAPS.md`.
+- Preserve production, tests, source PDFs, extracted/reconciled facts, and release artifacts.
+- No invented interest, inferred zero from absence, issuer-specific production rules, forecasting, valuation, commits, or pushes.
+- Numbering remains administratively frozen; retain accepted capex recovery and historical candidate records without reopening ownership bookkeeping.
 
-## Task 1 — Establish the benchmark baseline
+## Task 1 — Trace the missing-input contract
 
-- Compare current Fast Retailing and Lululemon build stages and source-supported module availability; record commands, revisions, input hashes, and measurements in `RESULT.md`.
-- Prioritize Lululemon G4: reported `capital_expenditures` fails the `payments_for_ppe` contract, hiding supplied capex diagnostics. Confirm filing provenance and cash-flow meaning before accepting equivalence.
-- Record the separate Lululemon `interest_expense` build blocker; do not reinterpret `Other income (expense), net` as interest or supply missing values.
-- Measure all four Lululemon periods’ capex availability and diagnostic outputs; record Fast Retailing module/practice counts and blank/filled Check baseline.
+- Inspect `core/model/financial_math.py`, `core/model/line_resolver.py`, relevant interest source links in `core/engine/reference_model.py`, and existing Lululemon missing-interest tests.
+- Trace both `interest_expense` and `interest_income` through all four canonical periods in `benchmark/lululemon/extracted/` and `benchmark/lululemon/reconciled/`.
+- Record source/input hashes, required concepts, missing periods, resolution precedence, and Python/Excel dependencies in `RESULT.md`; distinguish inspected code from executed verification.
 
-## Task 2 — Implement bounded generic capex support
+## Task 2 — Assess supplied filing evidence
 
-- Update `core/model/line_resolver.py` and, only as needed, `core/model/capex.py` and the capex source-link construction in `core/engine/reference_model.py`.
-- Resolve source-supported cash-flow `capital_expenditures` through the shared capex contract without changing stored concepts, values, signs, or provenance.
-- Preserve canonical-concept precedence, duplicate/ambiguity handling, statement boundaries, missing-period failures, reported-zero semantics, and rejection of unsupported label-only inputs.
-- Extend `core/tests/test_line_resolver.py`, `core/tests/test_capex.py`, and `core/tests/test_lululemon_benchmark.py` with generic alias, ambiguity, missing-value, sign, round-trip, and Python/Excel source-identity coverage.
+- Inspect the four supplied `benchmark/lululemon/source/LULU_FY202*_Annual_Report.pdf` files, including income statements, other-income disclosures, debt/credit facilities, cash-flow supplements, and relevant notes.
+- Create an expense/income evidence matrix for 2023-01-29, 2024-01-28, 2025-02-02, and 2026-02-01: reported label, amount or absence status, currency/unit, sign, period, PDF page, source hash, and extraction/provenance coverage.
+- Distinguish gross expense/income from net interest, cash interest paid, lease interest, and `Other income (expense), net`; accept equivalence only where the disclosure establishes it.
+- Record search terms and inspected sections; inspect page images where extraction is ambiguous. Unreadable or unavailable evidence remains an explicit gap.
 
-## Task 3 — Measure, regenerate, and verify
+## Task 3 — Record the bounded disposition
 
-- Repeat identical before/after probes on identical benchmark inputs; require Lululemon capex availability to change from unavailable to available with independently checked four-period diagnostics.
-- Verify Excel formulas and Python expectations on a complete synthetic fixture using the same alias; report actual Lululemon workbook availability separately.
-- Run the focused resolver/capex/Lululemon tests, retained parent regression suites, Fast Retailing benchmark tests, and `pytest core/tests -q` in isolated copies.
-- Run `python scripts/build_fast_retailing_release.py`; regenerate its matched workbook pair, sidecars, supporting JSON, rowmap, and generated README under `release/fast_retailing/`.
-- Verify source fidelity, semantic determinism across two builds, visual parity, blank yellow Trainer practice cells without hints, Answer-Key formulas/Notes, non-disclosing blank/filled Check, and failure-path artifact immutability before publishing validated release outputs.
-- Record measured deltas, suite outcomes, artifact hashes, remaining blockers, and completion evidence in `RESULT.md`; update only relevant G4/current-stage entries in `benchmark/lululemon/GAPS.md`.
+- Classify each required input as source-supported but omitted, supported but unresolved, ambiguous, or not found in the inspected supplied filings; preserve comparative conflicts and selected/superseded identity.
+- Specify the smallest subsequent production/test change if evidence supports one, including affected files, independent expected values, regression checks, and release regeneration requirements.
+- Otherwise identify the exact missing disclosure/access or accounting decision needed; do not propose fabricated defaults or silently weaken required-input behavior.
+- Record assessment completion separately from workbook availability and benchmark improvement; carry forward remaining work in `RESULT.md` and relevant `GAPS.md` entries.
+
+## Acceptance
+
+- Both required interest concepts have a complete four-period disposition with reproducible citations or documented search coverage.
+- Every proposed usable amount has verified accounting meaning and period identity; absence, ambiguity, and reported zero remain distinct.
+- Following Review can independently verify the assessment from supplied files without relying on unsupported claims or fabricated test success.
+- No production improvement, successful workbook build, release regeneration, or parent closure is claimed from documentary assessment alone.
 
 ## Original parent acceptance retained
 
@@ -49,9 +54,8 @@
 - Original temporary-directory workbook acceptance permits success or the exact next exception: `MissingLineError: Required concept 'interest_expense' not found in statement lines`.
 - Preserve A2-ED/B7-MID documentary UNVERIFIED, A5/B8/E10 pending Plan closure, and E11 NonReq UNVERIFIED/unavailable without inventing evidence.
 
-## Child acceptance and continuation
+## Carry-forward
 
-- A production change produces measured four-period capex coverage gains; generic safeguards pass; regenerated Fast Retailing release passes its existing contract without regression.
-- Documentation-only changes, passing test counts alone, or release regeneration without measured benchmark gains do not satisfy this step.
-- Carry forward Lululemon interest-source/build completion, remaining source-supported benchmark gaps, and original parent closure; keep `INPUT_STATUS: PENDING` until every frozen request is satisfied. Review may report DONE only when the goal and all frozen requests are satisfied.
-- **Next step:** Complete **Step 9M.2.4.1.1.1.17 — Restore Source-Supported Capex Coverage and Regenerate Release**; then return to Plan for original parent acceptance assessment and remaining Step 9 prioritization.
+- Retain accepted capex gains and Fast Retailing’s 491-cell release contract; original parent closure remains pending.
+- Carry forward interest-source/build completion, G5 lease/deferred-tax coverage, G6 period-axis assessment, G7 note facts, G8’s documented deferral, and remaining TARGET Step 9 gates.
+- The frozen request for further bounded production/test improvements, release regeneration, and measured benchmark gains remains pending beyond this assessment. Review may use DONE only when the goal and all frozen requests are satisfied.
