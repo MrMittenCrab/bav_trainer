@@ -7,9 +7,18 @@ from datetime import date
 from typing import Any
 
 from ..data.filing import PresentationRole
+from ..data.historical_segments import (
+    GEOGRAPHIC_SEGMENT_NAMESPACE,
+    expected_bridge_operations,
+    geographic_identity,
+    require_finite_number,
+    validate_historical_segment,
+)
 from ..data.interface import (
     FinancialPeriod,
     HistoricalLeaseData,
+    HistoricalSegmentData,
+    HistoricalSegmentPeriod,
     HistoricalShareData,
     LineItem,
     StandardizedFinancials,
@@ -169,8 +178,9 @@ def standardize_reconciled(
 
     historical_shares = _historical_shares(reconciled)
     historical_lease = _historical_lease(reconciled)
+    historical_segment = _historical_segment(reconciled)
 
-    return StandardizedFinancials(
+    fin = StandardizedFinancials(
         ticker=reconciled.ticker,
         company_name=reconciled.company_name,
         currency=reconciled.currency,
@@ -186,7 +196,10 @@ def standardize_reconciled(
         cash_flow=statements["cash_flow"],
         historical_shares=historical_shares,
         historical_lease=historical_lease,
+        historical_segment=historical_segment,
     )
+    validate_historical_segment(fin)
+    return fin
 
 
 def _historical_shares(
@@ -235,6 +248,58 @@ def _historical_lease(
         return None
     return HistoricalLeaseData(
         lease_interest_expense={period: series[period] for period in reconciled.periods},
+    )
+
+
+def _snapshot_from_selected(period: date, items: list) -> HistoricalSegmentPeriod:
+    families = {item.presentation_family for item in items}
+    if len(families) != 1:
+        raise ValueError(
+            "mixed geographic presentation families for "
+            f"{period.isoformat()}"
+        )
+    family = next(iter(families))
+    values: dict[str, float] = {}
+    for item in items:
+        identity = geographic_identity(item.fact_type)
+        amount = require_finite_number(identity, item.value)
+        if identity in values:
+            if values[identity] != amount:
+                raise ValueError(
+                    "duplicate conflicting geographic identity "
+                    f"{identity} for {period.isoformat()}"
+                )
+            raise ValueError(
+                f"duplicate geographic identity {identity} for {period.isoformat()}"
+            )
+        values[identity] = amount
+    return HistoricalSegmentPeriod(
+        period=period,
+        presentation_family=family,
+        values=values,
+        bridge_operations=expected_bridge_operations(family, values),
+    )
+
+
+def _historical_segment(
+    reconciled: ReconciledCompanyData,
+) -> HistoricalSegmentData | None:
+    """Emit selected geographic facts on the admitted model axis only."""
+    model_periods = set(reconciled.periods)
+    grouped: dict[date, list] = defaultdict(list)
+    for item in reconciled.selected_geographic_facts:
+        if item.period in model_periods:
+            grouped[item.period].append(item)
+    if not grouped:
+        return None
+    snapshots = [
+        _snapshot_from_selected(period, grouped[period])
+        for period in reconciled.periods
+        if period in grouped
+    ]
+    return HistoricalSegmentData(
+        namespace=GEOGRAPHIC_SEGMENT_NAMESPACE,
+        periods=snapshots,
     )
 
 

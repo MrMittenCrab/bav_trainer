@@ -70,6 +70,24 @@ class HistoricalLeaseData:
 
 
 @dataclass
+class HistoricalSegmentPeriod:
+    """One admitted period's reported geographic snapshot."""
+
+    period: date
+    presentation_family: str = ""
+    values: dict[str, float] = field(default_factory=dict)
+    bridge_operations: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class HistoricalSegmentData:
+    """Optional geographic-segment inputs used by historical analysis."""
+
+    namespace: str = ""
+    periods: list[HistoricalSegmentPeriod] = field(default_factory=list)
+
+
+@dataclass
 class StandardizedFinancials:
     """Canonical IS / BS / CF structure expected by the BAV engine."""
 
@@ -87,6 +105,7 @@ class StandardizedFinancials:
     metadata: dict[str, Any] = field(default_factory=dict)
     provenance: list[dict[str, str]] = field(default_factory=list)
     historical_lease: HistoricalLeaseData | None = None
+    historical_segment: HistoricalSegmentData | None = None
 
     def period_dates(self) -> list[date]:
         return [p.end_date for p in self.periods]

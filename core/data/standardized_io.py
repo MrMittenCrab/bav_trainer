@@ -5,9 +5,12 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any
 
+from .historical_segments import validate_historical_segment
 from .interface import (
     FinancialPeriod,
     HistoricalLeaseData,
+    HistoricalSegmentData,
+    HistoricalSegmentPeriod,
     HistoricalShareData,
     LineItem,
     StandardizedFinancials,
@@ -125,9 +128,75 @@ def _deserialize_historical_lease(payload: object) -> HistoricalLeaseData | None
     )
 
 
+def _serialize_historical_segment(
+    data: HistoricalSegmentData | None,
+) -> dict[str, Any] | None:
+    if data is None:
+        return None
+    return {
+        "namespace": data.namespace,
+        "periods": [
+            {
+                "period": _date_key(snapshot.period),
+                "presentation_family": snapshot.presentation_family,
+                "values": {
+                    identity: float(value)
+                    for identity, value in sorted(snapshot.values.items())
+                },
+                "bridge_operations": {
+                    identity: operation
+                    for identity, operation in sorted(
+                        snapshot.bridge_operations.items()
+                    )
+                },
+            }
+            for snapshot in data.periods
+        ],
+    }
+
+
+def _deserialize_historical_segment_period(entry: object) -> HistoricalSegmentPeriod:
+    if not isinstance(entry, dict):
+        raise ValueError("historical_segment.periods entries must be objects")
+    if "period" not in entry:
+        raise ValueError("historical_segment period is required")
+    raw_values = entry.get("values")
+    if not isinstance(raw_values, dict):
+        raise ValueError("historical_segment values must be an object")
+    raw_operations = entry.get("bridge_operations")
+    if not isinstance(raw_operations, dict):
+        raise ValueError("historical_segment bridge_operations must be an object")
+    return HistoricalSegmentPeriod(
+        period=_parse_date(str(entry["period"])),
+        presentation_family=str(entry.get("presentation_family") or ""),
+        values={str(identity): value for identity, value in raw_values.items()},
+        bridge_operations={
+            str(identity): str(operation)
+            for identity, operation in raw_operations.items()
+        },
+    )
+
+
+def _deserialize_historical_segment(payload: object) -> HistoricalSegmentData | None:
+    if payload is None:
+        return None
+    if not isinstance(payload, dict):
+        raise ValueError("historical_segment must be an object or null")
+    raw_periods = payload.get("periods")
+    if not isinstance(raw_periods, list):
+        raise ValueError("historical_segment.periods must be a list")
+    return HistoricalSegmentData(
+        namespace=str(payload.get("namespace") or ""),
+        periods=[
+            _deserialize_historical_segment_period(entry) for entry in raw_periods
+        ],
+    )
+
+
 def standardized_to_payload(fin: StandardizedFinancials) -> dict:
     """Serialize model-relevant fields only (no source paths, provenance, or hints)."""
-    return {
+    validate_historical_segment(fin)
+    payload = {
         "ticker": fin.ticker,
         "company_name": fin.company_name,
         "currency": fin.currency,
@@ -148,10 +217,16 @@ def standardized_to_payload(fin: StandardizedFinancials) -> dict:
         "historical_shares": _serialize_historical_shares(fin.historical_shares),
         "historical_lease": _serialize_historical_lease(fin.historical_lease),
     }
+    serialized = _serialize_historical_segment(fin.historical_segment)
+    if serialized is not None:
+        payload["historical_segment"] = serialized
+    return payload
 
 
 def standardized_from_payload(payload: dict) -> StandardizedFinancials:
     """Reconstruct StandardizedFinancials from a model-only payload."""
+    if not isinstance(payload, dict):
+        raise ValueError("standardized payload must be an object")
     periods = [
         FinancialPeriod(
             end_date=_parse_date(entry["end_date"]),
@@ -160,7 +235,7 @@ def standardized_from_payload(payload: dict) -> StandardizedFinancials:
         )
         for entry in payload.get("periods") or []
     ]
-    return StandardizedFinancials(
+    fin = StandardizedFinancials(
         ticker=str(payload.get("ticker") or ""),
         company_name=str(payload.get("company_name") or ""),
         currency=str(payload.get("currency") or ""),
@@ -181,4 +256,11 @@ def standardized_from_payload(payload: dict) -> StandardizedFinancials:
         historical_lease=_deserialize_historical_lease(
             payload.get("historical_lease")
         ),
+        historical_segment=_deserialize_historical_segment(
+            payload["historical_segment"]
+            if "historical_segment" in payload
+            else None
+        ),
     )
+    validate_historical_segment(fin)
+    return fin

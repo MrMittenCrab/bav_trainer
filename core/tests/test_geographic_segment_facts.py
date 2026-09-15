@@ -33,6 +33,11 @@ from core.ingestion.geographic_segment import (
     GEO_NAMESPACE,
     select_geographic_segment_facts,
 )
+from core.data.historical_segments import (
+    GEOGRAPHIC_SEGMENT_NAMESPACE,
+    SEGMENT_BRIDGE_TOLERANCE,
+)
+from core.data.standardized_io import standardized_from_payload, standardized_to_payload
 from core.tests.test_filing_reconciler import _filing, _validated
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -154,6 +159,9 @@ def test_empty_note_facts_skip_geographic_selection(tmp_path: Path):
     provenance = reconciliation_provenance_payload(reconciled)
     assert "selected_geographic_segment_facts" not in provenance
     assert provenance["note_facts"] == []
+    fin = standardize_reconciled(reconciled)
+    assert fin.historical_segment is None
+    assert "historical_segment" not in standardized_to_payload(fin)
 
 
 def test_lease_and_share_facts_unchanged_with_empty_geo(tmp_path: Path):
@@ -184,6 +192,9 @@ def test_lease_and_share_facts_unchanged_with_empty_geo(tmp_path: Path):
     assert len(reconciled.share_facts) == 1
     assert reconciled.selected_geographic_facts == ()
     assert reconciled.supplemental_conflicts == ()
+    fin = standardize_reconciled(reconciled)
+    assert fin.historical_segment is None
+    assert "historical_segment" not in standardized_to_payload(fin)
 
 
 def test_latest_source_precedence_and_retained_losers(tmp_path: Path):
@@ -1156,6 +1167,23 @@ def test_lululemon_prior_presentation_mutation_keeps_fy2024_americas():
             and conflict.period == date(2025, 2, 2)
         ]
         assert disagreements
+        fin = standardize_reconciled(reconciled)
+        restored = standardized_from_payload(standardized_to_payload(fin))
+        assert restored.historical_segment == fin.historical_segment
+        americas_model = [
+            snap.values["net_revenue.americas"]
+            for snap in fin.historical_segment.periods
+            if snap.period == date(2025, 2, 2)
+        ]
+        assert americas_model == [7928156]
+        assert all(
+            snap.values.get("net_revenue.americas") != 7928256
+            for snap in fin.historical_segment.periods
+        )
+        payload = standardized_to_payload(fin)
+        assert "source_sha256" not in str(payload["historical_segment"])
+        assert "selection_reason" not in str(payload["historical_segment"])
+        assert "pdf_page" not in str(payload["historical_segment"])
     reloaded = json.loads((EXTRACTED / "LULU_FY2025.json").read_text(encoding="utf-8"))
     assert reloaded == original_fy2025
 
@@ -1260,10 +1288,81 @@ def test_lululemon_extracted_filings_round_trip_and_five_period_bridges():
         "segment.geo" not in (item.concept or "")
         for item in (*fin.income_statement, *fin.balance_sheet, *fin.cash_flow)
     )
+    assert fin.historical_segment is not None
+    assert fin.historical_segment.namespace == GEOGRAPHIC_SEGMENT_NAMESPACE
+    assert GEOGRAPHIC_SEGMENT_NAMESPACE == NS
+    assert SEGMENT_BRIDGE_TOLERANCE == 0.0
+    model_values = {
+        (snap.period, identity): value
+        for snap in fin.historical_segment.periods
+        for identity, value in snap.values.items()
+    }
+    selected_on_axis = {
+        (item.period, item.fact_type[len(f"{NS}.") :]): item.value
+        for item in selected
+        if item.period in set(reconciled.periods)
+    }
+    assert model_values == selected_on_axis
+    assert len(model_values) == 56
+    assert [snap.period for snap in fin.historical_segment.periods] == [
+        date(2022, 1, 30),
+        date(2023, 1, 29),
+        date(2024, 1, 28),
+        date(2025, 2, 2),
+        date(2026, 2, 1),
+    ]
+    fy2026 = next(
+        snap
+        for snap in fin.historical_segment.periods
+        if snap.period == date(2026, 2, 1)
+    )
+    assert fy2026.presentation_family == "corporate_column"
+    assert fy2026.values["income_from_operations.segment_total"] == 3607682
+    assert fy2026.values["income_from_operations.corporate_unallocated"] == -1397067
+    assert fy2026.values["income_from_operations.consolidated"] == 2210615
+    assert (
+        fy2026.values["income_from_operations.segment_total"]
+        + fy2026.values["income_from_operations.corporate_unallocated"]
+        == fy2026.values["income_from_operations.consolidated"]
+    )
+    assert fy2026.bridge_operations == {
+        "income_from_operations.corporate_unallocated": "add"
+    }
+    for snap in fin.historical_segment.periods:
+        revenue_sum = (
+            snap.values["net_revenue.americas"]
+            + snap.values["net_revenue.china_mainland"]
+            + snap.values["net_revenue.rest_of_world"]
+        )
+        assert revenue_sum == snap.values["net_revenue.consolidated"]
+        ifop_sum = (
+            snap.values["income_from_operations.americas"]
+            + snap.values["income_from_operations.china_mainland"]
+            + snap.values["income_from_operations.rest_of_world"]
+        )
+        bridged = ifop_sum
+        for identity, operation in snap.bridge_operations.items():
+            if operation == "add":
+                bridged += snap.values[identity]
+            else:
+                bridged -= snap.values[identity]
+        assert bridged == snap.values["income_from_operations.consolidated"]
+    itemized_2022 = next(
+        snap
+        for snap in fin.historical_segment.periods
+        if snap.period == date(2022, 1, 30)
+    )
+    assert itemized_2022.presentation_family == "itemized_reconciling"
+    assert "net_revenue.segment_total" not in itemized_2022.values
+    assert "net_revenue.china_mainland" in itemized_2022.values
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    assert restored.historical_segment == fin.historical_segment
+    live = standardized_to_payload(fin)
     committed_std = json.loads((RECONCILED / "standardized.json").read_text())
-    from core.data.standardized_io import standardized_to_payload
-
-    assert standardized_to_payload(fin) == committed_std
+    live_without_segment = dict(live)
+    live_without_segment.pop("historical_segment")
+    assert live_without_segment == committed_std
+    assert live["historical_segment"]["namespace"] == NS
     committed_conflicts = json.loads((RECONCILED / "conflicts.json").read_text())
     live_conflicts = reconciliation_conflicts_payload(reconciled)
     assert live_conflicts == committed_conflicts
@@ -1273,3 +1372,78 @@ def test_lululemon_extracted_filings_round_trip_and_five_period_bridges():
     assert fy2022.filing.source_sha256 == hashlib.sha256(
         (SOURCE / fy2022.filing.source_file).read_bytes()
     ).hexdigest()
+
+
+def _lululemon_validated():
+    filings = [
+        load_extracted_filing(EXTRACTED / name)
+        for name in (
+            "LULU_FY2022.json",
+            "LULU_FY2023.json",
+            "LULU_FY2024.json",
+            "LULU_FY2025.json",
+        )
+    ]
+    validated = []
+    for filing in filings:
+        report = validate_extracted_filing(filing, source_root=SOURCE)
+        assert report.ok
+        validated.append((filing, report))
+    return validated
+
+
+def test_outside_axis_geographic_facts_stay_out_of_model_payload():
+    reconciled = reconcile_filings(_lululemon_validated())
+    outside = date(2022, 1, 30)
+    assert outside not in reconciled.periods
+    assert any(item.period == outside for item in reconciled.selected_geographic_facts)
+    fin = standardize_reconciled(reconciled)
+    assert fin.historical_segment is not None
+    assert [snap.period for snap in fin.historical_segment.periods] == list(
+        reconciled.periods
+    )
+    assert outside not in {snap.period for snap in fin.historical_segment.periods}
+    provenance = reconciliation_provenance_payload(reconciled)
+    assert any(
+        item["period"] == outside.isoformat()
+        for item in provenance["selected_geographic_segment_facts"]
+    )
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    assert {snap.period for snap in restored.historical_segment.periods} == set(
+        reconciled.periods
+    )
+
+
+def test_duplicate_selected_identity_fails_closed_and_is_immutable():
+    validated = _lululemon_validated()
+    reconciled = reconcile_filings(
+        validated,
+        admit_periods=(date(2022, 1, 30),),
+    )
+    original = reconciled.selected_geographic_facts
+    duplicated = original + (original[0],)
+    mutated = replace(reconciled, selected_geographic_facts=duplicated)
+    with pytest.raises(ValueError, match="duplicate geographic identity"):
+        standardize_reconciled(mutated)
+    assert reconciled.selected_geographic_facts == original
+    assert mutated.selected_geographic_facts == duplicated
+    fin = standardize_reconciled(reconciled)
+    assert fin.historical_segment is not None
+    assert sum(len(snap.values) for snap in fin.historical_segment.periods) == 56
+
+
+def test_standardizer_does_not_reselect_or_promote_segment_lines():
+    reconciled = reconcile_filings(
+        _lululemon_validated(),
+        admit_periods=(date(2022, 1, 30),),
+    )
+    emptied = replace(reconciled, selected_geographic_facts=())
+    fin = standardize_reconciled(emptied)
+    assert fin.historical_segment is None
+    assert all(
+        "segment.geo" not in (item.concept or "")
+        for item in (*fin.income_statement, *fin.balance_sheet, *fin.cash_flow)
+    )
+    assert emptied.note_facts == reconciled.note_facts
+    assert emptied.selected_geographic_facts == ()
+

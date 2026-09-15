@@ -1,14 +1,14 @@
-# RESULT.md — Step 9M.2.4.1.1.1.32 Lululemon geographic segment-fact extraction and supplemental reconciliation
+# RESULT.md — Step 9M.2.4.1.1.1.33 Selected geographic facts into StandardizedFinancials
 
-**Status:** COMPLETE (this child repair; parents remain UNRESOLVED)  
-**Step:** 9M.2.4.1.1.1.32 — Lululemon geographic segment-fact extraction and supplemental reconciliation  
-**Work:** `24a805ab41064b6aa5a8b6ad474edf88`  
-**Plan:** `54dbb892521c44bc90dffd4ecded2eb0`  
+**Status:** COMPLETE (this child; parents remain UNRESOLVED)  
+**Step:** 9M.2.4.1.1.1.33 — Selected geographic facts into StandardizedFinancials  
+**Work:** `68977f91981a43ecba811e61f0b865d6`  
+**Plan:** `719aadd63cb049668af20b2c4a63e52b`  
 **Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
 **INPUT_STATUS:** empty (`inputs: []`)  
-`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged). TARGET SHA-256 `3274be515f8ccf579a4b495bd820a4d14c87328b4d63f95123d0d4a6042407e2` (21552). IMPLEMENTATION SHA-256 `2cbe6f32332f0c550bd246e27a897afda62fe4c3dd44c6eed4393e31a106b9f3` (9224).  
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged). TARGET SHA-256 `3274be515f8ccf579a4b495bd820a4d14c87328b4d63f95123d0d4a6042407e2` (21552). IMPLEMENTATION SHA-256 `487ecf7576feb0c8831e883cb08d48e99aed1b899a361778343bbc190b9f3ccf` (7992).  
 No commit / push / sync / checkpoint / branch change. No workbook generation, forecasting, or valuation. Spreadsheet recalculation was **not** performed.  
-This child does **not** declare parent or Step 9 acceptance. G7 remains **OPEN** (store KPIs and lease maturity still unextracted).
+This child does **not** declare parent or Step 9 acceptance.
 
 ---
 
@@ -16,67 +16,33 @@ This child does **not** declare parent or Step 9 acceptance. G7 remains **OPEN**
 
 | Kind | This child |
 |---|---|
-| Fresh | Role-eligibility repair; in-memory FY2025 `prior_presentation` mutation; focused filing tests **101 passed**; Lululemon/Fast Retailing benchmarks **171 passed**; `pytest core/tests` **1280 passed**; temporary `python -m core reconcile`; independent five-period arithmetic; checkpoint `b17e8460fd5baa272ceaa4d86886fe50c9515279` protected hashes and non-note JSON comparison |
-| Retained | JSON `note_facts` extraction (no re-extraction); PDF SHA-256 identity with checkpoint; prior page inspection (FY2023 native p84 / printed 78; FY2024 Note 23 p79–80 / printed 73–74; FY2025 Note 24 title p79 / printed 73, facts p80–81 / printed 74–75) |
-| Not claimed | Historical focused **88** / suite **1267** counts as this proof; production canonical rewrite; workbook Check / spreadsheet recalculation; CID re-decode |
+| Fresh | `HistoricalSegmentData` optional contract; selected-facts → model payload; JSON omit-when-absent round trips; focused contract/geographic/serialization/CLI tests **110 passed**; Lululemon/Fast Retailing benchmarks **171 passed**; `pytest core/tests` **1289 passed**; temporary `python -m core reconcile`; independent 56-value and five-period bridge arithmetic; checkpoint `b74ef31d612166a7dd4e6cfad5c8cf02b7ab1b8c` protected hashes |
+| Retained | Role-aware geographic selection; JSON `note_facts` extraction; PDF SHA-256 identity; provenance `selected_geographic_segment_facts` (SHA-256 `5067c1d04aa93c18062fe7eb90558a86394283b7d9fe45899761f71cfb615951`, 786300) |
+| Not claimed | Workbook Check / spreadsheet recalculation; learner/Check segment schedules; parent or Step 9 completion |
 
-Interpreter: `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. Tolerance: **`GEO_BRIDGE_TOLERANCE = 0`**.
-
----
-
-## Task 1 — Presentation eligibility and precedence (repair)
-
-Geographic selection now evaluates **complete period/source presentations** before ranking.
-
-- Mixed `presentation_role` values inside one `(period, filing_year, source_file)` fail closed (`mixed presentation roles`).
-- Eligible roles: `current_period`, `comparative`, `restated_comparative`.
-- `prior_presentation` observations stay in provenance `note_facts` and are excluded from comparable selection.
-- Incomplete eligible presentations fail closed. Incomplete prior presentations are not assembled as comparable snapshots.
-- A period with geographic facts but **no eligible complete presentation** fails closed.
-- Rank matches the filing contract: restated comparative above current/comparative; current and comparative equal; later `filing_year` within that rank. Unresolved equal-priority candidates fail closed (no input-order tie-break).
-- Serialized `presentation_basis` is the **selected** role. Reasons:
-  - `restated_comparative_precedence` when restated wins over other eligible roles;
-  - `excluded_newer_prior_presentation` when a newer prior presentation is excluded;
-  - `sole_source_observation` when one eligible presentation remains;
-  - `later_audited_presentation` when later year wins among equal-rank eligible presentations.
-- Namespace, duplicate, bridge, IS-control, unit-scale, and failure-immutability checks are unchanged. Geographic selection remains separate from statement rows, lease, and share facts.
+Interpreter: `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. Tolerance: **`SEGMENT_BRIDGE_TOLERANCE = 0`**.
 
 ---
 
-## Selected-source matrix (temporary reconcile, unmutated filings)
+## Task 1 — Optional contract
 
-| Period | Filing year | Source file | Family | Role | Reason | PDF page |
-|---|---:|---|---|---|---|---:|
-| 2022-01-30 | 2023 | `LULU_FY2023_Annual_Report.pdf` | itemized_reconciling | restated_comparative | sole_source_observation | 84 |
-| 2023-01-29 | 2024 | `LULU_FY2024_Annual_Report.pdf` | corporate_column | restated_comparative | later_audited_presentation | 80 |
-| 2024-01-28 | 2025 | `LULU_FY2025_Annual_Report.pdf` | corporate_column | restated_comparative | restated_comparative_precedence | 81 |
-| 2025-02-02 | 2025 | `LULU_FY2025_Annual_Report.pdf` | corporate_column | restated_comparative | restated_comparative_precedence | 80 |
-| 2026-02-01 | 2025 | `LULU_FY2025_Annual_Report.pdf` | corporate_column | current_period | sole_source_observation | 80 |
+Added `HistoricalSegmentPeriod` / `HistoricalSegmentData` and optional `StandardizedFinancials.historical_segment` (default `None`).
 
-Source years: FY2023 for `2022-01-30`; FY2024 for `2023-01-29`; FY2025 for `2024-01-28`, `2025-02-02`, `2026-02-01`. Counts: **105** `note_facts`, **56** selections, `supplemental_conflict_count=0`.
+Model payload holds Q4-2023 namespace, local identities, period snapshots, reported revenue/IFOP values, consolidated controls, reported reconciling items, `corporate_column` vs `itemized_reconciling` family, and explicit `add`/`subtract` bridge operations. Reported signs are preserved. Parent `currency` / `units` are reused; the segment payload does not duplicate them.
 
-### Blocking mutation (in-memory; extracted JSON not rewritten)
+Source files, hashes, pages, observations, selection reasons, and conflicts stay in existing audit artifacts only.
 
-FY2025 facts for `2025-02-02` marked `prior_presentation`; Americas revenue `+100` → `7928256`; Rest of World `−100`. Consolidated note controls still balance. Selection keeps FY2024 Americas **`7928156`** (`current_period`, reason `excluded_newer_prior_presentation`) and retains superseded `7928256` in provenance. Reverse filing order unchanged. Committed `LULU_FY2025.json` bytes identical after the test.
-
-### Rejection cases (tests)
-
-Prior-only period; mixed roles; incomplete eligible not rescued by complete prior; equal-priority current vs comparative same year; reverse order; missing segment; mixed `segment.channel.*`; unknown identity; missing role; corporate double counting; revenue/IFOP/IS mismatch; incompatible `unit_scale`; invalid page / non-finite value. Failures raise before returning a selection. CLI prior-only case: input JSON unchanged and output directory empty.
+Absent data (`None`, missing JSON field, explicit `null`) is distinct from malformed supplied data. Invalid identities, non-finite values, duplicate period/identity keys, outside-axis dates, incomplete or contradictory bridges, corporate double counting, and IS disagreements fail closed before emit/reload.
 
 ---
 
-## Fact counts (extracted `note_facts`, unchanged this repair)
+## Task 2 — Selection wiring and round trips
 
-| Filing | `note_facts` | SHA-256 | Bytes |
-|---|---:|---|---:|
-| FY2022 | **0** | `706cd75845133425b1821b9ff989ef1131005bdfb2321a76b1a6e91f710a6f18` | 60110 |
-| FY2023 | **39** | `fcaa9abb417c4f96eb5496c5fc3f1b683b13c17a498c400de869e81880788c05` | 73971 |
-| FY2024 | **33** | `0ddc2893afa892d2e1684a38fdc3a3275bb82ace5d4a237c785ad1246d327c4f` | 72244 |
-| FY2025 | **33** | `fc4ffe8e7ce7f919c815ff4eecdb171d7f75f528a925cbced5814044d8363a10` | 70176 |
+`standardize_reconciled` populates the contract only from `selected_geographic_facts` on admitted model periods. It does not reselect raw notes or promote segment values onto statement lines. Missing periods are omitted, not filled. Outside-axis selections remain in provenance.
 
-Non-note filing content equals checkpoint `b17e8460fd5baa272ceaa4d86886fe50c9515279` for all four JSONs. Source PDFs SHA-256 match that checkpoint. Canonical reconciled artifacts and Fast Retailing releases were not rewritten.
+JSON export/reload is deterministic. Legacy payloads without the field and explicit `null` reload as `None`. The field is omitted when absent so Fast Retailing / committed no-segment exports stay unchanged.
 
-JSON pages: FY2023 Note 23 p84; FY2024 Note 23 p79–80; FY2025 Note 24 p80–81 (title on p79 per retained inspection). Labels include Americas, China Mainland, Rest of World. China Mainland is not PRC. No 2021-01-31 facts.
+Q4-2023 identities and China Mainland (`china_mainland`) are preserved. Channel/country/product identities are rejected.
 
 ---
 
@@ -84,31 +50,39 @@ JSON pages: FY2023 Note 23 p84; FY2024 Note 23 p79–80; FY2025 Note 24 p80–81
 
 ### Independent five-period bridges (USD thousands, tolerance 0)
 
-| Period | Revenue Σ segs = cons | IFOP bridge | IS cross-check |
-|---|---|---|---|
-| 2022-01-30 | 5299906+434261+522450=**6256617** | 2102008−718477−8782−41394=**1333355** | match |
-| 2023-01-29 | 6817454+576503+716561=**8110518** | 2803809+(−1475401)=**1328408** | match |
-| 2024-01-28 | 7631647+963760+1023871=**9619278** | 3476332+(−1343656)=**2132676** | match |
-| 2025-02-02 | 7928156+1361337+1298633=**10588126** | 3840362+(−1334665)=**2505697** | match |
-| 2026-02-01 | 7847044+1754799+1500757=**11102600** | **3607682 − 1397067 = 2210615** | match |
+Temporary five-period admit `2022-01-30`. Model values equal all **56** on-axis selections after export/reload.
+
+| Period | Family | Revenue Σ segs = cons | IFOP bridge | IS cross-check |
+|---|---|---|---|---|
+| 2022-01-30 | itemized_reconciling | **6256617** | **1333355** | match |
+| 2023-01-29 | corporate_column | **8110518** | **1328408** | match |
+| 2024-01-28 | corporate_column | **9619278** | **2132676** | match |
+| 2025-02-02 | corporate_column | **10588126** | **2505697** | match |
+| 2026-02-01 | corporate_column | **11102600** | **3607682 − 1397067 = 2210615** | match |
+
+Prior-presentation mutation (in-memory; extracted JSON not rewritten): Americas **`7928156`** survives standardization and reload; superseded **`7928256`** remains only in audit evidence; reverse filing order unchanged.
+
+Default four-period reconcile keeps `2022-01-30` out of the model payload and in provenance.
 
 ### Measured commands
 
 | Command | Exit | Result |
 |---|---:|---|
-| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_geographic_segment_facts.py core/tests/test_filing_json.py core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py -q` | 0 | **101 passed** in 1.49s (fresh; historical 88 not this proof) |
-| `... pytest core/tests/test_lululemon_benchmark.py core/tests/test_fast_retailing_benchmark.py -q` | 0 | **171 passed** in 38.85s |
-| `... pytest core/tests -q` | 0 | **1280 passed** in 105.22s (fresh; historical 1267 not this proof) |
-| `python -m core reconcile` extracted → **temporary** dir `--admit-period 2022-01-30` | 0 | `overlap_conflicts=3`; `note_facts=105`; selected=56 |
-| Temporary standardized.json / conflicts.json vs committed | 0 | **equal** |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_historical_segment.py core/tests/test_geographic_segment_facts.py core/tests/test_filing_json.py core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py -q` | 0 | **110 passed** in 1.47s |
+| `... pytest core/tests/test_lululemon_benchmark.py core/tests/test_fast_retailing_benchmark.py -q` | 0 | **171 passed** in 37.77s |
+| `... pytest core/tests -q` | 0 | **1289 passed** in 103.54s |
+| `python -m core reconcile` extracted → **temporary** `/tmp/lulu-seg-9m2411133.5duk8s` `--admit-period 2022-01-30` | 0 | `overlap_conflicts=3`; `note_facts=105`; selected=56; model facts=56 |
+| Temporary standardized.json minus `historical_segment` vs committed | 0 | **equal** |
+| Temporary conflicts.json vs committed | 0 | **equal** (SHA-256 `d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0`) |
 | Statement-only provenance vs committed | 0 | **equal** |
-| Protected artifacts + extracted JSON SHA-256 vs `b17e8460fd5baa272ceaa4d86886fe50c9515279` | 0 | **match** (table below) |
+| Fast Retailing payload omit-field round trip (shares/lease preserved) | 0 | **no** `historical_segment` field |
+| Protected artifacts vs checkpoint `b74ef31d612166a7dd4e6cfad5c8cf02b7ab1b8c` | 0 | **match** (table below) |
 
-Temporary provenance SHA-256 `5067c1d04aa93c18062fe7eb90558a86394283b7d9fe45899761f71cfb615951` (786300) — not a committed artifact. Size/hash differ from the prior later-year-only serialization because selected roles/reasons are now truthful.
+Temporary standardized.json SHA-256 `6c9aad59b04a5995742c68e08f1a704953796fc9fad97a036b08aeeab59051e5` (29584) — not a committed artifact. Temporary provenance SHA-256 `5067c1d04aa93c18062fe7eb90558a86394283b7d9fe45899761f71cfb615951` (786300) matches the prior selection serialization.
 
-### Protected-artifact hashes vs checkpoint `b17e8460fd5baa272ceaa4d86886fe50c9515279`
+### Protected-artifact hashes vs checkpoint `b74ef31d612166a7dd4e6cfad5c8cf02b7ab1b8c`
 
-**Lululemon (five-period canonical):**
+**Lululemon (five-period canonical; unchanged):**
 
 | Path | SHA-256 | Bytes |
 |---|---|---:|
@@ -119,6 +93,19 @@ Temporary provenance SHA-256 `5067c1d04aa93c18062fe7eb90558a86394283b7d9fe458997
 | `benchmark/lululemon/reconciled/standardized.json` | `a3568c29e883c8ba57af23da7b4286641a3c5f929af311e2e9593c5f63ea2287` | 25011 |
 | `benchmark/lululemon/reconciled/provenance.json` | `6799371215e02c888b3a5f687637b38dba4840bd1548cb1860a253f7a699cb12` | 699438 |
 | `benchmark/lululemon/reconciled/conflicts.json` | `d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0` | 4718 |
+| `benchmark/lululemon/extracted/LULU_FY2022.json` | `706cd75845133425b1821b9ff989ef1131005bdfb2321a76b1a6e91f710a6f18` | 60110 |
+| `benchmark/lululemon/extracted/LULU_FY2023.json` | `fcaa9abb417c4f96eb5496c5fc3f1b683b13c17a498c400de869e81880788c05` | 73971 |
+| `benchmark/lululemon/extracted/LULU_FY2024.json` | `0ddc2893afa892d2e1684a38fdc3a3275bb82ace5d4a237c785ad1246d327c4f` | 72244 |
+| `benchmark/lululemon/extracted/LULU_FY2025.json` | `fc4ffe8e7ce7f919c815ff4eecdb171d7f75f528a925cbced5814044d8363a10` | 70176 |
+
+**Source PDFs (unchanged):**
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `LULU_FY2022_Annual_Report.pdf` | `b344d1e7a710259fa06f88773dee0b3827334820ce2b881fe6b95ca2ae275e4e` | 4913067 |
+| `LULU_FY2023_Annual_Report.pdf` | `cd47ea251d608d06a3e58b5d782f2d41d5a231a994d2f7993267a430cb13c0f1` | 5848446 |
+| `LULU_FY2024_Annual_Report.pdf` | `9268fd530db162babdd1ec4363cf388ebce57125d83b7e097aba6f98ba0ca7ec` | 5953217 |
+| `LULU_FY2025_Annual_Report.pdf` | `82e00f900cc912a7d79596409594156b7779c3a193783ea8fecf87bc013c71cc` | 6590658 |
 
 **Fast Retailing (byte-identical releases, 577 identities, 0 unavailable displays):**
 
@@ -133,11 +120,11 @@ Inspected `.git/autocycle/reviewed-recovery-20260915-120942/evidence.json` SHA-2
 
 ---
 
-## Remaining dependency and G7 scope
+## Remaining scope
 
-Exact remaining standardizer/module dependency: there is still **no** `HistoricalSegmentData` (or equivalent) path from selected geographic `note_facts` into `StandardizedFinancials`. Learner schedules/Check identities are not yet generated. Remaining G7: store KPIs; lease maturity detail. Channel-era FY2022 Note 22 was intentionally not extracted.
+Segment analytical schedules and learner/Check integration; G6 missing `2021-01-31` BS; G7 store KPIs, lease maturity and remaining note facts; G8 deferral; G9 standalone interest completeness; all TARGET Step 9 exit gates. Segment assets/capex, significant-expense schedules and D&A remain outside this step. No parent or Step 9 completion claim.
 
-No plan rewrite. No parent or Step 9 completion claim.
+No plan rewrite.
 
 ---
 

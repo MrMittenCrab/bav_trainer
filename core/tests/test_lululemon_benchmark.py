@@ -205,6 +205,13 @@ def _statement_provenance(payload: dict) -> dict:
     return comparable
 
 
+def _comparable_standardized(payload: dict) -> dict:
+    """Canonical-comparable standardized payload: ignore optional segment handoff."""
+    comparable = dict(payload)
+    comparable.pop("historical_segment", None)
+    return comparable
+
+
 def _assert_artifact_sets_match(
     generated: Path,
     expected_bytes: dict[str, bytes],
@@ -221,6 +228,18 @@ def _assert_artifact_sets_match(
                 mismatches.append(name)
                 continue
             if _statement_provenance(actual_payload) != _statement_provenance(
+                expected_payload
+            ):
+                mismatches.append(name)
+            continue
+        if name == "standardized.json":
+            try:
+                actual_payload = json.loads(actual)
+                expected_payload = json.loads(expected_bytes[name])
+            except json.JSONDecodeError:
+                mismatches.append(name)
+                continue
+            if _comparable_standardized(actual_payload) != _comparable_standardized(
                 expected_payload
             ):
                 mismatches.append(name)
