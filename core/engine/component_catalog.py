@@ -2855,6 +2855,53 @@ CAPEX_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
             "Revenue intensity only — not a reinvestment bridge or depreciation ratio.",
         ),
     ),
+    ComponentFamily(
+        id="cash_after_ppe_capex",
+        order=124,
+        title="Operating cash after PP&E capex",
+        short_hint=(
+            "Reported operating cash flow minus PP&E capex. "
+            "Excludes other investing flows and is not comprehensive free cash "
+            "flow or a maintenance/growth-capex estimate."
+        ),
+        semantic_key="capex.cash_after_ppe_capex",
+        category="capex",
+        tab_template="ALT DuPont",
+        depends_on_current=("ppe_capex",),
+        hints=(
+            "Operating cash after PP&E capex = reported operating cash flow − PP&E capex.",
+            "Excludes other investing flows and is not comprehensive free cash flow "
+            "or a maintenance/growth-capex estimate.",
+            "Uses the −reported PP&E payment presentation already on this schedule.",
+        ),
+    ),
+    ComponentFamily(
+        id="cash_after_ppe_capex_to_revenue",
+        order=125,
+        title="Operating cash after PP&E capex / Revenue",
+        short_hint=(
+            "Operating cash after PP&E capex divided by same-period Revenue. "
+            "Excludes other investing flows; not comprehensive free cash flow "
+            "or a maintenance/growth-capex estimate."
+        ),
+        semantic_key="capex.cash_after_ppe_capex_to_revenue",
+        category="capex",
+        tab_template="ALT DuPont",
+        depends_on_current=("cash_after_ppe_capex", "revenue_link"),
+        hints=(
+            "Operating cash after PP&E capex / Revenue uses CFO minus PP&E capex.",
+            "A zero Revenue denominator makes the ratio undefined (#N/A).",
+            "Not comprehensive free cash flow or a maintenance/growth-capex estimate.",
+        ),
+    ),
+)
+
+
+_CAPEX_CASH_AFTER_FAMILY_IDS = frozenset(
+    {
+        "cash_after_ppe_capex",
+        "cash_after_ppe_capex_to_revenue",
+    }
 )
 
 
@@ -2862,6 +2909,7 @@ def expand_capex_specs(
     periods: list[date],
     *,
     start_order: int,
+    include_operating_cash: bool = False,
 ) -> tuple[ComponentSpec, ...]:
     """Expand capex families into period-specific concrete specs."""
     if len(periods) != len(set(periods)):
@@ -2875,9 +2923,17 @@ def expand_capex_specs(
                 "(increasing) period dates"
             )
 
+    families = CAPEX_COMPONENT_CATALOG
+    if not include_operating_cash:
+        families = tuple(
+            family
+            for family in CAPEX_COMPONENT_CATALOG
+            if family.id not in _CAPEX_CASH_AFTER_FAMILY_IDS
+        )
+
     specs: list[ComponentSpec] = []
     order = start_order
-    for family in CAPEX_COMPONENT_CATALOG:
+    for family in families:
         if family.period_scope == "comparable":
             indices = range(1, len(periods))
         else:

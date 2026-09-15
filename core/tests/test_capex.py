@@ -27,15 +27,17 @@ from core.ingestion.manual_hk import HKManualDocumentAdapter
 from core.model.capex import (
     capex_applicable,
     capex_availability,
+    cash_after_ppe_capex_applicable,
     compute_capex_series,
     resolve_capex_source,
+    resolve_operating_cash_source,
 )
 from core.model.financial_math import compute_anchor
 from core.model.historical_expected import capex_expected_series
 from core.model.line_resolver import AmbiguousLineError, MissingLineError, resolve_line
 from core.model.period_axis import canonical_fiscal_periods
 from core.model.ratio_values import UNDEFINED_RATIO
-from core.model.source_values import MissingHistoricalValueError
+from core.model.source_values import MissingHistoricalValueError, required_period_value
 from core.tests.test_normalization import _inject_formula_and_cached_value
 from core.trainer.checker import check_workbook
 from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
@@ -74,6 +76,12 @@ def _tiny(
     on_balance_sheet: bool = False,
     single_period: bool = False,
     payments_concept: str = "payments_for_ppe",
+    with_cfo: bool = True,
+    cfo=(80.0, 90.0),
+    duplicate_cfo: bool = False,
+    missing_cfo_period: bool = False,
+    none_cfo_period: bool = False,
+    cfo_concept: str = "",
 ):
     if single_period:
         d1 = date(2025, 12, 31)
@@ -141,9 +149,7 @@ def _tiny(
             _li("Income tax expense", vals(-30)),
             _li("Profit for the year", vals(170)),
         ]
-        cf = [
-            _li("Net cash from operating activities", vals(80)),
-        ]
+        cfo_vals = (cfo[0],)
     else:
         is_rows = [
             _li("Revenue", rev_values, concept="revenue"),
@@ -153,9 +159,34 @@ def _tiny(
             _li("Income tax expense", vals(-30, -33)),
             _li("Profit for the year", vals(170, 187)),
         ]
-        cf = [
-            _li("Net cash from operating activities", vals(80, 90)),
-        ]
+        cfo_vals = cfo
+
+    if missing_cfo_period and not single_period:
+        cfo_values = {P1: cfo_vals[0]}
+    elif none_cfo_period and not single_period:
+        cfo_values = {P1: cfo_vals[0], P2: None}
+    elif single_period:
+        cfo_values = vals(cfo_vals[0])
+    else:
+        cfo_values = vals(*cfo_vals)
+
+    cf: list[LineItem] = []
+    if with_cfo:
+        cf.append(
+            _li(
+                "Net cash from operating activities",
+                cfo_values,
+                concept=cfo_concept,
+            )
+        )
+        if duplicate_cfo and not on_balance_sheet:
+            cf.append(
+                _li(
+                    "Net cash from operating activities duplicate",
+                    vals(*cfo_vals) if not single_period else vals(cfo_vals[0]),
+                    concept=cfo_concept or "operating_cash_flow",
+                )
+            )
 
     if with_payments:
         target = bs if on_balance_sheet else cf
@@ -191,12 +222,22 @@ def _anchor(fin: StandardizedFinancials):
 
 def test_catalog_expansion_five_periods():
     periods = [date(y, 12, 31) for y in range(2021, 2026)]
-    assert len(CAPEX_COMPONENT_CATALOG) == 2
-    assert [f.order for f in CAPEX_COMPONENT_CATALOG] == [120, 121]
+    assert len(CAPEX_COMPONENT_CATALOG) == 4
+    assert [f.order for f in CAPEX_COMPONENT_CATALOG] == [120, 121, 124, 125]
     specs = expand_capex_specs(periods, start_order=1000)
     assert len(specs) == 10
     assert {s.family_id for s in specs} == {"ppe_capex", "ppe_capex_to_revenue"}
     assert all(s.semantic_key.startswith("capex.") for s in specs)
+    cash_specs = expand_capex_specs(
+        periods, start_order=1000, include_operating_cash=True
+    )
+    assert len(cash_specs) == 20
+    assert {s.family_id for s in cash_specs} == {
+        "ppe_capex",
+        "ppe_capex_to_revenue",
+        "cash_after_ppe_capex",
+        "cash_after_ppe_capex_to_revenue",
+    }
     with pytest.raises(ValueError, match="duplicate"):
         expand_capex_specs([periods[0], periods[0]], start_order=1)
     with pytest.raises(ValueError, match="chronological"):
@@ -212,6 +253,9 @@ def test_unique_concept_resolution_and_renamed_label():
     assert capex_applicable(fin)
     avail = capex_availability(fin)
     assert avail.payments_for_ppe is True and avail.ambiguous is False
+    assert avail.operating_cash_flow is True
+    assert avail.operating_cash_flow_ambiguous is False
+    assert cash_after_ppe_capex_applicable(fin)
 
     renamed = _tiny()
     renamed.cash_flow[-1] = _li(
@@ -315,6 +359,10 @@ def test_zero_revenue_undefined_ratio():
     assert series.ppe_capex == (50.0, 80.0)
     assert series.ppe_capex_to_revenue[0] == UNDEFINED_RATIO
     assert series.ppe_capex_to_revenue[1] == pytest.approx(80.0 / 2000.0)
+    assert series.operating_cash_flow == (80.0, 90.0)
+    assert series.cash_after_ppe_capex == (30.0, 10.0)
+    assert series.cash_after_ppe_capex_to_revenue[0] == UNDEFINED_RATIO
+    assert series.cash_after_ppe_capex_to_revenue[1] == pytest.approx(10.0 / 2000.0)
 
 
 def test_missing_none_inputs_raise():
@@ -340,6 +388,19 @@ def test_missing_none_inputs_raise():
     periods_nr = list(canonical_fiscal_periods(none_rev))
     with pytest.raises(MissingHistoricalValueError):
         compute_anchor(none_rev, periods_nr)
+
+    missing_cfo = _tiny(missing_cfo_period=True)
+    periods_c = list(canonical_fiscal_periods(missing_cfo))
+    with pytest.raises(MissingHistoricalValueError):
+        compute_capex_series(
+            missing_cfo, periods_c, compute_anchor(missing_cfo, periods_c)
+        )
+    none_cfo = _tiny(none_cfo_period=True)
+    periods_cn = list(canonical_fiscal_periods(none_cfo))
+    with pytest.raises(MissingHistoricalValueError):
+        compute_capex_series(
+            none_cfo, periods_cn, compute_anchor(none_cfo, periods_cn)
+        )
 
 
 def test_period_ordering_and_unchanged_input():
@@ -368,10 +429,12 @@ def test_workbook_gating_structure_formulas_notes_and_check(tmp_path):
     trainer, answer = build_training_workbook(data, tmp_path / "CAPEX_BASE.xlsx")
     builder = ReferenceModelBuilder(data)
     assert builder.capex_series is not None
-    assert len(builder.capex_specs) == 4
+    assert len(builder.capex_specs) == 8
     assert {s.family_id for s in builder.capex_specs} == {
         "ppe_capex",
         "ppe_capex_to_revenue",
+        "cash_after_ppe_capex",
+        "cash_after_ppe_capex_to_revenue",
     }
 
     smap = load_semantic_map(answer)
@@ -380,7 +443,7 @@ def test_workbook_gating_structure_formulas_notes_and_check(tmp_path):
         for c in smap.all_ordered()
         if c.family_id in {f.id for f in CAPEX_COMPONENT_CATALOG}
     ]
-    assert len(capex_comps) == 4
+    assert len(capex_comps) == 8
 
     for path in (trainer, answer):
         wb = load_workbook(path, data_only=False)
@@ -389,18 +452,31 @@ def test_workbook_gating_structure_formulas_notes_and_check(tmp_path):
             ws.cell(r, 1).value == "PP&E CAPEX CONTEXT"
             for r in range(1, (ws.max_row or 1) + 1)
         )
+        assert any(
+            ws.cell(r, 1).value == "OPERATING CASH AFTER PP&E CAPEX"
+            for r in range(1, (ws.max_row or 1) + 1)
+        )
         reported_row = _dupont_row_by_label(
             ws, "Payments for Property, Plant & Equipment (reported)"
         )
         capex_row = _dupont_row_by_label(ws, "PP&E Capex (−reported)")
         ratio_row = _dupont_row_by_label(ws, "PP&E Capex / Revenue")
+        cfo_row = _dupont_row_by_label(ws, "Operating Cash Flow (reported)")
+        cash_row = _dupont_row_by_label(ws, "Operating cash after PP&E capex")
+        cash_ratio_row = _dupont_row_by_label(
+            ws, "Operating cash after PP&E capex / Revenue"
+        )
         # Source link populated in both workbooks.
         assert isinstance(ws.cell(reported_row, 2).value, str)
         assert ws.cell(reported_row, 2).value.startswith("=")
+        assert isinstance(ws.cell(cfo_row, 2).value, str)
+        assert ws.cell(cfo_row, 2).value.startswith("=")
         for col in (2, 3):
             reported = ws.cell(reported_row, column=col)
             capex_cell = ws.cell(capex_row, column=col)
             ratio_cell = ws.cell(ratio_row, column=col)
+            cash_cell = ws.cell(cash_row, column=col)
+            cash_ratio_cell = ws.cell(cash_ratio_row, column=col)
             if path == answer:
                 assert isinstance(capex_cell.value, str) and capex_cell.value.startswith(
                     "="
@@ -411,12 +487,24 @@ def test_workbook_gating_structure_formulas_notes_and_check(tmp_path):
                 assert (capex_cell.comment.text or "").strip()
                 assert ratio_cell.comment is not None
                 assert (ratio_cell.comment.text or "").strip()
+                assert isinstance(cash_cell.value, str) and cash_cell.value.startswith(
+                    "="
+                )
+                assert "free cash flow" in (cash_cell.comment.text or "").lower()
+                assert "maintenance" in (cash_cell.comment.text or "").lower()
+                assert cash_ratio_cell.comment is not None
+                assert (cash_ratio_cell.comment.text or "").strip()
             else:
                 assert capex_cell.value is None
                 assert ratio_cell.value is None
+                assert cash_cell.value is None
+                assert cash_ratio_cell.value is None
                 assert capex_cell.comment is None
                 assert ratio_cell.comment is None
+                assert cash_cell.comment is None
+                assert cash_ratio_cell.comment is None
                 assert reported.value is not None
+                assert ws.cell(cfo_row, column=col).value is not None
         wb.close()
 
     blank = check_workbook(trainer)
@@ -492,7 +580,9 @@ def test_undefined_ratio_check_accepts_na(tmp_path):
     undef = [
         c
         for c in smap.all_ordered()
-        if c.family_id == "ppe_capex_to_revenue" and c.expected_value == UNDEFINED_RATIO
+        if c.family_id
+        in {"ppe_capex_to_revenue", "cash_after_ppe_capex_to_revenue"}
+        and c.expected_value == UNDEFINED_RATIO
     ]
     assert undef
     wb = load_workbook(trainer, data_only=False)
@@ -559,8 +649,8 @@ def test_fast_retailing_fy2021_fy2025_capex_anchors_and_ratios():
         )
 
     builder = ReferenceModelBuilder(fin)
-    assert len(builder.capex_specs) == 10
-    assert len(builder.expected_specs) == 491
+    assert len(builder.capex_specs) == 20
+    assert len(builder.expected_specs) == 501
 
 
 def test_capital_expenditures_alias_resolution_sign_zero_and_missing():
@@ -682,7 +772,7 @@ def test_capital_expenditures_alias_python_excel_source_identity(tmp_path):
         builder = ReferenceModelBuilder(fin)
         assert builder.capex_series is not None
         assert builder.capex_series.payments_reported == python_payments
-        assert len(builder.capex_specs) == 4
+        assert len(builder.capex_specs) == 8
 
         wb = load_workbook(answer, data_only=False)
         ws = wb["ALT DuPont"]
@@ -714,3 +804,129 @@ def test_capital_expenditures_alias_python_excel_source_identity(tmp_path):
         assert filled.correct == filled.total
         assert filled.incorrect == 0
         assert filled.blank == 0
+
+
+def test_absent_ambiguous_cfo_preserves_existing_capex(tmp_path):
+    absent = _tiny(with_cfo=False)
+    assert capex_applicable(absent)
+    avail = capex_availability(absent)
+    assert avail.operating_cash_flow is False
+    assert avail.operating_cash_flow_ambiguous is False
+    assert not cash_after_ppe_capex_applicable(absent)
+    assert resolve_operating_cash_source(absent) is None
+    series = compute_capex_series(
+        absent, list(canonical_fiscal_periods(absent)), _anchor(absent)
+    )
+    assert series.ppe_capex == (100.0, 120.0)
+    assert series.operating_cash_flow is None
+    assert series.cash_after_ppe_capex is None
+    assert series.cash_after_ppe_capex_to_revenue is None
+    mapped = capex_expected_series(series)
+    assert set(mapped) == {"ppe_capex", "ppe_capex_to_revenue"}
+    builder = ReferenceModelBuilder(absent)
+    assert len(builder.capex_specs) == 4
+    assert {s.family_id for s in builder.capex_specs} == {
+        "ppe_capex",
+        "ppe_capex_to_revenue",
+    }
+    trainer, answer = build_training_workbook(absent, tmp_path / "CAPEX_NO_CFO.xlsx")
+    smap = load_semantic_map(answer)
+    families = {c.family_id for c in smap.all_ordered()}
+    assert "ppe_capex" in families
+    assert "cash_after_ppe_capex" not in families
+    wb = load_workbook(answer, data_only=False)
+    ws = wb["ALT DuPont"]
+    labels = [
+        ws.cell(r, 1).value for r in range(1, (ws.max_row or 1) + 1)
+    ]
+    assert "PP&E CAPEX CONTEXT" in labels
+    assert "OPERATING CASH AFTER PP&E CAPEX" not in labels
+    wb.close()
+    blank = check_workbook(trainer)
+    assert blank.incorrect == 0
+    assert blank.blank == blank.total
+
+    amb = _tiny(duplicate_cfo=True, cfo_concept="operating_cash_flow")
+    avail_a = capex_availability(amb)
+    assert avail_a.payments_for_ppe is True
+    assert avail_a.ambiguous is False
+    assert avail_a.operating_cash_flow is False
+    assert avail_a.operating_cash_flow_ambiguous is True
+    assert capex_applicable(amb)
+    assert not cash_after_ppe_capex_applicable(amb)
+    with pytest.raises(AmbiguousLineError):
+        resolve_line(amb.cash_flow, "operating_cash_flow", required=False)
+    series_a = compute_capex_series(
+        amb, list(canonical_fiscal_periods(amb)), _anchor(amb)
+    )
+    assert series_a.ppe_capex == (100.0, 120.0)
+    assert series_a.cash_after_ppe_capex is None
+    try:
+        builder_a = ReferenceModelBuilder(amb)
+    except AmbiguousLineError:
+        builder_a = None
+    else:
+        assert {s.family_id for s in builder_a.capex_specs} == {
+            "ppe_capex",
+            "ppe_capex_to_revenue",
+        }
+
+
+def test_cash_after_ppe_capex_signs_zero_reversal_and_immutability():
+    negative_cfo = _tiny(cfo=(-40.0, -10.0), payments=(-50.0, -80.0))
+    series_n = compute_capex_series(
+        negative_cfo,
+        list(canonical_fiscal_periods(negative_cfo)),
+        _anchor(negative_cfo),
+    )
+    assert series_n.operating_cash_flow == (-40.0, -10.0)
+    assert series_n.ppe_capex == (50.0, 80.0)
+    assert series_n.cash_after_ppe_capex == (-90.0, -90.0)
+
+    zero_cfo = _tiny(cfo=(0.0, 90.0), payments=(-50.0, -80.0))
+    series_z = compute_capex_series(
+        zero_cfo, list(canonical_fiscal_periods(zero_cfo)), _anchor(zero_cfo)
+    )
+    assert series_z.operating_cash_flow == (0.0, 90.0)
+    assert series_z.cash_after_ppe_capex == (-50.0, 10.0)
+    assert series_z.cash_after_ppe_capex_to_revenue[0] == pytest.approx(-50.0 / 1000.0)
+
+    reversal = _tiny(payments=(50.0, -80.0), cfo=(100.0, 90.0))
+    series_r = compute_capex_series(
+        reversal, list(canonical_fiscal_periods(reversal)), _anchor(reversal)
+    )
+    assert series_r.ppe_capex == (-50.0, 80.0)
+    assert series_r.cash_after_ppe_capex == (150.0, 10.0)
+
+    fin = _tiny(cfo=(80.0, 90.0), payments=(-10.0, -20.0))
+    before_pay = copy.deepcopy(resolve_capex_source(fin).values)
+    before_cfo = copy.deepcopy(resolve_operating_cash_source(fin).values)
+    compute_capex_series(fin, [P1, P2], compute_anchor(fin, [P1, P2]))
+    assert resolve_capex_source(fin).values == before_pay
+    assert resolve_operating_cash_source(fin).values == before_cfo
+
+
+def test_fast_retailing_cash_after_ppe_capex_independent_arithmetic():
+    payload = json.loads(STD_JSON.read_text(encoding="utf-8"))
+    fin = standardized_from_payload(payload)
+    periods = list(canonical_fiscal_periods(fin))
+    cfo_item = resolve_operating_cash_source(fin)
+    pay_item = resolve_capex_source(fin)
+    assert cfo_item is not None and pay_item is not None
+    independent = []
+    margins = []
+    revenues = (2132992.0, 2301122.0, 2766557.0, 3103836.0, 3400539.0)
+    for j, period in enumerate(periods):
+        cfo = required_period_value(cfo_item, period, field="operating_cash_flow")
+        pay = required_period_value(pay_item, period, field="payments_for_ppe")
+        cash_after = cfo - (-pay)
+        independent.append(cash_after)
+        margins.append(cash_after / revenues[j])
+    assert independent == [372468.0, 379546.0, 401452.0, 577793.0, 445083.0]
+    series = compute_capex_series(fin, periods, compute_anchor(fin, periods))
+    assert series.cash_after_ppe_capex == tuple(independent)
+    for j, margin in enumerate(margins):
+        assert series.cash_after_ppe_capex_to_revenue[j] == pytest.approx(margin)
+    assert len(ReferenceModelBuilder(fin).capex_specs) == 20
+    assert len(ReferenceModelBuilder(fin).expected_specs) == 501
+

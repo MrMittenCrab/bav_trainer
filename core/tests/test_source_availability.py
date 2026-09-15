@@ -512,6 +512,7 @@ def test_lululemon_unchanged_facts_gate_interest_and_keep_supported_outputs(tmp_
     assert "after_tax_cod" not in families
     assert "revenue_link" in families
     assert "ppe_capex" in families
+    assert "cash_after_ppe_capex" in families
     wb = load_workbook(answer, data_only=False)
     labels = _labels(wb["Condensed Financials"])
     assert "Interest Expense" not in labels

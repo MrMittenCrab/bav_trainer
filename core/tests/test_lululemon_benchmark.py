@@ -29,7 +29,10 @@ from core.engine.reference_model import SOURCE_START_ROW, ReferenceModelBuilder
 from core.model.capex import (
     capex_applicable,
     capex_availability,
+    cash_after_ppe_capex_applicable,
+    compute_capex_series,
     resolve_capex_source,
+    resolve_operating_cash_source,
 )
 from core.model.deferred_tax import (
     compute_deferred_tax_series,
@@ -763,6 +766,32 @@ def test_source_supported_capex_alias_four_period_diagnostics(tmp_path: Path):
     assert ratios[2] == pytest.approx(689232.0 / 10588126.0)
     assert ratios[3] == pytest.approx(680802.0 / 11102600.0)
 
+    cfo_item = resolve_operating_cash_source(fin)
+    assert cfo_item is not None
+    assert cfo_item.label == "Net cash provided by operating activities"
+    assert cash_after_ppe_capex_applicable(fin) is True
+    cash_after = []
+    cash_margins = []
+    for period in EXPECTED_PERIODS:
+        cfo = required_period_value(cfo_item, period, field="operating_cash_flow")
+        pay = required_period_value(stored, period, field="payments_for_ppe")
+        value = cfo - (-pay)
+        cash_after.append(value)
+        cash_margins.append(value / REVENUE_ANCHORS[period])
+    assert cash_after == [327806.0, 1644299.0, 1583481.0, 921675.0]
+    series = compute_capex_series(fin, list(EXPECTED_PERIODS), compute_anchor(fin, list(EXPECTED_PERIODS)))
+    assert series.cash_after_ppe_capex == tuple(cash_after)
+    for j, margin in enumerate(cash_margins):
+        assert series.cash_after_ppe_capex_to_revenue[j] == pytest.approx(margin)
+    builder = ReferenceModelBuilder(fin)
+    cash_ids = {
+        s.semantic_key
+        for s in builder.expected_specs
+        if s.family_id
+        in {"cash_after_ppe_capex", "cash_after_ppe_capex_to_revenue"}
+    }
+    assert len(cash_ids) == 8
+
     restored = standardized_from_payload(standardized_to_payload(fin))
     rt_item = resolve_capex_source(restored)
     assert rt_item is not None
@@ -804,8 +833,8 @@ NET_DT_POSITIONS = {
     date(2025, 2, 2): -81103.0,
     date(2026, 2, 1): -28241.0,
 }
-PRIOR_LULULEMON_SPECS = 248
-LEASE_DT_LULULEMON_SPECS = 273
+PRIOR_LULULEMON_SPECS = 256
+LEASE_DT_LULULEMON_SPECS = 281
 
 
 def _fill_rgb(cell) -> str:

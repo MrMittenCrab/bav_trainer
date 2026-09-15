@@ -153,6 +153,16 @@ _DEFERRED_TAX_FAMILY_SERIES = (
 _CAPEX_FAMILY_SERIES = (
     "ppe_capex",
     "ppe_capex_to_revenue",
+    "cash_after_ppe_capex",
+    "cash_after_ppe_capex_to_revenue",
+)
+_CAPEX_BASE_FAMILY_SERIES = (
+    "ppe_capex",
+    "ppe_capex_to_revenue",
+)
+_CAPEX_CASH_AFTER_FAMILY_SERIES = (
+    "cash_after_ppe_capex",
+    "cash_after_ppe_capex_to_revenue",
 )
 
 _LEASE_REPAYMENT_FAMILY_SERIES = (
@@ -635,19 +645,36 @@ def capex_expected_series(
     capex: CapexSeries,
 ) -> dict[str, tuple[float | str | None, ...]]:
     """Map capex practice families from a CapexSeries."""
-    series = {
+    series: dict[str, tuple[float | str | None, ...]] = {
         "ppe_capex": capex.ppe_capex,
         "ppe_capex_to_revenue": capex.ppe_capex_to_revenue,
     }
-    expected_ids = {family.id for family in CAPEX_COMPONENT_CATALOG}
-    if set(series) != expected_ids:
-        missing = sorted(expected_ids - set(series))
-        extra = sorted(set(series) - expected_ids)
+    if capex.cash_after_ppe_capex is not None:
+        if capex.cash_after_ppe_capex_to_revenue is None:
+            raise ValueError(
+                "cash_after_ppe_capex_to_revenue is required when "
+                "cash_after_ppe_capex is present"
+            )
+        series["cash_after_ppe_capex"] = capex.cash_after_ppe_capex
+        series["cash_after_ppe_capex_to_revenue"] = (
+            capex.cash_after_ppe_capex_to_revenue
+        )
+    catalog_ids = {family.id for family in CAPEX_COMPONENT_CATALOG}
+    required = set(_CAPEX_BASE_FAMILY_SERIES)
+    if capex.cash_after_ppe_capex is not None:
+        required |= set(_CAPEX_CASH_AFTER_FAMILY_SERIES)
+    if set(series) != required or not required <= catalog_ids:
+        missing = sorted(required - set(series))
+        extra = sorted(set(series) - required)
         raise ValueError(
             "capex_expected_series family mismatch; "
             f"missing={missing} extra={extra}"
         )
-    return {family_id: series[family_id] for family_id in _CAPEX_FAMILY_SERIES}
+    return {
+        family_id: series[family_id]
+        for family_id in _CAPEX_FAMILY_SERIES
+        if family_id in series
+    }
 
 
 def lease_repayment_expected_series(
@@ -833,6 +860,10 @@ def expected_value_for_component(
         if capex is None:
             raise ValueError(f"Capex family {family_id!r} requires a CapexSeries")
         series = capex_expected_series(capex)
+        if family_id not in series:
+            raise ValueError(
+                f"Capex family {family_id!r} requires unambiguous operating cash flow"
+            )
     elif family_id in _LEASE_REPAYMENT_FAMILY_SERIES:
         if lease_repayment is None:
             raise ValueError(

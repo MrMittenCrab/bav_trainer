@@ -45,6 +45,7 @@ from ..model.capex import (
     compute_capex_series,
     capex_applicable,
     resolve_capex_source,
+    resolve_operating_cash_source,
 )
 from ..model.lease_repayment import (
     compute_lease_repayment_series,
@@ -585,6 +586,9 @@ class ReferenceModelBuilder:
                     + len(self.lease_rou_specs)
                     + len(self.deferred_tax_specs)
                     + 1
+                ),
+                include_operating_cash=(
+                    self.capex_series.cash_after_ppe_capex is not None
                 ),
             )
         else:
@@ -3188,6 +3192,94 @@ class ReferenceModelBuilder:
             self.rowmap["dupont_ppe_capex_row"] = payments_row
             self.rowmap["dupont_ppe_capex_to_revenue_row"] = payments_rev_row
             next_section_after = payments_rev_row
+
+            if capex_series.cash_after_ppe_capex is not None:
+                assert capex_series.cash_after_ppe_capex_to_revenue is not None
+                cfo_item = resolve_operating_cash_source(self.fin)
+                assert cfo_item is not None
+                cfo_src = self._resolved_source_row(
+                    self.fin.cash_flow, "operating_cash_flow", required=True
+                )
+                assert cfo_src is not None
+                cash_section_row = next_section_after + 2
+                cfo_row = cash_section_row + 1
+                cash_after_row = cash_section_row + 2
+                cash_after_rev_row = cash_section_row + 3
+
+                ws.cell(
+                    row=cash_section_row,
+                    column=1,
+                    value="OPERATING CASH AFTER PP&E CAPEX",
+                ).font = BOLD
+                ws.cell(
+                    row=cfo_row,
+                    column=1,
+                    value="Operating Cash Flow (reported)",
+                )
+                ws.cell(
+                    row=cash_after_row,
+                    column=1,
+                    value="Operating cash after PP&E capex",
+                )
+                ws.cell(
+                    row=cash_after_rev_row,
+                    column=1,
+                    value="Operating cash after PP&E capex / Revenue",
+                )
+
+                for j in range(self._n):
+                    out_col_idx = 2 + j
+                    out_col = self._col(out_col_idx)
+                    src_col = self._col(2 + j)
+                    cfo_f = f"='Cash Flow Statement'!{src_col}{cfo_src}"
+                    cash_after_f = f"={out_col}{cfo_row}-{out_col}{payments_row}"
+                    cash_after_rev_f = (
+                        f"=IF('Condensed Financials'!{src_col}{rev_r}=0,NA(),"
+                        f"{out_col}{cash_after_row}/"
+                        f"'Condensed Financials'!{src_col}{rev_r})"
+                    )
+                    c = ws.cell(row=cfo_row, column=out_col_idx, value=cfo_f)
+                    c.number_format = NUM_FMT
+                    c = ws.cell(
+                        row=cash_after_row, column=out_col_idx, value=cash_after_f
+                    )
+                    c.number_format = NUM_FMT
+                    c = ws.cell(
+                        row=cash_after_rev_row,
+                        column=out_col_idx,
+                        value=cash_after_rev_f,
+                    )
+                    c.number_format = PCT_FMT
+
+                    cash_exp = capex_series.cash_after_ppe_capex[j]
+                    cash_rev_exp = capex_series.cash_after_ppe_capex_to_revenue[j]
+                    self._register_capex(
+                        "cash_after_ppe_capex",
+                        j,
+                        "ALT DuPont",
+                        cash_after_row,
+                        out_col_idx,
+                        cash_after_f,
+                        float(cash_exp),
+                    )
+                    self._register_capex(
+                        "cash_after_ppe_capex_to_revenue",
+                        j,
+                        "ALT DuPont",
+                        cash_after_rev_row,
+                        out_col_idx,
+                        cash_after_rev_f,
+                        cash_rev_exp
+                        if isinstance(cash_rev_exp, str)
+                        else float(cash_rev_exp),
+                    )
+
+                self.rowmap["dupont_operating_cash_flow_reported_row"] = cfo_row
+                self.rowmap["dupont_cash_after_ppe_capex_row"] = cash_after_row
+                self.rowmap[
+                    "dupont_cash_after_ppe_capex_to_revenue_row"
+                ] = cash_after_rev_row
+                next_section_after = cash_after_rev_row
 
         if self.lease_repayment_series is not None:
             lease_repayment_series = self.lease_repayment_series
