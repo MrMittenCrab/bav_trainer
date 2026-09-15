@@ -650,7 +650,7 @@ def test_fast_retailing_fy2021_fy2025_capex_anchors_and_ratios():
 
     builder = ReferenceModelBuilder(fin)
     assert len(builder.capex_specs) == 20
-    assert len(builder.expected_specs) == 521
+    assert len(builder.expected_specs) == 548
 
 
 def test_capital_expenditures_alias_resolution_sign_zero_and_missing():
@@ -928,5 +928,5 @@ def test_fast_retailing_cash_after_ppe_capex_independent_arithmetic():
     for j, margin in enumerate(margins):
         assert series.cash_after_ppe_capex_to_revenue[j] == pytest.approx(margin)
     assert len(ReferenceModelBuilder(fin).capex_specs) == 20
-    assert len(ReferenceModelBuilder(fin).expected_specs) == 521
+    assert len(ReferenceModelBuilder(fin).expected_specs) == 548
 

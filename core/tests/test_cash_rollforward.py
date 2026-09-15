@@ -594,7 +594,7 @@ def test_demo_omits_cash_rollforward_fast_retailing_activates(tmp_path):
     assert cash_rollforward_applicable(fr)
     fr_builder = ReferenceModelBuilder(fr)
     assert len(fr_builder.cash_rollforward_specs) == 20
-    assert len(fr_builder.expected_specs) == 521
+    assert len(fr_builder.expected_specs) == 548
     assert "cash_movement_from_flows" in {
         s.family_id for s in fr_builder.expected_specs
     }

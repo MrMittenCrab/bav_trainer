@@ -526,6 +526,10 @@ def test_lululemon_unchanged_facts_gate_interest_and_keep_supported_outputs(tmp_
     assert "cash_movement_difference" in families
     assert "cash_ending_from_flows" in families
     assert "cash_ending_difference" in families
+    assert "gross_margin" in families
+    assert "reported_operating_margin" in families
+    assert "net_operating_expense_burden" in families
+    assert "reconstructed_operating_margin_change" in families
     wb = load_workbook(answer, data_only=False)
     labels = _labels(wb["Condensed Financials"])
     assert "Interest Expense" not in labels

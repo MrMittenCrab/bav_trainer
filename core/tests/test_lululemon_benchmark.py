@@ -1402,6 +1402,131 @@ def test_source_supported_cash_rollforward_four_period_diagnostics(tmp_path: Pat
     }
 
 
+def test_source_supported_reported_margin_four_period_diagnostics(tmp_path: Path):
+    from core.model.reported_margin import (
+        compute_reported_margin_series,
+        reported_margin_applicable,
+        resolve_reported_margin_sources,
+    )
+    from core.model.ratio_values import UNDEFINED_RATIO
+
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    original_index, stored = next(
+        (idx, row)
+        for idx, row in enumerate(fin.income_statement)
+        if row.concept == "gross_profit" and row.label == "Gross profit"
+    )
+    operating_item = next(
+        row for row in fin.income_statement if row.concept == "operating_income"
+    )
+    revenue_item = next(
+        row for row in fin.income_statement if row.concept == "revenue"
+    )
+    assert reported_margin_applicable(fin) is True
+    sources = resolve_reported_margin_sources(fin)
+    assert sources.gross_profit is stored
+    assert sources.operating_profit is operating_item
+    resolved = resolve_line(fin.income_statement, "gross_profit", required=True)
+    assert resolved.index == original_index
+    assert resolved.item is stored
+    assert workbook_row_for(resolved, start_row=SOURCE_START_ROW) == (
+        SOURCE_START_ROW + original_index
+    )
+
+    independent_gm = []
+    independent_om = []
+    independent_burden = []
+    independent_gm_change = [None]
+    independent_burden_change = [None]
+    independent_recon = [None]
+    for j, period in enumerate(EXPECTED_PERIODS):
+        gp = required_period_value(stored, period, field="gross_profit")
+        op = required_period_value(operating_item, period, field="operating_profit")
+        rev = required_period_value(revenue_item, period, field="revenue")
+        gm = gp / rev
+        om = op / rev
+        burden = (gp - op) / rev
+        independent_gm.append(gm)
+        independent_om.append(om)
+        independent_burden.append(burden)
+        if j > 0:
+            independent_gm_change.append(gm - independent_gm[j - 1])
+            independent_burden_change.append(burden - independent_burden[j - 1])
+            independent_recon.append(
+                independent_gm_change[j] - independent_burden_change[j]
+            )
+            assert independent_recon[j] == pytest.approx(om - independent_om[j - 1])
+    assert independent_gm[-1] == pytest.approx(6284132.0 / 11102600.0)
+    assert independent_om[-1] == pytest.approx(2210615.0 / 11102600.0)
+    assert independent_gm[-1] == pytest.approx(0.566005, abs=5e-7)
+    assert independent_om[-1] == pytest.approx(0.199108, abs=5e-7)
+    assert UNDEFINED_RATIO not in independent_gm
+
+    series = compute_reported_margin_series(fin, list(EXPECTED_PERIODS))
+    assert series.gross_margin == tuple(independent_gm)
+    assert series.reported_operating_margin == tuple(independent_om)
+    assert series.net_operating_expense_burden == tuple(independent_burden)
+    assert series.reconstructed_operating_margin_change[1:] == tuple(
+        independent_recon[1:]
+    )
+
+    builder = ReferenceModelBuilder(fin)
+    rm_ids = {
+        s.semantic_key
+        for s in builder.expected_specs
+        if s.family_id
+        in {
+            "gross_margin",
+            "reported_operating_margin",
+            "net_operating_expense_burden",
+            "gross_margin_change",
+            "net_operating_expense_burden_change",
+            "reconstructed_operating_margin_change",
+        }
+    }
+    assert len(rm_ids) == 21
+    assert len(builder.expected_specs) == LEASE_DT_LULULEMON_SPECS
+
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    rt = resolve_reported_margin_sources(restored)
+    assert rt.gross_profit is not None
+    assert rt.gross_profit.concept == "gross_profit"
+    assert rt.operating_profit.concept == "operating_income"
+
+    out = tmp_path / "LululemonRM"
+    trainer, answer = build_training_workbook(fin, out)
+    assert trainer.exists() and answer.exists()
+    smap = load_semantic_map(answer)
+    assert len(smap.all_ordered()) == LEASE_DT_LULULEMON_SPECS
+    awb = load_workbook(answer, data_only=False)
+    ws = awb["ALT DuPont"]
+    reported_row = next(
+        r
+        for r in range(1, (ws.max_row or 1) + 1)
+        if ws.cell(r, 1).value == "Gross profit (reported)"
+    )
+    src_f = str(ws.cell(reported_row, 2).value).replace(" ", "")
+    assert src_f.startswith("='IncomeStatement'!") or src_f.startswith(
+        "='Income Statement'!"
+    )
+    note_cell = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "net_operating_expense_burden"
+    )
+    nrow, ncol = parse_cell_ref(note_cell.cell)
+    note = (ws.cell(nrow, ncol).comment.text or "") if ws.cell(nrow, ncol).comment else ""
+    assert "sg&a" in note.lower() or "intervening" in note.lower()
+    awb.close()
+    assert stored.concept == "gross_profit"
+    assert stored.values == {
+        date(2023, 1, 29): 4492340.0,
+        date(2024, 1, 28): 5609405.0,
+        date(2025, 2, 2): 6270811.0,
+        date(2026, 2, 1): 6284132.0,
+    }
+
+
 ROU_BALANCES = {
     date(2023, 1, 29): 969419.0,
     date(2024, 1, 28): 1265610.0,
@@ -1426,8 +1551,8 @@ NET_DT_POSITIONS = {
     date(2025, 2, 2): -81103.0,
     date(2026, 2, 1): -28241.0,
 }
-PRIOR_LULULEMON_SPECS = 308
-LEASE_DT_LULULEMON_SPECS = 333
+PRIOR_LULULEMON_SPECS = 329
+LEASE_DT_LULULEMON_SPECS = 354
 
 
 def _fill_rgb(cell) -> str:

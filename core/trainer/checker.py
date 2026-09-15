@@ -17,6 +17,7 @@ from ..model.period_axis import canonical_fiscal_periods
 from ..engine.component_catalog import (
     ACQUISITION_CASH_COMPONENT_CATALOG,
     CASH_ROLLFORWARD_COMPONENT_CATALOG,
+    REPORTED_MARGIN_COMPONENT_CATALOG,
     SHARE_REPURCHASE_COMPONENT_CATALOG,
     CAPEX_COMPONENT_CATALOG,
     DEFERRED_TAX_COMPONENT_CATALOG,
@@ -44,6 +45,10 @@ from ..model.share_repurchase import (
 from ..model.cash_rollforward import (
     compute_cash_rollforward_series,
     cash_rollforward_applicable,
+)
+from ..model.reported_margin import (
+    compute_reported_margin_series,
+    reported_margin_applicable,
 )
 from ..model.capex import compute_capex_series, capex_applicable
 from ..model.lease_repayment import (
@@ -359,6 +364,16 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                         financials,
                         list(modeled_periods),
                     )
+            reported_margin_family_ids = {
+                family.id for family in REPORTED_MARGIN_COMPONENT_CATALOG
+            }
+            reported_margin = None
+            if any(comp.family_id in reported_margin_family_ids for comp in comps):
+                if reported_margin_applicable(financials):
+                    reported_margin = compute_reported_margin_series(
+                        financials,
+                        list(modeled_periods),
+                    )
             dynamic_expected = {
                 comp.id: expected_value_for_component(
                     anchor,
@@ -378,6 +393,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     acquisition_cash=acquisition_cash,
                     share_repurchase=share_repurchase,
                     cash_rollforward=cash_rollforward,
+                    reported_margin=reported_margin,
                 )
                 for comp in comps
             }

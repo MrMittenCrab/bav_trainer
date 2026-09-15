@@ -5,6 +5,7 @@ from __future__ import annotations
 from ..engine.component_catalog import (
     ACQUISITION_CASH_COMPONENT_CATALOG,
     CASH_ROLLFORWARD_COMPONENT_CATALOG,
+    REPORTED_MARGIN_COMPONENT_CATALOG,
     SHARE_REPURCHASE_COMPONENT_CATALOG,
     CAPEX_COMPONENT_CATALOG,
     COMPONENT_CATALOG,
@@ -29,6 +30,7 @@ from ..engine.component_catalog import (
 from ..engine.semantic_map import ResolvedComponent
 from .acquisition_cash import AcquisitionCashSeries
 from .cash_rollforward import CashRollforwardSeries
+from .reported_margin import ReportedMarginSeries
 from .share_repurchase import ShareRepurchaseSeries
 from .capex import CapexSeries
 from .earnings_quality import EarningsQualitySeries
@@ -217,6 +219,15 @@ _CASH_ROLLFORWARD_FAMILY_SERIES = (
     "cash_ending_difference",
 )
 _CASH_ROLLFORWARD_BASE_FAMILY_SERIES = ("cash_movement_from_flows",)
+
+_REPORTED_MARGIN_FAMILY_SERIES = (
+    "gross_margin",
+    "reported_operating_margin",
+    "net_operating_expense_burden",
+    "gross_margin_change",
+    "net_operating_expense_burden_change",
+    "reconstructed_operating_margin_change",
+)
 
 _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
     "parent_profit_source_link",
@@ -864,6 +875,45 @@ def cash_rollforward_expected_series(
     }
 
 
+def reported_margin_expected_series(
+    reported_margin: ReportedMarginSeries,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map reported-margin practice families from a ReportedMarginSeries."""
+    series: dict[str, tuple[float | str | None, ...]] = {}
+    if reported_margin.gross_margin is not None:
+        series["gross_margin"] = reported_margin.gross_margin
+    if reported_margin.reported_operating_margin is not None:
+        series["reported_operating_margin"] = reported_margin.reported_operating_margin
+    if reported_margin.net_operating_expense_burden is not None:
+        series["net_operating_expense_burden"] = (
+            reported_margin.net_operating_expense_burden
+        )
+    if reported_margin.gross_margin_change is not None:
+        series["gross_margin_change"] = reported_margin.gross_margin_change
+    if reported_margin.net_operating_expense_burden_change is not None:
+        series["net_operating_expense_burden_change"] = (
+            reported_margin.net_operating_expense_burden_change
+        )
+    if reported_margin.reconstructed_operating_margin_change is not None:
+        series["reconstructed_operating_margin_change"] = (
+            reported_margin.reconstructed_operating_margin_change
+        )
+    catalog_ids = {family.id for family in REPORTED_MARGIN_COMPONENT_CATALOG}
+    if not set(series) <= catalog_ids:
+        extra = sorted(set(series) - catalog_ids)
+        raise ValueError(
+            "reported_margin_expected_series family mismatch; "
+            f"extra={extra}"
+        )
+    if not series:
+        raise ValueError("reported_margin_expected_series has no applicable families")
+    return {
+        family_id: series[family_id]
+        for family_id in _REPORTED_MARGIN_FAMILY_SERIES
+        if family_id in series
+    }
+
+
 def ownership_attribution_expected_series(
     ownership_attribution: OwnershipAttributionSeries,
 ) -> dict[str, tuple[float | str | None, ...]]:
@@ -980,6 +1030,7 @@ def expected_value_for_component(
     acquisition_cash: AcquisitionCashSeries | None = None,
     share_repurchase: ShareRepurchaseSeries | None = None,
     cash_rollforward: CashRollforwardSeries | None = None,
+    reported_margin: ReportedMarginSeries | None = None,
 ) -> float | str | None:
     """Return the treatment-conditioned expected value for one practice component."""
     family_id = component.family_id
@@ -1073,6 +1124,18 @@ def expected_value_for_component(
         if family_id not in series:
             raise ValueError(
                 f"Cash-roll-forward family {family_id!r} requires its unique "
+                "source dependencies"
+            )
+    elif family_id in _REPORTED_MARGIN_FAMILY_SERIES:
+        if reported_margin is None:
+            raise ValueError(
+                f"Reported-margin family {family_id!r} requires a "
+                "ReportedMarginSeries"
+            )
+        series = reported_margin_expected_series(reported_margin)
+        if family_id not in series:
+            raise ValueError(
+                f"Reported-margin family {family_id!r} requires its unique "
                 "source dependencies"
             )
     elif family_id in _FIXED_ASSET_FAMILY_SERIES:

@@ -493,7 +493,7 @@ def test_demo_and_fast_retailing_omit_acquisition_cash(tmp_path):
     assert not acquisition_cash_applicable(fr)
     fr_builder = ReferenceModelBuilder(fr)
     assert fr_builder.acquisition_cash_specs == ()
-    assert len(fr_builder.expected_specs) == 521
+    assert len(fr_builder.expected_specs) == 548
     assert "acquisition_cash_outflow" not in {
         s.family_id for s in fr_builder.expected_specs
     }

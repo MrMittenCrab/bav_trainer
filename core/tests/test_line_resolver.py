@@ -880,3 +880,69 @@ def test_cash_rollforward_explicit_concept_outranks_label():
     assert resolved.index == 1
     assert resolved.item.concept == "operating_cash_flow"
 
+
+def test_reported_margin_explicit_aliases_and_label_only_rejection():
+    gross = resolve_line(
+        [_item("Neutral", 1, 2, concept="gross_profit")],
+        "gross_profit",
+        required=True,
+    )
+    assert gross.item is not None
+    assert gross.item.concept == "gross_profit"
+
+    operating = resolve_line(
+        [_item("Neutral", 1, 2, concept="operating_profit")],
+        "operating_profit",
+        required=True,
+    )
+    assert operating.item is not None
+    assert operating.item.concept == "operating_profit"
+
+    alias_operating = resolve_line(
+        [_item("Neutral LULU", 1, 2, concept="operating_income")],
+        "operating_profit",
+        required=True,
+    )
+    assert alias_operating.item is not None
+    assert alias_operating.item.concept == "operating_income"
+
+    for concept, label in (
+        ("gross_profit", "Gross profit"),
+        ("operating_profit", "Operating profit"),
+        ("operating_profit", "Income from operations"),
+        ("operating_profit", "Operating income"),
+    ):
+        assert resolve_line([_item(label, 1, 2)], concept, required=False).item is None
+
+
+def test_reported_margin_competing_aliases_are_ambiguous():
+    with pytest.raises(AmbiguousLineError):
+        resolve_line(
+            [
+                _item("First", 1, 2, concept="operating_profit"),
+                _item("Second", 3, 4, concept="operating_income"),
+            ],
+            "operating_profit",
+            required=False,
+        )
+    with pytest.raises(AmbiguousLineError):
+        resolve_line(
+            [
+                _item("First", 1, 2, concept="gross_profit"),
+                _item("Second", 3, 4, concept="gross_profit"),
+            ],
+            "gross_profit",
+            required=False,
+        )
+
+
+def test_reported_margin_explicit_concept_outranks_label():
+    items = [
+        _item("Operating profit", 1, 2),
+        _item("Other operating result", 80, 90, concept="operating_income"),
+    ]
+    resolved = resolve_line(items, "operating_profit", required=True)
+    assert resolved.item is not None
+    assert resolved.index == 1
+    assert resolved.item.concept == "operating_income"
+

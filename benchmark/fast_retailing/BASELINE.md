@@ -28,10 +28,10 @@
 | 1_source_fixture_load | pass | loaded |
 | 2_identity_validation | pass |  |
 | 3_reconciliation | pass |  |
-| 4_reference_model_builder | pass | expected_specs=521 lease_specs=18 lease_rou_specs=16 ownership_specs=34 per_share_specs=18 per_share_attribution_specs=16 fixed_asset_specs=35 goodwill_intangibles_specs=58 deferred_tax_specs=17 capex_specs=20 |
+| 4_reference_model_builder | pass | expected_specs=548 lease_specs=18 lease_rou_specs=16 ownership_specs=34 per_share_specs=18 per_share_attribution_specs=16 fixed_asset_specs=35 goodwill_intangibles_specs=58 deferred_tax_specs=17 capex_specs=20 |
 | 5_workbook_generation | pass |  |
-| 6_blank_check | pass | correct=0 incorrect=0 blank=521 total=521 |
-| 7_filled_check | pass | correct=521 total=521 |
+| 6_blank_check | pass | correct=0 incorrect=0 blank=548 total=548 |
+| 7_filled_check | pass | correct=548 total=548 |
 
 ## First failure
 

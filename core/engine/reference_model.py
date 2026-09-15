@@ -67,6 +67,20 @@ from ..model.cash_rollforward import (
     cash_movement_difference_applicable,
     resolve_cash_rollforward_sources,
 )
+from ..model.reported_margin import (
+    GROSS_PROFIT_CONCEPT,
+    OPERATING_PROFIT_CONCEPT,
+    REVENUE_CONCEPT,
+    compute_reported_margin_series,
+    gross_margin_applicable,
+    gross_margin_change_applicable,
+    net_operating_expense_burden_applicable,
+    net_operating_expense_burden_change_applicable,
+    reconstructed_operating_margin_change_applicable,
+    reported_margin_applicable,
+    reported_operating_margin_applicable,
+    resolve_reported_margin_sources,
+)
 from ..model.capex import (
     compute_capex_series,
     capex_applicable,
@@ -117,6 +131,7 @@ from .component_catalog import (
     expand_acquisition_cash_specs,
     expand_share_repurchase_specs,
     expand_cash_rollforward_specs,
+    expand_reported_margin_specs,
     expand_capex_specs,
     expand_fixed_asset_specs,
     expand_goodwill_intangibles_specs,
@@ -776,6 +791,54 @@ class ReferenceModelBuilder:
         else:
             self.cash_rollforward_series = None
             self.cash_rollforward_specs = ()
+        if reported_margin_applicable(self.fin):
+            self.reported_margin_series = compute_reported_margin_series(
+                self.fin,
+                self.periods,
+            )
+            self.reported_margin_specs = expand_reported_margin_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + len(self.profitability_change_specs)
+                    + len(self.roe_attribution_specs)
+                    + len(self.quality_change_specs)
+                    + len(self.per_share_specs)
+                    + len(self.per_share_attribution_specs)
+                    + len(self.normalized_per_share_specs)
+                    + len(self.fixed_asset_specs)
+                    + len(self.lease_liability_specs)
+                    + len(self.ownership_attribution_specs)
+                    + len(self.goodwill_intangibles_specs)
+                    + len(self.lease_rou_specs)
+                    + len(self.deferred_tax_specs)
+                    + len(self.capex_specs)
+                    + len(self.lease_repayment_specs)
+                    + len(self.acquisition_cash_specs)
+                    + len(self.share_repurchase_specs)
+                    + len(self.cash_rollforward_specs)
+                    + 1
+                ),
+                include_gross_margin=gross_margin_applicable(self.fin),
+                include_operating_margin=reported_operating_margin_applicable(
+                    self.fin
+                ),
+                include_burden=net_operating_expense_burden_applicable(self.fin),
+                include_gross_margin_change=gross_margin_change_applicable(self.fin),
+                include_burden_change=net_operating_expense_burden_change_applicable(
+                    self.fin
+                ),
+                include_reconstructed=reconstructed_operating_margin_change_applicable(
+                    self.fin
+                ),
+            )
+        else:
+            self.reported_margin_series = None
+            self.reported_margin_specs = ()
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
@@ -799,6 +862,7 @@ class ReferenceModelBuilder:
             + self.acquisition_cash_specs
             + self.share_repurchase_specs
             + self.cash_rollforward_specs
+            + self.reported_margin_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -868,6 +932,9 @@ class ReferenceModelBuilder:
         }
         self._cash_rollforward_spec_index = {
             (s.family_id, s.period_index): s for s in self.cash_rollforward_specs
+        }
+        self._reported_margin_spec_index = {
+            (s.family_id, s.period_index): s for s in self.reported_margin_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -1599,6 +1666,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._cash_rollforward_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_reported_margin(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._reported_margin_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -4090,6 +4173,306 @@ class ReferenceModelBuilder:
                 self.rowmap["dupont_cash_ending_reported_row"] = ending_row
             if ending_diff_row is not None:
                 self.rowmap["dupont_cash_ending_difference_row"] = ending_diff_row
+            next_section_after = cursor
+
+        if self.reported_margin_series is not None:
+            rm_series = self.reported_margin_series
+            rm_sources = resolve_reported_margin_sources(self.fin)
+            assert rm_sources.revenue is not None
+            revenue_src = self._resolved_source_row(
+                self.fin.income_statement, REVENUE_CONCEPT, required=True
+            )
+            assert revenue_src is not None
+
+            rm_section_row = next_section_after + 2
+            revenue_row = rm_section_row + 1
+            cursor = revenue_row
+            ws.cell(
+                row=rm_section_row,
+                column=1,
+                value="REPORTED MARGIN BRIDGE CONTEXT",
+            ).font = BOLD
+            ws.cell(row=revenue_row, column=1, value="Revenue (reported)")
+
+            gross_row = None
+            operating_row = None
+            gross_margin_row = None
+            operating_margin_row = None
+            burden_row = None
+            gross_margin_change_row = None
+            burden_change_row = None
+            reconstructed_row = None
+
+            if rm_series.gross_profit is not None:
+                gp_src = self._resolved_source_row(
+                    self.fin.income_statement, GROSS_PROFIT_CONCEPT, required=True
+                )
+                assert gp_src is not None
+                assert rm_sources.gross_profit is not None
+                gross_row = cursor + 1
+                cursor = gross_row
+                ws.cell(row=gross_row, column=1, value="Gross profit (reported)")
+            if rm_series.operating_profit is not None:
+                op_src = self._resolved_source_row(
+                    self.fin.income_statement, OPERATING_PROFIT_CONCEPT, required=True
+                )
+                assert op_src is not None
+                assert rm_sources.operating_profit is not None
+                operating_row = cursor + 1
+                cursor = operating_row
+                ws.cell(
+                    row=operating_row,
+                    column=1,
+                    value="Operating profit (reported)",
+                )
+            if rm_series.gross_margin is not None:
+                assert gross_row is not None
+                gross_margin_row = cursor + 1
+                cursor = gross_margin_row
+                ws.cell(row=gross_margin_row, column=1, value="Gross margin")
+            if rm_series.reported_operating_margin is not None:
+                assert operating_row is not None
+                operating_margin_row = cursor + 1
+                cursor = operating_margin_row
+                ws.cell(
+                    row=operating_margin_row,
+                    column=1,
+                    value="Reported operating margin",
+                )
+            if rm_series.net_operating_expense_burden is not None:
+                assert gross_row is not None and operating_row is not None
+                burden_row = cursor + 1
+                cursor = burden_row
+                ws.cell(
+                    row=burden_row,
+                    column=1,
+                    value="Net operating expense burden",
+                )
+            if rm_series.gross_margin_change is not None and self._n > 1:
+                assert gross_margin_row is not None
+                gross_margin_change_row = cursor + 1
+                cursor = gross_margin_change_row
+                ws.cell(
+                    row=gross_margin_change_row,
+                    column=1,
+                    value="Change in gross margin",
+                )
+            if rm_series.net_operating_expense_burden_change is not None and self._n > 1:
+                assert burden_row is not None
+                burden_change_row = cursor + 1
+                cursor = burden_change_row
+                ws.cell(
+                    row=burden_change_row,
+                    column=1,
+                    value="Change in net operating expense burden",
+                )
+            if rm_series.reconstructed_operating_margin_change is not None and self._n > 1:
+                assert (
+                    gross_margin_change_row is not None
+                    and burden_change_row is not None
+                )
+                reconstructed_row = cursor + 1
+                cursor = reconstructed_row
+                ws.cell(
+                    row=reconstructed_row,
+                    column=1,
+                    value="Reconstructed change in reported operating margin",
+                )
+
+            def _margin_expected(value: float | str | None) -> float | str:
+                assert value is not None
+                return value if isinstance(value, str) else float(value)
+
+            for j in range(self._n):
+                out_col_idx = 2 + j
+                out_col = self._col(out_col_idx)
+                src_col = self._col(2 + j)
+                revenue_f = f"='Income Statement'!{src_col}{revenue_src}"
+                c = ws.cell(row=revenue_row, column=out_col_idx, value=revenue_f)
+                c.number_format = NUM_FMT
+                if gross_row is not None:
+                    gp_src = self._resolved_source_row(
+                        self.fin.income_statement, GROSS_PROFIT_CONCEPT, required=True
+                    )
+                    assert gp_src is not None
+                    gp_f = f"='Income Statement'!{src_col}{gp_src}"
+                    c = ws.cell(row=gross_row, column=out_col_idx, value=gp_f)
+                    c.number_format = NUM_FMT
+                if operating_row is not None:
+                    op_src = self._resolved_source_row(
+                        self.fin.income_statement,
+                        OPERATING_PROFIT_CONCEPT,
+                        required=True,
+                    )
+                    assert op_src is not None
+                    op_f = f"='Income Statement'!{src_col}{op_src}"
+                    c = ws.cell(row=operating_row, column=out_col_idx, value=op_f)
+                    c.number_format = NUM_FMT
+                if gross_margin_row is not None and gross_row is not None:
+                    gm_f = (
+                        f"=IF({out_col}{revenue_row}=0,NA(),"
+                        f"{out_col}{gross_row}/{out_col}{revenue_row})"
+                    )
+                    c = ws.cell(
+                        row=gross_margin_row, column=out_col_idx, value=gm_f
+                    )
+                    c.number_format = PCT_FMT
+                    assert rm_series.gross_margin is not None
+                    self._register_reported_margin(
+                        "gross_margin",
+                        j,
+                        "ALT DuPont",
+                        gross_margin_row,
+                        out_col_idx,
+                        gm_f,
+                        _margin_expected(rm_series.gross_margin[j]),
+                    )
+                if operating_margin_row is not None and operating_row is not None:
+                    om_f = (
+                        f"=IF({out_col}{revenue_row}=0,NA(),"
+                        f"{out_col}{operating_row}/{out_col}{revenue_row})"
+                    )
+                    c = ws.cell(
+                        row=operating_margin_row, column=out_col_idx, value=om_f
+                    )
+                    c.number_format = PCT_FMT
+                    assert rm_series.reported_operating_margin is not None
+                    self._register_reported_margin(
+                        "reported_operating_margin",
+                        j,
+                        "ALT DuPont",
+                        operating_margin_row,
+                        out_col_idx,
+                        om_f,
+                        _margin_expected(rm_series.reported_operating_margin[j]),
+                    )
+                if (
+                    burden_row is not None
+                    and gross_row is not None
+                    and operating_row is not None
+                ):
+                    burden_f = (
+                        f"=IF({out_col}{revenue_row}=0,NA(),"
+                        f"({out_col}{gross_row}-{out_col}{operating_row})/"
+                        f"{out_col}{revenue_row})"
+                    )
+                    c = ws.cell(row=burden_row, column=out_col_idx, value=burden_f)
+                    c.number_format = PCT_FMT
+                    assert rm_series.net_operating_expense_burden is not None
+                    self._register_reported_margin(
+                        "net_operating_expense_burden",
+                        j,
+                        "ALT DuPont",
+                        burden_row,
+                        out_col_idx,
+                        burden_f,
+                        _margin_expected(rm_series.net_operating_expense_burden[j]),
+                    )
+                if j == 0:
+                    continue
+                prev_col = self._col(2 + j - 1)
+                if (
+                    gross_margin_change_row is not None
+                    and gross_margin_row is not None
+                ):
+                    gm_change_f = (
+                        f"={out_col}{gross_margin_row}-{prev_col}{gross_margin_row}"
+                    )
+                    c = ws.cell(
+                        row=gross_margin_change_row,
+                        column=out_col_idx,
+                        value=gm_change_f,
+                    )
+                    c.number_format = PCT_FMT
+                    assert rm_series.gross_margin_change is not None
+                    self._register_reported_margin(
+                        "gross_margin_change",
+                        j,
+                        "ALT DuPont",
+                        gross_margin_change_row,
+                        out_col_idx,
+                        gm_change_f,
+                        _margin_expected(rm_series.gross_margin_change[j]),
+                    )
+                if burden_change_row is not None and burden_row is not None:
+                    burden_change_f = (
+                        f"={out_col}{burden_row}-{prev_col}{burden_row}"
+                    )
+                    c = ws.cell(
+                        row=burden_change_row,
+                        column=out_col_idx,
+                        value=burden_change_f,
+                    )
+                    c.number_format = PCT_FMT
+                    assert rm_series.net_operating_expense_burden_change is not None
+                    self._register_reported_margin(
+                        "net_operating_expense_burden_change",
+                        j,
+                        "ALT DuPont",
+                        burden_change_row,
+                        out_col_idx,
+                        burden_change_f,
+                        _margin_expected(
+                            rm_series.net_operating_expense_burden_change[j]
+                        ),
+                    )
+                if (
+                    reconstructed_row is not None
+                    and gross_margin_change_row is not None
+                    and burden_change_row is not None
+                ):
+                    reconstructed_f = (
+                        f"={out_col}{gross_margin_change_row}-"
+                        f"{out_col}{burden_change_row}"
+                    )
+                    c = ws.cell(
+                        row=reconstructed_row,
+                        column=out_col_idx,
+                        value=reconstructed_f,
+                    )
+                    c.number_format = PCT_FMT
+                    assert (
+                        rm_series.reconstructed_operating_margin_change is not None
+                    )
+                    self._register_reported_margin(
+                        "reconstructed_operating_margin_change",
+                        j,
+                        "ALT DuPont",
+                        reconstructed_row,
+                        out_col_idx,
+                        reconstructed_f,
+                        _margin_expected(
+                            rm_series.reconstructed_operating_margin_change[j]
+                        ),
+                    )
+
+            self.rowmap["dupont_reported_margin_revenue_row"] = revenue_row
+            if gross_row is not None:
+                self.rowmap["dupont_reported_margin_gross_profit_row"] = gross_row
+            if operating_row is not None:
+                self.rowmap["dupont_reported_margin_operating_profit_row"] = (
+                    operating_row
+                )
+            if gross_margin_row is not None:
+                self.rowmap["dupont_gross_margin_row"] = gross_margin_row
+            if operating_margin_row is not None:
+                self.rowmap["dupont_reported_operating_margin_row"] = (
+                    operating_margin_row
+                )
+            if burden_row is not None:
+                self.rowmap["dupont_net_operating_expense_burden_row"] = burden_row
+            if gross_margin_change_row is not None:
+                self.rowmap["dupont_gross_margin_change_row"] = (
+                    gross_margin_change_row
+                )
+            if burden_change_row is not None:
+                self.rowmap["dupont_net_operating_expense_burden_change_row"] = (
+                    burden_change_row
+                )
+            if reconstructed_row is not None:
+                self.rowmap["dupont_reconstructed_operating_margin_change_row"] = (
+                    reconstructed_row
+                )
             next_section_after = cursor
 
         if self.goodwill_intangibles_series is None:

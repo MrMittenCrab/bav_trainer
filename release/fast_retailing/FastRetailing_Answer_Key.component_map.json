@@ -10003,8 +10003,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_change.2022-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C105",
-      "formula": "=C104-B104",
+      "cell": "C116",
+      "formula": "=C115-B115",
       "expected_value": 0.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10027,8 +10027,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_change.2023-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D105",
-      "formula": "=D104-C104",
+      "cell": "D116",
+      "formula": "=D115-C115",
       "expected_value": 0.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10051,8 +10051,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_change.2024-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E105",
-      "formula": "=E104-D104",
+      "cell": "E116",
+      "formula": "=E115-D115",
       "expected_value": 0.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10075,8 +10075,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_change.2025-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "F105",
-      "formula": "=F104-E104",
+      "cell": "F116",
+      "formula": "=F115-E115",
       "expected_value": 0.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10099,8 +10099,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_growth.2022-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C106",
-      "formula": "=IF(B104=0,NA(),C104/B104-1)",
+      "cell": "C117",
+      "formula": "=IF(B115=0,NA(),C115/B115-1)",
       "expected_value": 0.0,
       "tolerance": 0.01,
       "depends_on": [
@@ -10126,8 +10126,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_growth.2023-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D106",
-      "formula": "=IF(C104=0,NA(),D104/C104-1)",
+      "cell": "D117",
+      "formula": "=IF(C115=0,NA(),D115/C115-1)",
       "expected_value": 0.0,
       "tolerance": 0.01,
       "depends_on": [
@@ -10153,8 +10153,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_growth.2024-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E106",
-      "formula": "=IF(D104=0,NA(),E104/D104-1)",
+      "cell": "E117",
+      "formula": "=IF(D115=0,NA(),E115/D115-1)",
       "expected_value": 0.0,
       "tolerance": 0.01,
       "depends_on": [
@@ -10180,8 +10180,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_growth.2025-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "F106",
-      "formula": "=IF(E104=0,NA(),F104/E104-1)",
+      "cell": "F117",
+      "formula": "=IF(E115=0,NA(),F115/E115-1)",
       "expected_value": 0.0,
       "tolerance": 0.01,
       "depends_on": [
@@ -10207,8 +10207,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill.2022-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C107",
-      "formula": "=(B104+C104)/2",
+      "cell": "C118",
+      "formula": "=(B115+C115)/2",
       "expected_value": 8092.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10230,8 +10230,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill.2023-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D107",
-      "formula": "=(C104+D104)/2",
+      "cell": "D118",
+      "formula": "=(C115+D115)/2",
       "expected_value": 8092.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10253,8 +10253,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill.2024-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E107",
-      "formula": "=(D104+E104)/2",
+      "cell": "E118",
+      "formula": "=(D115+E115)/2",
       "expected_value": 8092.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10276,8 +10276,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill.2025-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "F107",
-      "formula": "=(E104+F104)/2",
+      "cell": "F118",
+      "formula": "=(E115+F115)/2",
       "expected_value": 8092.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10299,8 +10299,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2022-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C108",
-      "formula": "=IF('Condensed Financials'!C44=0,NA(),C107/'Condensed Financials'!C44)",
+      "cell": "C119",
+      "formula": "=IF('Condensed Financials'!C44=0,NA(),C118/'Condensed Financials'!C44)",
       "expected_value": 0.0035165454069797254,
       "tolerance": 0.01,
       "depends_on": [
@@ -10326,8 +10326,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2023-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D108",
-      "formula": "=IF('Condensed Financials'!D44=0,NA(),D107/'Condensed Financials'!D44)",
+      "cell": "D119",
+      "formula": "=IF('Condensed Financials'!D44=0,NA(),D118/'Condensed Financials'!D44)",
       "expected_value": 0.0029249352173116258,
       "tolerance": 0.01,
       "depends_on": [
@@ -10353,8 +10353,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2024-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E108",
-      "formula": "=IF('Condensed Financials'!E44=0,NA(),E107/'Condensed Financials'!E44)",
+      "cell": "E119",
+      "formula": "=IF('Condensed Financials'!E44=0,NA(),E118/'Condensed Financials'!E44)",
       "expected_value": 0.0026070965089650356,
       "tolerance": 0.01,
       "depends_on": [
@@ -10380,8 +10380,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2025-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "F108",
-      "formula": "=IF('Condensed Financials'!F44=0,NA(),F107/'Condensed Financials'!F44)",
+      "cell": "F119",
+      "formula": "=IF('Condensed Financials'!F44=0,NA(),F118/'Condensed Financials'!F44)",
       "expected_value": 0.0023796227598036662,
       "tolerance": 0.01,
       "depends_on": [
@@ -10407,8 +10407,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2022-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C110",
-      "formula": "=C109-B109",
+      "cell": "C121",
+      "formula": "=C120-B120",
       "expected_value": 9682.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10430,8 +10430,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2023-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D110",
-      "formula": "=D109-C109",
+      "cell": "D121",
+      "formula": "=D120-C120",
       "expected_value": 10679.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10453,8 +10453,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2024-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E110",
-      "formula": "=E109-D109",
+      "cell": "E121",
+      "formula": "=E120-D120",
       "expected_value": 5268.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10476,8 +10476,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2025-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "F110",
-      "formula": "=F109-E109",
+      "cell": "F121",
+      "formula": "=F120-E120",
       "expected_value": -962.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10499,8 +10499,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2022-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C111",
-      "formula": "=IF(B109=0,NA(),C109/B109-1)",
+      "cell": "C122",
+      "formula": "=IF(B120=0,NA(),C120/B120-1)",
       "expected_value": 0.14463914907602443,
       "tolerance": 0.01,
       "depends_on": [
@@ -10525,8 +10525,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2023-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D111",
-      "formula": "=IF(C109=0,NA(),D109/C109-1)",
+      "cell": "D122",
+      "formula": "=IF(C120=0,NA(),D120/C120-1)",
       "expected_value": 0.13937432296628863,
       "tolerance": 0.01,
       "depends_on": [
@@ -10551,8 +10551,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2024-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E111",
-      "formula": "=IF(D109=0,NA(),E109/D109-1)",
+      "cell": "E122",
+      "formula": "=IF(D120=0,NA(),E120/D120-1)",
       "expected_value": 0.060343642611683845,
       "tolerance": 0.01,
       "depends_on": [
@@ -10577,8 +10577,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2025-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "F111",
-      "formula": "=IF(E109=0,NA(),F109/E109-1)",
+      "cell": "F122",
+      "formula": "=IF(E120=0,NA(),F120/E120-1)",
       "expected_value": -0.010392360210872007,
       "tolerance": 0.01,
       "depends_on": [
@@ -10603,8 +10603,8 @@
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2022-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C112",
-      "formula": "=(B109+C109)/2",
+      "cell": "C123",
+      "formula": "=(B120+C120)/2",
       "expected_value": 71780.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10626,8 +10626,8 @@
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2023-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D112",
-      "formula": "=(C109+D109)/2",
+      "cell": "D123",
+      "formula": "=(C120+D120)/2",
       "expected_value": 81960.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10649,8 +10649,8 @@
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2024-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E112",
-      "formula": "=(D109+E109)/2",
+      "cell": "E123",
+      "formula": "=(D120+E120)/2",
       "expected_value": 89934.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10672,8 +10672,8 @@
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2025-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "F112",
-      "formula": "=(E109+F109)/2",
+      "cell": "F123",
+      "formula": "=(E120+F120)/2",
       "expected_value": 92087.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10695,8 +10695,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2022-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C113",
-      "formula": "=IF('Condensed Financials'!C44=0,NA(),C112/'Condensed Financials'!C44)",
+      "cell": "C124",
+      "formula": "=IF('Condensed Financials'!C44=0,NA(),C123/'Condensed Financials'!C44)",
       "expected_value": 0.031193478659540867,
       "tolerance": 0.01,
       "depends_on": [
@@ -10722,8 +10722,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2023-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D113",
-      "formula": "=IF('Condensed Financials'!D44=0,NA(),D112/'Condensed Financials'!D44)",
+      "cell": "D124",
+      "formula": "=IF('Condensed Financials'!D44=0,NA(),D123/'Condensed Financials'!D44)",
       "expected_value": 0.029625451418495985,
       "tolerance": 0.01,
       "depends_on": [
@@ -10749,8 +10749,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2024-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E113",
-      "formula": "=IF('Condensed Financials'!E44=0,NA(),E112/'Condensed Financials'!E44)",
+      "cell": "E124",
+      "formula": "=IF('Condensed Financials'!E44=0,NA(),E123/'Condensed Financials'!E44)",
       "expected_value": 0.028975113375835578,
       "tolerance": 0.01,
       "depends_on": [
@@ -10776,8 +10776,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2025-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "F113",
-      "formula": "=IF('Condensed Financials'!F44=0,NA(),F112/'Condensed Financials'!F44)",
+      "cell": "F124",
+      "formula": "=IF('Condensed Financials'!F44=0,NA(),F123/'Condensed Financials'!F44)",
       "expected_value": 0.02708011876940685,
       "tolerance": 0.01,
       "depends_on": [
@@ -10803,8 +10803,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2022-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C115",
-      "formula": "=C114-B114",
+      "cell": "C126",
+      "formula": "=C125-B125",
       "expected_value": 9682.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10826,8 +10826,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2023-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D115",
-      "formula": "=D114-C114",
+      "cell": "D126",
+      "formula": "=D125-C125",
       "expected_value": 10679.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10849,8 +10849,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2024-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E115",
-      "formula": "=E114-D114",
+      "cell": "E126",
+      "formula": "=E125-D125",
       "expected_value": 5268.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10872,8 +10872,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2025-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "F115",
-      "formula": "=F114-E114",
+      "cell": "F126",
+      "formula": "=F125-E125",
       "expected_value": -962.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -10895,8 +10895,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2022-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C116",
-      "formula": "=IF(B114=0,NA(),C114/B114-1)",
+      "cell": "C127",
+      "formula": "=IF(B125=0,NA(),C125/B125-1)",
       "expected_value": 0.1290399968013221,
       "tolerance": 0.01,
       "depends_on": [
@@ -10921,8 +10921,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2023-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D116",
-      "formula": "=IF(C114=0,NA(),D114/C114-1)",
+      "cell": "D127",
+      "formula": "=IF(C125=0,NA(),D125/C125-1)",
       "expected_value": 0.1260609351575319,
       "tolerance": 0.01,
       "depends_on": [
@@ -10947,8 +10947,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2024-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E116",
-      "formula": "=IF(D114=0,NA(),E114/D114-1)",
+      "cell": "E127",
+      "formula": "=IF(D125=0,NA(),E125/D125-1)",
       "expected_value": 0.055224756793022474,
       "tolerance": 0.01,
       "depends_on": [
@@ -10973,8 +10973,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2025-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "F116",
-      "formula": "=IF(E114=0,NA(),F114/E114-1)",
+      "cell": "F127",
+      "formula": "=IF(E125=0,NA(),F125/E125-1)",
       "expected_value": -0.009556924299622491,
       "tolerance": 0.01,
       "depends_on": [
@@ -10999,8 +10999,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2022-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C117",
-      "formula": "=(B114+C114)/2",
+      "cell": "C128",
+      "formula": "=(B125+C125)/2",
       "expected_value": 79872.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -11022,8 +11022,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2023-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D117",
-      "formula": "=(C114+D114)/2",
+      "cell": "D128",
+      "formula": "=(C125+D125)/2",
       "expected_value": 90052.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -11045,8 +11045,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2024-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E117",
-      "formula": "=(D114+E114)/2",
+      "cell": "E128",
+      "formula": "=(D125+E125)/2",
       "expected_value": 98026.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -11068,8 +11068,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2025-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "F117",
-      "formula": "=(E114+F114)/2",
+      "cell": "F128",
+      "formula": "=(E125+F125)/2",
       "expected_value": 100179.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -11091,8 +11091,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2022-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C118",
-      "formula": "=IF('Condensed Financials'!C44=0,NA(),C117/'Condensed Financials'!C44)",
+      "cell": "C129",
+      "formula": "=IF('Condensed Financials'!C44=0,NA(),C128/'Condensed Financials'!C44)",
       "expected_value": 0.034710024066520594,
       "tolerance": 0.01,
       "depends_on": [
@@ -11118,8 +11118,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2023-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D118",
-      "formula": "=IF('Condensed Financials'!D44=0,NA(),D117/'Condensed Financials'!D44)",
+      "cell": "D129",
+      "formula": "=IF('Condensed Financials'!D44=0,NA(),D128/'Condensed Financials'!D44)",
       "expected_value": 0.032550386635807615,
       "tolerance": 0.01,
       "depends_on": [
@@ -11145,8 +11145,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E118",
-      "formula": "=IF('Condensed Financials'!E44=0,NA(),E117/'Condensed Financials'!E44)",
+      "cell": "E129",
+      "formula": "=IF('Condensed Financials'!E44=0,NA(),E128/'Condensed Financials'!E44)",
       "expected_value": 0.031582209884800615,
       "tolerance": 0.01,
       "depends_on": [
@@ -11172,8 +11172,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "F118",
-      "formula": "=IF('Condensed Financials'!F44=0,NA(),F117/'Condensed Financials'!F44)",
+      "cell": "F129",
+      "formula": "=IF('Condensed Financials'!F44=0,NA(),F128/'Condensed Financials'!F44)",
       "expected_value": 0.029459741529210517,
       "tolerance": 0.01,
       "depends_on": [
@@ -11199,8 +11199,8 @@
       "semantic_key": "goodwill_intangibles.intangible_payments.2021-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "B120",
-      "formula": "=-B119",
+      "cell": "B131",
+      "formula": "=-B130",
       "expected_value": 19624.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -11224,8 +11224,8 @@
       "semantic_key": "goodwill_intangibles.intangible_payments.2022-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C120",
-      "formula": "=-C119",
+      "cell": "C131",
+      "formula": "=-C130",
       "expected_value": 28335.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -11249,8 +11249,8 @@
       "semantic_key": "goodwill_intangibles.intangible_payments.2023-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D120",
-      "formula": "=-D119",
+      "cell": "D131",
+      "formula": "=-D130",
       "expected_value": 33542.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -11274,8 +11274,8 @@
       "semantic_key": "goodwill_intangibles.intangible_payments.2024-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E120",
-      "formula": "=-E119",
+      "cell": "E131",
+      "formula": "=-E130",
       "expected_value": 30260.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -11299,8 +11299,8 @@
       "semantic_key": "goodwill_intangibles.intangible_payments.2025-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "F120",
-      "formula": "=-F119",
+      "cell": "F131",
+      "formula": "=-F130",
       "expected_value": 27329.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -11324,8 +11324,8 @@
       "semantic_key": "goodwill_intangibles.intangible_payments_to_revenue.2021-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "B121",
-      "formula": "=IF('Condensed Financials'!B44=0,NA(),B120/'Condensed Financials'!B44)",
+      "cell": "B132",
+      "formula": "=IF('Condensed Financials'!B44=0,NA(),B131/'Condensed Financials'!B44)",
       "expected_value": 0.009200222035525684,
       "tolerance": 0.01,
       "depends_on": [
@@ -11352,8 +11352,8 @@
       "semantic_key": "goodwill_intangibles.intangible_payments_to_revenue.2022-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C121",
-      "formula": "=IF('Condensed Financials'!C44=0,NA(),C120/'Condensed Financials'!C44)",
+      "cell": "C132",
+      "formula": "=IF('Condensed Financials'!C44=0,NA(),C131/'Condensed Financials'!C44)",
       "expected_value": 0.012313558342408616,
       "tolerance": 0.01,
       "depends_on": [
@@ -11380,8 +11380,8 @@
       "semantic_key": "goodwill_intangibles.intangible_payments_to_revenue.2023-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D121",
-      "formula": "=IF('Condensed Financials'!D44=0,NA(),D120/'Condensed Financials'!D44)",
+      "cell": "D132",
+      "formula": "=IF('Condensed Financials'!D44=0,NA(),D131/'Condensed Financials'!D44)",
       "expected_value": 0.012124095039429876,
       "tolerance": 0.01,
       "depends_on": [
@@ -11408,8 +11408,8 @@
       "semantic_key": "goodwill_intangibles.intangible_payments_to_revenue.2024-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E121",
-      "formula": "=IF('Condensed Financials'!E44=0,NA(),E120/'Condensed Financials'!E44)",
+      "cell": "E132",
+      "formula": "=IF('Condensed Financials'!E44=0,NA(),E131/'Condensed Financials'!E44)",
       "expected_value": 0.009749226441087737,
       "tolerance": 0.01,
       "depends_on": [
@@ -11436,8 +11436,8 @@
       "semantic_key": "goodwill_intangibles.intangible_payments_to_revenue.2025-08-31",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "F121",
-      "formula": "=IF('Condensed Financials'!F44=0,NA(),F120/'Condensed Financials'!F44)",
+      "cell": "F132",
+      "formula": "=IF('Condensed Financials'!F44=0,NA(),F131/'Condensed Financials'!F44)",
       "expected_value": 0.00803666712835818,
       "tolerance": 0.01,
       "depends_on": [
@@ -13623,6 +13623,717 @@
       "family_order": 138,
       "period_index": 4,
       "period_end": "2025-08-31"
+    },
+    {
+      "id": "gross_margin__20210831",
+      "order": 522,
+      "title": "Gross margin",
+      "short_hint": "Gross margin = reported gross profit / revenue. Zero revenue is undefined (#N/A). Do not infer price, mix, or cost causes.",
+      "semantic_key": "reported_margin.gross_margin.2021-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "B107",
+      "formula": "=IF(B104=0,NA(),B105/B104)",
+      "expected_value": 0.5034969657645223,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Gross margin = reported gross profit / revenue.",
+        "Zero revenue yields the undefined-ratio result.",
+        "Do not infer price, mix, or cost causes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "gross_margin",
+      "family_order": 139,
+      "period_index": 0,
+      "period_end": "2021-08-31"
+    },
+    {
+      "id": "gross_margin__20220831",
+      "order": 523,
+      "title": "Gross margin",
+      "short_hint": "Gross margin = reported gross profit / revenue. Zero revenue is undefined (#N/A). Do not infer price, mix, or cost causes.",
+      "semantic_key": "reported_margin.gross_margin.2022-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "C107",
+      "formula": "=IF(C104=0,NA(),C105/C104)",
+      "expected_value": 0.5244654564164786,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Gross margin = reported gross profit / revenue.",
+        "Zero revenue yields the undefined-ratio result.",
+        "Do not infer price, mix, or cost causes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "gross_margin",
+      "family_order": 139,
+      "period_index": 1,
+      "period_end": "2022-08-31"
+    },
+    {
+      "id": "gross_margin__20230831",
+      "order": 524,
+      "title": "Gross margin",
+      "short_hint": "Gross margin = reported gross profit / revenue. Zero revenue is undefined (#N/A). Do not infer price, mix, or cost causes.",
+      "semantic_key": "reported_margin.gross_margin.2023-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "D107",
+      "formula": "=IF(D104=0,NA(),D105/D104)",
+      "expected_value": 0.5191868448761403,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Gross margin = reported gross profit / revenue.",
+        "Zero revenue yields the undefined-ratio result.",
+        "Do not infer price, mix, or cost causes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "gross_margin",
+      "family_order": 139,
+      "period_index": 2,
+      "period_end": "2023-08-31"
+    },
+    {
+      "id": "gross_margin__20240831",
+      "order": 525,
+      "title": "Gross margin",
+      "short_hint": "Gross margin = reported gross profit / revenue. Zero revenue is undefined (#N/A). Do not infer price, mix, or cost causes.",
+      "semantic_key": "reported_margin.gross_margin.2024-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "E107",
+      "formula": "=IF(E104=0,NA(),E105/E104)",
+      "expected_value": 0.5390333123270689,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Gross margin = reported gross profit / revenue.",
+        "Zero revenue yields the undefined-ratio result.",
+        "Do not infer price, mix, or cost causes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "gross_margin",
+      "family_order": 139,
+      "period_index": 3,
+      "period_end": "2024-08-31"
+    },
+    {
+      "id": "gross_margin__20250831",
+      "order": 526,
+      "title": "Gross margin",
+      "short_hint": "Gross margin = reported gross profit / revenue. Zero revenue is undefined (#N/A). Do not infer price, mix, or cost causes.",
+      "semantic_key": "reported_margin.gross_margin.2025-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "F107",
+      "formula": "=IF(F104=0,NA(),F105/F104)",
+      "expected_value": 0.5378141524034866,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Gross margin = reported gross profit / revenue.",
+        "Zero revenue yields the undefined-ratio result.",
+        "Do not infer price, mix, or cost causes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "gross_margin",
+      "family_order": 139,
+      "period_index": 4,
+      "period_end": "2025-08-31"
+    },
+    {
+      "id": "reported_operating_margin__20210831",
+      "order": 527,
+      "title": "Reported operating margin",
+      "short_hint": "Reported operating margin = reported operating profit / revenue. Distinct from BAV NOPAT margin; not normalized earnings. Zero revenue is undefined (#N/A).",
+      "semantic_key": "reported_margin.reported_operating_margin.2021-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "B108",
+      "formula": "=IF(B104=0,NA(),B106/B104)",
+      "expected_value": 0.11674258506361018,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Reported operating margin = reported operating profit / revenue.",
+        "Keep reported operating margin distinct from BAV NOPAT margin.",
+        "Do not treat this as normalized earnings."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "reported_operating_margin",
+      "family_order": 140,
+      "period_index": 0,
+      "period_end": "2021-08-31"
+    },
+    {
+      "id": "reported_operating_margin__20220831",
+      "order": 528,
+      "title": "Reported operating margin",
+      "short_hint": "Reported operating margin = reported operating profit / revenue. Distinct from BAV NOPAT margin; not normalized earnings. Zero revenue is undefined (#N/A).",
+      "semantic_key": "reported_margin.reported_operating_margin.2022-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "C108",
+      "formula": "=IF(C104=0,NA(),C106/C104)",
+      "expected_value": 0.12920870775213136,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Reported operating margin = reported operating profit / revenue.",
+        "Keep reported operating margin distinct from BAV NOPAT margin.",
+        "Do not treat this as normalized earnings."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "reported_operating_margin",
+      "family_order": 140,
+      "period_index": 1,
+      "period_end": "2022-08-31"
+    },
+    {
+      "id": "reported_operating_margin__20230831",
+      "order": 529,
+      "title": "Reported operating margin",
+      "short_hint": "Reported operating margin = reported operating profit / revenue. Distinct from BAV NOPAT margin; not normalized earnings. Zero revenue is undefined (#N/A).",
+      "semantic_key": "reported_margin.reported_operating_margin.2023-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "D108",
+      "formula": "=IF(D104=0,NA(),D106/D104)",
+      "expected_value": 0.1377488336585872,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Reported operating margin = reported operating profit / revenue.",
+        "Keep reported operating margin distinct from BAV NOPAT margin.",
+        "Do not treat this as normalized earnings."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "reported_operating_margin",
+      "family_order": 140,
+      "period_index": 2,
+      "period_end": "2023-08-31"
+    },
+    {
+      "id": "reported_operating_margin__20240831",
+      "order": 530,
+      "title": "Reported operating margin",
+      "short_hint": "Reported operating margin = reported operating profit / revenue. Distinct from BAV NOPAT margin; not normalized earnings. Zero revenue is undefined (#N/A).",
+      "semantic_key": "reported_margin.reported_operating_margin.2024-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "E108",
+      "formula": "=IF(E104=0,NA(),E106/E104)",
+      "expected_value": 0.16138223797906848,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Reported operating margin = reported operating profit / revenue.",
+        "Keep reported operating margin distinct from BAV NOPAT margin.",
+        "Do not treat this as normalized earnings."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "reported_operating_margin",
+      "family_order": 140,
+      "period_index": 3,
+      "period_end": "2024-08-31"
+    },
+    {
+      "id": "reported_operating_margin__20250831",
+      "order": 531,
+      "title": "Reported operating margin",
+      "short_hint": "Reported operating margin = reported operating profit / revenue. Distinct from BAV NOPAT margin; not normalized earnings. Zero revenue is undefined (#N/A).",
+      "semantic_key": "reported_margin.reported_operating_margin.2025-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "F108",
+      "formula": "=IF(F104=0,NA(),F106/F104)",
+      "expected_value": 0.16593398870002668,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Reported operating margin = reported operating profit / revenue.",
+        "Keep reported operating margin distinct from BAV NOPAT margin.",
+        "Do not treat this as normalized earnings."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "reported_operating_margin",
+      "family_order": 140,
+      "period_index": 4,
+      "period_end": "2025-08-31"
+    },
+    {
+      "id": "net_operating_expense_burden__20210831",
+      "order": 532,
+      "title": "Net operating expense burden",
+      "short_hint": "Net operating expense burden = (gross profit \u2212 operating profit) / revenue. That difference includes net intervening operating items; it is not necessarily SG&A. Zero revenue is undefined (#N/A).",
+      "semantic_key": "reported_margin.net_operating_expense_burden.2021-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "B109",
+      "formula": "=IF(B104=0,NA(),(B105-B106)/B104)",
+      "expected_value": 0.38675438070091217,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Net operating expense burden = (gross profit \u2212 operating profit) / revenue.",
+        "Gross profit minus operating profit includes net intervening operating items; it is not necessarily SG&A.",
+        "Zero revenue yields the undefined-ratio result."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "net_operating_expense_burden",
+      "family_order": 141,
+      "period_index": 0,
+      "period_end": "2021-08-31"
+    },
+    {
+      "id": "net_operating_expense_burden__20220831",
+      "order": 533,
+      "title": "Net operating expense burden",
+      "short_hint": "Net operating expense burden = (gross profit \u2212 operating profit) / revenue. That difference includes net intervening operating items; it is not necessarily SG&A. Zero revenue is undefined (#N/A).",
+      "semantic_key": "reported_margin.net_operating_expense_burden.2022-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "C109",
+      "formula": "=IF(C104=0,NA(),(C105-C106)/C104)",
+      "expected_value": 0.39525674866434723,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Net operating expense burden = (gross profit \u2212 operating profit) / revenue.",
+        "Gross profit minus operating profit includes net intervening operating items; it is not necessarily SG&A.",
+        "Zero revenue yields the undefined-ratio result."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "net_operating_expense_burden",
+      "family_order": 141,
+      "period_index": 1,
+      "period_end": "2022-08-31"
+    },
+    {
+      "id": "net_operating_expense_burden__20230831",
+      "order": 534,
+      "title": "Net operating expense burden",
+      "short_hint": "Net operating expense burden = (gross profit \u2212 operating profit) / revenue. That difference includes net intervening operating items; it is not necessarily SG&A. Zero revenue is undefined (#N/A).",
+      "semantic_key": "reported_margin.net_operating_expense_burden.2023-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "D109",
+      "formula": "=IF(D104=0,NA(),(D105-D106)/D104)",
+      "expected_value": 0.3814380112175531,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Net operating expense burden = (gross profit \u2212 operating profit) / revenue.",
+        "Gross profit minus operating profit includes net intervening operating items; it is not necessarily SG&A.",
+        "Zero revenue yields the undefined-ratio result."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "net_operating_expense_burden",
+      "family_order": 141,
+      "period_index": 2,
+      "period_end": "2023-08-31"
+    },
+    {
+      "id": "net_operating_expense_burden__20240831",
+      "order": 535,
+      "title": "Net operating expense burden",
+      "short_hint": "Net operating expense burden = (gross profit \u2212 operating profit) / revenue. That difference includes net intervening operating items; it is not necessarily SG&A. Zero revenue is undefined (#N/A).",
+      "semantic_key": "reported_margin.net_operating_expense_burden.2024-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "E109",
+      "formula": "=IF(E104=0,NA(),(E105-E106)/E104)",
+      "expected_value": 0.3776510743480003,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Net operating expense burden = (gross profit \u2212 operating profit) / revenue.",
+        "Gross profit minus operating profit includes net intervening operating items; it is not necessarily SG&A.",
+        "Zero revenue yields the undefined-ratio result."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "net_operating_expense_burden",
+      "family_order": 141,
+      "period_index": 3,
+      "period_end": "2024-08-31"
+    },
+    {
+      "id": "net_operating_expense_burden__20250831",
+      "order": 536,
+      "title": "Net operating expense burden",
+      "short_hint": "Net operating expense burden = (gross profit \u2212 operating profit) / revenue. That difference includes net intervening operating items; it is not necessarily SG&A. Zero revenue is undefined (#N/A).",
+      "semantic_key": "reported_margin.net_operating_expense_burden.2025-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "F109",
+      "formula": "=IF(F104=0,NA(),(F105-F106)/F104)",
+      "expected_value": 0.37188016370345994,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Net operating expense burden = (gross profit \u2212 operating profit) / revenue.",
+        "Gross profit minus operating profit includes net intervening operating items; it is not necessarily SG&A.",
+        "Zero revenue yields the undefined-ratio result."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "net_operating_expense_burden",
+      "family_order": 141,
+      "period_index": 4,
+      "period_end": "2025-08-31"
+    },
+    {
+      "id": "gross_margin_change__20220831",
+      "order": 537,
+      "title": "Change in gross margin",
+      "short_hint": "Change in gross margin is a percentage-point movement: current gross margin minus prior gross margin. Do not infer price, mix, or cost causes.",
+      "semantic_key": "reported_margin.gross_margin_change.2022-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "C110",
+      "formula": "=C107-B107",
+      "expected_value": 0.020968490651956273,
+      "tolerance": 0.01,
+      "depends_on": [
+        "gross_margin__20220831",
+        "gross_margin__20210831"
+      ],
+      "hints": [
+        "Change in gross margin = current gross margin \u2212 prior gross margin.",
+        "This is a percentage-point movement, not a causal explanation.",
+        "Do not infer price, mix, or cost causes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "gross_margin_change",
+      "family_order": 142,
+      "period_index": 1,
+      "period_end": "2022-08-31"
+    },
+    {
+      "id": "gross_margin_change__20230831",
+      "order": 538,
+      "title": "Change in gross margin",
+      "short_hint": "Change in gross margin is a percentage-point movement: current gross margin minus prior gross margin. Do not infer price, mix, or cost causes.",
+      "semantic_key": "reported_margin.gross_margin_change.2023-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "D110",
+      "formula": "=D107-C107",
+      "expected_value": -0.005278611540338263,
+      "tolerance": 0.01,
+      "depends_on": [
+        "gross_margin__20230831",
+        "gross_margin__20220831"
+      ],
+      "hints": [
+        "Change in gross margin = current gross margin \u2212 prior gross margin.",
+        "This is a percentage-point movement, not a causal explanation.",
+        "Do not infer price, mix, or cost causes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "gross_margin_change",
+      "family_order": 142,
+      "period_index": 2,
+      "period_end": "2023-08-31"
+    },
+    {
+      "id": "gross_margin_change__20240831",
+      "order": 539,
+      "title": "Change in gross margin",
+      "short_hint": "Change in gross margin is a percentage-point movement: current gross margin minus prior gross margin. Do not infer price, mix, or cost causes.",
+      "semantic_key": "reported_margin.gross_margin_change.2024-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "E110",
+      "formula": "=E107-D107",
+      "expected_value": 0.01984646745092855,
+      "tolerance": 0.01,
+      "depends_on": [
+        "gross_margin__20240831",
+        "gross_margin__20230831"
+      ],
+      "hints": [
+        "Change in gross margin = current gross margin \u2212 prior gross margin.",
+        "This is a percentage-point movement, not a causal explanation.",
+        "Do not infer price, mix, or cost causes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "gross_margin_change",
+      "family_order": 142,
+      "period_index": 3,
+      "period_end": "2024-08-31"
+    },
+    {
+      "id": "gross_margin_change__20250831",
+      "order": 540,
+      "title": "Change in gross margin",
+      "short_hint": "Change in gross margin is a percentage-point movement: current gross margin minus prior gross margin. Do not infer price, mix, or cost causes.",
+      "semantic_key": "reported_margin.gross_margin_change.2025-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "F110",
+      "formula": "=F107-E107",
+      "expected_value": -0.001219159923582236,
+      "tolerance": 0.01,
+      "depends_on": [
+        "gross_margin__20250831",
+        "gross_margin__20240831"
+      ],
+      "hints": [
+        "Change in gross margin = current gross margin \u2212 prior gross margin.",
+        "This is a percentage-point movement, not a causal explanation.",
+        "Do not infer price, mix, or cost causes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "gross_margin_change",
+      "family_order": 142,
+      "period_index": 4,
+      "period_end": "2025-08-31"
+    },
+    {
+      "id": "net_operating_expense_burden_change__20220831",
+      "order": 541,
+      "title": "Change in net operating expense burden",
+      "short_hint": "Change in net operating expense burden is a percentage-point movement: current burden minus prior burden. A positive burden change reduces reported operating margin. Intervening items are not necessarily SG&A.",
+      "semantic_key": "reported_margin.net_operating_expense_burden_change.2022-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "C111",
+      "formula": "=C109-B109",
+      "expected_value": 0.008502367963435065,
+      "tolerance": 0.01,
+      "depends_on": [
+        "net_operating_expense_burden__20220831",
+        "net_operating_expense_burden__20210831"
+      ],
+      "hints": [
+        "Change in net operating expense burden = current burden \u2212 prior burden.",
+        "A positive burden change reduces reported operating margin.",
+        "Gross profit minus operating profit is not necessarily SG&A."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "net_operating_expense_burden_change",
+      "family_order": 143,
+      "period_index": 1,
+      "period_end": "2022-08-31"
+    },
+    {
+      "id": "net_operating_expense_burden_change__20230831",
+      "order": 542,
+      "title": "Change in net operating expense burden",
+      "short_hint": "Change in net operating expense burden is a percentage-point movement: current burden minus prior burden. A positive burden change reduces reported operating margin. Intervening items are not necessarily SG&A.",
+      "semantic_key": "reported_margin.net_operating_expense_burden_change.2023-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "D111",
+      "formula": "=D109-C109",
+      "expected_value": -0.013818737446794127,
+      "tolerance": 0.01,
+      "depends_on": [
+        "net_operating_expense_burden__20230831",
+        "net_operating_expense_burden__20220831"
+      ],
+      "hints": [
+        "Change in net operating expense burden = current burden \u2212 prior burden.",
+        "A positive burden change reduces reported operating margin.",
+        "Gross profit minus operating profit is not necessarily SG&A."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "net_operating_expense_burden_change",
+      "family_order": 143,
+      "period_index": 2,
+      "period_end": "2023-08-31"
+    },
+    {
+      "id": "net_operating_expense_burden_change__20240831",
+      "order": 543,
+      "title": "Change in net operating expense burden",
+      "short_hint": "Change in net operating expense burden is a percentage-point movement: current burden minus prior burden. A positive burden change reduces reported operating margin. Intervening items are not necessarily SG&A.",
+      "semantic_key": "reported_margin.net_operating_expense_burden_change.2024-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "E111",
+      "formula": "=E109-D109",
+      "expected_value": -0.0037869368695527816,
+      "tolerance": 0.01,
+      "depends_on": [
+        "net_operating_expense_burden__20240831",
+        "net_operating_expense_burden__20230831"
+      ],
+      "hints": [
+        "Change in net operating expense burden = current burden \u2212 prior burden.",
+        "A positive burden change reduces reported operating margin.",
+        "Gross profit minus operating profit is not necessarily SG&A."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "net_operating_expense_burden_change",
+      "family_order": 143,
+      "period_index": 3,
+      "period_end": "2024-08-31"
+    },
+    {
+      "id": "net_operating_expense_burden_change__20250831",
+      "order": 544,
+      "title": "Change in net operating expense burden",
+      "short_hint": "Change in net operating expense burden is a percentage-point movement: current burden minus prior burden. A positive burden change reduces reported operating margin. Intervening items are not necessarily SG&A.",
+      "semantic_key": "reported_margin.net_operating_expense_burden_change.2025-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "F111",
+      "formula": "=F109-E109",
+      "expected_value": -0.0057709106445403835,
+      "tolerance": 0.01,
+      "depends_on": [
+        "net_operating_expense_burden__20250831",
+        "net_operating_expense_burden__20240831"
+      ],
+      "hints": [
+        "Change in net operating expense burden = current burden \u2212 prior burden.",
+        "A positive burden change reduces reported operating margin.",
+        "Gross profit minus operating profit is not necessarily SG&A."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "net_operating_expense_burden_change",
+      "family_order": 143,
+      "period_index": 4,
+      "period_end": "2025-08-31"
+    },
+    {
+      "id": "reconstructed_operating_margin_change__20220831",
+      "order": 545,
+      "title": "Reconstructed change in reported operating margin",
+      "short_hint": "Reconstructed operating-margin change = gross-margin change \u2212 burden change, in percentage points. It reconciles to the adjacent reported operating-margin difference. Do not infer price, mix, cost causes, or normalized earnings; keep this distinct from BAV NOPAT margin.",
+      "semantic_key": "reported_margin.reconstructed_operating_margin_change.2022-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "C112",
+      "formula": "=C110-C111",
+      "expected_value": 0.012466122688521208,
+      "tolerance": 0.01,
+      "depends_on": [
+        "gross_margin_change__20220831",
+        "net_operating_expense_burden_change__20220831"
+      ],
+      "hints": [
+        "Reconstructed operating-margin change = gross-margin change \u2212 burden change.",
+        "When defined, this equals the adjacent reported operating-margin difference.",
+        "Do not infer price, mix, cost causes, or normalized earnings."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "reconstructed_operating_margin_change",
+      "family_order": 144,
+      "period_index": 1,
+      "period_end": "2022-08-31"
+    },
+    {
+      "id": "reconstructed_operating_margin_change__20230831",
+      "order": 546,
+      "title": "Reconstructed change in reported operating margin",
+      "short_hint": "Reconstructed operating-margin change = gross-margin change \u2212 burden change, in percentage points. It reconciles to the adjacent reported operating-margin difference. Do not infer price, mix, cost causes, or normalized earnings; keep this distinct from BAV NOPAT margin.",
+      "semantic_key": "reported_margin.reconstructed_operating_margin_change.2023-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "D112",
+      "formula": "=D110-D111",
+      "expected_value": 0.008540125906455864,
+      "tolerance": 0.01,
+      "depends_on": [
+        "gross_margin_change__20230831",
+        "net_operating_expense_burden_change__20230831"
+      ],
+      "hints": [
+        "Reconstructed operating-margin change = gross-margin change \u2212 burden change.",
+        "When defined, this equals the adjacent reported operating-margin difference.",
+        "Do not infer price, mix, cost causes, or normalized earnings."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "reconstructed_operating_margin_change",
+      "family_order": 144,
+      "period_index": 2,
+      "period_end": "2023-08-31"
+    },
+    {
+      "id": "reconstructed_operating_margin_change__20240831",
+      "order": 547,
+      "title": "Reconstructed change in reported operating margin",
+      "short_hint": "Reconstructed operating-margin change = gross-margin change \u2212 burden change, in percentage points. It reconciles to the adjacent reported operating-margin difference. Do not infer price, mix, cost causes, or normalized earnings; keep this distinct from BAV NOPAT margin.",
+      "semantic_key": "reported_margin.reconstructed_operating_margin_change.2024-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "E112",
+      "formula": "=E110-E111",
+      "expected_value": 0.023633404320481333,
+      "tolerance": 0.01,
+      "depends_on": [
+        "gross_margin_change__20240831",
+        "net_operating_expense_burden_change__20240831"
+      ],
+      "hints": [
+        "Reconstructed operating-margin change = gross-margin change \u2212 burden change.",
+        "When defined, this equals the adjacent reported operating-margin difference.",
+        "Do not infer price, mix, cost causes, or normalized earnings."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "reconstructed_operating_margin_change",
+      "family_order": 144,
+      "period_index": 3,
+      "period_end": "2024-08-31"
+    },
+    {
+      "id": "reconstructed_operating_margin_change__20250831",
+      "order": 548,
+      "title": "Reconstructed change in reported operating margin",
+      "short_hint": "Reconstructed operating-margin change = gross-margin change \u2212 burden change, in percentage points. It reconciles to the adjacent reported operating-margin difference. Do not infer price, mix, cost causes, or normalized earnings; keep this distinct from BAV NOPAT margin.",
+      "semantic_key": "reported_margin.reconstructed_operating_margin_change.2025-08-31",
+      "category": "reported_margin",
+      "tab": "ALT DuPont",
+      "cell": "F112",
+      "formula": "=F110-F111",
+      "expected_value": 0.004551750720958148,
+      "tolerance": 0.01,
+      "depends_on": [
+        "gross_margin_change__20250831",
+        "net_operating_expense_burden_change__20250831"
+      ],
+      "hints": [
+        "Reconstructed operating-margin change = gross-margin change \u2212 burden change.",
+        "When defined, this equals the adjacent reported operating-margin difference.",
+        "Do not infer price, mix, cost causes, or normalized earnings."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "reconstructed_operating_margin_change",
+      "family_order": 144,
+      "period_index": 4,
+      "period_end": "2025-08-31"
     }
   ],
   "rowmap": {
@@ -15486,352 +16197,514 @@
       "row": 101,
       "col": 6
     },
-    "goodwill_intangibles.goodwill_change.2022-08-31": {
+    "reported_margin.gross_margin.2021-08-31": {
       "tab": "ALT DuPont",
-      "cell": "C105",
-      "row": 105,
-      "col": 3
+      "cell": "B107",
+      "row": 107,
+      "col": 2
     },
-    "goodwill_intangibles.goodwill_growth.2022-08-31": {
+    "reported_margin.reported_operating_margin.2021-08-31": {
       "tab": "ALT DuPont",
-      "cell": "C106",
-      "row": 106,
-      "col": 3
+      "cell": "B108",
+      "row": 108,
+      "col": 2
     },
-    "goodwill_intangibles.average_goodwill.2022-08-31": {
+    "reported_margin.net_operating_expense_burden.2021-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "B109",
+      "row": 109,
+      "col": 2
+    },
+    "reported_margin.gross_margin.2022-08-31": {
       "tab": "ALT DuPont",
       "cell": "C107",
       "row": 107,
       "col": 3
     },
-    "goodwill_intangibles.goodwill_to_revenue.2022-08-31": {
+    "reported_margin.reported_operating_margin.2022-08-31": {
       "tab": "ALT DuPont",
       "cell": "C108",
       "row": 108,
       "col": 3
     },
-    "goodwill_intangibles.goodwill_change.2023-08-31": {
+    "reported_margin.net_operating_expense_burden.2022-08-31": {
       "tab": "ALT DuPont",
-      "cell": "D105",
-      "row": 105,
-      "col": 4
+      "cell": "C109",
+      "row": 109,
+      "col": 3
     },
-    "goodwill_intangibles.goodwill_growth.2023-08-31": {
-      "tab": "ALT DuPont",
-      "cell": "D106",
-      "row": 106,
-      "col": 4
-    },
-    "goodwill_intangibles.average_goodwill.2023-08-31": {
-      "tab": "ALT DuPont",
-      "cell": "D107",
-      "row": 107,
-      "col": 4
-    },
-    "goodwill_intangibles.goodwill_to_revenue.2023-08-31": {
-      "tab": "ALT DuPont",
-      "cell": "D108",
-      "row": 108,
-      "col": 4
-    },
-    "goodwill_intangibles.goodwill_change.2024-08-31": {
-      "tab": "ALT DuPont",
-      "cell": "E105",
-      "row": 105,
-      "col": 5
-    },
-    "goodwill_intangibles.goodwill_growth.2024-08-31": {
-      "tab": "ALT DuPont",
-      "cell": "E106",
-      "row": 106,
-      "col": 5
-    },
-    "goodwill_intangibles.average_goodwill.2024-08-31": {
-      "tab": "ALT DuPont",
-      "cell": "E107",
-      "row": 107,
-      "col": 5
-    },
-    "goodwill_intangibles.goodwill_to_revenue.2024-08-31": {
-      "tab": "ALT DuPont",
-      "cell": "E108",
-      "row": 108,
-      "col": 5
-    },
-    "goodwill_intangibles.goodwill_change.2025-08-31": {
-      "tab": "ALT DuPont",
-      "cell": "F105",
-      "row": 105,
-      "col": 6
-    },
-    "goodwill_intangibles.goodwill_growth.2025-08-31": {
-      "tab": "ALT DuPont",
-      "cell": "F106",
-      "row": 106,
-      "col": 6
-    },
-    "goodwill_intangibles.average_goodwill.2025-08-31": {
-      "tab": "ALT DuPont",
-      "cell": "F107",
-      "row": 107,
-      "col": 6
-    },
-    "goodwill_intangibles.goodwill_to_revenue.2025-08-31": {
-      "tab": "ALT DuPont",
-      "cell": "F108",
-      "row": 108,
-      "col": 6
-    },
-    "goodwill_intangibles.intangible_assets_change.2022-08-31": {
+    "reported_margin.gross_margin_change.2022-08-31": {
       "tab": "ALT DuPont",
       "cell": "C110",
       "row": 110,
       "col": 3
     },
-    "goodwill_intangibles.intangible_assets_growth.2022-08-31": {
+    "reported_margin.net_operating_expense_burden_change.2022-08-31": {
       "tab": "ALT DuPont",
       "cell": "C111",
       "row": 111,
       "col": 3
     },
-    "goodwill_intangibles.average_intangible_assets.2022-08-31": {
+    "reported_margin.reconstructed_operating_margin_change.2022-08-31": {
       "tab": "ALT DuPont",
       "cell": "C112",
       "row": 112,
       "col": 3
     },
-    "goodwill_intangibles.intangible_assets_to_revenue.2022-08-31": {
+    "reported_margin.gross_margin.2023-08-31": {
       "tab": "ALT DuPont",
-      "cell": "C113",
-      "row": 113,
-      "col": 3
+      "cell": "D107",
+      "row": 107,
+      "col": 4
     },
-    "goodwill_intangibles.intangible_assets_change.2023-08-31": {
+    "reported_margin.reported_operating_margin.2023-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "D108",
+      "row": 108,
+      "col": 4
+    },
+    "reported_margin.net_operating_expense_burden.2023-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "D109",
+      "row": 109,
+      "col": 4
+    },
+    "reported_margin.gross_margin_change.2023-08-31": {
       "tab": "ALT DuPont",
       "cell": "D110",
       "row": 110,
       "col": 4
     },
-    "goodwill_intangibles.intangible_assets_growth.2023-08-31": {
+    "reported_margin.net_operating_expense_burden_change.2023-08-31": {
       "tab": "ALT DuPont",
       "cell": "D111",
       "row": 111,
       "col": 4
     },
-    "goodwill_intangibles.average_intangible_assets.2023-08-31": {
+    "reported_margin.reconstructed_operating_margin_change.2023-08-31": {
       "tab": "ALT DuPont",
       "cell": "D112",
       "row": 112,
       "col": 4
     },
-    "goodwill_intangibles.intangible_assets_to_revenue.2023-08-31": {
+    "reported_margin.gross_margin.2024-08-31": {
       "tab": "ALT DuPont",
-      "cell": "D113",
-      "row": 113,
-      "col": 4
+      "cell": "E107",
+      "row": 107,
+      "col": 5
     },
-    "goodwill_intangibles.intangible_assets_change.2024-08-31": {
+    "reported_margin.reported_operating_margin.2024-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "E108",
+      "row": 108,
+      "col": 5
+    },
+    "reported_margin.net_operating_expense_burden.2024-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "E109",
+      "row": 109,
+      "col": 5
+    },
+    "reported_margin.gross_margin_change.2024-08-31": {
       "tab": "ALT DuPont",
       "cell": "E110",
       "row": 110,
       "col": 5
     },
-    "goodwill_intangibles.intangible_assets_growth.2024-08-31": {
+    "reported_margin.net_operating_expense_burden_change.2024-08-31": {
       "tab": "ALT DuPont",
       "cell": "E111",
       "row": 111,
       "col": 5
     },
-    "goodwill_intangibles.average_intangible_assets.2024-08-31": {
+    "reported_margin.reconstructed_operating_margin_change.2024-08-31": {
       "tab": "ALT DuPont",
       "cell": "E112",
       "row": 112,
       "col": 5
     },
-    "goodwill_intangibles.intangible_assets_to_revenue.2024-08-31": {
+    "reported_margin.gross_margin.2025-08-31": {
       "tab": "ALT DuPont",
-      "cell": "E113",
-      "row": 113,
-      "col": 5
+      "cell": "F107",
+      "row": 107,
+      "col": 6
     },
-    "goodwill_intangibles.intangible_assets_change.2025-08-31": {
+    "reported_margin.reported_operating_margin.2025-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "F108",
+      "row": 108,
+      "col": 6
+    },
+    "reported_margin.net_operating_expense_burden.2025-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "F109",
+      "row": 109,
+      "col": 6
+    },
+    "reported_margin.gross_margin_change.2025-08-31": {
       "tab": "ALT DuPont",
       "cell": "F110",
       "row": 110,
       "col": 6
     },
-    "goodwill_intangibles.intangible_assets_growth.2025-08-31": {
+    "reported_margin.net_operating_expense_burden_change.2025-08-31": {
       "tab": "ALT DuPont",
       "cell": "F111",
       "row": 111,
       "col": 6
     },
-    "goodwill_intangibles.average_intangible_assets.2025-08-31": {
+    "reported_margin.reconstructed_operating_margin_change.2025-08-31": {
       "tab": "ALT DuPont",
       "cell": "F112",
       "row": 112,
       "col": 6
     },
-    "goodwill_intangibles.intangible_assets_to_revenue.2025-08-31": {
-      "tab": "ALT DuPont",
-      "cell": "F113",
-      "row": 113,
-      "col": 6
-    },
-    "goodwill_intangibles.goodwill_and_intangibles_change.2022-08-31": {
-      "tab": "ALT DuPont",
-      "cell": "C115",
-      "row": 115,
-      "col": 3
-    },
-    "goodwill_intangibles.goodwill_and_intangibles_growth.2022-08-31": {
+    "goodwill_intangibles.goodwill_change.2022-08-31": {
       "tab": "ALT DuPont",
       "cell": "C116",
       "row": 116,
       "col": 3
     },
-    "goodwill_intangibles.average_goodwill_and_intangibles.2022-08-31": {
+    "goodwill_intangibles.goodwill_growth.2022-08-31": {
       "tab": "ALT DuPont",
       "cell": "C117",
       "row": 117,
       "col": 3
     },
-    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2022-08-31": {
+    "goodwill_intangibles.average_goodwill.2022-08-31": {
       "tab": "ALT DuPont",
       "cell": "C118",
       "row": 118,
       "col": 3
     },
-    "goodwill_intangibles.goodwill_and_intangibles_change.2023-08-31": {
+    "goodwill_intangibles.goodwill_to_revenue.2022-08-31": {
       "tab": "ALT DuPont",
-      "cell": "D115",
-      "row": 115,
-      "col": 4
+      "cell": "C119",
+      "row": 119,
+      "col": 3
     },
-    "goodwill_intangibles.goodwill_and_intangibles_growth.2023-08-31": {
+    "goodwill_intangibles.goodwill_change.2023-08-31": {
       "tab": "ALT DuPont",
       "cell": "D116",
       "row": 116,
       "col": 4
     },
-    "goodwill_intangibles.average_goodwill_and_intangibles.2023-08-31": {
+    "goodwill_intangibles.goodwill_growth.2023-08-31": {
       "tab": "ALT DuPont",
       "cell": "D117",
       "row": 117,
       "col": 4
     },
-    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2023-08-31": {
+    "goodwill_intangibles.average_goodwill.2023-08-31": {
       "tab": "ALT DuPont",
       "cell": "D118",
       "row": 118,
       "col": 4
     },
-    "goodwill_intangibles.goodwill_and_intangibles_change.2024-08-31": {
+    "goodwill_intangibles.goodwill_to_revenue.2023-08-31": {
       "tab": "ALT DuPont",
-      "cell": "E115",
-      "row": 115,
-      "col": 5
+      "cell": "D119",
+      "row": 119,
+      "col": 4
     },
-    "goodwill_intangibles.goodwill_and_intangibles_growth.2024-08-31": {
+    "goodwill_intangibles.goodwill_change.2024-08-31": {
       "tab": "ALT DuPont",
       "cell": "E116",
       "row": 116,
       "col": 5
     },
-    "goodwill_intangibles.average_goodwill_and_intangibles.2024-08-31": {
+    "goodwill_intangibles.goodwill_growth.2024-08-31": {
       "tab": "ALT DuPont",
       "cell": "E117",
       "row": 117,
       "col": 5
     },
-    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-08-31": {
+    "goodwill_intangibles.average_goodwill.2024-08-31": {
       "tab": "ALT DuPont",
       "cell": "E118",
       "row": 118,
       "col": 5
     },
-    "goodwill_intangibles.goodwill_and_intangibles_change.2025-08-31": {
+    "goodwill_intangibles.goodwill_to_revenue.2024-08-31": {
       "tab": "ALT DuPont",
-      "cell": "F115",
-      "row": 115,
-      "col": 6
+      "cell": "E119",
+      "row": 119,
+      "col": 5
     },
-    "goodwill_intangibles.goodwill_and_intangibles_growth.2025-08-31": {
+    "goodwill_intangibles.goodwill_change.2025-08-31": {
       "tab": "ALT DuPont",
       "cell": "F116",
       "row": 116,
       "col": 6
     },
-    "goodwill_intangibles.average_goodwill_and_intangibles.2025-08-31": {
+    "goodwill_intangibles.goodwill_growth.2025-08-31": {
       "tab": "ALT DuPont",
       "cell": "F117",
       "row": 117,
       "col": 6
     },
-    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-08-31": {
+    "goodwill_intangibles.average_goodwill.2025-08-31": {
       "tab": "ALT DuPont",
       "cell": "F118",
       "row": 118,
       "col": 6
     },
-    "goodwill_intangibles.intangible_payments.2021-08-31": {
+    "goodwill_intangibles.goodwill_to_revenue.2025-08-31": {
       "tab": "ALT DuPont",
-      "cell": "B120",
-      "row": 120,
-      "col": 2
+      "cell": "F119",
+      "row": 119,
+      "col": 6
     },
-    "goodwill_intangibles.intangible_payments_to_revenue.2021-08-31": {
-      "tab": "ALT DuPont",
-      "cell": "B121",
-      "row": 121,
-      "col": 2
-    },
-    "goodwill_intangibles.intangible_payments.2022-08-31": {
-      "tab": "ALT DuPont",
-      "cell": "C120",
-      "row": 120,
-      "col": 3
-    },
-    "goodwill_intangibles.intangible_payments_to_revenue.2022-08-31": {
+    "goodwill_intangibles.intangible_assets_change.2022-08-31": {
       "tab": "ALT DuPont",
       "cell": "C121",
       "row": 121,
       "col": 3
     },
-    "goodwill_intangibles.intangible_payments.2023-08-31": {
+    "goodwill_intangibles.intangible_assets_growth.2022-08-31": {
       "tab": "ALT DuPont",
-      "cell": "D120",
-      "row": 120,
-      "col": 4
+      "cell": "C122",
+      "row": 122,
+      "col": 3
     },
-    "goodwill_intangibles.intangible_payments_to_revenue.2023-08-31": {
+    "goodwill_intangibles.average_intangible_assets.2022-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "C123",
+      "row": 123,
+      "col": 3
+    },
+    "goodwill_intangibles.intangible_assets_to_revenue.2022-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "C124",
+      "row": 124,
+      "col": 3
+    },
+    "goodwill_intangibles.intangible_assets_change.2023-08-31": {
       "tab": "ALT DuPont",
       "cell": "D121",
       "row": 121,
       "col": 4
     },
-    "goodwill_intangibles.intangible_payments.2024-08-31": {
+    "goodwill_intangibles.intangible_assets_growth.2023-08-31": {
       "tab": "ALT DuPont",
-      "cell": "E120",
-      "row": 120,
-      "col": 5
+      "cell": "D122",
+      "row": 122,
+      "col": 4
     },
-    "goodwill_intangibles.intangible_payments_to_revenue.2024-08-31": {
+    "goodwill_intangibles.average_intangible_assets.2023-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "D123",
+      "row": 123,
+      "col": 4
+    },
+    "goodwill_intangibles.intangible_assets_to_revenue.2023-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "D124",
+      "row": 124,
+      "col": 4
+    },
+    "goodwill_intangibles.intangible_assets_change.2024-08-31": {
       "tab": "ALT DuPont",
       "cell": "E121",
       "row": 121,
       "col": 5
     },
+    "goodwill_intangibles.intangible_assets_growth.2024-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "E122",
+      "row": 122,
+      "col": 5
+    },
+    "goodwill_intangibles.average_intangible_assets.2024-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "E123",
+      "row": 123,
+      "col": 5
+    },
+    "goodwill_intangibles.intangible_assets_to_revenue.2024-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "E124",
+      "row": 124,
+      "col": 5
+    },
+    "goodwill_intangibles.intangible_assets_change.2025-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "F121",
+      "row": 121,
+      "col": 6
+    },
+    "goodwill_intangibles.intangible_assets_growth.2025-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "F122",
+      "row": 122,
+      "col": 6
+    },
+    "goodwill_intangibles.average_intangible_assets.2025-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "F123",
+      "row": 123,
+      "col": 6
+    },
+    "goodwill_intangibles.intangible_assets_to_revenue.2025-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "F124",
+      "row": 124,
+      "col": 6
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_change.2022-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "C126",
+      "row": 126,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_growth.2022-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "C127",
+      "row": 127,
+      "col": 3
+    },
+    "goodwill_intangibles.average_goodwill_and_intangibles.2022-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "C128",
+      "row": 128,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2022-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "C129",
+      "row": 129,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_change.2023-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "D126",
+      "row": 126,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_growth.2023-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "D127",
+      "row": 127,
+      "col": 4
+    },
+    "goodwill_intangibles.average_goodwill_and_intangibles.2023-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "D128",
+      "row": 128,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2023-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "D129",
+      "row": 129,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_change.2024-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "E126",
+      "row": 126,
+      "col": 5
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_growth.2024-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "E127",
+      "row": 127,
+      "col": 5
+    },
+    "goodwill_intangibles.average_goodwill_and_intangibles.2024-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "E128",
+      "row": 128,
+      "col": 5
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "E129",
+      "row": 129,
+      "col": 5
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_change.2025-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "F126",
+      "row": 126,
+      "col": 6
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_growth.2025-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "F127",
+      "row": 127,
+      "col": 6
+    },
+    "goodwill_intangibles.average_goodwill_and_intangibles.2025-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "F128",
+      "row": 128,
+      "col": 6
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "F129",
+      "row": 129,
+      "col": 6
+    },
+    "goodwill_intangibles.intangible_payments.2021-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "B131",
+      "row": 131,
+      "col": 2
+    },
+    "goodwill_intangibles.intangible_payments_to_revenue.2021-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "B132",
+      "row": 132,
+      "col": 2
+    },
+    "goodwill_intangibles.intangible_payments.2022-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "C131",
+      "row": 131,
+      "col": 3
+    },
+    "goodwill_intangibles.intangible_payments_to_revenue.2022-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "C132",
+      "row": 132,
+      "col": 3
+    },
+    "goodwill_intangibles.intangible_payments.2023-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "D131",
+      "row": 131,
+      "col": 4
+    },
+    "goodwill_intangibles.intangible_payments_to_revenue.2023-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "D132",
+      "row": 132,
+      "col": 4
+    },
+    "goodwill_intangibles.intangible_payments.2024-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "E131",
+      "row": 131,
+      "col": 5
+    },
+    "goodwill_intangibles.intangible_payments_to_revenue.2024-08-31": {
+      "tab": "ALT DuPont",
+      "cell": "E132",
+      "row": 132,
+      "col": 5
+    },
     "goodwill_intangibles.intangible_payments.2025-08-31": {
       "tab": "ALT DuPont",
-      "cell": "F120",
-      "row": 120,
+      "cell": "F131",
+      "row": 131,
       "col": 6
     },
     "goodwill_intangibles.intangible_payments_to_revenue.2025-08-31": {
       "tab": "ALT DuPont",
-      "cell": "F121",
-      "row": 121,
+      "cell": "F132",
+      "row": 132,
       "col": 6
     },
     "ownership.parent_profit.2021-08-31": {

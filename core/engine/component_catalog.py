@@ -3614,6 +3614,233 @@ def expand_cash_rollforward_specs(
     return tuple(specs)
 
 
+REPORTED_MARGIN_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="gross_margin",
+        order=139,
+        title="Gross margin",
+        short_hint=(
+            "Gross margin = reported gross profit / revenue. Zero revenue is "
+            "undefined (#N/A). Do not infer price, mix, or cost causes."
+        ),
+        semantic_key="reported_margin.gross_margin",
+        category="reported_margin",
+        tab_template="ALT DuPont",
+        hints=(
+            "Gross margin = reported gross profit / revenue.",
+            "Zero revenue yields the undefined-ratio result.",
+            "Do not infer price, mix, or cost causes.",
+        ),
+    ),
+    ComponentFamily(
+        id="reported_operating_margin",
+        order=140,
+        title="Reported operating margin",
+        short_hint=(
+            "Reported operating margin = reported operating profit / revenue. "
+            "Distinct from BAV NOPAT margin; not normalized earnings. Zero "
+            "revenue is undefined (#N/A)."
+        ),
+        semantic_key="reported_margin.reported_operating_margin",
+        category="reported_margin",
+        tab_template="ALT DuPont",
+        hints=(
+            "Reported operating margin = reported operating profit / revenue.",
+            "Keep reported operating margin distinct from BAV NOPAT margin.",
+            "Do not treat this as normalized earnings.",
+        ),
+    ),
+    ComponentFamily(
+        id="net_operating_expense_burden",
+        order=141,
+        title="Net operating expense burden",
+        short_hint=(
+            "Net operating expense burden = (gross profit − operating profit) / "
+            "revenue. That difference includes net intervening operating items; "
+            "it is not necessarily SG&A. Zero revenue is undefined (#N/A)."
+        ),
+        semantic_key="reported_margin.net_operating_expense_burden",
+        category="reported_margin",
+        tab_template="ALT DuPont",
+        hints=(
+            "Net operating expense burden = (gross profit − operating profit) / "
+            "revenue.",
+            "Gross profit minus operating profit includes net intervening "
+            "operating items; it is not necessarily SG&A.",
+            "Zero revenue yields the undefined-ratio result.",
+        ),
+    ),
+    ComponentFamily(
+        id="gross_margin_change",
+        order=142,
+        title="Change in gross margin",
+        short_hint=(
+            "Change in gross margin is a percentage-point movement: current "
+            "gross margin minus prior gross margin. Do not infer price, mix, "
+            "or cost causes."
+        ),
+        semantic_key="reported_margin.gross_margin_change",
+        category="reported_margin",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("gross_margin",),
+        depends_on_previous=("gross_margin",),
+        hints=(
+            "Change in gross margin = current gross margin − prior gross margin.",
+            "This is a percentage-point movement, not a causal explanation.",
+            "Do not infer price, mix, or cost causes.",
+        ),
+    ),
+    ComponentFamily(
+        id="net_operating_expense_burden_change",
+        order=143,
+        title="Change in net operating expense burden",
+        short_hint=(
+            "Change in net operating expense burden is a percentage-point "
+            "movement: current burden minus prior burden. A positive burden "
+            "change reduces reported operating margin. Intervening items are "
+            "not necessarily SG&A."
+        ),
+        semantic_key="reported_margin.net_operating_expense_burden_change",
+        category="reported_margin",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=("net_operating_expense_burden",),
+        depends_on_previous=("net_operating_expense_burden",),
+        hints=(
+            "Change in net operating expense burden = current burden − prior "
+            "burden.",
+            "A positive burden change reduces reported operating margin.",
+            "Gross profit minus operating profit is not necessarily SG&A.",
+        ),
+    ),
+    ComponentFamily(
+        id="reconstructed_operating_margin_change",
+        order=144,
+        title="Reconstructed change in reported operating margin",
+        short_hint=(
+            "Reconstructed operating-margin change = gross-margin change − "
+            "burden change, in percentage points. It reconciles to the adjacent "
+            "reported operating-margin difference. Do not infer price, mix, "
+            "cost causes, or normalized earnings; keep this distinct from BAV "
+            "NOPAT margin."
+        ),
+        semantic_key="reported_margin.reconstructed_operating_margin_change",
+        category="reported_margin",
+        tab_template="ALT DuPont",
+        period_scope="comparable",
+        depends_on_current=(
+            "gross_margin_change",
+            "net_operating_expense_burden_change",
+        ),
+        hints=(
+            "Reconstructed operating-margin change = gross-margin change − "
+            "burden change.",
+            "When defined, this equals the adjacent reported operating-margin "
+            "difference.",
+            "Do not infer price, mix, cost causes, or normalized earnings.",
+        ),
+    ),
+)
+
+
+def expand_reported_margin_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    include_gross_margin: bool = False,
+    include_operating_margin: bool = False,
+    include_burden: bool = False,
+    include_gross_margin_change: bool = False,
+    include_burden_change: bool = False,
+    include_reconstructed: bool = False,
+) -> tuple[ComponentSpec, ...]:
+    """Expand reported-margin families into period-specific concrete specs."""
+    if include_gross_margin_change and not include_gross_margin:
+        raise ValueError(
+            "expand_reported_margin_specs gross-margin change requires gross_margin"
+        )
+    if include_burden_change and not include_burden:
+        raise ValueError(
+            "expand_reported_margin_specs burden change requires "
+            "net_operating_expense_burden"
+        )
+    if include_reconstructed and not (
+        include_gross_margin_change and include_burden_change
+    ):
+        raise ValueError(
+            "expand_reported_margin_specs reconstructed change requires "
+            "gross_margin_change and net_operating_expense_burden_change"
+        )
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_reported_margin_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_reported_margin_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    omit: set[str] = set()
+    if not include_gross_margin:
+        omit.add("gross_margin")
+    if not include_operating_margin:
+        omit.add("reported_operating_margin")
+    if not include_burden:
+        omit.add("net_operating_expense_burden")
+    if not include_gross_margin_change:
+        omit.add("gross_margin_change")
+    if not include_burden_change:
+        omit.add("net_operating_expense_burden_change")
+    if not include_reconstructed:
+        omit.add("reconstructed_operating_margin_change")
+    families = tuple(
+        family
+        for family in REPORTED_MARGIN_COMPONENT_CATALOG
+        if family.id not in omit
+    )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in families:
+        if family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        else:
+            indices = range(len(periods))
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            if j > 0:
+                prev = periods[j - 1]
+                for dep_fam in family.depends_on_previous:
+                    deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 DEFERRED_TAX_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
     ComponentFamily(
         id="net_deferred_tax_position",
