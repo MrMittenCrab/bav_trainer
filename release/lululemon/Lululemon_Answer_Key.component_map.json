@@ -1906,27 +1906,29 @@
       "period_end": "2026-02-01"
     },
     {
-      "id": "owca_to_revenue__20230129",
+      "id": "sbc_to_revenue__20230129",
       "order": 84,
-      "title": "Operating working capital assets / Revenue",
-      "short_hint": "OWCA divided by Revenue for the same fiscal period.",
-      "semantic_key": "working_capital.owca_to_revenue.2023-01-29",
-      "category": "working_capital",
-      "tab": "Working Capital Analysis",
-      "cell": "B11",
-      "formula": "=IF(B6=0,NA(),B7/B6)",
-      "expected_value": 0.24715881279099558,
+      "title": "SBC / Revenue",
+      "short_hint": "Reported stock-based compensation divided by Revenue. Mechanical diagnostic only; does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects.",
+      "semantic_key": "quality.sbc_to_revenue.2023-01-29",
+      "category": "earnings_quality",
+      "tab": "Earnings Quality",
+      "cell": "B23",
+      "formula": "=IF('Condensed Financials'!B34=0,NA(),B22/'Condensed Financials'!B34)",
+      "expected_value": 0.009626388844707576,
       "tolerance": 0.01,
-      "depends_on": [],
+      "depends_on": [
+        "revenue_link__20230129"
+      ],
       "hints": [
-        "Operating Working Capital Assets / Revenue measures operating current assets tied up per sales dollar.",
+        "SBC / Revenue = reported cash-flow stock-based compensation / Revenue.",
         "A zero Revenue denominator makes the ratio undefined (#N/A).",
-        "A higher ratio is not automatically deterioration; diagnose the underlying operating balances before drawing a conclusion."
+        "Does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects."
       ],
       "related_cells": [],
       "status": "pending",
-      "family_id": "owca_to_revenue",
-      "family_order": 35,
+      "family_id": "sbc_to_revenue",
+      "family_order": 126,
       "period_index": 0,
       "period_end": "2023-01-29"
     },
@@ -1960,27 +1962,29 @@
       "period_end": "2024-01-28"
     },
     {
-      "id": "owca_to_revenue__20240128",
+      "id": "sbc_to_revenue__20240128",
       "order": 85,
-      "title": "Operating working capital assets / Revenue",
-      "short_hint": "OWCA divided by Revenue for the same fiscal period.",
-      "semantic_key": "working_capital.owca_to_revenue.2024-01-28",
-      "category": "working_capital",
-      "tab": "Working Capital Analysis",
-      "cell": "C11",
-      "formula": "=IF(C6=0,NA(),C7/C6)",
-      "expected_value": 0.18885055614361076,
+      "title": "SBC / Revenue",
+      "short_hint": "Reported stock-based compensation divided by Revenue. Mechanical diagnostic only; does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects.",
+      "semantic_key": "quality.sbc_to_revenue.2024-01-28",
+      "category": "earnings_quality",
+      "tab": "Earnings Quality",
+      "cell": "C23",
+      "formula": "=IF('Condensed Financials'!C34=0,NA(),C22/'Condensed Financials'!C34)",
+      "expected_value": 0.009726301703724542,
       "tolerance": 0.01,
-      "depends_on": [],
+      "depends_on": [
+        "revenue_link__20240128"
+      ],
       "hints": [
-        "Operating Working Capital Assets / Revenue measures operating current assets tied up per sales dollar.",
+        "SBC / Revenue = reported cash-flow stock-based compensation / Revenue.",
         "A zero Revenue denominator makes the ratio undefined (#N/A).",
-        "A higher ratio is not automatically deterioration; diagnose the underlying operating balances before drawing a conclusion."
+        "Does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects."
       ],
       "related_cells": [],
       "status": "pending",
-      "family_id": "owca_to_revenue",
-      "family_order": 35,
+      "family_id": "sbc_to_revenue",
+      "family_order": 126,
       "period_index": 1,
       "period_end": "2024-01-28"
     },
@@ -2014,27 +2018,29 @@
       "period_end": "2025-02-02"
     },
     {
-      "id": "owca_to_revenue__20250202",
+      "id": "sbc_to_revenue__20250202",
       "order": 86,
-      "title": "Operating working capital assets / Revenue",
-      "short_hint": "OWCA divided by Revenue for the same fiscal period.",
-      "semantic_key": "working_capital.owca_to_revenue.2025-02-02",
-      "category": "working_capital",
-      "tab": "Working Capital Analysis",
-      "cell": "D11",
-      "formula": "=IF(D6=0,NA(),D7/D6)",
-      "expected_value": 0.18850984584051983,
+      "title": "SBC / Revenue",
+      "short_hint": "Reported stock-based compensation divided by Revenue. Mechanical diagnostic only; does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects.",
+      "semantic_key": "quality.sbc_to_revenue.2025-02-02",
+      "category": "earnings_quality",
+      "tab": "Earnings Quality",
+      "cell": "D23",
+      "formula": "=IF('Condensed Financials'!D34=0,NA(),D22/'Condensed Financials'!D34)",
+      "expected_value": 0.0085011266394072,
       "tolerance": 0.01,
-      "depends_on": [],
+      "depends_on": [
+        "revenue_link__20250202"
+      ],
       "hints": [
-        "Operating Working Capital Assets / Revenue measures operating current assets tied up per sales dollar.",
+        "SBC / Revenue = reported cash-flow stock-based compensation / Revenue.",
         "A zero Revenue denominator makes the ratio undefined (#N/A).",
-        "A higher ratio is not automatically deterioration; diagnose the underlying operating balances before drawing a conclusion."
+        "Does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects."
       ],
       "related_cells": [],
       "status": "pending",
-      "family_id": "owca_to_revenue",
-      "family_order": 35,
+      "family_id": "sbc_to_revenue",
+      "family_order": 126,
       "period_index": 2,
       "period_end": "2025-02-02"
     },
@@ -2068,102 +2074,110 @@
       "period_end": "2026-02-01"
     },
     {
-      "id": "owca_to_revenue__20260201",
+      "id": "sbc_to_revenue__20260201",
       "order": 87,
-      "title": "Operating working capital assets / Revenue",
-      "short_hint": "OWCA divided by Revenue for the same fiscal period.",
-      "semantic_key": "working_capital.owca_to_revenue.2026-02-01",
-      "category": "working_capital",
-      "tab": "Working Capital Analysis",
-      "cell": "E11",
-      "formula": "=IF(E6=0,NA(),E7/E6)",
-      "expected_value": 0.22116432187055285,
+      "title": "SBC / Revenue",
+      "short_hint": "Reported stock-based compensation divided by Revenue. Mechanical diagnostic only; does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects.",
+      "semantic_key": "quality.sbc_to_revenue.2026-02-01",
+      "category": "earnings_quality",
+      "tab": "Earnings Quality",
+      "cell": "E23",
+      "formula": "=IF('Condensed Financials'!E34=0,NA(),E22/'Condensed Financials'!E34)",
+      "expected_value": 0.005602561562156612,
       "tolerance": 0.01,
-      "depends_on": [],
+      "depends_on": [
+        "revenue_link__20260201"
+      ],
       "hints": [
-        "Operating Working Capital Assets / Revenue measures operating current assets tied up per sales dollar.",
+        "SBC / Revenue = reported cash-flow stock-based compensation / Revenue.",
         "A zero Revenue denominator makes the ratio undefined (#N/A).",
-        "A higher ratio is not automatically deterioration; diagnose the underlying operating balances before drawing a conclusion."
+        "Does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects."
       ],
       "related_cells": [],
       "status": "pending",
-      "family_id": "owca_to_revenue",
-      "family_order": 35,
+      "family_id": "sbc_to_revenue",
+      "family_order": 126,
       "period_index": 3,
       "period_end": "2026-02-01"
     },
     {
-      "id": "owcl_to_revenue__20230129",
+      "id": "sbc_to_operating_cash_flow__20230129",
       "order": 88,
-      "title": "Operating working capital liabilities / Revenue",
-      "short_hint": "OWCL divided by Revenue for the same fiscal period.",
-      "semantic_key": "working_capital.owcl_to_revenue.2023-01-29",
-      "category": "working_capital",
-      "tab": "Working Capital Analysis",
-      "cell": "B12",
-      "formula": "=IF(B6=0,NA(),B8/B6)",
-      "expected_value": 0.1618615481773174,
+      "title": "SBC / Operating Cash Flow",
+      "short_hint": "Reported stock-based compensation divided by reported operating cash flow. Mechanical diagnostic only; does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects.",
+      "semantic_key": "quality.sbc_to_operating_cash_flow.2023-01-29",
+      "category": "earnings_quality",
+      "tab": "Earnings Quality",
+      "cell": "B24",
+      "formula": "=IF(B5=0,NA(),B22/B5)",
+      "expected_value": 0.08078426178756973,
       "tolerance": 0.01,
-      "depends_on": [],
+      "depends_on": [
+        "operating_cash_flow_link__20230129"
+      ],
       "hints": [
-        "Operating Working Capital Liabilities / Revenue measures operating current liabilities financing each sales dollar.",
-        "A zero Revenue denominator makes the ratio undefined (#N/A).",
-        "A higher ratio can finance growth but is not automatically positive; payment behavior and business model matter."
+        "SBC / Operating Cash Flow = reported SBC / reported CFO.",
+        "A zero CFO denominator makes the ratio undefined (#N/A).",
+        "Does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects."
       ],
       "related_cells": [],
       "status": "pending",
-      "family_id": "owcl_to_revenue",
-      "family_order": 36,
+      "family_id": "sbc_to_operating_cash_flow",
+      "family_order": 127,
       "period_index": 0,
       "period_end": "2023-01-29"
     },
     {
-      "id": "owcl_to_revenue__20240128",
+      "id": "sbc_to_operating_cash_flow__20240128",
       "order": 89,
-      "title": "Operating working capital liabilities / Revenue",
-      "short_hint": "OWCL divided by Revenue for the same fiscal period.",
-      "semantic_key": "working_capital.owcl_to_revenue.2024-01-28",
-      "category": "working_capital",
-      "tab": "Working Capital Analysis",
-      "cell": "C12",
-      "formula": "=IF(C6=0,NA(),C8/C6)",
-      "expected_value": 0.1453180789660097,
+      "title": "SBC / Operating Cash Flow",
+      "short_hint": "Reported stock-based compensation divided by reported operating cash flow. Mechanical diagnostic only; does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects.",
+      "semantic_key": "quality.sbc_to_operating_cash_flow.2024-01-28",
+      "category": "earnings_quality",
+      "tab": "Earnings Quality",
+      "cell": "C24",
+      "formula": "=IF(C5=0,NA(),C22/C5)",
+      "expected_value": 0.04074621847568379,
       "tolerance": 0.01,
-      "depends_on": [],
+      "depends_on": [
+        "operating_cash_flow_link__20240128"
+      ],
       "hints": [
-        "Operating Working Capital Liabilities / Revenue measures operating current liabilities financing each sales dollar.",
-        "A zero Revenue denominator makes the ratio undefined (#N/A).",
-        "A higher ratio can finance growth but is not automatically positive; payment behavior and business model matter."
+        "SBC / Operating Cash Flow = reported SBC / reported CFO.",
+        "A zero CFO denominator makes the ratio undefined (#N/A).",
+        "Does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects."
       ],
       "related_cells": [],
       "status": "pending",
-      "family_id": "owcl_to_revenue",
-      "family_order": 36,
+      "family_id": "sbc_to_operating_cash_flow",
+      "family_order": 127,
       "period_index": 1,
       "period_end": "2024-01-28"
     },
     {
-      "id": "owcl_to_revenue__20250202",
+      "id": "sbc_to_operating_cash_flow__20250202",
       "order": 90,
-      "title": "Operating working capital liabilities / Revenue",
-      "short_hint": "OWCL divided by Revenue for the same fiscal period.",
-      "semantic_key": "working_capital.owcl_to_revenue.2025-02-02",
-      "category": "working_capital",
-      "tab": "Working Capital Analysis",
-      "cell": "D12",
-      "formula": "=IF(D6=0,NA(),D8/D6)",
-      "expected_value": 0.1477575918533648,
+      "title": "SBC / Operating Cash Flow",
+      "short_hint": "Reported stock-based compensation divided by reported operating cash flow. Mechanical diagnostic only; does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects.",
+      "semantic_key": "quality.sbc_to_operating_cash_flow.2025-02-02",
+      "category": "earnings_quality",
+      "tab": "Earnings Quality",
+      "cell": "D24",
+      "formula": "=IF(D5=0,NA(),D22/D5)",
+      "expected_value": 0.03960508871995716,
       "tolerance": 0.01,
-      "depends_on": [],
+      "depends_on": [
+        "operating_cash_flow_link__20250202"
+      ],
       "hints": [
-        "Operating Working Capital Liabilities / Revenue measures operating current liabilities financing each sales dollar.",
-        "A zero Revenue denominator makes the ratio undefined (#N/A).",
-        "A higher ratio can finance growth but is not automatically positive; payment behavior and business model matter."
+        "SBC / Operating Cash Flow = reported SBC / reported CFO.",
+        "A zero CFO denominator makes the ratio undefined (#N/A).",
+        "Does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects."
       ],
       "related_cells": [],
       "status": "pending",
-      "family_id": "owcl_to_revenue",
-      "family_order": 36,
+      "family_id": "sbc_to_operating_cash_flow",
+      "family_order": 127,
       "period_index": 2,
       "period_end": "2025-02-02"
     },
@@ -2196,27 +2210,29 @@
       "period_end": "2024-01-28"
     },
     {
-      "id": "owcl_to_revenue__20260201",
+      "id": "sbc_to_operating_cash_flow__20260201",
       "order": 91,
-      "title": "Operating working capital liabilities / Revenue",
-      "short_hint": "OWCL divided by Revenue for the same fiscal period.",
-      "semantic_key": "working_capital.owcl_to_revenue.2026-02-01",
-      "category": "working_capital",
-      "tab": "Working Capital Analysis",
-      "cell": "E12",
-      "formula": "=IF(E6=0,NA(),E8/E6)",
-      "expected_value": 0.14310377749356007,
+      "title": "SBC / Operating Cash Flow",
+      "short_hint": "Reported stock-based compensation divided by reported operating cash flow. Mechanical diagnostic only; does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects.",
+      "semantic_key": "quality.sbc_to_operating_cash_flow.2026-02-01",
+      "category": "earnings_quality",
+      "tab": "Earnings Quality",
+      "cell": "E24",
+      "formula": "=IF(E5=0,NA(),E22/E5)",
+      "expected_value": 0.038816781769722745,
       "tolerance": 0.01,
-      "depends_on": [],
+      "depends_on": [
+        "operating_cash_flow_link__20260201"
+      ],
       "hints": [
-        "Operating Working Capital Liabilities / Revenue measures operating current liabilities financing each sales dollar.",
-        "A zero Revenue denominator makes the ratio undefined (#N/A).",
-        "A higher ratio can finance growth but is not automatically positive; payment behavior and business model matter."
+        "SBC / Operating Cash Flow = reported SBC / reported CFO.",
+        "A zero CFO denominator makes the ratio undefined (#N/A).",
+        "Does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects."
       ],
       "related_cells": [],
       "status": "pending",
-      "family_id": "owcl_to_revenue",
-      "family_order": 36,
+      "family_id": "sbc_to_operating_cash_flow",
+      "family_order": 127,
       "period_index": 3,
       "period_end": "2026-02-01"
     },
@@ -2249,27 +2265,28 @@
       "period_end": "2025-02-02"
     },
     {
-      "id": "nowc_to_revenue__20230129",
+      "id": "operating_cash_flow_less_sbc__20230129",
       "order": 92,
-      "title": "NOWC / Revenue",
-      "short_hint": "NOWC divided by Revenue for the same fiscal period.",
-      "semantic_key": "working_capital.nowc_to_revenue.2023-01-29",
-      "category": "working_capital",
-      "tab": "Working Capital Analysis",
-      "cell": "B13",
-      "formula": "=IF(B6=0,NA(),B9/B6)",
-      "expected_value": 0.08529726461367819,
+      "title": "Reported CFO less SBC add-back",
+      "short_hint": "Reported CFO less SBC add-back. Mechanical diagnostic only; does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects.",
+      "semantic_key": "quality.operating_cash_flow_less_sbc.2023-01-29",
+      "category": "earnings_quality",
+      "tab": "Earnings Quality",
+      "cell": "B25",
+      "formula": "=B5-B22",
+      "expected_value": 888388.0,
       "tolerance": 0.01,
-      "depends_on": [],
+      "depends_on": [
+        "operating_cash_flow_link__20230129"
+      ],
       "hints": [
-        "NOWC / Revenue measures net operating working capital tied up per sales dollar.",
-        "NOWC = OWCA - OWCL.",
-        "Rising intensity means more net working capital is tied up per sales dollar, but the cause must be diagnosed rather than labeled automatically."
+        "Reported CFO less SBC add-back = reported operating cash flow \u2212 reported cash-flow stock-based compensation.",
+        "This mechanical diagnostic does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects."
       ],
       "related_cells": [],
       "status": "pending",
-      "family_id": "nowc_to_revenue",
-      "family_order": 37,
+      "family_id": "operating_cash_flow_less_sbc",
+      "family_order": 128,
       "period_index": 0,
       "period_end": "2023-01-29"
     },
@@ -2302,8 +2319,311 @@
       "period_end": "2026-02-01"
     },
     {
-      "id": "nowc_to_revenue__20240128",
+      "id": "operating_cash_flow_less_sbc__20240128",
       "order": 93,
+      "title": "Reported CFO less SBC add-back",
+      "short_hint": "Reported CFO less SBC add-back. Mechanical diagnostic only; does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects.",
+      "semantic_key": "quality.operating_cash_flow_less_sbc.2024-01-28",
+      "category": "earnings_quality",
+      "tab": "Earnings Quality",
+      "cell": "C25",
+      "formula": "=C5-C22",
+      "expected_value": 2202604.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "operating_cash_flow_link__20240128"
+      ],
+      "hints": [
+        "Reported CFO less SBC add-back = reported operating cash flow \u2212 reported cash-flow stock-based compensation.",
+        "This mechanical diagnostic does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "operating_cash_flow_less_sbc",
+      "family_order": 128,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "operating_cash_flow_less_sbc__20250202",
+      "order": 94,
+      "title": "Reported CFO less SBC add-back",
+      "short_hint": "Reported CFO less SBC add-back. Mechanical diagnostic only; does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects.",
+      "semantic_key": "quality.operating_cash_flow_less_sbc.2025-02-02",
+      "category": "earnings_quality",
+      "tab": "Earnings Quality",
+      "cell": "D25",
+      "formula": "=D5-D22",
+      "expected_value": 2182702.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "operating_cash_flow_link__20250202"
+      ],
+      "hints": [
+        "Reported CFO less SBC add-back = reported operating cash flow \u2212 reported cash-flow stock-based compensation.",
+        "This mechanical diagnostic does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "operating_cash_flow_less_sbc",
+      "family_order": 128,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "operating_cash_flow_less_sbc__20260201",
+      "order": 95,
+      "title": "Reported CFO less SBC add-back",
+      "short_hint": "Reported CFO less SBC add-back. Mechanical diagnostic only; does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects.",
+      "semantic_key": "quality.operating_cash_flow_less_sbc.2026-02-01",
+      "category": "earnings_quality",
+      "tab": "Earnings Quality",
+      "cell": "E25",
+      "formula": "=E5-E22",
+      "expected_value": 1540274.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "operating_cash_flow_link__20260201"
+      ],
+      "hints": [
+        "Reported CFO less SBC add-back = reported operating cash flow \u2212 reported cash-flow stock-based compensation.",
+        "This mechanical diagnostic does not restate reported CFO, estimate cash compensation or dilution, establish free cash flow, or quantify tax effects."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "operating_cash_flow_less_sbc",
+      "family_order": 128,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "owca_to_revenue__20230129",
+      "order": 96,
+      "title": "Operating working capital assets / Revenue",
+      "short_hint": "OWCA divided by Revenue for the same fiscal period.",
+      "semantic_key": "working_capital.owca_to_revenue.2023-01-29",
+      "category": "working_capital",
+      "tab": "Working Capital Analysis",
+      "cell": "B11",
+      "formula": "=IF(B6=0,NA(),B7/B6)",
+      "expected_value": 0.24715881279099558,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Operating Working Capital Assets / Revenue measures operating current assets tied up per sales dollar.",
+        "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        "A higher ratio is not automatically deterioration; diagnose the underlying operating balances before drawing a conclusion."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "owca_to_revenue",
+      "family_order": 35,
+      "period_index": 0,
+      "period_end": "2023-01-29"
+    },
+    {
+      "id": "owca_to_revenue__20240128",
+      "order": 97,
+      "title": "Operating working capital assets / Revenue",
+      "short_hint": "OWCA divided by Revenue for the same fiscal period.",
+      "semantic_key": "working_capital.owca_to_revenue.2024-01-28",
+      "category": "working_capital",
+      "tab": "Working Capital Analysis",
+      "cell": "C11",
+      "formula": "=IF(C6=0,NA(),C7/C6)",
+      "expected_value": 0.18885055614361076,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Operating Working Capital Assets / Revenue measures operating current assets tied up per sales dollar.",
+        "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        "A higher ratio is not automatically deterioration; diagnose the underlying operating balances before drawing a conclusion."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "owca_to_revenue",
+      "family_order": 35,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "owca_to_revenue__20250202",
+      "order": 98,
+      "title": "Operating working capital assets / Revenue",
+      "short_hint": "OWCA divided by Revenue for the same fiscal period.",
+      "semantic_key": "working_capital.owca_to_revenue.2025-02-02",
+      "category": "working_capital",
+      "tab": "Working Capital Analysis",
+      "cell": "D11",
+      "formula": "=IF(D6=0,NA(),D7/D6)",
+      "expected_value": 0.18850984584051983,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Operating Working Capital Assets / Revenue measures operating current assets tied up per sales dollar.",
+        "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        "A higher ratio is not automatically deterioration; diagnose the underlying operating balances before drawing a conclusion."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "owca_to_revenue",
+      "family_order": 35,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "owca_to_revenue__20260201",
+      "order": 99,
+      "title": "Operating working capital assets / Revenue",
+      "short_hint": "OWCA divided by Revenue for the same fiscal period.",
+      "semantic_key": "working_capital.owca_to_revenue.2026-02-01",
+      "category": "working_capital",
+      "tab": "Working Capital Analysis",
+      "cell": "E11",
+      "formula": "=IF(E6=0,NA(),E7/E6)",
+      "expected_value": 0.22116432187055285,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Operating Working Capital Assets / Revenue measures operating current assets tied up per sales dollar.",
+        "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        "A higher ratio is not automatically deterioration; diagnose the underlying operating balances before drawing a conclusion."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "owca_to_revenue",
+      "family_order": 35,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "owcl_to_revenue__20230129",
+      "order": 100,
+      "title": "Operating working capital liabilities / Revenue",
+      "short_hint": "OWCL divided by Revenue for the same fiscal period.",
+      "semantic_key": "working_capital.owcl_to_revenue.2023-01-29",
+      "category": "working_capital",
+      "tab": "Working Capital Analysis",
+      "cell": "B12",
+      "formula": "=IF(B6=0,NA(),B8/B6)",
+      "expected_value": 0.1618615481773174,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Operating Working Capital Liabilities / Revenue measures operating current liabilities financing each sales dollar.",
+        "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        "A higher ratio can finance growth but is not automatically positive; payment behavior and business model matter."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "owcl_to_revenue",
+      "family_order": 36,
+      "period_index": 0,
+      "period_end": "2023-01-29"
+    },
+    {
+      "id": "owcl_to_revenue__20240128",
+      "order": 101,
+      "title": "Operating working capital liabilities / Revenue",
+      "short_hint": "OWCL divided by Revenue for the same fiscal period.",
+      "semantic_key": "working_capital.owcl_to_revenue.2024-01-28",
+      "category": "working_capital",
+      "tab": "Working Capital Analysis",
+      "cell": "C12",
+      "formula": "=IF(C6=0,NA(),C8/C6)",
+      "expected_value": 0.1453180789660097,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Operating Working Capital Liabilities / Revenue measures operating current liabilities financing each sales dollar.",
+        "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        "A higher ratio can finance growth but is not automatically positive; payment behavior and business model matter."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "owcl_to_revenue",
+      "family_order": 36,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "owcl_to_revenue__20250202",
+      "order": 102,
+      "title": "Operating working capital liabilities / Revenue",
+      "short_hint": "OWCL divided by Revenue for the same fiscal period.",
+      "semantic_key": "working_capital.owcl_to_revenue.2025-02-02",
+      "category": "working_capital",
+      "tab": "Working Capital Analysis",
+      "cell": "D12",
+      "formula": "=IF(D6=0,NA(),D8/D6)",
+      "expected_value": 0.1477575918533648,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Operating Working Capital Liabilities / Revenue measures operating current liabilities financing each sales dollar.",
+        "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        "A higher ratio can finance growth but is not automatically positive; payment behavior and business model matter."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "owcl_to_revenue",
+      "family_order": 36,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "owcl_to_revenue__20260201",
+      "order": 103,
+      "title": "Operating working capital liabilities / Revenue",
+      "short_hint": "OWCL divided by Revenue for the same fiscal period.",
+      "semantic_key": "working_capital.owcl_to_revenue.2026-02-01",
+      "category": "working_capital",
+      "tab": "Working Capital Analysis",
+      "cell": "E12",
+      "formula": "=IF(E6=0,NA(),E8/E6)",
+      "expected_value": 0.14310377749356007,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Operating Working Capital Liabilities / Revenue measures operating current liabilities financing each sales dollar.",
+        "A zero Revenue denominator makes the ratio undefined (#N/A).",
+        "A higher ratio can finance growth but is not automatically positive; payment behavior and business model matter."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "owcl_to_revenue",
+      "family_order": 36,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "nowc_to_revenue__20230129",
+      "order": 104,
+      "title": "NOWC / Revenue",
+      "short_hint": "NOWC divided by Revenue for the same fiscal period.",
+      "semantic_key": "working_capital.nowc_to_revenue.2023-01-29",
+      "category": "working_capital",
+      "tab": "Working Capital Analysis",
+      "cell": "B13",
+      "formula": "=IF(B6=0,NA(),B9/B6)",
+      "expected_value": 0.08529726461367819,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "NOWC / Revenue measures net operating working capital tied up per sales dollar.",
+        "NOWC = OWCA - OWCL.",
+        "Rising intensity means more net working capital is tied up per sales dollar, but the cause must be diagnosed rather than labeled automatically."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "nowc_to_revenue",
+      "family_order": 37,
+      "period_index": 0,
+      "period_end": "2023-01-29"
+    },
+    {
+      "id": "nowc_to_revenue__20240128",
+      "order": 105,
       "title": "NOWC / Revenue",
       "short_hint": "NOWC divided by Revenue for the same fiscal period.",
       "semantic_key": "working_capital.nowc_to_revenue.2024-01-28",
@@ -2328,7 +2648,7 @@
     },
     {
       "id": "nowc_to_revenue__20250202",
-      "order": 94,
+      "order": 106,
       "title": "NOWC / Revenue",
       "short_hint": "NOWC divided by Revenue for the same fiscal period.",
       "semantic_key": "working_capital.nowc_to_revenue.2025-02-02",
@@ -2353,7 +2673,7 @@
     },
     {
       "id": "nowc_to_revenue__20260201",
-      "order": 95,
+      "order": 107,
       "title": "NOWC / Revenue",
       "short_hint": "NOWC divided by Revenue for the same fiscal period.",
       "semantic_key": "working_capital.nowc_to_revenue.2026-02-01",
@@ -2378,7 +2698,7 @@
     },
     {
       "id": "revenue_change__20240128",
-      "order": 96,
+      "order": 108,
       "title": "Change in Revenue",
       "short_hint": "Absolute year-on-year change in Revenue.",
       "semantic_key": "working_capital.revenue_change.2024-01-28",
@@ -2401,7 +2721,7 @@
     },
     {
       "id": "revenue_change__20250202",
-      "order": 97,
+      "order": 109,
       "title": "Change in Revenue",
       "short_hint": "Absolute year-on-year change in Revenue.",
       "semantic_key": "working_capital.revenue_change.2025-02-02",
@@ -2424,7 +2744,7 @@
     },
     {
       "id": "revenue_change__20260201",
-      "order": 98,
+      "order": 110,
       "title": "Change in Revenue",
       "short_hint": "Absolute year-on-year change in Revenue.",
       "semantic_key": "working_capital.revenue_change.2026-02-01",
@@ -2447,7 +2767,7 @@
     },
     {
       "id": "nowc_change__20240128",
-      "order": 99,
+      "order": 111,
       "title": "Change in NOWC",
       "short_hint": "Absolute year-on-year change in NOWC.",
       "semantic_key": "working_capital.nowc_change.2024-01-28",
@@ -2471,7 +2791,7 @@
     },
     {
       "id": "nowc_change__20250202",
-      "order": 100,
+      "order": 112,
       "title": "Change in NOWC",
       "short_hint": "Absolute year-on-year change in NOWC.",
       "semantic_key": "working_capital.nowc_change.2025-02-02",
@@ -2495,7 +2815,7 @@
     },
     {
       "id": "nowc_change__20260201",
-      "order": 101,
+      "order": 113,
       "title": "Change in NOWC",
       "short_hint": "Absolute year-on-year change in NOWC.",
       "semantic_key": "working_capital.nowc_change.2026-02-01",
@@ -2519,7 +2839,7 @@
     },
     {
       "id": "incremental_nowc_to_revenue_change__20240128",
-      "order": 102,
+      "order": 114,
       "title": "Incremental NOWC / Change in Revenue",
       "short_hint": "Change in NOWC divided by Change in Revenue.",
       "semantic_key": "working_capital.incremental_nowc_to_revenue_change.2024-01-28",
@@ -2547,7 +2867,7 @@
     },
     {
       "id": "incremental_nowc_to_revenue_change__20250202",
-      "order": 103,
+      "order": 115,
       "title": "Incremental NOWC / Change in Revenue",
       "short_hint": "Change in NOWC divided by Change in Revenue.",
       "semantic_key": "working_capital.incremental_nowc_to_revenue_change.2025-02-02",
@@ -2575,7 +2895,7 @@
     },
     {
       "id": "incremental_nowc_to_revenue_change__20260201",
-      "order": 104,
+      "order": 116,
       "title": "Incremental NOWC / Change in Revenue",
       "short_hint": "Change in NOWC divided by Change in Revenue.",
       "semantic_key": "working_capital.incremental_nowc_to_revenue_change.2026-02-01",
@@ -2603,7 +2923,7 @@
     },
     {
       "id": "owca_change__20240128",
-      "order": 105,
+      "order": 117,
       "title": "Change in Operating Working Capital Assets",
       "short_hint": "Absolute year-on-year change in OWCA.",
       "semantic_key": "working_capital.owca_change.2024-01-28",
@@ -2631,7 +2951,7 @@
     },
     {
       "id": "owca_change__20250202",
-      "order": 106,
+      "order": 118,
       "title": "Change in Operating Working Capital Assets",
       "short_hint": "Absolute year-on-year change in OWCA.",
       "semantic_key": "working_capital.owca_change.2025-02-02",
@@ -2659,7 +2979,7 @@
     },
     {
       "id": "owca_change__20260201",
-      "order": 107,
+      "order": 119,
       "title": "Change in Operating Working Capital Assets",
       "short_hint": "Absolute year-on-year change in OWCA.",
       "semantic_key": "working_capital.owca_change.2026-02-01",
@@ -2687,7 +3007,7 @@
     },
     {
       "id": "owcl_change__20240128",
-      "order": 108,
+      "order": 120,
       "title": "Change in Operating Working Capital Liabilities",
       "short_hint": "Absolute year-on-year change in OWCL.",
       "semantic_key": "working_capital.owcl_change.2024-01-28",
@@ -2715,7 +3035,7 @@
     },
     {
       "id": "owcl_change__20250202",
-      "order": 109,
+      "order": 121,
       "title": "Change in Operating Working Capital Liabilities",
       "short_hint": "Absolute year-on-year change in OWCL.",
       "semantic_key": "working_capital.owcl_change.2025-02-02",
@@ -2743,7 +3063,7 @@
     },
     {
       "id": "owcl_change__20260201",
-      "order": 110,
+      "order": 122,
       "title": "Change in Operating Working Capital Liabilities",
       "short_hint": "Absolute year-on-year change in OWCL.",
       "semantic_key": "working_capital.owcl_change.2026-02-01",
@@ -2771,7 +3091,7 @@
     },
     {
       "id": "nowc_change_from_components__20240128",
-      "order": 111,
+      "order": 123,
       "title": "Change in NOWC from OWCA / OWCL bridge",
       "short_hint": "Change in OWCA minus Change in OWCL.",
       "semantic_key": "working_capital.nowc_change_from_components.2024-01-28",
@@ -2799,7 +3119,7 @@
     },
     {
       "id": "nowc_change_from_components__20250202",
-      "order": 112,
+      "order": 124,
       "title": "Change in NOWC from OWCA / OWCL bridge",
       "short_hint": "Change in OWCA minus Change in OWCL.",
       "semantic_key": "working_capital.nowc_change_from_components.2025-02-02",
@@ -2827,7 +3147,7 @@
     },
     {
       "id": "nowc_change_from_components__20260201",
-      "order": 113,
+      "order": 125,
       "title": "Change in NOWC from OWCA / OWCL bridge",
       "short_hint": "Change in OWCA minus Change in OWCL.",
       "semantic_key": "working_capital.nowc_change_from_components.2026-02-01",
@@ -2855,7 +3175,7 @@
     },
     {
       "id": "incremental_owca_to_revenue_change__20240128",
-      "order": 114,
+      "order": 126,
       "title": "Incremental OWCA / Change in Revenue",
       "short_hint": "Change in OWCA divided by Change in Revenue.",
       "semantic_key": "working_capital.incremental_owca_to_revenue_change.2024-01-28",
@@ -2883,7 +3203,7 @@
     },
     {
       "id": "incremental_owca_to_revenue_change__20250202",
-      "order": 115,
+      "order": 127,
       "title": "Incremental OWCA / Change in Revenue",
       "short_hint": "Change in OWCA divided by Change in Revenue.",
       "semantic_key": "working_capital.incremental_owca_to_revenue_change.2025-02-02",
@@ -2911,7 +3231,7 @@
     },
     {
       "id": "incremental_owca_to_revenue_change__20260201",
-      "order": 116,
+      "order": 128,
       "title": "Incremental OWCA / Change in Revenue",
       "short_hint": "Change in OWCA divided by Change in Revenue.",
       "semantic_key": "working_capital.incremental_owca_to_revenue_change.2026-02-01",
@@ -2939,7 +3259,7 @@
     },
     {
       "id": "incremental_owcl_to_revenue_change__20240128",
-      "order": 117,
+      "order": 129,
       "title": "Incremental OWCL / Change in Revenue",
       "short_hint": "Change in OWCL divided by Change in Revenue.",
       "semantic_key": "working_capital.incremental_owcl_to_revenue_change.2024-01-28",
@@ -2967,7 +3287,7 @@
     },
     {
       "id": "incremental_owcl_to_revenue_change__20250202",
-      "order": 118,
+      "order": 130,
       "title": "Incremental OWCL / Change in Revenue",
       "short_hint": "Change in OWCL divided by Change in Revenue.",
       "semantic_key": "working_capital.incremental_owcl_to_revenue_change.2025-02-02",
@@ -2995,7 +3315,7 @@
     },
     {
       "id": "incremental_owcl_to_revenue_change__20260201",
-      "order": 119,
+      "order": 131,
       "title": "Incremental OWCL / Change in Revenue",
       "short_hint": "Change in OWCL divided by Change in Revenue.",
       "semantic_key": "working_capital.incremental_owcl_to_revenue_change.2026-02-01",
@@ -3023,7 +3343,7 @@
     },
     {
       "id": "average_noa__20240128",
-      "order": 120,
+      "order": 132,
       "title": "Average Net Operating Assets",
       "short_hint": "Average beginning and ending NOA for the comparable period.",
       "semantic_key": "profitability.average_noa.2024-01-28",
@@ -3050,7 +3370,7 @@
     },
     {
       "id": "average_noa__20250202",
-      "order": 121,
+      "order": 133,
       "title": "Average Net Operating Assets",
       "short_hint": "Average beginning and ending NOA for the comparable period.",
       "semantic_key": "profitability.average_noa.2025-02-02",
@@ -3077,7 +3397,7 @@
     },
     {
       "id": "average_noa__20260201",
-      "order": 122,
+      "order": 134,
       "title": "Average Net Operating Assets",
       "short_hint": "Average beginning and ending NOA for the comparable period.",
       "semantic_key": "profitability.average_noa.2026-02-01",
@@ -3104,7 +3424,7 @@
     },
     {
       "id": "noa_turnover__20240128",
-      "order": 123,
+      "order": 135,
       "title": "Net Operating Asset Turnover",
       "short_hint": "Revenue divided by Average NOA.",
       "semantic_key": "profitability.noa_turnover.2024-01-28",
@@ -3132,7 +3452,7 @@
     },
     {
       "id": "noa_turnover__20250202",
-      "order": 124,
+      "order": 136,
       "title": "Net Operating Asset Turnover",
       "short_hint": "Revenue divided by Average NOA.",
       "semantic_key": "profitability.noa_turnover.2025-02-02",
@@ -3160,7 +3480,7 @@
     },
     {
       "id": "noa_turnover__20260201",
-      "order": 125,
+      "order": 137,
       "title": "Net Operating Asset Turnover",
       "short_hint": "Revenue divided by Average NOA.",
       "semantic_key": "profitability.noa_turnover.2026-02-01",
@@ -3188,7 +3508,7 @@
     },
     {
       "id": "noa_intensity__20240128",
-      "order": 126,
+      "order": 138,
       "title": "Net Operating Asset Intensity",
       "short_hint": "Average NOA divided by Revenue.",
       "semantic_key": "profitability.noa_intensity.2024-01-28",
@@ -3216,7 +3536,7 @@
     },
     {
       "id": "noa_intensity__20250202",
-      "order": 127,
+      "order": 139,
       "title": "Net Operating Asset Intensity",
       "short_hint": "Average NOA divided by Revenue.",
       "semantic_key": "profitability.noa_intensity.2025-02-02",
@@ -3244,7 +3564,7 @@
     },
     {
       "id": "noa_intensity__20260201",
-      "order": 128,
+      "order": 140,
       "title": "Net Operating Asset Intensity",
       "short_hint": "Average NOA divided by Revenue.",
       "semantic_key": "profitability.noa_intensity.2026-02-01",
@@ -3272,7 +3592,7 @@
     },
     {
       "id": "noa_turnover_change__20250202",
-      "order": 131,
+      "order": 143,
       "title": "Change in NOA Turnover",
       "short_hint": "Current NOA Turnover minus prior comparable NOA Turnover.",
       "semantic_key": "profitability_change.noa_turnover_change.2025-02-02",
@@ -3299,7 +3619,7 @@
     },
     {
       "id": "operating_cash_flow_change__20240128",
-      "order": 131,
+      "order": 143,
       "title": "Change in Operating Cash Flow",
       "short_hint": "Current CFO minus prior CFO.",
       "semantic_key": "quality_change.operating_cash_flow_change.2024-01-28",
@@ -3326,7 +3646,7 @@
     },
     {
       "id": "noa_turnover_change__20260201",
-      "order": 132,
+      "order": 144,
       "title": "Change in NOA Turnover",
       "short_hint": "Current NOA Turnover minus prior comparable NOA Turnover.",
       "semantic_key": "profitability_change.noa_turnover_change.2026-02-01",
@@ -3353,7 +3673,7 @@
     },
     {
       "id": "operating_cash_flow_change__20250202",
-      "order": 132,
+      "order": 144,
       "title": "Change in Operating Cash Flow",
       "short_hint": "Current CFO minus prior CFO.",
       "semantic_key": "quality_change.operating_cash_flow_change.2025-02-02",
@@ -3380,7 +3700,7 @@
     },
     {
       "id": "operating_cash_flow_change__20260201",
-      "order": 133,
+      "order": 145,
       "title": "Change in Operating Cash Flow",
       "short_hint": "Current CFO minus prior CFO.",
       "semantic_key": "quality_change.operating_cash_flow_change.2026-02-01",
@@ -3407,7 +3727,7 @@
     },
     {
       "id": "cash_conversion_ratio_change__20240128",
-      "order": 134,
+      "order": 146,
       "title": "Change in Cash Conversion Ratio",
       "short_hint": "Current cash conversion ratio minus prior ratio.",
       "semantic_key": "quality_change.cash_conversion_ratio_change.2024-01-28",
@@ -3435,7 +3755,7 @@
     },
     {
       "id": "cash_conversion_ratio_change__20250202",
-      "order": 135,
+      "order": 147,
       "title": "Change in Cash Conversion Ratio",
       "short_hint": "Current cash conversion ratio minus prior ratio.",
       "semantic_key": "quality_change.cash_conversion_ratio_change.2025-02-02",
@@ -3463,7 +3783,7 @@
     },
     {
       "id": "cash_conversion_ratio_change__20260201",
-      "order": 136,
+      "order": 148,
       "title": "Change in Cash Conversion Ratio",
       "short_hint": "Current cash conversion ratio minus prior ratio.",
       "semantic_key": "quality_change.cash_conversion_ratio_change.2026-02-01",
@@ -3491,7 +3811,7 @@
     },
     {
       "id": "total_accruals_change__20240128",
-      "order": 137,
+      "order": 149,
       "title": "Change in Total Accruals",
       "short_hint": "Current Total Accruals minus prior Total Accruals.",
       "semantic_key": "quality_change.total_accruals_change.2024-01-28",
@@ -3519,7 +3839,7 @@
     },
     {
       "id": "total_accruals_change__20250202",
-      "order": 138,
+      "order": 150,
       "title": "Change in Total Accruals",
       "short_hint": "Current Total Accruals minus prior Total Accruals.",
       "semantic_key": "quality_change.total_accruals_change.2025-02-02",
@@ -3547,7 +3867,7 @@
     },
     {
       "id": "total_accruals_change__20260201",
-      "order": 139,
+      "order": 151,
       "title": "Change in Total Accruals",
       "short_hint": "Current Total Accruals minus prior Total Accruals.",
       "semantic_key": "quality_change.total_accruals_change.2026-02-01",
@@ -3575,7 +3895,7 @@
     },
     {
       "id": "accrual_ratio_change__20250202",
-      "order": 140,
+      "order": 152,
       "title": "Change in Accrual Ratio",
       "short_hint": "Current accrual ratio minus prior comparable accrual ratio.",
       "semantic_key": "quality_change.accrual_ratio_change.2025-02-02",
@@ -3603,7 +3923,7 @@
     },
     {
       "id": "accrual_ratio_change__20260201",
-      "order": 141,
+      "order": 153,
       "title": "Change in Accrual Ratio",
       "short_hint": "Current accrual ratio minus prior comparable accrual ratio.",
       "semantic_key": "quality_change.accrual_ratio_change.2026-02-01",
@@ -3631,7 +3951,7 @@
     },
     {
       "id": "reported_diluted_eps__20230129",
-      "order": 142,
+      "order": 154,
       "title": "Diluted EPS (Comparable Basis)",
       "short_hint": "Earnings numerator / diluted weighted-average shares on the supplied comparable share basis.",
       "semantic_key": "per_share.reported_diluted_eps.2023-01-29",
@@ -3658,7 +3978,7 @@
     },
     {
       "id": "reported_diluted_eps__20240128",
-      "order": 143,
+      "order": 155,
       "title": "Diluted EPS (Comparable Basis)",
       "short_hint": "Earnings numerator / diluted weighted-average shares on the supplied comparable share basis.",
       "semantic_key": "per_share.reported_diluted_eps.2024-01-28",
@@ -3685,7 +4005,7 @@
     },
     {
       "id": "reported_diluted_eps__20250202",
-      "order": 144,
+      "order": 156,
       "title": "Diluted EPS (Comparable Basis)",
       "short_hint": "Earnings numerator / diluted weighted-average shares on the supplied comparable share basis.",
       "semantic_key": "per_share.reported_diluted_eps.2025-02-02",
@@ -3712,7 +4032,7 @@
     },
     {
       "id": "reported_diluted_eps__20260201",
-      "order": 145,
+      "order": 157,
       "title": "Diluted EPS (Comparable Basis)",
       "short_hint": "Earnings numerator / diluted weighted-average shares on the supplied comparable share basis.",
       "semantic_key": "per_share.reported_diluted_eps.2026-02-01",
@@ -3739,7 +4059,7 @@
     },
     {
       "id": "diluted_eps_change__20240128",
-      "order": 150,
+      "order": 162,
       "title": "Change in Diluted EPS",
       "short_hint": "Current comparable-basis Diluted EPS minus prior EPS.",
       "semantic_key": "per_share.diluted_eps_change.2024-01-28",
@@ -3766,7 +4086,7 @@
     },
     {
       "id": "diluted_eps_change__20250202",
-      "order": 151,
+      "order": 163,
       "title": "Change in Diluted EPS",
       "short_hint": "Current comparable-basis Diluted EPS minus prior EPS.",
       "semantic_key": "per_share.diluted_eps_change.2025-02-02",
@@ -3793,7 +4113,7 @@
     },
     {
       "id": "diluted_eps_change__20260201",
-      "order": 152,
+      "order": 164,
       "title": "Change in Diluted EPS",
       "short_hint": "Current comparable-basis Diluted EPS minus prior EPS.",
       "semantic_key": "per_share.diluted_eps_change.2026-02-01",
@@ -3820,7 +4140,7 @@
     },
     {
       "id": "reported_net_income_change__20240128",
-      "order": 152,
+      "order": 164,
       "title": "Change in Per-Share Earnings Numerator",
       "short_hint": "Current per-share earnings numerator minus prior per-share earnings numerator.",
       "semantic_key": "per_share_attribution.reported_net_income_change.2024-01-28",
@@ -3847,7 +4167,7 @@
     },
     {
       "id": "diluted_share_count_change__20240128",
-      "order": 153,
+      "order": 165,
       "title": "Change in Diluted Weighted-Average Shares",
       "short_hint": "Current diluted weighted-average shares minus prior shares.",
       "semantic_key": "per_share.diluted_share_count_change.2024-01-28",
@@ -3871,7 +4191,7 @@
     },
     {
       "id": "reported_net_income_change__20250202",
-      "order": 153,
+      "order": 165,
       "title": "Change in Per-Share Earnings Numerator",
       "short_hint": "Current per-share earnings numerator minus prior per-share earnings numerator.",
       "semantic_key": "per_share_attribution.reported_net_income_change.2025-02-02",
@@ -3898,7 +4218,7 @@
     },
     {
       "id": "diluted_share_count_change__20250202",
-      "order": 154,
+      "order": 166,
       "title": "Change in Diluted Weighted-Average Shares",
       "short_hint": "Current diluted weighted-average shares minus prior shares.",
       "semantic_key": "per_share.diluted_share_count_change.2025-02-02",
@@ -3922,7 +4242,7 @@
     },
     {
       "id": "reported_net_income_change__20260201",
-      "order": 154,
+      "order": 166,
       "title": "Change in Per-Share Earnings Numerator",
       "short_hint": "Current per-share earnings numerator minus prior per-share earnings numerator.",
       "semantic_key": "per_share_attribution.reported_net_income_change.2026-02-01",
@@ -3949,7 +4269,7 @@
     },
     {
       "id": "diluted_share_count_change__20260201",
-      "order": 155,
+      "order": 167,
       "title": "Change in Diluted Weighted-Average Shares",
       "short_hint": "Current diluted weighted-average shares minus prior shares.",
       "semantic_key": "per_share.diluted_share_count_change.2026-02-01",
@@ -3973,7 +4293,7 @@
     },
     {
       "id": "earnings_effect_on_diluted_eps_change__20240128",
-      "order": 155,
+      "order": 167,
       "title": "Earnings Effect on Change in Diluted EPS",
       "short_hint": "Change in per-share earnings numerator multiplied by midpoint inverse diluted shares.",
       "semantic_key": "per_share_attribution.earnings_effect.2024-01-28",
@@ -4000,7 +4320,7 @@
     },
     {
       "id": "earnings_effect_on_diluted_eps_change__20250202",
-      "order": 156,
+      "order": 168,
       "title": "Earnings Effect on Change in Diluted EPS",
       "short_hint": "Change in per-share earnings numerator multiplied by midpoint inverse diluted shares.",
       "semantic_key": "per_share_attribution.earnings_effect.2025-02-02",
@@ -4027,7 +4347,7 @@
     },
     {
       "id": "earnings_effect_on_diluted_eps_change__20260201",
-      "order": 157,
+      "order": 169,
       "title": "Earnings Effect on Change in Diluted EPS",
       "short_hint": "Change in per-share earnings numerator multiplied by midpoint inverse diluted shares.",
       "semantic_key": "per_share_attribution.earnings_effect.2026-02-01",
@@ -4054,7 +4374,7 @@
     },
     {
       "id": "share_count_effect_on_diluted_eps_change__20240128",
-      "order": 158,
+      "order": 170,
       "title": "Share-Count Effect on Change in Diluted EPS",
       "short_hint": "Change in inverse diluted shares multiplied by midpoint per-share earnings numerator.",
       "semantic_key": "per_share_attribution.share_count_effect.2024-01-28",
@@ -4083,7 +4403,7 @@
     },
     {
       "id": "share_count_effect_on_diluted_eps_change__20250202",
-      "order": 159,
+      "order": 171,
       "title": "Share-Count Effect on Change in Diluted EPS",
       "short_hint": "Change in inverse diluted shares multiplied by midpoint per-share earnings numerator.",
       "semantic_key": "per_share_attribution.share_count_effect.2025-02-02",
@@ -4112,7 +4432,7 @@
     },
     {
       "id": "share_count_effect_on_diluted_eps_change__20260201",
-      "order": 160,
+      "order": 172,
       "title": "Share-Count Effect on Change in Diluted EPS",
       "short_hint": "Change in inverse diluted shares multiplied by midpoint per-share earnings numerator.",
       "semantic_key": "per_share_attribution.share_count_effect.2026-02-01",
@@ -4141,7 +4461,7 @@
     },
     {
       "id": "diluted_eps_change_from_drivers__20240128",
-      "order": 161,
+      "order": 173,
       "title": "Change in Diluted EPS from Earnings + Share-Count Effects",
       "short_hint": "Earnings Effect plus Share-Count Effect.",
       "semantic_key": "per_share_attribution.diluted_eps_change_from_drivers.2024-01-28",
@@ -4168,7 +4488,7 @@
     },
     {
       "id": "diluted_eps_change_from_drivers__20250202",
-      "order": 162,
+      "order": 174,
       "title": "Change in Diluted EPS from Earnings + Share-Count Effects",
       "short_hint": "Earnings Effect plus Share-Count Effect.",
       "semantic_key": "per_share_attribution.diluted_eps_change_from_drivers.2025-02-02",
@@ -4195,7 +4515,7 @@
     },
     {
       "id": "diluted_eps_change_from_drivers__20260201",
-      "order": 163,
+      "order": 175,
       "title": "Change in Diluted EPS from Earnings + Share-Count Effects",
       "short_hint": "Earnings Effect plus Share-Count Effect.",
       "semantic_key": "per_share_attribution.diluted_eps_change_from_drivers.2026-02-01",
@@ -4222,7 +4542,7 @@
     },
     {
       "id": "ppe_source_link__20230129",
-      "order": 164,
+      "order": 176,
       "title": "Property, Plant & Equipment",
       "short_hint": "Link reported PP&E for the same fiscal period.",
       "semantic_key": "fixed_asset.ppe.2023-01-29",
@@ -4246,7 +4566,7 @@
     },
     {
       "id": "ppe_source_link__20240128",
-      "order": 165,
+      "order": 177,
       "title": "Property, Plant & Equipment",
       "short_hint": "Link reported PP&E for the same fiscal period.",
       "semantic_key": "fixed_asset.ppe.2024-01-28",
@@ -4270,7 +4590,7 @@
     },
     {
       "id": "ppe_source_link__20250202",
-      "order": 166,
+      "order": 178,
       "title": "Property, Plant & Equipment",
       "short_hint": "Link reported PP&E for the same fiscal period.",
       "semantic_key": "fixed_asset.ppe.2025-02-02",
@@ -4294,7 +4614,7 @@
     },
     {
       "id": "ppe_source_link__20260201",
-      "order": 167,
+      "order": 179,
       "title": "Property, Plant & Equipment",
       "short_hint": "Link reported PP&E for the same fiscal period.",
       "semantic_key": "fixed_asset.ppe.2026-02-01",
@@ -4318,7 +4638,7 @@
     },
     {
       "id": "da_source_link__20230129",
-      "order": 168,
+      "order": 180,
       "title": "Depreciation & Amortisation",
       "short_hint": "Link reported combined D&A for the same fiscal period.",
       "semantic_key": "fixed_asset.depreciation_amortization.2023-01-29",
@@ -4342,7 +4662,7 @@
     },
     {
       "id": "da_source_link__20240128",
-      "order": 169,
+      "order": 181,
       "title": "Depreciation & Amortisation",
       "short_hint": "Link reported combined D&A for the same fiscal period.",
       "semantic_key": "fixed_asset.depreciation_amortization.2024-01-28",
@@ -4366,7 +4686,7 @@
     },
     {
       "id": "da_source_link__20250202",
-      "order": 170,
+      "order": 182,
       "title": "Depreciation & Amortisation",
       "short_hint": "Link reported combined D&A for the same fiscal period.",
       "semantic_key": "fixed_asset.depreciation_amortization.2025-02-02",
@@ -4390,7 +4710,7 @@
     },
     {
       "id": "da_source_link__20260201",
-      "order": 171,
+      "order": 183,
       "title": "Depreciation & Amortisation",
       "short_hint": "Link reported combined D&A for the same fiscal period.",
       "semantic_key": "fixed_asset.depreciation_amortization.2026-02-01",
@@ -4414,7 +4734,7 @@
     },
     {
       "id": "average_ppe__20240128",
-      "order": 172,
+      "order": 184,
       "title": "Average PP&E",
       "short_hint": "Average beginning and ending PP&E.",
       "semantic_key": "fixed_asset.average_ppe.2024-01-28",
@@ -4440,7 +4760,7 @@
     },
     {
       "id": "average_ppe__20250202",
-      "order": 173,
+      "order": 185,
       "title": "Average PP&E",
       "short_hint": "Average beginning and ending PP&E.",
       "semantic_key": "fixed_asset.average_ppe.2025-02-02",
@@ -4466,7 +4786,7 @@
     },
     {
       "id": "average_ppe__20260201",
-      "order": 174,
+      "order": 186,
       "title": "Average PP&E",
       "short_hint": "Average beginning and ending PP&E.",
       "semantic_key": "fixed_asset.average_ppe.2026-02-01",
@@ -4492,7 +4812,7 @@
     },
     {
       "id": "ppe_turnover__20240128",
-      "order": 175,
+      "order": 187,
       "title": "PP&E Turnover",
       "short_hint": "Revenue divided by Average PP&E.",
       "semantic_key": "fixed_asset.ppe_turnover.2024-01-28",
@@ -4520,7 +4840,7 @@
     },
     {
       "id": "ppe_turnover__20250202",
-      "order": 176,
+      "order": 188,
       "title": "PP&E Turnover",
       "short_hint": "Revenue divided by Average PP&E.",
       "semantic_key": "fixed_asset.ppe_turnover.2025-02-02",
@@ -4548,7 +4868,7 @@
     },
     {
       "id": "ppe_turnover__20260201",
-      "order": 177,
+      "order": 189,
       "title": "PP&E Turnover",
       "short_hint": "Revenue divided by Average PP&E.",
       "semantic_key": "fixed_asset.ppe_turnover.2026-02-01",
@@ -4576,7 +4896,7 @@
     },
     {
       "id": "ppe_intensity__20240128",
-      "order": 178,
+      "order": 190,
       "title": "PP&E Intensity",
       "short_hint": "Average PP&E divided by Revenue.",
       "semantic_key": "fixed_asset.ppe_intensity.2024-01-28",
@@ -4604,7 +4924,7 @@
     },
     {
       "id": "ppe_intensity__20250202",
-      "order": 179,
+      "order": 191,
       "title": "PP&E Intensity",
       "short_hint": "Average PP&E divided by Revenue.",
       "semantic_key": "fixed_asset.ppe_intensity.2025-02-02",
@@ -4632,7 +4952,7 @@
     },
     {
       "id": "ppe_intensity__20260201",
-      "order": 180,
+      "order": 192,
       "title": "PP&E Intensity",
       "short_hint": "Average PP&E divided by Revenue.",
       "semantic_key": "fixed_asset.ppe_intensity.2026-02-01",
@@ -4660,7 +4980,7 @@
     },
     {
       "id": "ppe_change__20240128",
-      "order": 181,
+      "order": 193,
       "title": "Change in PP&E",
       "short_hint": "Current PP&E minus prior PP&E.",
       "semantic_key": "fixed_asset.ppe_change.2024-01-28",
@@ -4687,7 +5007,7 @@
     },
     {
       "id": "ppe_change__20250202",
-      "order": 182,
+      "order": 194,
       "title": "Change in PP&E",
       "short_hint": "Current PP&E minus prior PP&E.",
       "semantic_key": "fixed_asset.ppe_change.2025-02-02",
@@ -4714,7 +5034,7 @@
     },
     {
       "id": "ppe_change__20260201",
-      "order": 183,
+      "order": 195,
       "title": "Change in PP&E",
       "short_hint": "Current PP&E minus prior PP&E.",
       "semantic_key": "fixed_asset.ppe_change.2026-02-01",
@@ -4741,7 +5061,7 @@
     },
     {
       "id": "da_to_revenue__20230129",
-      "order": 184,
+      "order": 196,
       "title": "D&A / Revenue",
       "short_hint": "Combined D&A divided by Revenue.",
       "semantic_key": "fixed_asset.da_to_revenue.2023-01-29",
@@ -4768,7 +5088,7 @@
     },
     {
       "id": "da_to_revenue__20240128",
-      "order": 185,
+      "order": 197,
       "title": "D&A / Revenue",
       "short_hint": "Combined D&A divided by Revenue.",
       "semantic_key": "fixed_asset.da_to_revenue.2024-01-28",
@@ -4795,7 +5115,7 @@
     },
     {
       "id": "da_to_revenue__20250202",
-      "order": 186,
+      "order": 198,
       "title": "D&A / Revenue",
       "short_hint": "Combined D&A divided by Revenue.",
       "semantic_key": "fixed_asset.da_to_revenue.2025-02-02",
@@ -4822,7 +5142,7 @@
     },
     {
       "id": "da_to_revenue__20260201",
-      "order": 187,
+      "order": 199,
       "title": "D&A / Revenue",
       "short_hint": "Combined D&A divided by Revenue.",
       "semantic_key": "fixed_asset.da_to_revenue.2026-02-01",
@@ -4849,7 +5169,7 @@
     },
     {
       "id": "da_to_average_ppe__20240128",
-      "order": 188,
+      "order": 200,
       "title": "D&A / Average PP&E",
       "short_hint": "Combined D&A divided by Average PP&E (context ratio only).",
       "semantic_key": "fixed_asset.da_to_average_ppe.2024-01-28",
@@ -4877,7 +5197,7 @@
     },
     {
       "id": "da_to_average_ppe__20250202",
-      "order": 189,
+      "order": 201,
       "title": "D&A / Average PP&E",
       "short_hint": "Combined D&A divided by Average PP&E (context ratio only).",
       "semantic_key": "fixed_asset.da_to_average_ppe.2025-02-02",
@@ -4905,7 +5225,7 @@
     },
     {
       "id": "da_to_average_ppe__20260201",
-      "order": 190,
+      "order": 202,
       "title": "D&A / Average PP&E",
       "short_hint": "Combined D&A divided by Average PP&E (context ratio only).",
       "semantic_key": "fixed_asset.da_to_average_ppe.2026-02-01",
@@ -4933,7 +5253,7 @@
     },
     {
       "id": "lease_liability_source_link__20230129",
-      "order": 191,
+      "order": 203,
       "title": "Lease Liability",
       "short_hint": "Link the reported aggregate lease-liability balance.",
       "semantic_key": "lease_liability.lease_liability.2023-01-29",
@@ -4958,7 +5278,7 @@
     },
     {
       "id": "lease_liability_source_link__20240128",
-      "order": 192,
+      "order": 204,
       "title": "Lease Liability",
       "short_hint": "Link the reported aggregate lease-liability balance.",
       "semantic_key": "lease_liability.lease_liability.2024-01-28",
@@ -4983,7 +5303,7 @@
     },
     {
       "id": "lease_liability_source_link__20250202",
-      "order": 193,
+      "order": 205,
       "title": "Lease Liability",
       "short_hint": "Link the reported aggregate lease-liability balance.",
       "semantic_key": "lease_liability.lease_liability.2025-02-02",
@@ -5008,7 +5328,7 @@
     },
     {
       "id": "lease_liability_source_link__20260201",
-      "order": 194,
+      "order": 206,
       "title": "Lease Liability",
       "short_hint": "Link the reported aggregate lease-liability balance.",
       "semantic_key": "lease_liability.lease_liability.2026-02-01",
@@ -5033,7 +5353,7 @@
     },
     {
       "id": "lease_liability_to_revenue__20230129",
-      "order": 195,
+      "order": 207,
       "title": "Lease Liability / Revenue",
       "short_hint": "Reported lease liability divided by Revenue.",
       "semantic_key": "lease_liability.lease_liability_to_revenue.2023-01-29",
@@ -5061,7 +5381,7 @@
     },
     {
       "id": "lease_liability_to_revenue__20240128",
-      "order": 196,
+      "order": 208,
       "title": "Lease Liability / Revenue",
       "short_hint": "Reported lease liability divided by Revenue.",
       "semantic_key": "lease_liability.lease_liability_to_revenue.2024-01-28",
@@ -5089,7 +5409,7 @@
     },
     {
       "id": "lease_liability_to_revenue__20250202",
-      "order": 197,
+      "order": 209,
       "title": "Lease Liability / Revenue",
       "short_hint": "Reported lease liability divided by Revenue.",
       "semantic_key": "lease_liability.lease_liability_to_revenue.2025-02-02",
@@ -5117,7 +5437,7 @@
     },
     {
       "id": "lease_liability_to_revenue__20260201",
-      "order": 198,
+      "order": 210,
       "title": "Lease Liability / Revenue",
       "short_hint": "Reported lease liability divided by Revenue.",
       "semantic_key": "lease_liability.lease_liability_to_revenue.2026-02-01",
@@ -5145,7 +5465,7 @@
     },
     {
       "id": "lease_liability_change__20240128",
-      "order": 199,
+      "order": 211,
       "title": "Change in Lease Liability",
       "short_hint": "Current lease liability minus prior lease liability.",
       "semantic_key": "lease_liability.lease_liability_change.2024-01-28",
@@ -5172,7 +5492,7 @@
     },
     {
       "id": "lease_liability_change__20250202",
-      "order": 200,
+      "order": 212,
       "title": "Change in Lease Liability",
       "short_hint": "Current lease liability minus prior lease liability.",
       "semantic_key": "lease_liability.lease_liability_change.2025-02-02",
@@ -5199,7 +5519,7 @@
     },
     {
       "id": "lease_liability_change__20260201",
-      "order": 201,
+      "order": 213,
       "title": "Change in Lease Liability",
       "short_hint": "Current lease liability minus prior lease liability.",
       "semantic_key": "lease_liability.lease_liability_change.2026-02-01",
@@ -5226,7 +5546,7 @@
     },
     {
       "id": "lease_liability_growth__20240128",
-      "order": 202,
+      "order": 214,
       "title": "Lease Liability Growth",
       "short_hint": "Percentage change in reported lease liability.",
       "semantic_key": "lease_liability.lease_liability_growth.2024-01-28",
@@ -5254,7 +5574,7 @@
     },
     {
       "id": "lease_liability_growth__20250202",
-      "order": 203,
+      "order": 215,
       "title": "Lease Liability Growth",
       "short_hint": "Percentage change in reported lease liability.",
       "semantic_key": "lease_liability.lease_liability_growth.2025-02-02",
@@ -5282,7 +5602,7 @@
     },
     {
       "id": "lease_liability_growth__20260201",
-      "order": 204,
+      "order": 216,
       "title": "Lease Liability Growth",
       "short_hint": "Percentage change in reported lease liability.",
       "semantic_key": "lease_liability.lease_liability_growth.2026-02-01",
@@ -5310,7 +5630,7 @@
     },
     {
       "id": "goodwill_change__20240128",
-      "order": 205,
+      "order": 217,
       "title": "Change in Goodwill",
       "short_hint": "Current goodwill \u2212 prior goodwill. Flat goodwill does not establish absence of impairment disclosed elsewhere.",
       "semantic_key": "goodwill_intangibles.goodwill_change.2024-01-28",
@@ -5334,7 +5654,7 @@
     },
     {
       "id": "goodwill_change__20250202",
-      "order": 206,
+      "order": 218,
       "title": "Change in Goodwill",
       "short_hint": "Current goodwill \u2212 prior goodwill. Flat goodwill does not establish absence of impairment disclosed elsewhere.",
       "semantic_key": "goodwill_intangibles.goodwill_change.2025-02-02",
@@ -5358,7 +5678,7 @@
     },
     {
       "id": "goodwill_change__20260201",
-      "order": 207,
+      "order": 219,
       "title": "Change in Goodwill",
       "short_hint": "Current goodwill \u2212 prior goodwill. Flat goodwill does not establish absence of impairment disclosed elsewhere.",
       "semantic_key": "goodwill_intangibles.goodwill_change.2026-02-01",
@@ -5382,7 +5702,7 @@
     },
     {
       "id": "goodwill_growth__20240128",
-      "order": 208,
+      "order": 220,
       "title": "Goodwill Growth",
       "short_hint": "Percentage change in reported goodwill.",
       "semantic_key": "goodwill_intangibles.goodwill_growth.2024-01-28",
@@ -5409,7 +5729,7 @@
     },
     {
       "id": "goodwill_growth__20250202",
-      "order": 209,
+      "order": 221,
       "title": "Goodwill Growth",
       "short_hint": "Percentage change in reported goodwill.",
       "semantic_key": "goodwill_intangibles.goodwill_growth.2025-02-02",
@@ -5436,7 +5756,7 @@
     },
     {
       "id": "goodwill_growth__20260201",
-      "order": 210,
+      "order": 222,
       "title": "Goodwill Growth",
       "short_hint": "Percentage change in reported goodwill.",
       "semantic_key": "goodwill_intangibles.goodwill_growth.2026-02-01",
@@ -5463,7 +5783,7 @@
     },
     {
       "id": "average_goodwill__20240128",
-      "order": 211,
+      "order": 223,
       "title": "Average Goodwill",
       "short_hint": "Average beginning and ending goodwill.",
       "semantic_key": "goodwill_intangibles.average_goodwill.2024-01-28",
@@ -5486,7 +5806,7 @@
     },
     {
       "id": "average_goodwill__20250202",
-      "order": 212,
+      "order": 224,
       "title": "Average Goodwill",
       "short_hint": "Average beginning and ending goodwill.",
       "semantic_key": "goodwill_intangibles.average_goodwill.2025-02-02",
@@ -5509,7 +5829,7 @@
     },
     {
       "id": "average_goodwill__20260201",
-      "order": 213,
+      "order": 225,
       "title": "Average Goodwill",
       "short_hint": "Average beginning and ending goodwill.",
       "semantic_key": "goodwill_intangibles.average_goodwill.2026-02-01",
@@ -5532,7 +5852,7 @@
     },
     {
       "id": "goodwill_to_revenue__20240128",
-      "order": 214,
+      "order": 226,
       "title": "Average Goodwill / Revenue",
       "short_hint": "Average goodwill divided by Revenue (average-balance intensity).",
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2024-01-28",
@@ -5559,7 +5879,7 @@
     },
     {
       "id": "goodwill_to_revenue__20250202",
-      "order": 215,
+      "order": 227,
       "title": "Average Goodwill / Revenue",
       "short_hint": "Average goodwill divided by Revenue (average-balance intensity).",
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2025-02-02",
@@ -5586,7 +5906,7 @@
     },
     {
       "id": "goodwill_to_revenue__20260201",
-      "order": 216,
+      "order": 228,
       "title": "Average Goodwill / Revenue",
       "short_hint": "Average goodwill divided by Revenue (average-balance intensity).",
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2026-02-01",
@@ -5613,7 +5933,7 @@
     },
     {
       "id": "intangible_assets_change__20240128",
-      "order": 217,
+      "order": 229,
       "title": "Change in Intangible Assets",
       "short_hint": "Current intangible assets \u2212 prior intangible assets.",
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2024-01-28",
@@ -5636,7 +5956,7 @@
     },
     {
       "id": "intangible_assets_change__20250202",
-      "order": 218,
+      "order": 230,
       "title": "Change in Intangible Assets",
       "short_hint": "Current intangible assets \u2212 prior intangible assets.",
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2025-02-02",
@@ -5659,7 +5979,7 @@
     },
     {
       "id": "intangible_assets_change__20260201",
-      "order": 219,
+      "order": 231,
       "title": "Change in Intangible Assets",
       "short_hint": "Current intangible assets \u2212 prior intangible assets.",
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2026-02-01",
@@ -5682,7 +6002,7 @@
     },
     {
       "id": "intangible_assets_growth__20240128",
-      "order": 220,
+      "order": 232,
       "title": "Intangible Assets Growth",
       "short_hint": "Percentage change in reported intangible assets.",
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2024-01-28",
@@ -5708,7 +6028,7 @@
     },
     {
       "id": "intangible_assets_growth__20250202",
-      "order": 221,
+      "order": 233,
       "title": "Intangible Assets Growth",
       "short_hint": "Percentage change in reported intangible assets.",
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2025-02-02",
@@ -5734,7 +6054,7 @@
     },
     {
       "id": "intangible_assets_growth__20260201",
-      "order": 222,
+      "order": 234,
       "title": "Intangible Assets Growth",
       "short_hint": "Percentage change in reported intangible assets.",
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2026-02-01",
@@ -5760,7 +6080,7 @@
     },
     {
       "id": "average_intangible_assets__20240128",
-      "order": 223,
+      "order": 235,
       "title": "Average Intangible Assets",
       "short_hint": "Average beginning and ending intangible assets.",
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2024-01-28",
@@ -5783,7 +6103,7 @@
     },
     {
       "id": "average_intangible_assets__20250202",
-      "order": 224,
+      "order": 236,
       "title": "Average Intangible Assets",
       "short_hint": "Average beginning and ending intangible assets.",
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2025-02-02",
@@ -5806,7 +6126,7 @@
     },
     {
       "id": "average_intangible_assets__20260201",
-      "order": 225,
+      "order": 237,
       "title": "Average Intangible Assets",
       "short_hint": "Average beginning and ending intangible assets.",
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2026-02-01",
@@ -5829,7 +6149,7 @@
     },
     {
       "id": "intangible_assets_to_revenue__20240128",
-      "order": 226,
+      "order": 238,
       "title": "Average Intangible Assets / Revenue",
       "short_hint": "Average intangible assets divided by Revenue (average-balance intensity).",
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2024-01-28",
@@ -5856,7 +6176,7 @@
     },
     {
       "id": "intangible_assets_to_revenue__20250202",
-      "order": 227,
+      "order": 239,
       "title": "Average Intangible Assets / Revenue",
       "short_hint": "Average intangible assets divided by Revenue (average-balance intensity).",
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2025-02-02",
@@ -5883,7 +6203,7 @@
     },
     {
       "id": "intangible_assets_to_revenue__20260201",
-      "order": 228,
+      "order": 240,
       "title": "Average Intangible Assets / Revenue",
       "short_hint": "Average intangible assets divided by Revenue (average-balance intensity).",
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2026-02-01",
@@ -5910,7 +6230,7 @@
     },
     {
       "id": "goodwill_and_intangibles_change__20240128",
-      "order": 229,
+      "order": 241,
       "title": "Change in Goodwill & Intangibles",
       "short_hint": "Current combined total \u2212 prior combined total.",
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2024-01-28",
@@ -5933,7 +6253,7 @@
     },
     {
       "id": "goodwill_and_intangibles_change__20250202",
-      "order": 230,
+      "order": 242,
       "title": "Change in Goodwill & Intangibles",
       "short_hint": "Current combined total \u2212 prior combined total.",
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2025-02-02",
@@ -5956,7 +6276,7 @@
     },
     {
       "id": "goodwill_and_intangibles_change__20260201",
-      "order": 231,
+      "order": 243,
       "title": "Change in Goodwill & Intangibles",
       "short_hint": "Current combined total \u2212 prior combined total.",
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2026-02-01",
@@ -5979,7 +6299,7 @@
     },
     {
       "id": "goodwill_and_intangibles_growth__20240128",
-      "order": 232,
+      "order": 244,
       "title": "Goodwill & Intangibles Growth",
       "short_hint": "Percentage change in the combined goodwill and intangibles total.",
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2024-01-28",
@@ -6005,7 +6325,7 @@
     },
     {
       "id": "goodwill_and_intangibles_growth__20250202",
-      "order": 233,
+      "order": 245,
       "title": "Goodwill & Intangibles Growth",
       "short_hint": "Percentage change in the combined goodwill and intangibles total.",
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2025-02-02",
@@ -6031,7 +6351,7 @@
     },
     {
       "id": "goodwill_and_intangibles_growth__20260201",
-      "order": 234,
+      "order": 246,
       "title": "Goodwill & Intangibles Growth",
       "short_hint": "Percentage change in the combined goodwill and intangibles total.",
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2026-02-01",
@@ -6057,7 +6377,7 @@
     },
     {
       "id": "average_goodwill_and_intangibles__20240128",
-      "order": 235,
+      "order": 247,
       "title": "Average Goodwill & Intangibles",
       "short_hint": "Average beginning and ending combined goodwill and intangibles.",
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2024-01-28",
@@ -6080,7 +6400,7 @@
     },
     {
       "id": "average_goodwill_and_intangibles__20250202",
-      "order": 236,
+      "order": 248,
       "title": "Average Goodwill & Intangibles",
       "short_hint": "Average beginning and ending combined goodwill and intangibles.",
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2025-02-02",
@@ -6103,7 +6423,7 @@
     },
     {
       "id": "average_goodwill_and_intangibles__20260201",
-      "order": 237,
+      "order": 249,
       "title": "Average Goodwill & Intangibles",
       "short_hint": "Average beginning and ending combined goodwill and intangibles.",
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2026-02-01",
@@ -6126,7 +6446,7 @@
     },
     {
       "id": "goodwill_and_intangibles_to_revenue__20240128",
-      "order": 238,
+      "order": 250,
       "title": "Average Goodwill & Intangibles / Revenue",
       "short_hint": "Average combined goodwill and intangibles divided by Revenue.",
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-01-28",
@@ -6153,7 +6473,7 @@
     },
     {
       "id": "goodwill_and_intangibles_to_revenue__20250202",
-      "order": 239,
+      "order": 251,
       "title": "Average Goodwill & Intangibles / Revenue",
       "short_hint": "Average combined goodwill and intangibles divided by Revenue.",
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-02-02",
@@ -6180,7 +6500,7 @@
     },
     {
       "id": "goodwill_and_intangibles_to_revenue__20260201",
-      "order": 240,
+      "order": 252,
       "title": "Average Goodwill & Intangibles / Revenue",
       "short_hint": "Average combined goodwill and intangibles divided by Revenue.",
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2026-02-01",
@@ -6207,7 +6527,7 @@
     },
     {
       "id": "rou_assets_change__20240128",
-      "order": 241,
+      "order": 253,
       "title": "Change in Right-of-use Assets",
       "short_hint": "Current ROU assets \u2212 prior ROU assets.",
       "semantic_key": "lease_rou.rou_assets_change.2024-01-28",
@@ -6231,7 +6551,7 @@
     },
     {
       "id": "rou_assets_change__20250202",
-      "order": 242,
+      "order": 254,
       "title": "Change in Right-of-use Assets",
       "short_hint": "Current ROU assets \u2212 prior ROU assets.",
       "semantic_key": "lease_rou.rou_assets_change.2025-02-02",
@@ -6255,7 +6575,7 @@
     },
     {
       "id": "rou_assets_change__20260201",
-      "order": 243,
+      "order": 255,
       "title": "Change in Right-of-use Assets",
       "short_hint": "Current ROU assets \u2212 prior ROU assets.",
       "semantic_key": "lease_rou.rou_assets_change.2026-02-01",
@@ -6279,7 +6599,7 @@
     },
     {
       "id": "rou_assets_growth__20240128",
-      "order": 244,
+      "order": 256,
       "title": "Right-of-use Assets Growth",
       "short_hint": "Percentage change in reported ROU assets.",
       "semantic_key": "lease_rou.rou_assets_growth.2024-01-28",
@@ -6306,7 +6626,7 @@
     },
     {
       "id": "rou_assets_growth__20250202",
-      "order": 245,
+      "order": 257,
       "title": "Right-of-use Assets Growth",
       "short_hint": "Percentage change in reported ROU assets.",
       "semantic_key": "lease_rou.rou_assets_growth.2025-02-02",
@@ -6333,7 +6653,7 @@
     },
     {
       "id": "rou_assets_growth__20260201",
-      "order": 246,
+      "order": 258,
       "title": "Right-of-use Assets Growth",
       "short_hint": "Percentage change in reported ROU assets.",
       "semantic_key": "lease_rou.rou_assets_growth.2026-02-01",
@@ -6360,7 +6680,7 @@
     },
     {
       "id": "average_rou_assets__20240128",
-      "order": 247,
+      "order": 259,
       "title": "Average Right-of-use Assets",
       "short_hint": "Average beginning and ending ROU assets.",
       "semantic_key": "lease_rou.average_rou_assets.2024-01-28",
@@ -6383,7 +6703,7 @@
     },
     {
       "id": "average_rou_assets__20250202",
-      "order": 248,
+      "order": 260,
       "title": "Average Right-of-use Assets",
       "short_hint": "Average beginning and ending ROU assets.",
       "semantic_key": "lease_rou.average_rou_assets.2025-02-02",
@@ -6406,7 +6726,7 @@
     },
     {
       "id": "average_rou_assets__20260201",
-      "order": 249,
+      "order": 261,
       "title": "Average Right-of-use Assets",
       "short_hint": "Average beginning and ending ROU assets.",
       "semantic_key": "lease_rou.average_rou_assets.2026-02-01",
@@ -6429,7 +6749,7 @@
     },
     {
       "id": "rou_assets_to_revenue__20240128",
-      "order": 250,
+      "order": 262,
       "title": "Average Right-of-use Assets / Revenue",
       "short_hint": "Average ROU assets divided by current Revenue (balance intensity).",
       "semantic_key": "lease_rou.rou_assets_to_revenue.2024-01-28",
@@ -6457,7 +6777,7 @@
     },
     {
       "id": "rou_assets_to_revenue__20250202",
-      "order": 251,
+      "order": 263,
       "title": "Average Right-of-use Assets / Revenue",
       "short_hint": "Average ROU assets divided by current Revenue (balance intensity).",
       "semantic_key": "lease_rou.rou_assets_to_revenue.2025-02-02",
@@ -6485,7 +6805,7 @@
     },
     {
       "id": "rou_assets_to_revenue__20260201",
-      "order": 252,
+      "order": 264,
       "title": "Average Right-of-use Assets / Revenue",
       "short_hint": "Average ROU assets divided by current Revenue (balance intensity).",
       "semantic_key": "lease_rou.rou_assets_to_revenue.2026-02-01",
@@ -6513,7 +6833,7 @@
     },
     {
       "id": "net_deferred_tax_position__20230129",
-      "order": 253,
+      "order": 265,
       "title": "Net Deferred-Tax Asset Position (DTA \u2212 DTL)",
       "short_hint": "Analytical net position = Deferred tax assets \u2212 Deferred tax liabilities.",
       "semantic_key": "deferred_tax.net_deferred_tax_position.2023-01-29",
@@ -6537,7 +6857,7 @@
     },
     {
       "id": "net_deferred_tax_position__20240128",
-      "order": 254,
+      "order": 266,
       "title": "Net Deferred-Tax Asset Position (DTA \u2212 DTL)",
       "short_hint": "Analytical net position = Deferred tax assets \u2212 Deferred tax liabilities.",
       "semantic_key": "deferred_tax.net_deferred_tax_position.2024-01-28",
@@ -6561,7 +6881,7 @@
     },
     {
       "id": "net_deferred_tax_position__20250202",
-      "order": 255,
+      "order": 267,
       "title": "Net Deferred-Tax Asset Position (DTA \u2212 DTL)",
       "short_hint": "Analytical net position = Deferred tax assets \u2212 Deferred tax liabilities.",
       "semantic_key": "deferred_tax.net_deferred_tax_position.2025-02-02",
@@ -6585,7 +6905,7 @@
     },
     {
       "id": "net_deferred_tax_position__20260201",
-      "order": 256,
+      "order": 268,
       "title": "Net Deferred-Tax Asset Position (DTA \u2212 DTL)",
       "short_hint": "Analytical net position = Deferred tax assets \u2212 Deferred tax liabilities.",
       "semantic_key": "deferred_tax.net_deferred_tax_position.2026-02-01",
@@ -6609,7 +6929,7 @@
     },
     {
       "id": "deferred_tax_assets_change__20240128",
-      "order": 257,
+      "order": 269,
       "title": "Change in Deferred Tax Assets",
       "short_hint": "Current DTA \u2212 prior DTA.",
       "semantic_key": "deferred_tax.deferred_tax_assets_change.2024-01-28",
@@ -6633,7 +6953,7 @@
     },
     {
       "id": "deferred_tax_assets_change__20250202",
-      "order": 258,
+      "order": 270,
       "title": "Change in Deferred Tax Assets",
       "short_hint": "Current DTA \u2212 prior DTA.",
       "semantic_key": "deferred_tax.deferred_tax_assets_change.2025-02-02",
@@ -6657,7 +6977,7 @@
     },
     {
       "id": "deferred_tax_assets_change__20260201",
-      "order": 259,
+      "order": 271,
       "title": "Change in Deferred Tax Assets",
       "short_hint": "Current DTA \u2212 prior DTA.",
       "semantic_key": "deferred_tax.deferred_tax_assets_change.2026-02-01",
@@ -6681,7 +7001,7 @@
     },
     {
       "id": "deferred_tax_liabilities_change__20240128",
-      "order": 260,
+      "order": 272,
       "title": "Change in Deferred Tax Liabilities",
       "short_hint": "Current DTL \u2212 prior DTL.",
       "semantic_key": "deferred_tax.deferred_tax_liabilities_change.2024-01-28",
@@ -6705,7 +7025,7 @@
     },
     {
       "id": "deferred_tax_liabilities_change__20250202",
-      "order": 261,
+      "order": 273,
       "title": "Change in Deferred Tax Liabilities",
       "short_hint": "Current DTL \u2212 prior DTL.",
       "semantic_key": "deferred_tax.deferred_tax_liabilities_change.2025-02-02",
@@ -6729,7 +7049,7 @@
     },
     {
       "id": "deferred_tax_liabilities_change__20260201",
-      "order": 262,
+      "order": 274,
       "title": "Change in Deferred Tax Liabilities",
       "short_hint": "Current DTL \u2212 prior DTL.",
       "semantic_key": "deferred_tax.deferred_tax_liabilities_change.2026-02-01",
@@ -6753,7 +7073,7 @@
     },
     {
       "id": "net_deferred_tax_position_change__20240128",
-      "order": 263,
+      "order": 275,
       "title": "Change in Net Deferred-Tax Asset Position",
       "short_hint": "Current net position \u2212 prior net position.",
       "semantic_key": "deferred_tax.net_deferred_tax_position_change.2024-01-28",
@@ -6780,7 +7100,7 @@
     },
     {
       "id": "net_deferred_tax_position_change__20250202",
-      "order": 264,
+      "order": 276,
       "title": "Change in Net Deferred-Tax Asset Position",
       "short_hint": "Current net position \u2212 prior net position.",
       "semantic_key": "deferred_tax.net_deferred_tax_position_change.2025-02-02",
@@ -6807,7 +7127,7 @@
     },
     {
       "id": "net_deferred_tax_position_change__20260201",
-      "order": 265,
+      "order": 277,
       "title": "Change in Net Deferred-Tax Asset Position",
       "short_hint": "Current net position \u2212 prior net position.",
       "semantic_key": "deferred_tax.net_deferred_tax_position_change.2026-02-01",
@@ -6834,7 +7154,7 @@
     },
     {
       "id": "ppe_capex__20230129",
-      "order": 266,
+      "order": 278,
       "title": "PP&E Capex (\u2212reported)",
       "short_hint": "Presented as \u2212reported payments for property, plant and equipment.",
       "semantic_key": "capex.ppe_capex.2023-01-29",
@@ -6859,7 +7179,7 @@
     },
     {
       "id": "ppe_capex__20240128",
-      "order": 267,
+      "order": 279,
       "title": "PP&E Capex (\u2212reported)",
       "short_hint": "Presented as \u2212reported payments for property, plant and equipment.",
       "semantic_key": "capex.ppe_capex.2024-01-28",
@@ -6884,7 +7204,7 @@
     },
     {
       "id": "ppe_capex__20250202",
-      "order": 268,
+      "order": 280,
       "title": "PP&E Capex (\u2212reported)",
       "short_hint": "Presented as \u2212reported payments for property, plant and equipment.",
       "semantic_key": "capex.ppe_capex.2025-02-02",
@@ -6909,7 +7229,7 @@
     },
     {
       "id": "ppe_capex__20260201",
-      "order": 269,
+      "order": 281,
       "title": "PP&E Capex (\u2212reported)",
       "short_hint": "Presented as \u2212reported payments for property, plant and equipment.",
       "semantic_key": "capex.ppe_capex.2026-02-01",
@@ -6934,7 +7254,7 @@
     },
     {
       "id": "ppe_capex_to_revenue__20230129",
-      "order": 270,
+      "order": 282,
       "title": "PP&E Capex / Revenue",
       "short_hint": "Presented PP&E capex divided by same-period Revenue.",
       "semantic_key": "capex.ppe_capex_to_revenue.2023-01-29",
@@ -6962,7 +7282,7 @@
     },
     {
       "id": "ppe_capex_to_revenue__20240128",
-      "order": 271,
+      "order": 283,
       "title": "PP&E Capex / Revenue",
       "short_hint": "Presented PP&E capex divided by same-period Revenue.",
       "semantic_key": "capex.ppe_capex_to_revenue.2024-01-28",
@@ -6990,7 +7310,7 @@
     },
     {
       "id": "ppe_capex_to_revenue__20250202",
-      "order": 272,
+      "order": 284,
       "title": "PP&E Capex / Revenue",
       "short_hint": "Presented PP&E capex divided by same-period Revenue.",
       "semantic_key": "capex.ppe_capex_to_revenue.2025-02-02",
@@ -7018,7 +7338,7 @@
     },
     {
       "id": "ppe_capex_to_revenue__20260201",
-      "order": 273,
+      "order": 285,
       "title": "PP&E Capex / Revenue",
       "short_hint": "Presented PP&E capex divided by same-period Revenue.",
       "semantic_key": "capex.ppe_capex_to_revenue.2026-02-01",
@@ -7046,7 +7366,7 @@
     },
     {
       "id": "cash_after_ppe_capex__20230129",
-      "order": 274,
+      "order": 286,
       "title": "Operating cash after PP&E capex",
       "short_hint": "Reported operating cash flow minus PP&E capex. Excludes other investing flows and is not comprehensive free cash flow or a maintenance/growth-capex estimate.",
       "semantic_key": "capex.cash_after_ppe_capex.2023-01-29",
@@ -7073,7 +7393,7 @@
     },
     {
       "id": "cash_after_ppe_capex__20240128",
-      "order": 275,
+      "order": 287,
       "title": "Operating cash after PP&E capex",
       "short_hint": "Reported operating cash flow minus PP&E capex. Excludes other investing flows and is not comprehensive free cash flow or a maintenance/growth-capex estimate.",
       "semantic_key": "capex.cash_after_ppe_capex.2024-01-28",
@@ -7100,7 +7420,7 @@
     },
     {
       "id": "cash_after_ppe_capex__20250202",
-      "order": 276,
+      "order": 288,
       "title": "Operating cash after PP&E capex",
       "short_hint": "Reported operating cash flow minus PP&E capex. Excludes other investing flows and is not comprehensive free cash flow or a maintenance/growth-capex estimate.",
       "semantic_key": "capex.cash_after_ppe_capex.2025-02-02",
@@ -7127,7 +7447,7 @@
     },
     {
       "id": "cash_after_ppe_capex__20260201",
-      "order": 277,
+      "order": 289,
       "title": "Operating cash after PP&E capex",
       "short_hint": "Reported operating cash flow minus PP&E capex. Excludes other investing flows and is not comprehensive free cash flow or a maintenance/growth-capex estimate.",
       "semantic_key": "capex.cash_after_ppe_capex.2026-02-01",
@@ -7154,7 +7474,7 @@
     },
     {
       "id": "cash_after_ppe_capex_to_revenue__20230129",
-      "order": 278,
+      "order": 290,
       "title": "Operating cash after PP&E capex / Revenue",
       "short_hint": "Operating cash after PP&E capex divided by same-period Revenue. Excludes other investing flows; not comprehensive free cash flow or a maintenance/growth-capex estimate.",
       "semantic_key": "capex.cash_after_ppe_capex_to_revenue.2023-01-29",
@@ -7182,7 +7502,7 @@
     },
     {
       "id": "cash_after_ppe_capex_to_revenue__20240128",
-      "order": 279,
+      "order": 291,
       "title": "Operating cash after PP&E capex / Revenue",
       "short_hint": "Operating cash after PP&E capex divided by same-period Revenue. Excludes other investing flows; not comprehensive free cash flow or a maintenance/growth-capex estimate.",
       "semantic_key": "capex.cash_after_ppe_capex_to_revenue.2024-01-28",
@@ -7210,7 +7530,7 @@
     },
     {
       "id": "cash_after_ppe_capex_to_revenue__20250202",
-      "order": 280,
+      "order": 292,
       "title": "Operating cash after PP&E capex / Revenue",
       "short_hint": "Operating cash after PP&E capex divided by same-period Revenue. Excludes other investing flows; not comprehensive free cash flow or a maintenance/growth-capex estimate.",
       "semantic_key": "capex.cash_after_ppe_capex_to_revenue.2025-02-02",
@@ -7238,7 +7558,7 @@
     },
     {
       "id": "cash_after_ppe_capex_to_revenue__20260201",
-      "order": 281,
+      "order": 293,
       "title": "Operating cash after PP&E capex / Revenue",
       "short_hint": "Operating cash after PP&E capex divided by same-period Revenue. Excludes other investing flows; not comprehensive free cash flow or a maintenance/growth-capex estimate.",
       "semantic_key": "capex.cash_after_ppe_capex_to_revenue.2026-02-01",
@@ -8602,6 +8922,78 @@
       "tab": "Earnings Quality",
       "cell": "E18",
       "row": 18,
+      "col": 5
+    },
+    "quality.sbc_to_revenue.2023-01-29": {
+      "tab": "Earnings Quality",
+      "cell": "B23",
+      "row": 23,
+      "col": 2
+    },
+    "quality.sbc_to_operating_cash_flow.2023-01-29": {
+      "tab": "Earnings Quality",
+      "cell": "B24",
+      "row": 24,
+      "col": 2
+    },
+    "quality.operating_cash_flow_less_sbc.2023-01-29": {
+      "tab": "Earnings Quality",
+      "cell": "B25",
+      "row": 25,
+      "col": 2
+    },
+    "quality.sbc_to_revenue.2024-01-28": {
+      "tab": "Earnings Quality",
+      "cell": "C23",
+      "row": 23,
+      "col": 3
+    },
+    "quality.sbc_to_operating_cash_flow.2024-01-28": {
+      "tab": "Earnings Quality",
+      "cell": "C24",
+      "row": 24,
+      "col": 3
+    },
+    "quality.operating_cash_flow_less_sbc.2024-01-28": {
+      "tab": "Earnings Quality",
+      "cell": "C25",
+      "row": 25,
+      "col": 3
+    },
+    "quality.sbc_to_revenue.2025-02-02": {
+      "tab": "Earnings Quality",
+      "cell": "D23",
+      "row": 23,
+      "col": 4
+    },
+    "quality.sbc_to_operating_cash_flow.2025-02-02": {
+      "tab": "Earnings Quality",
+      "cell": "D24",
+      "row": 24,
+      "col": 4
+    },
+    "quality.operating_cash_flow_less_sbc.2025-02-02": {
+      "tab": "Earnings Quality",
+      "cell": "D25",
+      "row": 25,
+      "col": 4
+    },
+    "quality.sbc_to_revenue.2026-02-01": {
+      "tab": "Earnings Quality",
+      "cell": "E23",
+      "row": 23,
+      "col": 5
+    },
+    "quality.sbc_to_operating_cash_flow.2026-02-01": {
+      "tab": "Earnings Quality",
+      "cell": "E24",
+      "row": 24,
+      "col": 5
+    },
+    "quality.operating_cash_flow_less_sbc.2026-02-01": {
+      "tab": "Earnings Quality",
+      "cell": "E25",
+      "row": 25,
       "col": 5
     },
     "working_capital.owca_to_revenue.2023-01-29": {

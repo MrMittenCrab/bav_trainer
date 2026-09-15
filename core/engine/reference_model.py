@@ -19,6 +19,7 @@ from ..model.financial_math import compute_anchor
 from ..model.earnings_quality import (
     compute_earnings_quality_series,
     earnings_quality_availability,
+    resolve_sbc_source,
 )
 from ..model.earnings_quality_change import compute_earnings_quality_change_series
 from ..model.fixed_asset import (
@@ -236,6 +237,9 @@ class ReferenceModelBuilder:
                     len(self.historical_specs) + len(self.normalization_specs) + 1
                 ),
                 include_asset_scaled=self.quality_availability.total_assets,
+                include_sbc=(
+                    self.quality_series.operating_cash_flow_less_sbc is not None
+                ),
             )
         else:
             self.quality_series = None
@@ -4358,6 +4362,100 @@ class ReferenceModelBuilder:
         self.rowmap["quality_change_accruals_row"] = accruals_change_row
         self.rowmap["quality_change_accrual_ratio_row"] = accrual_ratio_change_row
         self.rowmap["quality_change_check_row"] = change_check_row
+
+        if series.operating_cash_flow_less_sbc is not None:
+            assert series.sbc_to_revenue is not None
+            assert series.sbc_to_operating_cash_flow is not None
+            assert series.stock_based_compensation is not None
+            sbc_item = resolve_sbc_source(self.fin)
+            assert sbc_item is not None
+            sbc_src = self._resolved_source_row(
+                self.fin.cash_flow, "stock_based_compensation", required=True
+            )
+            assert sbc_src is not None
+            rev_r = self.rowmap["condensed_revenue_row"]
+
+            sbc_section_row = change_check_row + 2
+            sbc_reported_row = sbc_section_row + 1
+            sbc_rev_row = sbc_section_row + 2
+            sbc_cfo_row = sbc_section_row + 3
+            cfo_less_sbc_row = sbc_section_row + 4
+
+            ws.cell(
+                row=sbc_section_row,
+                column=1,
+                value="STOCK-BASED COMPENSATION CASH DIAGNOSTICS",
+            ).font = BOLD
+            ws.cell(
+                row=sbc_reported_row,
+                column=1,
+                value="Stock-based compensation (reported)",
+            )
+            ws.cell(row=sbc_rev_row, column=1, value="SBC / Revenue")
+            ws.cell(row=sbc_cfo_row, column=1, value="SBC / Operating Cash Flow")
+            ws.cell(
+                row=cfo_less_sbc_row,
+                column=1,
+                value="Reported CFO less SBC add-back",
+            )
+
+            for j in range(self._n):
+                col = self._col(2 + j)
+                sbc_f = f"='Cash Flow Statement'!{col}{sbc_src}"
+                sbc_rev_f = (
+                    f"=IF('Condensed Financials'!{col}{rev_r}=0,NA(),"
+                    f"{col}{sbc_reported_row}/'Condensed Financials'!{col}{rev_r})"
+                )
+                sbc_cfo_f = (
+                    f"=IF({col}{cfo_row}=0,NA(),"
+                    f"{col}{sbc_reported_row}/{col}{cfo_row})"
+                )
+                cfo_less_f = f"={col}{cfo_row}-{col}{sbc_reported_row}"
+
+                c = ws.cell(row=sbc_reported_row, column=2 + j, value=sbc_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=sbc_rev_row, column=2 + j, value=sbc_rev_f)
+                c.number_format = PCT_FMT
+                c = ws.cell(row=sbc_cfo_row, column=2 + j, value=sbc_cfo_f)
+                c.number_format = PCT_FMT
+                c = ws.cell(row=cfo_less_sbc_row, column=2 + j, value=cfo_less_f)
+                c.number_format = NUM_FMT
+
+                sbc_rev_exp = series.sbc_to_revenue[j]
+                sbc_cfo_exp = series.sbc_to_operating_cash_flow[j]
+                cfo_less_exp = series.operating_cash_flow_less_sbc[j]
+                self._register_quality(
+                    "sbc_to_revenue",
+                    j,
+                    EARNINGS_QUALITY_SHEET,
+                    sbc_rev_row,
+                    2 + j,
+                    sbc_rev_f,
+                    sbc_rev_exp if isinstance(sbc_rev_exp, str) else float(sbc_rev_exp),
+                )
+                self._register_quality(
+                    "sbc_to_operating_cash_flow",
+                    j,
+                    EARNINGS_QUALITY_SHEET,
+                    sbc_cfo_row,
+                    2 + j,
+                    sbc_cfo_f,
+                    sbc_cfo_exp if isinstance(sbc_cfo_exp, str) else float(sbc_cfo_exp),
+                )
+                self._register_quality(
+                    "operating_cash_flow_less_sbc",
+                    j,
+                    EARNINGS_QUALITY_SHEET,
+                    cfo_less_sbc_row,
+                    2 + j,
+                    cfo_less_f,
+                    float(cfo_less_exp),
+                )
+
+            self.rowmap["quality_sbc_reported_row"] = sbc_reported_row
+            self.rowmap["quality_sbc_to_revenue_row"] = sbc_rev_row
+            self.rowmap["quality_sbc_to_cfo_row"] = sbc_cfo_row
+            self.rowmap["quality_cfo_less_sbc_row"] = cfo_less_sbc_row
 
     def _build_working_capital_analysis(self, wb: Workbook) -> None:
         if self.working_capital_series is None:

@@ -636,6 +636,85 @@ QUALITY_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
             "Accrual ratio = Total Accruals / Average Total Assets.",
         ),
     ),
+    ComponentFamily(
+        id="sbc_to_revenue",
+        order=126,
+        title="SBC / Revenue",
+        short_hint=(
+            "Reported stock-based compensation divided by Revenue. "
+            "Mechanical diagnostic only; does not restate reported CFO, "
+            "estimate cash compensation or dilution, establish free cash flow, "
+            "or quantify tax effects."
+        ),
+        semantic_key="quality.sbc_to_revenue",
+        category="earnings_quality",
+        tab_template="Earnings Quality",
+        depends_on_current=("revenue_link",),
+        hints=(
+            "SBC / Revenue = reported cash-flow stock-based compensation / Revenue.",
+            "A zero Revenue denominator makes the ratio undefined (#N/A).",
+            "Does not restate reported CFO, estimate cash compensation or dilution, "
+            "establish free cash flow, or quantify tax effects.",
+        ),
+    ),
+    ComponentFamily(
+        id="sbc_to_operating_cash_flow",
+        order=127,
+        title="SBC / Operating Cash Flow",
+        short_hint=(
+            "Reported stock-based compensation divided by reported operating "
+            "cash flow. Mechanical diagnostic only; does not restate reported "
+            "CFO, estimate cash compensation or dilution, establish free cash "
+            "flow, or quantify tax effects."
+        ),
+        semantic_key="quality.sbc_to_operating_cash_flow",
+        category="earnings_quality",
+        tab_template="Earnings Quality",
+        depends_on_current=("operating_cash_flow_link",),
+        hints=(
+            "SBC / Operating Cash Flow = reported SBC / reported CFO.",
+            "A zero CFO denominator makes the ratio undefined (#N/A).",
+            "Does not restate reported CFO, estimate cash compensation or dilution, "
+            "establish free cash flow, or quantify tax effects.",
+        ),
+    ),
+    ComponentFamily(
+        id="operating_cash_flow_less_sbc",
+        order=128,
+        title="Reported CFO less SBC add-back",
+        short_hint=(
+            "Reported CFO less SBC add-back. Mechanical diagnostic only; does "
+            "not restate reported CFO, estimate cash compensation or dilution, "
+            "establish free cash flow, or quantify tax effects."
+        ),
+        semantic_key="quality.operating_cash_flow_less_sbc",
+        category="earnings_quality",
+        tab_template="Earnings Quality",
+        depends_on_current=("operating_cash_flow_link",),
+        hints=(
+            "Reported CFO less SBC add-back = reported operating cash flow − "
+            "reported cash-flow stock-based compensation.",
+            "This mechanical diagnostic does not restate reported CFO, estimate "
+            "cash compensation or dilution, establish free cash flow, or "
+            "quantify tax effects.",
+        ),
+    ),
+)
+
+
+QUALITY_SBC_FAMILY_IDS = frozenset(
+    {
+        "sbc_to_revenue",
+        "sbc_to_operating_cash_flow",
+        "operating_cash_flow_less_sbc",
+    }
+)
+
+_QUALITY_ASSET_SCALED_FAMILY_IDS = frozenset(
+    {
+        "average_total_assets",
+        "accrual_ratio",
+    }
 )
 
 
@@ -644,6 +723,7 @@ def expand_quality_specs(
     *,
     start_order: int,
     include_asset_scaled: bool,
+    include_sbc: bool = False,
 ) -> tuple[ComponentSpec, ...]:
     """Expand earnings-quality families into period-specific concrete specs."""
     if len(periods) != len(set(periods)):
@@ -655,17 +735,16 @@ def expand_quality_specs(
                 "(increasing) period dates"
             )
 
-    families = QUALITY_COMPONENT_CATALOG
+    excluded: set[str] = set()
     if not include_asset_scaled:
-        families = tuple(
-            family
-            for family in QUALITY_COMPONENT_CATALOG
-            if family.id
-            not in {
-                "average_total_assets",
-                "accrual_ratio",
-            }
-        )
+        excluded |= _QUALITY_ASSET_SCALED_FAMILY_IDS
+    if not include_sbc:
+        excluded |= QUALITY_SBC_FAMILY_IDS
+    families = tuple(
+        family
+        for family in QUALITY_COMPONENT_CATALOG
+        if family.id not in excluded
+    )
 
     specs: list[ComponentSpec] = []
     order = start_order

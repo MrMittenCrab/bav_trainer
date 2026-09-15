@@ -171,7 +171,7 @@ def test_catalog_expand_and_expected_keys():
     assert len(QUALITY_CHANGE_COMPONENT_CATALOG) == 4
     assert len({f.id for f in QUALITY_CHANGE_COMPONENT_CATALOG}) == 4
     assert [f.order for f in QUALITY_CHANGE_COMPONENT_CATALOG] == [63, 64, 65, 66]
-    assert len(QUALITY_COMPONENT_CATALOG) == 5
+    assert len(QUALITY_COMPONENT_CATALOG) == 8
 
     full = expand_quality_change_specs(periods, start_order=245, include_asset_scaled=True)
     assert len(full) == 15

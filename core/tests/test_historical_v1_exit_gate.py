@@ -45,7 +45,7 @@ from core.trainer.workbook import build_training_workbook, group_components_by_f
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# Step 9 historical active namespace: family orders 1–125 (through cash after PP&E capex).
+# Step 9 historical active namespace: family orders 1–128 (through SBC cash diagnostics).
 ACTIVE_CATALOGS = (
     COMPONENT_CATALOG,
     NORMALIZATION_COMPONENT_CATALOG,
@@ -68,7 +68,7 @@ ACTIVE_CATALOGS = (
     LEASE_REPAYMENT_COMPONENT_CATALOG,
 )
 
-# Explicit post–v1 optional catalog family id → order mappings (98–125).
+# Explicit post–v1 optional catalog family id → order mappings (98–128).
 EXPECTED_POST_V1_FAMILY_ORDERS = {
     # Goodwill / intangibles 98–111
     "goodwill_change": 98,
@@ -104,6 +104,10 @@ EXPECTED_POST_V1_FAMILY_ORDERS = {
     # Operating cash after PP&E capex 124–125
     "cash_after_ppe_capex": 124,
     "cash_after_ppe_capex_to_revenue": 125,
+    # SBC cash diagnostics 126–128
+    "sbc_to_revenue": 126,
+    "sbc_to_operating_cash_flow": 127,
+    "operating_cash_flow_less_sbc": 128,
 }
 
 
@@ -142,7 +146,7 @@ def _assert_deferred_isolation(trainer: Path, answer: Path) -> None:
 
 
 def test_historical_v1_active_catalog_namespace_is_frozen():
-    """Freeze the current Step 9 historical active catalog namespace (orders 1–125)."""
+    """Freeze the current Step 9 historical active catalog namespace (orders 1–128)."""
     families = [family for catalog in ACTIVE_CATALOGS for family in catalog]
     ids = [family.id for family in families]
     orders = [family.order for family in families]
@@ -150,7 +154,7 @@ def test_historical_v1_active_catalog_namespace_is_frozen():
 
     assert len(ids) == len(set(ids))
     assert len(orders) == len(set(orders))
-    assert sorted(orders) == list(range(1, 126))
+    assert sorted(orders) == list(range(1, 129))
 
     for family_id, expected_order in EXPECTED_POST_V1_FAMILY_ORDERS.items():
         assert by_id[family_id] == expected_order

@@ -25,7 +25,11 @@ from core.model.classification import (
     classify_balance_sheet_line,
     is_balance_sheet_subtotal,
 )
-from core.engine.reference_model import SOURCE_START_ROW, ReferenceModelBuilder
+from core.engine.reference_model import (
+    EARNINGS_QUALITY_SHEET,
+    SOURCE_START_ROW,
+    ReferenceModelBuilder,
+)
 from core.model.capex import (
     capex_applicable,
     capex_availability,
@@ -809,6 +813,135 @@ def test_source_supported_capex_alias_four_period_diagnostics(tmp_path: Path):
     assert stored.values == CAPEX_REPORTED_PAYMENTS
 
 
+SBC_REPORTED = {
+    date(2023, 1, 29): 78075.0,
+    date(2024, 1, 28): 93560.0,
+    date(2025, 2, 2): 90011.0,
+    date(2026, 2, 1): 62203.0,
+}
+CFO_LESS_SBC = {
+    date(2023, 1, 29): 888388.0,
+    date(2024, 1, 28): 2202604.0,
+    date(2025, 2, 2): 2182702.0,
+    date(2026, 2, 1): 1540274.0,
+}
+
+
+def test_source_supported_sbc_four_period_diagnostics(tmp_path: Path):
+    from core.model.earnings_quality import (
+        compute_earnings_quality_series,
+        resolve_sbc_source,
+        sbc_diagnostics_applicable,
+    )
+
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    original_index, stored = next(
+        (idx, row)
+        for idx, row in enumerate(fin.cash_flow)
+        if row.concept == "stock_based_compensation"
+        and row.label == "Stock-based compensation expense"
+    )
+    assert stored.values == SBC_REPORTED
+    assert sbc_diagnostics_applicable(fin) is True
+    item = resolve_sbc_source(fin)
+    assert item is stored
+    resolved = resolve_line(fin.cash_flow, "stock_based_compensation", required=True)
+    assert resolved.index == original_index
+    assert resolved.item is stored
+    assert workbook_row_for(resolved, start_row=SOURCE_START_ROW) == (
+        SOURCE_START_ROW + original_index
+    )
+
+    cfo_item = resolve_operating_cash_source(fin)
+    assert cfo_item is not None
+    revenue = resolve_line(fin.income_statement, "revenue", required=True).item
+    assert revenue is not None
+    independent_less = []
+    for period in EXPECTED_PERIODS:
+        sbc = required_period_value(stored, period, field="stock_based_compensation")
+        cfo = required_period_value(cfo_item, period, field="operating_cash_flow")
+        rev = required_period_value(revenue, period, field="revenue")
+        independent_less.append(cfo - sbc)
+        assert sbc == SBC_REPORTED[period]
+        assert rev == REVENUE_ANCHORS[period]
+        assert cfo - sbc == CFO_LESS_SBC[period]
+    assert independent_less == [888388.0, 2202604.0, 2182702.0, 1540274.0]
+
+    series = compute_earnings_quality_series(
+        fin, list(EXPECTED_PERIODS), compute_anchor(fin, list(EXPECTED_PERIODS))
+    )
+    assert series.stock_based_compensation == (
+        78075.0,
+        93560.0,
+        90011.0,
+        62203.0,
+    )
+    assert series.operating_cash_flow_less_sbc == tuple(independent_less)
+    for j, period in enumerate(EXPECTED_PERIODS):
+        sbc = SBC_REPORTED[period]
+        rev = REVENUE_ANCHORS[period]
+        cfo = required_period_value(cfo_item, period, field="operating_cash_flow")
+        assert series.sbc_to_revenue[j] == pytest.approx(sbc / rev)
+        assert series.sbc_to_operating_cash_flow[j] == pytest.approx(sbc / cfo)
+
+    builder = ReferenceModelBuilder(fin)
+    sbc_ids = {
+        s.semantic_key
+        for s in builder.expected_specs
+        if s.family_id
+        in {
+            "sbc_to_revenue",
+            "sbc_to_operating_cash_flow",
+            "operating_cash_flow_less_sbc",
+        }
+    }
+    assert len(sbc_ids) == 12
+    assert len(builder.expected_specs) == LEASE_DT_LULULEMON_SPECS
+
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    rt_item = resolve_sbc_source(restored)
+    assert rt_item is not None
+    assert rt_item.concept == "stock_based_compensation"
+    assert rt_item.label == "Stock-based compensation expense"
+    assert rt_item.values == SBC_REPORTED
+
+    out = tmp_path / "LululemonSBC"
+    trainer, answer = build_training_workbook(fin, out)
+    assert trainer.exists() and answer.exists()
+    smap = load_semantic_map(answer)
+    assert len(smap.all_ordered()) == LEASE_DT_LULULEMON_SPECS
+    awb = load_workbook(answer, data_only=False)
+    ws = awb[EARNINGS_QUALITY_SHEET]
+    reported_row = next(
+        r
+        for r in range(1, (ws.max_row or 1) + 1)
+        if ws.cell(r, 1).value == "Stock-based compensation (reported)"
+    )
+    less_row = next(
+        r
+        for r in range(1, (ws.max_row or 1) + 1)
+        if ws.cell(r, 1).value == "Reported CFO less SBC add-back"
+    )
+    src_f = str(ws.cell(reported_row, 2).value).replace(" ", "")
+    assert src_f.startswith("='CashFlowStatement'!")
+    less_f = str(ws.cell(less_row, 2).value).replace(" ", "")
+    assert less_f.startswith("=") and "-" in less_f
+    note_cell = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "operating_cash_flow_less_sbc"
+    )
+    nrow, ncol = parse_cell_ref(note_cell.cell)
+    note = (ws.cell(nrow, ncol).comment.text or "") if ws.cell(nrow, ncol).comment else ""
+    assert "does not restate reported CFO" in note
+    assert "dilution" in note.lower()
+    assert "free cash flow" in note.lower()
+    assert "tax" in note.lower()
+    awb.close()
+    assert stored.concept == "stock_based_compensation"
+    assert stored.values == SBC_REPORTED
+
+
 ROU_BALANCES = {
     date(2023, 1, 29): 969419.0,
     date(2024, 1, 28): 1265610.0,
@@ -833,8 +966,8 @@ NET_DT_POSITIONS = {
     date(2025, 2, 2): -81103.0,
     date(2026, 2, 1): -28241.0,
 }
-PRIOR_LULULEMON_SPECS = 256
-LEASE_DT_LULULEMON_SPECS = 281
+PRIOR_LULULEMON_SPECS = 268
+LEASE_DT_LULULEMON_SPECS = 293
 
 
 def _fill_rgb(cell) -> str:

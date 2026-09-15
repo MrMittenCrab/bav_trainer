@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from datetime import date
 from pathlib import Path
 
@@ -25,11 +26,14 @@ from core.model.earnings_quality import (
     UNDEFINED_RATIO,
     compute_earnings_quality_series,
     earnings_quality_availability,
+    resolve_sbc_source,
+    sbc_diagnostics_applicable,
 )
 from core.model.financial_math import compute_anchor
-from core.model.historical_expected import expected_value_for_component
+from core.model.historical_expected import earnings_quality_expected_series
 from core.model.line_resolver import AmbiguousLineError, MissingLineError, resolve_line
 from core.model.period_axis import canonical_fiscal_periods
+from core.model.source_values import MissingHistoricalValueError
 from core.trainer.checker import check_workbook
 from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
 from core.trainer.workbook import build_training_workbook, group_components_by_family
@@ -427,8 +431,17 @@ def test_availability_and_incompleteness_are_distinct(tmp_path):
 
 def test_expand_quality_specs_counts_and_gating():
     periods = [date(y, 12, 31) for y in range(2021, 2026)]
-    assert len(QUALITY_COMPONENT_CATALOG) == 5
-    assert [f.order for f in QUALITY_COMPONENT_CATALOG] == [30, 31, 32, 33, 34]
+    assert len(QUALITY_COMPONENT_CATALOG) == 8
+    assert [f.order for f in QUALITY_COMPONENT_CATALOG] == [
+        30,
+        31,
+        32,
+        33,
+        34,
+        126,
+        127,
+        128,
+    ]
     full = expand_quality_specs(periods, start_order=119, include_asset_scaled=True)
     assert len(full) == 23
     assert full[0].order == 119
@@ -439,6 +452,15 @@ def test_expand_quality_specs_counts_and_gating():
         "operating_cash_flow_link",
         "cash_conversion_ratio",
         "total_accruals",
+    }
+    sbc = expand_quality_specs(
+        periods, start_order=119, include_asset_scaled=True, include_sbc=True
+    )
+    assert len(sbc) == 38
+    assert {s.family_id for s in sbc} >= {
+        "sbc_to_revenue",
+        "sbc_to_operating_cash_flow",
+        "operating_cash_flow_less_sbc",
     }
 
 
@@ -685,3 +707,302 @@ def test_undefined_ratio_formulas_use_na_and_check_accepts_na(tmp_path):
     r, c = parse_cell_ref(accrual.cell)
     assert trainer_wb[accrual.tab].cell(row=r, column=c).value is None
     trainer_wb.close()
+
+
+def _eq_row_by_label(ws, label: str) -> int:
+    for row in range(1, (ws.max_row or 1) + 1):
+        if ws.cell(row, 1).value == label:
+            return row
+    raise AssertionError(f"missing Earnings Quality row {label!r}")
+
+
+def _add_sbc(
+    fin: StandardizedFinancials,
+    *,
+    values=(10.0, 12.0),
+    label="Stock-based compensation expense",
+    concept="stock_based_compensation",
+) -> LineItem:
+    d1, d2 = date(2024, 12, 31), date(2025, 12, 31)
+    item = _li(label, {d1: values[0], d2: values[1]}, concept=concept)
+    fin.cash_flow.append(item)
+    return item
+
+
+def test_sbc_explicit_concept_excludes_settlement_and_labels():
+    fin = _tiny_fin()
+    assert not sbc_diagnostics_applicable(fin)
+    assert resolve_sbc_source(fin) is None
+    avail = earnings_quality_availability(fin)
+    assert avail.stock_based_compensation is False
+    assert avail.stock_based_compensation_ambiguous is False
+
+    label_only = _tiny_fin()
+    _add_sbc(label_only, concept="")
+    assert resolve_sbc_source(label_only) is None
+    assert not sbc_diagnostics_applicable(label_only)
+    series_label = compute_earnings_quality_series(
+        label_only,
+        list(canonical_fiscal_periods(label_only)),
+        compute_anchor(label_only, list(canonical_fiscal_periods(label_only))),
+    )
+    assert series_label.operating_cash_flow_less_sbc is None
+    assert ReferenceModelBuilder(label_only).quality_series is not None
+    assert "sbc_to_revenue" not in {
+        s.family_id for s in ReferenceModelBuilder(label_only).quality_specs
+    }
+
+    misleading = _tiny_fin()
+    _add_sbc(
+        misleading,
+        label="Proceeds from settlement of stock-based compensation",
+        concept="proceeds_from_stock_based_compensation",
+        values=(5.0, 6.0),
+    )
+    _add_sbc(
+        misleading,
+        label="Shares withheld related to net share settlement of stock-based compensation",
+        concept="shares_withheld_for_stock_based_compensation",
+        values=(-2.0, -3.0),
+    )
+    _add_sbc(
+        misleading,
+        label="Repurchase of common stock",
+        concept="repurchase_of_common_stock",
+        values=(-20.0, -25.0),
+    )
+    assert resolve_sbc_source(misleading) is None
+    assert not sbc_diagnostics_applicable(misleading)
+
+    explicit = _tiny_fin()
+    stored = _add_sbc(
+        explicit,
+        label="Weird SBC add-back label",
+        concept="stock_based_compensation",
+        values=(10.0, 12.0),
+    )
+    _add_sbc(
+        explicit,
+        label="Stock-based compensation expense",
+        concept="",
+        values=(99.0, 99.0),
+    )
+    _add_sbc(
+        explicit,
+        label="Proceeds from settlement of stock-based compensation",
+        concept="proceeds_from_stock_based_compensation",
+        values=(5.0, 6.0),
+    )
+    item = resolve_sbc_source(explicit)
+    assert item is stored
+    assert item.concept == "stock_based_compensation"
+    assert item.label == "Weird SBC add-back label"
+    resolved = resolve_line(
+        explicit.cash_flow, "stock_based_compensation", required=True
+    )
+    assert resolved.item is stored
+    assert sbc_diagnostics_applicable(explicit) is True
+
+
+def test_sbc_ambiguous_and_absent_cfo_omit_only_extension():
+    dup = _tiny_fin()
+    _add_sbc(dup, label="SBC A", values=(10.0, 12.0))
+    _add_sbc(dup, label="SBC B", values=(11.0, 13.0))
+    avail = earnings_quality_availability(dup)
+    assert avail.operating_cash_flow is True
+    assert avail.stock_based_compensation is False
+    assert avail.stock_based_compensation_ambiguous is True
+    assert not sbc_diagnostics_applicable(dup)
+    assert resolve_sbc_source(dup) is None
+    series = compute_earnings_quality_series(
+        dup,
+        list(canonical_fiscal_periods(dup)),
+        compute_anchor(dup, list(canonical_fiscal_periods(dup))),
+    )
+    assert series.operating_cash_flow == (80.0, 90.0)
+    assert series.operating_cash_flow_less_sbc is None
+    mapped = earnings_quality_expected_series(series)
+    assert "operating_cash_flow_less_sbc" not in mapped
+    builder = ReferenceModelBuilder(dup)
+    assert {s.family_id for s in builder.quality_specs} == {
+        "operating_cash_flow_link",
+        "cash_conversion_ratio",
+        "total_accruals",
+        "average_total_assets",
+        "accrual_ratio",
+    }
+
+    absent_cfo = _tiny_fin(with_cfo=False)
+    _add_sbc(absent_cfo)
+    assert not sbc_diagnostics_applicable(absent_cfo)
+    assert ReferenceModelBuilder(absent_cfo).quality_series is None
+
+    amb_cfo = _tiny_fin(ambiguous_cfo=True)
+    _add_sbc(amb_cfo)
+    with pytest.raises(AmbiguousLineError):
+        earnings_quality_availability(amb_cfo)
+    assert not sbc_diagnostics_applicable(amb_cfo)
+
+
+def test_sbc_series_signs_zero_undefined_missing_and_immutability():
+    fin = _tiny_fin()
+    _add_sbc(fin, values=(10.0, 12.0))
+    periods = list(canonical_fiscal_periods(fin))
+    series = compute_earnings_quality_series(fin, periods, compute_anchor(fin, periods))
+    assert series.stock_based_compensation == (10.0, 12.0)
+    assert series.sbc_to_revenue[0] == pytest.approx(10.0 / 1000.0)
+    assert series.sbc_to_operating_cash_flow[0] == pytest.approx(10.0 / 80.0)
+    assert series.operating_cash_flow_less_sbc == (70.0, 78.0)
+    mapped = earnings_quality_expected_series(series)
+    assert set(mapped) >= {
+        "sbc_to_revenue",
+        "sbc_to_operating_cash_flow",
+        "operating_cash_flow_less_sbc",
+    }
+
+    zero_sbc = _tiny_fin()
+    _add_sbc(zero_sbc, values=(0.0, 12.0))
+    series_z = compute_earnings_quality_series(
+        zero_sbc,
+        list(canonical_fiscal_periods(zero_sbc)),
+        compute_anchor(zero_sbc, list(canonical_fiscal_periods(zero_sbc))),
+    )
+    assert series_z.stock_based_compensation[0] == 0.0
+    assert series_z.sbc_to_revenue[0] == pytest.approx(0.0)
+    assert series_z.operating_cash_flow_less_sbc[0] == pytest.approx(80.0)
+
+    neg = _tiny_fin()
+    _add_sbc(neg, values=(-10.0, 12.0))
+    series_n = compute_earnings_quality_series(
+        neg,
+        list(canonical_fiscal_periods(neg)),
+        compute_anchor(neg, list(canonical_fiscal_periods(neg))),
+    )
+    assert series_n.stock_based_compensation[0] == -10.0
+    assert series_n.operating_cash_flow_less_sbc[0] == pytest.approx(90.0)
+
+    zero_cfo = _tiny_fin()
+    zero_cfo.cash_flow[0].values[periods[0]] = 0.0
+    _add_sbc(zero_cfo, values=(10.0, 12.0))
+    series_c = compute_earnings_quality_series(
+        zero_cfo, periods, compute_anchor(zero_cfo, periods)
+    )
+    assert series_c.sbc_to_operating_cash_flow[0] == UNDEFINED_RATIO
+    assert series_c.operating_cash_flow_less_sbc[0] == pytest.approx(-10.0)
+
+    zero_rev = _tiny_fin()
+    zero_rev.income_statement[0].values[periods[0]] = 0.0
+    _add_sbc(zero_rev, values=(10.0, 12.0))
+    series_r = compute_earnings_quality_series(
+        zero_rev, periods, compute_anchor(zero_rev, periods)
+    )
+    assert series_r.sbc_to_revenue[0] == UNDEFINED_RATIO
+
+    missing = _tiny_fin()
+    item = _add_sbc(missing, values=(10.0, 12.0))
+    del item.values[periods[1]]
+    with pytest.raises(MissingHistoricalValueError, match="stock_based_compensation"):
+        compute_earnings_quality_series(
+            missing, periods, compute_anchor(missing, periods)
+        )
+
+    none_period = _tiny_fin()
+    none_item = _add_sbc(none_period, values=(10.0, 12.0))
+    none_item.values[periods[0]] = None
+    with pytest.raises(MissingHistoricalValueError, match="stock_based_compensation"):
+        compute_earnings_quality_series(
+            none_period, periods, compute_anchor(none_period, periods)
+        )
+
+    immutable = _tiny_fin()
+    stored = _add_sbc(immutable, values=(10.0, 12.0))
+    before = copy.deepcopy(stored.values)
+    compute_earnings_quality_series(
+        immutable, periods, compute_anchor(immutable, periods)
+    )
+    assert stored.values == before
+    assert stored.concept == "stock_based_compensation"
+
+
+def test_sbc_workbook_formulas_notes_and_check(tmp_path):
+    from core.tests.test_normalization import _inject_formula_and_cached_value
+
+    fin = _tiny_fin()
+    stored = _add_sbc(fin, values=(10.0, 12.0))
+    builder = ReferenceModelBuilder(fin)
+    assert builder.quality_series is not None
+    assert builder.quality_series.operating_cash_flow_less_sbc == (70.0, 78.0)
+    assert len([s for s in builder.quality_specs if s.family_id in {
+        "sbc_to_revenue",
+        "sbc_to_operating_cash_flow",
+        "operating_cash_flow_less_sbc",
+    }]) == 6
+
+    trainer, answer = build_training_workbook(fin, tmp_path / "SBC_Trainer.xlsx")
+    smap = load_semantic_map(answer)
+    sbc_comps = [
+        c
+        for c in smap.all_ordered()
+        if c.family_id
+        in {
+            "sbc_to_revenue",
+            "sbc_to_operating_cash_flow",
+            "operating_cash_flow_less_sbc",
+        }
+    ]
+    assert len(sbc_comps) == 6
+    awb = load_workbook(answer, data_only=False)
+    twb = load_workbook(trainer, data_only=False)
+    ws_a = awb[EARNINGS_QUALITY_SHEET]
+    reported = _eq_row_by_label(ws_a, "Stock-based compensation (reported)")
+    less_row = _eq_row_by_label(ws_a, "Reported CFO less SBC add-back")
+    reported_f = str(ws_a.cell(reported, 2).value).replace(" ", "")
+    assert reported_f.startswith("='CashFlowStatement'!")
+    less_f = str(ws_a.cell(less_row, 2).value).replace(" ", "")
+    assert less_f.startswith("=")
+    assert "-" in less_f
+    for comp in sbc_comps:
+        row, col = parse_cell_ref(comp.cell)
+        tcell = twb[comp.tab].cell(row=row, column=col)
+        acell = awb[comp.tab].cell(row=row, column=col)
+        assert tcell.value is None
+        assert tcell.comment is None
+        assert _fill_rgb(tcell) == "FFFF00"
+        assert acell.value == comp.formula
+        note = (acell.comment.text or "") if acell.comment is not None else ""
+        assert note.strip()
+        assert "does not restate reported CFO" in note
+        assert "cash compensation" in note.lower() or "dilution" in note.lower()
+        assert "free cash flow" in note.lower()
+        assert "tax" in note.lower()
+    reported_t = twb[EARNINGS_QUALITY_SHEET].cell(reported, 2)
+    assert reported_t.value is not None
+    assert reported_t.comment is None
+    twb.close()
+    awb.close()
+    assert stored.concept == "stock_based_compensation"
+    assert stored.values[date(2024, 12, 31)] == 10.0
+
+    blank = check_workbook(trainer)
+    assert blank.incorrect == 0
+    wb = load_workbook(trainer, data_only=False)
+    for comp in smap.all_ordered():
+        row, col = parse_cell_ref(comp.cell)
+        wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    wb.save(trainer)
+    wb.close()
+    filled = check_workbook(trainer)
+    assert filled.correct == filled.total
+    assert filled.incorrect == 0
+
+    bad = next(c for c in sbc_comps if c.family_id == "operating_cash_flow_less_sbc")
+    _inject_formula_and_cached_value(
+        trainer,
+        bad.tab,
+        bad.cell,
+        formula="=999",
+        cached_value=999.0,
+    )
+    dumped = repr(check_workbook(trainer))
+    assert "=999" not in dumped
+    assert "Reported CFO less SBC add-back" not in dumped

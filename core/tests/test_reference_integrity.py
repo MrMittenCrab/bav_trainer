@@ -983,6 +983,7 @@ def test_multi_period_practice_surface_for_five_year_demo(tmp_path):
         FIXED_ASSET_COMPONENT_CATALOG,
         LEASE_LIABILITY_COMPONENT_CATALOG,
         QUALITY_COMPONENT_CATALOG,
+        QUALITY_SBC_FAMILY_IDS,
         QUALITY_CHANGE_COMPONENT_CATALOG,
         WORKING_CAPITAL_COMPONENT_CATALOG,
         PROFITABILITY_DRIVER_COMPONENT_CATALOG,
@@ -997,7 +998,7 @@ def test_multi_period_practice_surface_for_five_year_demo(tmp_path):
     families = {c.family_id for c in smap.all_ordered()}
     assert families == (
         {f.id for f in COMPONENT_CATALOG}
-        | {f.id for f in QUALITY_COMPONENT_CATALOG}
+        | ({f.id for f in QUALITY_COMPONENT_CATALOG} - QUALITY_SBC_FAMILY_IDS)
         | {f.id for f in QUALITY_CHANGE_COMPONENT_CATALOG}
         | {f.id for f in WORKING_CAPITAL_COMPONENT_CATALOG}
         | {f.id for f in PROFITABILITY_DRIVER_COMPONENT_CATALOG}
@@ -1012,6 +1013,8 @@ def test_multi_period_practice_surface_for_five_year_demo(tmp_path):
         expected = 5 if family.period_scope == "all" else 4
         assert len(comps) == expected
     for family in QUALITY_COMPONENT_CATALOG:
+        if family.id in QUALITY_SBC_FAMILY_IDS:
+            continue
         comps = [c for c in smap.all_ordered() if c.family_id == family.id]
         expected = 5 if family.period_scope == "all" else 4
         assert len(comps) == expected

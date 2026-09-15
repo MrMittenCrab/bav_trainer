@@ -778,6 +778,13 @@ def test_fast_retailing_capex_module_activates():
     assert len(builder.capex_specs) == 20
     assert len(builder.lease_repayment_specs) == 10
     assert len(builder.expected_specs) == 501
+    assert "sbc_to_revenue" not in {s.family_id for s in builder.expected_specs}
+    assert "sbc_to_operating_cash_flow" not in {
+        s.family_id for s in builder.expected_specs
+    }
+    assert "operating_cash_flow_less_sbc" not in {
+        s.family_id for s in builder.expected_specs
+    }
 
 
 def test_fast_retailing_lease_repayment_module_activates():

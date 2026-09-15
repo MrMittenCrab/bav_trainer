@@ -82,13 +82,21 @@ _NORMALIZATION_FAMILY_SERIES = (
     "normalized_net_income",
 )
 
-_QUALITY_FAMILY_SERIES = (
+_QUALITY_BASE_FAMILY_SERIES = (
     "operating_cash_flow_link",
     "cash_conversion_ratio",
     "total_accruals",
     "average_total_assets",
     "accrual_ratio",
 )
+
+_QUALITY_SBC_FAMILY_SERIES = (
+    "sbc_to_revenue",
+    "sbc_to_operating_cash_flow",
+    "operating_cash_flow_less_sbc",
+)
+
+_QUALITY_FAMILY_SERIES = _QUALITY_BASE_FAMILY_SERIES + _QUALITY_SBC_FAMILY_SERIES
 
 _QUALITY_CHANGE_FAMILY_SERIES = (
     "operating_cash_flow_change",
@@ -306,22 +314,45 @@ def earnings_quality_expected_series(
     earnings_quality: EarningsQualitySeries,
 ) -> dict[str, tuple[float | str | None, ...]]:
     """Map earnings-quality formula families to an EarningsQualitySeries."""
-    series = {
+    series: dict[str, tuple[float | str | None, ...]] = {
         "operating_cash_flow_link": earnings_quality.operating_cash_flow,
         "cash_conversion_ratio": earnings_quality.cash_conversion_ratio,
         "total_accruals": earnings_quality.total_accruals,
         "average_total_assets": earnings_quality.average_total_assets,
         "accrual_ratio": earnings_quality.accrual_ratio,
     }
-    expected_ids = {family.id for family in QUALITY_COMPONENT_CATALOG}
-    if set(series) != expected_ids:
-        missing = sorted(expected_ids - set(series))
-        extra = sorted(set(series) - expected_ids)
+    if earnings_quality.operating_cash_flow_less_sbc is not None:
+        if (
+            earnings_quality.sbc_to_revenue is None
+            or earnings_quality.sbc_to_operating_cash_flow is None
+        ):
+            raise ValueError(
+                "SBC ratio series are required when "
+                "operating_cash_flow_less_sbc is present"
+            )
+        series["sbc_to_revenue"] = earnings_quality.sbc_to_revenue
+        series["sbc_to_operating_cash_flow"] = (
+            earnings_quality.sbc_to_operating_cash_flow
+        )
+        series["operating_cash_flow_less_sbc"] = (
+            earnings_quality.operating_cash_flow_less_sbc
+        )
+    catalog_ids = {family.id for family in QUALITY_COMPONENT_CATALOG}
+    required = set(_QUALITY_BASE_FAMILY_SERIES)
+    if earnings_quality.operating_cash_flow_less_sbc is not None:
+        required |= set(_QUALITY_SBC_FAMILY_SERIES)
+    if set(series) != required or not required <= catalog_ids:
+        missing = sorted(required - set(series))
+        extra = sorted(set(series) - required)
         raise ValueError(
             f"earnings_quality_expected_series family mismatch; "
             f"missing={missing} extra={extra}"
         )
-    return {family_id: series[family_id] for family_id in _QUALITY_FAMILY_SERIES}
+    return {
+        family_id: series[family_id]
+        for family_id in _QUALITY_FAMILY_SERIES
+        if family_id in series
+    }
 
 
 def earnings_quality_change_expected_series(

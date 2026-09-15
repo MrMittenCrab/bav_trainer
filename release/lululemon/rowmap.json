@@ -753,6 +753,10 @@
   "quality_change_accruals_row": 17,
   "quality_change_accrual_ratio_row": 18,
   "quality_change_check_row": 19,
+  "quality_sbc_reported_row": 22,
+  "quality_sbc_to_revenue_row": 23,
+  "quality_sbc_to_cfo_row": 24,
+  "quality_cfo_less_sbc_row": 25,
   "wc_revenue_row": 6,
   "wc_owca_row": 7,
   "wc_owcl_row": 8,
@@ -2111,6 +2115,78 @@
     "tab": "Earnings Quality",
     "cell": "E18",
     "row": 18,
+    "col": 5
+  },
+  "quality.sbc_to_revenue.2023-01-29": {
+    "tab": "Earnings Quality",
+    "cell": "B23",
+    "row": 23,
+    "col": 2
+  },
+  "quality.sbc_to_operating_cash_flow.2023-01-29": {
+    "tab": "Earnings Quality",
+    "cell": "B24",
+    "row": 24,
+    "col": 2
+  },
+  "quality.operating_cash_flow_less_sbc.2023-01-29": {
+    "tab": "Earnings Quality",
+    "cell": "B25",
+    "row": 25,
+    "col": 2
+  },
+  "quality.sbc_to_revenue.2024-01-28": {
+    "tab": "Earnings Quality",
+    "cell": "C23",
+    "row": 23,
+    "col": 3
+  },
+  "quality.sbc_to_operating_cash_flow.2024-01-28": {
+    "tab": "Earnings Quality",
+    "cell": "C24",
+    "row": 24,
+    "col": 3
+  },
+  "quality.operating_cash_flow_less_sbc.2024-01-28": {
+    "tab": "Earnings Quality",
+    "cell": "C25",
+    "row": 25,
+    "col": 3
+  },
+  "quality.sbc_to_revenue.2025-02-02": {
+    "tab": "Earnings Quality",
+    "cell": "D23",
+    "row": 23,
+    "col": 4
+  },
+  "quality.sbc_to_operating_cash_flow.2025-02-02": {
+    "tab": "Earnings Quality",
+    "cell": "D24",
+    "row": 24,
+    "col": 4
+  },
+  "quality.operating_cash_flow_less_sbc.2025-02-02": {
+    "tab": "Earnings Quality",
+    "cell": "D25",
+    "row": 25,
+    "col": 4
+  },
+  "quality.sbc_to_revenue.2026-02-01": {
+    "tab": "Earnings Quality",
+    "cell": "E23",
+    "row": 23,
+    "col": 5
+  },
+  "quality.sbc_to_operating_cash_flow.2026-02-01": {
+    "tab": "Earnings Quality",
+    "cell": "E24",
+    "row": 24,
+    "col": 5
+  },
+  "quality.operating_cash_flow_less_sbc.2026-02-01": {
+    "tab": "Earnings Quality",
+    "cell": "E25",
+    "row": 25,
     "col": 5
   },
   "working_capital.owca_to_revenue.2023-01-29": {
