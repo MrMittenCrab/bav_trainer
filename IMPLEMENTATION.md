@@ -1,54 +1,50 @@
-# Step 9M.2.4.1.1.1.20 — Lululemon G5 Final-Artifact Acceptance
+# Step 9M.2.4.1.1.1.21 — Historical operating cash after PP&E capex
 
-AUTOCYCLE_PLAN: {"baseline": "At 237c265b81e71ced0d323814fe7924850baaf147, Lululemon has 248 practice cells but supplied right_of_use_lease_asset, deferred_tax_asset and deferred_tax_liability concepts do not activate existing diagnostics; Fast Retailing retains 491 cells. RESULT Trainer hashes are stale.", "finding_key": "explicit-concept-aliases-block-supported-lease-and-deferred-tax-analysis", "kind": "work", "objective": "Enable source-supported lease ROU and deferred-tax diagnostics", "plan_id": "621b9e4be5f84b4891ab7fdb167c04ec", "step_id": "9M.2.4.1.1.1.20", "success": "Unchanged Lululemon facts activate both existing diagnostic modules through generic explicit-concept aliases, adding verified practice coverage while preserving interest gating, capex and Fast Retailing's 491-cell contract; RESULT records final artifact hashes and unresolved parent acceptance.", "verification": "Read corrected RESULT.md; independently hash every listed release artifact from working-tree and checkpoint bytes and compare full digests and sizes; verify unchanged production, tests, source/provenance and release artifacts, retained workbook contracts, regression evidence and unresolved parent criteria.", "work_id": "ed0d79edb1bc4f9bbe126a527dab85b9"}
+AUTOCYCLE_PLAN: {"baseline": "At 19b6a690e54b8eb9cef8d40ed9dbe52df052abf4, Lululemon has 273 practice identities and Fast Retailing 491. Both supply CFO and PP&E payments, but capex diagnostics expose only spending and revenue intensity. Capex historical test durations in RESULT are misattributed.", "finding_key": "capex-diagnostics-omit-source-supported-operating-cash-after-ppe-spending", "kind": "work", "objective": "Connect reported operating cash flow to historical PP&E reinvestment", "plan_id": "eea265ddd4284f6ca636ec6ab4d52f26", "step_id": "9M.2.4.1.1.1.21", "success": "Add two source-gated historical formula families for CFO minus PP&E capex and its revenue margin, preserving all existing identities; regenerate both release pairs and independently verify 8 added Lululemon exercises and 10 added Fast Retailing exercises. Correct capex timing attribution and retain unresolved parent acceptance and frozen requests.", "verification": "Read RESULT; independently calculate both new series from unchanged source facts, inspect source links, formulas, semantic maps and Check evidence, compare baseline identities, verify final release hashes and source immutability, and match corrected historical timings to hash-bound original and resumed logs.", "work_id": "aa533817002047788f078c692f14d061"}
 
-**Checkpoint:** `ad3365fd2a8696a1ec087c49f329ee0652edf8f8`
-**Work / attempt:** `ed0d79edb1bc4f9bbe126a527dab85b9` / `1e2e9169e8874f86a26f1974a4aede94`
 **INPUT_STATUS:** PENDING
 **Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1 and 9M.2.4 remain UNRESOLVED.
+Numbering remains administratively frozen; controller assigns the new work identity.
 
 ## Scope
 
-- One bounded acceptance repair within the existing identity; numbering remains administratively frozen.
-- Edit only `RESULT.md`. Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`; no commits, pushes or access-control changes.
-- Preserve production/tests, release bytes, source PDFs, extracted/reconciled facts, provenance, accepted capex edits and recovery evidence.
-- No release regeneration is needed. Perform inspection without saving workbooks; any mutating Check exercise must use disposable copies.
+- Extend `core/model/capex.py`, `core/model/historical_expected.py`, `core/engine/reference_model.py` and their capex, benchmark, Trainer and reference-integrity tests.
+- Regenerate existing artifacts under `release/lululemon/` and `release/fast_retailing/` using existing build scripts; record completion in `RESULT.md`.
+- Cursor must not modify `TARGET.md` or `IMPLEMENTATION.md`. No commits, pushes, source/provenance edits, new note extraction, forecasting or valuation.
 
-## Task 1 — Verify final release bytes
+## Task 1 — Add the historical cash/reinvestment connection
 
-- Enumerate both issuer release inventories and compute full SHA-256 digests and byte sizes for both Trainer/Answer-Key pairs and associated maps, availability and supporting artifacts.
-- Compare working-tree bytes with `git show ad3365fd2a8696a1ec087c49f329ee0652edf8f8:<path>` bytes; record the checkpoint reference and actual comparisons.
-- Confirm Lululemon Trainer `0fc9d5295adc00c3674f7e82d1a71bebd1a0715d19de039275774b7cb4ed8caf` and Fast Retailing Trainer `8bc7d7ccfb2cc75b55fd250c17188e27348d504c804a48fac719ce413c803fb9` by computation, not transcription.
-- If bytes differ, record the exact discrepancy and leave acceptance incomplete; do not overwrite artifacts to force agreement.
+- Add `cash_after_ppe_capex = reported CFO − ppe_capex` and `cash_after_ppe_capex_to_revenue = cash_after_ppe_capex / revenue` to the existing capex schedule.
+- Resolve CFO through the shared resolver; reuse the accepted signed PP&E payment contract. Populate source links; make only derived calculations practice cells.
+- Gate the extension on unambiguous CFO and capex sources without disabling existing capex exercises when CFO is absent. Preserve strict required-period validation, reported zeros, signed values and undefined-ratio semantics.
+- Label the schedule “Operating cash after PP&E capex”; explain in Answer-Key Notes that it excludes other investing flows and is not comprehensive free cash flow or a maintenance/growth-capex estimate.
+- Integrate semantic identities, Python expected values, workbook formulas, row mapping and workbook-wide Check.
 
-## Task 2 — Correct the completion evidence
+## Task 2 — Verify and regenerate both benchmarks
 
-- Replace stale and truncated release hash claims in `RESULT.md` with an unambiguous inventory of repository-relative paths, full digests and sizes; explicitly supersede the incorrect Trainer claims.
-- Distinguish the original implementation baseline, historical execution HEAD and reviewed checkpoint. Retain measured +12 lease-ROU / +13 deferred-tax coverage and existing regression evidence without claiming fresh test runs.
-- Preserve the hash-bound original and resumed recovery-log findings: original successful subprocess exits support capex progress; resumed focused wrappers exited 1 despite passing summaries.
-- Preserve snapshot-limited recovery authorization and historical batch identity. Assess capex progress separately from publication and this child's acceptance; do not reopen reviewed ownership.
-- Record final-artifact acceptance only after all inventory comparisons pass. Preserve spreadsheet recalculation as not performed.
+- Add independent arithmetic tests and synthetic cases for absent/ambiguous CFO, missing period values, zero revenue, negative CFO, reported zero and payment reversals; verify failure immutability.
+- Independently verify Lululemon cash after PP&E capex: `327806 / 1644299 / 1583481 / 921675`; Fast Retailing: `372468 / 379546 / 401452 / 577793 / 445083`. Verify each margin against supplied revenue.
+- Run affected capex, earnings-quality, source-availability, Trainer, reference-integrity and both benchmark suites, then `python -m pytest core/tests -q`; record actual commands and subprocess exits.
+- Run both release builders; compare repeated temporary builds semantically. Preserve all 273/491 baseline identities and add exactly 8/10 exercises, reaching 281/501.
+- Inspect exported source links and formulas against independently calculated values. Verify blank/correct/incorrect non-disclosing Check behavior on disposable copies.
+- Verify matched visual structure, blank yellow Trainer cells without Notes, Answer-Key formulas with Notes, and exactly two user-facing workbooks per issuer.
+- Recompute every final release inventory SHA-256 and byte size after verification; confirm source, reconciled facts, provenance and supporting copies remain unchanged. State whether spreadsheet recalculation occurred.
 
-## Task 3 — Close with read-only verification
+## Task 3 — Correct evidence and retain acceptance obligations
 
-- Verify the diff is confined to `RESULT.md`; recompute the entire recorded release inventory after all checks and confirm every digest and size still matches checkpoint bytes.
-- Read back `RESULT.md` and validate each current hash claim against the computed inventory; no abbreviated digest may serve as final acceptance evidence.
-- Reuse reviewed regression evidence for unchanged code/artifacts. Record actual verification commands and exits; do not rerun artifact-writing suites merely to repair documentation.
+- Inspect `.git/autocycle/reviewed-recovery-20260915-120942/evidence.json` and hash-bound original/resumed Cursor logs; preserve snapshot-limited authorization, original edit ownership, historical batch identity and existing recovery work/attempt identity.
+- Correct original capex pytest durations to 76/543/132/1099 passed in `6.34/14.51/30.51/95.38s`; distinguish subprocess elapsed times `6.63/14.81/30.77/95.66s`. Attribute resumed durations separately and retain wrapper exit 1.
+- Keep historical test evidence separate from fresh executions. Publication recovery does not establish parent acceptance; do not reopen ownership or manufacture NEW_EVIDENCE.
+- Record measured benchmark gains, corrected evidence and remaining acceptance in `RESULT.md`; no blanket DONE or prospective ID reservation.
 
-## Original acceptance retained
+## Original acceptance and pending work retained
 
-- Generic explicit aliases activate ROU and deferred-tax diagnostics with canonical identities, explicit-concept precedence, ambiguity rejection and strict required-period values preserved; no issuer-specific heuristics or source mutation.
-- Python values, original-row source links, derived formulas, semantic maps and Check agree; retain repeat-build semantic determinism, visual parity and non-disclosing blank/correct/incorrect Check behavior.
-- Lululemon retains all 248 prior identities and reaches 273; Fast Retailing retains 491. Trainers have blank yellow practice cells without Notes; matching Answer Keys have formulas and Notes; exactly two user-facing workbooks per issuer.
-- Preserve 74 Lululemon unavailable displays per workbook and zero for Fast Retailing, partial-period interest dependency closure, opening-only CoD `0.374`, undefined-ratio semantics and no unavailable-history 4% substitute.
-- Preserve pretax resolution, distinct tax expense, four-period capex `638657 / 651865 / 689232 / 680802`, reformulation tolerances and liability/equity discrepancy explanations.
-- Preserve independent asset/liability/signed-equity detail gates, sparse omission handling, contradiction rejection, source identities and comparative provenance; NCIT remains `28555 / 15864 / reported 0 / None`, Common stock `611 / 606 / 581 / 557`.
-- Retain G1/G2/G3, empty-detail, subtotal/override, contra-equity, sparse-position, historical causal evidence, all 12 pretax/ETR cases, mutation controls, deterministic comparisons and failure immutability.
-- Retain the parent temporary-build criterion: success or exactly `MissingLineError: Required concept 'interest_expense' not found in statement lines`; preserve current successful gated generation.
-- No invented interest, inferred zeros, cash-interest substitution, lease repayment flows, deferred-tax expense/recoverability, new note extraction, forecasting or valuation.
-
-## Carried-forward requirements
-
-- A2-ED/B7-MID documentary UNVERIFIED; A5/B8/E10 pending closure; E11 NonReq UNVERIFIED; G6 period-axis assessment, G7 note facts, G8 deferral, G9 standalone interest completeness and remaining TARGET Step 9 exit gates.
-- Frozen requests `20260914-193338-000000004` and `20260915-042248-000000005` remain PENDING: preserve recovery evidence and continue highest-priority benchmark-improving Step 9 work through the normal five stages after this acceptance defect is verified closed.
-- Child acceptance does not close unresolved parents or satisfy all frozen requests. No blanket DONE or prospective step-ID reservation.
+- Preserve G5 aliases, all prior lease/deferred-tax exercises, explicit-concept precedence, ambiguity rejection, original-row links, strict values and deterministic semantic mapping.
+- Preserve 74 Lululemon unavailable displays and zero Fast Retailing displays, partial-period interest dependency closure, opening-only CoD `0.374`, undefined-ratio semantics and no unavailable-history 4% substitute.
+- Preserve pretax resolution, distinct tax expense, capex `638657 / 651865 / 689232 / 680802`, reformulation tolerances and liability/equity discrepancy explanations.
+- Preserve independent asset/liability/signed-equity gates, sparse omissions, contradiction rejection, comparative provenance, NCIT `28555 / 15864 / reported 0 / None` and Common stock `611 / 606 / 581 / 557`.
+- Retain G1/G2/G3, empty-detail, subtotal/override, contra-equity, sparse-position, historical causal evidence, all 12 pretax/ETR cases, mutation controls and failure immutability.
+- Retain parent temporary-build acceptance: success or exactly `MissingLineError: Required concept 'interest_expense' not found in statement lines`; preserve current successful gated generation.
+- No invented interest, inferred zeros, cash-interest substitution, lease repayment inference or deferred-tax expense/recoverability claims.
+- Carry A2-ED/B7-MID documentary UNVERIFIED; A5/B8/E10 pending closure; E11 NonReq UNVERIFIED; G6 period-axis assessment, G7 note facts, G8 deferral, G9 standalone interest completeness and remaining TARGET Step 9 exit gates.
+- Frozen requests `20260914-193338-000000004` and `20260915-042248-000000005` remain PENDING through the normal five stages until their full requirements and unresolved acceptance are satisfied.
