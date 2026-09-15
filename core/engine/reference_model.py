@@ -47,6 +47,11 @@ from ..model.acquisition_cash import (
     acquisition_cash_applicable,
     resolve_acquisition_cash_source,
 )
+from ..model.share_repurchase import (
+    compute_share_repurchase_series,
+    share_repurchase_applicable,
+    resolve_share_repurchase_source,
+)
 from ..model.capex import (
     compute_capex_series,
     capex_applicable,
@@ -95,6 +100,7 @@ from ..model.working_capital import (
 from .component_catalog import (
     DEFERRED_COMPONENT_SPECS,
     expand_acquisition_cash_specs,
+    expand_share_repurchase_specs,
     expand_capex_specs,
     expand_fixed_asset_specs,
     expand_goodwill_intangibles_specs,
@@ -675,6 +681,45 @@ class ReferenceModelBuilder:
         else:
             self.acquisition_cash_series = None
             self.acquisition_cash_specs = ()
+        if share_repurchase_applicable(self.fin):
+            self.share_repurchase_series = compute_share_repurchase_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.share_repurchase_specs = expand_share_repurchase_specs(
+                self.periods,
+                start_order=(
+                    len(self.historical_specs)
+                    + len(self.normalization_specs)
+                    + len(self.quality_specs)
+                    + len(self.working_capital_specs)
+                    + len(self.profitability_driver_specs)
+                    + len(self.profitability_change_specs)
+                    + len(self.roe_attribution_specs)
+                    + len(self.quality_change_specs)
+                    + len(self.per_share_specs)
+                    + len(self.per_share_attribution_specs)
+                    + len(self.normalized_per_share_specs)
+                    + len(self.fixed_asset_specs)
+                    + len(self.lease_liability_specs)
+                    + len(self.ownership_attribution_specs)
+                    + len(self.goodwill_intangibles_specs)
+                    + len(self.lease_rou_specs)
+                    + len(self.deferred_tax_specs)
+                    + len(self.capex_specs)
+                    + len(self.lease_repayment_specs)
+                    + len(self.acquisition_cash_specs)
+                    + 1
+                ),
+                include_residual=(
+                    self.share_repurchase_series.cash_after_ppe_capex_acquisitions_and_repurchases
+                    is not None
+                ),
+            )
+        else:
+            self.share_repurchase_series = None
+            self.share_repurchase_specs = ()
         self.expected_specs = (
             self.historical_specs
             + self.normalization_specs
@@ -696,6 +741,7 @@ class ReferenceModelBuilder:
             + self.capex_specs
             + self.lease_repayment_specs
             + self.acquisition_cash_specs
+            + self.share_repurchase_specs
         )
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._historical_spec_index = {
@@ -759,6 +805,9 @@ class ReferenceModelBuilder:
         }
         self._acquisition_cash_spec_index = {
             (s.family_id, s.period_index): s for s in self.acquisition_cash_specs
+        }
+        self._share_repurchase_spec_index = {
+            (s.family_id, s.period_index): s for s in self.share_repurchase_specs
         }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
         self.normalization_series = (
@@ -1458,6 +1507,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._acquisition_cash_spec_index[(family_id, period_index)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_share_repurchase(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._share_repurchase_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -3555,6 +3620,139 @@ class ReferenceModelBuilder:
 
                 self.rowmap[
                     "dupont_cash_after_ppe_capex_and_acquisitions_row"
+                ] = residual_row
+                next_section_after = residual_row
+
+        if self.share_repurchase_series is not None:
+            rp_series = self.share_repurchase_series
+            rp_item = resolve_share_repurchase_source(self.fin)
+            assert rp_item is not None
+            rp_src = self._resolved_source_row(
+                self.fin.cash_flow, "repurchase_of_common_stock", required=True
+            )
+            assert rp_src is not None
+            rev_r = self.rowmap["condensed_revenue_row"]
+
+            rp_section_row = next_section_after + 2
+            reported_row = rp_section_row + 1
+            outflow_row = rp_section_row + 2
+            outflow_rev_row = rp_section_row + 3
+
+            ws.cell(
+                row=rp_section_row,
+                column=1,
+                value="SHARE REPURCHASE CONTEXT",
+            ).font = BOLD
+            ws.cell(
+                row=reported_row,
+                column=1,
+                value="Repurchase of common stock (reported)",
+            )
+            ws.cell(
+                row=outflow_row,
+                column=1,
+                value="Share-repurchase outflow (−reported)",
+            )
+            ws.cell(
+                row=outflow_rev_row,
+                column=1,
+                value="Share-repurchase / Revenue",
+            )
+
+            for j in range(self._n):
+                out_col_idx = 2 + j
+                out_col = self._col(out_col_idx)
+                src_col = self._col(2 + j)
+                reported_f = f"='Cash Flow Statement'!{src_col}{rp_src}"
+                outflow_f = f"=-{out_col}{reported_row}"
+                outflow_rev_f = (
+                    f"=IF('Condensed Financials'!{src_col}{rev_r}=0,NA(),"
+                    f"{out_col}{outflow_row}/'Condensed Financials'!{src_col}{rev_r})"
+                )
+                c = ws.cell(row=reported_row, column=out_col_idx, value=reported_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(row=outflow_row, column=out_col_idx, value=outflow_f)
+                c.number_format = NUM_FMT
+                c = ws.cell(
+                    row=outflow_rev_row, column=out_col_idx, value=outflow_rev_f
+                )
+                c.number_format = PCT_FMT
+
+                outflow_exp = rp_series.share_repurchase_outflow[j]
+                outflow_rev_exp = rp_series.share_repurchase_to_revenue[j]
+                self._register_share_repurchase(
+                    "share_repurchase_outflow",
+                    j,
+                    "ALT DuPont",
+                    outflow_row,
+                    out_col_idx,
+                    outflow_f,
+                    float(outflow_exp),
+                )
+                self._register_share_repurchase(
+                    "share_repurchase_to_revenue",
+                    j,
+                    "ALT DuPont",
+                    outflow_rev_row,
+                    out_col_idx,
+                    outflow_rev_f,
+                    outflow_rev_exp
+                    if isinstance(outflow_rev_exp, str)
+                    else float(outflow_rev_exp),
+                )
+
+            self.rowmap["dupont_share_repurchase_reported_row"] = reported_row
+            self.rowmap["dupont_share_repurchase_outflow_row"] = outflow_row
+            self.rowmap["dupont_share_repurchase_to_revenue_row"] = outflow_rev_row
+            next_section_after = outflow_rev_row
+
+            if rp_series.cash_after_ppe_capex_acquisitions_and_repurchases is not None:
+                cfo_row = self.rowmap.get("dupont_operating_cash_flow_reported_row")
+                ppe_row = self.rowmap.get("dupont_ppe_capex_row")
+                acq_outflow_row = self.rowmap.get("dupont_acquisition_cash_outflow_row")
+                assert cfo_row is not None
+                assert ppe_row is not None
+                assert acq_outflow_row is not None
+                residual_section_row = next_section_after + 2
+                residual_row = residual_section_row + 1
+
+                ws.cell(
+                    row=residual_section_row,
+                    column=1,
+                    value="CASH AFTER PP&E CAPEX, ACQUISITIONS AND REPURCHASES",
+                ).font = BOLD
+                ws.cell(
+                    row=residual_row,
+                    column=1,
+                    value="Operating cash after PP&E capex, acquisitions and repurchases",
+                )
+
+                for j in range(self._n):
+                    out_col_idx = 2 + j
+                    out_col = self._col(out_col_idx)
+                    residual_f = (
+                        f"={out_col}{cfo_row}-{out_col}{ppe_row}"
+                        f"-{out_col}{acq_outflow_row}-{out_col}{outflow_row}"
+                    )
+                    c = ws.cell(
+                        row=residual_row, column=out_col_idx, value=residual_f
+                    )
+                    c.number_format = NUM_FMT
+                    residual_exp = (
+                        rp_series.cash_after_ppe_capex_acquisitions_and_repurchases[j]
+                    )
+                    self._register_share_repurchase(
+                        "cash_after_ppe_capex_acquisitions_and_repurchases",
+                        j,
+                        "ALT DuPont",
+                        residual_row,
+                        out_col_idx,
+                        residual_f,
+                        float(residual_exp),
+                    )
+
+                self.rowmap[
+                    "dupont_cash_after_ppe_capex_acquisitions_and_repurchases_row"
                 ] = residual_row
                 next_section_after = residual_row
 

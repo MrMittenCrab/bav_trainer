@@ -794,6 +794,15 @@ def test_fast_retailing_capex_module_activates():
     assert "cash_after_ppe_capex_and_acquisitions" not in {
         s.family_id for s in builder.expected_specs
     }
+    assert "share_repurchase_outflow" not in {
+        s.family_id for s in builder.expected_specs
+    }
+    assert "share_repurchase_to_revenue" not in {
+        s.family_id for s in builder.expected_specs
+    }
+    assert "cash_after_ppe_capex_acquisitions_and_repurchases" not in {
+        s.family_id for s in builder.expected_specs
+    }
 
 
 def test_fast_retailing_lease_repayment_module_activates():

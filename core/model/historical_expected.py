@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ..engine.component_catalog import (
     ACQUISITION_CASH_COMPONENT_CATALOG,
+    SHARE_REPURCHASE_COMPONENT_CATALOG,
     CAPEX_COMPONENT_CATALOG,
     COMPONENT_CATALOG,
     DEFERRED_TAX_COMPONENT_CATALOG,
@@ -26,6 +27,7 @@ from ..engine.component_catalog import (
 )
 from ..engine.semantic_map import ResolvedComponent
 from .acquisition_cash import AcquisitionCashSeries
+from .share_repurchase import ShareRepurchaseSeries
 from .capex import CapexSeries
 from .earnings_quality import EarningsQualitySeries
 from .earnings_quality_change import compute_earnings_quality_change_series
@@ -191,6 +193,19 @@ _ACQUISITION_CASH_BASE_FAMILY_SERIES = (
 )
 _ACQUISITION_CASH_RESIDUAL_FAMILY_SERIES = (
     "cash_after_ppe_capex_and_acquisitions",
+)
+
+_SHARE_REPURCHASE_FAMILY_SERIES = (
+    "share_repurchase_outflow",
+    "share_repurchase_to_revenue",
+    "cash_after_ppe_capex_acquisitions_and_repurchases",
+)
+_SHARE_REPURCHASE_BASE_FAMILY_SERIES = (
+    "share_repurchase_outflow",
+    "share_repurchase_to_revenue",
+)
+_SHARE_REPURCHASE_RESIDUAL_FAMILY_SERIES = (
+    "cash_after_ppe_capex_acquisitions_and_repurchases",
 )
 
 _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
@@ -774,6 +789,36 @@ def acquisition_cash_expected_series(
     }
 
 
+def share_repurchase_expected_series(
+    share_repurchase: ShareRepurchaseSeries,
+) -> dict[str, tuple[float | str | None, ...]]:
+    """Map share-repurchase practice families from a ShareRepurchaseSeries."""
+    series: dict[str, tuple[float | str | None, ...]] = {
+        "share_repurchase_outflow": share_repurchase.share_repurchase_outflow,
+        "share_repurchase_to_revenue": share_repurchase.share_repurchase_to_revenue,
+    }
+    if share_repurchase.cash_after_ppe_capex_acquisitions_and_repurchases is not None:
+        series["cash_after_ppe_capex_acquisitions_and_repurchases"] = (
+            share_repurchase.cash_after_ppe_capex_acquisitions_and_repurchases
+        )
+    catalog_ids = {family.id for family in SHARE_REPURCHASE_COMPONENT_CATALOG}
+    required = set(_SHARE_REPURCHASE_BASE_FAMILY_SERIES)
+    if share_repurchase.cash_after_ppe_capex_acquisitions_and_repurchases is not None:
+        required |= set(_SHARE_REPURCHASE_RESIDUAL_FAMILY_SERIES)
+    if set(series) != required or not required <= catalog_ids:
+        missing = sorted(required - set(series))
+        extra = sorted(set(series) - required)
+        raise ValueError(
+            "share_repurchase_expected_series family mismatch; "
+            f"missing={missing} extra={extra}"
+        )
+    return {
+        family_id: series[family_id]
+        for family_id in _SHARE_REPURCHASE_FAMILY_SERIES
+        if family_id in series
+    }
+
+
 def ownership_attribution_expected_series(
     ownership_attribution: OwnershipAttributionSeries,
 ) -> dict[str, tuple[float | str | None, ...]]:
@@ -888,6 +933,7 @@ def expected_value_for_component(
     capex: CapexSeries | None = None,
     lease_repayment: LeaseRepaymentSeries | None = None,
     acquisition_cash: AcquisitionCashSeries | None = None,
+    share_repurchase: ShareRepurchaseSeries | None = None,
 ) -> float | str | None:
     """Return the treatment-conditioned expected value for one practice component."""
     family_id = component.family_id
@@ -958,6 +1004,18 @@ def expected_value_for_component(
             raise ValueError(
                 f"Acquisition-cash family {family_id!r} requires unambiguous "
                 "operating cash flow and PP&E capex"
+            )
+    elif family_id in _SHARE_REPURCHASE_FAMILY_SERIES:
+        if share_repurchase is None:
+            raise ValueError(
+                f"Share-repurchase family {family_id!r} requires a "
+                "ShareRepurchaseSeries"
+            )
+        series = share_repurchase_expected_series(share_repurchase)
+        if family_id not in series:
+            raise ValueError(
+                f"Share-repurchase family {family_id!r} requires unambiguous "
+                "operating cash flow, PP&E capex, and acquisition cash"
             )
     elif family_id in _FIXED_ASSET_FAMILY_SERIES:
         if fixed_asset is None:

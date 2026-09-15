@@ -731,3 +731,47 @@ def test_acquisition_net_of_cash_acquired_explicit_concept_outranks_label():
     assert resolved.index == 1
     assert resolved.item.label == "Other acquisition carrying amount"
     assert resolved.item.concept == "acquisition_net_of_cash_acquired"
+
+
+def test_repurchase_of_common_stock_rejects_unsupported_label_only_inputs():
+    """Share-repurchase cash remains explicit-concept; nearby labels do not activate."""
+    for label in (
+        "Repurchase of common stock",
+        "Payments for repurchase of common stock",
+        "Treasury stock",
+        "Stock-based compensation expense",
+        "Proceeds from settlement of stock-based compensation",
+        "Shares withheld related to net share settlement",
+        "Dividends paid",
+    ):
+        assert (
+            resolve_line(
+                [_item(label, -100, -110)],
+                "repurchase_of_common_stock",
+                required=False,
+            ).item
+            is None
+        )
+    with pytest.raises(MissingLineError):
+        resolve_line(
+            [_item("Repurchase of common stock", -100, -110)],
+            "repurchase_of_common_stock",
+            required=True,
+        )
+
+
+def test_repurchase_of_common_stock_explicit_concept_outranks_label():
+    items = [
+        _item("Repurchase of common stock", -1, -2),
+        _item(
+            "Other repurchase carrying amount",
+            -100,
+            -110,
+            concept="repurchase_of_common_stock",
+        ),
+    ]
+    resolved = resolve_line(items, "repurchase_of_common_stock", required=True)
+    assert resolved.item is not None
+    assert resolved.index == 1
+    assert resolved.item.label == "Other repurchase carrying amount"
+    assert resolved.item.concept == "repurchase_of_common_stock"

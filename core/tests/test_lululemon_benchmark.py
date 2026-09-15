@@ -1088,6 +1088,173 @@ def test_source_supported_acquisition_cash_four_period_diagnostics(tmp_path: Pat
     assert stored.values == ACQUISITION_REPORTED
 
 
+REPURCHASE_REPORTED = {
+    date(2023, 1, 29): -444001.0,
+    date(2024, 1, 28): -558652.0,
+    date(2025, 2, 2): -1636879.0,
+    date(2026, 2, 1): -1178349.0,
+}
+REPURCHASE_OUTFLOW = {
+    date(2023, 1, 29): 444001.0,
+    date(2024, 1, 28): 558652.0,
+    date(2025, 2, 2): 1636879.0,
+    date(2026, 2, 1): 1178349.0,
+}
+CASH_AFTER_PPE_CAPEX_ACQUISITIONS_AND_REPURCHASES = {
+    date(2023, 1, 29): -116195.0,
+    date(2024, 1, 28): 1085647.0,
+    date(2025, 2, 2): -207544.0,
+    date(2026, 2, 1): -256674.0,
+}
+
+
+def test_source_supported_share_repurchase_four_period_diagnostics(tmp_path: Path):
+    from core.model.share_repurchase import (
+        cash_after_ppe_capex_acquisitions_and_repurchases_applicable,
+        compute_share_repurchase_series,
+        resolve_share_repurchase_source,
+        share_repurchase_applicable,
+    )
+
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    original_index, stored = next(
+        (idx, row)
+        for idx, row in enumerate(fin.cash_flow)
+        if row.concept == "repurchase_of_common_stock"
+        and row.label == "Repurchase of common stock"
+    )
+    assert stored.values == REPURCHASE_REPORTED
+    assert share_repurchase_applicable(fin) is True
+    assert cash_after_ppe_capex_acquisitions_and_repurchases_applicable(fin) is True
+    item = resolve_share_repurchase_source(fin)
+    assert item is stored
+    resolved = resolve_line(
+        fin.cash_flow, "repurchase_of_common_stock", required=True
+    )
+    assert resolved.index == original_index
+    assert resolved.item is stored
+    assert workbook_row_for(resolved, start_row=SOURCE_START_ROW) == (
+        SOURCE_START_ROW + original_index
+    )
+
+    revenue = resolve_line(fin.income_statement, "revenue", required=True).item
+    assert revenue is not None
+    cfo_item = resolve_operating_cash_source(fin)
+    assert cfo_item is not None
+    capex_item = resolve_capex_source(fin)
+    assert capex_item is not None
+    acq_item = next(
+        row
+        for row in fin.cash_flow
+        if row.concept == "acquisition_net_of_cash_acquired"
+    )
+    independent_outflow = []
+    independent_residual = []
+    independent_ratios = []
+    for period in EXPECTED_PERIODS:
+        reported = required_period_value(
+            stored, period, field="repurchase_of_common_stock"
+        )
+        rev = required_period_value(revenue, period, field="revenue")
+        cfo = required_period_value(cfo_item, period, field="operating_cash_flow")
+        pay = required_period_value(capex_item, period, field="payments_for_ppe")
+        acq = required_period_value(
+            acq_item, period, field="acquisition_net_of_cash_acquired"
+        )
+        outflow = -reported
+        residual = cfo - (-pay) - (-acq) - outflow
+        independent_outflow.append(outflow)
+        independent_residual.append(residual)
+        independent_ratios.append(outflow / rev if rev else None)
+        assert reported == REPURCHASE_REPORTED[period]
+        assert outflow == REPURCHASE_OUTFLOW[period]
+        assert residual == CASH_AFTER_PPE_CAPEX_ACQUISITIONS_AND_REPURCHASES[period]
+        assert rev == REVENUE_ANCHORS[period]
+    assert independent_outflow == [444001.0, 558652.0, 1636879.0, 1178349.0]
+    assert independent_residual == [-116195.0, 1085647.0, -207544.0, -256674.0]
+
+    series = compute_share_repurchase_series(
+        fin, list(EXPECTED_PERIODS), compute_anchor(fin, list(EXPECTED_PERIODS))
+    )
+    assert series.payments_reported == (-444001.0, -558652.0, -1636879.0, -1178349.0)
+    assert series.share_repurchase_outflow == tuple(independent_outflow)
+    assert series.cash_after_ppe_capex_acquisitions_and_repurchases == tuple(
+        independent_residual
+    )
+    for j, ratio in enumerate(independent_ratios):
+        assert series.share_repurchase_to_revenue[j] == pytest.approx(ratio)
+
+    builder = ReferenceModelBuilder(fin)
+    rp_ids = {
+        s.semantic_key
+        for s in builder.expected_specs
+        if s.family_id
+        in {
+            "share_repurchase_outflow",
+            "share_repurchase_to_revenue",
+            "cash_after_ppe_capex_acquisitions_and_repurchases",
+        }
+    }
+    assert len(rp_ids) == 12
+    assert len(builder.expected_specs) == LEASE_DT_LULULEMON_SPECS
+
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    rt_item = resolve_share_repurchase_source(restored)
+    assert rt_item is not None
+    assert rt_item.concept == "repurchase_of_common_stock"
+    assert rt_item.label == "Repurchase of common stock"
+    assert rt_item.values == REPURCHASE_REPORTED
+
+    out = tmp_path / "LululemonRP"
+    trainer, answer = build_training_workbook(fin, out)
+    assert trainer.exists() and answer.exists()
+    smap = load_semantic_map(answer)
+    assert len(smap.all_ordered()) == LEASE_DT_LULULEMON_SPECS
+    awb = load_workbook(answer, data_only=False)
+    ws = awb["ALT DuPont"]
+    reported_row = next(
+        r
+        for r in range(1, (ws.max_row or 1) + 1)
+        if ws.cell(r, 1).value == "Repurchase of common stock (reported)"
+    )
+    residual_row = next(
+        r
+        for r in range(1, (ws.max_row or 1) + 1)
+        if ws.cell(r, 1).value
+        == "Operating cash after PP&E capex, acquisitions and repurchases"
+    )
+    src_f = str(ws.cell(reported_row, 2).value).replace(" ", "")
+    assert src_f.startswith("='CashFlowStatement'!") or src_f.startswith(
+        "='Cash Flow Statement'!"
+    )
+    residual_f = str(ws.cell(residual_row, 2).value).replace(" ", "")
+    assert residual_f.startswith("=") and residual_f.count("-") >= 3
+    note_cell = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "cash_after_ppe_capex_acquisitions_and_repurchases"
+    )
+    nrow, ncol = parse_cell_ref(note_cell.cell)
+    note = (ws.cell(nrow, ncol).comment.text or "") if ws.cell(nrow, ncol).comment else ""
+    assert "exceed" in note.lower()
+    assert "debt" in note.lower()
+    assert "free cash flow" in note.lower()
+    outflow_note_cell = next(
+        c for c in smap.all_ordered() if c.family_id == "share_repurchase_outflow"
+    )
+    orow, ocol = parse_cell_ref(outflow_note_cell.cell)
+    outflow_note = (
+        (ws.cell(orow, ocol).comment.text or "")
+        if ws.cell(orow, ocol).comment
+        else ""
+    )
+    assert "distribution" in outflow_note.lower()
+    assert "dilution" in outflow_note.lower()
+    awb.close()
+    assert stored.concept == "repurchase_of_common_stock"
+    assert stored.values == REPURCHASE_REPORTED
+
+
 ROU_BALANCES = {
     date(2023, 1, 29): 969419.0,
     date(2024, 1, 28): 1265610.0,
@@ -1112,8 +1279,8 @@ NET_DT_POSITIONS = {
     date(2025, 2, 2): -81103.0,
     date(2026, 2, 1): -28241.0,
 }
-PRIOR_LULULEMON_SPECS = 280
-LEASE_DT_LULULEMON_SPECS = 305
+PRIOR_LULULEMON_SPECS = 292
+LEASE_DT_LULULEMON_SPECS = 317
 
 
 def _fill_rgb(cell) -> str:

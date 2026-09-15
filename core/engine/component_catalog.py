@@ -3292,6 +3292,161 @@ def expand_acquisition_cash_specs(
     return tuple(specs)
 
 
+SHARE_REPURCHASE_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="share_repurchase_outflow",
+        order=132,
+        title="Share-repurchase outflow (−reported)",
+        short_hint=(
+            "Presented as −reported repurchase of common stock. Reported cash "
+            "repurchase only — not total shareholder distributions, dividends, "
+            "treasury-stock movements, share-count change, SBC, settlement "
+            "proceeds, withholding, or dilution. Mechanical cash-use diagnostic "
+            "only; not comprehensive free cash flow or a complete cash "
+            "reconciliation."
+        ),
+        semantic_key="share_repurchase.share_repurchase_outflow",
+        category="share_repurchase",
+        tab_template="ALT DuPont",
+        hints=(
+            "Share-repurchase outflow = −(reported repurchase of common stock).",
+            "Do not apply absolute value; keep the −reported sign convention consistently.",
+            "This is the reported cash repurchase line only — not total shareholder "
+            "distributions or dilution effects.",
+            "Mechanical cash-use diagnostic only — not comprehensive free cash flow "
+            "or a complete cash reconciliation.",
+        ),
+    ),
+    ComponentFamily(
+        id="share_repurchase_to_revenue",
+        order=133,
+        title="Share-repurchase / Revenue",
+        short_hint=(
+            "Share-repurchase outflow divided by same-period Revenue. Uses the "
+            "reported repurchase-of-common-stock cash line, not total shareholder "
+            "distributions or dilution. Mechanical cash-use diagnostic only; not "
+            "comprehensive free cash flow or a complete cash reconciliation."
+        ),
+        semantic_key="share_repurchase.share_repurchase_to_revenue",
+        category="share_repurchase",
+        tab_template="ALT DuPont",
+        depends_on_current=("share_repurchase_outflow", "revenue_link"),
+        hints=(
+            "Share-repurchase / Revenue uses the −reported repurchase-of-common-stock "
+            "presentation.",
+            "A zero Revenue denominator makes the ratio undefined (#N/A).",
+            "Reported cash repurchase only — not total shareholder distributions or "
+            "dilution.",
+            "Mechanical cash-use diagnostic only — not comprehensive free cash flow "
+            "or a complete cash reconciliation.",
+        ),
+    ),
+    ComponentFamily(
+        id="cash_after_ppe_capex_acquisitions_and_repurchases",
+        order=134,
+        title="Operating cash after PP&E capex, acquisitions and repurchases",
+        short_hint=(
+            "Reported CFO minus PP&E capex minus acquisition cash outflow minus "
+            "share-repurchase outflow. A negative residual means these selected "
+            "cash uses exceed reported CFO; it does not identify debt funding. "
+            "Mechanical cash-use diagnostic only — not comprehensive free cash "
+            "flow or a complete cash reconciliation."
+        ),
+        semantic_key=(
+            "share_repurchase.cash_after_ppe_capex_acquisitions_and_repurchases"
+        ),
+        category="share_repurchase",
+        tab_template="ALT DuPont",
+        depends_on_current=(
+            "ppe_capex",
+            "acquisition_cash_outflow",
+            "share_repurchase_outflow",
+        ),
+        hints=(
+            "Operating cash after PP&E capex, acquisitions and repurchases = "
+            "reported CFO − PP&E capex − acquisition cash outflow − "
+            "share-repurchase outflow.",
+            "A negative residual means these selected cash uses exceed reported "
+            "CFO; it does not identify debt funding.",
+            "Mechanical cash-use diagnostic only — not comprehensive free cash flow "
+            "or a complete cash reconciliation.",
+        ),
+    ),
+)
+
+
+_SHARE_REPURCHASE_RESIDUAL_FAMILY_IDS = frozenset(
+    {
+        "cash_after_ppe_capex_acquisitions_and_repurchases",
+    }
+)
+
+
+def expand_share_repurchase_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    include_residual: bool = False,
+) -> tuple[ComponentSpec, ...]:
+    """Expand share-repurchase families into period-specific concrete specs."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_share_repurchase_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_share_repurchase_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    families = SHARE_REPURCHASE_COMPONENT_CATALOG
+    if not include_residual:
+        families = tuple(
+            family
+            for family in SHARE_REPURCHASE_COMPONENT_CATALOG
+            if family.id not in _SHARE_REPURCHASE_RESIDUAL_FAMILY_IDS
+        )
+
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for family in families:
+        if family.period_scope == "comparable":
+            indices = range(1, len(periods))
+        else:
+            indices = range(len(periods))
+        for j in indices:
+            period = periods[j]
+            deps: list[str] = []
+            for dep_fam in family.depends_on_current:
+                deps.append(concrete_component_id(dep_fam, period))
+            if j > 0:
+                prev = periods[j - 1]
+                for dep_fam in family.depends_on_previous:
+                    deps.append(concrete_component_id(dep_fam, prev))
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=concrete_component_id(family.id, period),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=j,
+                    period_end=period_end,
+                    depends_on=tuple(deps),
+                    hints=family.hints,
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
 DEFERRED_TAX_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
     ComponentFamily(
         id="net_deferred_tax_position",
