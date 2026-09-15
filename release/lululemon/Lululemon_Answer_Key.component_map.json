@@ -5316,8 +5316,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_change.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C67",
-      "formula": "=C66-B66",
+      "cell": "C82",
+      "formula": "=C81-B81",
       "expected_value": -61.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5340,8 +5340,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_change.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D67",
-      "formula": "=D66-C66",
+      "cell": "D82",
+      "formula": "=D81-C81",
       "expected_value": 135435.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5364,8 +5364,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_change.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E67",
-      "formula": "=E66-D66",
+      "cell": "E82",
+      "formula": "=E81-D81",
       "expected_value": 25393.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5388,8 +5388,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_growth.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C68",
-      "formula": "=IF(B66=0,NA(),C66/B66-1)",
+      "cell": "C83",
+      "formula": "=IF(B81=0,NA(),C81/B81-1)",
       "expected_value": -0.0025265076209410207,
       "tolerance": 0.01,
       "depends_on": [
@@ -5415,8 +5415,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_growth.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D68",
-      "formula": "=IF(C66=0,NA(),D66/C66-1)",
+      "cell": "D83",
+      "formula": "=IF(C81=0,NA(),D81/C81-1)",
       "expected_value": 5.623676452269236,
       "tolerance": 0.01,
       "depends_on": [
@@ -5442,8 +5442,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_growth.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E68",
-      "formula": "=IF(D66=0,NA(),E66/D66-1)",
+      "cell": "E83",
+      "formula": "=IF(D81=0,NA(),E81/D81-1)",
       "expected_value": 0.1591857972141075,
       "tolerance": 0.01,
       "depends_on": [
@@ -5469,8 +5469,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C69",
-      "formula": "=(B66+C66)/2",
+      "cell": "C84",
+      "formula": "=(B81+C81)/2",
       "expected_value": 24113.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5492,8 +5492,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D69",
-      "formula": "=(C66+D66)/2",
+      "cell": "D84",
+      "formula": "=(C81+D81)/2",
       "expected_value": 91800.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5515,8 +5515,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E69",
-      "formula": "=(D66+E66)/2",
+      "cell": "E84",
+      "formula": "=(D81+E81)/2",
       "expected_value": 172214.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5538,8 +5538,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C70",
-      "formula": "=IF('Condensed Financials'!C34=0,NA(),C69/'Condensed Financials'!C34)",
+      "cell": "C85",
+      "formula": "=IF('Condensed Financials'!C34=0,NA(),C84/'Condensed Financials'!C34)",
       "expected_value": 0.0025067889710641486,
       "tolerance": 0.01,
       "depends_on": [
@@ -5565,8 +5565,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D70",
-      "formula": "=IF('Condensed Financials'!D34=0,NA(),D69/'Condensed Financials'!D34)",
+      "cell": "D85",
+      "formula": "=IF('Condensed Financials'!D34=0,NA(),D84/'Condensed Financials'!D34)",
       "expected_value": 0.008670136717300115,
       "tolerance": 0.01,
       "depends_on": [
@@ -5592,8 +5592,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_to_revenue.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E70",
-      "formula": "=IF('Condensed Financials'!E34=0,NA(),E69/'Condensed Financials'!E34)",
+      "cell": "E85",
+      "formula": "=IF('Condensed Financials'!E34=0,NA(),E84/'Condensed Financials'!E34)",
       "expected_value": 0.015511186568911787,
       "tolerance": 0.01,
       "depends_on": [
@@ -5619,8 +5619,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C72",
-      "formula": "=C71-B71",
+      "cell": "C87",
+      "formula": "=C86-B86",
       "expected_value": -21961.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5642,8 +5642,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D72",
-      "formula": "=D71-C71",
+      "cell": "D87",
+      "formula": "=D86-C86",
       "expected_value": 11673.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5665,8 +5665,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_change.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E72",
-      "formula": "=E71-D71",
+      "cell": "E87",
+      "formula": "=E86-D86",
       "expected_value": -5390.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5688,8 +5688,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C73",
-      "formula": "=IF(B71=0,NA(),C71/B71-1)",
+      "cell": "C88",
+      "formula": "=IF(B86=0,NA(),C86/B86-1)",
       "expected_value": -1.0,
       "tolerance": 0.01,
       "depends_on": [
@@ -5714,8 +5714,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D73",
-      "formula": "=IF(C71=0,NA(),D71/C71-1)",
+      "cell": "D88",
+      "formula": "=IF(C86=0,NA(),D86/C86-1)",
       "expected_value": "#N/A",
       "tolerance": 0.01,
       "depends_on": [
@@ -5740,8 +5740,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_growth.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E73",
-      "formula": "=IF(D71=0,NA(),E71/D71-1)",
+      "cell": "E88",
+      "formula": "=IF(D86=0,NA(),E86/D86-1)",
       "expected_value": -0.4617493360747023,
       "tolerance": 0.01,
       "depends_on": [
@@ -5766,8 +5766,8 @@
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C74",
-      "formula": "=(B71+C71)/2",
+      "cell": "C89",
+      "formula": "=(B86+C86)/2",
       "expected_value": 10980.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5789,8 +5789,8 @@
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D74",
-      "formula": "=(C71+D71)/2",
+      "cell": "D89",
+      "formula": "=(C86+D86)/2",
       "expected_value": 5836.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5812,8 +5812,8 @@
       "semantic_key": "goodwill_intangibles.average_intangible_assets.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E74",
-      "formula": "=(D71+E71)/2",
+      "cell": "E89",
+      "formula": "=(D86+E86)/2",
       "expected_value": 8978.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5835,8 +5835,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C75",
-      "formula": "=IF('Condensed Financials'!C34=0,NA(),C74/'Condensed Financials'!C34)",
+      "cell": "C90",
+      "formula": "=IF('Condensed Financials'!C34=0,NA(),C89/'Condensed Financials'!C34)",
       "expected_value": 0.0011415097889883213,
       "tolerance": 0.01,
       "depends_on": [
@@ -5862,8 +5862,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D75",
-      "formula": "=IF('Condensed Financials'!D34=0,NA(),D74/'Condensed Financials'!D34)",
+      "cell": "D90",
+      "formula": "=IF('Condensed Financials'!D34=0,NA(),D89/'Condensed Financials'!D34)",
       "expected_value": 0.0005512306899256771,
       "tolerance": 0.01,
       "depends_on": [
@@ -5889,8 +5889,8 @@
       "semantic_key": "goodwill_intangibles.intangible_assets_to_revenue.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E75",
-      "formula": "=IF('Condensed Financials'!E34=0,NA(),E74/'Condensed Financials'!E34)",
+      "cell": "E90",
+      "formula": "=IF('Condensed Financials'!E34=0,NA(),E89/'Condensed Financials'!E34)",
       "expected_value": 0.0008086394177940303,
       "tolerance": 0.01,
       "depends_on": [
@@ -5916,8 +5916,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C77",
-      "formula": "=C76-B76",
+      "cell": "C92",
+      "formula": "=C91-B91",
       "expected_value": -22022.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5939,8 +5939,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D77",
-      "formula": "=D76-C76",
+      "cell": "D92",
+      "formula": "=D91-C91",
       "expected_value": 147108.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5962,8 +5962,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_change.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E77",
-      "formula": "=E76-D76",
+      "cell": "E92",
+      "formula": "=E91-D91",
       "expected_value": 20003.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -5985,8 +5985,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C78",
-      "formula": "=IF(B76=0,NA(),C76/B76-1)",
+      "cell": "C93",
+      "formula": "=IF(B91=0,NA(),C91/B91-1)",
       "expected_value": -0.47764884502765426,
       "tolerance": 0.01,
       "depends_on": [
@@ -6011,8 +6011,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D78",
-      "formula": "=IF(C76=0,NA(),D76/C76-1)",
+      "cell": "D93",
+      "formula": "=IF(C91=0,NA(),D91/C91-1)",
       "expected_value": 6.108375202424947,
       "tolerance": 0.01,
       "depends_on": [
@@ -6037,8 +6037,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_growth.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E78",
-      "formula": "=IF(D76=0,NA(),E76/D76-1)",
+      "cell": "E93",
+      "formula": "=IF(D91=0,NA(),E91/D91-1)",
       "expected_value": 0.11684609588120871,
       "tolerance": 0.01,
       "depends_on": [
@@ -6063,8 +6063,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C79",
-      "formula": "=(B76+C76)/2",
+      "cell": "C94",
+      "formula": "=(B91+C91)/2",
       "expected_value": 35094.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6086,8 +6086,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D79",
-      "formula": "=(C76+D76)/2",
+      "cell": "D94",
+      "formula": "=(C91+D91)/2",
       "expected_value": 97637.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6109,8 +6109,8 @@
       "semantic_key": "goodwill_intangibles.average_goodwill_and_intangibles.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E79",
-      "formula": "=(D76+E76)/2",
+      "cell": "E94",
+      "formula": "=(D91+E91)/2",
       "expected_value": 181192.5,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6132,8 +6132,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-01-28",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "C80",
-      "formula": "=IF('Condensed Financials'!C34=0,NA(),C79/'Condensed Financials'!C34)",
+      "cell": "C95",
+      "formula": "=IF('Condensed Financials'!C34=0,NA(),C94/'Condensed Financials'!C34)",
       "expected_value": 0.0036482987600524697,
       "tolerance": 0.01,
       "depends_on": [
@@ -6159,8 +6159,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-02-02",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "D80",
-      "formula": "=IF('Condensed Financials'!D34=0,NA(),D79/'Condensed Financials'!D34)",
+      "cell": "D95",
+      "formula": "=IF('Condensed Financials'!D34=0,NA(),D94/'Condensed Financials'!D34)",
       "expected_value": 0.009221367407225792,
       "tolerance": 0.01,
       "depends_on": [
@@ -6186,8 +6186,8 @@
       "semantic_key": "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2026-02-01",
       "category": "goodwill_intangibles",
       "tab": "ALT DuPont",
-      "cell": "E80",
-      "formula": "=IF('Condensed Financials'!E34=0,NA(),E79/'Condensed Financials'!E34)",
+      "cell": "E95",
+      "formula": "=IF('Condensed Financials'!E34=0,NA(),E94/'Condensed Financials'!E34)",
       "expected_value": 0.016319825986705817,
       "tolerance": 0.01,
       "depends_on": [
@@ -6206,15 +6206,642 @@
       "period_end": "2026-02-01"
     },
     {
-      "id": "ppe_capex__20230129",
+      "id": "rou_assets_change__20240128",
       "order": 241,
+      "title": "Change in Right-of-use Assets",
+      "short_hint": "Current ROU assets \u2212 prior ROU assets.",
+      "semantic_key": "lease_rou.rou_assets_change.2024-01-28",
+      "category": "lease_rou",
+      "tab": "ALT DuPont",
+      "cell": "C62",
+      "formula": "=C61-B61",
+      "expected_value": 296191.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Change in Right-of-use Assets = Current \u2212 Prior reported ROU assets.",
+        "Balance change is not lease cash payments, amortization, or liability change."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "rou_assets_change",
+      "family_order": 112,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "rou_assets_change__20250202",
+      "order": 242,
+      "title": "Change in Right-of-use Assets",
+      "short_hint": "Current ROU assets \u2212 prior ROU assets.",
+      "semantic_key": "lease_rou.rou_assets_change.2025-02-02",
+      "category": "lease_rou",
+      "tab": "ALT DuPont",
+      "cell": "D62",
+      "formula": "=D61-C61",
+      "expected_value": 150646.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Change in Right-of-use Assets = Current \u2212 Prior reported ROU assets.",
+        "Balance change is not lease cash payments, amortization, or liability change."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "rou_assets_change",
+      "family_order": 112,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "rou_assets_change__20260201",
+      "order": 243,
+      "title": "Change in Right-of-use Assets",
+      "short_hint": "Current ROU assets \u2212 prior ROU assets.",
+      "semantic_key": "lease_rou.rou_assets_change.2026-02-01",
+      "category": "lease_rou",
+      "tab": "ALT DuPont",
+      "cell": "E62",
+      "formula": "=E61-D61",
+      "expected_value": 213925.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Change in Right-of-use Assets = Current \u2212 Prior reported ROU assets.",
+        "Balance change is not lease cash payments, amortization, or liability change."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "rou_assets_change",
+      "family_order": 112,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "rou_assets_growth__20240128",
+      "order": 244,
+      "title": "Right-of-use Assets Growth",
+      "short_hint": "Percentage change in reported ROU assets.",
+      "semantic_key": "lease_rou.rou_assets_growth.2024-01-28",
+      "category": "lease_rou",
+      "tab": "ALT DuPont",
+      "cell": "C63",
+      "formula": "=IF(B61=0,NA(),C61/B61-1)",
+      "expected_value": 0.3055345521389616,
+      "tolerance": 0.01,
+      "depends_on": [
+        "rou_assets_change__20240128"
+      ],
+      "hints": [
+        "Right-of-use Assets Growth = Change in ROU assets / Prior ROU assets.",
+        "A zero prior ROU-asset balance makes percentage growth undefined (#N/A).",
+        "Balance growth is not rent growth, lease cash payments, or liability growth."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "rou_assets_growth",
+      "family_order": 113,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "rou_assets_growth__20250202",
+      "order": 245,
+      "title": "Right-of-use Assets Growth",
+      "short_hint": "Percentage change in reported ROU assets.",
+      "semantic_key": "lease_rou.rou_assets_growth.2025-02-02",
+      "category": "lease_rou",
+      "tab": "ALT DuPont",
+      "cell": "D63",
+      "formula": "=IF(C61=0,NA(),D61/C61-1)",
+      "expected_value": 0.11903034900166717,
+      "tolerance": 0.01,
+      "depends_on": [
+        "rou_assets_change__20250202"
+      ],
+      "hints": [
+        "Right-of-use Assets Growth = Change in ROU assets / Prior ROU assets.",
+        "A zero prior ROU-asset balance makes percentage growth undefined (#N/A).",
+        "Balance growth is not rent growth, lease cash payments, or liability growth."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "rou_assets_growth",
+      "family_order": 113,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "rou_assets_growth__20260201",
+      "order": 246,
+      "title": "Right-of-use Assets Growth",
+      "short_hint": "Percentage change in reported ROU assets.",
+      "semantic_key": "lease_rou.rou_assets_growth.2026-02-01",
+      "category": "lease_rou",
+      "tab": "ALT DuPont",
+      "cell": "E63",
+      "formula": "=IF(D61=0,NA(),E61/D61-1)",
+      "expected_value": 0.15104966898639793,
+      "tolerance": 0.01,
+      "depends_on": [
+        "rou_assets_change__20260201"
+      ],
+      "hints": [
+        "Right-of-use Assets Growth = Change in ROU assets / Prior ROU assets.",
+        "A zero prior ROU-asset balance makes percentage growth undefined (#N/A).",
+        "Balance growth is not rent growth, lease cash payments, or liability growth."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "rou_assets_growth",
+      "family_order": 113,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "average_rou_assets__20240128",
+      "order": 247,
+      "title": "Average Right-of-use Assets",
+      "short_hint": "Average beginning and ending ROU assets.",
+      "semantic_key": "lease_rou.average_rou_assets.2024-01-28",
+      "category": "lease_rou",
+      "tab": "ALT DuPont",
+      "cell": "C64",
+      "formula": "=(B61+C61)/2",
+      "expected_value": 1117514.5,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Average Right-of-use Assets = (Prior ROU assets + Current ROU assets) / 2."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "average_rou_assets",
+      "family_order": 114,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "average_rou_assets__20250202",
+      "order": 248,
+      "title": "Average Right-of-use Assets",
+      "short_hint": "Average beginning and ending ROU assets.",
+      "semantic_key": "lease_rou.average_rou_assets.2025-02-02",
+      "category": "lease_rou",
+      "tab": "ALT DuPont",
+      "cell": "D64",
+      "formula": "=(C61+D61)/2",
+      "expected_value": 1340933.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Average Right-of-use Assets = (Prior ROU assets + Current ROU assets) / 2."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "average_rou_assets",
+      "family_order": 114,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "average_rou_assets__20260201",
+      "order": 249,
+      "title": "Average Right-of-use Assets",
+      "short_hint": "Average beginning and ending ROU assets.",
+      "semantic_key": "lease_rou.average_rou_assets.2026-02-01",
+      "category": "lease_rou",
+      "tab": "ALT DuPont",
+      "cell": "E64",
+      "formula": "=(D61+E61)/2",
+      "expected_value": 1523218.5,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Average Right-of-use Assets = (Prior ROU assets + Current ROU assets) / 2."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "average_rou_assets",
+      "family_order": 114,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "rou_assets_to_revenue__20240128",
+      "order": 250,
+      "title": "Average Right-of-use Assets / Revenue",
+      "short_hint": "Average ROU assets divided by current Revenue (balance intensity).",
+      "semantic_key": "lease_rou.rou_assets_to_revenue.2024-01-28",
+      "category": "lease_rou",
+      "tab": "ALT DuPont",
+      "cell": "C65",
+      "formula": "=IF('Condensed Financials'!C34=0,NA(),C64/'Condensed Financials'!C34)",
+      "expected_value": 0.11617446756398973,
+      "tolerance": 0.01,
+      "depends_on": [
+        "average_rou_assets__20240128",
+        "revenue_link__20240128"
+      ],
+      "hints": [
+        "Average Right-of-use Assets / Revenue uses the average balance, not the ending level alone.",
+        "Intensity is balance context only \u2014 not lease payments, discount rates, amortization, or liability reconciliation.",
+        "A zero Revenue denominator makes the ratio undefined (#N/A)."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "rou_assets_to_revenue",
+      "family_order": 115,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "rou_assets_to_revenue__20250202",
+      "order": 251,
+      "title": "Average Right-of-use Assets / Revenue",
+      "short_hint": "Average ROU assets divided by current Revenue (balance intensity).",
+      "semantic_key": "lease_rou.rou_assets_to_revenue.2025-02-02",
+      "category": "lease_rou",
+      "tab": "ALT DuPont",
+      "cell": "D65",
+      "formula": "=IF('Condensed Financials'!D34=0,NA(),D64/'Condensed Financials'!D34)",
+      "expected_value": 0.12664497947984374,
+      "tolerance": 0.01,
+      "depends_on": [
+        "average_rou_assets__20250202",
+        "revenue_link__20250202"
+      ],
+      "hints": [
+        "Average Right-of-use Assets / Revenue uses the average balance, not the ending level alone.",
+        "Intensity is balance context only \u2014 not lease payments, discount rates, amortization, or liability reconciliation.",
+        "A zero Revenue denominator makes the ratio undefined (#N/A)."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "rou_assets_to_revenue",
+      "family_order": 115,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "rou_assets_to_revenue__20260201",
+      "order": 252,
+      "title": "Average Right-of-use Assets / Revenue",
+      "short_hint": "Average ROU assets divided by current Revenue (balance intensity).",
+      "semantic_key": "lease_rou.rou_assets_to_revenue.2026-02-01",
+      "category": "lease_rou",
+      "tab": "ALT DuPont",
+      "cell": "E65",
+      "formula": "=IF('Condensed Financials'!E34=0,NA(),E64/'Condensed Financials'!E34)",
+      "expected_value": 0.13719475618323637,
+      "tolerance": 0.01,
+      "depends_on": [
+        "average_rou_assets__20260201",
+        "revenue_link__20260201"
+      ],
+      "hints": [
+        "Average Right-of-use Assets / Revenue uses the average balance, not the ending level alone.",
+        "Intensity is balance context only \u2014 not lease payments, discount rates, amortization, or liability reconciliation.",
+        "A zero Revenue denominator makes the ratio undefined (#N/A)."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "rou_assets_to_revenue",
+      "family_order": 115,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "net_deferred_tax_position__20230129",
+      "order": 253,
+      "title": "Net Deferred-Tax Asset Position (DTA \u2212 DTL)",
+      "short_hint": "Analytical net position = Deferred tax assets \u2212 Deferred tax liabilities.",
+      "semantic_key": "deferred_tax.net_deferred_tax_position.2023-01-29",
+      "category": "deferred_tax",
+      "tab": "ALT DuPont",
+      "cell": "B70",
+      "formula": "=B68-B69",
+      "expected_value": -48682.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Net Deferred-Tax Asset Position = Deferred tax assets \u2212 Deferred tax liabilities (same period).",
+        "Analytical DTA less DTL only \u2014 not deferred-tax expense, cash taxes, recoverability, or legal offset eligibility."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "net_deferred_tax_position",
+      "family_order": 116,
+      "period_index": 0,
+      "period_end": "2023-01-29"
+    },
+    {
+      "id": "net_deferred_tax_position__20240128",
+      "order": 254,
+      "title": "Net Deferred-Tax Asset Position (DTA \u2212 DTL)",
+      "short_hint": "Analytical net position = Deferred tax assets \u2212 Deferred tax liabilities.",
+      "semantic_key": "deferred_tax.net_deferred_tax_position.2024-01-28",
+      "category": "deferred_tax",
+      "tab": "ALT DuPont",
+      "cell": "C70",
+      "formula": "=C68-C69",
+      "expected_value": -20346.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Net Deferred-Tax Asset Position = Deferred tax assets \u2212 Deferred tax liabilities (same period).",
+        "Analytical DTA less DTL only \u2014 not deferred-tax expense, cash taxes, recoverability, or legal offset eligibility."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "net_deferred_tax_position",
+      "family_order": 116,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "net_deferred_tax_position__20250202",
+      "order": 255,
+      "title": "Net Deferred-Tax Asset Position (DTA \u2212 DTL)",
+      "short_hint": "Analytical net position = Deferred tax assets \u2212 Deferred tax liabilities.",
+      "semantic_key": "deferred_tax.net_deferred_tax_position.2025-02-02",
+      "category": "deferred_tax",
+      "tab": "ALT DuPont",
+      "cell": "D70",
+      "formula": "=D68-D69",
+      "expected_value": -81103.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Net Deferred-Tax Asset Position = Deferred tax assets \u2212 Deferred tax liabilities (same period).",
+        "Analytical DTA less DTL only \u2014 not deferred-tax expense, cash taxes, recoverability, or legal offset eligibility."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "net_deferred_tax_position",
+      "family_order": 116,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "net_deferred_tax_position__20260201",
+      "order": 256,
+      "title": "Net Deferred-Tax Asset Position (DTA \u2212 DTL)",
+      "short_hint": "Analytical net position = Deferred tax assets \u2212 Deferred tax liabilities.",
+      "semantic_key": "deferred_tax.net_deferred_tax_position.2026-02-01",
+      "category": "deferred_tax",
+      "tab": "ALT DuPont",
+      "cell": "E70",
+      "formula": "=E68-E69",
+      "expected_value": -28241.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Net Deferred-Tax Asset Position = Deferred tax assets \u2212 Deferred tax liabilities (same period).",
+        "Analytical DTA less DTL only \u2014 not deferred-tax expense, cash taxes, recoverability, or legal offset eligibility."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "net_deferred_tax_position",
+      "family_order": 116,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "deferred_tax_assets_change__20240128",
+      "order": 257,
+      "title": "Change in Deferred Tax Assets",
+      "short_hint": "Current DTA \u2212 prior DTA.",
+      "semantic_key": "deferred_tax.deferred_tax_assets_change.2024-01-28",
+      "category": "deferred_tax",
+      "tab": "ALT DuPont",
+      "cell": "C71",
+      "formula": "=C68-B68",
+      "expected_value": 2774.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Change in Deferred Tax Assets = Current DTA \u2212 Prior DTA.",
+        "Balance movement only \u2014 not deferred-tax expense or cash taxes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "deferred_tax_assets_change",
+      "family_order": 117,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "deferred_tax_assets_change__20250202",
+      "order": 258,
+      "title": "Change in Deferred Tax Assets",
+      "short_hint": "Current DTA \u2212 prior DTA.",
+      "semantic_key": "deferred_tax.deferred_tax_assets_change.2025-02-02",
+      "category": "deferred_tax",
+      "tab": "ALT DuPont",
+      "cell": "D71",
+      "formula": "=D68-C68",
+      "expected_value": 7909.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Change in Deferred Tax Assets = Current DTA \u2212 Prior DTA.",
+        "Balance movement only \u2014 not deferred-tax expense or cash taxes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "deferred_tax_assets_change",
+      "family_order": 117,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "deferred_tax_assets_change__20260201",
+      "order": 259,
+      "title": "Change in Deferred Tax Assets",
+      "short_hint": "Current DTA \u2212 prior DTA.",
+      "semantic_key": "deferred_tax.deferred_tax_assets_change.2026-02-01",
+      "category": "deferred_tax",
+      "tab": "ALT DuPont",
+      "cell": "E71",
+      "formula": "=E68-D68",
+      "expected_value": 6952.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Change in Deferred Tax Assets = Current DTA \u2212 Prior DTA.",
+        "Balance movement only \u2014 not deferred-tax expense or cash taxes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "deferred_tax_assets_change",
+      "family_order": 117,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "deferred_tax_liabilities_change__20240128",
+      "order": 260,
+      "title": "Change in Deferred Tax Liabilities",
+      "short_hint": "Current DTL \u2212 prior DTL.",
+      "semantic_key": "deferred_tax.deferred_tax_liabilities_change.2024-01-28",
+      "category": "deferred_tax",
+      "tab": "ALT DuPont",
+      "cell": "C72",
+      "formula": "=C69-B69",
+      "expected_value": -25562.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Change in Deferred Tax Liabilities = Current DTL \u2212 Prior DTL.",
+        "Balance movement only \u2014 not deferred-tax expense or cash taxes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "deferred_tax_liabilities_change",
+      "family_order": 118,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "deferred_tax_liabilities_change__20250202",
+      "order": 261,
+      "title": "Change in Deferred Tax Liabilities",
+      "short_hint": "Current DTL \u2212 prior DTL.",
+      "semantic_key": "deferred_tax.deferred_tax_liabilities_change.2025-02-02",
+      "category": "deferred_tax",
+      "tab": "ALT DuPont",
+      "cell": "D72",
+      "formula": "=D69-C69",
+      "expected_value": 68666.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Change in Deferred Tax Liabilities = Current DTL \u2212 Prior DTL.",
+        "Balance movement only \u2014 not deferred-tax expense or cash taxes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "deferred_tax_liabilities_change",
+      "family_order": 118,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "deferred_tax_liabilities_change__20260201",
+      "order": 262,
+      "title": "Change in Deferred Tax Liabilities",
+      "short_hint": "Current DTL \u2212 prior DTL.",
+      "semantic_key": "deferred_tax.deferred_tax_liabilities_change.2026-02-01",
+      "category": "deferred_tax",
+      "tab": "ALT DuPont",
+      "cell": "E72",
+      "formula": "=E69-D69",
+      "expected_value": -45910.0,
+      "tolerance": 0.01,
+      "depends_on": [],
+      "hints": [
+        "Change in Deferred Tax Liabilities = Current DTL \u2212 Prior DTL.",
+        "Balance movement only \u2014 not deferred-tax expense or cash taxes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "deferred_tax_liabilities_change",
+      "family_order": 118,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "net_deferred_tax_position_change__20240128",
+      "order": 263,
+      "title": "Change in Net Deferred-Tax Asset Position",
+      "short_hint": "Current net position \u2212 prior net position.",
+      "semantic_key": "deferred_tax.net_deferred_tax_position_change.2024-01-28",
+      "category": "deferred_tax",
+      "tab": "ALT DuPont",
+      "cell": "C73",
+      "formula": "=C70-B70",
+      "expected_value": 28336.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "net_deferred_tax_position__20240128",
+        "net_deferred_tax_position__20230129"
+      ],
+      "hints": [
+        "Change in Net Deferred-Tax Asset Position = Current net \u2212 Prior net.",
+        "Net-position change is a balance movement \u2014 not deferred-tax expense or cash taxes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "net_deferred_tax_position_change",
+      "family_order": 119,
+      "period_index": 1,
+      "period_end": "2024-01-28"
+    },
+    {
+      "id": "net_deferred_tax_position_change__20250202",
+      "order": 264,
+      "title": "Change in Net Deferred-Tax Asset Position",
+      "short_hint": "Current net position \u2212 prior net position.",
+      "semantic_key": "deferred_tax.net_deferred_tax_position_change.2025-02-02",
+      "category": "deferred_tax",
+      "tab": "ALT DuPont",
+      "cell": "D73",
+      "formula": "=D70-C70",
+      "expected_value": -60757.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "net_deferred_tax_position__20250202",
+        "net_deferred_tax_position__20240128"
+      ],
+      "hints": [
+        "Change in Net Deferred-Tax Asset Position = Current net \u2212 Prior net.",
+        "Net-position change is a balance movement \u2014 not deferred-tax expense or cash taxes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "net_deferred_tax_position_change",
+      "family_order": 119,
+      "period_index": 2,
+      "period_end": "2025-02-02"
+    },
+    {
+      "id": "net_deferred_tax_position_change__20260201",
+      "order": 265,
+      "title": "Change in Net Deferred-Tax Asset Position",
+      "short_hint": "Current net position \u2212 prior net position.",
+      "semantic_key": "deferred_tax.net_deferred_tax_position_change.2026-02-01",
+      "category": "deferred_tax",
+      "tab": "ALT DuPont",
+      "cell": "E73",
+      "formula": "=E70-D70",
+      "expected_value": 52862.0,
+      "tolerance": 0.01,
+      "depends_on": [
+        "net_deferred_tax_position__20260201",
+        "net_deferred_tax_position__20250202"
+      ],
+      "hints": [
+        "Change in Net Deferred-Tax Asset Position = Current net \u2212 Prior net.",
+        "Net-position change is a balance movement \u2014 not deferred-tax expense or cash taxes."
+      ],
+      "related_cells": [],
+      "status": "pending",
+      "family_id": "net_deferred_tax_position_change",
+      "family_order": 119,
+      "period_index": 3,
+      "period_end": "2026-02-01"
+    },
+    {
+      "id": "ppe_capex__20230129",
+      "order": 266,
       "title": "PP&E Capex (\u2212reported)",
       "short_hint": "Presented as \u2212reported payments for property, plant and equipment.",
       "semantic_key": "capex.ppe_capex.2023-01-29",
       "category": "capex",
       "tab": "ALT DuPont",
-      "cell": "B62",
-      "formula": "=-B61",
+      "cell": "B77",
+      "formula": "=-B76",
       "expected_value": 638657.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6232,14 +6859,14 @@
     },
     {
       "id": "ppe_capex__20240128",
-      "order": 242,
+      "order": 267,
       "title": "PP&E Capex (\u2212reported)",
       "short_hint": "Presented as \u2212reported payments for property, plant and equipment.",
       "semantic_key": "capex.ppe_capex.2024-01-28",
       "category": "capex",
       "tab": "ALT DuPont",
-      "cell": "C62",
-      "formula": "=-C61",
+      "cell": "C77",
+      "formula": "=-C76",
       "expected_value": 651865.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6257,14 +6884,14 @@
     },
     {
       "id": "ppe_capex__20250202",
-      "order": 243,
+      "order": 268,
       "title": "PP&E Capex (\u2212reported)",
       "short_hint": "Presented as \u2212reported payments for property, plant and equipment.",
       "semantic_key": "capex.ppe_capex.2025-02-02",
       "category": "capex",
       "tab": "ALT DuPont",
-      "cell": "D62",
-      "formula": "=-D61",
+      "cell": "D77",
+      "formula": "=-D76",
       "expected_value": 689232.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6282,14 +6909,14 @@
     },
     {
       "id": "ppe_capex__20260201",
-      "order": 244,
+      "order": 269,
       "title": "PP&E Capex (\u2212reported)",
       "short_hint": "Presented as \u2212reported payments for property, plant and equipment.",
       "semantic_key": "capex.ppe_capex.2026-02-01",
       "category": "capex",
       "tab": "ALT DuPont",
-      "cell": "E62",
-      "formula": "=-E61",
+      "cell": "E77",
+      "formula": "=-E76",
       "expected_value": 680802.0,
       "tolerance": 0.01,
       "depends_on": [],
@@ -6307,14 +6934,14 @@
     },
     {
       "id": "ppe_capex_to_revenue__20230129",
-      "order": 245,
+      "order": 270,
       "title": "PP&E Capex / Revenue",
       "short_hint": "Presented PP&E capex divided by same-period Revenue.",
       "semantic_key": "capex.ppe_capex_to_revenue.2023-01-29",
       "category": "capex",
       "tab": "ALT DuPont",
-      "cell": "B63",
-      "formula": "=IF('Condensed Financials'!B34=0,NA(),B62/'Condensed Financials'!B34)",
+      "cell": "B78",
+      "formula": "=IF('Condensed Financials'!B34=0,NA(),B77/'Condensed Financials'!B34)",
       "expected_value": 0.07874429228811279,
       "tolerance": 0.01,
       "depends_on": [
@@ -6335,14 +6962,14 @@
     },
     {
       "id": "ppe_capex_to_revenue__20240128",
-      "order": 246,
+      "order": 271,
       "title": "PP&E Capex / Revenue",
       "short_hint": "Presented PP&E capex divided by same-period Revenue.",
       "semantic_key": "capex.ppe_capex_to_revenue.2024-01-28",
       "category": "capex",
       "tab": "ALT DuPont",
-      "cell": "C63",
-      "formula": "=IF('Condensed Financials'!C34=0,NA(),C62/'Condensed Financials'!C34)",
+      "cell": "C78",
+      "formula": "=IF('Condensed Financials'!C34=0,NA(),C77/'Condensed Financials'!C34)",
       "expected_value": 0.06776652052264213,
       "tolerance": 0.01,
       "depends_on": [
@@ -6363,14 +6990,14 @@
     },
     {
       "id": "ppe_capex_to_revenue__20250202",
-      "order": 247,
+      "order": 272,
       "title": "PP&E Capex / Revenue",
       "short_hint": "Presented PP&E capex divided by same-period Revenue.",
       "semantic_key": "capex.ppe_capex_to_revenue.2025-02-02",
       "category": "capex",
       "tab": "ALT DuPont",
-      "cell": "D63",
-      "formula": "=IF('Condensed Financials'!D34=0,NA(),D62/'Condensed Financials'!D34)",
+      "cell": "D78",
+      "formula": "=IF('Condensed Financials'!D34=0,NA(),D77/'Condensed Financials'!D34)",
       "expected_value": 0.0650948052563787,
       "tolerance": 0.01,
       "depends_on": [
@@ -6391,14 +7018,14 @@
     },
     {
       "id": "ppe_capex_to_revenue__20260201",
-      "order": 248,
+      "order": 273,
       "title": "PP&E Capex / Revenue",
       "short_hint": "Presented PP&E capex divided by same-period Revenue.",
       "semantic_key": "capex.ppe_capex_to_revenue.2026-02-01",
       "category": "capex",
       "tab": "ALT DuPont",
-      "cell": "E63",
-      "formula": "=IF('Condensed Financials'!E34=0,NA(),E62/'Condensed Financials'!E34)",
+      "cell": "E78",
+      "formula": "=IF('Condensed Financials'!E34=0,NA(),E77/'Condensed Financials'!E34)",
       "expected_value": 0.061319150469259454,
       "tolerance": 0.01,
       "depends_on": [
@@ -7121,268 +7748,418 @@
       "row": 58,
       "col": 5
     },
-    "capex.ppe_capex.2023-01-29": {
-      "tab": "ALT DuPont",
-      "cell": "B62",
-      "row": 62,
-      "col": 2
-    },
-    "capex.ppe_capex_to_revenue.2023-01-29": {
-      "tab": "ALT DuPont",
-      "cell": "B63",
-      "row": 63,
-      "col": 2
-    },
-    "capex.ppe_capex.2024-01-28": {
+    "lease_rou.rou_assets_change.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C62",
       "row": 62,
       "col": 3
     },
-    "capex.ppe_capex_to_revenue.2024-01-28": {
+    "lease_rou.rou_assets_growth.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C63",
       "row": 63,
       "col": 3
     },
-    "capex.ppe_capex.2025-02-02": {
+    "lease_rou.average_rou_assets.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C64",
+      "row": 64,
+      "col": 3
+    },
+    "lease_rou.rou_assets_to_revenue.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C65",
+      "row": 65,
+      "col": 3
+    },
+    "lease_rou.rou_assets_change.2025-02-02": {
       "tab": "ALT DuPont",
       "cell": "D62",
       "row": 62,
       "col": 4
     },
-    "capex.ppe_capex_to_revenue.2025-02-02": {
+    "lease_rou.rou_assets_growth.2025-02-02": {
       "tab": "ALT DuPont",
       "cell": "D63",
       "row": 63,
       "col": 4
     },
-    "capex.ppe_capex.2026-02-01": {
+    "lease_rou.average_rou_assets.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D64",
+      "row": 64,
+      "col": 4
+    },
+    "lease_rou.rou_assets_to_revenue.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D65",
+      "row": 65,
+      "col": 4
+    },
+    "lease_rou.rou_assets_change.2026-02-01": {
       "tab": "ALT DuPont",
       "cell": "E62",
       "row": 62,
       "col": 5
     },
-    "capex.ppe_capex_to_revenue.2026-02-01": {
+    "lease_rou.rou_assets_growth.2026-02-01": {
       "tab": "ALT DuPont",
       "cell": "E63",
       "row": 63,
       "col": 5
     },
-    "goodwill_intangibles.goodwill_change.2024-01-28": {
+    "lease_rou.average_rou_assets.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "C67",
-      "row": 67,
-      "col": 3
+      "cell": "E64",
+      "row": 64,
+      "col": 5
     },
-    "goodwill_intangibles.goodwill_growth.2024-01-28": {
+    "lease_rou.rou_assets_to_revenue.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "C68",
-      "row": 68,
-      "col": 3
+      "cell": "E65",
+      "row": 65,
+      "col": 5
     },
-    "goodwill_intangibles.average_goodwill.2024-01-28": {
+    "deferred_tax.net_deferred_tax_position.2023-01-29": {
       "tab": "ALT DuPont",
-      "cell": "C69",
-      "row": 69,
-      "col": 3
+      "cell": "B70",
+      "row": 70,
+      "col": 2
     },
-    "goodwill_intangibles.goodwill_to_revenue.2024-01-28": {
+    "deferred_tax.net_deferred_tax_position.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C70",
       "row": 70,
       "col": 3
     },
-    "goodwill_intangibles.goodwill_change.2025-02-02": {
+    "deferred_tax.deferred_tax_assets_change.2024-01-28": {
       "tab": "ALT DuPont",
-      "cell": "D67",
-      "row": 67,
-      "col": 4
+      "cell": "C71",
+      "row": 71,
+      "col": 3
     },
-    "goodwill_intangibles.goodwill_growth.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D68",
-      "row": 68,
-      "col": 4
-    },
-    "goodwill_intangibles.average_goodwill.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D69",
-      "row": 69,
-      "col": 4
-    },
-    "goodwill_intangibles.goodwill_to_revenue.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D70",
-      "row": 70,
-      "col": 4
-    },
-    "goodwill_intangibles.goodwill_change.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E67",
-      "row": 67,
-      "col": 5
-    },
-    "goodwill_intangibles.goodwill_growth.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E68",
-      "row": 68,
-      "col": 5
-    },
-    "goodwill_intangibles.average_goodwill.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E69",
-      "row": 69,
-      "col": 5
-    },
-    "goodwill_intangibles.goodwill_to_revenue.2026-02-01": {
-      "tab": "ALT DuPont",
-      "cell": "E70",
-      "row": 70,
-      "col": 5
-    },
-    "goodwill_intangibles.intangible_assets_change.2024-01-28": {
+    "deferred_tax.deferred_tax_liabilities_change.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C72",
       "row": 72,
       "col": 3
     },
-    "goodwill_intangibles.intangible_assets_growth.2024-01-28": {
+    "deferred_tax.net_deferred_tax_position_change.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C73",
       "row": 73,
       "col": 3
     },
-    "goodwill_intangibles.average_intangible_assets.2024-01-28": {
+    "deferred_tax.net_deferred_tax_position.2025-02-02": {
       "tab": "ALT DuPont",
-      "cell": "C74",
-      "row": 74,
-      "col": 3
+      "cell": "D70",
+      "row": 70,
+      "col": 4
     },
-    "goodwill_intangibles.intangible_assets_to_revenue.2024-01-28": {
+    "deferred_tax.deferred_tax_assets_change.2025-02-02": {
       "tab": "ALT DuPont",
-      "cell": "C75",
-      "row": 75,
-      "col": 3
+      "cell": "D71",
+      "row": 71,
+      "col": 4
     },
-    "goodwill_intangibles.intangible_assets_change.2025-02-02": {
+    "deferred_tax.deferred_tax_liabilities_change.2025-02-02": {
       "tab": "ALT DuPont",
       "cell": "D72",
       "row": 72,
       "col": 4
     },
-    "goodwill_intangibles.intangible_assets_growth.2025-02-02": {
+    "deferred_tax.net_deferred_tax_position_change.2025-02-02": {
       "tab": "ALT DuPont",
       "cell": "D73",
       "row": 73,
       "col": 4
     },
-    "goodwill_intangibles.average_intangible_assets.2025-02-02": {
+    "deferred_tax.net_deferred_tax_position.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "D74",
-      "row": 74,
-      "col": 4
+      "cell": "E70",
+      "row": 70,
+      "col": 5
     },
-    "goodwill_intangibles.intangible_assets_to_revenue.2025-02-02": {
+    "deferred_tax.deferred_tax_assets_change.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "D75",
-      "row": 75,
-      "col": 4
+      "cell": "E71",
+      "row": 71,
+      "col": 5
     },
-    "goodwill_intangibles.intangible_assets_change.2026-02-01": {
+    "deferred_tax.deferred_tax_liabilities_change.2026-02-01": {
       "tab": "ALT DuPont",
       "cell": "E72",
       "row": 72,
       "col": 5
     },
-    "goodwill_intangibles.intangible_assets_growth.2026-02-01": {
+    "deferred_tax.net_deferred_tax_position_change.2026-02-01": {
       "tab": "ALT DuPont",
       "cell": "E73",
       "row": 73,
       "col": 5
     },
-    "goodwill_intangibles.average_intangible_assets.2026-02-01": {
+    "capex.ppe_capex.2023-01-29": {
       "tab": "ALT DuPont",
-      "cell": "E74",
-      "row": 74,
-      "col": 5
+      "cell": "B77",
+      "row": 77,
+      "col": 2
     },
-    "goodwill_intangibles.intangible_assets_to_revenue.2026-02-01": {
+    "capex.ppe_capex_to_revenue.2023-01-29": {
       "tab": "ALT DuPont",
-      "cell": "E75",
-      "row": 75,
-      "col": 5
+      "cell": "B78",
+      "row": 78,
+      "col": 2
     },
-    "goodwill_intangibles.goodwill_and_intangibles_change.2024-01-28": {
+    "capex.ppe_capex.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C77",
       "row": 77,
       "col": 3
     },
-    "goodwill_intangibles.goodwill_and_intangibles_growth.2024-01-28": {
+    "capex.ppe_capex_to_revenue.2024-01-28": {
       "tab": "ALT DuPont",
       "cell": "C78",
       "row": 78,
       "col": 3
     },
-    "goodwill_intangibles.average_goodwill_and_intangibles.2024-01-28": {
-      "tab": "ALT DuPont",
-      "cell": "C79",
-      "row": 79,
-      "col": 3
-    },
-    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-01-28": {
-      "tab": "ALT DuPont",
-      "cell": "C80",
-      "row": 80,
-      "col": 3
-    },
-    "goodwill_intangibles.goodwill_and_intangibles_change.2025-02-02": {
+    "capex.ppe_capex.2025-02-02": {
       "tab": "ALT DuPont",
       "cell": "D77",
       "row": 77,
       "col": 4
     },
-    "goodwill_intangibles.goodwill_and_intangibles_growth.2025-02-02": {
+    "capex.ppe_capex_to_revenue.2025-02-02": {
       "tab": "ALT DuPont",
       "cell": "D78",
       "row": 78,
       "col": 4
     },
-    "goodwill_intangibles.average_goodwill_and_intangibles.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D79",
-      "row": 79,
-      "col": 4
-    },
-    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-02-02": {
-      "tab": "ALT DuPont",
-      "cell": "D80",
-      "row": 80,
-      "col": 4
-    },
-    "goodwill_intangibles.goodwill_and_intangibles_change.2026-02-01": {
+    "capex.ppe_capex.2026-02-01": {
       "tab": "ALT DuPont",
       "cell": "E77",
       "row": 77,
       "col": 5
     },
-    "goodwill_intangibles.goodwill_and_intangibles_growth.2026-02-01": {
+    "capex.ppe_capex_to_revenue.2026-02-01": {
       "tab": "ALT DuPont",
       "cell": "E78",
       "row": 78,
       "col": 5
     },
+    "goodwill_intangibles.goodwill_change.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C82",
+      "row": 82,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_growth.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C83",
+      "row": 83,
+      "col": 3
+    },
+    "goodwill_intangibles.average_goodwill.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C84",
+      "row": 84,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_to_revenue.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C85",
+      "row": 85,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_change.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D82",
+      "row": 82,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_growth.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D83",
+      "row": 83,
+      "col": 4
+    },
+    "goodwill_intangibles.average_goodwill.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D84",
+      "row": 84,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_to_revenue.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D85",
+      "row": 85,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_change.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E82",
+      "row": 82,
+      "col": 5
+    },
+    "goodwill_intangibles.goodwill_growth.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E83",
+      "row": 83,
+      "col": 5
+    },
+    "goodwill_intangibles.average_goodwill.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E84",
+      "row": 84,
+      "col": 5
+    },
+    "goodwill_intangibles.goodwill_to_revenue.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E85",
+      "row": 85,
+      "col": 5
+    },
+    "goodwill_intangibles.intangible_assets_change.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C87",
+      "row": 87,
+      "col": 3
+    },
+    "goodwill_intangibles.intangible_assets_growth.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C88",
+      "row": 88,
+      "col": 3
+    },
+    "goodwill_intangibles.average_intangible_assets.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C89",
+      "row": 89,
+      "col": 3
+    },
+    "goodwill_intangibles.intangible_assets_to_revenue.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C90",
+      "row": 90,
+      "col": 3
+    },
+    "goodwill_intangibles.intangible_assets_change.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D87",
+      "row": 87,
+      "col": 4
+    },
+    "goodwill_intangibles.intangible_assets_growth.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D88",
+      "row": 88,
+      "col": 4
+    },
+    "goodwill_intangibles.average_intangible_assets.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D89",
+      "row": 89,
+      "col": 4
+    },
+    "goodwill_intangibles.intangible_assets_to_revenue.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D90",
+      "row": 90,
+      "col": 4
+    },
+    "goodwill_intangibles.intangible_assets_change.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E87",
+      "row": 87,
+      "col": 5
+    },
+    "goodwill_intangibles.intangible_assets_growth.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E88",
+      "row": 88,
+      "col": 5
+    },
+    "goodwill_intangibles.average_intangible_assets.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E89",
+      "row": 89,
+      "col": 5
+    },
+    "goodwill_intangibles.intangible_assets_to_revenue.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E90",
+      "row": 90,
+      "col": 5
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_change.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C92",
+      "row": 92,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_growth.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C93",
+      "row": 93,
+      "col": 3
+    },
+    "goodwill_intangibles.average_goodwill_and_intangibles.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C94",
+      "row": 94,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2024-01-28": {
+      "tab": "ALT DuPont",
+      "cell": "C95",
+      "row": 95,
+      "col": 3
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_change.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D92",
+      "row": 92,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_growth.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D93",
+      "row": 93,
+      "col": 4
+    },
+    "goodwill_intangibles.average_goodwill_and_intangibles.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D94",
+      "row": 94,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2025-02-02": {
+      "tab": "ALT DuPont",
+      "cell": "D95",
+      "row": 95,
+      "col": 4
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_change.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E92",
+      "row": 92,
+      "col": 5
+    },
+    "goodwill_intangibles.goodwill_and_intangibles_growth.2026-02-01": {
+      "tab": "ALT DuPont",
+      "cell": "E93",
+      "row": 93,
+      "col": 5
+    },
     "goodwill_intangibles.average_goodwill_and_intangibles.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "E79",
-      "row": 79,
+      "cell": "E94",
+      "row": 94,
       "col": 5
     },
     "goodwill_intangibles.goodwill_and_intangibles_to_revenue.2026-02-01": {
       "tab": "ALT DuPont",
-      "cell": "E80",
-      "row": 80,
+      "cell": "E95",
+      "row": 95,
       "col": 5
     },
     "quality.operating_cash_flow.2023-01-29": {

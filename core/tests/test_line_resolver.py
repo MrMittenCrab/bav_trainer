@@ -573,3 +573,119 @@ def test_capital_expenditures_alias_removal_fails_closed(monkeypatch):
     )
     with pytest.raises(MissingLineError, match="payments_for_ppe"):
         resolve_line(items, "payments_for_ppe", required=True)
+
+
+_ROU_DT_ALIAS_CASES = (
+    (
+        "right_of_use_assets",
+        "right_of_use_lease_asset",
+        "Right-of-use lease assets",
+        ("Right-of-use assets", "Right of use lease assets", "ROU assets"),
+    ),
+    (
+        "deferred_tax_assets",
+        "deferred_tax_asset",
+        "Deferred income tax assets",
+        ("Deferred tax assets", "Deferred tax asset", "Income tax assets"),
+    ),
+    (
+        "deferred_tax_liabilities",
+        "deferred_tax_liability",
+        "Deferred income tax liabilities",
+        ("Deferred tax liabilities", "Deferred tax liability", "Income tax liabilities"),
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "canonical, alias, alias_label, nearby_labels",
+    _ROU_DT_ALIAS_CASES,
+)
+def test_rou_deferred_tax_canonical_and_explicit_concept_alias(
+    canonical, alias, alias_label, nearby_labels
+):
+    """Canonical and supplied alias both resolve at P1; stored identity is unchanged."""
+    canon_item = _item("Carrying label", 100, 110, concept=canonical)
+    resolved_canon = resolve_line([canon_item], canonical, required=True)
+    assert resolved_canon.item is not None
+    assert resolved_canon.index == 0
+    assert resolved_canon.item.concept == canonical
+
+    alias_item = _item(alias_label, 100, 110, concept=alias)
+    resolved_alias = resolve_line([alias_item], canonical, required=True)
+    assert resolved_alias.item is not None
+    assert resolved_alias.index == 0
+    assert resolved_alias.item.concept == alias
+    assert resolved_alias.item.label == alias_label
+    assert resolved_alias.item.values == {P1: 100, P2: 110}
+
+
+@pytest.mark.parametrize(
+    "canonical, alias, alias_label, nearby_labels",
+    _ROU_DT_ALIAS_CASES,
+)
+def test_rou_deferred_tax_rejects_unsupported_label_only_inputs(
+    canonical, alias, alias_label, nearby_labels
+):
+    """Lease ROU and deferred-tax remain explicit-concept; nearby labels do not activate."""
+    for label in (alias_label, *nearby_labels):
+        assert (
+            resolve_line([_item(label, 100, 110)], canonical, required=False).item
+            is None
+        )
+    with pytest.raises(MissingLineError):
+        resolve_line([_item(alias_label, 100, 110)], canonical, required=True)
+
+
+@pytest.mark.parametrize(
+    "canonical, alias, alias_label, nearby_labels",
+    _ROU_DT_ALIAS_CASES,
+)
+def test_rou_deferred_tax_explicit_concept_outranks_label(
+    canonical, alias, alias_label, nearby_labels
+):
+    items = [
+        _item(alias_label, -1, -2),
+        _item("Misleading carrying amount", 100, 110, concept=alias),
+    ]
+    resolved = resolve_line(items, canonical, required=True)
+    assert resolved.item is not None
+    assert resolved.index == 1
+    assert resolved.item.label == "Misleading carrying amount"
+    assert resolved.item.concept == alias
+
+
+@pytest.mark.parametrize(
+    "canonical, alias, alias_label, nearby_labels",
+    _ROU_DT_ALIAS_CASES,
+)
+def test_rou_deferred_tax_canonical_and_alias_concepts_are_ambiguous_together(
+    canonical, alias, alias_label, nearby_labels
+):
+    items = [
+        _item("First", 1, 2, concept=canonical),
+        _item("Second", 1, 2, concept=alias),
+    ]
+    with pytest.raises(AmbiguousLineError):
+        resolve_line(items, canonical, required=False)
+
+
+@pytest.mark.parametrize(
+    "canonical, alias, alias_label, nearby_labels",
+    _ROU_DT_ALIAS_CASES,
+)
+def test_rou_deferred_tax_alias_removal_fails_closed(
+    monkeypatch, canonical, alias, alias_label, nearby_labels
+):
+    from core.model import line_resolver as lr
+
+    items = [_item(alias_label, 100, 110, concept=alias)]
+    assert resolve_line(items, canonical, required=True).item is not None
+
+    monkeypatch.setattr(
+        lr,
+        "_EXPLICIT_CONCEPT_ALIASES",
+        {k: v for k, v in lr._EXPLICIT_CONCEPT_ALIASES.items() if k != canonical},
+    )
+    with pytest.raises(MissingLineError, match=canonical):
+        resolve_line(items, canonical, required=True)

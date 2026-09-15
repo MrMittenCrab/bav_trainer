@@ -1,10 +1,13 @@
 """Historical deferred-tax balance diagnostics (Step 9M.7).
 
 Optional, source-gated module. Resolves BS ``deferred_tax_assets`` and
-``deferred_tax_liabilities`` via unique exact concept only. Requires both
-sources; missing or ambiguous sources omit the entire module. Preserves
-reported signs. Does not infer deferred-tax expense, cash-tax effects,
-recoverability, or legal offset eligibility.
+``deferred_tax_liabilities`` through the shared line-resolver contract
+(canonical concepts plus explicit-concept aliases ``deferred_tax_asset``
+and ``deferred_tax_liability``). Stored concepts, values, signs, and
+provenance are left unchanged. Requires both sources; missing or
+ambiguous sources omit the entire module. Preserves reported signs. Does
+not infer deferred-tax expense, cash-tax effects, recoverability, or
+legal offset eligibility. Label-only inputs remain unsupported.
 """
 
 from __future__ import annotations
@@ -53,7 +56,7 @@ def _try_resolve(items: list[LineItem], concept: str):
 def deferred_tax_availability(
     financials: StandardizedFinancials,
 ) -> DeferredTaxAvailability:
-    """Report whether unique exact-concept DTA and DTL lines resolve."""
+    """Report whether unique DTA and DTL lines resolve."""
     dta = _try_resolve(financials.balance_sheet, _CONCEPT_DTA)
     dtl = _try_resolve(financials.balance_sheet, _CONCEPT_DTL)
     ambiguous = dta == "ambiguous" or dtl == "ambiguous"
@@ -71,7 +74,7 @@ def deferred_tax_availability(
 def resolve_deferred_tax_sources(
     financials: StandardizedFinancials,
 ) -> DeferredTaxSources | None:
-    """Return both unique exact-concept DTA/DTL lines, or None if unavailable."""
+    """Return both unique resolved DTA/DTL lines, or None if unavailable."""
     availability = deferred_tax_availability(financials)
     if (
         availability.ambiguous
@@ -89,7 +92,7 @@ def resolve_deferred_tax_sources(
 
 
 def deferred_tax_applicable(financials: StandardizedFinancials) -> bool:
-    """Module is present only when both unique exact-concept DTA and DTL resolve."""
+    """Module is present only when both unique DTA and DTL lines resolve."""
     return resolve_deferred_tax_sources(financials) is not None
 
 

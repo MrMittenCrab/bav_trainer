@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 from datetime import date
@@ -30,10 +31,26 @@ from core.model.capex import (
     capex_availability,
     resolve_capex_source,
 )
+from core.model.deferred_tax import (
+    compute_deferred_tax_series,
+    deferred_tax_applicable,
+    deferred_tax_availability,
+    resolve_deferred_tax_sources,
+)
+from core.model.financial_math import compute_anchor
 from core.model.fixed_asset import fixed_asset_applicable, fixed_asset_availability
+from core.model.lease_rou import (
+    compute_lease_rou_series,
+    lease_rou_applicable,
+    lease_rou_availability,
+    resolve_lease_rou_source,
+)
 from core.model.line_resolver import resolve_line, workbook_row_for
+from core.model.period_axis import canonical_fiscal_periods
 from core.model.ratio_values import SOURCE_UNAVAILABLE
 from core.model.source_values import required_period_value
+from core.trainer.checker import check_workbook
+from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
 from core.trainer.workbook import build_training_workbook
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -761,6 +778,332 @@ def test_source_supported_capex_alias_four_period_diagnostics(tmp_path: Path):
     assert trainer.exists() and answer.exists()
     assert stored.concept == "capital_expenditures"
     assert stored.values == CAPEX_REPORTED_PAYMENTS
+
+
+ROU_BALANCES = {
+    date(2023, 1, 29): 969419.0,
+    date(2024, 1, 28): 1265610.0,
+    date(2025, 2, 2): 1416256.0,
+    date(2026, 2, 1): 1630181.0,
+}
+DTA_BALANCES = {
+    date(2023, 1, 29): 6402.0,
+    date(2024, 1, 28): 9176.0,
+    date(2025, 2, 2): 17085.0,
+    date(2026, 2, 1): 24037.0,
+}
+DTL_BALANCES = {
+    date(2023, 1, 29): 55084.0,
+    date(2024, 1, 28): 29522.0,
+    date(2025, 2, 2): 98188.0,
+    date(2026, 2, 1): 52278.0,
+}
+NET_DT_POSITIONS = {
+    date(2023, 1, 29): -48682.0,
+    date(2024, 1, 28): -20346.0,
+    date(2025, 2, 2): -81103.0,
+    date(2026, 2, 1): -28241.0,
+}
+PRIOR_LULULEMON_SPECS = 248
+LEASE_DT_LULULEMON_SPECS = 273
+
+
+def _fill_rgb(cell) -> str:
+    fill = cell.fill
+    if not fill or fill.fill_type != "solid":
+        return ""
+    color = fill.fgColor.rgb or fill.start_color.rgb or ""
+    return str(color).upper().lstrip("0")[-6:] if color else ""
+
+
+def _count_source_unavailable(path: Path) -> int:
+    wb = load_workbook(path, data_only=False)
+    n = 0
+    for ws in wb.worksheets:
+        for row in ws.iter_rows():
+            for cell in row:
+                if cell.value == SOURCE_UNAVAILABLE:
+                    n += 1
+    wb.close()
+    return n
+
+
+def test_source_supported_lease_rou_and_deferred_tax_aliases(
+    tmp_path: Path, monkeypatch
+):
+    """G5: supplied ROU/DTA/DTL aliases activate existing diagnostics without mutation."""
+    from core.model import line_resolver as lr
+    from core.tests.test_normalization import _inject_formula_and_cached_value
+
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    rou_index, rou_stored = next(
+        (idx, row)
+        for idx, row in enumerate(fin.balance_sheet)
+        if row.concept == "right_of_use_lease_asset"
+        and row.label == "Right-of-use lease assets"
+    )
+    dta_index, dta_stored = next(
+        (idx, row)
+        for idx, row in enumerate(fin.balance_sheet)
+        if row.concept == "deferred_tax_asset"
+        and row.label == "Deferred income tax assets"
+    )
+    dtl_index, dtl_stored = next(
+        (idx, row)
+        for idx, row in enumerate(fin.balance_sheet)
+        if row.concept == "deferred_tax_liability"
+        and row.label == "Deferred income tax liabilities"
+    )
+    assert rou_stored.values == ROU_BALANCES
+    assert dta_stored.values == DTA_BALANCES
+    assert dtl_stored.values == DTL_BALANCES
+
+    assert lease_rou_applicable(fin) is True
+    rou_avail = lease_rou_availability(fin)
+    assert rou_avail.right_of_use_assets is True
+    assert rou_avail.ambiguous is False
+    assert resolve_lease_rou_source(fin) is rou_stored
+
+    assert deferred_tax_applicable(fin) is True
+    dt_avail = deferred_tax_availability(fin)
+    assert dt_avail.deferred_tax_assets is True
+    assert dt_avail.deferred_tax_liabilities is True
+    assert dt_avail.ambiguous is False
+    dt_sources = resolve_deferred_tax_sources(fin)
+    assert dt_sources is not None
+    assert dt_sources.deferred_tax_assets is dta_stored
+    assert dt_sources.deferred_tax_liabilities is dtl_stored
+
+    rou_resolved = resolve_line(fin.balance_sheet, "right_of_use_assets", required=True)
+    dta_resolved = resolve_line(fin.balance_sheet, "deferred_tax_assets", required=True)
+    dtl_resolved = resolve_line(
+        fin.balance_sheet, "deferred_tax_liabilities", required=True
+    )
+    assert rou_resolved.index == rou_index and rou_resolved.item is rou_stored
+    assert dta_resolved.index == dta_index and dta_resolved.item is dta_stored
+    assert dtl_resolved.index == dtl_index and dtl_resolved.item is dtl_stored
+    assert workbook_row_for(rou_resolved, start_row=SOURCE_START_ROW) == (
+        SOURCE_START_ROW + rou_index
+    )
+    assert workbook_row_for(dta_resolved, start_row=SOURCE_START_ROW) == (
+        SOURCE_START_ROW + dta_index
+    )
+    assert workbook_row_for(dtl_resolved, start_row=SOURCE_START_ROW) == (
+        SOURCE_START_ROW + dtl_index
+    )
+
+    periods = list(canonical_fiscal_periods(fin))
+    assert periods == EXPECTED_PERIODS
+    rou_series = compute_lease_rou_series(fin, periods, compute_anchor(fin, periods))
+    dt_series = compute_deferred_tax_series(fin, periods)
+    assert rou_series.rou_assets == (
+        969419.0,
+        1265610.0,
+        1416256.0,
+        1630181.0,
+    )
+    assert rou_series.rou_assets_change == (None, 296191.0, 150646.0, 213925.0)
+    assert rou_series.average_rou_assets[1] == pytest.approx(1117514.5)
+    assert rou_series.average_rou_assets[2] == pytest.approx(1340933.0)
+    assert rou_series.average_rou_assets[3] == pytest.approx(1523218.5)
+    assert rou_series.rou_assets_growth[1] == pytest.approx(296191.0 / 969419.0)
+    assert rou_series.rou_assets_to_revenue[1] == pytest.approx(1117514.5 / 9619278.0)
+    assert rou_series.rou_assets_to_revenue[2] == pytest.approx(1340933.0 / 10588126.0)
+    assert rou_series.rou_assets_to_revenue[3] == pytest.approx(1523218.5 / 11102600.0)
+    assert dt_series.deferred_tax_assets == (6402.0, 9176.0, 17085.0, 24037.0)
+    assert dt_series.deferred_tax_liabilities == (55084.0, 29522.0, 98188.0, 52278.0)
+    assert dt_series.net_deferred_tax_position == (-48682.0, -20346.0, -81103.0, -28241.0)
+    assert dt_series.deferred_tax_assets_change == (None, 2774.0, 7909.0, 6952.0)
+    assert dt_series.deferred_tax_liabilities_change == (
+        None,
+        -25562.0,
+        68666.0,
+        -45910.0,
+    )
+    assert dt_series.net_deferred_tax_position_change == (
+        None,
+        28336.0,
+        -60757.0,
+        52862.0,
+    )
+    for period in EXPECTED_PERIODS:
+        assert required_period_value(
+            rou_stored, period, field="right_of_use_assets"
+        ) == ROU_BALANCES[period]
+        assert required_period_value(
+            dta_stored, period, field="deferred_tax_assets"
+        ) == DTA_BALANCES[period]
+        assert required_period_value(
+            dtl_stored, period, field="deferred_tax_liabilities"
+        ) == DTL_BALANCES[period]
+        assert (
+            DTA_BALANCES[period] - DTL_BALANCES[period] == NET_DT_POSITIONS[period]
+        )
+
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    rt_rou = resolve_lease_rou_source(restored)
+    rt_dt = resolve_deferred_tax_sources(restored)
+    assert rt_rou is not None and rt_rou.concept == "right_of_use_lease_asset"
+    assert rt_rou.values == ROU_BALANCES
+    assert rt_dt is not None
+    assert rt_dt.deferred_tax_assets.concept == "deferred_tax_asset"
+    assert rt_dt.deferred_tax_liabilities.concept == "deferred_tax_liability"
+    assert rt_dt.deferred_tax_assets.values == DTA_BALANCES
+    assert rt_dt.deferred_tax_liabilities.values == DTL_BALANCES
+
+    with_builder = ReferenceModelBuilder(fin)
+    with_keys = {s.semantic_key for s in with_builder.expected_specs}
+    monkeypatch.setattr(
+        lr,
+        "_EXPLICIT_CONCEPT_ALIASES",
+        {
+            k: v
+            for k, v in lr._EXPLICIT_CONCEPT_ALIASES.items()
+            if k
+            not in (
+                "right_of_use_assets",
+                "deferred_tax_assets",
+                "deferred_tax_liabilities",
+            )
+        },
+    )
+    without_keys = {
+        s.semantic_key for s in ReferenceModelBuilder(fin).expected_specs
+    }
+    monkeypatch.undo()
+    assert len(without_keys) == PRIOR_LULULEMON_SPECS
+    assert without_keys <= with_keys
+    added = with_keys - without_keys
+    assert len(with_keys) == LEASE_DT_LULULEMON_SPECS
+    assert len(added) == 25
+    assert {k.split(".")[0] for k in added} == {"lease_rou", "deferred_tax"}
+    assert sum(1 for k in added if k.startswith("lease_rou.")) == 12
+    assert sum(1 for k in added if k.startswith("deferred_tax.")) == 13
+
+    out = tmp_path / "LululemonLeaseDT"
+    trainer, answer = build_training_workbook(fin, out)
+    assert trainer.exists() and answer.exists()
+    smap = load_semantic_map(answer)
+    module_comps = [
+        c
+        for c in smap.all_ordered()
+        if c.semantic_key.startswith("lease_rou.")
+        or c.semantic_key.startswith("deferred_tax.")
+    ]
+    assert len(smap.all_ordered()) == LEASE_DT_LULULEMON_SPECS
+    assert len(module_comps) == 25
+    assert {c.semantic_key for c in smap.all_ordered()} == with_keys
+
+    for path in (trainer, answer):
+        wb = load_workbook(path, data_only=False)
+        ws = wb["ALT DuPont"]
+        rou_src_f = str(
+            next(
+                ws.cell(r, 2).value
+                for r in range(1, (ws.max_row or 1) + 1)
+                if ws.cell(r, 1).value == "Right-of-use Assets"
+            )
+        ).replace(" ", "")
+        dta_src_f = str(
+            next(
+                ws.cell(r, 2).value
+                for r in range(1, (ws.max_row or 1) + 1)
+                if ws.cell(r, 1).value == "Deferred Tax Assets"
+            )
+        ).replace(" ", "")
+        dtl_src_f = str(
+            next(
+                ws.cell(r, 2).value
+                for r in range(1, (ws.max_row or 1) + 1)
+                if ws.cell(r, 1).value == "Deferred Tax Liabilities"
+            )
+        ).replace(" ", "")
+        rou_row = SOURCE_START_ROW + rou_index
+        dta_row = SOURCE_START_ROW + dta_index
+        dtl_row = SOURCE_START_ROW + dtl_index
+        assert f"'BalanceSheet'!B{rou_row}" in rou_src_f or (
+            f"'Balance Sheet'!B{rou_row}" in rou_src_f
+        )
+        assert f"'BalanceSheet'!B{dta_row}" in dta_src_f or (
+            f"'Balance Sheet'!B{dta_row}" in dta_src_f
+        )
+        assert f"'BalanceSheet'!B{dtl_row}" in dtl_src_f or (
+            f"'Balance Sheet'!B{dtl_row}" in dtl_src_f
+        )
+        wb.close()
+
+    twb = load_workbook(trainer, data_only=False)
+    awb = load_workbook(answer, data_only=False)
+    for comp in module_comps:
+        row, col = parse_cell_ref(comp.cell)
+        tcell = twb[comp.tab].cell(row=row, column=col)
+        acell = awb[comp.tab].cell(row=row, column=col)
+        assert tcell.value is None
+        assert tcell.comment is None
+        assert _fill_rgb(tcell) == "FFFF00"
+        assert isinstance(acell.value, str) and acell.value.startswith("=")
+        assert acell.comment is not None
+        assert (acell.comment.text or "").strip()
+        assert _fill_rgb(acell) == "FFFF00"
+    twb.close()
+    awb.close()
+
+    assert _count_source_unavailable(trainer) == 74
+    assert _count_source_unavailable(answer) == 74
+
+    blank = check_workbook(trainer)
+    assert (blank.correct, blank.incorrect, blank.blank, blank.total) == (
+        0,
+        0,
+        LEASE_DT_LULULEMON_SPECS,
+        LEASE_DT_LULULEMON_SPECS,
+    )
+
+    filled_dir = tmp_path / "filled_check"
+    filled_dir.mkdir()
+    filled_trainer = filled_dir / trainer.name
+    shutil.copy2(trainer, filled_trainer)
+    shutil.copy2(answer, filled_dir / answer.name)
+    for sidecar in (
+        answer.with_suffix(".component_map.json"),
+        answer.with_suffix(".assumptions.json"),
+        answer.with_suffix(".trainer.json"),
+    ):
+        if sidecar.is_file():
+            shutil.copy2(sidecar, filled_dir / sidecar.name)
+    wb = load_workbook(filled_trainer, data_only=False)
+    for comp in smap.all_ordered():
+        row, col = parse_cell_ref(comp.cell)
+        wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    wb.save(filled_trainer)
+    wb.close()
+    filled = check_workbook(filled_trainer)
+    assert (filled.correct, filled.incorrect, filled.blank, filled.total) == (
+        LEASE_DT_LULULEMON_SPECS,
+        0,
+        0,
+        LEASE_DT_LULULEMON_SPECS,
+    )
+
+    bad = next(c for c in module_comps if c.family_id == "rou_assets_change")
+    _inject_formula_and_cached_value(
+        filled_trainer,
+        bad.tab,
+        bad.cell,
+        formula="=999",
+        cached_value=999.0,
+    )
+    bad_summary = check_workbook(filled_trainer)
+    assert bad_summary.incorrect >= 1
+    dumped = repr(bad_summary)
+    assert "=999" not in dumped
+    assert "Change in Right-of-use Assets" not in dumped
+
+    blank_again = check_workbook(trainer)
+    assert blank_again.blank == LEASE_DT_LULULEMON_SPECS
+    assert rou_stored.concept == "right_of_use_lease_asset"
+    assert dta_stored.concept == "deferred_tax_asset"
+    assert dtl_stored.concept == "deferred_tax_liability"
 
 
 def test_no_lulu_specific_production_branch():

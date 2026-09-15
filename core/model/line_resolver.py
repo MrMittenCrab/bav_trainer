@@ -173,6 +173,24 @@ _EXPLICIT_CONCEPT_ALIASES: dict[str, frozenset[str]] = {
             "capital expenditures",
         }
     ),
+    "right_of_use_assets": frozenset(
+        {
+            "right of use assets",
+            "right of use lease asset",
+        }
+    ),
+    "deferred_tax_assets": frozenset(
+        {
+            "deferred tax assets",
+            "deferred tax asset",
+        }
+    ),
+    "deferred_tax_liabilities": frozenset(
+        {
+            "deferred tax liabilities",
+            "deferred tax liability",
+        }
+    ),
 }
 
 

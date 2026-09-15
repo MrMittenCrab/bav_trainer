@@ -16,7 +16,7 @@ Categories match IMPLEMENTATION.md Task 4:
 | reconcile | **pass** (overlap=3, supplemental=0, sources=4/4) |
 | capex module (G4) | **pass** — stored CF `capital_expenditures` resolves through `payments_for_ppe`; four-period diagnostics available |
 | interest source evidence (G9) | **assessed / gated** — standalone `interest_expense` / `interest_income` still **not found**; partial-period condensed links and aggregate CoD eligibility now agree with Python; source completeness remains open |
-| ReferenceModelBuilder / build | **pass** — matched Trainer/Answer-Key pair; `expected_specs=248`; interest-dependent families excluded from practice/Check |
+| ReferenceModelBuilder / build | **pass** — matched Trainer/Answer-Key pair; `expected_specs=273`; lease-ROU (12) and deferred-tax (13) practice cells added; interest-dependent families excluded from practice/Check |
 
 ## Gaps (priority order)
 
@@ -53,14 +53,13 @@ Categories match IMPLEMENTATION.md Task 4:
 - **Evidence (after):** same stored concept, label, signs, values, and provenance; `capex_applicable=True` via shared explicit-concept alias `capital_expenditures` → `payments_for_ppe`. Independent four-period `ppe_capex` 638657 / 651865 / 689232 / 680802 against supplied revenue 8110518 / 9619278 / 10588126 / 11102600. Round-trip preserves `capital_expenditures`. Interest absence is now availability-gated (G9) rather than a capex reinterpretation.
 - **Why it mattered:** Source-supported historical capex intensity was invisible to the learner despite explicit CF facts.
 
-### G5 — Lease ROU and deferred-tax concept aliases — **OPEN**
+### G5 — Lease ROU and deferred-tax concept aliases — **CLOSED** (Step 9M.2.4.1.1.1.20)
 
-- **Category:** 3 (generic line-identity)
-- **Stage:** module applicability
-- **Evidence:**
-  - BS has `right_of_use_lease_asset` / “Right-of-use lease assets” but `lease_rou_applicable=False` (resolver concept `right_of_use_assets`).
-  - BS has `deferred_tax_asset` / `deferred_tax_liability` but deferred-tax module expects pluralized concept forms; availability False.
-- **Why it matters:** Lease asset intensity and deferred-tax diagnostics stay fail-closed despite source lines.
+- **Category:** 3 (generic line-identity / optional-module contract)
+- **Stage:** module applicability (post-build)
+- **Evidence (before):** BS `right_of_use_lease_asset` / “Right-of-use lease assets” and `deferred_tax_asset` / `deferred_tax_liability` present; `lease_rou_applicable=False` and deferred-tax availability False because modules required plural canonical concepts.
+- **Evidence (after):** same stored concepts, labels, signs, values, and provenance. Shared explicit-concept aliases `right_of_use_lease_asset` → `right_of_use_assets`, `deferred_tax_asset` → `deferred_tax_assets`, `deferred_tax_liability` → `deferred_tax_liabilities`. Independent four-period ROU 969419 / 1265610 / 1416256 / 1630181, DTA 6402 / 9176 / 17085 / 24037, DTL 55084 / 29522 / 98188 / 52278, net positions −48682 / −20346 / −81103 / −28241. Practice surface 248 → 273 (lease_rou +12, deferred_tax +13). Source links `'Balance Sheet'!B26` / `B21` / `B27`. No inferred lease interest, deferred-tax expense, cash-tax effects, recoverability, or repayment flows.
+- **Why it mattered:** Source-supported lease-asset intensity and deferred-tax diagnostics were invisible to the learner despite explicit BS facts.
 
 ### G6 — Comparative FY2021 period not on canonical axis — **OPEN (low)**
 
@@ -87,9 +86,10 @@ Categories match IMPLEMENTATION.md Task 4:
 - **Category:** 1 (unextracted note facts) and 3 (availability-gated historical analysis)
 - **Stage:** `compute_anchor` / `ReferenceModelBuilder` / `build`
 - **Evidence (Step 9M.2.4.1.1.1.18):** all four IS pages present only `Other income (expense), net` (4163 / 43059 / 70380 / 28352) between operating income and pretax. No `interest_expense` / `interest_income` / finance-cost/income line. MD&A says other-income changes were “primarily” interest income but gives no isolated amount. Supplemental cash “Interest paid” 116 / 234 / 478 / 1028 (USD thousands; cross-filing consistent) is cash, not IS expense, and is omitted from empty `note_facts`. Revolvers unused (letters of credit only) — not a reported zero. Lease notes disclose operating lease expense, not lease interest. `historical_lease` is null.
-- **Evidence (Step 9M.2.4.1.1.1.19):** generic gating plus partial-period repair. Unchanged facts. Missing interest periods display `Source unavailable` on condensed source links (no formula to a blank source cell); reported zero keeps the source formula; fully absent lines stay omitted. Opening-period interest absence does not block a numeric comparable CoD average; any comparable CoD period lacking interest keeps hist-avg unavailable; supported undefined-ratio history still uses 4% and unavailable history does not. Python, workbook formula text, and availability sidecar agree. Net Interest / NIAT / NOPAT / NOPAT Margin / RNOA / After-tax CoD / Spread / ROE decomposed / hist-avg CoD remain `Source unavailable` on Lululemon and are excluded from the 248-cell practice/Check surface. Independent outputs remain (revenue 8110518 / 9619278 / 10588126 / 11102600; `ppe_capex` 638657 / 651865 / 689232 / 680802). `resolve_line(..., required=True)` still raises `MissingLineError` for explicit interest requests. No invented interest, no 4% fallback for unavailable history, no mixed-line/cash-interest alias.
+- **Evidence (Step 9M.2.4.1.1.1.19):** generic gating plus partial-period repair. Unchanged facts. Missing interest periods display `Source unavailable` on condensed source links (no formula to a blank source cell); reported zero keeps the source formula; fully absent lines stay omitted. Opening-period interest absence does not block a numeric comparable CoD average; any comparable CoD period lacking interest keeps hist-avg unavailable; supported undefined-ratio history still uses 4% and unavailable history does not. Python, workbook formula text, and availability sidecar agree. Net Interest / NIAT / NOPAT / NOPAT Margin / RNOA / After-tax CoD / Spread / ROE decomposed / hist-avg CoD remain `Source unavailable` on Lululemon and are excluded from the practice/Check surface. Independent outputs remain (revenue 8110518 / 9619278 / 10588126 / 11102600; `ppe_capex` 638657 / 651865 / 689232 / 680802). `resolve_line(..., required=True)` still raises `MissingLineError` for explicit interest requests. No invented interest, no 4% fallback for unavailable history, no mixed-line/cash-interest alias.
+- **Evidence (Step 9M.2.4.1.1.1.20):** G5 lease-ROU / deferred-tax aliases added 25 practice cells without mutating interest gating. Availability sidecar hash unchanged; 74 `Source unavailable` displays per workbook retained; hist-avg CoD still `absent_line`. Practice/Check surface is now 273 cells and still omits interest-dependent families.
 - **Why it matters:** Source-interest completeness remains unresolved. The learning product can now proceed on supported historical analysis without inventing the missing lines.
-- **Proposed next step:** Do not infer interest. Optional later `note_facts` capture of Interest paid still would not satisfy standalone IS interest. Remaining Lululemon gaps are G5–G8 and parent Plan closure.
+- **Proposed next step:** Do not infer interest. Optional later `note_facts` capture of Interest paid still would not satisfy standalone IS interest. Remaining Lululemon gaps are G6–G8 and parent Plan closure.
 
 ## Closed / non-gaps this step
 
@@ -100,4 +100,4 @@ Categories match IMPLEMENTATION.md Task 4:
 
 ## Highest-value next implementation step
 
-**Remaining Lululemon historical gaps after gated interest:** G5 (lease ROU / deferred-tax concept aliases), G7 (empty `note_facts`), G6 period-axis, G8 interpretation deferral, and parent Plan closure (A5 / B8 / E10). Source-interest completeness stays unresolved. Do **not** invent interest or declare Step 9 complete.
+**Remaining Lululemon historical gaps after gated interest and G5 aliases:** G7 (empty `note_facts`), G6 period-axis, G8 interpretation deferral, and parent Plan closure (A5 / B8 / E10). Source-interest completeness stays unresolved. Do **not** invent interest or declare Step 9 complete.

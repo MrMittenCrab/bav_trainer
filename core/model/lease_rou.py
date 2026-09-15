@@ -1,9 +1,12 @@
 """Historical lease ROU-asset intensity / trend diagnostics (Step 9M.6).
 
-Optional, source-gated module. Resolves BS ``right_of_use_assets`` via unique
-exact concept only. Independent of lease-liability availability and
-classification treatment. Does not invent lease payments, discount rates,
-amortization, or liability reconciliations.
+Optional, source-gated module. Resolves BS ``right_of_use_assets`` through the
+shared line-resolver contract (canonical concept plus the explicit-concept
+alias ``right_of_use_lease_asset``). Stored concepts, values, signs, and
+provenance are left unchanged. Independent of lease-liability availability
+and classification treatment. Does not invent lease payments, discount rates,
+amortization, or liability reconciliations. Label-only inputs remain
+unsupported.
 """
 
 from __future__ import annotations
@@ -41,7 +44,7 @@ class LeaseRouSeries:
 def resolve_lease_rou_source(
     financials: StandardizedFinancials,
 ) -> LineItem | None:
-    """Return the unique exact-concept ROU asset line, or None if unavailable."""
+    """Return the unique resolved ROU asset line, or None if unavailable."""
     try:
         resolved = resolve_line(
             financials.balance_sheet, _CONCEPT, required=False
@@ -54,7 +57,7 @@ def resolve_lease_rou_source(
 def lease_rou_availability(
     financials: StandardizedFinancials,
 ) -> LeaseRouAvailability:
-    """Report whether a unique exact-concept ROU asset line resolves."""
+    """Report whether a unique ROU asset line resolves."""
     try:
         resolved = resolve_line(
             financials.balance_sheet, _CONCEPT, required=False
@@ -68,7 +71,7 @@ def lease_rou_availability(
 
 
 def lease_rou_applicable(financials: StandardizedFinancials) -> bool:
-    """Module is present when a unique exact-concept ROU asset line resolves."""
+    """Module is present when a unique ROU asset line resolves."""
     availability = lease_rou_availability(financials)
     return availability.right_of_use_assets and not availability.ambiguous
 
