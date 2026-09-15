@@ -3,12 +3,14 @@
 **Status:** COMPLETE (this child; parents remain UNRESOLVED)  
 **Step:** 9M.2.4.1.1.1.33 — Selected geographic facts into StandardizedFinancials  
 **Work:** `68977f91981a43ecba811e61f0b865d6`  
-**Plan:** `719aadd63cb049668af20b2c4a63e52b`  
+**Plan:** `5d42faec1fed44d9b8ddfe6cf86443b9`  
 **Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
 **INPUT_STATUS:** empty (`inputs: []`)  
-`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged). TARGET SHA-256 `3274be515f8ccf579a4b495bd820a4d14c87328b4d63f95123d0d4a6042407e2` (21552). IMPLEMENTATION SHA-256 `487ecf7576feb0c8831e883cb08d48e99aed1b899a361778343bbc190b9f3ccf` (7992).  
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged). TARGET SHA-256 `3274be515f8ccf579a4b495bd820a4d14c87328b4d63f95123d0d4a6042407e2` (21552). IMPLEMENTATION SHA-256 `225abab84d6ab3db0f22c0abee4502bab63d7cce9de818d40bf68bdc8d3e5f4c` (7867).  
 No commit / push / sync / checkpoint / branch change. No workbook generation, forecasting, or valuation. Spreadsheet recalculation was **not** performed.  
 This child does **not** declare parent or Step 9 acceptance.
+
+Edits this child: `core/data/standardized_io.py`, `core/tests/test_historical_segment.py`, `RESULT.md`.
 
 ---
 
@@ -16,37 +18,41 @@ This child does **not** declare parent or Step 9 acceptance.
 
 | Kind | This child |
 |---|---|
-| Fresh | `HistoricalSegmentData` optional contract; selected-facts → model payload; JSON omit-when-absent round trips; focused contract/geographic/serialization/CLI tests **110 passed**; Lululemon/Fast Retailing benchmarks **171 passed**; `pytest core/tests` **1289 passed**; temporary `python -m core reconcile`; independent 56-value and five-period bridge arithmetic; checkpoint `b74ef31d612166a7dd4e6cfad5c8cf02b7ab1b8c` protected hashes |
-| Retained | Role-aware geographic selection; JSON `note_facts` extraction; PDF SHA-256 identity; provenance `selected_geographic_segment_facts` (SHA-256 `5067c1d04aa93c18062fe7eb90558a86394283b7d9fe45899761f71cfb615951`, 786300) |
+| Fresh | Strict segment-period reload (no truncation/strip/coercion); parameterized JSON encode/decode regressions including exactly `2025-12-31garbage`; focused contract/geographic/serialization/CLI tests **136 passed**; independent garbage reject; temporary `python -m core reconcile` admitting `2022-01-30`; 105 observations / 56 selected model values after reload; five-period bridges at tolerance 0; prior-presentation mutation; checkpoint `f8bd8169aed35ca21e8299d2dd6eb488bbf42420` protected hashes |
+| Retained (historical; not re-run) | Role-aware geographic selection; JSON `note_facts` extraction; PDF SHA-256 identity; Lululemon/Fast Retailing benchmarks **171 passed**; `pytest core/tests` **1289 passed**; provenance `selected_geographic_segment_facts` (SHA-256 `5067c1d04aa93c18062fe7eb90558a86394283b7d9fe45899761f71cfb615951`, 786300) |
 | Not claimed | Workbook Check / spreadsheet recalculation; learner/Check segment schedules; parent or Step 9 completion |
 
 Interpreter: `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. Tolerance: **`SEGMENT_BRIDGE_TOLERANCE = 0`**.
 
 ---
 
-## Task 1 — Optional contract
+## Task 1 — Strict segment-date reload
 
-Added `HistoricalSegmentPeriod` / `HistoricalSegmentData` and optional `StandardizedFinancials.historical_segment` (default `None`).
+`_parse_segment_period` validates the original `historical_segment.periods[].period` value as a canonical `YYYY-MM-DD` string and a real calendar date **before** constructing `HistoricalSegmentPeriod`. Non-segment `_parse_date` truncation (`[:10]`) is unchanged.
 
-Model payload holds Q4-2023 namespace, local identities, period snapshots, reported revenue/IFOP values, consolidated controls, reported reconciling items, `corporate_column` vs `itemized_reconciling` family, and explicit `add`/`subtract` bridge operations. Reported signs are preserved. Parent `currency` / `units` are reused; the segment payload does not duplicate them.
-
-Source files, hashes, pages, observations, selection reasons, and conflicts stay in existing audit artifacts only.
-
-Absent data (`None`, missing JSON field, explicit `null`) is distinct from malformed supplied data. Invalid identities, non-finite values, duplicate period/identity keys, outside-axis dates, incomplete or contradictory bridges, corporate double counting, and IS disagreements fail closed before emit/reload.
+Rejected without truncation, stripping, or coercion: trailing garbage, timestamp suffixes, surrounding whitespace, noncanonical forms, impossible dates, non-leap 29 February, and non-string values. Field-specific `ValueError` is raised before `standardized_from_payload` returns financial data. Duplicate-period, model-axis, and bridge validation are unchanged.
 
 ---
 
-## Task 2 — Selection wiring and round trips
+## Task 2 — Regression coverage
 
-`standardize_reconciled` populates the contract only from `selected_geographic_facts` on admitted model periods. It does not reselect raw notes or promote segment values onto statement lines. Missing periods are omitted, not filled. Outside-axis selections remain in provenance.
+`core/tests/test_historical_segment.py` parameterized JSON encode/decode → `standardized_from_payload`:
 
-JSON export/reload is deterministic. Legacy payloads without the field and explicit `null` reload as `None`. The field is omitted when absent so Fast Retailing / committed no-segment exports stay unchanged.
-
-Q4-2023 identities and China Mainland (`china_mainland`) are preserved. Channel/country/product identities are rejected.
+- Rejected, including exactly `2025-12-31garbage` against a valid fixture admitting `2025-12-31`; payload left unchanged.
+- Also: timestamps, whitespace, `2025/12/31`, `20251231`, `2025-1-31`, `12-31-2025`, `2025-02-30`, `2025-13-01`, `2025-04-31`, `2025-02-29`, `1900-02-29`, empty string, `null`, int, bool, float, list, object.
+- Valid canonical round trips: `2025-12-31`, leap days `2024-02-29` / `2000-02-29`, `2025-01-01`.
+- Existing missing/null omit-when-absent compatibility retained.
 
 ---
 
 ## Task 3 — Verification
+
+### Independent trailing-garbage JSON reload
+
+Mutated an otherwise valid payload admitting `2025-12-31` to `2025-12-31garbage`, then `json.dumps` / `json.loads` → `standardized_from_payload`.
+
+- Raised: `historical_segment period must be a canonical YYYY-MM-DD date: '2025-12-31garbage'`
+- Supplied payload unchanged: **True**
 
 ### Independent five-period bridges (USD thousands, tolerance 0)
 
@@ -60,7 +66,7 @@ Temporary five-period admit `2022-01-30`. Model values equal all **56** on-axis 
 | 2025-02-02 | corporate_column | **10588126** | **2505697** | match |
 | 2026-02-01 | corporate_column | **11102600** | **3607682 − 1397067 = 2210615** | match |
 
-Prior-presentation mutation (in-memory; extracted JSON not rewritten): Americas **`7928156`** survives standardization and reload; superseded **`7928256`** remains only in audit evidence; reverse filing order unchanged.
+Prior-presentation mutation (in-memory; extracted JSON not rewritten): Americas **`7928156`** survives standardization and JSON reload (forward and reversed filing order); superseded **`7928256`** remains only in audit evidence.
 
 Default four-period reconcile keeps `2022-01-30` out of the model payload and in provenance.
 
@@ -68,19 +74,18 @@ Default four-period reconcile keeps `2022-01-30` out of the model payload and in
 
 | Command | Exit | Result |
 |---|---:|---|
-| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_historical_segment.py core/tests/test_geographic_segment_facts.py core/tests/test_filing_json.py core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py -q` | 0 | **110 passed** in 1.47s |
-| `... pytest core/tests/test_lululemon_benchmark.py core/tests/test_fast_retailing_benchmark.py -q` | 0 | **171 passed** in 37.77s |
-| `... pytest core/tests -q` | 0 | **1289 passed** in 103.54s |
-| `python -m core reconcile` extracted → **temporary** `/tmp/lulu-seg-9m2411133.5duk8s` `--admit-period 2022-01-30` | 0 | `overlap_conflicts=3`; `note_facts=105`; selected=56; model facts=56 |
-| Temporary standardized.json minus `historical_segment` vs committed | 0 | **equal** |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_historical_segment.py core/tests/test_geographic_segment_facts.py core/tests/test_filing_json.py core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py -q` | 0 | **136 passed** in 1.43s |
+| Independent JSON reload of `2025-12-31garbage` | 0 | field-specific `ValueError`; payload unchanged |
+| `python -m core reconcile` extracted → **temporary** `/tmp/lulu-seg-9m2411133.2fazMH` `--admit-period 2022-01-30` | 0 | `overlap_conflicts=3`; `note_facts=105`; selected=56; model facts=56 |
+| Temporary standardized.json minus `historical_segment` vs committed | 0 | **equal** (statement lines, shares, leases, periods) |
 | Temporary conflicts.json vs committed | 0 | **equal** (SHA-256 `d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0`) |
 | Statement-only provenance vs committed | 0 | **equal** |
 | Fast Retailing payload omit-field round trip (shares/lease preserved) | 0 | **no** `historical_segment` field |
-| Protected artifacts vs checkpoint `b74ef31d612166a7dd4e6cfad5c8cf02b7ab1b8c` | 0 | **match** (table below) |
+| Protected artifacts vs checkpoint `f8bd8169aed35ca21e8299d2dd6eb488bbf42420` | 0 | **match** (table below) |
 
 Temporary standardized.json SHA-256 `6c9aad59b04a5995742c68e08f1a704953796fc9fad97a036b08aeeab59051e5` (29584) — not a committed artifact. Temporary provenance SHA-256 `5067c1d04aa93c18062fe7eb90558a86394283b7d9fe45899761f71cfb615951` (786300) matches the prior selection serialization.
 
-### Protected-artifact hashes vs checkpoint `b74ef31d612166a7dd4e6cfad5c8cf02b7ab1b8c`
+### Protected-artifact hashes vs checkpoint `f8bd8169aed35ca21e8299d2dd6eb488bbf42420`
 
 **Lululemon (five-period canonical; unchanged):**
 

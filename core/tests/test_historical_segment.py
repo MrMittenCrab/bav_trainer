@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import math
 from datetime import date
 
@@ -314,3 +315,64 @@ def test_missing_periods_are_not_filled():
     restored = standardized_from_payload(standardized_to_payload(fin))
     assert [item.period for item in restored.historical_segment.periods] == [P2]
     assert P1 not in restored.historical_segment.periods[0].values
+
+
+_REJECTED_SEGMENT_PERIODS = (
+    "2025-12-31garbage",
+    "2025-12-31T00:00:00",
+    "2025-12-31T00:00:00Z",
+    "2025-12-31 00:00:00",
+    " 2025-12-31",
+    "2025-12-31 ",
+    "2025/12/31",
+    "20251231",
+    "2025-1-31",
+    "12-31-2025",
+    "2025-02-30",
+    "2025-13-01",
+    "2025-04-31",
+    "2025-02-29",
+    "1900-02-29",
+    "",
+    None,
+    20251231,
+    True,
+    2025.0,
+    [],
+    {},
+)
+
+_CANONICAL_SEGMENT_PERIODS = (
+    "2025-12-31",
+    "2024-02-29",
+    "2000-02-29",
+    "2025-01-01",
+)
+
+
+@pytest.mark.parametrize("raw_period", _REJECTED_SEGMENT_PERIODS)
+def test_malformed_segment_period_json_reload_fails_closed(raw_period):
+    fin = _fin_with_segment(_snapshot(P2))
+    payload = json.loads(json.dumps(standardized_to_payload(fin)))
+    assert payload["historical_segment"]["periods"][0]["period"] == "2025-12-31"
+    payload["historical_segment"]["periods"][0]["period"] = raw_period
+    supplied = json.loads(json.dumps(payload))
+    original = copy.deepcopy(supplied)
+    with pytest.raises(
+        ValueError,
+        match="historical_segment period must be a canonical YYYY-MM-DD date",
+    ):
+        standardized_from_payload(supplied)
+    assert supplied == original
+
+
+@pytest.mark.parametrize("raw_period", _CANONICAL_SEGMENT_PERIODS)
+def test_canonical_segment_period_json_reload_round_trip(raw_period):
+    parsed = date.fromisoformat(raw_period)
+    fin = _fin_with_segment(_snapshot(parsed))
+    encoded = json.dumps(standardized_to_payload(fin))
+    restored = standardized_from_payload(json.loads(encoded))
+    assert restored.historical_segment.periods[0].period == parsed
+    assert json.loads(json.dumps(standardized_to_payload(restored))) == json.loads(
+        encoded
+    )

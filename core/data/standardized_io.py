@@ -29,6 +29,27 @@ def _parse_date(value: str) -> date:
     return date.fromisoformat(str(value)[:10])
 
 
+def _parse_segment_period(value: object) -> date:
+    if not isinstance(value, str) or len(value) != 10:
+        raise ValueError(
+            "historical_segment period must be a canonical YYYY-MM-DD date: "
+            f"{value!r}"
+        )
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError(
+            "historical_segment period must be a canonical YYYY-MM-DD date: "
+            f"{value!r}"
+        ) from exc
+    if parsed.isoformat() != value:
+        raise ValueError(
+            "historical_segment period must be a canonical YYYY-MM-DD date: "
+            f"{value!r}"
+        )
+    return parsed
+
+
 def _serialize_line(item: LineItem) -> dict[str, Any]:
     return {
         "label": item.label,
@@ -166,8 +187,9 @@ def _deserialize_historical_segment_period(entry: object) -> HistoricalSegmentPe
     raw_operations = entry.get("bridge_operations")
     if not isinstance(raw_operations, dict):
         raise ValueError("historical_segment bridge_operations must be an object")
+    period = _parse_segment_period(entry["period"])
     return HistoricalSegmentPeriod(
-        period=_parse_date(str(entry["period"])),
+        period=period,
         presentation_family=str(entry.get("presentation_family") or ""),
         values={str(identity): value for identity, value in raw_values.items()},
         bridge_operations={
