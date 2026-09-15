@@ -1,16 +1,16 @@
-# RESULT.md — Step 9M.2.4.1.1.1.33 Selected geographic facts into StandardizedFinancials
+# RESULT.md — Step 9M.2.4.1.1.1.34 Historical geographic segment analytical series
 
 **Status:** COMPLETE (this child; parents remain UNRESOLVED)  
-**Step:** 9M.2.4.1.1.1.33 — Selected geographic facts into StandardizedFinancials  
-**Work:** `68977f91981a43ecba811e61f0b865d6`  
-**Plan:** `5d42faec1fed44d9b8ddfe6cf86443b9`  
+**Step:** 9M.2.4.1.1.1.34 — Historical geographic segment analytical series  
+**Work:** `c70f8d503c0d49ecbb4ff0f755597f34`  
+**Plan:** `748d6c34a29f4ce39633b855799d7e26`  
 **Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
 **INPUT_STATUS:** empty (`inputs: []`)  
-`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged). TARGET SHA-256 `3274be515f8ccf579a4b495bd820a4d14c87328b4d63f95123d0d4a6042407e2` (21552). IMPLEMENTATION SHA-256 `225abab84d6ab3db0f22c0abee4502bab63d7cce9de818d40bf68bdc8d3e5f4c` (7867).  
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs HEAD). TARGET SHA-256 `3274be515f8ccf579a4b495bd820a4d14c87328b4d63f95123d0d4a6042407e2` (21552). IMPLEMENTATION SHA-256 `7ac9f9b1254972d1073ef3988575d86642d758876305857156d7d3ea2f60de9d` (8154).  
 No commit / push / sync / checkpoint / branch change. No workbook generation, forecasting, or valuation. Spreadsheet recalculation was **not** performed.  
 This child does **not** declare parent or Step 9 acceptance.
 
-Edits this child: `core/data/standardized_io.py`, `core/tests/test_historical_segment.py`, `RESULT.md`.
+Edits this child: `core/model/geographic_segment.py`, `core/tests/test_geographic_segment_analysis.py`, `RESULT.md`.
 
 ---
 
@@ -18,74 +18,70 @@ Edits this child: `core/data/standardized_io.py`, `core/tests/test_historical_se
 
 | Kind | This child |
 |---|---|
-| Fresh | Strict segment-period reload (no truncation/strip/coercion); parameterized JSON encode/decode regressions including exactly `2025-12-31garbage`; focused contract/geographic/serialization/CLI tests **136 passed**; independent garbage reject; temporary `python -m core reconcile` admitting `2022-01-30`; 105 observations / 56 selected model values after reload; five-period bridges at tolerance 0; prior-presentation mutation; checkpoint `f8bd8169aed35ca21e8299d2dd6eb488bbf42420` protected hashes |
-| Retained (historical; not re-run) | Role-aware geographic selection; JSON `note_facts` extraction; PDF SHA-256 identity; Lululemon/Fast Retailing benchmarks **171 passed**; `pytest core/tests` **1289 passed**; provenance `selected_geographic_segment_facts` (SHA-256 `5067c1d04aa93c18062fe7eb90558a86394283b7d9fe45899761f71cfb615951`, 786300) |
+| Fresh | Optional geographic analytical series; independent five-period mix/growth/margin/bridge recomputation after in-memory admit `2022-01-30` and JSON reload; 105 observations / 56 selected model values; exact monetary diffs 0; share sums 1.0 within `GEOGRAPHIC_RATIO_TOLERANCE = 1e-12`; prior-presentation mutation; focused analytical/contract/geographic/serialization/CLI tests **144 passed**; checkpoint `38a1bc57f1b8caa5ef742041d7b660e9ed07779b` protected hashes |
+| Retained (historical; not re-run) | Strict segment-period reload; parameterized `2025-12-31garbage` reject; role-aware geographic selection; JSON `note_facts` extraction; PDF SHA-256 identity; Lululemon/Fast Retailing benchmarks **171 passed**; `pytest core/tests` **1289 passed**; provenance `selected_geographic_segment_facts` (SHA-256 `5067c1d04aa93c18062fe7eb90558a86394283b7d9fe45899761f71cfb615951`, 786300) |
 | Not claimed | Workbook Check / spreadsheet recalculation; learner/Check segment schedules; parent or Step 9 completion |
 
-Interpreter: `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. Tolerance: **`SEGMENT_BRIDGE_TOLERANCE = 0`**.
+Interpreter: `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. Monetary tolerance: **`SEGMENT_BRIDGE_TOLERANCE = 0`**. Ratio tolerance: **`GEOGRAPHIC_RATIO_TOLERANCE = 1e-12`**. Reported operating margin basis: `income_from_operations / net_revenue` (not BAV NOPAT margin).
 
 ---
 
-## Task 1 — Strict segment-date reload
+## Task 1 — Optional analytical series
 
-`_parse_segment_period` validates the original `historical_segment.periods[].period` value as a canonical `YYYY-MM-DD` string and a real calendar date **before** constructing `HistoricalSegmentPeriod`. Non-segment `_parse_date` truncation (`[:10]`) is unchanged.
+`core/model/geographic_segment.py` consumes only `StandardizedFinancials.historical_segment` after `validate_historical_segment`. Series are keyed by `canonical_fiscal_periods` and identities `americas` / `china_mainland` / `rest_of_world`.
 
-Rejected without truncation, stripping, or coercion: trailing garbage, timestamp suffixes, surrounding whitespace, noncanonical forms, impossible dates, non-leap 29 February, and non-string values. Field-specific `ValueError` is raised before `standardized_from_payload` returns financial data. Duplicate-period, model-axis, and bridge validation are unchanged.
+Computed per period: revenue share of consolidated revenue, adjacent-period revenue growth, reported operating margin, calculated segment revenue/IFOP totals, signed reconciling contributions in sorted identity order, reconstructed consolidated IFOP, and differences versus reported consolidated revenue/IFOP. Corporate-column ADD versus itemized SUBTRACT semantics and reported signs are preserved. Calculated totals are separate from any reported `segment_total`.
+
+Missing/null payloads make the module absent (`MissingLineError`). Missing snapshots on the model axis yield `SOURCE_UNAVAILABLE` only for dependent outputs; gaps are not compressed. Opening growth is `None`. Later growth requires both immediately adjacent snapshots. Zero denominators use `#N/A`; zero numerators and negative profits are preserved. Invalid contracts are rejected without mutating inputs.
 
 ---
 
-## Task 2 — Regression coverage
+## Task 2 — Independent Lululemon five-period recomputation
 
-`core/tests/test_historical_segment.py` parameterized JSON encode/decode → `standardized_from_payload`:
+Unchanged extracted filings reconciled in memory with `--admit-period 2022-01-30`, then `json.dumps` / `json.loads` → `standardized_from_payload`. Model values equal all **56** on-axis selections. Independent snapshot arithmetic matched the API for all five periods.
 
-- Rejected, including exactly `2025-12-31garbage` against a valid fixture admitting `2025-12-31`; payload left unchanged.
-- Also: timestamps, whitespace, `2025/12/31`, `20251231`, `2025-1-31`, `12-31-2025`, `2025-02-30`, `2025-13-01`, `2025-04-31`, `2025-02-29`, `1900-02-29`, empty string, `null`, int, bool, float, list, object.
-- Valid canonical round trips: `2025-12-31`, leap days `2024-02-29` / `2000-02-29`, `2025-01-01`.
-- Existing missing/null omit-when-absent compatibility retained.
+| Period | Family | Revenue Σ segs = cons | IFOP reconstructed | Mix A / CM / RoW | Growth A / CM / RoW |
+|---|---|---|---|---|---|
+| 2022-01-30 | itemized_reconciling | **6256617** | **2102008 − 41394 − 8782 − 718477 = 1333355** | 0.8470881308541022 / 0.06940827606995921 / 0.08350359307593865 | opening absent |
+| 2023-01-29 | corporate_column | **8110518** | **2803809 − 1475401 = 1328408** | 0.8405694926020755 / 0.07108090999859688 / 0.08834959739932764 | 0.2863348897131383 / 0.3275495612085819 / 0.3715398602737104 |
+| 2024-01-28 | corporate_column | **9619278** | **3476332 − 1343656 = 2132676** | 0.7933700429491694 / 0.10019047167573283 / 0.1064394853750978 | 0.11942772184454784 / 0.6717345790047927 / 0.428867884241537 |
+| 2025-02-02 | corporate_column | **10588126** | **3840362 − 1334665 = 2505697** | 0.7487780179419852 / 0.1285720438158745 / 0.1226499382421403 | 0.03885255699064697 / 0.4125269776707894 / 0.26835607220050184 |
+| 2026-02-01 | corporate_column | **11102600** | **3607682 − 1397067 = 2210615** | 0.7067753499180373 / 0.1580529785815935 / 0.1351716715003693 | −0.010230878403502655 / 0.2890261559040855 / 0.15564366530035814 |
+
+Share sums measured **exactly 1.0** (within 1e-12). All five monetary revenue/IFOP differences measured **0.0**. 2022 itemized operations in stable identity order: `acquisition_related_expenses`, `amortization_of_intangible_assets`, `general_corporate_expenses`. 2026 corporate signed contribution `income_from_operations.corporate_unallocated = -1397067`.
+
+Reported operating margins (IFOP / revenue), same five periods:
+
+| Period | Americas | China Mainland | Rest of World |
+|---|---:|---:|---:|
+| 2022-01-30 | 0.3522734176794834 | 0.3852936367760402 | 0.12953201263278782 |
+| 2023-01-29 | 0.3672544031833585 | 0.3414813105916188 | 0.14402681697720082 |
+| 2024-01-28 | 0.3848689542375322 | 0.35 | 0.1971263958057216 |
+| 2025-02-02 | 0.3803604520395411 | 0.37452812933167906 | 0.24252117418855057 |
+| 2026-02-01 | 0.32632135107181764 | 0.39954604487465517 | 0.23048434889858918 |
+
+Prior-presentation mutation (in-memory; extracted JSON not rewritten): selected Americas **`7928156`** survives standardization, JSON reload, and the analytical series (forward and reversed filing order); superseded **`7928256`** remains only in audit evidence; analytical series equals the unmutated selected series.
+
+Synthetic regressions covered sparse snapshots (no gap compression), absent/null payloads, Fast Retailing omit-field compatibility, zero denominators / zero numerators / negative profits, reordered inputs, bridge contradictions, incompatible identities, and failure immutability.
 
 ---
 
 ## Task 3 — Verification
 
-### Independent trailing-garbage JSON reload
-
-Mutated an otherwise valid payload admitting `2025-12-31` to `2025-12-31garbage`, then `json.dumps` / `json.loads` → `standardized_from_payload`.
-
-- Raised: `historical_segment period must be a canonical YYYY-MM-DD date: '2025-12-31garbage'`
-- Supplied payload unchanged: **True**
-
-### Independent five-period bridges (USD thousands, tolerance 0)
-
-Temporary five-period admit `2022-01-30`. Model values equal all **56** on-axis selections after export/reload.
-
-| Period | Family | Revenue Σ segs = cons | IFOP bridge | IS cross-check |
-|---|---|---|---|---|
-| 2022-01-30 | itemized_reconciling | **6256617** | **1333355** | match |
-| 2023-01-29 | corporate_column | **8110518** | **1328408** | match |
-| 2024-01-28 | corporate_column | **9619278** | **2132676** | match |
-| 2025-02-02 | corporate_column | **10588126** | **2505697** | match |
-| 2026-02-01 | corporate_column | **11102600** | **3607682 − 1397067 = 2210615** | match |
-
-Prior-presentation mutation (in-memory; extracted JSON not rewritten): Americas **`7928156`** survives standardization and JSON reload (forward and reversed filing order); superseded **`7928256`** remains only in audit evidence.
-
-Default four-period reconcile keeps `2022-01-30` out of the model payload and in provenance.
-
 ### Measured commands
 
 | Command | Exit | Result |
 |---|---:|---|
-| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_historical_segment.py core/tests/test_geographic_segment_facts.py core/tests/test_filing_json.py core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py -q` | 0 | **136 passed** in 1.43s |
-| Independent JSON reload of `2025-12-31garbage` | 0 | field-specific `ValueError`; payload unchanged |
-| `python -m core reconcile` extracted → **temporary** `/tmp/lulu-seg-9m2411133.2fazMH` `--admit-period 2022-01-30` | 0 | `overlap_conflicts=3`; `note_facts=105`; selected=56; model facts=56 |
-| Temporary standardized.json minus `historical_segment` vs committed | 0 | **equal** (statement lines, shares, leases, periods) |
-| Temporary conflicts.json vs committed | 0 | **equal** (SHA-256 `d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0`) |
-| Statement-only provenance vs committed | 0 | **equal** |
-| Fast Retailing payload omit-field round trip (shares/lease preserved) | 0 | **no** `historical_segment` field |
-| Protected artifacts vs checkpoint `f8bd8169aed35ca21e8299d2dd6eb488bbf42420` | 0 | **match** (table below) |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_geographic_segment_analysis.py core/tests/test_historical_segment.py core/tests/test_geographic_segment_facts.py core/tests/test_filing_json.py core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py -q` | 0 | **144 passed** in 1.56s |
+| Independent in-memory reconcile + JSON reload + series vs snapshot arithmetic | 0 | 105 observations; 56 selected/model values; five-period independent match; `3607682 - 1397067 = 2210615` |
+| Fast Retailing payload omit-field (`historical_segment` absent) | 0 | module absent |
+| Protected artifacts vs checkpoint `38a1bc57f1b8caa5ef742041d7b660e9ed07779b` | 0 | **match** (table below) |
 
-Temporary standardized.json SHA-256 `6c9aad59b04a5995742c68e08f1a704953796fc9fad97a036b08aeeab59051e5` (29584) — not a committed artifact. Temporary provenance SHA-256 `5067c1d04aa93c18062fe7eb90558a86394283b7d9fe45899761f71cfb615951` (786300) matches the prior selection serialization.
+Default four-period committed `standardized.json` is unchanged and still omits `2022-01-30` from the model payload. Five-period series used a temporary in-memory admit only.
 
-### Protected-artifact hashes vs checkpoint `f8bd8169aed35ca21e8299d2dd6eb488bbf42420`
+New files: `core/model/geographic_segment.py` SHA-256 `484d8841495e2cfdb865c402ad01162488b5d1145a7c481c23e5882bd3176cfb` (11091); `core/tests/test_geographic_segment_analysis.py` SHA-256 `f67c25f10b70b015d7570814151690413070752c688ae373f5b3d3dd7f947909` (19667).
+
+### Protected-artifact hashes vs checkpoint `38a1bc57f1b8caa5ef742041d7b660e9ed07779b`
 
 **Lululemon (five-period canonical; unchanged):**
 
@@ -127,7 +123,7 @@ Inspected `.git/autocycle/reviewed-recovery-20260915-120942/evidence.json` SHA-2
 
 ## Remaining scope
 
-Segment analytical schedules and learner/Check integration; G6 missing `2021-01-31` BS; G7 store KPIs, lease maturity and remaining note facts; G8 deferral; G9 standalone interest completeness; all TARGET Step 9 exit gates. Segment assets/capex, significant-expense schedules and D&A remain outside this step. No parent or Step 9 completion claim.
+Segment workbook schedules and learner/Check integration; G6 missing `2021-01-31` BS; G7 store KPIs, lease maturity and remaining note facts; G8 deferral; G9 standalone interest completeness; all TARGET Step 9 exit gates. Segment assets/capex, significant-expense schedules and D&A remain outside this step. No parent or Step 9 completion claim.
 
 No plan rewrite.
 
