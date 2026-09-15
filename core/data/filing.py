@@ -53,6 +53,7 @@ class SupplementalFact:
     status: str
     source: SourceRef
     derivation: str = ""
+    presentation_role: str = ""
 
 
 @dataclass(frozen=True)

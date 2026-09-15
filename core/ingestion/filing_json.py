@@ -137,6 +137,14 @@ def _parse_supplemental(payload: object) -> SupplementalFact:
     raw_value = payload.get("value")
     if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float)):
         raise ValueError("supplemental value must be numeric")
+    role_raw = payload.get("presentation_role", "")
+    if role_raw in (None, ""):
+        presentation_role = ""
+    else:
+        try:
+            presentation_role = PresentationRole(str(role_raw)).value
+        except ValueError as exc:
+            raise ValueError(f"unknown presentation_role: {role_raw!r}") from exc
     return SupplementalFact(
         fact_type=fact_type,
         period=_parse_date(payload.get("period"), context="supplemental.period"),
@@ -144,6 +152,7 @@ def _parse_supplemental(payload: object) -> SupplementalFact:
         status=status,
         source=_parse_source(payload.get("source")),
         derivation=derivation,
+        presentation_role=presentation_role,
     )
 
 
@@ -260,6 +269,8 @@ def extracted_filing_to_payload(filing: ExtractedFiling) -> dict[str, Any]:
         }
         if fact.derivation:
             out["derivation"] = fact.derivation
+        if fact.presentation_role:
+            out["presentation_role"] = fact.presentation_role
         return out
 
     meta: dict[str, Any] = {

@@ -94,6 +94,8 @@ def _supplemental_observation_payload(obs: SupplementalObservation) -> dict[str,
     }
     if obs.fact.derivation:
         out["derivation"] = obs.fact.derivation
+    if obs.fact.presentation_role:
+        out["presentation_role"] = obs.fact.presentation_role
     return out
 
 
@@ -375,6 +377,11 @@ def reconciliation_provenance_payload(
         "overlap_conflict_count": len(reconciled.conflicts),
         "supplemental_conflict_count": len(reconciled.supplemental_conflicts),
     }
+    if reconciled.selected_geographic_facts:
+        payload["selected_geographic_segment_facts"] = [
+            _selected_geographic_payload(item)
+            for item in reconciled.selected_geographic_facts
+        ]
     if reconciled.requested_admit_periods:
         payload["admitted_comparative_periods"] = [
             period.isoformat() for period in reconciled.admitted_comparative_periods
@@ -422,6 +429,27 @@ def reconciliation_conflicts_payload(
         "supplemental_conflicts": supplemental_conflicts,
         "supplemental_conflict_count": len(supplemental_conflicts),
     }
+
+
+def _selected_geographic_payload(item) -> dict[str, Any]:
+    out: dict[str, Any] = {
+        "identity": item.fact_type,
+        "period": item.period.isoformat(),
+        "value": _num(item.value),
+        "filing_year": item.filing_year,
+        "source_file": item.source_file,
+        "source_sha256": item.source_sha256,
+        "pdf_page": item.pdf_page,
+        "presentation_basis": item.presentation_basis,
+        "selection_reason": item.selection_reason,
+    }
+    if item.presentation_family:
+        out["presentation_family"] = item.presentation_family
+    if item.source_note:
+        out["source_note"] = item.source_note
+    if item.source_label:
+        out["source_label"] = item.source_label
+    return out
 
 
 def _supplemental_conflict_payload(conflict: SupplementalConflict) -> dict[str, Any]:

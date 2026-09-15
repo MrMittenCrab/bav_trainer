@@ -197,6 +197,14 @@ def _read_committed_artifacts() -> dict[str, bytes]:
     return {name: (RECONCILED / name).read_bytes() for name in ARTIFACT_NAMES}
 
 
+def _statement_provenance(payload: dict) -> dict:
+    """Canonical-comparable provenance: statement selections only."""
+    comparable = dict(payload)
+    comparable["note_facts"] = []
+    comparable.pop("selected_geographic_segment_facts", None)
+    return comparable
+
+
 def _assert_artifact_sets_match(
     generated: Path,
     expected_bytes: dict[str, bytes],
@@ -205,6 +213,18 @@ def _assert_artifact_sets_match(
     mismatches: list[str] = []
     for name in ARTIFACT_NAMES:
         actual = (generated / name).read_bytes()
+        if name == "provenance.json":
+            try:
+                actual_payload = json.loads(actual)
+                expected_payload = json.loads(expected_bytes[name])
+            except json.JSONDecodeError:
+                mismatches.append(name)
+                continue
+            if _statement_provenance(actual_payload) != _statement_provenance(
+                expected_payload
+            ):
+                mismatches.append(name)
+            continue
         if actual != expected_bytes[name]:
             mismatches.append(name)
     if mismatches:

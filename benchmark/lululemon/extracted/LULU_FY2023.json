@@ -1935,7 +1935,476 @@
       }
     ]
   },
-  "note_facts": [],
+  "note_facts": [
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.americas",
+      "period": "2024-01-28",
+      "value": 7631647,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Americas"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.china_mainland",
+      "period": "2024-01-28",
+      "value": 963760,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "China Mainland"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.rest_of_world",
+      "period": "2024-01-28",
+      "value": 1023871,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Rest of World"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.consolidated",
+      "period": "2024-01-28",
+      "value": 9619278,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Net revenue"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.americas",
+      "period": "2024-01-28",
+      "value": 2937184,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Americas"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.china_mainland",
+      "period": "2024-01-28",
+      "value": 337316,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "China Mainland"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.rest_of_world",
+      "period": "2024-01-28",
+      "value": 201832,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Rest of World"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.segment_total",
+      "period": "2024-01-28",
+      "value": 3476332,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Segmented income from operations"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.consolidated",
+      "period": "2024-01-28",
+      "value": 2132676,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Income from operations"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.ifop_reconciling.general_corporate_expenses",
+      "period": "2024-01-28",
+      "value": 1240436,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "General corporate expenses"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.ifop_reconciling.studio_obsolescence_provision",
+      "period": "2024-01-28",
+      "value": 23709,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "lululemon Studio obsolescence provision"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.ifop_reconciling.impairment_and_restructuring",
+      "period": "2024-01-28",
+      "value": 74501,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Impairment of goodwill and other assets, restructuring costs"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.ifop_reconciling.amortization_of_intangible_assets",
+      "period": "2024-01-28",
+      "value": 5010,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Amortization of intangible assets"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.americas",
+      "period": "2023-01-29",
+      "value": 6817454,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Americas"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.china_mainland",
+      "period": "2023-01-29",
+      "value": 576503,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "China Mainland"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.rest_of_world",
+      "period": "2023-01-29",
+      "value": 716561,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Rest of World"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.consolidated",
+      "period": "2023-01-29",
+      "value": 8110518,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Net revenue"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.americas",
+      "period": "2023-01-29",
+      "value": 2503740,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Americas"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.china_mainland",
+      "period": "2023-01-29",
+      "value": 196865,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "China Mainland"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.rest_of_world",
+      "period": "2023-01-29",
+      "value": 103204,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Rest of World"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.segment_total",
+      "period": "2023-01-29",
+      "value": 2803809,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Segmented income from operations"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.consolidated",
+      "period": "2023-01-29",
+      "value": 1328408,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Income from operations"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.ifop_reconciling.general_corporate_expenses",
+      "period": "2023-01-29",
+      "value": 1005988,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "General corporate expenses"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.ifop_reconciling.studio_obsolescence_provision",
+      "period": "2023-01-29",
+      "value": 62928,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "lululemon Studio obsolescence provision"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.ifop_reconciling.impairment_and_restructuring",
+      "period": "2023-01-29",
+      "value": 407913,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Impairment of goodwill and other assets, restructuring costs"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.ifop_reconciling.amortization_of_intangible_assets",
+      "period": "2023-01-29",
+      "value": 8752,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Amortization of intangible assets"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.ifop_reconciling.gain_on_disposal_of_assets",
+      "period": "2023-01-29",
+      "value": -10180,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Gain on disposal of assets"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.americas",
+      "period": "2022-01-30",
+      "value": 5299906,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Americas"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.china_mainland",
+      "period": "2022-01-30",
+      "value": 434261,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "China Mainland"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.rest_of_world",
+      "period": "2022-01-30",
+      "value": 522450,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Rest of World"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.consolidated",
+      "period": "2022-01-30",
+      "value": 6256617,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Net revenue"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.americas",
+      "period": "2022-01-30",
+      "value": 1867016,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Americas"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.china_mainland",
+      "period": "2022-01-30",
+      "value": 167318,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "China Mainland"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.rest_of_world",
+      "period": "2022-01-30",
+      "value": 67674,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Rest of World"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.segment_total",
+      "period": "2022-01-30",
+      "value": 2102008,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Segmented income from operations"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.consolidated",
+      "period": "2022-01-30",
+      "value": 1333355,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Income from operations"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.ifop_reconciling.general_corporate_expenses",
+      "period": "2022-01-30",
+      "value": 718477,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "General corporate expenses"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.ifop_reconciling.amortization_of_intangible_assets",
+      "period": "2022-01-30",
+      "value": 8782,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Amortization of intangible assets"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.ifop_reconciling.acquisition_related_expenses",
+      "period": "2022-01-30",
+      "value": 41394,
+      "status": "reported",
+      "source": {
+        "page": 84,
+        "note": "23 Segmented Information",
+        "label": "Acquisition-related expenses"
+      },
+      "presentation_role": "restated_comparative"
+    }
+  ],
   "share_facts": [
     {
       "fact_type": "basic_weighted_average_shares",

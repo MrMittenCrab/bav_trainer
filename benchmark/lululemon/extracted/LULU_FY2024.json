@@ -1959,7 +1959,404 @@
       }
     ]
   },
-  "note_facts": [],
+  "note_facts": [
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.americas",
+      "period": "2025-02-02",
+      "value": 7928156,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Americas"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.china_mainland",
+      "period": "2025-02-02",
+      "value": 1361337,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "China Mainland"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.rest_of_world",
+      "period": "2025-02-02",
+      "value": 1298633,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Rest of World"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.segment_total",
+      "period": "2025-02-02",
+      "value": 10588126,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Total Segments"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.consolidated",
+      "period": "2025-02-02",
+      "value": 10588126,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Net revenue"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.americas",
+      "period": "2025-02-02",
+      "value": 3015557,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Americas"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.china_mainland",
+      "period": "2025-02-02",
+      "value": 509859,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "China Mainland"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.rest_of_world",
+      "period": "2025-02-02",
+      "value": 314946,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Rest of World"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.segment_total",
+      "period": "2025-02-02",
+      "value": 3840362,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Income from operations"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.corporate_unallocated",
+      "period": "2025-02-02",
+      "value": -1334665,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Corporate"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.consolidated",
+      "period": "2025-02-02",
+      "value": 2505697,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Income from operations"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.americas",
+      "period": "2024-01-28",
+      "value": 7631647,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Americas"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.china_mainland",
+      "period": "2024-01-28",
+      "value": 963760,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "China Mainland"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.rest_of_world",
+      "period": "2024-01-28",
+      "value": 1023871,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Rest of World"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.segment_total",
+      "period": "2024-01-28",
+      "value": 9619278,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Total Segments"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.consolidated",
+      "period": "2024-01-28",
+      "value": 9619278,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Net revenue"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.americas",
+      "period": "2024-01-28",
+      "value": 2937184,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Americas"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.china_mainland",
+      "period": "2024-01-28",
+      "value": 337316,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "China Mainland"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.rest_of_world",
+      "period": "2024-01-28",
+      "value": 201832,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Rest of World"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.segment_total",
+      "period": "2024-01-28",
+      "value": 3476332,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Income from operations"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.corporate_unallocated",
+      "period": "2024-01-28",
+      "value": -1343656,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Corporate"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.consolidated",
+      "period": "2024-01-28",
+      "value": 2132676,
+      "status": "reported",
+      "source": {
+        "page": 79,
+        "note": "23 Segmented Information",
+        "label": "Income from operations"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.americas",
+      "period": "2023-01-29",
+      "value": 6817454,
+      "status": "reported",
+      "source": {
+        "page": 80,
+        "note": "23 Segmented Information",
+        "label": "Americas"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.china_mainland",
+      "period": "2023-01-29",
+      "value": 576503,
+      "status": "reported",
+      "source": {
+        "page": 80,
+        "note": "23 Segmented Information",
+        "label": "China Mainland"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.rest_of_world",
+      "period": "2023-01-29",
+      "value": 716561,
+      "status": "reported",
+      "source": {
+        "page": 80,
+        "note": "23 Segmented Information",
+        "label": "Rest of World"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.segment_total",
+      "period": "2023-01-29",
+      "value": 8110518,
+      "status": "reported",
+      "source": {
+        "page": 80,
+        "note": "23 Segmented Information",
+        "label": "Total Segments"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.net_revenue.consolidated",
+      "period": "2023-01-29",
+      "value": 8110518,
+      "status": "reported",
+      "source": {
+        "page": 80,
+        "note": "23 Segmented Information",
+        "label": "Net revenue"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.americas",
+      "period": "2023-01-29",
+      "value": 2503740,
+      "status": "reported",
+      "source": {
+        "page": 80,
+        "note": "23 Segmented Information",
+        "label": "Americas"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.china_mainland",
+      "period": "2023-01-29",
+      "value": 196865,
+      "status": "reported",
+      "source": {
+        "page": 80,
+        "note": "23 Segmented Information",
+        "label": "China Mainland"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.rest_of_world",
+      "period": "2023-01-29",
+      "value": 103204,
+      "status": "reported",
+      "source": {
+        "page": 80,
+        "note": "23 Segmented Information",
+        "label": "Rest of World"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.segment_total",
+      "period": "2023-01-29",
+      "value": 2803809,
+      "status": "reported",
+      "source": {
+        "page": 80,
+        "note": "23 Segmented Information",
+        "label": "Income from operations"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.corporate_unallocated",
+      "period": "2023-01-29",
+      "value": -1475401,
+      "status": "reported",
+      "source": {
+        "page": 80,
+        "note": "23 Segmented Information",
+        "label": "Corporate"
+      },
+      "presentation_role": "restated_comparative"
+    },
+    {
+      "fact_type": "segment.geo.q4_2023.income_from_operations.consolidated",
+      "period": "2023-01-29",
+      "value": 1328408,
+      "status": "reported",
+      "source": {
+        "page": 80,
+        "note": "23 Segmented Information",
+        "label": "Income from operations"
+      },
+      "presentation_role": "restated_comparative"
+    }
+  ],
   "share_facts": [
     {
       "fact_type": "basic_weighted_average_shares",
