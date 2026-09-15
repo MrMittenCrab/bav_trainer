@@ -167,6 +167,12 @@ _EXPLICIT_CONCEPT_ALIASES: dict[str, frozenset[str]] = {
             "income before tax",
         }
     ),
+    "payments_for_ppe": frozenset(
+        {
+            "payments for ppe",
+            "capital expenditures",
+        }
+    ),
 }
 
 

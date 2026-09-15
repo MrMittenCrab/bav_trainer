@@ -17,7 +17,7 @@ from core.data.interface import (
     LineItem,
     StandardizedFinancials,
 )
-from core.data.standardized_io import standardized_from_payload
+from core.data.standardized_io import standardized_from_payload, standardized_to_payload
 from core.engine.component_catalog import (
     CAPEX_COMPONENT_CATALOG,
     expand_capex_specs,
@@ -73,6 +73,7 @@ def _tiny(
     payments_first: bool = False,
     on_balance_sheet: bool = False,
     single_period: bool = False,
+    payments_concept: str = "payments_for_ppe",
 ):
     if single_period:
         d1 = date(2025, 12, 31)
@@ -96,7 +97,7 @@ def _tiny(
         pay_vals = payments
         rev_vals = revenue
 
-    concept = "" if label_only else "payments_for_ppe"
+    concept = "" if label_only else payments_concept
     if missing_period and not single_period:
         pay_values = {P1: pay_vals[0]}
     elif none_period and not single_period:
@@ -167,7 +168,7 @@ def _tiny(
                 _li(
                     "Payments for PPE duplicate",
                     vals(*pay_vals) if not single_period else vals(pay_vals[0]),
-                    concept="payments_for_ppe",
+                    concept=concept,
                 )
             )
 
@@ -560,3 +561,156 @@ def test_fast_retailing_fy2021_fy2025_capex_anchors_and_ratios():
     builder = ReferenceModelBuilder(fin)
     assert len(builder.capex_specs) == 10
     assert len(builder.expected_specs) == 491
+
+
+def test_capital_expenditures_alias_resolution_sign_zero_and_missing():
+    alias = _tiny(payments_concept="capital_expenditures")
+    item = resolve_capex_source(alias)
+    assert item is not None
+    assert item.concept == "capital_expenditures"
+    assert item.label == "Payments for property, plant and equipment"
+    assert capex_applicable(alias)
+    avail = capex_availability(alias)
+    assert avail.payments_for_ppe is True and avail.ambiguous is False
+
+    series = compute_capex_series(
+        alias, list(canonical_fiscal_periods(alias)), _anchor(alias)
+    )
+    assert series.payments_reported == (-100.0, -120.0)
+    assert series.ppe_capex == (100.0, 120.0)
+    assert series.ppe_capex_to_revenue[0] == pytest.approx(100.0 / 1000.0)
+
+    zero = _tiny(payments=(0.0, -10.0), payments_concept="capital_expenditures")
+    series_z = compute_capex_series(
+        zero, list(canonical_fiscal_periods(zero)), _anchor(zero)
+    )
+    assert series_z.payments_reported == (0.0, -10.0)
+    assert series_z.ppe_capex == (0.0, 10.0)
+    assert series_z.ppe_capex_to_revenue[0] == pytest.approx(0.0)
+
+    positive = _tiny(payments=(50.0, 80.0), payments_concept="capital_expenditures")
+    series_pos = compute_capex_series(
+        positive, list(canonical_fiscal_periods(positive)), _anchor(positive)
+    )
+    assert series_pos.payments_reported == (50.0, 80.0)
+    assert series_pos.ppe_capex == (-50.0, -80.0)
+
+    missing = _tiny(missing_period=True, payments_concept="capital_expenditures")
+    periods = list(canonical_fiscal_periods(missing))
+    with pytest.raises(MissingHistoricalValueError):
+        compute_capex_series(missing, periods, compute_anchor(missing, periods))
+
+    none_period = _tiny(none_period=True, payments_concept="capital_expenditures")
+    periods_n = list(canonical_fiscal_periods(none_period))
+    with pytest.raises(MissingHistoricalValueError):
+        compute_capex_series(
+            none_period, periods_n, compute_anchor(none_period, periods_n)
+        )
+
+
+def test_capital_expenditures_alias_ambiguity_statement_boundary_and_label_only():
+    both = _tiny(payments_concept="payments_for_ppe")
+    both.cash_flow.append(
+        _li(
+            "Purchase of property and equipment",
+            {P1: -100.0, P2: -120.0},
+            concept="capital_expenditures",
+        )
+    )
+    avail = capex_availability(both)
+    assert avail.ambiguous is True
+    assert avail.payments_for_ppe is False
+    assert not capex_applicable(both)
+    assert resolve_capex_source(both) is None
+    with pytest.raises(AmbiguousLineError):
+        resolve_line(both.cash_flow, "payments_for_ppe", required=False)
+    assert ReferenceModelBuilder(both).capex_specs == ()
+
+    dup_alias = _tiny(duplicate=True, payments_concept="capital_expenditures")
+    assert capex_availability(dup_alias).ambiguous is True
+    assert not capex_applicable(dup_alias)
+
+    wrong = _tiny(on_balance_sheet=True, payments_concept="capital_expenditures")
+    assert not capex_applicable(wrong)
+    assert resolve_capex_source(wrong) is None
+    assert (
+        resolve_line(wrong.balance_sheet, "payments_for_ppe", required=False).item
+        is not None
+    )
+
+    label_only = _tiny(label_only=True)
+    assert not capex_applicable(label_only)
+    assert resolve_capex_source(label_only) is None
+
+
+def test_capital_expenditures_alias_round_trip_preserves_stored_identity():
+    fin = _tiny(payments_concept="capital_expenditures")
+    original = resolve_capex_source(fin)
+    assert original is not None
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    item = resolve_capex_source(restored)
+    assert item is not None
+    assert item.concept == "capital_expenditures"
+    assert item.label == original.label
+    assert item.values == original.values
+    assert capex_applicable(restored)
+    series = compute_capex_series(
+        restored, list(canonical_fiscal_periods(restored)), _anchor(restored)
+    )
+    assert series.payments_reported == (-100.0, -120.0)
+    assert series.ppe_capex == (100.0, 120.0)
+
+
+def test_capital_expenditures_alias_python_excel_source_identity(tmp_path):
+    for payments_first in (False, True):
+        fin = _tiny(
+            payments_first=payments_first,
+            payments_concept="capital_expenditures",
+        )
+        resolved = resolve_line(fin.cash_flow, "payments_for_ppe", required=True)
+        assert resolved.item is not None
+        assert resolved.item.concept == "capital_expenditures"
+        expected_row = 7 + resolved.index
+        python_payments = compute_capex_series(
+            fin, list(canonical_fiscal_periods(fin)), _anchor(fin)
+        ).payments_reported
+        assert python_payments == (-100.0, -120.0)
+
+        trainer, answer = build_training_workbook(
+            fin, tmp_path / f"CAPEX_ALIAS_{payments_first}.xlsx"
+        )
+        builder = ReferenceModelBuilder(fin)
+        assert builder.capex_series is not None
+        assert builder.capex_series.payments_reported == python_payments
+        assert len(builder.capex_specs) == 4
+
+        wb = load_workbook(answer, data_only=False)
+        ws = wb["ALT DuPont"]
+        reported_row = _dupont_row_by_label(
+            ws, "Payments for Property, Plant & Equipment (reported)"
+        )
+        capex_row = _dupont_row_by_label(ws, "PP&E Capex (−reported)")
+        level_f = str(ws.cell(reported_row, 2).value).replace(" ", "")
+        assert f"'CashFlowStatement'!B{expected_row}" in level_f or (
+            f"'Cash Flow Statement'!B{expected_row}" in level_f
+        )
+        capex_f = str(ws.cell(capex_row, 2).value).replace(" ", "")
+        assert capex_f.startswith("=-")
+        wb.close()
+
+        blank = check_workbook(trainer)
+        assert blank.incorrect == 0
+        assert blank.blank == blank.total
+        assert blank.correct == 0
+
+        smap = load_semantic_map(answer)
+        wb = load_workbook(trainer, data_only=False)
+        for comp in smap.all_ordered():
+            row, col = parse_cell_ref(comp.cell)
+            wb[comp.tab].cell(row=row, column=col).value = comp.formula
+        wb.save(trainer)
+        wb.close()
+        filled = check_workbook(trainer)
+        assert filled.correct == filled.total
+        assert filled.incorrect == 0
+        assert filled.blank == 0

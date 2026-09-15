@@ -1,11 +1,13 @@
 """Historical PP&E capex source resolution, sign contract, and revenue intensity.
 
-Optional, source-gated module. Resolves CF ``payments_for_ppe`` via unique
-exact concept only. Preserves reported cash-flow signs and converts to
-analytical PP&E capex as ``ppe_capex = -payments_reported``. Computes
-``ppe_capex_to_revenue`` from resolved historical revenue. Does not infer
-capex from investing totals, PP&E movements, D&A, intangible purchases, or
-lease payments.
+Optional, source-gated module. Resolves CF ``payments_for_ppe`` through the
+shared line-resolver contract (canonical concept plus the explicit-concept
+alias ``capital_expenditures``). Stored concepts, values, signs, and
+provenance are left unchanged. Preserves reported cash-flow signs and
+converts to analytical PP&E capex as ``ppe_capex = -payments_reported``.
+Computes ``ppe_capex_to_revenue`` from resolved historical revenue. Does
+not infer capex from investing totals, PP&E movements, D&A, intangible
+purchases, or lease payments. Label-only inputs remain unsupported.
 """
 
 from __future__ import annotations
@@ -38,7 +40,7 @@ class CapexSeries:
 def resolve_capex_source(
     financials: StandardizedFinancials,
 ) -> LineItem | None:
-    """Return the unique exact-concept CF payments line, or None if unavailable."""
+    """Return the unique resolved CF payments line, or None if unavailable."""
     try:
         resolved = resolve_line(financials.cash_flow, _CONCEPT, required=False)
     except AmbiguousLineError:
@@ -49,7 +51,7 @@ def resolve_capex_source(
 def capex_availability(
     financials: StandardizedFinancials,
 ) -> CapexAvailability:
-    """Report whether a unique exact-concept CF payments_for_ppe line resolves."""
+    """Report whether a unique CF payments_for_ppe line resolves."""
     try:
         resolved = resolve_line(financials.cash_flow, _CONCEPT, required=False)
     except AmbiguousLineError:
@@ -61,7 +63,7 @@ def capex_availability(
 
 
 def capex_applicable(financials: StandardizedFinancials) -> bool:
-    """Module is present when a unique exact-concept CF payments_for_ppe resolves."""
+    """Module is present when a unique CF payments_for_ppe line resolves."""
     availability = capex_availability(financials)
     return availability.payments_for_ppe and not availability.ambiguous
 

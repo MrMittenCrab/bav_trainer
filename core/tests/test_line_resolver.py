@@ -477,3 +477,99 @@ def test_income_before_tax_alias_removal_fails_closed(monkeypatch):
     )
     with pytest.raises(MissingLineError, match="pretax_income"):
         resolve_line(items, "pretax_income", required=True)
+
+
+def test_payments_for_ppe_canonical_and_capital_expenditures_alias():
+    """Canonical payments_for_ppe and supplied capital_expenditures both resolve at P1."""
+    canonical = resolve_line(
+        [_item("Carrying label", -100, -110, concept="payments_for_ppe")],
+        "payments_for_ppe",
+        required=True,
+    )
+    assert canonical.item is not None
+    assert canonical.index == 0
+    assert canonical.item.concept == "payments_for_ppe"
+
+    alias = resolve_line(
+        [_item("Purchase of property and equipment", -100, -110, concept="capital_expenditures")],
+        "payments_for_ppe",
+        required=True,
+    )
+    assert alias.item is not None
+    assert alias.index == 0
+    assert alias.item.concept == "capital_expenditures"
+    assert alias.item.label == "Purchase of property and equipment"
+    assert alias.item.values == {P1: -100, P2: -110}
+
+
+def test_payments_for_ppe_rejects_unsupported_label_only_inputs():
+    """Capex remains explicit-concept; nearby labels do not activate the contract."""
+    for label in (
+        "Purchase of property and equipment",
+        "Payments for property, plant and equipment",
+        "Capital expenditures",
+        "Payments for PPE",
+        "Purchase of fixed assets",
+    ):
+        assert (
+            resolve_line(
+                [_item(label, -100, -110)],
+                "payments_for_ppe",
+                required=False,
+            ).item
+            is None
+        )
+    with pytest.raises(MissingLineError):
+        resolve_line(
+            [_item("Purchase of property and equipment", -100, -110)],
+            "payments_for_ppe",
+            required=True,
+        )
+
+
+def test_payments_for_ppe_explicit_concept_outranks_label():
+    items = [
+        _item("Purchase of property and equipment", -1, -2),
+        _item("Other capex carrying amount", -100, -110, concept="capital_expenditures"),
+    ]
+    resolved = resolve_line(items, "payments_for_ppe", required=True)
+    assert resolved.item is not None
+    assert resolved.index == 1
+    assert resolved.item.label == "Other capex carrying amount"
+    assert resolved.item.concept == "capital_expenditures"
+
+
+def test_payments_for_ppe_canonical_and_alias_concepts_are_ambiguous_together():
+    items = [
+        _item("First", -1, -2, concept="payments_for_ppe"),
+        _item("Second", -3, -4, concept="capital_expenditures"),
+    ]
+    with pytest.raises(AmbiguousLineError):
+        resolve_line(items, "payments_for_ppe", required=False)
+
+
+def test_capital_expenditures_alias_removal_fails_closed(monkeypatch):
+    """Capex coverage fails closed if the capital_expenditures explicit alias is removed."""
+    from core.model import line_resolver as lr
+
+    items = [
+        _item(
+            "Purchase of property and equipment",
+            -100,
+            -110,
+            concept="capital_expenditures",
+        )
+    ]
+    assert resolve_line(items, "payments_for_ppe", required=True).item is not None
+
+    monkeypatch.setattr(
+        lr,
+        "_EXPLICIT_CONCEPT_ALIASES",
+        {
+            k: v
+            for k, v in lr._EXPLICIT_CONCEPT_ALIASES.items()
+            if k != "payments_for_ppe"
+        },
+    )
+    with pytest.raises(MissingLineError, match="payments_for_ppe"):
+        resolve_line(items, "payments_for_ppe", required=True)

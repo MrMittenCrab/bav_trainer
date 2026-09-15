@@ -14,7 +14,8 @@ Categories match IMPLEMENTATION.md Task 4:
 |---|---|
 | validate-source (4 filings) | **pass** |
 | reconcile | **pass** (overlap=3, supplemental=0, sources=4/4) |
-| ReferenceModelBuilder / build | **fail** — `UnclassifiedBalanceSheetLineError` on gift-card liability |
+| capex module (G4) | **pass** — stored CF `capital_expenditures` resolves through `payments_for_ppe`; four-period diagnostics available |
+| ReferenceModelBuilder / build | **fail** — `MissingLineError: Required concept 'interest_expense' not found in statement lines` |
 
 ## Gaps (priority order)
 
@@ -43,12 +44,13 @@ Categories match IMPLEMENTATION.md Task 4:
 - **Evidence:** `Common stock` / `common_stock` fails closed. Deterministic equity mapping covers `capital_stock` (with “capital stock” label tokens) but not `common_stock`; label equity rules omit bare “common stock” (by design vs redeemable stock).
 - **Why it matters:** Ordinary US equity presentations use “Common stock”; reformulation cannot complete without a safe exact-concept rule or guarded label rule.
 
-### G4 — Capex concept naming (`capital_expenditures` vs `payments_for_ppe`) — **OPEN**
+### G4 — Capex concept naming (`capital_expenditures` vs `payments_for_ppe`) — **CLOSED** (Step 9M.2.4.1.1.1.17)
 
 - **Category:** 3 (generic line-identity / optional-module contract)
 - **Stage:** module applicability (post-build)
-- **Evidence:** CF row `capital_expenditures` present (−638,657 … −680,802); `capex_applicable=False` because resolver requires exact `payments_for_ppe`.
-- **Why it matters:** Source-supported historical capex intensity is invisible to the learner despite explicit CF facts.
+- **Evidence (before):** CF investing row `Purchase of property and equipment` / stored concept `capital_expenditures` present (−638,657 / −651,865 / −689,232 / −680,802); `capex_applicable=False` because resolver required exact `payments_for_ppe`.
+- **Evidence (after):** same stored concept, label, signs, values, and provenance; `capex_applicable=True` via shared explicit-concept alias `capital_expenditures` → `payments_for_ppe`. Independent four-period `ppe_capex` 638657 / 651865 / 689232 / 680802 against supplied revenue 8110518 / 9619278 / 10588126 / 11102600. Round-trip preserves `capital_expenditures`. Workbook still blocked on `interest_expense` (not reinterpreted).
+- **Why it mattered:** Source-supported historical capex intensity was invisible to the learner despite explicit CF facts.
 
 ### G5 — Lease ROU and deferred-tax concept aliases — **OPEN**
 

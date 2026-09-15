@@ -1450,6 +1450,7 @@
     "2024-08-31",
     "2025-08-31"
   ],
+  "retained_sparse_axis": [],
   "share_facts": [
     {
       "fact_type": "basic_weighted_average_shares",
@@ -2136,22 +2137,27 @@
   ],
   "source_files": [
     {
+      "filing_year": 2021,
       "source_file": "Fastretailing_CFS2021.pdf",
       "source_sha256": "06b50e0ffbd9504953f0401613d7238fe1c66f95a280d134938570458da74798"
     },
     {
+      "filing_year": 2022,
       "source_file": "Fastretailing_CFS2022.pdf",
       "source_sha256": "9fb8d620d22bd0c679342a14ede59916207c08c6577ae96290aaa9e567593baa"
     },
     {
+      "filing_year": 2023,
       "source_file": "Fastretailing_CFS2023.pdf",
       "source_sha256": "2fe7a85584ed77323d2ce87b3d81dacfbb5907ac7eed878bae7c1985f00116b6"
     },
     {
+      "filing_year": 2024,
       "source_file": "Fastretailing_CFS2024.pdf",
       "source_sha256": "72f484268962546e84efc817f00c95ab993cbf8d2c7d532b5ef0e3a2cf26d1de"
     },
     {
+      "filing_year": 2025,
       "source_file": "Fastretailing_CFS2025.pdf",
       "source_sha256": "25a85db811fbb1c6c94af50f1ac5b1fa9ffea794753a143685dcf5191d06147f"
     }

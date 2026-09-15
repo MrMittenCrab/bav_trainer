@@ -23,8 +23,15 @@ from core.model.classification import (
     classify_balance_sheet_line,
     is_balance_sheet_subtotal,
 )
+from core.engine.reference_model import SOURCE_START_ROW
+from core.model.capex import (
+    capex_applicable,
+    capex_availability,
+    resolve_capex_source,
+)
 from core.model.fixed_asset import fixed_asset_applicable, fixed_asset_availability
-from core.model.line_resolver import resolve_line
+from core.model.line_resolver import MissingLineError, resolve_line, workbook_row_for
+from core.model.source_values import required_period_value
 from core.trainer.workbook import build_training_workbook
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -624,9 +631,6 @@ def test_four_period_reformulation_integrity(tmp_path: Path):
     assert ncit.values[date(2026, 2, 1)] is None
     assert ncit.values[date(2025, 2, 2)] == 0.0
 
-    from core.engine.reference_model import SOURCE_START_ROW
-    from core.model.line_resolver import MissingLineError, workbook_row_for
-
     pretax = resolve_line(fin.income_statement, "pretax_income", required=True)
     assert pretax.item is not None
     assert pretax.item.concept == "income_before_tax"
@@ -660,6 +664,85 @@ def test_four_period_reformulation_integrity(tmp_path: Path):
         build_training_workbook(fin, out)
     assert ncit.values[date(2026, 2, 1)] is None
     assert pretax.item.values[date(2026, 2, 1)] == 2238967.0
+
+
+CAPEX_REPORTED_PAYMENTS = {
+    date(2023, 1, 29): -638657.0,
+    date(2024, 1, 28): -651865.0,
+    date(2025, 2, 2): -689232.0,
+    date(2026, 2, 1): -680802.0,
+}
+
+
+def test_source_supported_capex_alias_four_period_diagnostics(tmp_path: Path):
+    """G4: CF capital_expenditures resolves through payments_for_ppe without mutation."""
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    original_index, stored = next(
+        (idx, row)
+        for idx, row in enumerate(fin.cash_flow)
+        if row.concept == "capital_expenditures"
+        and row.label == "Purchase of property and equipment"
+    )
+    assert stored.values == CAPEX_REPORTED_PAYMENTS
+
+    assert capex_applicable(fin) is True
+    avail = capex_availability(fin)
+    assert avail.payments_for_ppe is True
+    assert avail.ambiguous is False
+
+    item = resolve_capex_source(fin)
+    assert item is stored
+    assert item.concept == "capital_expenditures"
+    assert item.label == "Purchase of property and equipment"
+    assert item.values == CAPEX_REPORTED_PAYMENTS
+
+    resolved = resolve_line(fin.cash_flow, "payments_for_ppe", required=True)
+    assert resolved.index == original_index
+    assert resolved.item is stored
+    capex_row = workbook_row_for(resolved, start_row=SOURCE_START_ROW)
+    assert capex_row == SOURCE_START_ROW + original_index
+
+    revenue = resolve_line(fin.income_statement, "revenue", required=True).item
+    assert revenue is not None
+    payments = []
+    ppe_capex = []
+    ratios = []
+    for period in EXPECTED_PERIODS:
+        pay = required_period_value(stored, period, field="payments_for_ppe")
+        rev = required_period_value(revenue, period, field="revenue")
+        capex = -pay
+        payments.append(pay)
+        ppe_capex.append(capex)
+        ratios.append(capex / rev)
+        assert pay == CAPEX_REPORTED_PAYMENTS[period]
+        assert rev == REVENUE_ANCHORS[period]
+    assert payments == [
+        -638657.0,
+        -651865.0,
+        -689232.0,
+        -680802.0,
+    ]
+    assert ppe_capex == [638657.0, 651865.0, 689232.0, 680802.0]
+    assert ratios[0] == pytest.approx(638657.0 / 8110518.0)
+    assert ratios[1] == pytest.approx(651865.0 / 9619278.0)
+    assert ratios[2] == pytest.approx(689232.0 / 10588126.0)
+    assert ratios[3] == pytest.approx(680802.0 / 11102600.0)
+
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    rt_item = resolve_capex_source(restored)
+    assert rt_item is not None
+    assert rt_item.concept == "capital_expenditures"
+    assert rt_item.label == "Purchase of property and equipment"
+    assert rt_item.values == CAPEX_REPORTED_PAYMENTS
+    assert capex_applicable(restored) is True
+    rt_resolved = resolve_line(restored.cash_flow, "payments_for_ppe", required=True)
+    assert rt_resolved.index == original_index
+
+    out = tmp_path / "LululemonCapex"
+    with pytest.raises(MissingLineError, match="interest_expense"):
+        build_training_workbook(fin, out)
+    assert stored.concept == "capital_expenditures"
+    assert stored.values == CAPEX_REPORTED_PAYMENTS
 
 
 def test_no_lulu_specific_production_branch():
