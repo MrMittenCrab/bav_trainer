@@ -1,48 +1,50 @@
-# Step 9M.2.4.1.1.1.19 — Repair Partial-Period Interest Availability
+# Step 9M.2.4.1.1.1.20 — Lululemon G5 Source-Supported Lease and Deferred-Tax Coverage
 
-AUTOCYCLE_PLAN: {"baseline": "At 94db2b04e5915d7326de71e2b62bc772032d155e, four-period Lululemon capex resolves, but compute_anchor and ReferenceModelBuilder raise MissingLineError for absent standalone interest; Fast Retailing retains its 491-cell release contract.", "finding_key": "interest-source-absence-blocks-supported-historical-analysis", "kind": "work", "objective": "Gate interest-dependent historical analysis by source availability", "plan_id": "c611e81b6a3b4b32b0e8909e7df8ecf1", "step_id": "9M.2.4.1.1.1.19", "success": "Lululemon generates a matched historical workbook pair containing supported analysis while unavailable interest-dependent outputs remain explicitly unavailable and excluded from practice and Check; Python and Excel agree, Fast Retailing retains its contract, and regenerated releases demonstrate measured improvement without invented facts.", "verification": "Read RESULT.md; reproduce partial-period display and aggregate regressions; compare Python results, workbook formulas, availability sidecars and semantic maps; verify regenerated release hashes, active-cell counts, unchanged source facts, preserved benchmark contracts and unresolved parent criteria.", "work_id": "94dff45c03374b6484c0c4e51a1ef1d4"}
+AUTOCYCLE_PLAN: {"baseline": "At 237c265b81e71ced0d323814fe7924850baaf147, Lululemon has 248 practice cells but supplied right_of_use_lease_asset, deferred_tax_asset and deferred_tax_liability concepts do not activate existing diagnostics; Fast Retailing retains 491 cells. RESULT Trainer hashes are stale.", "finding_key": "explicit-concept-aliases-block-supported-lease-and-deferred-tax-analysis", "kind": "work", "objective": "Enable source-supported lease ROU and deferred-tax diagnostics", "plan_id": "3ea52e796f8f4e8294c4d13918cbaaff", "step_id": "9M.2.4.1.1.1.20", "success": "Unchanged Lululemon facts activate both existing diagnostic modules through generic explicit-concept aliases, adding verified practice coverage while preserving interest gating, capex and Fast Retailing's 491-cell contract; RESULT records final artifact hashes and unresolved parent acceptance.", "verification": "Read RESULT.md; inspect alias resolution and regression evidence; independently compare supplied balances and derived values with workbook formulas, semantic maps and Check coverage; recompute final release hashes and verify unchanged source/provenance artifacts and retained parent criteria.", "work_id": "ed0d79edb1bc4f9bbe126a527dab85b9"}
 
-**Base:** `a5336a7d3c6f88709d0e11f3ed5bac8e579a6b1a`
-**Identity:** Preserve work `94dff45c03374b6484c0c4e51a1ef1d4` and attempt `cf87bd67e9f24c0cbcf6655675a1a530`; numbering remains frozen.
+**Base:** `237c265b81e71ced0d323814fe7924850baaf147`
 **INPUT_STATUS:** PENDING
 **Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1 and 9M.2.4 remain UNRESOLVED.
 
 ## Constraints
 
-- Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`; respect permissions. No commits or pushes.
-- Preserve source PDFs, extracted/reconciled facts, provenance, accepted capex edits and hash-bound recovery records. The historical candidate batch is not current approval.
-- No issuer-specific rules, invented interest, inferred zero, cash-interest substitution, mixed-income equivalence, forecasting or valuation.
-- Limit changes to the availability repair, directly affected production/tests, release generators if necessary, generated issuer releases, benchmark `GAPS.md` and `RESULT.md`.
+- Cursor must never modify `TARGET.md` or `IMPLEMENTATION.md`; respect permissions and unavailable access. No commits or pushes.
+- Numbering remains administratively frozen; the controller assigns identity for new work. Preserve prior recovery/work records without reopening verified ownership or rewriting historical approval.
+- Preserve source PDFs, extracted/reconciled facts, provenance, accepted capex changes and hash-bound recovery evidence.
+- No issuer-specific rules, invented interest, inferred zeros, cash-interest substitution, new note extraction, forecasting or valuation.
+- Limit edits to `core/model/line_resolver.py`, directly affected lease/deferred-tax modules and `core/engine/reference_model.py`, relevant tests, necessary release-generator changes, generated issuer releases, benchmark `GAPS.md` and `RESULT.md`.
 
-## Task 1 — Repair displays and shared aggregate availability
+## Task 1 — Activate existing diagnostics through explicit concept aliases
 
-- In `core/engine/reference_model.py`, gate each condensed interest source link by concept/period availability: missing values display `Source unavailable` in both workbooks; reported zero retains its source formula. Preserve absent source rows and original source blanks.
-- Align `core/model/source_availability.py` and `core/model/financial_math.py` through shared aggregate eligibility rules. Opening-period interest absence must not block a numeric average supported by comparable periods.
-- Preserve unavailable status when any required comparable CoD period lacks interest; distinguish source absence from undefined ratios. Preserve existing supported-history undefined-ratio fallback semantics without substituting 4% for unavailable history.
-- Ensure aggregate metadata, missing-dependency reasons, Python values and workbook output agree, including no numeric comparable CoD and single-period history. Retain all supported independent outputs and strict errors for ambiguity, malformed evidence and unrelated required facts.
+- Extend the shared explicit-concept alias contract: `right_of_use_lease_asset` → `right_of_use_assets`, `deferred_tax_asset` → `deferred_tax_assets`, and `deferred_tax_liability` → `deferred_tax_liabilities`.
+- Retain canonical concepts and stored identities; preserve explicit-concept precedence without adding label heuristics. Multiple canonical/alias candidates remain ambiguous, including equal-valued duplicates.
+- Ensure applicability, Python calculations and workbook source links resolve the same original rows. Retain existing missing/ambiguous-source omission and strict required-period-value behavior.
+- Activate existing ROU level/change/growth/average/intensity and deferred-tax level/net-position/change diagnostics only; preserve reported signs and existing opening-period conventions.
 
-## Task 2 — Add regressions and verify contracts
+## Task 2 — Verify source identity, numerical results and learner coverage
 
-- Extend `core/tests/test_source_availability.py` with each interest concept missing independently or together in opening, interior and latest periods; cover omitted keys, explicit `None`, reported zero and fully absent lines.
-- Assert condensed cells directly after export/reload in both workbooks; missing interest must never retain a formula linking an empty source cell. Verify supported formulas and downstream dependency closure.
-- Reproduce opening-only omission with independently calculated historical average CoD `0.374`; test mixed numeric/undefined comparable ratios, missing comparable interest, no numeric comparable ratios and single-period history against metadata and Python.
-- Verify unavailable outputs remain excluded from semantic maps, expected answers, hints and Check; preserve blank yellow practice cells, Answer-Key formulas/Notes, visible parity and non-disclosing blank/correct/incorrect Check behavior.
-- Run focused availability tests, affected model/trainer/reference-integrity and both benchmark suites, then `core/tests`; record actual commands and subprocess exits. Separate formula inspection from spreadsheet recalculation and disclose unavailable calculation coverage.
+- Extend resolver, lease-ROU, deferred-tax and Lululemon benchmark tests for canonical/alias equivalence, mixed aliases, duplicates, misleading labels, absent sources, missing periods, explicit `None`, reported zero and standardized-data round trips.
+- Independently verify four-period ROU balances `969419 / 1265610 / 1416256 / 1630181`, DTA `6402 / 9176 / 17085 / 24037`, DTL `55084 / 29522 / 98188 / 52278`, and net positions `-48682 / -20346 / -81103 / -28241`.
+- Verify derived changes, averages and revenue intensity against supplied facts; inspect source-linked formulas after export/reload in both workbooks. Never infer deferred-tax expense, cash-tax effects, recoverability, lease interest or repayment flows.
+- Verify added semantic identities and expected answers, blank yellow Trainer cells without Notes, matching Answer-Key formulas/Notes, visible parity and non-disclosing blank/correct/incorrect Check behavior.
+- Run focused resolver/module tests, availability and capex regressions, both benchmark suites, affected reference/trainer tests and `core/tests`; record actual commands and subprocess exits. Distinguish formula inspection from spreadsheet recalculation and disclose unavailable verification.
 
-## Task 3 — Regenerate releases and measure acceptance
+## Task 3 — Regenerate releases and record measured improvement
 
-- Use `scripts/build_lululemon_release.py` and `scripts/build_fast_retailing_release.py`; stage and verify generation before replacing release artifacts.
-- Retain exactly one matched Trainer/Answer-Key pair per issuer, synchronized semantic maps and availability sidecars; verify repeat-build semantic determinism and record artifact hashes.
-- Preserve Lululemon’s 248 active cells and Fast Retailing’s 491-cell contract; compare source/supporting hashes, unavailable-cell counts, available numerical outputs and Check outcomes against the checkpoint.
-- In `RESULT.md`, correct the superseded child PASS assessment, record measured defect repairs and capex acceptance separately from recovered ownership/publication, and update relevant benchmark gaps. Carry both frozen requests and unresolved parent criteria forward; historical test logs are not fresh verification.
+- Stage builds using both issuer release scripts; verify each matched pair and synchronized maps/availability/supporting artifacts before replacement. Retain exactly two user-facing workbooks per issuer.
+- Measure Lululemon coverage above the 248-cell baseline by module and semantic identity; preserve every previously supported cell, all 74 interest-unavailable displays per workbook and Fast Retailing’s 491-cell contract.
+- Verify repeat-build semantic determinism and source/provenance equality. Run mutating Check exercises on disposable copies; keep final Trainers blank.
+- After every final write, compute full SHA-256 hashes for both workbook pairs and associated release artifacts; record final-byte hashes in `RESULT.md`, explicitly superseding stale hashes.
+- Update Lululemon G5 with measured evidence. Record child acceptance separately from capex acceptance, recovery ownership/publication and unresolved parent acceptance.
 
-## Acceptance and retained parent criteria
+## Acceptance and carried-forward requirements
 
-- Partial-period interest displays never infer zero; Python, workbook output and availability metadata agree while supported periods remain usable. Lululemon’s unchanged facts produce the matched pair; standalone source-interest completeness remains unresolved.
+- Both source-supported modules activate without source mutation; Python values, source links, formulas, semantic maps and Check agree. Missing or contradictory evidence never produces fabricated analytical inputs.
+- Preserve successful gated Lululemon generation, partial-period interest displays and dependency closure, opening-only CoD `0.374`, supported-history undefined-ratio semantics and no unavailable-history 4% substitute.
 - Preserve supplied pretax resolution, distinct tax expense, explicit-concept precedence, ambiguity errors and strict missing-required-value failures outside optional gated analysis.
-- All four Lululemon periods retain unchanged reformulation tolerances, liability/equity discrepancy explanations, independent asset/liability/signed-equity detail gates, sparse omission handling and contradiction rejection.
-- Preserve source identities, comparative provenance and absence versus zero: NCIT remains 28555 / 15864 / reported 0 / `None`; Common stock remains 611 / 606 / 581 / 557.
+- Preserve four-period capex `638657 / 651865 / 689232 / 680802`, reformulation tolerances, liability/equity discrepancy explanations, independent asset/liability/signed-equity detail gates, sparse omission handling and contradiction rejection.
+- Preserve source identities and comparative provenance; NCIT remains `28555 / 15864 / reported 0 / None`, and Common stock remains `611 / 606 / 581 / 557`.
 - Retain G1/G2/G3, empty-detail, subtotal/override, contra-equity, sparse-position, historical causal evidence, all 12 pretax/ETR cases, mutation controls, deterministic comparisons and failure immutability requirements.
-- Preserve the original parent temporary-build criterion: success or exactly `MissingLineError: Required concept 'interest_expense' not found in statement lines`; this work requires successful gated generation.
-- Carry forward A2-ED/B7-MID documentary UNVERIFIED, A5/B8/E10 pending closure, E11 NonReq UNVERIFIED, G5 lease/deferred-tax coverage, G6 period-axis assessment, G7 note facts, G8 deferral and remaining TARGET Step 9 gates.
-- Keep INPUT_STATUS PENDING until all frozen requests are satisfied; child acceptance neither closes parents nor permits blanket DONE.
+- Retain the original parent temporary-build criterion: success or exactly `MissingLineError: Required concept 'interest_expense' not found in statement lines`; this step must preserve successful gated generation.
+- Carry forward A2-ED/B7-MID documentary UNVERIFIED, A5/B8/E10 pending closure, E11 NonReq UNVERIFIED, G6 period-axis assessment, G7 note facts, G8 deferral, G9 standalone interest completeness and remaining TARGET Step 9 exit gates.
+- Carry both frozen requests `20260914-193338-000000004` and `20260915-042248-000000005` forward; keep INPUT_STATUS PENDING until all requests are satisfied. Child acceptance does not close parents or authorize blanket DONE.
