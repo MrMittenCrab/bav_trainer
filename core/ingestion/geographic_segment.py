@@ -10,6 +10,7 @@ from typing import Iterable
 
 from ..data.filing import PresentationRole
 from .filing_reconciler import (
+    ROLE_RANK,
     ReconciledValue,
     SelectedGeographicFact,
     SupplementalObservation,
@@ -59,6 +60,12 @@ ALLOWED_IDENTITIES = frozenset(
 _REQUIRED_REVENUE = (*REVENUE_SEGMENTS, REVENUE_CONSOLIDATED)
 _REQUIRED_IFOP = (*IFOP_SEGMENTS, IFOP_CONSOLIDATED)
 _VALID_ROLES = {role.value for role in PresentationRole}
+_ELIGIBLE_ROLES = {
+    PresentationRole.CURRENT_PERIOD.value,
+    PresentationRole.COMPARATIVE.value,
+    PresentationRole.RESTATED_COMPARATIVE.value,
+}
+_PRIOR_ROLE = PresentationRole.PRIOR_PRESENTATION.value
 
 
 @dataclass(frozen=True)
@@ -69,6 +76,7 @@ class _Snapshot:
     source_sha256: str
     facts: dict[str, SupplementalObservation]
     family: str
+    role: str
 
 
 def is_geographic_fact_type(fact_type: str) -> bool:
@@ -247,8 +255,25 @@ def _cross_check_is(
         )
 
 
-def _reason(snapshots: list[_Snapshot], selected: _Snapshot) -> str:
-    if len(snapshots) == 1:
+def _role_rank(role: str) -> int:
+    return ROLE_RANK[PresentationRole(role)]
+
+
+def _reason(
+    snapshots: list[_Snapshot],
+    eligible: list[_Snapshot],
+    selected: _Snapshot,
+) -> str:
+    if selected.role == PresentationRole.RESTATED_COMPARATIVE.value and any(
+        snap.role != selected.role for snap in eligible
+    ):
+        return "restated_comparative_precedence"
+    if any(
+        snap.role == _PRIOR_ROLE and snap.filing_year > selected.filing_year
+        for snap in snapshots
+    ):
+        return "excluded_newer_prior_presentation"
+    if len(eligible) == 1:
         return "sole_source_observation"
     return "later_audited_presentation"
 
@@ -267,12 +292,100 @@ def _selected_payload(
         source_file=snapshot.source_file,
         source_sha256=snapshot.source_sha256,
         pdf_page=obs.fact.source.page,
-        presentation_basis=obs.fact.presentation_role,
+        presentation_basis=snapshot.role,
         selection_reason=reason,
         presentation_family=snapshot.family,
         source_note=obs.fact.source.note,
         source_label=obs.fact.source.label,
     )
+
+
+def _facts_from_items(
+    items: list[SupplementalObservation],
+    *,
+    period: date,
+) -> dict[str, SupplementalObservation]:
+    facts: dict[str, SupplementalObservation] = {}
+    for obs in items:
+        identity = _local(obs)
+        if identity in facts:
+            existing = facts[identity]
+            if float(existing.fact.value) != float(obs.fact.value):
+                raise ValueError(
+                    "duplicate conflicting geographic identity "
+                    f"{obs.fact.fact_type} for {period.isoformat()}"
+                )
+            raise ValueError(
+                "duplicate geographic identity "
+                f"{obs.fact.fact_type} for {period.isoformat()}"
+            )
+        facts[identity] = obs
+    return facts
+
+
+def _assemble_snapshot(
+    items: list[SupplementalObservation],
+    *,
+    period: date,
+    filing_year: int,
+    source_file: str,
+) -> _Snapshot | None:
+    """Build one period/source presentation, or None if ineligible and incomplete."""
+    roles = {obs.fact.presentation_role for obs in items}
+    if len(roles) != 1:
+        raise ValueError(
+            "mixed presentation roles in geographic snapshot for "
+            f"{period.isoformat()}"
+        )
+    role = next(iter(roles))
+    facts = _facts_from_items(items, period=period)
+    eligible = role in _ELIGIBLE_ROLES
+    if not eligible:
+        missing = [
+            name
+            for name in (*_REQUIRED_REVENUE, *_REQUIRED_IFOP)
+            if name not in facts
+        ]
+        if missing:
+            return None
+    else:
+        _require_complete(facts, period=period)
+    family = _classify_family(facts)
+    snapshot = _Snapshot(
+        period=period,
+        filing_year=filing_year,
+        source_file=source_file,
+        source_sha256=items[0].source_sha256,
+        facts=facts,
+        family=family,
+        role=role,
+    )
+    _validate_bridges(snapshot)
+    return snapshot
+
+
+def _select_eligible_snapshot(
+    snapshots: list[_Snapshot],
+    *,
+    period: date,
+) -> tuple[_Snapshot, list[_Snapshot], str]:
+    eligible = [snap for snap in snapshots if snap.role in _ELIGIBLE_ROLES]
+    if not eligible:
+        raise ValueError(
+            "no eligible complete geographic presentation for "
+            f"{period.isoformat()}"
+        )
+    top_rank = max(_role_rank(snap.role) for snap in eligible)
+    ranked = [snap for snap in eligible if _role_rank(snap.role) == top_rank]
+    top_year = max(snap.filing_year for snap in ranked)
+    winners = [snap for snap in ranked if snap.filing_year == top_year]
+    if len(winners) != 1:
+        raise ValueError(
+            "unresolved equal-priority geographic contradiction for "
+            f"{period.isoformat()}"
+        )
+    winner = winners[0]
+    return winner, eligible, _reason(snapshots, eligible, winner)
 
 
 def select_geographic_segment_facts(
@@ -281,7 +394,7 @@ def select_geographic_segment_facts(
     reconciled_values: tuple[ReconciledValue, ...],
     model_periods: tuple[date, ...],
 ) -> tuple[SelectedGeographicFact, ...]:
-    """Select later-audited Q4-2023 geographic snapshots; fail closed."""
+    """Select eligible Q4-2023 geographic snapshots; fail closed."""
     geo: list[SupplementalObservation] = []
     other_segment: list[SupplementalObservation] = []
     for obs in note_facts:
@@ -307,54 +420,26 @@ def select_geographic_segment_facts(
 
     snapshots_by_period: dict[date, list[_Snapshot]] = defaultdict(list)
     for (period, filing_year, source_file), items in sorted(buckets.items()):
-        facts: dict[str, SupplementalObservation] = {}
-        for obs in items:
-            identity = _local(obs)
-            if identity in facts:
-                existing = facts[identity]
-                if float(existing.fact.value) != float(obs.fact.value):
-                    raise ValueError(
-                        "duplicate conflicting geographic identity "
-                        f"{obs.fact.fact_type} for {period.isoformat()}"
-                    )
-                raise ValueError(
-                    "duplicate geographic identity "
-                    f"{obs.fact.fact_type} for {period.isoformat()}"
-                )
-            facts[identity] = obs
-        _require_complete(facts, period=period)
-        family = _classify_family(facts)
-        snapshot = _Snapshot(
+        snapshot = _assemble_snapshot(
+            items,
             period=period,
             filing_year=filing_year,
             source_file=source_file,
-            source_sha256=items[0].source_sha256,
-            facts=facts,
-            family=family,
         )
-        _validate_bridges(snapshot)
-        snapshots_by_period[period].append(snapshot)
+        if snapshot is not None:
+            snapshots_by_period[period].append(snapshot)
 
     selected: list[SelectedGeographicFact] = []
-    for period in sorted(snapshots_by_period):
-        candidates = sorted(
-            snapshots_by_period[period],
-            key=lambda snap: (snap.filing_year, snap.source_file),
+    for period in sorted({obs.fact.period for obs in geo}):
+        winner, _eligible, reason = _select_eligible_snapshot(
+            snapshots_by_period.get(period, []),
+            period=period,
         )
-        top_year = max(snap.filing_year for snap in candidates)
-        winners = [snap for snap in candidates if snap.filing_year == top_year]
-        if len(winners) != 1:
-            raise ValueError(
-                "unresolved equal-priority geographic contradiction for "
-                f"{period.isoformat()}"
-            )
-        winner = winners[0]
         _cross_check_is(
             winner,
             values=reconciled_values,
             model_periods=model_periods,
         )
-        reason = _reason(candidates, winner)
         for identity in sorted(winner.facts):
             selected.append(_selected_payload(winner, identity, reason))
     return tuple(selected)

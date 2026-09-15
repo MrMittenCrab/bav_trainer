@@ -395,7 +395,18 @@ def test_validate_allows_nested_relative_source_path(tmp_path: Path):
     assert report.computed_source_sha256 == hashlib.sha256(blob).hexdigest()
 
 
-def test_geographic_note_fact_round_trip_preserves_presentation_role(tmp_path: Path):
+@pytest.mark.parametrize(
+    "role",
+    [
+        PresentationRole.CURRENT_PERIOD.value,
+        PresentationRole.COMPARATIVE.value,
+        PresentationRole.RESTATED_COMPARATIVE.value,
+        PresentationRole.PRIOR_PRESENTATION.value,
+    ],
+)
+def test_geographic_note_fact_round_trip_preserves_presentation_role(
+    tmp_path: Path, role: str
+):
     payload = _minimal_filing_payload()
     payload["note_facts"] = [
         {
@@ -404,16 +415,16 @@ def test_geographic_note_fact_round_trip_preserves_presentation_role(tmp_path: P
             "value": 100,
             "status": "reported",
             "source": {"page": 80, "note": "24 Segmented Information", "label": "Americas"},
-            "presentation_role": "current_period",
+            "presentation_role": role,
         }
     ]
     path = tmp_path / "geo.json"
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     filing = load_extracted_filing(path)
-    assert filing.note_facts[0].presentation_role == PresentationRole.CURRENT_PERIOD.value
+    assert filing.note_facts[0].presentation_role == role
     assert filing.note_facts[0].fact_type.endswith("net_revenue.americas")
     dumped = extracted_filing_to_payload(filing)
-    assert dumped["note_facts"][0]["presentation_role"] == "current_period"
+    assert dumped["note_facts"][0]["presentation_role"] == role
     round_path = tmp_path / "geo-round.json"
     round_path.write_text(json.dumps(dumped, indent=2) + "\n", encoding="utf-8")
     reloaded = load_extracted_filing(round_path)
