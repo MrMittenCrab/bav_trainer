@@ -42,6 +42,10 @@ REQUIRED_COMPARISON_REASONS = (
     REASON_CALENDAR_WEEK,
     REASON_CALENDAR_REPORTING,
 )
+_PEER_REASON_PREFIX = "peer_"
+PEER_COMPARISON_REASONS = tuple(
+    f"{_PEER_REASON_PREFIX}{reason}" for reason in REQUIRED_COMPARISON_REASONS
+)
 _EVIDENCED_FIELDS = (
     ("definition_text", "definition_mismatch"),
     ("population", "population_mismatch"),
@@ -217,6 +221,14 @@ def _qualifiers_other(qualifiers: Mapping[str, str]) -> str:
     return json.dumps(remaining, sort_keys=True, separators=(",", ":"))
 
 
+def _text_present(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def peer_gap_reason(reason: str) -> str:
+    return f"{_PEER_REASON_PREFIX}{reason}"
+
+
 @dataclass(frozen=True)
 class ManagementIdentityAssessment:
     locator: str
@@ -349,23 +361,23 @@ def _classify_metric(
 
 def _required_comparison_reasons(evidence: Mapping[str, str]) -> tuple[str, ...]:
     reasons: list[str] = []
-    if not evidence.get("definition_id"):
+    if not _text_present(evidence.get("definition_id", "")):
         reasons.append(REASON_MISSING_DEFINITION)
-    elif not evidence.get("definition_text"):
+    elif not _text_present(evidence.get("definition_text", "")):
         reasons.append(REASON_UNBOUND_DEFINITION)
-    if not evidence.get("population"):
+    if not _text_present(evidence.get("population", "")):
         reasons.append(REASON_MISSING_POPULATION)
-    if not evidence.get("unit"):
+    if not _text_present(evidence.get("unit", "")):
         reasons.append(REASON_MISSING_UNIT)
-    if not evidence.get("basis"):
+    if not _text_present(evidence.get("basis", "")):
         reasons.append(REASON_MISSING_BASIS)
-    if not evidence.get("comparison"):
+    if not _text_present(evidence.get("comparison", "")):
         reasons.append(REASON_MISSING_COMPARISON)
     if evidence.get("period_kind") != "date":
         reasons.append(REASON_PERIOD_DATE)
-    if not evidence.get("calendar_week_adjustment"):
+    if not _text_present(evidence.get("calendar_week_adjustment", "")):
         reasons.append(REASON_CALENDAR_WEEK)
-    if not evidence.get("calendar_reporting_basis"):
+    if not _text_present(evidence.get("calendar_reporting_basis", "")):
         reasons.append(REASON_CALENDAR_REPORTING)
     return tuple(reasons)
 
@@ -377,7 +389,7 @@ def _evidenced_conflicts(
     for key, reason in _EVIDENCED_FIELDS:
         left = self_ev.get(key, "")
         right = peer_ev.get(key, "")
-        if left and right and left != right:
+        if _text_present(left) and _text_present(right) and left != right:
             reasons.append(reason)
     return tuple(reasons)
 
@@ -491,14 +503,25 @@ def assess_reported_observations(
             ]
             distinct_peers.sort(key=lambda peer: peer["observation"].locator)
             conflict_reasons: list[str] = []
-            peer_unresolved = False
+            peer_gap_seen: set[str] = set()
             for peer in distinct_peers:
                 for reason in _evidenced_conflicts(item["evidence"], peer["evidence"]):
                     if reason not in conflict_reasons:
                         conflict_reasons.append(reason)
-                if _has_required_gap(peer["unresolved"]):
-                    peer_unresolved = True
+                peer_gap_seen.update(
+                    reason
+                    for reason in peer["unresolved"]
+                    if reason in REQUIRED_COMPARISON_REASONS
+                )
+            peer_gap_reasons = [
+                peer_gap_reason(reason)
+                for reason in REQUIRED_COMPARISON_REASONS
+                if reason in peer_gap_seen
+            ]
             for reason in conflict_reasons:
+                if reason not in unresolved:
+                    unresolved.append(reason)
+            for reason in peer_gap_reasons:
                 if reason not in unresolved:
                     unresolved.append(reason)
             if conflict_reasons:
@@ -507,7 +530,7 @@ def assess_reported_observations(
                 if REASON_NO_DISTINCT_PEER not in unresolved:
                     unresolved.append(REASON_NO_DISTINCT_PEER)
                 comparability = COMPARABILITY_UNRESOLVED
-            elif _has_required_gap(unresolved) or peer_unresolved:
+            elif _has_required_gap(unresolved) or peer_gap_reasons:
                 comparability = COMPARABILITY_UNRESOLVED
             else:
                 comparability = COMPARABILITY_COMPARABLE

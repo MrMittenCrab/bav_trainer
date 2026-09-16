@@ -31,12 +31,14 @@ from core.ingestion.management_kpi_identity import (
     REASON_MISSING_DEFINITION,
     REASON_NO_DISTINCT_PEER,
     REASON_PERIOD_DATE,
+    PEER_COMPARISON_REASONS,
     REQUIRED_COMPARISON_REASONS,
     STATUS_OUTSIDE_SCOPE,
     STATUS_SUPPORTED,
     STATUS_UNSUPPORTED_VARIANT,
     SUPPORTED_METRIC_MAPPINGS,
     encode_metric_identity,
+    peer_gap_reason,
 )
 from core.tests.test_management_kpi_admission import (
     ANNUAL_NAMES,
@@ -146,6 +148,52 @@ def _family_items(items: list[dict], family: str) -> list[dict]:
     return _spsf_items(items)
 
 
+def _blank_evidence(value: str | None) -> str:
+    return "" if value is None else value
+
+
+def _assert_comparable(item: dict) -> None:
+    assert item["comparability"] == COMPARABILITY_COMPARABLE
+    reasons = set(item["unresolved_reasons"])
+    assert not set(REQUIRED_COMPARISON_REASONS) & reasons
+    assert not set(PEER_COMPARISON_REASONS) & reasons
+    assert item["peer_locators"]
+    assert item["locator"] not in item["peer_locators"]
+    assert str(item["evidence"]["calendar_reporting_basis"]).strip()
+
+
+def _assert_local_or_peer_gap(
+    items: list[dict],
+    reason: str,
+    *,
+    local_missing,
+    mismatch: str | None = None,
+) -> None:
+    assert len(items) == 2
+    assert {item["comparability"] for item in items} == {COMPARABILITY_UNRESOLVED}
+    peer_reason = peer_gap_reason(reason)
+    for item in items:
+        reasons = item["unresolved_reasons"]
+        assert item["peer_locators"]
+        assert item["locator"] not in item["peer_locators"]
+        assert REASON_NO_DISTINCT_PEER not in reasons
+        if mismatch is not None:
+            assert mismatch not in reasons
+        if local_missing(item):
+            assert reason in reasons
+        else:
+            assert reason not in reasons
+        peer_missing = any(
+            local_missing(other)
+            for other in items
+            if other["locator"] != item["locator"]
+        )
+        if peer_missing:
+            assert peer_reason in reasons
+        else:
+            assert peer_reason not in reasons
+
+
 def _affirmative_family_pair(family: str) -> tuple[dict, dict]:
     fy2023 = json.loads((EXTRACTED / MANAGEMENT_NAMES[1]).read_text(encoding="utf-8"))
     fy2024 = json.loads((EXTRACTED / MANAGEMENT_NAMES[2]).read_text(encoding="utf-8"))
@@ -237,11 +285,7 @@ def test_supplied_families_receive_identities_and_outside_scope_is_explicit():
             assert item["definition"]["definition_id"]
             assert item["evidence"]["calendar_reporting_basis"]
             if item["comparability"] == COMPARABILITY_COMPARABLE:
-                assert not set(REQUIRED_COMPARISON_REASONS) & set(
-                    item["unresolved_reasons"]
-                )
-                assert item["peer_locators"]
-                assert item["evidence"]["calendar_reporting_basis"]
+                _assert_comparable(item)
         else:
             assert item["status"] == STATUS_UNSUPPORTED_VARIANT
             assert item["comparability"] == COMPARABILITY_UNRESOLVED
@@ -412,9 +456,7 @@ def test_affirmative_evidence_makes_distinct_occurrences_comparable(tmp_path: Pa
     assert len(items) == 2
     assert {item["comparability"] for item in items} == {COMPARABILITY_COMPARABLE}
     for item in items:
-        assert item["locator"] not in item["peer_locators"]
-        assert item["peer_locators"]
-        assert not set(REQUIRED_COMPARISON_REASONS) & set(item["unresolved_reasons"])
+        _assert_comparable(item)
         assert item["evidence"]["period_kind"] == "date"
         assert item["evidence"]["calendar_week_adjustment"] == "included"
         assert item["evidence"]["calendar_reporting_basis"] == (
@@ -433,9 +475,7 @@ def test_affirmative_spsf_distinct_occurrences_are_comparable(tmp_path: Path):
     assert len(items) == 2
     assert {item["comparability"] for item in items} == {COMPARABILITY_COMPARABLE}
     for item in items:
-        assert item["locator"] not in item["peer_locators"]
-        assert item["peer_locators"]
-        assert not set(REQUIRED_COMPARISON_REASONS) & set(item["unresolved_reasons"])
+        _assert_comparable(item)
         assert item["evidence"]["period_kind"] == "date"
         assert item["evidence"]["calendar_week_adjustment"] == "included"
         assert item["evidence"]["calendar_reporting_basis"] == (
@@ -443,6 +483,39 @@ def test_affirmative_spsf_distinct_occurrences_are_comparable(tmp_path: Path):
         )
         assert item["evidence"]["comparison"] == AFFIRMATIVE_SPSF_COMPARISON
         assert item["definition"]["text"] == AFFIRMATIVE_SPSF_DEFINITION
+
+
+def _family_metric_id(family: str) -> str:
+    if family == FAMILY_COMPARABLE_SALES_GROWTH:
+        return "comparable_sales_growth"
+    return "sales_per_square_foot"
+
+
+def _mutate_family_metric(payload: dict, family: str, mutate) -> dict:
+    payload = copy.deepcopy(payload)
+    metric_id = _family_metric_id(family)
+    for item in payload["reported_kpis"]:
+        if item.get("metric_id") == metric_id:
+            mutate(item)
+    return payload
+
+
+def _assert_reporting_basis_gaps(items: list[dict], blank_repr: str | None) -> None:
+    expected_blank = _blank_evidence(blank_repr)
+    _assert_local_or_peer_gap(
+        items,
+        REASON_CALENDAR_REPORTING,
+        local_missing=lambda item: not str(
+            item["evidence"]["calendar_reporting_basis"]
+        ).strip(),
+        mismatch="calendar_reporting_mismatch",
+    )
+    for item in items:
+        evidence = item["evidence"]["calendar_reporting_basis"]
+        if not str(evidence).strip():
+            assert evidence == expected_blank
+        else:
+            assert evidence == AFFIRMATIVE_REPORTING_BASIS
 
 
 def test_removing_period_calendar_or_definition_unresolves_comparability(
@@ -459,10 +532,11 @@ def test_removing_period_calendar_or_definition_unresolves_comparability(
             item["period"] = "FY2024"
     _write_json(dest / MANAGEMENT_NAMES[2], period_mut)
     period_items = _global_reported_compsales(_supported_items(_admission(dest)))
-    assert {item["comparability"] for item in period_items} == {
-        COMPARABILITY_UNRESOLVED
-    }
-    assert any(REASON_PERIOD_DATE in item["unresolved_reasons"] for item in period_items)
+    _assert_local_or_peer_gap(
+        period_items,
+        REASON_PERIOD_DATE,
+        local_missing=lambda item: item["evidence"]["period_kind"] != "date",
+    )
 
     calendar_mut = copy.deepcopy(fy2024)
     for item in calendar_mut["reported_kpis"]:
@@ -470,11 +544,13 @@ def test_removing_period_calendar_or_definition_unresolves_comparability(
             item.pop("qualifiers", None)
     _write_json(dest / MANAGEMENT_NAMES[2], calendar_mut)
     calendar_items = _global_reported_compsales(_supported_items(_admission(dest)))
-    assert {item["comparability"] for item in calendar_items} == {
-        COMPARABILITY_UNRESOLVED
-    }
-    assert any(
-        REASON_CALENDAR_WEEK in item["unresolved_reasons"] for item in calendar_items
+    _assert_local_or_peer_gap(
+        calendar_items,
+        REASON_CALENDAR_WEEK,
+        local_missing=lambda item: not str(
+            item["evidence"]["calendar_week_adjustment"]
+        ).strip(),
+        mismatch="calendar_mismatch",
     )
 
     defined_mut = copy.deepcopy(fy2024)
@@ -483,11 +559,11 @@ def test_removing_period_calendar_or_definition_unresolves_comparability(
             item["definition_id"] = ""
     _write_json(dest / MANAGEMENT_NAMES[2], defined_mut)
     defined_items = _global_reported_compsales(_supported_items(_admission(dest)))
-    assert {item["comparability"] for item in defined_items} == {
-        COMPARABILITY_UNRESOLVED
-    }
-    assert any(
-        REASON_MISSING_DEFINITION in item["unresolved_reasons"] for item in defined_items
+    _assert_local_or_peer_gap(
+        defined_items,
+        REASON_MISSING_DEFINITION,
+        local_missing=lambda item: not str(item["definition"]["definition_id"]).strip(),
+        mismatch="definition_mismatch",
     )
 
 
@@ -503,8 +579,14 @@ def test_missing_calendar_on_either_or_both_peers_is_unresolved(tmp_path: Path):
     _write_json(dest / MANAGEMENT_NAMES[1], fy2023)
     _write_json(dest / MANAGEMENT_NAMES[2], both_missing)
     both_items = _global_reported_compsales(_supported_items(_admission(dest)))
-    assert {item["comparability"] for item in both_items} == {COMPARABILITY_UNRESOLVED}
-    assert all(REASON_CALENDAR_WEEK in item["unresolved_reasons"] for item in both_items)
+    _assert_local_or_peer_gap(
+        both_items,
+        REASON_CALENDAR_WEEK,
+        local_missing=lambda item: not str(
+            item["evidence"]["calendar_week_adjustment"]
+        ).strip(),
+        mismatch="calendar_mismatch",
+    )
 
     fy2023, fy2024 = _affirmative_pair()
     peer_missing = copy.deepcopy(fy2024)
@@ -514,22 +596,21 @@ def test_missing_calendar_on_either_or_both_peers_is_unresolved(tmp_path: Path):
     _write_json(dest / MANAGEMENT_NAMES[1], fy2023)
     _write_json(dest / MANAGEMENT_NAMES[2], peer_missing)
     either_items = _global_reported_compsales(_supported_items(_admission(dest)))
-    assert {item["comparability"] for item in either_items} == {
-        COMPARABILITY_UNRESOLVED
-    }
-    assert any(
-        REASON_CALENDAR_WEEK in item["unresolved_reasons"] for item in either_items
+    _assert_local_or_peer_gap(
+        either_items,
+        REASON_CALENDAR_WEEK,
+        local_missing=lambda item: not str(
+            item["evidence"]["calendar_week_adjustment"]
+        ).strip(),
+        mismatch="calendar_mismatch",
     )
-    assert COMPARABILITY_NOT_COMPARABLE not in {
-        item["comparability"] for item in either_items
-    }
 
 
 @pytest.mark.parametrize(
     "family",
     [FAMILY_COMPARABLE_SALES_GROWTH, FAMILY_SALES_PER_SQUARE_FOOT],
 )
-@pytest.mark.parametrize("empty_repr", [None, ""])
+@pytest.mark.parametrize("empty_repr", [None, "", " ", " \t "])
 def test_missing_reporting_basis_on_either_or_both_peers_is_unresolved(
     tmp_path: Path,
     family: str,
@@ -543,53 +624,129 @@ def test_missing_reporting_basis_on_either_or_both_peers_is_unresolved(
     _write_json(dest / MANAGEMENT_NAMES[1], both_left)
     _write_json(dest / MANAGEMENT_NAMES[2], both_right)
     both_items = _family_items(_supported_items(_admission(dest)), family)
-    assert len(both_items) == 2
-    assert {item["comparability"] for item in both_items} == {
-        COMPARABILITY_UNRESOLVED
-    }
-    assert all(
-        REASON_CALENDAR_REPORTING in item["unresolved_reasons"] for item in both_items
-    )
-    assert all(
-        "calendar_reporting_mismatch" not in item["unresolved_reasons"]
-        for item in both_items
-    )
-    assert all(item["peer_locators"] for item in both_items)
-    assert all(REASON_NO_DISTINCT_PEER not in item["unresolved_reasons"] for item in both_items)
+    _assert_reporting_basis_gaps(both_items, empty_repr)
 
     fy2023, fy2024 = _affirmative_family_pair(family)
     either_right = _set_reporting_basis(fy2024, empty_repr)
     _write_json(dest / MANAGEMENT_NAMES[1], fy2023)
     _write_json(dest / MANAGEMENT_NAMES[2], either_right)
     either_items = _family_items(_supported_items(_admission(dest)), family)
-    assert {item["comparability"] for item in either_items} == {
-        COMPARABILITY_UNRESOLVED
-    }
-    assert any(
-        REASON_CALENDAR_REPORTING in item["unresolved_reasons"] for item in either_items
-    )
-    assert all(
-        "calendar_reporting_mismatch" not in item["unresolved_reasons"]
-        for item in either_items
-    )
-    assert COMPARABILITY_NOT_COMPARABLE not in {
-        item["comparability"] for item in either_items
-    }
-    assert all(item["peer_locators"] for item in either_items)
+    _assert_reporting_basis_gaps(either_items, empty_repr)
 
     fy2023, fy2024 = _affirmative_family_pair(family)
     either_left = _set_reporting_basis(fy2023, empty_repr)
     _write_json(dest / MANAGEMENT_NAMES[1], either_left)
     _write_json(dest / MANAGEMENT_NAMES[2], fy2024)
     left_items = _family_items(_supported_items(_admission(dest)), family)
-    assert {item["comparability"] for item in left_items} == {COMPARABILITY_UNRESOLVED}
-    assert any(
-        REASON_CALENDAR_REPORTING in item["unresolved_reasons"] for item in left_items
+    _assert_reporting_basis_gaps(left_items, empty_repr)
+
+
+@pytest.mark.parametrize(
+    "family",
+    [FAMILY_COMPARABLE_SALES_GROWTH, FAMILY_SALES_PER_SQUARE_FOOT],
+)
+@pytest.mark.parametrize("side", ["left", "right", "both"])
+@pytest.mark.parametrize("gap", ["week", "definition", "period"])
+def test_complete_peer_missing_other_required_evidence_serializes_peer_gaps(
+    tmp_path: Path,
+    family: str,
+    side: str,
+    gap: str,
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "peer-gap")
+    fy2023, fy2024 = _affirmative_family_pair(family)
+
+    def apply_gap(payload: dict) -> dict:
+        if gap == "week":
+            return _mutate_family_metric(
+                payload, family, lambda item: item.pop("qualifiers", None)
+            )
+        if gap == "definition":
+            return _mutate_family_metric(
+                payload, family, lambda item: item.__setitem__("definition_id", "")
+            )
+        return _mutate_family_metric(
+            payload,
+            family,
+            lambda item: item.__setitem__(
+                "period", f"FY{payload['report']['fiscal_year']}"
+            ),
+        )
+
+    if side in {"left", "both"}:
+        fy2023 = apply_gap(fy2023)
+    if side in {"right", "both"}:
+        fy2024 = apply_gap(fy2024)
+    _write_json(dest / MANAGEMENT_NAMES[1], fy2023)
+    _write_json(dest / MANAGEMENT_NAMES[2], fy2024)
+    items = _family_items(_supported_items(_admission(dest)), family)
+    if gap == "week":
+        _assert_local_or_peer_gap(
+            items,
+            REASON_CALENDAR_WEEK,
+            local_missing=lambda item: not str(
+                item["evidence"]["calendar_week_adjustment"]
+            ).strip(),
+            mismatch="calendar_mismatch",
+        )
+    elif gap == "definition":
+        _assert_local_or_peer_gap(
+            items,
+            REASON_MISSING_DEFINITION,
+            local_missing=lambda item: not str(
+                item["definition"]["definition_id"]
+            ).strip(),
+            mismatch="definition_mismatch",
+        )
+    else:
+        _assert_local_or_peer_gap(
+            items,
+            REASON_PERIOD_DATE,
+            local_missing=lambda item: item["evidence"]["period_kind"] != "date",
+        )
+
+
+@pytest.mark.parametrize("empty_repr", [None, "", " ", " \t "])
+@pytest.mark.parametrize("side", ["left", "right", "both"])
+def test_missing_spsf_comparison_on_either_or_both_peers_is_unresolved(
+    tmp_path: Path,
+    empty_repr: str | None,
+    side: str,
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "cmp")
+    fy2023, fy2024 = _affirmative_family_pair(FAMILY_SALES_PER_SQUARE_FOOT)
+    expected_blank = _blank_evidence(empty_repr)
+
+    def apply_blank(payload: dict) -> dict:
+        def mutate(item: dict) -> None:
+            if empty_repr is None:
+                item.pop("comparison", None)
+            else:
+                item["comparison"] = empty_repr
+
+        return _mutate_family_metric(payload, FAMILY_SALES_PER_SQUARE_FOOT, mutate)
+
+    if side in {"left", "both"}:
+        fy2023 = apply_blank(fy2023)
+    if side in {"right", "both"}:
+        fy2024 = apply_blank(fy2024)
+    _write_json(dest / MANAGEMENT_NAMES[1], fy2023)
+    _write_json(dest / MANAGEMENT_NAMES[2], fy2024)
+    items = _family_items(
+        _supported_items(_admission(dest)), FAMILY_SALES_PER_SQUARE_FOOT
     )
-    assert all(
-        "calendar_reporting_mismatch" not in item["unresolved_reasons"]
-        for item in left_items
+    _assert_local_or_peer_gap(
+        items,
+        REASON_MISSING_COMPARISON,
+        local_missing=lambda item: not str(item["evidence"]["comparison"]).strip(),
+        mismatch="comparison_mismatch",
     )
+    for item in items:
+        evidence = item["evidence"]["comparison"]
+        if not str(evidence).strip():
+            assert evidence == expected_blank
+        else:
+            assert evidence == AFFIRMATIVE_SPSF_COMPARISON
 
 
 @pytest.mark.parametrize(
@@ -667,10 +824,18 @@ def test_reporting_basis_conflict_with_missing_evidence_stays_not_comparable(
     _write_json(dest / MANAGEMENT_NAMES[2], fy2024)
     items = _family_items(_supported_items(_admission(dest)), family)
     assert {item["comparability"] for item in items} == {COMPARABILITY_NOT_COMPARABLE}
-    assert any(
+    assert all(
         "calendar_reporting_mismatch" in item["unresolved_reasons"] for item in items
     )
-    assert any(REASON_CALENDAR_WEEK in item["unresolved_reasons"] for item in items)
+    for item in items:
+        reasons = item["unresolved_reasons"]
+        assert item["peer_locators"]
+        week_missing = not str(item["evidence"]["calendar_week_adjustment"]).strip()
+        if week_missing:
+            assert REASON_CALENDAR_WEEK in reasons
+        else:
+            assert REASON_CALENDAR_WEEK not in reasons
+            assert peer_gap_reason(REASON_CALENDAR_WEEK) in reasons
 
 
 def test_complete_metadata_singleton_is_unresolved(tmp_path: Path):
@@ -700,8 +865,14 @@ def test_unknown_versus_known_metadata_is_not_a_proven_mismatch(tmp_path: Path):
     _write_json(dest / MANAGEMENT_NAMES[1], fy2023)
     _write_json(dest / MANAGEMENT_NAMES[2], fy2024)
     items = _global_reported_compsales(_supported_items(_admission(dest)))
-    assert {item["comparability"] for item in items} == {COMPARABILITY_UNRESOLVED}
-    assert all("calendar_mismatch" not in item["unresolved_reasons"] for item in items)
+    _assert_local_or_peer_gap(
+        items,
+        REASON_CALENDAR_WEEK,
+        local_missing=lambda item: not str(
+            item["evidence"]["calendar_week_adjustment"]
+        ).strip(),
+        mismatch="calendar_mismatch",
+    )
 
 
 def test_evidenced_incompatibility_is_not_comparable(tmp_path: Path):
@@ -714,7 +885,7 @@ def test_evidenced_incompatibility_is_not_comparable(tmp_path: Path):
     _write_json(dest / MANAGEMENT_NAMES[2], fy2024)
     defined = _global_reported_compsales(_supported_items(_admission(dest)))
     assert {item["comparability"] for item in defined} == {COMPARABILITY_NOT_COMPARABLE}
-    assert any("definition_mismatch" in item["unresolved_reasons"] for item in defined)
+    assert all("definition_mismatch" in item["unresolved_reasons"] for item in defined)
 
     fy2023, fy2024 = _affirmative_pair()
     fy2024 = _apply_affirmative_compsales(fy2024, week=True)
@@ -724,7 +895,7 @@ def test_evidenced_incompatibility_is_not_comparable(tmp_path: Path):
     assert {item["comparability"] for item in calendar} == {
         COMPARABILITY_NOT_COMPARABLE
     }
-    assert any("calendar_mismatch" in item["unresolved_reasons"] for item in calendar)
+    assert all("calendar_mismatch" in item["unresolved_reasons"] for item in calendar)
 
     fy2023, fy2024 = _affirmative_pair()
     for item in fy2024["reported_kpis"]:
@@ -737,8 +908,16 @@ def test_evidenced_incompatibility_is_not_comparable(tmp_path: Path):
     _write_json(dest / MANAGEMENT_NAMES[2], fy2024)
     mixed = _global_reported_compsales(_supported_items(_admission(dest)))
     assert {item["comparability"] for item in mixed} == {COMPARABILITY_NOT_COMPARABLE}
-    assert any("definition_mismatch" in item["unresolved_reasons"] for item in mixed)
-    assert any(REASON_CALENDAR_WEEK in item["unresolved_reasons"] for item in mixed)
+    assert all("definition_mismatch" in item["unresolved_reasons"] for item in mixed)
+    for item in mixed:
+        reasons = item["unresolved_reasons"]
+        assert item["peer_locators"]
+        week_missing = not str(item["evidence"]["calendar_week_adjustment"]).strip()
+        if week_missing:
+            assert REASON_CALENDAR_WEEK in reasons
+        else:
+            assert REASON_CALENDAR_WEEK not in reasons
+            assert peer_gap_reason(REASON_CALENDAR_WEEK) in reasons
 
 
 def test_mutations_cannot_silently_preserve_comparability(tmp_path: Path):
@@ -1032,8 +1211,12 @@ def test_equal_missing_comparison_cannot_make_spsf_comparable(tmp_path: Path):
     ]
     assert len(items) == 2
     assert {item["comparability"] for item in items} == {COMPARABILITY_UNRESOLVED}
-    assert all(REASON_MISSING_COMPARISON in item["unresolved_reasons"] for item in items)
-    assert all(item["peer_locators"] for item in items)
+    _assert_local_or_peer_gap(
+        items,
+        REASON_MISSING_COMPARISON,
+        local_missing=lambda item: not str(item["evidence"]["comparison"]).strip(),
+        mismatch="comparison_mismatch",
+    )
 
 
 def test_self_exclusion_and_input_order_independent_comparability(tmp_path: Path):
@@ -1055,5 +1238,5 @@ def test_self_exclusion_and_input_order_independent_comparability(tmp_path: Path
         item["metric_identity"] for item in backward
     }
     for item in forward + backward:
-        assert item["locator"] not in item["peer_locators"]
+        _assert_comparable(item)
         assert len(item["peer_locators"]) == 1

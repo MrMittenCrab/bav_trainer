@@ -244,6 +244,7 @@ def test_reconcile_rejects_unsupported_admit_period_before_write(tmp_path: Path)
 
 def test_reconcile_serializes_management_identity_assessments(tmp_path: Path):
     from core.ingestion.management_kpi_identity import (
+        PEER_COMPARISON_REASONS,
         REASON_NO_DISTINCT_PEER,
         REQUIRED_COMPARISON_REASONS,
     )
@@ -316,9 +317,13 @@ def test_reconcile_serializes_management_identity_assessments(tmp_path: Path):
         assert item["locator"] not in item["peer_locators"]
     for item in admission["assessments"]["items"]:
         if item["comparability"] == "comparable":
-            assert not set(REQUIRED_COMPARISON_REASONS) & set(item["unresolved_reasons"])
+            reasons = set(item["unresolved_reasons"])
+            assert not set(REQUIRED_COMPARISON_REASONS) & reasons
+            assert not set(PEER_COMPARISON_REASONS) & reasons
             assert item["peer_locators"]
-            assert item["evidence"]["calendar_reporting_basis"]
+            assert str(item["evidence"]["calendar_reporting_basis"]).strip()
+        elif item["status"] == "supported" and item["comparability"] == "unresolved":
+            assert item["unresolved_reasons"]
         assert item["locator"] not in item["peer_locators"]
     outside = [
         item
