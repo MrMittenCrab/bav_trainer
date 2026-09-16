@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -266,7 +267,7 @@ def test_canonical_demo_trainer_answer_key_practice_contract(tmp_path):
         assert answer_cell.value == comp.formula
         assert answer_cell.comment is not None
         assert (answer_cell.comment.text or "").strip()
-        assert _fill_rgb(answer_cell) == "FFFF00"
+        assert _fill_rgb(answer_cell) in {"", "FFFFFF"}
     trainer_wb.close()
     answer_wb.close()
 
@@ -310,7 +311,7 @@ def test_canonical_demo_trainer_answer_key_practice_contract(tmp_path):
     wb.close()
 
 
-def test_committed_canonical_demo_pair_matches_current_builder():
+def test_committed_canonical_demo_pair_matches_current_builder(tmp_path):
     trainer = ROOT / "example" / "DEMO_HK_Trainer.xlsx"
     answer = ROOT / "example" / "DEMO_HK_Answer_Key.xlsx"
     assert trainer.is_file()
@@ -319,8 +320,13 @@ def test_committed_canonical_demo_pair_matches_current_builder():
     smap = load_semantic_map(answer)
     assert len(group_components_by_family(smap)) == 78
     assert len(smap.all_ordered()) == 332
-    summary = check_workbook(trainer)
-    assert (summary.correct, summary.incorrect, summary.blank) == (0, 0, 332)
-
     for suffix in (".component_map.json", ".trainer.json", ".assumptions.json"):
         assert not trainer.with_suffix(suffix).exists()
+
+    check_dir = tmp_path / "canonical_check_copy"
+    check_dir.mkdir()
+    check_trainer = check_dir / trainer.name
+    shutil.copy2(trainer, check_trainer)
+    shutil.copy2(answer, check_dir / answer.name)
+    summary = check_workbook(check_trainer)
+    assert (summary.correct, summary.incorrect, summary.blank) == (0, 0, 332)

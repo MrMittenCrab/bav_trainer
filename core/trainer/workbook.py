@@ -168,8 +168,8 @@ class TrainingWorkbookGenerator:
             ws = wb[comp.tab]
             row, col = _cell_to_rc(comp.cell)
             cell = ws.cell(row=row, column=col)
-            # Retain working formula/input; apply bright yellow + legacy Note
-            cell.fill = PRACTICE_FILL
+            # Retain working formula/input and Note; ordinary white/no-fill
+            cell.fill = WHITE_FILL
             hint = (comp.short_hint or "").strip()
             if not hint and comp.hints:
                 hint = str(comp.hints[0]).strip()
@@ -196,7 +196,7 @@ class TrainingWorkbookGenerator:
         for row in _judgment_case_rows(ws):
             for col in JUDGMENT_RESPONSE_COLS:
                 cell = ws.cell(row=row, column=col)
-                cell.fill = PRACTICE_FILL
+                cell.fill = WHITE_FILL
 
     def _decorate_answer_key_normalization_judgment_cells(self, wb) -> None:
         if NORMALIZATION_JUDGMENT_SHEET not in wb.sheetnames:
@@ -205,7 +205,7 @@ class TrainingWorkbookGenerator:
         for row in _judgment_case_rows(ws):
             for col in JUDGMENT_RESPONSE_COLS:
                 cell = ws.cell(row=row, column=col)
-                cell.fill = PRACTICE_FILL
+                cell.fill = WHITE_FILL
 
     def _blank_trainer_judgment_cells(self, wb) -> None:
         if JUDGMENT_SHEET not in wb.sheetnames:

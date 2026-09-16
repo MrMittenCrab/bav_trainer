@@ -33,7 +33,12 @@ from core.engine.component_catalog import (
     geographic_identity_label,
     geographic_spec_identity,
 )
-from core.engine.reference_model import GEOGRAPHIC_SHEET, ReferenceModelBuilder
+from core.engine.reference_model import (
+    GEOGRAPHIC_SHEET,
+    JUDGMENT_SHEET,
+    NORMALIZATION_JUDGMENT_SHEET,
+    ReferenceModelBuilder,
+)
 from core.ingestion.filing_reconciler import reconcile_filings
 from core.ingestion.filing_standardizer import standardize_reconciled
 from core.ingestion.manual_hk import HKManualDocumentAdapter
@@ -60,7 +65,12 @@ from core.tests.test_historical_segment import (
     _itemized_values,
     _snapshot,
 )
-from core.tests.test_learner_ready_presentation import _assert_fresh_visible_style
+from core.tests.test_learner_ready_presentation import (
+    WHITE_RGBS,
+    _assert_answer_key_no_yellow,
+    _assert_fresh_visible_style,
+    _judgment_response_keys,
+)
 from core.tests.test_normalization import _inject_formula_and_cached_value
 from core.trainer.checker import (
     BLANK_RGB,
@@ -279,9 +289,16 @@ def _copy_pair(trainer: Path, answer: Path, dest: Path) -> tuple[Path, Path]:
     return copied_trainer, copied_answer
 
 
-def _assert_visible_parity(trainer: Path, answer: Path) -> None:
+def _assert_visible_parity(
+    trainer: Path,
+    answer: Path,
+    practice_cells: set[tuple[str, str]] | None = None,
+) -> None:
     twb = load_workbook(trainer, data_only=False)
     awb = load_workbook(answer, data_only=False)
+    skip = set(practice_cells or ())
+    skip |= _judgment_response_keys(twb)
+    skip |= _judgment_response_keys(awb)
     t_visible = [ws.title for ws in twb.worksheets if ws.sheet_state == "visible"]
     a_visible = [ws.title for ws in awb.worksheets if ws.sheet_state == "visible"]
     assert t_visible == a_visible
@@ -294,7 +311,7 @@ def _assert_visible_parity(trainer: Path, answer: Path) -> None:
             for col in range(1, max_col + 1):
                 tcell = tws.cell(row, col)
                 acell = aws.cell(row, col)
-                if _fill_rgb(tcell) == "FFFF00" or _fill_rgb(acell) == "FFFF00":
+                if (name, tcell.coordinate) in skip:
                     continue
                 assert tcell.value == acell.value, f"{name}!{tcell.coordinate}"
                 t_note = tcell.comment.text if tcell.comment is not None else None
@@ -777,6 +794,7 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
                 " ", ""
             )
             assert answer_cell.value == comp.formula
+            assert _fill_rgb(answer_cell) in WHITE_RGBS
             _assert_margin_note_explains_reported_basis(
                 answer_cell.comment.text if answer_cell.comment else ""
             )
@@ -887,6 +905,7 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
         assert trainer_cell.comment is None
         assert _fill_rgb(trainer_cell) == "FFFF00"
         assert answer_cell.value == comp.formula
+        assert _fill_rgb(answer_cell) in WHITE_RGBS
         assert answer_cell.comment is not None
         note = (answer_cell.comment.text or "").strip()
         assert note
@@ -903,9 +922,27 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
     awb.close()
     twb.close()
 
-    _assert_visible_parity(trainer, answer)
-    _assert_fresh_visible_style(trainer, practice_cells=practice)
-    _assert_fresh_visible_style(answer, practice_cells=practice)
+    _assert_visible_parity(trainer, answer, practice)
+    _assert_fresh_visible_style(trainer, practice_cells=practice, role="trainer")
+    _assert_fresh_visible_style(answer, practice_cells=practice, role="answer_key")
+    _assert_answer_key_no_yellow(answer)
+    twb = load_workbook(trainer, data_only=False)
+    awb = load_workbook(answer, data_only=False)
+    assert JUDGMENT_SHEET in twb.sheetnames
+    assert JUDGMENT_SHEET in awb.sheetnames
+    judgment_rows = _judgment_response_keys(awb)
+    assert judgment_rows
+    for sheet, coord in judgment_rows:
+        answer_cell = awb[sheet][coord]
+        trainer_cell = twb[sheet][coord]
+        assert answer_cell.value not in (None, "")
+        assert _fill_rgb(answer_cell) in WHITE_RGBS
+        assert trainer_cell.value is None
+        assert trainer_cell.comment is None
+        assert _fill_rgb(trainer_cell) == "FFFF00"
+    assert NORMALIZATION_JUDGMENT_SHEET not in awb.sheetnames
+    twb.close()
+    awb.close()
     assert _count_source_unavailable(trainer) == LULULEMON_UNAVAILABLE_DISPLAYS
     assert _count_source_unavailable(answer) == LULULEMON_UNAVAILABLE_DISPLAYS
 

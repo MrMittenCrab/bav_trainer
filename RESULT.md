@@ -3,15 +3,15 @@
 **Status:** COMPLETE (this child; parents remain UNRESOLVED)  
 **Step:** 9M.2.4.1.1.1.35 — Geographic segment workbook schedules and learner/Check integration  
 **Work:** `65d8d6e9a2f94bb398cace9a2f361b28`  
-**Plan:** `3384ed75ed144fde80134362b0a3f7b4`  
+**Plan:** `6de8764b997e40818b364e8fef6a130e`  
 **Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
 **INPUT_STATUS:** empty (`inputs: []`)  
-`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start). TARGET SHA-256 `3274be515f8ccf579a4b495bd820a4d14c87328b4d63f95123d0d4a6042407e2` (21552). IMPLEMENTATION SHA-256 `f5b324e3bfdd1190ae8b7e76bbf70ec6e9e796f3e6471ddd3e0c0af30b70c01b` (10464).  
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start). TARGET SHA-256 `ab70dd8859ba352a2387b95c55477cbc31944288c60478023d5937cf0662e91c` (23864). IMPLEMENTATION SHA-256 `21aca38c8b0d730c46c0a8798f21b6b3cb73eab8f45be0d5a628b81206b55da8` (11565).  
 No commit / push / sync / checkpoint / branch change. No release rewrite, forecasting, or valuation. Spreadsheet recalculation was **not** performed (Check matched registered Excel formulas; Excel's calculation engine was not invoked).  
 This child does **not** declare parent or Step 9 acceptance.
 
-Edits this child: `core/tests/test_geographic_segment_workbook.py`, `RESULT.md`.  
-No `core/engine/reference_model.py`, `core/trainer/workbook.py`, `core/engine/component_catalog.py`, or `core/tests/test_learner_ready_presentation.py` edits: the acceptance audit found no disclosure, Note, or presentation defect.
+Edits this child: `core/trainer/workbook.py`, `core/tests/test_trainer.py`, `core/tests/test_learner_ready_presentation.py`, `core/tests/test_geographic_segment_workbook.py`, `core/tests/test_normalization.py`, `core/tests/test_lululemon_benchmark.py`, `core/tests/test_historical_v1_exit_gate.py`, `core/tests/test_fast_retailing_benchmark.py`, `RESULT.md`.  
+Committed example workbooks restored after an accidental Check mutation of `example/DEMO_HK_Trainer.xlsx`; subsequent Check runs used temporary copies only.
 
 ---
 
@@ -19,19 +19,44 @@ No `core/engine/reference_model.py`, `core/trainer/workbook.py`, `core/engine/co
 
 | Kind | This child |
 |---|---|
-| Fresh | Five-period in-memory admit `2022-01-30` + JSON reload + saved/reopened temporary Trainer/Answer Key; complete visible-text scan of **11** Trainer sheets / **3492** cells / **1231** text entries; exact Geographic A2/A4; all **15** margin formulas and Notes; **74** geographic / **486** existing / **560** practice counterparts; Check blank **560/560** yellow, filled **560/560** green, incorrect **1** red with learner `=999` preserved; independent mix/growth/margin/bridge match; `3607682 - 1397067 = 2210615`; focused pytest **376 passed** in **63.94s**; checkpoint `3f6f5dde023847e3347a4c830d822614a28c81a9` **50/50 MATCH** |
-| Retained (historical; not re-run) | Analytical-series pytest **144 passed**; `pytest core/tests` **1289 passed**; provenance `selected_geographic_segment_facts` (SHA-256 `5067c1d04aa93c18062fe7eb90558a86394283b7d9fe45899761f71cfb615951`, 786300); prior focused pytest **376 passed** in **63.23s** and **61.34s** |
-| Not claimed | Excel engine recalculation; parent or Step 9 completion; G6–G9; benchmark publication |
+| Fresh | Five-period in-memory admit `2022-01-30` + JSON reload + saved/reopened temporary Trainer/Answer Key; complete visible-text scan of **11** Trainer sheets / **3492** cells / **1231** text entries; exact Geographic A2/A4; all **15** margin formulas and Notes; **74** geographic / **486** existing / **560** practice counterparts; Check blank **560/560** yellow, filled **560/560** green, incorrect **1** red with learner `=999` preserved; independent mix/growth/margin/bridge match; `3607682 - 1397067 = 2210615`; whole-workbook Answer-Key no-yellow including Accounting Judgment F5:H9 and conditional formatting; saved/reopened demo pair with both judgment modules; focused pytest **420 passed** in **71.95s**; checkpoint `3f6f5dde023847e3347a4c830d822614a28c81a9` **50/50 MATCH** |
+| Retained (historical; not re-run) | Analytical-series pytest **144 passed**; `pytest core/tests` **1289 passed**; provenance `selected_geographic_segment_facts` (SHA-256 `5067c1d04aa93c18062fe7eb90558a86394283b7d9fe45899761f71cfb615951`, 786300); prior focused pytest **376 passed** in **63.94s** / **63.23s** / **61.34s** |
+| Not claimed | Excel engine recalculation; parent or Step 9 completion; G6–G9; benchmark publication; rewrite of `scripts/audit_fast_retailing_benchmark.py` identical-fill parity |
 
-Interpreter: `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. Ratio tolerance: **`GEOGRAPHIC_RATIO_TOLERANCE = 1e-12`**. Monetary tolerance: **`0`**. Reported operating margin basis: `income_from_operations / net_revenue` (not BAV NOPAT margin). Temporary pair only (pytest `tmp_path` / process `TemporaryDirectory`). xlsx ZIP timestamps make temporary SHA-256 run-specific.
+Interpreter: `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. Ratio tolerance: **`GEOGRAPHIC_RATIO_TOLERANCE = 1e-12`**. Monetary tolerance: **`0`**. Reported operating margin basis: `income_from_operations / net_revenue` (not BAV NOPAT margin). Temporary pair only (`TemporaryDirectory`). xlsx ZIP timestamps make temporary SHA-256 run-specific.
 
 ---
 
-## Task 1 — Five-period disclosure and margin-Note coverage
+## Task 1 — Remove Answer-Key yellow and repair style assertions
+
+Answer-Key formula-practice, Accounting Judgment and Normalization Judgment decorators now retain ordinary white/no-fill. Formulas, supplied judgment responses, substantive Notes, semantic maps and generation order are unchanged. Trainer blanking/yellow fills and Check feedback are unchanged.
+
+Style assertions now use workbook roles: every fresh visible Answer-Key cell is white/no-fill; only active learner-editable Trainer cells (formula practice + judgment F:H) are yellow. Whole-workbook Answer-Key yellow inspection includes hidden sheets and conditional formatting (`_cf_rules`); none of the inspected sheets had CF rules.
+
+The committed-canonical style test no longer restyles or Checks immutable `example/DEMO_HK_*.xlsx`. It retains identity/count **78** families / **332** cells / no Trainer sidecars, regenerates a temporary pair with the production generator, matches semantic component IDs, and Runs Check only on a temporary copy.
+
+Saved/reopened demo+assumptions pair (both judgment modules non-empty):
+
+| Surface | Measured |
+|---|---|
+| Practice cells | **332** |
+| Accounting Judgment | row 5; F5/G5/H5 Answer-Key populated white/no-fill; Trainer blank yellow without Notes |
+| Normalization Judgment | row 5; F5/G5/H5 Answer-Key populated white/no-fill; Trainer blank yellow without Notes |
+| Formula-practice Answer-Key | white/no-fill with formulas and non-empty Notes |
+| Whole-workbook Answer-Key yellow cells | **[]** |
+| Temporary Trainer | SHA-256 `cec910c8f7333c8001aec1a409057a8b669ea6f81c3c8c70d4d01c6b15589c13` / 26553 bytes |
+| Temporary Answer Key | SHA-256 `fef8be6f700b9d6cb1e47ffc91618f60c40a81bd5cc284aa376e3084c84ab6c8` / 83758 bytes |
+| Blank Check on temp copy | total=332 blank=332 correct=0 incorrect=0 |
+
+`scripts/audit_fast_retailing_benchmark.py` still encodes obsolete identical-fill parity. That script is outside this step's file restriction and was not rewritten. Fresh Fast Retailing generation is asserted by workbook-role fills; `test_release_audit_explicit_pair_verification` still runs blank/filled Check on temporary copies with `verify_release_pair=False`. Committed Fast Retailing release copies remain frozen and still exercise the unrepaired script contract.
+
+---
+
+## Task 2 — Complete workbook acceptance surface
 
 Unchanged extracted filings reconciled in memory with `--admit-period 2022-01-30`, `json.dumps`/`json.loads` reload, then `build_training_workbook` in temporary storage. The matched pair was saved and reopened before inspection.
 
-Visible Trainer inventory (every visible sheet, including Notes/comments and shared instructions; not limited to the fragment blacklist or practice cells):
+Visible Trainer inventory (every visible sheet, including Notes/comments and shared instructions):
 
 | Coverage | Measured |
 |---|---|
@@ -42,9 +67,9 @@ Visible Trainer inventory (every visible sheet, including Notes/comments and sha
 | Geographic A2 | `Source-supported geographic revenue mix, adjacent-period growth, reported operating margins, and consolidated bridges. Reported operating margin is distinct from BAV NOPAT margin.` |
 | Geographic A4 | `Calculated segment totals are distinct from any reported segment_total. Sparse unavailable amounts remain unavailable; opening growth is not practiced.` |
 
-A2/A4 hint removal retained: A2 has no `income from operations / net revenue`; A4 has no `add`/`subtract`. No Trainer visible text contained geographic Answer-Key short_hints/hints or the arithmetic-fragment blacklist. Mix, growth, and bridge guidance remain exclusively in Answer-Key Notes.
+A2/A4 hint removal retained. Mix, growth, and bridge guidance remain exclusively in Answer-Key Notes.
 
-Exactly **15** margin identities (Americas, China Mainland, Rest of World × five periods). Every Trainer counterpart was blank yellow without a Note. Every Answer-Key formula references that segment’s income-from-operations row and net-revenue row in the same period column. Every Note is the same substantive text, not empty and not a lone `NOPAT` token:
+Exactly **15** margin identities. Every Trainer counterpart was blank yellow without a Note. Every Answer-Key counterpart was white/no-fill with the same-segment, same-period operating-profit/revenue formula and this Note:
 
 `Reported operating margin = segment income from operations / segment net revenue. This is not BAV NOPAT margin. Zero revenue is undefined (#N/A). Negative profit is preserved.`
 
@@ -66,10 +91,6 @@ Exactly **15** margin identities (Americas, China Mainland, Rest of World × fiv
 | `geographic_reported_operating_margin__rest_of_world__20250202` | `Geographic Segment Analysis!E39` | `=IF(E12=0,NA(),E31/E12)` |
 | `geographic_reported_operating_margin__rest_of_world__20260201` | `Geographic Segment Analysis!F39` | `=IF(F12=0,NA(),F31/F12)` |
 
----
-
-## Task 2 — Complete workbook acceptance surface
-
 All **56** selected on-axis facts equal model values after reload. Independent snapshot arithmetic matched the analytical API for all five periods. Share sums **1.0**. All five revenue/IFOP differences **0.0**. FY2026: `3607682 - 1397067 = 2210615` with corporate ADD formula (not itemized SUBTRACT). FY2022 itemized signed formulas use `=-`.
 
 | Metric | Value |
@@ -81,10 +102,14 @@ All **56** selected on-axis facts equal model values after reload. Independent s
 | Blank Check | total=560 blank=560 correct=0 incorrect=0; practice fills `FFFF00` |
 | Filled Check | total=560 blank=0 correct=560 incorrect=0; sample fill `C8E6C9` |
 | Incorrect Check | total=560 correct=559 incorrect=1 blank=0; learner `=999` retained, fill `FFC7CE`, no Note inserted |
-| Temporary Trainer | SHA-256 `288a560f3411659bd7453a5463be49ea22164d14c18e960c9ad4bec3096c31a5` / 37430 bytes |
-| Temporary Answer Key | SHA-256 `af7429ffd72b814574258b69c4e501ba2131b5cf910b33bfecee0da7c61dc6b3` / 135740 bytes |
+| Answer-Key yellow cells (all sheets, including hidden) | **[]** |
+| Conditional-formatting rules | **0** on every sheet including `Model_Bear`/`Model_Base`/`Model_Bull`/`Scenario_Summary`/`_ComponentMap`/`_CheckContext` |
+| Lululemon Accounting Judgment | five cases F5:H9; Answer-Key populated white/no-fill; Trainer blank yellow without Notes |
+| Lululemon Normalization Judgment | **absent** (covered on demo pair in Task 1) |
+| Temporary Trainer | SHA-256 `668ab895524aa8cd5d8a191f82d1e43e7c893a2901cd0ef5710af2e4abd392e3` / 37456 bytes |
+| Temporary Answer Key | SHA-256 `8e19a025e6f5b66d37bafbfbc3d4a00ab30dfde7348d250bf697f510f11d0bd8` / 135542 bytes |
 
-Check summaries contained only aggregate counts (no answers, formulas, or hints). The matching Answer Key hash was unchanged across Check copies. Fresh visible cells used Aptos Narrow 11, non-bold black text, ordinary white cells, and bright-yellow practice cells without decorative borders/fills. Trainer and Answer Key retained visual parity except practice contents and Answer-Key Notes.
+Check summaries contained only aggregate counts (no answers, formulas, or hints). The matching Answer Key hash was unchanged across Check copies. Fresh visible cells used Aptos Narrow 11, non-bold black text, ordinary white cells, and bright-yellow Trainer practice/judgment cells without decorative borders/fills. Trainer and Answer Key retained visual parity except practice contents, Answer-Key Notes, and intentional Trainer practice fills.
 
 ---
 
@@ -94,17 +119,24 @@ Check summaries contained only aggregate counts (no answers, formulas, or hints)
 
 | Command | Exit | Result |
 |---|---:|---|
-| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_geographic_segment_workbook.py core/tests/test_geographic_segment_analysis.py core/tests/test_historical_segment.py core/tests/test_trainer.py core/tests/test_reference_integrity.py core/tests/test_source_availability.py core/tests/test_learner_ready_presentation.py core/tests/test_lululemon_benchmark.py core/tests/test_fast_retailing_benchmark.py -q` | 0 | **376 passed** in **63.94s** |
-| Independent in-memory reconcile + JSON reload + series vs snapshot arithmetic + saved/reopened temporary pair disclosure/margin/Check/style audit | 0 | 56 selected/model values; five-period independent match; geo **74**; preserved **486**; 15/15 margin Notes; blank 560/560; filled 560/560; incorrect 1 |
-| Protected artifacts vs checkpoint `3f6f5dde023847e3347a4c830d822614a28c81a9` | 0 | **50/50 MATCH** (git blob SHA-1 and SHA-256) |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_geographic_segment_workbook.py core/tests/test_geographic_segment_analysis.py core/tests/test_historical_segment.py core/tests/test_trainer.py core/tests/test_reference_integrity.py core/tests/test_source_availability.py core/tests/test_learner_ready_presentation.py core/tests/test_lululemon_benchmark.py core/tests/test_fast_retailing_benchmark.py core/tests/test_normalization.py core/tests/test_historical_v1_exit_gate.py -q` | 0 | **420 passed** in **71.95s** |
+| Independent in-memory reconcile + JSON reload + series vs snapshot arithmetic + saved/reopened temporary pair disclosure/margin/Check/style/no-yellow audit | 0 | 56 selected/model values; five-period independent match; geo **74**; preserved **486**; 15/15 margin Notes; blank 560/560; filled 560/560; incorrect 1; Answer-Key yellow **[]** |
+| Protected artifacts vs checkpoint `3f6f5dde023847e3347a4c830d822614a28c81a9` | 0 | **50/50 MATCH** (git blob SHA-1); committed example Trainer/Answer Key match HEAD |
 
 Edited files this child:
 
 | Path | SHA-256 | Bytes |
 |---|---|---:|
-| `core/tests/test_geographic_segment_workbook.py` | `bfa8b5cb614b0112ec532e394988f0fbb877ec2d01eef6eb27d6e43c7c353195` | 41187 |
+| `core/trainer/workbook.py` | `67ef87bf07b477dc2d8b7cdc2e04e60a07b2351e71205f06bdb950130e666cc4` | 16154 |
+| `core/tests/test_trainer.py` | `3e01e26cef84225b499586f4c5772be822192ab26b1a2632651bb09aee54ab2a` | 63579 |
+| `core/tests/test_learner_ready_presentation.py` | `16c51ef52e5bfce89ccc75411c1bd56bcce8dd755de094f2b0524de9b5aa31d7` | 16128 |
+| `core/tests/test_geographic_segment_workbook.py` | `6abcbb6924885458c308dd31f5fc428df0b1dca3f6db1caa1bebcdf6c9b43b04` | 42409 |
+| `core/tests/test_normalization.py` | `cd6d13d5f1e43f675fa3e2af144f758a6bdde5db7ad5a788a970ee94bb5acd81` | 51329 |
+| `core/tests/test_lululemon_benchmark.py` | `cef951c1c68f6cb92f2a9ddb850671fa68d4c851155fd08a1445df9c17d7134c` | 83830 |
+| `core/tests/test_historical_v1_exit_gate.py` | `3011cb851e0bb93d4801311f38a19620983bed81a0763310754e4fe7ae6ab778` | 12283 |
+| `core/tests/test_fast_retailing_benchmark.py` | `aa88158f16b853262e01e978edd9fb8d8a149e9e82d7e5aea56f2b500a5b0271` | 103227 |
 
-Prior-work product files (not edited this child; hashes measured now):
+Unedited product files (hashes measured now):
 
 | Path | SHA-256 | Bytes |
 |---|---|---:|
@@ -113,11 +145,10 @@ Prior-work product files (not edited this child; hashes measured now):
 | `core/model/historical_expected.py` | `ff8f93a252e1e36580f433c1e3b1319f407d7c1d5ef1481deea3bfc879d53237` | 54281 |
 | `core/trainer/checker.py` | `63a662264eea95fe4afcb970bd191ac45efaec166c78502da0cb938ca16e86ff` | 19034 |
 | `core/trainer/check_context.py` | `c8fc77fa0a562a7926eb6965158dfd82e2416612cd83f5d5ad7bae53bee093f5` | 25740 |
-| `core/trainer/workbook.py` | `c44f86e9e55f8660d9be268cb4e6f0a0527f56fcc26be8f744c331d457eff0ea` | 16165 |
 
 ### Protected-artifact hashes vs checkpoint `3f6f5dde023847e3347a4c830d822614a28c81a9`
 
-All **50** git-tracked paths under `benchmark/lululemon/`, `benchmark/fast_retailing/`, `release/lululemon/`, and `release/fast_retailing/` matched the checkpoint blob SHA-1. SHA-256 of the previously tabulated artifacts is unchanged:
+All **50** git-tracked paths under `benchmark/lululemon/`, `benchmark/fast_retailing/`, `release/lululemon/`, and `release/fast_retailing/` matched the checkpoint blob SHA-1. Byte identity implies the previously tabulated SHA-256 values are unchanged:
 
 **Lululemon releases / reconciled / extracted / PDFs:**
 
@@ -156,6 +187,8 @@ Inspected `.git/autocycle/reviewed-recovery-20260915-120942/evidence.json` SHA-2
 ## Remaining scope
 
 G6 missing `2021-01-31` BS; G7 store KPIs, lease maturity and remaining note facts; G8 deferral; G9 standalone interest completeness; all TARGET Step 9 exit gates. Segment assets/capex, significant-expense schedules and D&A remain outside this step. No parent or Step 9 completion claim.
+
+`scripts/audit_fast_retailing_benchmark.py` still compares Trainer/Answer-Key fills as identical; that is obsolete for fresh generation and was not edited (file restriction). Committed Fast Retailing Answer Key remains yellow as a frozen historical artifact.
 
 No plan rewrite.
 

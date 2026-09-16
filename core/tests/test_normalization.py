@@ -332,7 +332,7 @@ def test_normalization_sheets_answer_key_and_trainer_contract(tmp_path):
     assert ws_a.cell(5, 7).value == case.model_rationale
     assert ws_a.cell(5, 8).value == case.model_consequence
     for col in (6, 7, 8):
-        assert _fill_rgb(ws_a.cell(5, col)) == "FFFF00"
+        assert _fill_rgb(ws_a.cell(5, col)) in {"", "FFFFFF"}
         assert ws_t.cell(5, col).value is None
         assert ws_t.cell(5, col).comment is None
         assert _fill_rgb(ws_t.cell(5, col)) == "FFFF00"

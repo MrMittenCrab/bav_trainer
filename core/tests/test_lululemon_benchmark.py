@@ -2118,7 +2118,7 @@ def test_source_supported_lease_rou_and_deferred_tax_aliases(
         assert isinstance(acell.value, str) and acell.value.startswith("=")
         assert acell.comment is not None
         assert (acell.comment.text or "").strip()
-        assert _fill_rgb(acell) == "FFFF00"
+        assert _fill_rgb(acell) in {"", "FFFFFF"}
     twb.close()
     awb.close()
 

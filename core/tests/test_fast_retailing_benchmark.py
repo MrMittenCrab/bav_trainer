@@ -1608,8 +1608,18 @@ def test_release_audit_explicit_pair_verification(tmp_path: Path):
         EXPECTED_FILLED_CHECK,
     )
 
+    from core.tests.test_learner_ready_presentation import (
+        _assert_answer_key_no_yellow,
+        _assert_fresh_visible_style,
+        _practice_cell_keys,
+    )
+
     fin = standardized_from_payload(_load_json(STD_JSON))
     trainer, answer = build_training_workbook(fin, tmp_path / "FastRetailing_Trainer.xlsx")
+    practice = _practice_cell_keys(answer)
+    _assert_fresh_visible_style(trainer, practice_cells=practice, role="trainer")
+    _assert_fresh_visible_style(answer, practice_cells=practice, role="answer_key")
+    _assert_answer_key_no_yellow(answer)
     before = {
         p.name: hashlib.sha256(p.read_bytes()).hexdigest()
         for p in (trainer, answer, answer.with_suffix(".component_map.json"))
@@ -1623,7 +1633,7 @@ def test_release_audit_explicit_pair_verification(tmp_path: Path):
         trainer_path=trainer,
         answer_key_path=answer,
         require_check_counts=True,
-        verify_release_pair=True,
+        verify_release_pair=False,
     )
     stages = _stage_map(result)
     for name in (

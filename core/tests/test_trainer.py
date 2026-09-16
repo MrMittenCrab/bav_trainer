@@ -235,7 +235,7 @@ def test_trainer_and_answer_key_practice_contract(tmp_path):
         assert isinstance(ac.value, str) and ac.value.startswith("=")
         assert ac.value == comp.formula
         assert ac.comment is not None and ac.comment.text.strip()
-        assert _fill_rgb(ac) == "FFFF00"
+        assert _fill_rgb(ac) in {"", "FFFFFF"}
     wb_t.close()
     wb_a.close()
 
@@ -326,7 +326,7 @@ def test_trainer_index_groups_schedules_not_cells(tmp_path):
     wb.close()
 
 
-def test_answer_key_practice_cells_formula_yellow_legacy_notes(tmp_path):
+def test_answer_key_practice_cells_formula_white_legacy_notes(tmp_path):
     _, answer_key_path = _build_pair(tmp_path)
     smap = load_semantic_map(answer_key_path)
     wb = load_workbook(answer_key_path, data_only=False)
@@ -335,7 +335,7 @@ def test_answer_key_practice_cells_formula_yellow_legacy_notes(tmp_path):
         cell = wb[comp.tab].cell(row=row, column=col)
         assert isinstance(cell.value, str) and cell.value.startswith("=")
         assert cell.value == comp.formula
-        assert _fill_rgb(cell) == "FFFF00"
+        assert _fill_rgb(cell) in {"", "FFFFFF"}
         assert cell.comment is not None
         expected_hint = (comp.short_hint or "").strip() or (
             comp.hints[0] if comp.hints else comp.title
@@ -379,7 +379,8 @@ def test_pair_style_and_structure_parity(tmp_path):
         assert ct.alignment.vertical == ca.alignment.vertical
         assert ct.number_format == ca.number_format
         assert bool(ct.protection.locked) == bool(ca.protection.locked)
-        assert _fill_rgb(ct) == _fill_rgb(ca) == "FFFF00"
+        assert _fill_rgb(ct) == "FFFF00"
+        assert _fill_rgb(ca) in {"", "FFFFFF"}
 
     wb_t.close()
     wb_a.close()
@@ -1088,7 +1089,7 @@ def test_accounting_judgment_sheet_answer_key_and_trainer_contract(tmp_path):
     assert ws_a.cell(row, 7).value == case.model_rationale
     assert ws_a.cell(row, 8).value == case.model_consequence
     for col in (6, 7, 8):
-        assert _fill_rgb(ws_a.cell(row, col)) == "FFFF00"
+        assert _fill_rgb(ws_a.cell(row, col)) in {"", "FFFFFF"}
         assert ws_t.cell(row, col).value is None
         assert ws_t.cell(row, col).comment is None
         assert _fill_rgb(ws_t.cell(row, col)) == "FFFF00"
