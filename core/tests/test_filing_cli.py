@@ -240,3 +240,57 @@ def test_reconcile_rejects_unsupported_admit_period_before_write(tmp_path: Path)
     assert completed.returncode != 0
     assert "unsupported comparative period 2019-01-01" in completed.stdout
     assert not out.exists() or not any(out.iterdir())
+
+
+def test_reconcile_serializes_management_identity_assessments(tmp_path: Path):
+    from core.tests.test_management_kpi_admission import (
+        ANNUAL_NAMES,
+        EXTRACTED,
+        MANAGEMENT_NAMES,
+        SOURCE,
+        _bytes_by_name,
+        _canonicalize,
+        _copy_json,
+    )
+
+    before = _bytes_by_name(EXTRACTED)
+    mixed = _copy_json(ANNUAL_NAMES + MANAGEMENT_NAMES, tmp_path / "mixed")
+    annual = _copy_json(ANNUAL_NAMES, tmp_path / "annual")
+    mixed_out = tmp_path / "mixed-out"
+    annual_out = tmp_path / "annual-out"
+    mixed_run = _run(
+        "reconcile",
+        str(mixed),
+        "--source-root",
+        str(SOURCE),
+        "--admit-period",
+        "2022-01-30",
+        "-o",
+        str(mixed_out),
+    )
+    annual_run = _run(
+        "reconcile",
+        str(annual),
+        "--source-root",
+        str(SOURCE),
+        "--admit-period",
+        "2022-01-30",
+        "-o",
+        str(annual_out),
+    )
+    assert mixed_run.returncode == 0, mixed_run.stdout + mixed_run.stderr
+    assert annual_run.returncode == 0, annual_run.stdout + annual_run.stderr
+    admission = json.loads(
+        (mixed_out / "management_kpi_admission.json").read_text(encoding="utf-8")
+    )
+    assert admission["reported_observation_count"] == 135
+    assert len(admission["assessments"]["items"]) == 135
+    assert admission["assessments"]["canonical_selection"] == "deferred"
+    assert not (annual_out / "management_kpi_admission.json").exists()
+    mixed_std = json.loads((mixed_out / "standardized.json").read_text(encoding="utf-8"))
+    annual_std = json.loads((annual_out / "standardized.json").read_text(encoding="utf-8"))
+    assert _canonicalize(mixed_std) == _canonicalize(annual_std)
+    assert "assessments" not in json.loads(
+        (mixed_out / "conflicts.json").read_text(encoding="utf-8")
+    )
+    assert _bytes_by_name(EXTRACTED) == before

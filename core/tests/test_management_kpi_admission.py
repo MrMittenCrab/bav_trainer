@@ -289,6 +289,12 @@ def test_mixed_directory_admits_all_135_observations(tmp_path: Path):
     assert payload["reported_observation_count"] == 135
     assert payload["status"] == "admitted_unreconciled"
     assert payload["canonical_selection"] == "deferred"
+    assert len(payload["assessments"]["items"]) == 135
+    assert payload["assessments"]["reported_observation_count"] == 135
+    assert payload["assessments"]["canonical_selection"] == "deferred"
+    assert payload["assessments"]["supported_count"] + payload["assessments"][
+        "outside_scope_count"
+    ] + payload["assessments"]["unsupported_variant_count"] == 135
     assert any(
         item["code"] == "deferred_canonical_selection" for item in payload["diagnostics"]
     )
@@ -480,6 +486,8 @@ def test_cli_mixed_directory_writes_separate_admission_artifact(tmp_path: Path):
     )
     assert admission["reported_observation_count"] == 135
     assert admission["document_count"] == 4
+    assert len(admission["assessments"]["items"]) == 135
+    assert admission["assessments"]["canonical_selection"] == "deferred"
     validate = subprocess.run(
         [
             sys.executable,

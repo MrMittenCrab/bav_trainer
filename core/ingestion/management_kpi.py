@@ -272,6 +272,14 @@ class ManagementAdmissionDiagnostic:
         }
 
 
+_REMAINING_UNRESOLVED = (
+    "precedence",
+    "physical_page_mapping",
+    "assurance",
+    "presentation_role",
+)
+
+
 @dataclass(frozen=True)
 class ManagementAdmission:
     status: str
@@ -279,14 +287,8 @@ class ManagementAdmission:
     definitions: tuple[ManagementKpiDefinition, ...]
     observations: tuple[ManagementObservation, ...]
     diagnostics: tuple[ManagementAdmissionDiagnostic, ...]
-    unresolved: tuple[str, ...] = (
-        "canonical_identity",
-        "comparability",
-        "precedence",
-        "physical_page_mapping",
-        "assurance",
-        "presentation_role",
-    )
+    assessments: tuple[Any, ...] = ()
+    unresolved: tuple[str, ...] = _REMAINING_UNRESOLVED
 
 
 def classify_extracted_payload(
@@ -1181,6 +1183,8 @@ def admit_management_documents(
     diagnostics.sort(
         key=lambda item: (item.code, item.identity, item.occurrences)
     )
+    from .management_kpi_identity import assess_reported_observations
+
     return ManagementAdmission(
         status=_ADMISSION_UNRECONCILED,
         documents=documents,
@@ -1189,11 +1193,14 @@ def admit_management_documents(
         ),
         observations=ordered,
         diagnostics=tuple(diagnostics),
+        assessments=assess_reported_observations(ordered, documents),
     )
 
 
 def management_admission_payload(admission: ManagementAdmission | None) -> dict[str, Any]:
     """Deterministic audit serialization for admitted management observations."""
+    from .management_kpi_identity import assessments_payload
+
     if admission is None:
         return {
             "status": "absent",
@@ -1204,14 +1211,8 @@ def management_admission_payload(admission: ManagementAdmission | None) -> dict[
             "observations": [],
             "definitions": [],
             "diagnostics": [],
-            "unresolved": [
-                "canonical_identity",
-                "comparability",
-                "precedence",
-                "physical_page_mapping",
-                "assurance",
-                "presentation_role",
-            ],
+            "assessments": assessments_payload(()),
+            "unresolved": list(_REMAINING_UNRESOLVED),
         }
     reported = [
         item for item in admission.observations if item.kind == "reported_kpi"
@@ -1253,4 +1254,5 @@ def management_admission_payload(admission: ManagementAdmission | None) -> dict[
         "definitions": [item.to_payload() for item in admission.definitions],
         "observations": [item.to_payload() for item in admission.observations],
         "diagnostics": [item.to_payload() for item in admission.diagnostics],
+        "assessments": assessments_payload(admission.assessments),
     }
