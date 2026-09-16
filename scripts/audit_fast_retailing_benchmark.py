@@ -28,6 +28,26 @@ BASELINE = BENCH / "BASELINE.md"
 EXPECTED_PRACTICE_TOTAL = 577
 EXPECTED_BLANK_CHECK = (0, 0, EXPECTED_PRACTICE_TOTAL, EXPECTED_PRACTICE_TOTAL)
 EXPECTED_FILLED_CHECK = (EXPECTED_PRACTICE_TOTAL, 0, 0, EXPECTED_PRACTICE_TOTAL)
+PRACTICE_YELLOW_RGB = "FFFF00"
+WHITE_RGBS = frozenset({"", "FFFFFF"})
+YELLOW_RGBS = frozenset(
+    {"FFFF00", "FFF2CC", "FFFF99", "FFEE00", "FFCC00", "FFE599"}
+)
+FILL_COMPONENT_KEYS = frozenset(
+    {
+        "fill_kind",
+        "fill_type",
+        "pattern_type",
+        "fg_color",
+        "bg_color",
+        "degree",
+        "left",
+        "right",
+        "top",
+        "bottom",
+        "stops",
+    }
+)
 
 
 @dataclass
@@ -76,12 +96,78 @@ _RGBMAX = 0xFF
 _HLSMAX = 240
 
 
+def _normalize_rgb_value(color) -> str:
+    if color is None:
+        return ""
+    rgb = getattr(color, "rgb", None)
+    if not rgb or not isinstance(rgb, str):
+        return ""
+    return str(rgb).upper().lstrip("0")[-6:] if rgb else ""
+
+
+def _fill_rgb_from_fill(fill) -> str:
+    if not fill or getattr(fill, "fill_type", None) in (None, "none"):
+        return ""
+    for candidate in (
+        getattr(fill, "fgColor", None),
+        getattr(fill, "start_color", None),
+        getattr(fill, "bgColor", None),
+        getattr(fill, "end_color", None),
+    ):
+        rgb = _normalize_rgb_value(candidate)
+        if rgb:
+            return rgb
+    return ""
+
+
 def _fill_rgb(cell) -> str:
     fill = cell.fill
     if not fill or fill.fill_type != "solid":
         return ""
     color = fill.fgColor.rgb or fill.start_color.rgb or ""
     return str(color).upper().lstrip("0")[-6:] if color else ""
+
+
+def _rgb_is_yellow(rgb: str) -> bool:
+    if not rgb:
+        return False
+    compact = str(rgb).upper()[-6:]
+    if compact in YELLOW_RGBS:
+        return True
+    try:
+        red = int(compact[0:2], 16)
+        green = int(compact[2:4], 16)
+        blue = int(compact[4:6], 16)
+    except ValueError:
+        return False
+    return red >= 0xF0 and green >= 0xC0 and blue <= 0xCC
+
+
+def _iter_conditional_fills(ws):
+    cf = ws.conditional_formatting
+    rules_map = getattr(cf, "_cf_rules", None)
+    if isinstance(rules_map, dict):
+        for _sqref, rules in rules_map.items():
+            for rule in rules:
+                dxf = getattr(rule, "dxf", None)
+                fill = getattr(dxf, "fill", None) if dxf is not None else None
+                if fill is not None:
+                    yield fill
+        return
+    try:
+        for cf_obj in cf:
+            rules = (
+                getattr(cf_obj, "cfRule", None)
+                or getattr(cf_obj, "rules", None)
+                or ()
+            )
+            for rule in rules:
+                dxf = getattr(rule, "dxf", None)
+                fill = getattr(dxf, "fill", None) if dxf is not None else None
+                if fill is not None:
+                    yield fill
+    except TypeError:
+        return
 
 
 def _copy_release_pair_to_temp(
@@ -429,11 +515,14 @@ def _assert_format_parity(
     theme_a: tuple[str, ...],
     palette_t: tuple[str, ...],
     palette_a: tuple[str, ...],
+    skip_fill: bool = False,
 ) -> None:
     comps_t = _format_components(ct, theme_colors=theme_t, palette=palette_t)
     comps_a = _format_components(ca, theme_colors=theme_a, palette=palette_a)
     keys = list(dict.fromkeys([*comps_t.keys(), *comps_a.keys()]))
     for key in keys:
+        if skip_fill and key in FILL_COMPONENT_KEYS:
+            continue
         vt = comps_t.get(key)
         va = comps_a.get(key)
         if vt != va:
@@ -757,7 +846,13 @@ def _dim_hidden(dimension) -> bool:
     return bool(getattr(dimension, "hidden", False))
 
 
-def _verify_visible_layout_parity(wb_t, wb_a, practice_coords: set[tuple[str, int, int]]) -> None:
+def _verify_visible_layout_parity(
+    wb_t,
+    wb_a,
+    practice_coords: set[tuple[str, int, int]],
+    *,
+    fill_exempt: set[tuple[str, int, int]] | None = None,
+) -> None:
     from openpyxl.utils import get_column_letter
 
     comparable_t = _comparable_sheet_names(wb_t)
@@ -781,6 +876,7 @@ def _verify_visible_layout_parity(wb_t, wb_a, practice_coords: set[tuple[str, in
             f"trainer={sorted(judgment_t)} answer={sorted(judgment_a)}"
         )
     content_exempt = set(practice_coords) | judgment_t
+    fill_exempt = set(fill_exempt or ())
     theme_t = _theme_scheme_colors(wb_t)
     theme_a = _theme_scheme_colors(wb_a)
     palette_t = _indexed_palette(wb_t)
@@ -850,10 +946,40 @@ def _verify_visible_layout_parity(wb_t, wb_a, practice_coords: set[tuple[str, in
                     theme_a=theme_a,
                     palette_t=palette_t,
                     palette_a=palette_a,
+                    skip_fill=(name, row, col) in fill_exempt,
                 )
 
 
-def _verify_practice_contract(wb_t, wb_a, comps) -> None:
+def _verify_answer_key_no_yellow(wb_a) -> None:
+    """Reject yellow fill or yellow conditional highlighting anywhere on the Answer Key."""
+    for ws in wb_a.worksheets:
+        for fill in _iter_conditional_fills(ws):
+            rgb = _fill_rgb_from_fill(fill)
+            if _rgb_is_yellow(rgb):
+                raise ValueError(
+                    f"Answer Key yellow conditional formatting: sheet={ws.title!r} "
+                    f"fill={rgb!r}"
+                )
+        max_row = ws.max_row or 1
+        max_col = ws.max_column or 1
+        for row in range(1, max_row + 1):
+            for col in range(1, max_col + 1):
+                cell = ws.cell(row=row, column=col)
+                rgb = _fill_rgb(cell)
+                if _rgb_is_yellow(rgb):
+                    raise ValueError(
+                        f"Answer Key yellow fill: sheet={ws.title!r} "
+                        f"cell={_cell_addr(row, col)}"
+                    )
+
+
+def _verify_practice_contract(
+    wb_t,
+    wb_a,
+    comps,
+    *,
+    allow_frozen_yellow_answer_key: bool = False,
+) -> None:
     from core.trainer.semantic_io import parse_cell_ref
 
     for comp in comps:
@@ -864,7 +990,7 @@ def _verify_practice_contract(wb_t, wb_a, comps) -> None:
             raise ValueError(f"Trainer practice cell {comp.tab}!{comp.cell} not blank")
         if tc.comment is not None:
             raise ValueError(f"Trainer practice cell {comp.tab}!{comp.cell} has Note")
-        if _fill_rgb(tc) != "FFFF00":
+        if _fill_rgb(tc) != PRACTICE_YELLOW_RGB:
             raise ValueError(f"Trainer practice cell {comp.tab}!{comp.cell} not yellow")
         if not (isinstance(ac.value, str) and ac.value.startswith("=")):
             raise ValueError(f"Answer Key {comp.tab}!{comp.cell} missing formula")
@@ -876,9 +1002,57 @@ def _verify_practice_contract(wb_t, wb_a, comps) -> None:
             raise ValueError(
                 f"Answer Key {comp.tab}!{comp.cell} missing non-empty Note"
             )
-        if _fill_rgb(ac) != "FFFF00":
+        answer_rgb = _fill_rgb(ac)
+        if allow_frozen_yellow_answer_key:
+            if answer_rgb != PRACTICE_YELLOW_RGB:
+                raise ValueError(
+                    f"Answer Key practice cell {comp.tab}!{comp.cell} not yellow"
+                )
+        else:
+            if _rgb_is_yellow(answer_rgb) or answer_rgb not in WHITE_RGBS:
+                raise ValueError(
+                    f"Answer Key practice cell {comp.tab}!{comp.cell} not white/no-fill"
+                )
+
+    judgment = _judgment_response_coords(wb_a)
+    if judgment != _judgment_response_coords(wb_t):
+        raise ValueError(
+            f"judgment response coordinate mismatch: "
+            f"trainer={sorted(_judgment_response_coords(wb_t))} "
+            f"answer={sorted(judgment)}"
+        )
+    if allow_frozen_yellow_answer_key:
+        return
+    for sheet, row, col in sorted(judgment):
+        tc = wb_t[sheet].cell(row=row, column=col)
+        ac = wb_a[sheet].cell(row=row, column=col)
+        addr = _cell_addr(row, col)
+        if tc.value is not None:
+            raise ValueError(f"Trainer judgment cell {sheet}!{addr} not blank")
+        if tc.comment is not None:
+            raise ValueError(f"Trainer judgment cell {sheet}!{addr} has Note")
+        if _fill_rgb(tc) != PRACTICE_YELLOW_RGB:
+            raise ValueError(f"Trainer judgment cell {sheet}!{addr} not yellow")
+        if ac.value in (None, ""):
+            raise ValueError(f"Answer Key judgment cell {sheet}!{addr} missing response")
+        answer_rgb = _fill_rgb(ac)
+        if _rgb_is_yellow(answer_rgb) or answer_rgb not in WHITE_RGBS:
             raise ValueError(
-                f"Answer Key practice cell {comp.tab}!{comp.cell} not yellow"
+                f"Answer Key judgment cell {sheet}!{addr} not white/no-fill"
+            )
+
+
+def _assert_frozen_yellow_answer_key_signature(wb_a, comps) -> None:
+    """Refuse the frozen-yellow exception unless Answer-Key practice cells are yellow."""
+    from core.trainer.semantic_io import parse_cell_ref
+
+    for comp in comps:
+        row, col = parse_cell_ref(comp.cell)
+        ac = wb_a[comp.tab].cell(row=row, column=col)
+        if _fill_rgb(ac) != PRACTICE_YELLOW_RGB:
+            raise ValueError(
+                "frozen yellow Answer Key exception does not apply to "
+                "current-style pairs"
             )
 
 
@@ -886,6 +1060,8 @@ def _verify_release_pair_contract(
     trainer_path: Path,
     answer_key_path: Path,
     fin,
+    *,
+    allow_frozen_yellow_answer_key: bool = False,
 ) -> str:
     """Source fidelity, practice contract, visibility, and visible structural parity."""
     from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
@@ -908,8 +1084,25 @@ def _verify_release_pair_contract(
         _verify_workbook_source_fidelity(wb_a, fin, workbook="Answer Key")
         _verify_required_visibility(wb_t, workbook="Trainer")
         _verify_required_visibility(wb_a, workbook="Answer Key")
-        _verify_visible_layout_parity(wb_t, wb_a, practice_coords)
-        _verify_practice_contract(wb_t, wb_a, comps)
+        if allow_frozen_yellow_answer_key:
+            _assert_frozen_yellow_answer_key_signature(wb_a, comps)
+        else:
+            _verify_answer_key_no_yellow(wb_a)
+        judgment_coords = _judgment_response_coords(wb_a)
+        fill_exempt = (
+            set()
+            if allow_frozen_yellow_answer_key
+            else set(practice_coords) | judgment_coords
+        )
+        _verify_visible_layout_parity(
+            wb_t, wb_a, practice_coords, fill_exempt=fill_exempt
+        )
+        _verify_practice_contract(
+            wb_t,
+            wb_a,
+            comps,
+            allow_frozen_yellow_answer_key=allow_frozen_yellow_answer_key,
+        )
     finally:
         wb_t.close()
         wb_a.close()
@@ -1005,6 +1198,7 @@ def run_audit(
     answer_key_path: Path | None = None,
     require_check_counts: bool | None = None,
     verify_release_pair: bool = False,
+    allow_frozen_yellow_answer_key: bool = False,
 ) -> dict[str, Any]:
     """Run the Fast Retailing stage audit.
 
@@ -1210,7 +1404,10 @@ def run_audit(
                 assert trainer_path is not None and answer_key_path is not None
                 if verify_release_pair:
                     contract_msg = _verify_release_pair_contract(
-                        trainer_path, answer_key_path, fin
+                        trainer_path,
+                        answer_key_path,
+                        fin,
+                        allow_frozen_yellow_answer_key=allow_frozen_yellow_answer_key,
                     )
                 else:
                     contract_msg = "release pair supplied"
@@ -1513,6 +1710,14 @@ def main(argv: list[str] | None = None) -> int:
         help="Verify practice contract and structural parity on the persisted pair",
     )
     parser.add_argument(
+        "--allow-frozen-yellow-answer-key",
+        action="store_true",
+        help=(
+            "Narrow frozen-pair compatibility: permit historical yellow Answer-Key "
+            "practice/judgment fills. Current-generation pairs must not use this flag."
+        ),
+    )
+    parser.add_argument(
         "--no-baseline",
         action="store_true",
         help="Skip writing benchmark/fast_retailing/BASELINE.md",
@@ -1527,6 +1732,7 @@ def main(argv: list[str] | None = None) -> int:
         answer_key_path=args.answer_key,
         require_check_counts=True if args.require_check_counts else None,
         verify_release_pair=args.verify_release_pair,
+        allow_frozen_yellow_answer_key=args.allow_frozen_yellow_answer_key,
     )
     if not args.no_baseline:
         write_baseline(result)

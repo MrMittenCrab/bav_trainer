@@ -1600,12 +1600,96 @@ def _stage_map(result: dict) -> dict:
     return {s.stage: s for s in result["stages"]}
 
 
+def _save_reopen_workbook(path: Path) -> None:
+    from openpyxl import load_workbook
+
+    wb = load_workbook(path, data_only=False)
+    wb.save(path)
+    wb.close()
+
+
+def _count_source_unavailable(path: Path) -> int:
+    from openpyxl import load_workbook
+    from core.model.ratio_values import SOURCE_UNAVAILABLE
+
+    wb = load_workbook(path, data_only=False)
+    n = 0
+    for ws in wb.worksheets:
+        for row in ws.iter_rows():
+            for cell in row:
+                if cell.value == SOURCE_UNAVAILABLE:
+                    n += 1
+    wb.close()
+    return n
+
+
+def _assert_condensed_b44_current_style(trainer: Path, answer: Path) -> None:
+    from openpyxl import load_workbook
+    from core.tests.test_learner_ready_presentation import WHITE_RGBS, _fill_rgb
+    from core.trainer.semantic_io import load_semantic_map
+
+    smap = load_semantic_map(answer)
+    b44 = next(
+        comp
+        for comp in smap.all_ordered()
+        if comp.tab == "Condensed Financials" and comp.cell == "B44"
+    )
+    twb = load_workbook(trainer, data_only=False)
+    awb = load_workbook(answer, data_only=False)
+    try:
+        tcell = twb["Condensed Financials"]["B44"]
+        acell = awb["Condensed Financials"]["B44"]
+        assert tcell.value is None
+        assert tcell.comment is None
+        assert _fill_rgb(tcell) == "FFFF00"
+        assert acell.value == b44.formula
+        assert acell.comment is not None
+        assert str(acell.comment.text or "").strip()
+        assert _fill_rgb(acell) in WHITE_RGBS
+    finally:
+        twb.close()
+        awb.close()
+
+
+def _assert_current_style_judgment_modules(trainer: Path, answer: Path) -> None:
+    from openpyxl import load_workbook
+    from core.engine.reference_model import JUDGMENT_SHEET, NORMALIZATION_JUDGMENT_SHEET
+    from core.tests.test_learner_ready_presentation import WHITE_RGBS, _fill_rgb
+    from core.trainer.workbook import JUDGMENT_RESPONSE_COLS, _judgment_case_rows
+
+    twb = load_workbook(trainer, data_only=False)
+    awb = load_workbook(answer, data_only=False)
+    try:
+        present = []
+        for sheet in (JUDGMENT_SHEET, NORMALIZATION_JUDGMENT_SHEET):
+            if sheet not in awb.sheetnames:
+                continue
+            rows = list(_judgment_case_rows(awb[sheet]))
+            if not rows:
+                continue
+            present.append(sheet)
+            for row in rows:
+                for col in JUDGMENT_RESPONSE_COLS:
+                    tcell = twb[sheet].cell(row=row, column=col)
+                    acell = awb[sheet].cell(row=row, column=col)
+                    assert tcell.value is None
+                    assert tcell.comment is None
+                    assert _fill_rgb(tcell) == "FFFF00"
+                    assert acell.value not in (None, "")
+                    assert _fill_rgb(acell) in WHITE_RGBS
+        assert present, "expected at least one judgment module with cases"
+    finally:
+        twb.close()
+        awb.close()
+
+
 def test_release_audit_explicit_pair_verification(tmp_path: Path):
-    """Explicit persisted-pair path verifies without regenerating substitutes."""
+    """Saved/reopened current-style Fast Retailing pair verifies without regenerating."""
     from core.trainer.workbook import build_training_workbook
     from scripts.audit_fast_retailing_benchmark import (
         EXPECTED_BLANK_CHECK,
         EXPECTED_FILLED_CHECK,
+        _verify_release_pair_contract,
     )
 
     from core.tests.test_learner_ready_presentation import (
@@ -1616,10 +1700,17 @@ def test_release_audit_explicit_pair_verification(tmp_path: Path):
 
     fin = standardized_from_payload(_load_json(STD_JSON))
     trainer, answer = build_training_workbook(fin, tmp_path / "FastRetailing_Trainer.xlsx")
+    _save_reopen_workbook(trainer)
+    _save_reopen_workbook(answer)
     practice = _practice_cell_keys(answer)
     _assert_fresh_visible_style(trainer, practice_cells=practice, role="trainer")
     _assert_fresh_visible_style(answer, practice_cells=practice, role="answer_key")
     _assert_answer_key_no_yellow(answer)
+    _assert_condensed_b44_current_style(trainer, answer)
+    _assert_current_style_judgment_modules(trainer, answer)
+    assert _count_source_unavailable(trainer) == 0
+    assert _count_source_unavailable(answer) == 0
+    assert "layout_parity=ok" in _verify_release_pair_contract(trainer, answer, fin)
     before = {
         p.name: hashlib.sha256(p.read_bytes()).hexdigest()
         for p in (trainer, answer, answer.with_suffix(".component_map.json"))
@@ -1633,7 +1724,7 @@ def test_release_audit_explicit_pair_verification(tmp_path: Path):
         trainer_path=trainer,
         answer_key_path=answer,
         require_check_counts=True,
-        verify_release_pair=False,
+        verify_release_pair=True,
     )
     stages = _stage_map(result)
     for name in (
@@ -1745,6 +1836,7 @@ def test_persisted_fast_retailing_release_pair_if_present():
         answer_key_path=RELEASE_ANSWER,
         require_check_counts=True,
         verify_release_pair=True,
+        allow_frozen_yellow_answer_key=True,
     )
     stages = _stage_map(result)
     for name in (
@@ -1913,7 +2005,9 @@ def test_release_source_fidelity_corruptions(tmp_path: Path, target: str, mutati
         apply(answer)
 
     with pytest.raises(ValueError, match=expect_snip):
-        _verify_release_pair_contract(trainer, answer, fin)
+        _verify_release_pair_contract(
+            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        )
     assert _release_pair_fingerprints() == before
 
 
@@ -1938,7 +2032,9 @@ def test_release_hidden_historical_sheet_rejected(tmp_path: Path, state: str, ta
         hide(answer)
 
     with pytest.raises(ValueError, match="required historical/practice sheet hidden"):
-        _verify_release_pair_contract(trainer, answer, fin)
+        _verify_release_pair_contract(
+            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        )
     assert _release_pair_fingerprints() == before
 
 
@@ -1984,7 +2080,9 @@ def test_release_layout_parity_corruptions(tmp_path: Path, mutation: str, expect
     # Corrupt only Trainer so Answer Key remains the reference layout.
     _mutate_workbook(trainer, mut)
     with pytest.raises(ValueError, match=expect_snip):
-        _verify_release_pair_contract(trainer, answer, fin)
+        _verify_release_pair_contract(
+            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        )
     assert _release_pair_fingerprints() == before
 
 
@@ -2004,6 +2102,7 @@ def test_release_contract_failure_surfaces_via_audit_stage(tmp_path: Path):
         answer_key_path=answer,
         require_check_counts=True,
         verify_release_pair=True,
+        allow_frozen_yellow_answer_key=True,
     )
     stages = _stage_map(result)
     assert stages["5_workbook_generation"].status == "fail"
@@ -2039,6 +2138,7 @@ def test_explicit_pair_verification_does_not_generate(tmp_path: Path, monkeypatc
         answer_key_path=answer,
         require_check_counts=True,
         verify_release_pair=True,
+        allow_frozen_yellow_answer_key=True,
     )
     stages = _stage_map(result)
     assert stages["5_workbook_generation"].status == "pass"
@@ -2063,7 +2163,9 @@ def test_persisted_release_pair_contract_and_check_counts():
         pytest.skip("release/fast_retailing pair not built yet")
     before = _release_pair_fingerprints()
     fin = _release_fin()
-    msg = _verify_release_pair_contract(RELEASE_TRAINER, RELEASE_ANSWER, fin)
+    msg = _verify_release_pair_contract(
+        RELEASE_TRAINER, RELEASE_ANSWER, fin, allow_frozen_yellow_answer_key=True
+    )
     assert "source_fidelity=ok" in msg
     assert "layout_parity=ok" in msg
 
@@ -2075,6 +2177,7 @@ def test_persisted_release_pair_contract_and_check_counts():
         answer_key_path=RELEASE_ANSWER,
         require_check_counts=True,
         verify_release_pair=True,
+        allow_frozen_yellow_answer_key=True,
     )
     stages = _stage_map(result)
     assert stages["6_blank_check"].status == "pass"
@@ -2187,7 +2290,9 @@ def test_release_layout_bypass_corruptions(
         _apply_one_sided(trainer, answer, target, mut)
 
     with pytest.raises(ValueError, match=expect_snip):
-        _verify_release_pair_contract(trainer, answer, fin)
+        _verify_release_pair_contract(
+            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        )
     assert _release_pair_fingerprints() == before
 
 
@@ -2261,7 +2366,9 @@ def test_release_layout_omitted_format_components(
 
     _mutate_workbook(trainer, mut)
     with pytest.raises(ValueError, match=expect_snip):
-        _verify_release_pair_contract(trainer, answer, fin)
+        _verify_release_pair_contract(
+            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        )
     assert _release_pair_fingerprints() == before
 
 
@@ -2281,7 +2388,9 @@ def test_release_layout_positive_judgment_response_diff(tmp_path: Path):
         ws["F5"].comment = Comment("response note", "learner")
 
     _mutate_workbook(trainer, mut)
-    msg = _verify_release_pair_contract(trainer, answer, fin)
+    msg = _verify_release_pair_contract(
+        trainer, answer, fin, allow_frozen_yellow_answer_key=True
+    )
     assert "layout_parity=ok" in msg
     assert _release_pair_fingerprints() == before
 
@@ -2310,7 +2419,9 @@ def test_release_layout_positive_equivalent_format_different_style_ids(tmp_path:
         cell._style = StyleArray(style)
 
     _mutate_workbook(trainer, mut)
-    msg = _verify_release_pair_contract(trainer, answer, fin)
+    msg = _verify_release_pair_contract(
+        trainer, answer, fin, allow_frozen_yellow_answer_key=True
+    )
     assert "layout_parity=ok" in msg
     assert _release_pair_fingerprints() == before
 
@@ -2331,6 +2442,7 @@ def test_release_layout_bypass_fails_audit_stage_and_cli(tmp_path: Path):
         answer_key_path=answer,
         require_check_counts=True,
         verify_release_pair=True,
+        allow_frozen_yellow_answer_key=True,
     )
     stages = _stage_map(result)
     assert stages["5_workbook_generation"].status == "fail"
@@ -2353,6 +2465,7 @@ def test_release_layout_bypass_fails_audit_stage_and_cli(tmp_path: Path):
             "--answer-key",
             str(answer),
             "--verify-release-pair",
+            "--allow-frozen-yellow-answer-key",
             "--require-check-counts",
             "--no-baseline",
         ],
@@ -2430,7 +2543,9 @@ def test_release_layout_border_start_end_corruptions(
 
     temp_before = _temp_pair_fingerprints(trainer, answer)
     with pytest.raises(ValueError, match=rf"component={component}") as excinfo:
-        _verify_release_pair_contract(trainer, answer, fin)
+        _verify_release_pair_contract(
+            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        )
     msg = str(excinfo.value)
     assert f"sheet={sheet!r}" in msg
     assert f"cell={coord}" in msg
@@ -2475,7 +2590,9 @@ def test_release_layout_hyperlink_theme_definition_corruptions(
 
     temp_before = _temp_pair_fingerprints(trainer, answer)
     with pytest.raises(ValueError, match=r"component=font_color") as excinfo:
-        _verify_release_pair_contract(trainer, answer, fin)
+        _verify_release_pair_contract(
+            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        )
     msg = str(excinfo.value)
     assert f"sheet={sheet!r}" in msg
     assert f"cell={coord}" in msg
@@ -2501,7 +2618,9 @@ def test_release_layout_positive_matching_start_end_borders(tmp_path: Path, side
     _mutate_workbook(trainer, mut)
     _mutate_workbook(answer, mut)
     temp_before = _temp_pair_fingerprints(trainer, answer)
-    msg = _verify_release_pair_contract(trainer, answer, fin)
+    msg = _verify_release_pair_contract(
+        trainer, answer, fin, allow_frozen_yellow_answer_key=True
+    )
     assert "layout_parity=ok" in msg
     assert _temp_pair_fingerprints(trainer, answer) == temp_before
     assert _release_pair_fingerprints() == before
@@ -2531,7 +2650,9 @@ def test_release_layout_positive_matching_hyperlink_theme_tint(
     _mutate_workbook(trainer, mut)
     _mutate_workbook(answer, mut)
     temp_before = _temp_pair_fingerprints(trainer, answer)
-    msg = _verify_release_pair_contract(trainer, answer, fin)
+    msg = _verify_release_pair_contract(
+        trainer, answer, fin, allow_frozen_yellow_answer_key=True
+    )
     assert "layout_parity=ok" in msg
     assert _temp_pair_fingerprints(trainer, answer) == temp_before
     assert _release_pair_fingerprints() == before
@@ -2603,6 +2724,7 @@ def test_release_layout_border_hyperlink_fails_audit_stage_and_cli(
         answer_key_path=answer,
         require_check_counts=True,
         verify_release_pair=True,
+        allow_frozen_yellow_answer_key=True,
     )
     stages = _stage_map(result)
     assert stages["5_workbook_generation"].status == "fail"
@@ -2627,6 +2749,7 @@ def test_release_layout_border_hyperlink_fails_audit_stage_and_cli(
             "--answer-key",
             str(answer),
             "--verify-release-pair",
+            "--allow-frozen-yellow-answer-key",
             "--require-check-counts",
             "--no-baseline",
         ],
@@ -2638,3 +2761,218 @@ def test_release_layout_border_hyperlink_fails_audit_stage_and_cli(
     assert "5_workbook_generation: fail" in completed.stdout
     assert _temp_pair_fingerprints(trainer, answer) == temp_before
     assert _release_pair_fingerprints() == before
+
+
+def _fresh_fast_retailing_pair(tmp_path: Path):
+    from core.trainer.workbook import build_training_workbook
+
+    fin = standardized_from_payload(_load_json(STD_JSON))
+    trainer, answer = build_training_workbook(
+        fin, tmp_path / "FastRetailing_Trainer.xlsx"
+    )
+    return trainer, answer, fin
+
+
+def _restyle_frozen_pair_current_decorators(tmp_path: Path) -> tuple[Path, Path]:
+    from core.trainer.semantic_io import load_semantic_map
+    from core.trainer.workbook import TrainingWorkbookGenerator
+
+    dest = tmp_path / "restyled_frozen"
+    dest.mkdir()
+    trainer, answer = _copy_persisted_release_pair(dest)
+    TrainingWorkbookGenerator(answer, load_semantic_map(answer)).generate(trainer)
+    return trainer, answer
+
+
+def test_restyled_frozen_pair_current_contract_and_check(tmp_path: Path):
+    from scripts.audit_fast_retailing_benchmark import (
+        EXPECTED_BLANK_CHECK,
+        EXPECTED_FILLED_CHECK,
+        _verify_release_pair_contract,
+    )
+    from core.tests.test_learner_ready_presentation import (
+        _assert_answer_key_no_yellow,
+        _assert_fresh_visible_style,
+        _practice_cell_keys,
+    )
+
+    before_release = _release_pair_fingerprints()
+    trainer, answer = _restyle_frozen_pair_current_decorators(tmp_path)
+    _save_reopen_workbook(trainer)
+    _save_reopen_workbook(answer)
+    practice = _practice_cell_keys(answer)
+    _assert_fresh_visible_style(trainer, practice_cells=practice, role="trainer")
+    _assert_fresh_visible_style(answer, practice_cells=practice, role="answer_key")
+    _assert_answer_key_no_yellow(answer)
+    _assert_condensed_b44_current_style(trainer, answer)
+    _assert_current_style_judgment_modules(trainer, answer)
+    assert _count_source_unavailable(trainer) == 0
+    assert _count_source_unavailable(answer) == 0
+    fin = _release_fin()
+    assert "layout_parity=ok" in _verify_release_pair_contract(trainer, answer, fin)
+    before = _temp_pair_fingerprints(trainer, answer)
+    result = run_audit(
+        standardized_json=RELEASE_STD,
+        provenance_json=RELEASE_PROV,
+        conflicts_json=RELEASE_CONFLICTS,
+        trainer_path=trainer,
+        answer_key_path=answer,
+        require_check_counts=True,
+        verify_release_pair=True,
+    )
+    stages = _stage_map(result)
+    for name in (
+        "5_workbook_generation",
+        "6_blank_check",
+        "7_filled_check",
+        "8_release_pristine",
+    ):
+        assert stages[name].status == "pass", f"{name}: {stages[name].message}"
+    assert f"blank={EXPECTED_BLANK_CHECK[2]}" in (stages["6_blank_check"].message or "")
+    assert f"correct={EXPECTED_FILLED_CHECK[0]}" in (
+        stages["7_filled_check"].message or ""
+    )
+    assert _temp_pair_fingerprints(trainer, answer) == before
+    assert _release_pair_fingerprints() == before_release
+
+
+def test_frozen_yellow_answer_key_rejected_without_exception(tmp_path: Path):
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    before = _release_pair_fingerprints()
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+    fin = _release_fin()
+    with pytest.raises(ValueError, match="Answer Key yellow fill"):
+        _verify_release_pair_contract(trainer, answer, fin)
+    assert _release_pair_fingerprints() == before
+
+
+def test_frozen_yellow_exception_does_not_apply_to_current_pair(tmp_path: Path):
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    trainer, answer, fin = _fresh_fast_retailing_pair(tmp_path)
+    with pytest.raises(
+        ValueError, match="frozen yellow Answer Key exception does not apply"
+    ):
+        _verify_release_pair_contract(
+            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        )
+
+
+def test_current_answer_key_yellow_practice_cell_rejected(tmp_path: Path):
+    from openpyxl.styles import PatternFill
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    trainer, answer, fin = _fresh_fast_retailing_pair(tmp_path)
+
+    def mut(wb):
+        wb["Condensed Financials"]["B44"].fill = PatternFill(
+            "solid", start_color="FFFF00"
+        )
+
+    _mutate_workbook(answer, mut)
+    with pytest.raises(ValueError, match="Answer Key yellow fill"):
+        _verify_release_pair_contract(trainer, answer, fin)
+
+
+def test_current_answer_key_yellow_nonpractice_cell_rejected(tmp_path: Path):
+    from openpyxl.styles import PatternFill
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    trainer, answer, fin = _fresh_fast_retailing_pair(tmp_path)
+
+    def mut(wb):
+        wb["Income Statement"]["A6"].fill = PatternFill("solid", start_color="FFFF00")
+
+    _mutate_workbook(answer, mut)
+    with pytest.raises(ValueError, match="Answer Key yellow fill"):
+        _verify_release_pair_contract(trainer, answer, fin)
+
+
+def test_current_invalid_trainer_practice_fill_rejected(tmp_path: Path):
+    from openpyxl.styles import PatternFill
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    trainer, answer, fin = _fresh_fast_retailing_pair(tmp_path)
+
+    def mut(wb):
+        wb["Condensed Financials"]["B44"].fill = PatternFill(
+            "solid", start_color="FFFFFF"
+        )
+
+    _mutate_workbook(trainer, mut)
+    with pytest.raises(
+        ValueError, match=r"Trainer practice cell Condensed Financials!B44 not yellow"
+    ):
+        _verify_release_pair_contract(trainer, answer, fin)
+
+
+def test_current_unauthorized_fill_difference_rejected(tmp_path: Path):
+    from openpyxl.styles import PatternFill
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    trainer, answer, fin = _fresh_fast_retailing_pair(tmp_path)
+
+    def mut(wb):
+        wb["Income Statement"]["A6"].fill = PatternFill(patternType="gray125")
+
+    _mutate_workbook(trainer, mut)
+    with pytest.raises(ValueError, match=r"component=fill_type"):
+        _verify_release_pair_contract(trainer, answer, fin)
+
+
+def test_current_nonfill_corruption_at_practice_coordinate_rejected(tmp_path: Path):
+    from openpyxl.styles import Font
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    trainer, answer, fin = _fresh_fast_retailing_pair(tmp_path)
+
+    def mut(wb):
+        wb["Condensed Financials"]["B44"].font = Font(
+            name="Aptos Narrow", size=14, bold=True
+        )
+
+    _mutate_workbook(trainer, mut)
+    with pytest.raises(ValueError, match=r"component=font_size") as excinfo:
+        _verify_release_pair_contract(trainer, answer, fin)
+    msg = str(excinfo.value)
+    assert "sheet='Condensed Financials'" in msg
+    assert "cell=B44" in msg
+
+
+def test_saved_reopened_demo_both_judgment_modules(tmp_path: Path):
+    import shutil
+    from core.tests.test_learner_ready_presentation import (
+        _assert_answer_key_no_yellow,
+        _assert_fresh_visible_style,
+        _build_canonical,
+        _practice_cell_keys,
+    )
+
+    trainer, answer = _build_canonical(tmp_path)
+    reopened = tmp_path / "reopened_demo"
+    reopened.mkdir()
+    trainer_r = reopened / trainer.name
+    answer_r = reopened / answer.name
+    shutil.copy2(trainer, trainer_r)
+    shutil.copy2(answer, answer_r)
+    for suffix in (".component_map.json", ".assumptions.json", ".trainer.json"):
+        sidecar = answer.with_suffix(suffix)
+        if sidecar.is_file():
+            shutil.copy2(sidecar, reopened / sidecar.name)
+    _save_reopen_workbook(trainer_r)
+    _save_reopen_workbook(answer_r)
+    practice = _practice_cell_keys(answer_r)
+    _assert_fresh_visible_style(trainer_r, practice_cells=practice, role="trainer")
+    _assert_fresh_visible_style(answer_r, practice_cells=practice, role="answer_key")
+    _assert_answer_key_no_yellow(answer_r)
+    _assert_current_style_judgment_modules(trainer_r, answer_r)
+    from core.engine.reference_model import JUDGMENT_SHEET, NORMALIZATION_JUDGMENT_SHEET
+    from openpyxl import load_workbook
+
+    awb = load_workbook(answer_r, data_only=False)
+    try:
+        assert JUDGMENT_SHEET in awb.sheetnames
+        assert NORMALIZATION_JUDGMENT_SHEET in awb.sheetnames
+    finally:
+        awb.close()
