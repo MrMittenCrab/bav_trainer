@@ -6899,14 +6899,13 @@ class ReferenceModelBuilder:
         ws["A2"] = (
             "Source-supported geographic revenue mix, adjacent-period growth, "
             "reported operating margins, and consolidated bridges. Reported "
-            "operating margin is income from operations / net revenue, not BAV "
-            "NOPAT margin."
+            "operating margin is distinct from BAV NOPAT margin."
         )
         ws["A3"] = f"Units: {self.fin.units}"
         ws["A4"] = (
             "Calculated segment totals are distinct from any reported segment_total. "
-            "Corporate-column ADD and itemized SUBTRACT are not combined. "
-            "Do not infer missing reconciling zeros or compress period gaps."
+            "Sparse unavailable amounts remain unavailable; opening growth is not "
+            "practiced."
         )
         ws.column_dimensions["A"].width = 56
 

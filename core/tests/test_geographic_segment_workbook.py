@@ -128,6 +128,45 @@ def _row_by_label(ws, label: str) -> int:
     raise AssertionError(f"missing geographic label {label!r}")
 
 
+# Visible-cell teaching text that previously disclosed active geographic practice.
+_DISCLOSED_GEOGRAPHIC_ARITHMETIC = (
+    "income from operations / net revenue",
+    "income from operations / segment net revenue",
+    "segment net revenue / reported consolidated",
+    "(current − prior) / prior",
+    "(current - prior) / prior",
+    "corporate-column add",
+    "itemized subtract",
+)
+
+
+def _visible_cell_texts(wb) -> list[tuple[str, str, str]]:
+    found: list[tuple[str, str, str]] = []
+    for ws in wb.worksheets:
+        if ws.sheet_state != "visible":
+            continue
+        max_row = ws.max_row or 1
+        max_col = ws.max_column or 1
+        for row in ws.iter_rows(min_row=1, max_row=max_row, min_col=1, max_col=max_col):
+            for cell in row:
+                value = cell.value
+                if isinstance(value, str) and not value.startswith("="):
+                    found.append((ws.title, cell.coordinate, value))
+                comment = cell.comment.text if cell.comment is not None else ""
+                if comment:
+                    found.append((ws.title, f"{cell.coordinate}#comment", comment))
+    return found
+
+
+def _assert_no_disclosed_geographic_arithmetic(wb) -> None:
+    for sheet, coord, text in _visible_cell_texts(wb):
+        lowered = text.lower()
+        for fragment in _DISCLOSED_GEOGRAPHIC_ARITHMETIC:
+            assert fragment not in lowered, (
+                f"{sheet}!{coord} discloses geographic practice arithmetic: {text!r}"
+            )
+
+
 def test_catalog_orders_and_expand_identities():
     assert GEOGRAPHIC_SHEET == GEOGRAPHIC_SHEET_NAME
     assert [family.order for family in GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG] == list(
@@ -277,7 +316,13 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
     assert "Rest of World" in str(
         aws.cell(_row_by_label(aws, "Rest of World net revenue"), 1).value
     )
+    assert aws["A2"].value == tws["A2"].value
+    assert aws["A4"].value == tws["A4"].value
     assert "NOPAT" in str(aws["A2"].value)
+    assert "income from operations / net revenue" not in str(aws["A2"].value).lower()
+    assert "add" not in str(aws["A4"].value).lower()
+    assert "subtract" not in str(aws["A4"].value).lower()
+    _assert_no_disclosed_geographic_arithmetic(twb)
     assert str(aws["A3"].value).startswith("Units:")
     family_row = _row_by_label(aws, "Presentation family")
     assert aws.cell(family_row, 2).value == FAMILY_ITEMIZED
