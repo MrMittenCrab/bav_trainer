@@ -9,6 +9,9 @@ venv/
 .coverage
 htmlcov/
 
+# Local manual BAV inputs and generated outputs (never release artifacts)
+/build/
+
 # Generated BAV trainer demo/build metadata
 example/rowmap.json
 example/*_Answer_Key.component_map.json

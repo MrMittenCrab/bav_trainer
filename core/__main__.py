@@ -13,7 +13,7 @@ from datetime import date
 from pathlib import Path
 
 from .data.interface import DocumentManifest, DocumentType
-from .data.standardized_io import standardized_to_payload
+from .data.standardized_io import standardized_from_payload, standardized_to_payload
 from .engine.component_catalog import COMPONENT_CATALOG
 from .ingestion.filing_cli import load_and_validate_extracted_dir
 from .ingestion.filing_reconciler import reconcile_filings
@@ -24,7 +24,7 @@ from .ingestion.filing_standardizer import (
 )
 from .ingestion.manual_hk import HKManualDocumentAdapter
 from .trainer.checker import check_workbook
-from .trainer.semantic_io import answer_key_path_for, load_semantic_map
+from .trainer.semantic_io import answer_key_path_for, load_semantic_map, resolve_pair_paths
 from .trainer.workbook import build_training_workbook
 
 
@@ -107,21 +107,67 @@ def cmd_ingest(args: argparse.Namespace) -> int:
     return 0 if all(report.checksums.values()) else 1
 
 
+def _unique_json_object(pairs: list[tuple[str, object]]) -> dict:
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key!r}")
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"non-finite JSON number: {value}")
+
+
+def _load_build_json(path: Path):
+    return json.loads(path.read_text(encoding="utf-8"),
+                      object_pairs_hook=_unique_json_object,
+                      parse_constant=_reject_json_constant)
+
+
+def _validate_build_output(output: Path, inputs: list[Path]) -> None:
+    trainer, answer = resolve_pair_paths(output)
+    if trainer.suffix.lower() != ".xlsx":
+        raise ValueError("build output must be a company stem or .xlsx path")
+    roots = {Path.cwd().resolve(), Path(__file__).resolve().parents[1]}
+    protected = [root / name for root in roots for name in ("benchmark", "release")]
+    protected_files = {p.resolve() for p in inputs}
+    protected_files.update((root / name).resolve() for root in roots
+                           for name in ("TARGET.md", "IMPLEMENTATION.md", "RESULT.md"))
+    destinations = [trainer, answer, answer.parent / "rowmap.json"]
+    for workbook in (trainer, answer):
+        destinations.extend(workbook.with_suffix(suffix) for suffix in
+                            (".component_map.json", ".assumptions.json", ".trainer.json"))
+    for destination in destinations:
+        resolved = destination.resolve()
+        if (destination.is_symlink() or resolved in protected_files
+                or any(resolved.is_relative_to(p.resolve()) for p in protected)
+                or resolved.suffix.lower() == ".pdf"):
+            raise ValueError(f"protected build destination: {destination}; use build/output/")
+
+
 def cmd_build(args: argparse.Namespace) -> int:
-    path = Path(args.input)
-    if path.suffix.lower() == ".json":
-        adapter = HKManualDocumentAdapter()
-        data = adapter.ingest([DocumentManifest(path=str(path), doc_type=DocumentType.OTHER)])
-    else:
-        adapter = HKManualDocumentAdapter()
-        data = adapter.ingest([DocumentManifest(path=str(path), doc_type=DocumentType.EXCEL_EXPORT)])
+    path, out = Path(args.input), Path(args.output)
+    try:
+        inputs = [path] + ([Path(args.assumptions)] if args.assumptions else [])
+        _validate_build_output(out, inputs)
+        if path.suffix.lower() == ".json":
+            data = standardized_from_payload(_load_build_json(path), strict=True)
+        else:
+            adapter = HKManualDocumentAdapter()
+            data = adapter.ingest([DocumentManifest(path=str(path), doc_type=DocumentType.EXCEL_EXPORT)])
 
-    assumptions = None
-    if args.assumptions:
-        assumptions = json.loads(Path(args.assumptions).read_text(encoding="utf-8"))
+        assumptions = None
+        if args.assumptions:
+            assumptions = _load_build_json(Path(args.assumptions))
+            if not isinstance(assumptions, dict):
+                raise ValueError("assumptions must be a JSON object")
 
-    out = Path(args.output)
-    trainer_path, answer_key_path = build_training_workbook(data, out, assumptions)
+        trainer_path, answer_key_path = build_training_workbook(data, out, assumptions)
+    except (OSError, ValueError) as exc:
+        print(f"error: build failed: {exc}", file=sys.stderr)
+        return 1
     smap = load_semantic_map(answer_key_path)
     print(f"Trainer workbook: {trainer_path}")
     print(f"Answer Key workbook: {answer_key_path}")
@@ -327,7 +373,7 @@ def main(argv: list[str] | None = None) -> int:
         "build",
         help="Build matched Trainer + Answer Key workbooks from a complete BAV model",
     )
-    p_build.add_argument("input", help="Standardized JSON or Excel workbook")
+    p_build.add_argument("input", help="Complete canonical StandardizedFinancials JSON or Excel workbook")
     p_build.add_argument(
         "-o",
         "--output",

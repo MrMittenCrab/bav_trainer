@@ -1,0 +1,743 @@
+{
+  "schema_version": "1.0",
+  "company": "lululemon athletica inc.",
+  "ticker": "LULU",
+  "report": {
+    "fiscal_year": 2023,
+    "fiscal_year_end": "2024-01-28",
+    "source_file": "LULU_FY2023_Annual_Report.pdf",
+    "reporting_basis": "Regional segment presentation: Americas, China Mainland, Rest of World; prior periods recast."
+  },
+  "extraction_policy": {
+    "purpose": "Source-grounded extraction of management-reported operating KPIs for later deterministic BAV validation/reconciliation.",
+    "reconciliation": "none",
+    "selection_rule": "Include management-reported operating KPIs, business-driver metrics, store/channel/product/geographic metrics, and explicit management growth targets. Exclude ordinary GAAP statement line items except where needed as KPI context. Do not infer missing values or reconcile repeated prior-period disclosures across filings.",
+    "provenance_rule": "Each observation is tied to the reporting section/page reference in this annual report."
+  },
+  "kpi_definitions": [
+    {
+      "definition_id": "comparable_sales_fy2023",
+      "metric_id": "comparable_sales_growth",
+      "reported_label": "Comparable sales",
+      "definition": "Comparable company-operated store and all e-commerce net revenue. E-commerce includes buy-online-pick-up-in-store, back-back room, ship-from-store, websites, regional websites, digital marketplaces, and mobile apps. Comparable company-operated stores must have been open, or open after significant expansion, for at least 12 full fiscal months. Excludes new/expanded stores under 12 months, temporarily relocated/closed stores, closed stores, and channels other than company-operated stores and e-commerce.",
+      "source": {
+        "section": "Item 7 — Comparable Sales and Sales Per Square Foot",
+        "page_reference": "Form 10-K p. 38"
+      }
+    },
+    {
+      "definition_id": "sales_per_square_foot_fy2023",
+      "metric_id": "sales_per_square_foot",
+      "reported_label": "Sales per square foot",
+      "definition": "Total net revenue from all company-operated stores divided by average ending square footage of stores for each period during the year. The 53rd week is excluded when applicable. Square footage includes selling, storage, and back-office retail-related space.",
+      "source": {
+        "section": "Item 7 — Sales Per Square Foot",
+        "page_reference": "Form 10-K p. 39"
+      }
+    }
+  ],
+  "reported_kpis": [
+    {
+      "metric_id": "net_revenue",
+      "reported_label": "Net revenue",
+      "category": "revenue",
+      "period": "FY2023",
+      "value": 9619278000,
+      "unit": "USD",
+      "basis": "reported",
+      "scope": {
+        "geography": "global"
+      },
+      "source": {
+        "section": "Item 7 — Overview / Results of Operations",
+        "page_reference": "Form 10-K p. 27"
+      }
+    },
+    {
+      "metric_id": "net_revenue_growth",
+      "reported_label": "Net revenue growth",
+      "category": "revenue_growth",
+      "period": "FY2023",
+      "value": 18.6,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "geography": "global"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Item 7 — Results of Operations",
+        "page_reference": "Form 10-K p. 33"
+      }
+    },
+    {
+      "metric_id": "comparable_sales_growth",
+      "reported_label": "Comparable sales growth",
+      "category": "comparable_sales",
+      "period": "FY2023",
+      "value": 13.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "geography": "global"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Item 7 — Results of Operations",
+        "page_reference": "Form 10-K p. 33"
+      },
+      "definition_id": "comparable_sales_fy2023"
+    },
+    {
+      "metric_id": "comparable_sales_growth_constant_dollar",
+      "reported_label": "Comparable sales growth on a constant dollar basis",
+      "category": "comparable_sales",
+      "period": "FY2023",
+      "value": 14.0,
+      "unit": "percent",
+      "basis": "constant_dollar",
+      "scope": {
+        "geography": "global"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Item 7 — Results of Operations",
+        "page_reference": "Form 10-K p. 33"
+      },
+      "definition_id": "comparable_sales_fy2023"
+    },
+    {
+      "metric_id": "americas_revenue",
+      "reported_label": "Americas net revenue",
+      "category": "geography",
+      "period": "FY2023",
+      "value": 7631647000,
+      "unit": "USD",
+      "basis": "reported",
+      "scope": {
+        "geography": "Americas"
+      },
+      "source": {
+        "section": "Item 1 — Americas",
+        "page_reference": "Form 10-K p. 3"
+      }
+    },
+    {
+      "metric_id": "americas_revenue_growth",
+      "reported_label": "Americas net revenue growth",
+      "category": "geographic_growth",
+      "period": "FY2023",
+      "value": 11.9,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "geography": "Americas"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Item 1 — Americas",
+        "page_reference": "Form 10-K p. 3"
+      }
+    },
+    {
+      "metric_id": "americas_comparable_sales_growth",
+      "reported_label": "Americas comparable sales growth",
+      "category": "comparable_sales",
+      "period": "FY2023",
+      "value": 8.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "geography": "Americas"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Item 7 — Comparison of 2023 to 2022",
+        "page_reference": "Form 10-K p. 34"
+      },
+      "definition_id": "comparable_sales_fy2023",
+      "drivers": {
+        "positive": [
+          "increased traffic"
+        ],
+        "negative": [
+          "lower dollar value per transaction",
+          "decreased conversion rates"
+        ]
+      }
+    },
+    {
+      "metric_id": "americas_comparable_sales_growth_constant_dollar",
+      "reported_label": "Americas comparable sales growth on a constant dollar basis",
+      "category": "comparable_sales",
+      "period": "FY2023",
+      "value": 9.0,
+      "unit": "percent",
+      "basis": "constant_dollar",
+      "scope": {
+        "geography": "Americas"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Item 7 — Comparison of 2023 to 2022",
+        "page_reference": "Form 10-K p. 34"
+      },
+      "definition_id": "comparable_sales_fy2023"
+    },
+    {
+      "metric_id": "china_mainland_revenue",
+      "reported_label": "China Mainland net revenue",
+      "category": "geography",
+      "period": "FY2023",
+      "value": 963760000,
+      "unit": "USD",
+      "basis": "reported",
+      "scope": {
+        "geography": "China Mainland"
+      },
+      "source": {
+        "section": "Item 1 — China Mainland",
+        "page_reference": "Form 10-K p. 3"
+      }
+    },
+    {
+      "metric_id": "china_mainland_revenue_growth",
+      "reported_label": "China Mainland net revenue growth",
+      "category": "geographic_growth",
+      "period": "FY2023",
+      "value": 67.2,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "geography": "China Mainland"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Item 1 — China Mainland",
+        "page_reference": "Form 10-K p. 3"
+      }
+    },
+    {
+      "metric_id": "china_mainland_comparable_sales_growth",
+      "reported_label": "China Mainland comparable sales growth",
+      "category": "comparable_sales",
+      "period": "FY2023",
+      "value": 39.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "geography": "China Mainland"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Item 7 — Comparison of 2023 to 2022",
+        "page_reference": "Form 10-K p. 34"
+      },
+      "definition_id": "comparable_sales_fy2023",
+      "drivers": {
+        "positive": [
+          "increased traffic"
+        ],
+        "negative": [
+          "decreased conversion rates",
+          "lower dollar value per transaction"
+        ]
+      }
+    },
+    {
+      "metric_id": "china_mainland_comparable_sales_growth_constant_dollar",
+      "reported_label": "China Mainland comparable sales growth on a constant dollar basis",
+      "category": "comparable_sales",
+      "period": "FY2023",
+      "value": 46.0,
+      "unit": "percent",
+      "basis": "constant_dollar",
+      "scope": {
+        "geography": "China Mainland"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Item 7 — Comparison of 2023 to 2022",
+        "page_reference": "Form 10-K p. 34"
+      },
+      "definition_id": "comparable_sales_fy2023"
+    },
+    {
+      "metric_id": "rest_of_world_revenue",
+      "reported_label": "Rest of World net revenue",
+      "category": "geography",
+      "period": "FY2023",
+      "value": 1023871000,
+      "unit": "USD",
+      "basis": "reported",
+      "scope": {
+        "geography": "Rest of World"
+      },
+      "source": {
+        "section": "Item 1 — Rest of World",
+        "page_reference": "Form 10-K p. 4"
+      }
+    },
+    {
+      "metric_id": "rest_of_world_revenue_growth",
+      "reported_label": "Rest of World net revenue growth",
+      "category": "geographic_growth",
+      "period": "FY2023",
+      "value": 42.9,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "geography": "Rest of World"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Item 1 — Rest of World",
+        "page_reference": "Form 10-K p. 4"
+      }
+    },
+    {
+      "metric_id": "rest_of_world_comparable_sales_growth",
+      "reported_label": "Rest of World comparable sales growth",
+      "category": "comparable_sales",
+      "period": "FY2023",
+      "value": 32.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "geography": "Rest of World"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Item 7 — Comparison of 2023 to 2022",
+        "page_reference": "Form 10-K p. 34"
+      },
+      "definition_id": "comparable_sales_fy2023",
+      "drivers": {
+        "positive": [
+          "increased traffic"
+        ],
+        "negative": [
+          "decreased conversion rates"
+        ]
+      }
+    },
+    {
+      "metric_id": "rest_of_world_comparable_sales_growth_constant_dollar",
+      "reported_label": "Rest of World comparable sales growth on a constant dollar basis",
+      "category": "comparable_sales",
+      "period": "FY2023",
+      "value": 33.0,
+      "unit": "percent",
+      "basis": "constant_dollar",
+      "scope": {
+        "geography": "Rest of World"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Item 7 — Comparison of 2023 to 2022",
+        "page_reference": "Form 10-K p. 34"
+      },
+      "definition_id": "comparable_sales_fy2023"
+    },
+    {
+      "metric_id": "americas_revenue_mix",
+      "reported_label": "Americas share of net revenue",
+      "category": "geographic_mix",
+      "period": "FY2023",
+      "value": 79.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "geography": "Americas"
+      },
+      "source": {
+        "section": "Item 1 — Our Markets and Segments",
+        "page_reference": "Form 10-K p. 2"
+      }
+    },
+    {
+      "metric_id": "china_mainland_revenue_mix",
+      "reported_label": "China Mainland share of net revenue",
+      "category": "geographic_mix",
+      "period": "FY2023",
+      "value": 10.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "geography": "China Mainland"
+      },
+      "source": {
+        "section": "Item 1 — Our Markets and Segments",
+        "page_reference": "Form 10-K p. 2"
+      }
+    },
+    {
+      "metric_id": "rest_of_world_revenue_mix",
+      "reported_label": "Rest of World share of net revenue",
+      "category": "geographic_mix",
+      "period": "FY2023",
+      "value": 11.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "geography": "Rest of World"
+      },
+      "source": {
+        "section": "Item 1 — Our Markets and Segments",
+        "page_reference": "Form 10-K p. 2"
+      }
+    },
+    {
+      "metric_id": "women_revenue_growth",
+      "reported_label": "Women's product range net revenue growth",
+      "category": "product_growth",
+      "period": "FY2023",
+      "value": 17.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "product": "women"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Item 7 — Overview",
+        "page_reference": "Form 10-K p. 27"
+      }
+    },
+    {
+      "metric_id": "men_revenue_growth",
+      "reported_label": "Men's product range net revenue growth",
+      "category": "product_growth",
+      "period": "FY2023",
+      "value": 15.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "product": "men"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Item 7 — Overview",
+        "page_reference": "Form 10-K p. 27"
+      }
+    },
+    {
+      "metric_id": "other_category_revenue_growth",
+      "reported_label": "Other categories net revenue growth",
+      "category": "product_growth",
+      "period": "FY2023",
+      "value": 36.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "product": "other categories"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Item 7 — Overview",
+        "page_reference": "Form 10-K p. 27"
+      }
+    },
+    {
+      "metric_id": "women_revenue_mix",
+      "reported_label": "Women's range share of net revenue",
+      "category": "product_mix",
+      "period": "FY2023",
+      "value": 64.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "product": "women"
+      },
+      "source": {
+        "section": "Item 1 — Our Products",
+        "page_reference": "Form 10-K p. 2"
+      }
+    },
+    {
+      "metric_id": "men_revenue_mix",
+      "reported_label": "Men's range share of net revenue",
+      "category": "product_mix",
+      "period": "FY2023",
+      "value": 23.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "product": "men"
+      },
+      "source": {
+        "section": "Item 1 — Our Products",
+        "page_reference": "Form 10-K p. 2"
+      }
+    },
+    {
+      "metric_id": "other_category_revenue_mix",
+      "reported_label": "Other product categories share of net revenue",
+      "category": "product_mix",
+      "period": "FY2023",
+      "value": 13.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "product": "other categories"
+      },
+      "source": {
+        "section": "Item 1 — Our Products",
+        "page_reference": "Form 10-K p. 2"
+      }
+    },
+    {
+      "metric_id": "company_operated_store_revenue_growth",
+      "reported_label": "Company-operated store net revenue growth",
+      "category": "channel_growth",
+      "period": "FY2023",
+      "value": 21.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "channel": "company_operated_stores"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Item 7 — Overview",
+        "page_reference": "Form 10-K p. 27"
+      }
+    },
+    {
+      "metric_id": "ecommerce_revenue_growth",
+      "reported_label": "E-commerce net revenue growth",
+      "category": "channel_growth",
+      "period": "FY2023",
+      "value": 17.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "channel": "ecommerce"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Item 7 — Overview",
+        "page_reference": "Form 10-K p. 27"
+      }
+    },
+    {
+      "metric_id": "sales_per_square_foot",
+      "reported_label": "Sales per square foot",
+      "category": "store_productivity",
+      "period": "FY2023",
+      "value": 1609,
+      "unit": "USD_per_square_foot",
+      "basis": "reported",
+      "scope": {
+        "channel": "company_operated_stores"
+      },
+      "source": {
+        "section": "Item 1 — Our Selling Channels",
+        "page_reference": "Form 10-K p. 4"
+      },
+      "definition_id": "sales_per_square_foot_fy2023"
+    },
+    {
+      "metric_id": "company_operated_store_count",
+      "reported_label": "Total company-operated stores",
+      "category": "store_footprint",
+      "period": "2024-01-28",
+      "value": 711,
+      "unit": "stores",
+      "basis": "reported",
+      "scope": {
+        "geography": "global"
+      },
+      "source": {
+        "section": "Item 1 — Our Selling Channels",
+        "page_reference": "Form 10-K pp. 4–5"
+      }
+    },
+    {
+      "metric_id": "net_new_company_operated_stores",
+      "reported_label": "Net new company-operated stores",
+      "category": "store_footprint",
+      "period": "FY2023",
+      "value": 56,
+      "unit": "stores",
+      "basis": "reported",
+      "scope": {
+        "geography": "global"
+      },
+      "source": {
+        "section": "Shareholder letter",
+        "page_reference": "Annual Report p. 2"
+      }
+    },
+    {
+      "metric_id": "square_footage_growth",
+      "reported_label": "Company-operated store square footage growth",
+      "category": "store_footprint",
+      "period": "FY2023",
+      "value": 15.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "geography": "global"
+      },
+      "comparison": "year_over_year",
+      "source": {
+        "section": "Shareholder letter",
+        "page_reference": "Annual Report p. 2"
+      }
+    },
+    {
+      "metric_id": "outlet_count",
+      "reported_label": "Outlets",
+      "category": "store_footprint",
+      "period": "2024-01-28",
+      "value": 47,
+      "unit": "outlets",
+      "basis": "reported",
+      "scope": {
+        "geography": "global"
+      },
+      "source": {
+        "section": "Item 1 — Other channels",
+        "page_reference": "Form 10-K p. 5"
+      }
+    },
+    {
+      "metric_id": "licensed_third_party_location_count",
+      "reported_label": "Retail locations operated by third parties under license and supply arrangements",
+      "category": "store_footprint",
+      "period": "2024-01-28",
+      "value": 39,
+      "unit": "locations",
+      "basis": "reported",
+      "scope": {
+        "geography": "global"
+      },
+      "source": {
+        "section": "Item 1 — Other channels",
+        "page_reference": "Form 10-K p. 5"
+      }
+    },
+    {
+      "metric_id": "membership_members",
+      "reported_label": "Membership program members",
+      "category": "membership",
+      "period": "FY2023",
+      "value": 17000000,
+      "unit": "members",
+      "basis": "reported",
+      "scope": {
+        "program": "lululemon membership"
+      },
+      "source": {
+        "section": "Shareholder letter",
+        "page_reference": "Annual Report p. 2"
+      },
+      "qualifiers": {
+        "operator": "greater_than",
+        "reported_phrase": "more than 17 million members"
+      }
+    },
+    {
+      "metric_id": "us_brand_awareness",
+      "reported_label": "Brand awareness — United States",
+      "category": "brand_awareness",
+      "period": "FY2023",
+      "value": 31.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "geography": "United States"
+      },
+      "source": {
+        "section": "Shareholder letter",
+        "page_reference": "Annual Report p. 2"
+      },
+      "qualifiers": {
+        "prior_period_value": 25.0
+      }
+    },
+    {
+      "metric_id": "china_mainland_brand_awareness",
+      "reported_label": "Brand awareness — China Mainland",
+      "category": "brand_awareness",
+      "period": "FY2023",
+      "value": 14.0,
+      "unit": "percent",
+      "basis": "reported",
+      "scope": {
+        "geography": "China Mainland"
+      },
+      "source": {
+        "section": "Shareholder letter",
+        "page_reference": "Annual Report p. 2"
+      },
+      "qualifiers": {
+        "prior_period_value": 9.0
+      }
+    }
+  ],
+  "store_counts_by_market": {
+    "as_of": "2024-01-28",
+    "company_operated": {
+      "United States": 367,
+      "Canada": 71,
+      "China Mainland": 127,
+      "Australia": 33,
+      "South Korea": 19,
+      "Hong Kong SAR": 9,
+      "Japan": 8,
+      "New Zealand": 8,
+      "Taiwan": 8,
+      "Singapore": 7,
+      "Malaysia": 3,
+      "Macau SAR": 2,
+      "Thailand": 1,
+      "United Kingdom": 20,
+      "Germany": 9,
+      "France": 6,
+      "Ireland": 4,
+      "Spain": 3,
+      "Netherlands": 2,
+      "Sweden": 2,
+      "Norway": 1,
+      "Switzerland": 1
+    },
+    "regional_totals": {
+      "Americas": 438,
+      "China Mainland": 127,
+      "APAC": 98,
+      "EMEA": 48
+    },
+    "total": 711,
+    "source": {
+      "section": "Item 1 — Our Selling Channels",
+      "page_reference": "Form 10-K pp. 4–5"
+    }
+  },
+  "management_targets": [
+    {
+      "target_id": "power_of_three_x2_2026",
+      "horizon": "FY2026",
+      "targets": {
+        "total_revenue": {
+          "value": 12500000000.0,
+          "unit": "USD"
+        },
+        "mens_business": {
+          "change_vs_2021": "double"
+        },
+        "digital_business": {
+          "change_vs_2021": "double"
+        },
+        "international_business": {
+          "change_vs_2021": "quadruple"
+        }
+      },
+      "source": {
+        "section": "Shareholder letter",
+        "page_reference": "Annual Report p. 2"
+      }
+    }
+  ]
+}

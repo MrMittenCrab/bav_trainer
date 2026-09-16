@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any
+from dataclasses import MISSING, fields, is_dataclass
+import math
+from types import UnionType
+from typing import Any, get_args, get_origin, get_type_hints
 
 from .historical_operating_kpis import validate_historical_operating_kpis
 from .historical_segments import validate_historical_segment
@@ -336,10 +339,82 @@ def standardized_to_payload(fin: StandardizedFinancials) -> dict:
     return payload
 
 
-def standardized_from_payload(payload: dict) -> StandardizedFinancials:
-    """Reconstruct StandardizedFinancials from a model-only payload."""
+def _validate_canonical_value(value: object, expected: object, path: str) -> None:
+    """Validate JSON against the model types, without coercion or unknown fields.
+
+    Deriving the shape from the canonical dataclasses keeps new historical
+    modules on the same path. Source/audit metadata is deliberately outside
+    the model-only serialization contract.
+    """
+    origin, args = get_origin(expected), get_args(expected)
+    if origin is UnionType:
+        if value is None and type(None) in args:
+            return
+        expected = next(item for item in args if item is not type(None))
+        return _validate_canonical_value(value, expected, path)
+    if is_dataclass(expected):
+        if not isinstance(value, dict):
+            raise ValueError(f"{path} must be an object")
+        excluded = {"metadata", "provenance", "source_doc", "source_page"}
+        model_fields = {f.name: f for f in fields(expected) if f.name not in excluded}
+        unknown = value.keys() - model_fields.keys()
+        if unknown:
+            raise ValueError(f"{path}: unsupported field(s): {', '.join(sorted(unknown))}")
+        required = {name for name, f in model_fields.items()
+                    if f.default is MISSING and f.default_factory is MISSING}
+        if expected is StandardizedFinancials:
+            required.update(("periods", "income_statement", "balance_sheet", "cash_flow"))
+        missing = required - value.keys()
+        if missing:
+            raise ValueError(f"{path}: missing field(s): {', '.join(sorted(missing))}")
+        hints = get_type_hints(expected)
+        for key, item in value.items():
+            _validate_canonical_value(item, hints[key], f"{path}.{key}")
+        return
+    if origin is list:
+        if not isinstance(value, list):
+            raise ValueError(f"{path} must be a list")
+        for index, item in enumerate(value):
+            _validate_canonical_value(item, args[0], f"{path}[{index}]")
+        return
+    if origin is dict:
+        if not isinstance(value, dict):
+            raise ValueError(f"{path} must be an object")
+        for key, item in value.items():
+            _validate_canonical_value(key, args[0], f"{path} key {key!r}")
+            _validate_canonical_value(item, args[1], f"{path}.{key}")
+        return
+    if expected is date:
+        try:
+            if not isinstance(value, str) or date.fromisoformat(value).isoformat() != value:
+                raise ValueError
+        except ValueError as exc:
+            raise ValueError(f"{path} must be a canonical YYYY-MM-DD date") from exc
+    elif expected is float:
+        try:
+            if type(value) not in (int, float) or not math.isfinite(value):
+                raise ValueError
+        except (ValueError, OverflowError) as exc:
+            raise ValueError(f"{path} must be a finite number") from exc
+    elif type(value) is not expected:
+        raise ValueError(f"{path} must be {expected.__name__}")
+
+
+def standardized_from_payload(payload: dict, *, strict: bool = False) -> StandardizedFinancials:
+    """Reconstruct the complete model; strict mode rejects lossy JSON coercions.
+
+    Existing internal round-trip callers retain their compatibility behavior.
+    User-supplied manual builds use strict mode before any workbook writes.
+    """
     if not isinstance(payload, dict):
         raise ValueError("standardized payload must be an object")
+    if strict:
+        _validate_canonical_value(payload, StandardizedFinancials, "standardized")
+        if not payload["periods"]:
+            raise ValueError("standardized.periods must not be empty")
+        dates = [entry["end_date"] for entry in payload["periods"]]
+        if len(dates) != len(set(dates)):
+            raise ValueError("standardized.periods contains duplicate end_date values")
     periods = [
         FinancialPeriod(
             end_date=_parse_date(entry["end_date"]),

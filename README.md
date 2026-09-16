@@ -20,20 +20,54 @@ Historical BAV Excel practice for Hong Kong-listed **non-financial** companies: 
 
 Forecasting, valuation, and investment conclusions are not active yet.
 
-## Quick start
+## Manual build
+
+Use `build/input/` for complete canonical BAV / `StandardizedFinancials` JSON
+and `build/output/` for generated workbooks. The entire `build/` directory is
+local and ignored by Git. From the repository root:
 
 ```bash
 pip install -r requirements-trainer.txt
+mkdir -p build/input build/output
 
-python -m core build example/DEMO_HK_Standardized.json \
-  -a example/DEMO_HK_Assumptions.json \
-  -o example/DEMO_HK_Trainer.xlsx
+# Place your complete canonical model at build/input/LULU.json, then:
+python -m core build build/input/LULU.json -o build/output/Lululemon
 
-python -m core list --workbook example/DEMO_HK_Trainer.xlsx
-python -m core check --workbook example/DEMO_HK_Trainer.xlsx
+python -m core list --workbook build/output/Lululemon_Trainer.xlsx
+python -m core check --workbook build/output/Lululemon_Trainer.xlsx
 ```
 
-Build produces `example/DEMO_HK_Trainer.xlsx` and `example/DEMO_HK_Answer_Key.xlsx`.
+The output argument is a **filename stem**, not a directory. This produces:
+
+- `build/output/Lululemon_Trainer.xlsx`
+- `build/output/Lululemon_Answer_Key.xlsx`
+- `build/output/Lululemon_Answer_Key.component_map.json`
+- `build/output/Lululemon_Answer_Key.assumptions.json`
+- `build/output/rowmap.json`
+
+Use separate output subdirectories for builds whose `rowmap.json` files must
+coexist. The existing `_Trainer.xlsx` output spelling and optional
+`-a path/to/assumptions.json` remain supported, as does Excel input.
+
+JSON input uses `core.data.standardized_io.standardized_from_payload`, with
+strict validation. Supply the model-only canonical format produced by
+`standardized_to_payload` / `reconcile`: company fields (including jurisdiction),
+periods, and all three statements, plus any supported historical modules.
+Historical shares, leases, geographic segments, and operating KPIs pass intact
+to the current workbook engine and its embedded Check context. The engine
+determines which schedules it currently supports; the CLI does not add modules
+or derive missing facts. Absent optional modules remain absent.
+
+Malformed JSON, duplicate keys, unknown fields (including nested fields),
+invalid types/dates, and unsupported model values fail with a nonzero exit and
+an error on stderr. Source-extraction JSON, provenance/audit wrappers, and the
+legacy partial HK JSON format are not canonical build inputs. Numeric strings
+and booleans are not accepted as financial amounts.
+
+Manual builds read their inputs and write the workbook pair and sidecars only
+at the requested output location. They do not reconcile filings, update plans,
+or run benchmark/release workflows. Destinations in `benchmark/` or `release/`
+are rejected; those workflows remain separate.
 
 ## How to practice
 
