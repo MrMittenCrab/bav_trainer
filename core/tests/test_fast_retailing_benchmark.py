@@ -1947,7 +1947,10 @@ def _mutate_workbook(path: Path, mutator) -> None:
     ],
 )
 def test_release_source_fidelity_corruptions(tmp_path: Path, target: str, mutation: str, expect_snip: str):
-    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_release_pair_contents,
+        _verify_release_pair_contract,
+    )
 
     before = _release_pair_fingerprints()
     trainer, answer = _copy_persisted_release_pair(tmp_path)
@@ -2005,8 +2008,8 @@ def test_release_source_fidelity_corruptions(tmp_path: Path, target: str, mutati
         apply(answer)
 
     with pytest.raises(ValueError, match=expect_snip):
-        _verify_release_pair_contract(
-            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        _verify_release_pair_contents(
+            trainer, answer, fin, skip_answer_key_yellow=True
         )
     assert _release_pair_fingerprints() == before
 
@@ -2014,7 +2017,10 @@ def test_release_source_fidelity_corruptions(tmp_path: Path, target: str, mutati
 @pytest.mark.parametrize("state", ["hidden", "veryHidden"])
 @pytest.mark.parametrize("target", ["trainer", "answer", "both"])
 def test_release_hidden_historical_sheet_rejected(tmp_path: Path, state: str, target: str):
-    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_release_pair_contents,
+        _verify_release_pair_contract,
+    )
 
     before = _release_pair_fingerprints()
     trainer, answer = _copy_persisted_release_pair(tmp_path)
@@ -2032,8 +2038,8 @@ def test_release_hidden_historical_sheet_rejected(tmp_path: Path, state: str, ta
         hide(answer)
 
     with pytest.raises(ValueError, match="required historical/practice sheet hidden"):
-        _verify_release_pair_contract(
-            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        _verify_release_pair_contents(
+            trainer, answer, fin, skip_answer_key_yellow=True
         )
     assert _release_pair_fingerprints() == before
 
@@ -2052,7 +2058,10 @@ def test_release_hidden_historical_sheet_rejected(tmp_path: Path, state: str, ta
 )
 def test_release_layout_parity_corruptions(tmp_path: Path, mutation: str, expect_snip: str):
     from openpyxl.styles import Font
-    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_release_pair_contents,
+        _verify_release_pair_contract,
+    )
 
     before = _release_pair_fingerprints()
     trainer, answer = _copy_persisted_release_pair(tmp_path)
@@ -2080,8 +2089,8 @@ def test_release_layout_parity_corruptions(tmp_path: Path, mutation: str, expect
     # Corrupt only Trainer so Answer Key remains the reference layout.
     _mutate_workbook(trainer, mut)
     with pytest.raises(ValueError, match=expect_snip):
-        _verify_release_pair_contract(
-            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        _verify_release_pair_contents(
+            trainer, answer, fin, skip_answer_key_yellow=True
         )
     assert _release_pair_fingerprints() == before
 
@@ -2106,7 +2115,9 @@ def test_release_contract_failure_surfaces_via_audit_stage(tmp_path: Path):
     )
     stages = _stage_map(result)
     assert stages["5_workbook_generation"].status == "fail"
-    assert "workbook=Trainer" in (stages["5_workbook_generation"].message or "")
+    assert "frozen compatibility pair is not authenticated" in (
+        stages["5_workbook_generation"].message or ""
+    )
     assert stages["6_blank_check"].status == "skipped"
     assert stages["7_filled_check"].status == "skipped"
     assert _release_pair_fingerprints() == before
@@ -2217,7 +2228,10 @@ def test_release_layout_bypass_corruptions(
     from openpyxl.styles import Alignment, Font
     from openpyxl.styles.colors import Color
     from openpyxl.xml.functions import QName, fromstring, tostring
-    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_release_pair_contents,
+        _verify_release_pair_contract,
+    )
 
     before = _release_pair_fingerprints()
     trainer, answer = _copy_persisted_release_pair(tmp_path)
@@ -2290,8 +2304,8 @@ def test_release_layout_bypass_corruptions(
         _apply_one_sided(trainer, answer, target, mut)
 
     with pytest.raises(ValueError, match=expect_snip):
-        _verify_release_pair_contract(
-            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        _verify_release_pair_contents(
+            trainer, answer, fin, skip_answer_key_yellow=True
         )
     assert _release_pair_fingerprints() == before
 
@@ -2314,7 +2328,10 @@ def test_release_layout_omitted_format_components(
     tmp_path: Path, mutation: str, expect_snip: str
 ):
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Protection, Side
-    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_release_pair_contents,
+        _verify_release_pair_contract,
+    )
 
     before = _release_pair_fingerprints()
     trainer, answer = _copy_persisted_release_pair(tmp_path)
@@ -2366,15 +2383,18 @@ def test_release_layout_omitted_format_components(
 
     _mutate_workbook(trainer, mut)
     with pytest.raises(ValueError, match=expect_snip):
-        _verify_release_pair_contract(
-            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        _verify_release_pair_contents(
+            trainer, answer, fin, skip_answer_key_yellow=True
         )
     assert _release_pair_fingerprints() == before
 
 
 def test_release_layout_positive_judgment_response_diff(tmp_path: Path):
     from openpyxl.comments import Comment
-    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_release_pair_contents,
+        _verify_release_pair_contract,
+    )
 
     before = _release_pair_fingerprints()
     trainer, answer = _copy_persisted_release_pair(tmp_path)
@@ -2388,8 +2408,8 @@ def test_release_layout_positive_judgment_response_diff(tmp_path: Path):
         ws["F5"].comment = Comment("response note", "learner")
 
     _mutate_workbook(trainer, mut)
-    msg = _verify_release_pair_contract(
-        trainer, answer, fin, allow_frozen_yellow_answer_key=True
+    msg = _verify_release_pair_contents(
+        trainer, answer, fin, skip_answer_key_yellow=True
     )
     assert "layout_parity=ok" in msg
     assert _release_pair_fingerprints() == before
@@ -2398,7 +2418,10 @@ def test_release_layout_positive_judgment_response_diff(tmp_path: Path):
 def test_release_layout_positive_equivalent_format_different_style_ids(tmp_path: Path):
     from openpyxl.styles import Font
     from openpyxl.styles.cell_style import StyleArray
-    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_release_pair_contents,
+        _verify_release_pair_contract,
+    )
 
     before = _release_pair_fingerprints()
     trainer, answer = _copy_persisted_release_pair(tmp_path)
@@ -2419,8 +2442,8 @@ def test_release_layout_positive_equivalent_format_different_style_ids(tmp_path:
         cell._style = StyleArray(style)
 
     _mutate_workbook(trainer, mut)
-    msg = _verify_release_pair_contract(
-        trainer, answer, fin, allow_frozen_yellow_answer_key=True
+    msg = _verify_release_pair_contents(
+        trainer, answer, fin, skip_answer_key_yellow=True
     )
     assert "layout_parity=ok" in msg
     assert _release_pair_fingerprints() == before
@@ -2446,7 +2469,9 @@ def test_release_layout_bypass_fails_audit_stage_and_cli(tmp_path: Path):
     )
     stages = _stage_map(result)
     assert stages["5_workbook_generation"].status == "fail"
-    assert "Accounting Judgment" in (stages["5_workbook_generation"].message or "")
+    assert "frozen compatibility pair is not authenticated" in (
+        stages["5_workbook_generation"].message or ""
+    )
     assert stages["6_blank_check"].status == "skipped"
     assert stages["7_filled_check"].status == "skipped"
 
@@ -2475,6 +2500,7 @@ def test_release_layout_bypass_fails_audit_stage_and_cli(tmp_path: Path):
     )
     assert completed.returncode != 0
     assert "5_workbook_generation: fail" in completed.stdout
+    assert "frozen compatibility pair is not authenticated" in completed.stdout
     assert _release_pair_fingerprints() == before
 
 
@@ -2505,7 +2531,10 @@ def test_release_layout_border_start_end_corruptions(
     tmp_path: Path, target: str, side: str, mutation: str, cell_kind: str
 ):
     from openpyxl.styles import Border, Side
-    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_release_pair_contents,
+        _verify_release_pair_contract,
+    )
 
     before = _release_pair_fingerprints()
     trainer, answer = _copy_persisted_release_pair(tmp_path)
@@ -2543,8 +2572,8 @@ def test_release_layout_border_start_end_corruptions(
 
     temp_before = _temp_pair_fingerprints(trainer, answer)
     with pytest.raises(ValueError, match=rf"component={component}") as excinfo:
-        _verify_release_pair_contract(
-            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        _verify_release_pair_contents(
+            trainer, answer, fin, skip_answer_key_yellow=True
         )
     msg = str(excinfo.value)
     assert f"sheet={sheet!r}" in msg
@@ -2562,7 +2591,10 @@ def test_release_layout_hyperlink_theme_definition_corruptions(
     from openpyxl.styles import Font
     from openpyxl.styles.colors import Color
     from openpyxl.xml.functions import QName, fromstring, tostring
-    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_release_pair_contents,
+        _verify_release_pair_contract,
+    )
 
     before = _release_pair_fingerprints()
     trainer, answer = _copy_persisted_release_pair(tmp_path)
@@ -2590,8 +2622,8 @@ def test_release_layout_hyperlink_theme_definition_corruptions(
 
     temp_before = _temp_pair_fingerprints(trainer, answer)
     with pytest.raises(ValueError, match=r"component=font_color") as excinfo:
-        _verify_release_pair_contract(
-            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        _verify_release_pair_contents(
+            trainer, answer, fin, skip_answer_key_yellow=True
         )
     msg = str(excinfo.value)
     assert f"sheet={sheet!r}" in msg
@@ -2603,7 +2635,10 @@ def test_release_layout_hyperlink_theme_definition_corruptions(
 @pytest.mark.parametrize("side", ["start", "end"])
 def test_release_layout_positive_matching_start_end_borders(tmp_path: Path, side: str):
     from openpyxl.styles import Border, Side
-    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_release_pair_contents,
+        _verify_release_pair_contract,
+    )
 
     before = _release_pair_fingerprints()
     trainer, answer = _copy_persisted_release_pair(tmp_path)
@@ -2618,8 +2653,8 @@ def test_release_layout_positive_matching_start_end_borders(tmp_path: Path, side
     _mutate_workbook(trainer, mut)
     _mutate_workbook(answer, mut)
     temp_before = _temp_pair_fingerprints(trainer, answer)
-    msg = _verify_release_pair_contract(
-        trainer, answer, fin, allow_frozen_yellow_answer_key=True
+    msg = _verify_release_pair_contents(
+        trainer, answer, fin, skip_answer_key_yellow=True
     )
     assert "layout_parity=ok" in msg
     assert _temp_pair_fingerprints(trainer, answer) == temp_before
@@ -2632,7 +2667,10 @@ def test_release_layout_positive_matching_hyperlink_theme_tint(
 ):
     from openpyxl.styles import Font
     from openpyxl.styles.colors import Color
-    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_release_pair_contents,
+        _verify_release_pair_contract,
+    )
 
     before = _release_pair_fingerprints()
     trainer, answer = _copy_persisted_release_pair(tmp_path)
@@ -2650,8 +2688,8 @@ def test_release_layout_positive_matching_hyperlink_theme_tint(
     _mutate_workbook(trainer, mut)
     _mutate_workbook(answer, mut)
     temp_before = _temp_pair_fingerprints(trainer, answer)
-    msg = _verify_release_pair_contract(
-        trainer, answer, fin, allow_frozen_yellow_answer_key=True
+    msg = _verify_release_pair_contents(
+        trainer, answer, fin, skip_answer_key_yellow=True
     )
     assert "layout_parity=ok" in msg
     assert _temp_pair_fingerprints(trainer, answer) == temp_before
@@ -2687,8 +2725,6 @@ def test_release_layout_border_hyperlink_fails_audit_stage_and_cli(
             )
 
         _mutate_workbook(trainer, mut)
-        expect_snip = f"component={kind}"
-        expect_sheet = "Income Statement"
     else:
         theme_index = payload
         scheme_name = "hlink" if theme_index == 10 else "folHlink"
@@ -2712,8 +2748,6 @@ def test_release_layout_border_hyperlink_fails_audit_stage_and_cli(
             wb.loaded_theme = tostring(root)
 
         _mutate_workbook(trainer, mut)
-        expect_snip = "component=font_color"
-        expect_sheet = "Income Statement"
 
     temp_before = _temp_pair_fingerprints(trainer, answer)
     result = run_audit(
@@ -2728,8 +2762,9 @@ def test_release_layout_border_hyperlink_fails_audit_stage_and_cli(
     )
     stages = _stage_map(result)
     assert stages["5_workbook_generation"].status == "fail"
-    assert expect_snip in (stages["5_workbook_generation"].message or "")
-    assert expect_sheet in (stages["5_workbook_generation"].message or "")
+    assert "frozen compatibility pair is not authenticated" in (
+        stages["5_workbook_generation"].message or ""
+    )
     assert stages["6_blank_check"].status == "skipped"
     assert stages["7_filled_check"].status == "skipped"
     assert _temp_pair_fingerprints(trainer, answer) == temp_before
@@ -2759,6 +2794,7 @@ def test_release_layout_border_hyperlink_fails_audit_stage_and_cli(
     )
     assert completed.returncode != 0
     assert "5_workbook_generation: fail" in completed.stdout
+    assert "frozen compatibility pair is not authenticated" in completed.stdout
     assert _temp_pair_fingerprints(trainer, answer) == temp_before
     assert _release_pair_fingerprints() == before
 
@@ -2766,6 +2802,7 @@ def test_release_layout_border_hyperlink_fails_audit_stage_and_cli(
 def _fresh_fast_retailing_pair(tmp_path: Path):
     from core.trainer.workbook import build_training_workbook
 
+    tmp_path.mkdir(parents=True, exist_ok=True)
     fin = standardized_from_payload(_load_json(STD_JSON))
     trainer, answer = build_training_workbook(
         fin, tmp_path / "FastRetailing_Trainer.xlsx"
@@ -2837,7 +2874,10 @@ def test_restyled_frozen_pair_current_contract_and_check(tmp_path: Path):
 
 
 def test_frozen_yellow_answer_key_rejected_without_exception(tmp_path: Path):
-    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_release_pair_contents,
+        _verify_release_pair_contract,
+    )
 
     before = _release_pair_fingerprints()
     trainer, answer = _copy_persisted_release_pair(tmp_path)
@@ -2852,7 +2892,7 @@ def test_frozen_yellow_exception_does_not_apply_to_current_pair(tmp_path: Path):
 
     trainer, answer, fin = _fresh_fast_retailing_pair(tmp_path)
     with pytest.raises(
-        ValueError, match="frozen yellow Answer Key exception does not apply"
+        ValueError, match="frozen compatibility pair is not authenticated"
     ):
         _verify_release_pair_contract(
             trainer, answer, fin, allow_frozen_yellow_answer_key=True
@@ -2861,7 +2901,10 @@ def test_frozen_yellow_exception_does_not_apply_to_current_pair(tmp_path: Path):
 
 def test_current_answer_key_yellow_practice_cell_rejected(tmp_path: Path):
     from openpyxl.styles import PatternFill
-    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_release_pair_contents,
+        _verify_release_pair_contract,
+    )
 
     trainer, answer, fin = _fresh_fast_retailing_pair(tmp_path)
 
@@ -2877,7 +2920,10 @@ def test_current_answer_key_yellow_practice_cell_rejected(tmp_path: Path):
 
 def test_current_answer_key_yellow_nonpractice_cell_rejected(tmp_path: Path):
     from openpyxl.styles import PatternFill
-    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_release_pair_contents,
+        _verify_release_pair_contract,
+    )
 
     trainer, answer, fin = _fresh_fast_retailing_pair(tmp_path)
 
@@ -2891,7 +2937,10 @@ def test_current_answer_key_yellow_nonpractice_cell_rejected(tmp_path: Path):
 
 def test_current_invalid_trainer_practice_fill_rejected(tmp_path: Path):
     from openpyxl.styles import PatternFill
-    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_release_pair_contents,
+        _verify_release_pair_contract,
+    )
 
     trainer, answer, fin = _fresh_fast_retailing_pair(tmp_path)
 
@@ -2909,7 +2958,10 @@ def test_current_invalid_trainer_practice_fill_rejected(tmp_path: Path):
 
 def test_current_unauthorized_fill_difference_rejected(tmp_path: Path):
     from openpyxl.styles import PatternFill
-    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_release_pair_contents,
+        _verify_release_pair_contract,
+    )
 
     trainer, answer, fin = _fresh_fast_retailing_pair(tmp_path)
 
@@ -2923,7 +2975,10 @@ def test_current_unauthorized_fill_difference_rejected(tmp_path: Path):
 
 def test_current_nonfill_corruption_at_practice_coordinate_rejected(tmp_path: Path):
     from openpyxl.styles import Font
-    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_release_pair_contents,
+        _verify_release_pair_contract,
+    )
 
     trainer, answer, fin = _fresh_fast_retailing_pair(tmp_path)
 
@@ -2976,3 +3031,362 @@ def test_saved_reopened_demo_both_judgment_modules(tmp_path: Path):
         assert NORMALIZATION_JUDGMENT_SHEET in awb.sheetnames
     finally:
         awb.close()
+
+
+def _set_scheme_color(wb, scheme_name: str, rgb: str) -> None:
+    from openpyxl.xml.functions import QName, fromstring, tostring
+
+    xlmns = "http://schemas.openxmlformats.org/drawingml/2006/main"
+    root = fromstring(wb.loaded_theme)
+    scheme = root.find(QName(xlmns, "themeElements").text).findall(
+        QName(xlmns, "clrScheme").text
+    )[0]
+    node = scheme.find(QName(xlmns, scheme_name).text)
+    child = list(node)[0]
+    child.set("val", rgb)
+    if "lastClr" in child.attrib:
+        child.set("lastClr", rgb)
+    wb.loaded_theme = tostring(root)
+
+
+def _answer_location_cell(wb, location: str):
+    if location == "practice":
+        return wb["Condensed Financials"]["B44"]
+    if location == "ordinary":
+        return wb["Income Statement"]["A6"]
+    if location == "hidden":
+        if "_Hidden" not in wb.sheetnames:
+            ws = wb.create_sheet("_Hidden")
+            ws.sheet_state = "hidden"
+        else:
+            ws = wb["_Hidden"]
+        cell = ws["A1"]
+        if cell.value in (None, ""):
+            cell.value = "hidden-probe"
+        return cell
+    raise AssertionError(location)
+
+
+def _paint_answer_yellow(wb, location: str, encoding: str) -> None:
+    from openpyxl.formatting.rule import CellIsRule, ColorScaleRule
+    from openpyxl.styles import GradientFill, PatternFill
+    from openpyxl.styles.colors import Color
+
+    cell = _answer_location_cell(wb, location)
+    if encoding == "indexed":
+        cell.fill = PatternFill(patternType="solid", fgColor=Color(indexed=5))
+    elif encoding == "darkGrid_fg":
+        cell.fill = PatternFill(
+            patternType="darkGrid", fgColor="FFFF00", bgColor="FFFFFF"
+        )
+    elif encoding == "darkGrid_bg":
+        cell.fill = PatternFill(
+            patternType="darkGrid", fgColor="FFFFFF", bgColor="FFFF00"
+        )
+    elif encoding == "theme":
+        _set_scheme_color(wb, "accent1", "FFFF00")
+        cell.fill = PatternFill(patternType="solid", fgColor=Color(theme=4))
+    elif encoding == "theme_tint":
+        _set_scheme_color(wb, "accent1", "FFFF00")
+        cell.fill = PatternFill(
+            patternType="solid", fgColor=Color(theme=4, tint=0.2)
+        )
+    elif encoding == "gradient":
+        cell.fill = GradientFill(stop=("FFFF00", "FFFFFF"))
+    elif encoding == "conditional_dxf":
+        yellow = PatternFill("solid", fgColor="FFFF00")
+        cell.parent.conditional_formatting.add(
+            cell.coordinate,
+            CellIsRule(operator="equal", formula=["1"], fill=yellow),
+        )
+    elif encoding == "color_scale":
+        cell.parent.conditional_formatting.add(
+            cell.coordinate,
+            ColorScaleRule(
+                start_type="min",
+                start_color="FFFF00",
+                end_type="max",
+                end_color="FFFFFF",
+            ),
+        )
+    else:
+        raise AssertionError(encoding)
+
+
+def test_frozen_compatibility_allowlist_matches_committed_release_pair():
+    from scripts.audit_fast_retailing_benchmark import (
+        FROZEN_COMPATIBILITY_ANSWER_KEY_SHA256,
+        FROZEN_COMPATIBILITY_CHECKPOINT,
+        FROZEN_COMPATIBILITY_TRAINER_SHA256,
+        _sha256_file,
+    )
+
+    assert FROZEN_COMPATIBILITY_CHECKPOINT == (
+        "3f6f5dde023847e3347a4c830d822614a28c81a9"
+    )
+    assert _sha256_file(RELEASE_TRAINER) == FROZEN_COMPATIBILITY_TRAINER_SHA256
+    assert _sha256_file(RELEASE_ANSWER) == FROZEN_COMPATIBILITY_ANSWER_KEY_SHA256
+
+
+def test_byte_identical_frozen_copy_qualifies_for_compatibility(tmp_path: Path):
+    from scripts.audit_fast_retailing_benchmark import (
+        FROZEN_COMPATIBILITY_ANSWER_KEY_SHA256,
+        FROZEN_COMPATIBILITY_TRAINER_SHA256,
+        _sha256_file,
+        _verify_release_pair_contract,
+    )
+
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+    assert _sha256_file(trainer) == FROZEN_COMPATIBILITY_TRAINER_SHA256
+    assert _sha256_file(answer) == FROZEN_COMPATIBILITY_ANSWER_KEY_SHA256
+    msg = _verify_release_pair_contract(
+        trainer, answer, _release_fin(), allow_frozen_yellow_answer_key=True
+    )
+    assert "layout_parity=ok" in msg
+
+
+@pytest.mark.parametrize("target", ["trainer", "answer"])
+def test_altered_frozen_member_rejected_with_compatibility_flag(
+    tmp_path: Path, target: str
+):
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    trainer, answer = _copy_persisted_release_pair(tmp_path)
+    fin = _release_fin()
+    path = trainer if target == "trainer" else answer
+    _mutate_workbook(path, lambda wb: setattr(wb["Income Statement"]["A1"], "value", "x"))
+    with pytest.raises(
+        ValueError, match="frozen compatibility pair is not authenticated"
+    ):
+        _verify_release_pair_contract(
+            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        )
+
+
+def test_fresh_and_fresh_yellow_pairs_rejected_with_compatibility_flag(tmp_path: Path):
+    from openpyxl.styles import PatternFill
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    trainer, answer, fin = _fresh_fast_retailing_pair(tmp_path)
+    with pytest.raises(
+        ValueError, match="frozen compatibility pair is not authenticated"
+    ):
+        _verify_release_pair_contract(
+            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        )
+
+    def mut(wb):
+        wb["Condensed Financials"]["B44"].fill = PatternFill(
+            "solid", start_color="FFFF00"
+        )
+
+    _mutate_workbook(answer, mut)
+    with pytest.raises(
+        ValueError, match="frozen compatibility pair is not authenticated"
+    ):
+        _verify_release_pair_contract(
+            trainer, answer, fin, allow_frozen_yellow_answer_key=True
+        )
+
+
+def test_mixed_historical_current_pairs_rejected_with_compatibility_flag(
+    tmp_path: Path,
+):
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    frozen_dir = tmp_path / "frozen"
+    frozen_dir.mkdir()
+    frozen_t, frozen_a = _copy_persisted_release_pair(frozen_dir)
+    current_dir = tmp_path / "current"
+    current_dir.mkdir()
+    current_t, current_a, fin = _fresh_fast_retailing_pair(current_dir)
+    with pytest.raises(
+        ValueError, match="frozen compatibility pair is not authenticated"
+    ):
+        _verify_release_pair_contract(
+            frozen_t, current_a, fin, allow_frozen_yellow_answer_key=True
+        )
+    with pytest.raises(
+        ValueError, match="frozen compatibility pair is not authenticated"
+    ):
+        _verify_release_pair_contract(
+            current_t, frozen_a, fin, allow_frozen_yellow_answer_key=True
+        )
+
+
+def test_current_style_contract_failure_skips_check_via_audit_and_cli(tmp_path: Path):
+    trainer, answer, _fin = _fresh_fast_retailing_pair(tmp_path)
+
+    def mut(wb):
+        wb["Income Statement"]["B7"] = 0
+
+    _mutate_workbook(trainer, mut)
+    result = run_audit(
+        standardized_json=STD_JSON,
+        trainer_path=trainer,
+        answer_key_path=answer,
+        require_check_counts=True,
+        verify_release_pair=True,
+    )
+    stages = _stage_map(result)
+    assert stages["5_workbook_generation"].status == "fail"
+    assert "workbook=Trainer" in (stages["5_workbook_generation"].message or "")
+    assert stages["6_blank_check"].status == "skipped"
+    assert stages["7_filled_check"].status == "skipped"
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(AUDIT),
+            "--standardized-json",
+            str(STD_JSON),
+            "--trainer",
+            str(trainer),
+            "--answer-key",
+            str(answer),
+            "--verify-release-pair",
+            "--require-check-counts",
+            "--no-baseline",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode != 0
+    assert "5_workbook_generation: fail" in completed.stdout
+    assert "workbook=Trainer" in completed.stdout
+
+
+@pytest.mark.parametrize("location", ["practice", "ordinary", "hidden"])
+@pytest.mark.parametrize(
+    "encoding,expect",
+    [
+        ("indexed", "Answer Key yellow fill"),
+        ("darkGrid_fg", "Answer Key yellow fill"),
+        ("darkGrid_bg", "Answer Key yellow fill"),
+        ("theme", "Answer Key yellow fill"),
+        ("theme_tint", "Answer Key yellow fill"),
+        ("gradient", "Answer Key yellow fill"),
+        ("conditional_dxf", "Answer Key yellow conditional formatting"),
+        ("color_scale", "Answer Key yellow conditional formatting"),
+    ],
+)
+def test_saved_reopened_encoded_yellow_rejected(
+    tmp_path: Path, location: str, encoding: str, expect: str
+):
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
+
+    trainer, answer, fin = _fresh_fast_retailing_pair(tmp_path)
+    _mutate_workbook(answer, lambda wb: _paint_answer_yellow(wb, location, encoding))
+    _save_reopen_workbook(answer)
+    with pytest.raises(ValueError, match=expect) as excinfo:
+        _verify_release_pair_contract(trainer, answer, fin)
+    msg = str(excinfo.value)
+    if encoding in {"conditional_dxf", "color_scale"}:
+        assert "range=" in msg
+        assert "sheet=" in msg
+    else:
+        assert "sheet=" in msg
+        assert "cell=" in msg
+    if location == "hidden":
+        assert "_Hidden" in msg
+
+
+def test_referenced_differential_yellow_rejected_when_embedded_dxf_cleared(
+    tmp_path: Path,
+):
+    from openpyxl import load_workbook
+    from scripts.audit_fast_retailing_benchmark import _verify_answer_key_no_yellow
+
+    trainer, answer, _fin = _fresh_fast_retailing_pair(tmp_path)
+    _mutate_workbook(
+        answer, lambda wb: _paint_answer_yellow(wb, "ordinary", "conditional_dxf")
+    )
+    _save_reopen_workbook(answer)
+    wb = load_workbook(answer, data_only=False)
+    try:
+        cleared = 0
+        for ws in wb.worksheets:
+            rules_map = getattr(ws.conditional_formatting, "_cf_rules", {})
+            if not isinstance(rules_map, dict):
+                continue
+            for _cf_obj, rules in rules_map.items():
+                for rule in rules:
+                    if getattr(rule, "dxfId", None) is not None:
+                        rule.dxf = None
+                        cleared += 1
+        assert cleared >= 1
+        with pytest.raises(
+            ValueError, match="Answer Key yellow conditional formatting"
+        ) as excinfo:
+            _verify_answer_key_no_yellow(wb)
+        assert "range=" in str(excinfo.value)
+        assert "sheet=" in str(excinfo.value)
+    finally:
+        wb.close()
+
+
+def test_white_and_non_yellow_fill_controls_pass_no_yellow(tmp_path: Path):
+    from openpyxl.formatting.rule import CellIsRule, ColorScaleRule
+    from openpyxl.styles import GradientFill, PatternFill
+    from openpyxl.styles.colors import Color
+    from scripts.audit_fast_retailing_benchmark import (
+        _verify_answer_key_no_yellow,
+        _verify_release_pair_contract,
+    )
+    from openpyxl import load_workbook
+
+    trainer, answer, fin = _fresh_fast_retailing_pair(tmp_path)
+    _save_reopen_workbook(answer)
+    wb = load_workbook(answer, data_only=False)
+    try:
+        _verify_answer_key_no_yellow(wb)
+    finally:
+        wb.close()
+
+    def mut(wb):
+        ws = wb["Income Statement"]
+        ws["A6"].fill = PatternFill("solid", fgColor="0000FF")
+        ws["A7"].fill = PatternFill(
+            patternType="darkGrid", fgColor="0000FF", bgColor="FFFFFF"
+        )
+        ws["A8"].fill = PatternFill(patternType="solid", fgColor=Color(indexed=2))
+        ws["A9"].fill = GradientFill(stop=("0000FF", "FFFFFF"))
+        if "_Hidden" not in wb.sheetnames:
+            hidden = wb.create_sheet("_Hidden")
+            hidden.sheet_state = "hidden"
+        else:
+            hidden = wb["_Hidden"]
+        hidden["A1"].fill = PatternFill("solid", fgColor="FFFFFF")
+        blue = PatternFill("solid", fgColor="0000FF")
+        ws.conditional_formatting.add(
+            "Z1", CellIsRule(operator="equal", formula=["1"], fill=blue)
+        )
+        ws.conditional_formatting.add(
+            "Z2",
+            ColorScaleRule(
+                start_type="min",
+                start_color="0000FF",
+                end_type="max",
+                end_color="FF0000",
+            ),
+        )
+
+    _mutate_workbook(answer, mut)
+    _save_reopen_workbook(answer)
+    wb = load_workbook(answer, data_only=False)
+    try:
+        _verify_answer_key_no_yellow(wb)
+    finally:
+        wb.close()
+
+    def match_blue(wb):
+        wb["Income Statement"]["A6"].fill = PatternFill("solid", fgColor="0000FF")
+
+    trainer2, answer2, fin2 = _fresh_fast_retailing_pair(tmp_path / "matched")
+    _mutate_workbook(trainer2, match_blue)
+    _mutate_workbook(answer2, match_blue)
+    _save_reopen_workbook(trainer2)
+    _save_reopen_workbook(answer2)
+    assert "layout_parity=ok" in _verify_release_pair_contract(trainer2, answer2, fin2)
+

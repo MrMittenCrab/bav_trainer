@@ -87,7 +87,13 @@ def _rgb_is_yellow(rgb: str) -> bool:
         blue = int(compact[4:6], 16)
     except ValueError:
         return False
-    return red >= 0xF0 and green >= 0xC0 and blue <= 0xCC
+    return (
+        red >= 0xC8
+        and green >= 0xC0
+        and blue <= 0x80
+        and (red - blue) >= 0x40
+        and (green - blue) >= 0x40
+    )
 
 
 def _font_color_is_black(font) -> bool:
@@ -155,22 +161,29 @@ def _assert_no_yellow_conditional_formatting(wb) -> None:
 
 
 def _assert_answer_key_no_yellow(path: Path) -> None:
+    from scripts.audit_fast_retailing_benchmark import (
+        _cell_has_yellow,
+        _cell_is_white_or_none,
+        _verify_answer_key_no_yellow,
+    )
+
     wb = load_workbook(path, data_only=False)
-    _assert_no_yellow_conditional_formatting(wb)
-    for ws in wb.worksheets:
-        max_row = ws.max_row or 1
-        max_col = ws.max_column or 1
-        for row in ws.iter_rows(min_row=1, max_row=max_row, min_col=1, max_col=max_col):
-            for cell in row:
-                rgb = _fill_rgb(cell)
-                assert not _rgb_is_yellow(rgb), (
-                    f"{ws.title}!{cell.coordinate} has yellow fill {rgb!r}"
-                )
-                if ws.sheet_state == "visible" and _cell_participates(cell):
-                    assert rgb in WHITE_RGBS, (
-                        f"{ws.title}!{cell.coordinate} expected white/no-fill, got {rgb!r}"
+    try:
+        _verify_answer_key_no_yellow(wb)
+        for ws in wb.worksheets:
+            max_row = ws.max_row or 1
+            max_col = ws.max_column or 1
+            for row in ws.iter_rows(min_row=1, max_row=max_row, min_col=1, max_col=max_col):
+                for cell in row:
+                    assert not _cell_has_yellow(cell), (
+                        f"{ws.title}!{cell.coordinate} has yellow fill"
                     )
-    wb.close()
+                    if ws.sheet_state == "visible" and _cell_participates(cell):
+                        assert _cell_is_white_or_none(cell), (
+                            f"{ws.title}!{cell.coordinate} expected white/no-fill"
+                        )
+    finally:
+        wb.close()
 
 
 def _assert_fresh_visible_style(

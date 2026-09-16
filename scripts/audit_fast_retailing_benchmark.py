@@ -33,6 +33,15 @@ WHITE_RGBS = frozenset({"", "FFFFFF"})
 YELLOW_RGBS = frozenset(
     {"FFFF00", "FFF2CC", "FFFF99", "FFEE00", "FFCC00", "FFE599"}
 )
+# Checkpoint-derived SHA-256 identities for the matched historical pair.
+# Do not replace these from candidate files, filenames, or yellow appearance.
+FROZEN_COMPATIBILITY_CHECKPOINT = "3f6f5dde023847e3347a4c830d822614a28c81a9"
+FROZEN_COMPATIBILITY_TRAINER_SHA256 = (
+    "546390001c69b2d05e7f16f730bacfed79a62817ea718e97bef079b4a6d014bd"
+)
+FROZEN_COMPATIBILITY_ANSWER_KEY_SHA256 = (
+    "f01241947745e4c5db4ceff9b445af3811f41eb5e2247a8c82c372de28bdec27"
+)
 FILL_COMPONENT_KEYS = frozenset(
     {
         "fill_kind",
@@ -96,42 +105,167 @@ _RGBMAX = 0xFF
 _HLSMAX = 240
 
 
-def _normalize_rgb_value(color) -> str:
-    if color is None:
-        return ""
-    rgb = getattr(color, "rgb", None)
-    if not rgb or not isinstance(rgb, str):
-        return ""
-    return str(rgb).upper().lstrip("0")[-6:] if rgb else ""
+@dataclass(frozen=True)
+class _FillReport:
+    rgbs: tuple[str, ...]
+    nonsolid: bool
+    unresolved: bool
+    blank: bool
+    solid_fg: str
 
 
-def _fill_rgb_from_fill(fill) -> str:
-    if not fill or getattr(fill, "fill_type", None) in (None, "none"):
-        return ""
-    for candidate in (
-        getattr(fill, "fgColor", None),
-        getattr(fill, "start_color", None),
-        getattr(fill, "bgColor", None),
-        getattr(fill, "end_color", None),
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _authenticate_frozen_compatibility_pair(
+    trainer_path: Path,
+    answer_key_path: Path,
+) -> None:
+    """Bind the historical exemption to checkpoint SHA-256 identities only."""
+    trainer_hash = _sha256_file(trainer_path)
+    answer_hash = _sha256_file(answer_key_path)
+    if (
+        trainer_hash != FROZEN_COMPATIBILITY_TRAINER_SHA256
+        or answer_hash != FROZEN_COMPATIBILITY_ANSWER_KEY_SHA256
     ):
-        rgb = _normalize_rgb_value(candidate)
-        if rgb:
-            return rgb
-    return ""
+        raise ValueError(
+            "frozen compatibility pair is not authenticated against "
+            f"checkpoint {FROZEN_COMPATIBILITY_CHECKPOINT}: "
+            f"trainer_sha256={trainer_hash} answer_sha256={answer_hash}"
+        )
+
+
+def _workbook_of(cell):
+    parent = getattr(cell, "parent", None)
+    return getattr(parent, "parent", None) if parent is not None else None
+
+
+def _color_context(wb) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    if wb is None:
+        return (), ()
+    return _theme_scheme_colors(wb), _indexed_palette(wb)
+
+
+def _compact_hex(value: str) -> str:
+    compact = str(value or "").upper().lstrip("#")
+    if len(compact) >= 6:
+        return compact[-6:]
+    return compact
+
+
+def _color_hex(
+    color,
+    *,
+    theme_colors: tuple[str, ...],
+    palette: tuple[str, ...],
+) -> tuple[str, bool]:
+    """Return (RRGGBB, unresolved). Missing color is ('', False)."""
+    if color is None or getattr(color, "type", None) is None:
+        return "", False
+    norm = _normalize_color(color, theme_colors=theme_colors, palette=palette)
+    if norm is None:
+        return "", False
+    kind, _value, _tint, effective = norm
+    if kind == "auto":
+        return "", False
+    hex6 = _compact_hex(str(effective or ""))
+    if not hex6 or hex6 == "AUTO":
+        return "", True
+    return hex6, False
+
+
+def _inspect_fill(
+    fill,
+    *,
+    theme_colors: tuple[str, ...],
+    palette: tuple[str, ...],
+) -> _FillReport:
+    if fill is None:
+        return _FillReport((), False, False, True, "")
+    fill_type = getattr(fill, "fill_type", None) or getattr(fill, "type", None)
+    pattern = getattr(fill, "patternType", None)
+    stops = getattr(fill, "stop", None)
+    is_gradient = bool(stops) or fill_type in {"linear", "path"}
+    if is_gradient and not hasattr(fill, "fgColor") and not hasattr(fill, "patternType"):
+        rgbs: list[str] = []
+        unresolved = False
+        for stop in stops or ():
+            rgb, bad = _color_hex(
+                getattr(stop, "color", None),
+                theme_colors=theme_colors,
+                palette=palette,
+            )
+            if bad:
+                unresolved = True
+            elif rgb:
+                rgbs.append(rgb)
+        if not rgbs and not unresolved:
+            unresolved = True
+        return _FillReport(tuple(rgbs), True, unresolved, False, "")
+
+    if fill_type in (None, "none") and not pattern:
+        return _FillReport((), False, False, True, "")
+
+    fg = getattr(fill, "fgColor", None) or getattr(fill, "start_color", None)
+    bg = getattr(fill, "bgColor", None) or getattr(fill, "end_color", None)
+    rgbs = []
+    unresolved = False
+    for color in (fg, bg):
+        rgb, bad = _color_hex(color, theme_colors=theme_colors, palette=palette)
+        if bad:
+            unresolved = True
+        elif rgb:
+            rgbs.append(rgb)
+    is_solid = fill_type == "solid" or pattern == "solid"
+    if is_solid:
+        fg_rgb, fg_bad = _color_hex(fg, theme_colors=theme_colors, palette=palette)
+        if fg_bad:
+            unresolved = True
+        return _FillReport(tuple(rgbs), False, unresolved, False, fg_rgb)
+    if not rgbs and not unresolved:
+        unresolved = True
+    return _FillReport(tuple(rgbs), True, unresolved, False, "")
+
+
+def _inspect_cell_fill(cell) -> _FillReport:
+    theme, palette = _color_context(_workbook_of(cell))
+    return _inspect_fill(
+        getattr(cell, "fill", None),
+        theme_colors=theme,
+        palette=palette,
+    )
+
+
+def _fill_has_yellow(report: _FillReport) -> bool:
+    return any(_rgb_is_yellow(rgb) for rgb in report.rgbs)
 
 
 def _fill_rgb(cell) -> str:
-    fill = cell.fill
-    if not fill or fill.fill_type != "solid":
+    """Resolved solid foreground RGB; non-solid/blank fills are empty."""
+    report = _inspect_cell_fill(cell)
+    if report.blank or report.nonsolid or report.unresolved:
         return ""
-    color = fill.fgColor.rgb or fill.start_color.rgb or ""
-    return str(color).upper().lstrip("0")[-6:] if color else ""
+    return report.solid_fg
+
+
+def _cell_has_yellow(cell) -> bool:
+    return _fill_has_yellow(_inspect_cell_fill(cell))
+
+
+def _cell_is_white_or_none(cell) -> bool:
+    report = _inspect_cell_fill(cell)
+    if report.nonsolid or report.unresolved or _fill_has_yellow(report):
+        return False
+    if report.blank:
+        return True
+    return report.solid_fg in WHITE_RGBS
 
 
 def _rgb_is_yellow(rgb: str) -> bool:
     if not rgb:
         return False
-    compact = str(rgb).upper()[-6:]
+    compact = _compact_hex(rgb)
     if compact in YELLOW_RGBS:
         return True
     try:
@@ -140,34 +274,91 @@ def _rgb_is_yellow(rgb: str) -> bool:
         blue = int(compact[4:6], 16)
     except ValueError:
         return False
-    return red >= 0xF0 and green >= 0xC0 and blue <= 0xCC
+    return (
+        red >= 0xC8
+        and green >= 0xC0
+        and blue <= 0x80
+        and (red - blue) >= 0x40
+        and (green - blue) >= 0x40
+    )
 
 
-def _iter_conditional_fills(ws):
+def _iter_conditional_rule_entries(ws):
     cf = ws.conditional_formatting
     rules_map = getattr(cf, "_cf_rules", None)
     if isinstance(rules_map, dict):
-        for _sqref, rules in rules_map.items():
+        for cf_obj, rules in rules_map.items():
+            sqref = str(getattr(cf_obj, "sqref", None) or cf_obj)
             for rule in rules:
-                dxf = getattr(rule, "dxf", None)
-                fill = getattr(dxf, "fill", None) if dxf is not None else None
-                if fill is not None:
-                    yield fill
+                yield sqref, rule
         return
     try:
         for cf_obj in cf:
+            sqref = str(getattr(cf_obj, "sqref", None) or cf_obj)
             rules = (
                 getattr(cf_obj, "cfRule", None)
                 or getattr(cf_obj, "rules", None)
                 or ()
             )
             for rule in rules:
-                dxf = getattr(rule, "dxf", None)
-                fill = getattr(dxf, "fill", None) if dxf is not None else None
-                if fill is not None:
-                    yield fill
+                yield sqref, rule
     except TypeError:
         return
+
+
+def _lookup_differential_style(wb, dxf_id):
+    styles = getattr(wb, "_differential_styles", None)
+    if styles is None or dxf_id is None:
+        return None
+    try:
+        return styles[int(dxf_id)]
+    except (TypeError, ValueError, IndexError, KeyError):
+        return None
+
+
+def _rule_differential_fill(wb, rule):
+    dxf = getattr(rule, "dxf", None)
+    fill = getattr(dxf, "fill", None) if dxf is not None else None
+    if fill is not None:
+        return fill, False
+    dxf_id = getattr(rule, "dxfId", None)
+    if dxf_id is None:
+        return None, False
+    dxf = _lookup_differential_style(wb, dxf_id)
+    if dxf is None:
+        return None, True
+    return getattr(dxf, "fill", None), False
+
+
+def _iter_conditional_color_reports(ws, wb):
+    theme, palette = _color_context(wb)
+    for sqref, rule in _iter_conditional_rule_entries(ws):
+        fill, unresolved_dxf = _rule_differential_fill(wb, rule)
+        if unresolved_dxf:
+            yield sqref, _FillReport((), False, True, False, ""), "differential"
+        elif fill is not None:
+            yield (
+                sqref,
+                _inspect_fill(fill, theme_colors=theme, palette=palette),
+                "differential",
+            )
+        color_scale = getattr(rule, "colorScale", None)
+        if color_scale is not None:
+            rgbs: list[str] = []
+            unresolved = False
+            for color in getattr(color_scale, "color", None) or ():
+                rgb, bad = _color_hex(
+                    color, theme_colors=theme, palette=palette
+                )
+                if bad:
+                    unresolved = True
+                elif rgb:
+                    rgbs.append(rgb)
+            yield (
+                sqref,
+                _FillReport(tuple(rgbs), True, unresolved, False, ""),
+                "colorScale",
+            )
 
 
 def _copy_release_pair_to_temp(
@@ -952,21 +1143,28 @@ def _verify_visible_layout_parity(
 
 def _verify_answer_key_no_yellow(wb_a) -> None:
     """Reject yellow fill or yellow conditional highlighting anywhere on the Answer Key."""
+    theme, palette = _color_context(wb_a)
     for ws in wb_a.worksheets:
-        for fill in _iter_conditional_fills(ws):
-            rgb = _fill_rgb_from_fill(fill)
-            if _rgb_is_yellow(rgb):
+        for sqref, report, kind in _iter_conditional_color_reports(ws, wb_a):
+            if report.unresolved:
+                raise ValueError(
+                    f"Answer Key unresolved conditional formatting: sheet={ws.title!r} "
+                    f"range={sqref} kind={kind}"
+                )
+            if _fill_has_yellow(report):
                 raise ValueError(
                     f"Answer Key yellow conditional formatting: sheet={ws.title!r} "
-                    f"fill={rgb!r}"
+                    f"range={sqref} kind={kind} fill={report.rgbs!r}"
                 )
         max_row = ws.max_row or 1
         max_col = ws.max_column or 1
         for row in range(1, max_row + 1):
             for col in range(1, max_col + 1):
                 cell = ws.cell(row=row, column=col)
-                rgb = _fill_rgb(cell)
-                if _rgb_is_yellow(rgb):
+                report = _inspect_fill(
+                    cell.fill, theme_colors=theme, palette=palette
+                )
+                if _fill_has_yellow(report):
                     raise ValueError(
                         f"Answer Key yellow fill: sheet={ws.title!r} "
                         f"cell={_cell_addr(row, col)}"
@@ -1002,14 +1200,13 @@ def _verify_practice_contract(
             raise ValueError(
                 f"Answer Key {comp.tab}!{comp.cell} missing non-empty Note"
             )
-        answer_rgb = _fill_rgb(ac)
         if allow_frozen_yellow_answer_key:
-            if answer_rgb != PRACTICE_YELLOW_RGB:
+            if _fill_rgb(ac) != PRACTICE_YELLOW_RGB:
                 raise ValueError(
                     f"Answer Key practice cell {comp.tab}!{comp.cell} not yellow"
                 )
         else:
-            if _rgb_is_yellow(answer_rgb) or answer_rgb not in WHITE_RGBS:
+            if _cell_has_yellow(ac) or not _cell_is_white_or_none(ac):
                 raise ValueError(
                     f"Answer Key practice cell {comp.tab}!{comp.cell} not white/no-fill"
                 )
@@ -1035,8 +1232,7 @@ def _verify_practice_contract(
             raise ValueError(f"Trainer judgment cell {sheet}!{addr} not yellow")
         if ac.value in (None, ""):
             raise ValueError(f"Answer Key judgment cell {sheet}!{addr} missing response")
-        answer_rgb = _fill_rgb(ac)
-        if _rgb_is_yellow(answer_rgb) or answer_rgb not in WHITE_RGBS:
+        if _cell_has_yellow(ac) or not _cell_is_white_or_none(ac):
             raise ValueError(
                 f"Answer Key judgment cell {sheet}!{addr} not white/no-fill"
             )
@@ -1056,12 +1252,12 @@ def _assert_frozen_yellow_answer_key_signature(wb_a, comps) -> None:
             )
 
 
-def _verify_release_pair_contract(
+def _verify_release_pair_contents(
     trainer_path: Path,
     answer_key_path: Path,
     fin,
     *,
-    allow_frozen_yellow_answer_key: bool = False,
+    skip_answer_key_yellow: bool = False,
 ) -> str:
     """Source fidelity, practice contract, visibility, and visible structural parity."""
     from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
@@ -1084,14 +1280,14 @@ def _verify_release_pair_contract(
         _verify_workbook_source_fidelity(wb_a, fin, workbook="Answer Key")
         _verify_required_visibility(wb_t, workbook="Trainer")
         _verify_required_visibility(wb_a, workbook="Answer Key")
-        if allow_frozen_yellow_answer_key:
+        if skip_answer_key_yellow:
             _assert_frozen_yellow_answer_key_signature(wb_a, comps)
         else:
             _verify_answer_key_no_yellow(wb_a)
         judgment_coords = _judgment_response_coords(wb_a)
         fill_exempt = (
             set()
-            if allow_frozen_yellow_answer_key
+            if skip_answer_key_yellow
             else set(practice_coords) | judgment_coords
         )
         _verify_visible_layout_parity(
@@ -1101,7 +1297,7 @@ def _verify_release_pair_contract(
             wb_t,
             wb_a,
             comps,
-            allow_frozen_yellow_answer_key=allow_frozen_yellow_answer_key,
+            allow_frozen_yellow_answer_key=skip_answer_key_yellow,
         )
     finally:
         wb_t.close()
@@ -1109,6 +1305,24 @@ def _verify_release_pair_contract(
     return (
         f"practice_cells={len(comps)} source_fidelity=ok "
         f"visibility=ok layout_parity=ok"
+    )
+
+
+def _verify_release_pair_contract(
+    trainer_path: Path,
+    answer_key_path: Path,
+    fin,
+    *,
+    allow_frozen_yellow_answer_key: bool = False,
+) -> str:
+    """Public pair contract. Frozen yellow exemption requires authenticated hashes."""
+    if allow_frozen_yellow_answer_key:
+        _authenticate_frozen_compatibility_pair(trainer_path, answer_key_path)
+    return _verify_release_pair_contents(
+        trainer_path,
+        answer_key_path,
+        fin,
+        skip_answer_key_yellow=allow_frozen_yellow_answer_key,
     )
 
 
@@ -1714,7 +1928,10 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help=(
             "Narrow frozen-pair compatibility: permit historical yellow Answer-Key "
-            "practice/judgment fills. Current-generation pairs must not use this flag."
+            "practice/judgment fills only when both workbook SHA-256 identities match "
+            f"checkpoint {FROZEN_COMPATIBILITY_CHECKPOINT}. "
+            "Current-generation, altered, mixed, and freshly generated pairs must not "
+            "use this flag."
         ),
     )
     parser.add_argument(
