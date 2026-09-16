@@ -179,7 +179,7 @@ The workbook need not grade free-form essays yet. Structured diagnostics and con
    - blank -> yellow;
    - correct -> green;
    - incorrect -> red.
-7. Open the matching Answer Key when the learner wants the formula or the concise Note hint.
+7. Open the matching Answer Key when the learner wants the formula or the concise Note hint. Answer-Key cells remain ordinary white/no-fill; the Answer Key must contain no yellow fill or yellow highlighting anywhere.
 
 The Answer Key is the sole answer-and-hint surface. Check validates only; it does not reveal answers.
 
@@ -203,11 +203,11 @@ The default test is: **does reconstructing this cell teach historical model logi
 - **Formula-construction focus.** Practice should teach model logic, not transcription.
 - **Exactly two user-facing workbooks.** One Trainer and one matching Answer Key.
 - **Trainer contains no active answers or hints.** Active formula-practice cells start blank yellow with no Note/comment.
-- **Answer Key contains formula + Note.** Matching practice cells contain the correct formula and a concise non-empty Note.
+- **Answer Key contains formula + Note and no yellow.** Matching practice cells contain the correct formula and a concise non-empty Note, but use ordinary white/no-fill formatting. No visible Answer-Key cell may use yellow fill or yellow highlighting.
 - **Workbook-wide Check.** One Check validates every active historical practice cell.
 - **Check is non-disclosing.** Aggregate counts are allowed; answers/formulas/hints are not printed or inserted.
-- **Visual parity.** Trainer and Answer Key share the same visible historical structure except practice contents and Answer-Key Notes.
-- **Minimal learner aesthetic.** Fresh visible cells use Aptos Narrow 11, non-bold, black text; ordinary cells are white; learner-editable/practice cells are bright yellow; no decorative borders or decorative fill colors. Green/red are reserved for functional Check feedback after validation.
+- **Visual parity.** Trainer and Answer Key share the same visible historical structure and typography except practice contents, Answer-Key Notes, and the intentional fill difference: Trainer practice cells are yellow while Answer-Key counterparts are ordinary white/no-fill.
+- **Minimal learner aesthetic.** Fresh visible cells use Aptos Narrow 11, non-bold, black text; ordinary cells are white; only learner-editable/practice cells in the Trainer are bright yellow; the Answer Key contains no yellow fill/highlight. Green/red are reserved for functional Check feedback after validation. No decorative borders or decorative fill colors.
 - **Semantic component mapping.** Practice formulas resolve by semantic identity rather than fragile static coordinates.
 - **Professional workbook preserved.** Training mode removes only selected learning cells; source facts and non-practice calculations remain populated.
 - **Standardized identity survives round trips.** Identity-bearing fields such as `LineItem.concept` survive supported standardized-data export/reload.
@@ -238,6 +238,20 @@ Do not jump from the release-gated historical-v1 baseline directly into forecast
 Step 9 remains the highest priority. Autonomous planning should continue historical work while there is a material, source-supported gap in the Step 9 roadmap. Do not advance merely because a convenient implementation milestone has been reached.
 
 However, Step 9 is not open-ended. Do not create low-value historical work merely to remain in Step 9.
+
+### Current analytical focus gate
+
+Until the following three analytical areas are acceptance-complete, autonomous planning should treat them as the **all-things-considered hard priority gate** for future work:
+
+1. **Geographic Analysis** — including the currently in-flight geographic workbook schedules, learner surface, and Check integration;
+2. **Operating KPIs**;
+3. **Normalization Judgment + Earnings Normalization**.
+
+Apply this gate without fighting the natural dependency order of the codebase. AutoCycle may choose among the three based on prerequisites, implementation dependencies, source availability, risk, and the highest-value next increment. It may also perform bounded work outside the three when that work is necessary to unblock, validate, repair, or preserve one of them or an already-accepted dependency. Such work is part of satisfying the gate, not a detour from it.
+
+While this gate is open, do not start an independent lower-priority analytical module merely because it is convenient. In particular, defer standalone work on **M&A Net Debt / Debt-Like Items Bridge**, **Complete NOPAT / RNOA**, and **Bear / Base / Bull Standalone Forecast** until the three focus areas above are acceptance-complete, except where a bounded dependency is strictly required to support or validate a focus area. Existing stage boundaries still apply, so forecasting/scenario work remains deferred until the historical and forecasting gates elsewhere in this target permit it.
+
+The current geographic workbook-schedule work already advances Priority 1 and should continue naturally rather than being restarted or displaced by this policy.
 
 ### Step 9 exit gate
 
@@ -306,7 +320,7 @@ For unattended development, always work on the lowest-numbered incomplete stage:
 
 Step 9 → Step 10 → Step 11 → Step 12.
 
-Within a stage, choose the highest-value unresolved dependency or defect, not cosmetic polish.
+Within Step 9, apply the **Current analytical focus gate** before the generic highest-value rule. Within any permitted scope, choose the highest-value unresolved dependency or defect, not cosmetic polish.
 
 Advance to the next stage only when the current stage's exit conditions are supported by repository evidence and tests.
 
@@ -338,7 +352,8 @@ The current historical baseline is complete when supported historical data for a
 - the historical model is internally coherent;
 - source facts remain populated;
 - active Trainer formula cells are blank yellow;
-- matching Answer-Key cells contain correct formulas and Notes;
+- matching Answer-Key cells contain correct formulas and Notes and are ordinary white/no-fill;
+- the Answer Key contains no yellow fill/highlight anywhere;
 - Check validates the full active surface without disclosing answers;
 - optional modules appear only when their required historical facts are supplied;
 - normal generation does not run forecasting/valuation code;
