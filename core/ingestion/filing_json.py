@@ -243,6 +243,14 @@ def load_extracted_filing(path: Path) -> ExtractedFiling:
     )
 
 
+def load_extracted_json_object(path: Path) -> dict[str, Any]:
+    """Load one extracted JSON object without schema dispatch."""
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"{Path(path).name}: extracted JSON must be an object")
+    return payload
+
+
 def extracted_filing_to_payload(filing: ExtractedFiling) -> dict[str, Any]:
     """Serialize ExtractedFiling to the stable v1.0 JSON shape."""
 

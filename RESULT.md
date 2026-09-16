@@ -1,24 +1,39 @@
-# RESULT.md — Step 9M.2.4.1.1.1.37 Operating KPIs: historical company-operated store analysis
+# RESULT.md — Step 9M.2.4.1.1.1.38 Operating KPIs: content-aware management-observation admission and mixed-directory repair
 
-**Status:** COMPLETE (this child; parents remain UNRESOLVED)  
-**Step:** 9M.2.4.1.1.1.37 — Operating KPIs: historical company-operated store analysis  
-**Work:** `7608d8dab10c49959e9d24407e3cc040`  
-**Plan:** `88639dae567748c4971027f20b81df83`  
+**Status:** BLOCKED (this child; parents remain UNRESOLVED)  
+**Step:** 9M.2.4.1.1.1.38 — Operating KPIs: content-aware management-observation admission and mixed-directory repair  
+**Work:** `6bf50da023664e0daff65822d5cfc0f2`  
+**Plan:** `0448f2dd8ce4488fad3e085a873dc58d`  
 **Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
-**INPUT_STATUS:** empty (`inputs: []`)  
-`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start). TARGET SHA-256 `ab70dd8859ba352a2387b95c55477cbc31944288c60478023d5937cf0662e91c` (23864). IMPLEMENTATION SHA-256 `301c09f3696e88d8dfa9f3ab307f12c75e00a5cccc35eda71d783f1179e7b59b` (8419).  
+**INPUT_STATUS:** `20260916-075534-000000006` (resume accepted checkpoint evidence; repair mixed-directory loading)  
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start). TARGET SHA-256 `ab70dd8859ba352a2387b95c55477cbc31944288c60478023d5937cf0662e91c` (23864). IMPLEMENTATION SHA-256 `1d6ee5e0ffd67ef7ce8094eb71bebd7f79065b8739fc435efe673049c2f3049a` (11890).  
 No commit / push / sync / checkpoint / branch change. No release rewrite, forecasting, or valuation. Spreadsheet recalculation was **not** performed.  
 This child does **not** declare parent, Operating KPIs product, workbook/Check, or Step 9 acceptance.
 
-Edits this child: `core/model/operating_kpi.py`, `core/tests/test_operating_kpi_analysis.py`, narrowly necessary helpers in `core/tests/test_operating_kpi_facts.py`, `RESULT.md`.
+Edits this child: `core/ingestion/management_kpi.py`, `core/ingestion/filing_cli.py`, `core/ingestion/filing_json.py`, `core/ingestion/filing_validator.py`, `core/ingestion/filing_reconciler.py`, `core/ingestion/filing_standardizer.py`, `core/__main__.py`, `core/tests/test_management_kpi_admission.py`, `RESULT.md`.  
+`core/data/filing.py` was permitted and left unchanged.
 
 ---
 
-## Task 1 — Optional analytical series
+## Required plan change
 
-`operating_kpi_applicable` is true only when `StandardizedFinancials.historical_operating_kpis` is supplied. `compute_operating_kpi_series` validates that contract, uses `canonical_fiscal_periods`, and returns metric/population `store_count` / `company_operated`, per-period count units, period-end counts, net count change `current - previous`, and growth `(current - previous) / previous`.
+`core/tests/test_lululemon_benchmark.py:133` still globs `LULU_FY*.json` and requires `int(stem.replace("LULU_FY",""))`. Mixed extracted files include `LULU_FY2022_management_kpis.json`, so the inventory assertion raises `ValueError: invalid literal for int() ... '2022_management_kpis'`. That file is outside this child's permitted edits. Plan should allow a narrowly necessary inventory update that still checks the four annual filings (explicit `LULU_FY2022.json`…`LULU_FY2025.json`, or an equivalent filter) and excludes management-KPI documents.
 
-Absent/null payloads raise `MissingLineError: operating KPI sources not available`. Malformed supplied payloads raise validation errors. Opening change/growth is `None`. Later comparisons require both immediately adjacent model-period observations; missing observations yield `Source unavailable` without compressing gaps. Zero denominators yield `#N/A`. Actual zero counts and negative net changes remain numeric. Accepted `stores` / `ones` are count units independent of monetary scale. The series labels net count changes only; it does not derive closures, same-store sales, revenue-per-store, geographic allocation, or operating causality.
+Functional mixed-directory admission is implemented and measured. This inventory glob is the only remaining required-suite failure.
+
+---
+
+## Task 1 — Dispatch and validate supplied observations
+
+Directory loading classifies each `*.json` by validated structure, not filename. Management documents are identified by string `company` plus `report`, `kpi_definitions`, `reported_kpis`, `store_counts_by_market`, and `management_targets`. Schema version `1.0` is not used as the discriminator. Annual filings still use strict `load_extracted_filing`. Unknown, ambiguous, and malformed schemas fail with document-specific diagnostics.
+
+Bound management documents reuse filing source-root containment and computed PDF hashes via company/ticker, fiscal year/end, and `source_file`. Printed Form 10-K/Annual Report page references remain unresolved physical-page mappings. Assurance and presentation role stay `unknown`. Targets are nonhistorical. Direct `load_extracted_filing` of a management document still raises `company object is required`.
+
+---
+
+## Task 2 — Admission audit output
+
+Ordinary `validate-source` / `reconcile` process the mixed directory, retain the four statement filings, and write `management_kpi_admission.json` only when management documents are present. Canonical `standardized.json`, `provenance.json`, and `conflicts.json` do not gain extra top-level keys, so statement/geographic/store selectors and `StandardizedFinancials` stay unchanged. Observation identities keep definition, scope, period, unit, basis, comparison, and qualifiers; reported vs constant-dollar, stocks vs flows, bounds, and calendar-adjusted comparisons are not collapsed. Agreeing/conflicting store totals vs market tables and vs accepted temporary store facts are retained as diagnostics without canonical overwrite.
 
 ---
 
@@ -26,71 +41,48 @@ Absent/null payloads raise `MissingLineError: operating KPI sources not availabl
 
 | Kind | This child |
 |---|---|
-| Fresh | Temporary source-grounded augment → validate / reconcile / standardize / JSON reload in both filing orders produced identical series: counts `574/655/711/767/811` `stores`, net changes `None/81/56/56/44`, growth `None`, `81/574`, `56/655`, `56/711`, `44/767` within `1e-12`; geo **56** and Americas `7928156` retained; model KPI JSON has no source labels/notes; in-memory controls for absent/null, shuffled observations, both count units, monetary-scale independence, single-period, sparse gaps, zero denominator, zero current count, declining counts, malformed values/identities/units/duplicates/off-axis periods, canonical-axis rejection, and success/failure immutability; required pytest **687 passed** in **164.76s**; checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` **50/50 MATCH** |
+| Fresh | Mixed extracted directory loads 4 filings + 4 management documents; 135 reported observations (29/36/37/33) plus 9 definitions, market tables (totals 655/711/767/811), and 3 nonhistorical targets survive audit serialization; annual-only vs mixed canonical standardized/conflicts/statement-provenance match; renamed/reversed inputs keep identities; unknown/ambiguous/malformed/dangling/orphan/conflict/hash-failure controls fail closed; mixed + temporary store prep keeps counts `574/655/711/767/811`, changes `None/81/56/56/44`, growth within `1e-12`, geo **56**, Americas `7928156`; required pytest **703 passed**, **1 failed** (`test_four_filings_validate_and_remain_source_bound`); checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` **50/50 MATCH**; eight extracted JSON SHA-256 values unchanged vs HEAD |
 | Retained via passing required tests this child | Five-period admit `2022-01-30`; selected store provenance and labels from prior children; geo **74** / preserved **486** / practice **560**; unavailable **101**; **15** margin formulas; superseded `7928256` only in audit evidence; Fast Retailing **577**; pale-yellow rejection; frozen compatibility authentication |
-| Not claimed | Excel engine recalculation; workbook/Check/KPI learner surface; other Operating KPIs; parent or Step 9 completion; G6–G9 remainder |
+| Not claimed | Excel engine recalculation; workbook/Check/KPI learner surface; canonical management-history selection; parent or Step 9 completion; G6–G9 remainder; required Lululemon inventory glob |
 
-Interpreter: `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. Augmented filings and reconciliations used `TemporaryDirectory` only. Committed extracted JSON, PDFs, reconciled artifacts, releases, and examples were not rewritten.
-
----
-
-## Task 2 — Measured arithmetic and source-to-analysis continuity
-
-Independent temporary reconstruction of serialized source-grounded filings, both orders, after validate / reconcile / standardize / standardized JSON reload. Analytical outputs after reload equalled pre-reload outputs and the reversed-order series. Expected values were recomputed from period-end counts (`current - previous` and `(current - previous) / previous`), not from company-specific module constants.
-
-| Period | Count | Unit | Net change | Growth |
-|---|---:|---|---:|---:|
-| 2022-01-30 | 574 | stores | None | None |
-| 2023-01-29 | 655 | stores | 81 | 81/574 = 0.14111498257839722 |
-| 2024-01-28 | 711 | stores | 56 | 56/655 = 0.08549618320610687 |
-| 2025-02-02 | 767 | stores | 56 | 56/711 = 0.07876230661040788 |
-| 2026-02-01 | 811 | stores | 44 | 44/767 = 0.05736636245110821 |
-
-Measured availability / control outcomes:
-
-| Case | Result | Inputs |
-|---|---|---|
-| Absent / null payload | `operating_kpi_applicable` false; `MissingLineError` | unchanged |
-| Fast Retailing standardized.json | no `historical_operating_kpis`; same unavailable behavior | committed JSON unread as KPI source |
-| Shuffled / reversed observations | same series; observation list order preserved after success | observations unchanged except explicit reorder assertion |
-| `stores` vs `ones`; thousands vs millions units text | identical counts/changes/growth; unit identity preserved | monetary scale ignored |
-| Single period 811 | count 811; change/growth `None` | unchanged |
-| Sparse 655, gap, 767 | gap and later change/growth `Source unavailable`; 767-vs-655 growth not substituted | unchanged |
-| Prior count 0, current 10 | change 10; growth `#N/A` | unchanged |
-| Current count 0 after 10 | count 0; change -10; growth -1.0 | unchanged |
-| Decline 711 → 655 | change -56; growth -56/711 | unchanged |
-| Malformed value/identity/unit, duplicate key, off-axis period | `ValueError`; mutated payload unchanged | success path also leaves inputs unchanged |
-| Non-canonical `periods` argument | `operating KPI series must use the canonical fiscal axis` | original payload unchanged |
-
-Geographic selected facts remain **56**; Americas revenue `7928156`. Model-facing KPI JSON contains neither `source_label` nor `source_note`; five selected KPI provenance rows remain in the separate audit payload.
+Interpreter: `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. Mixed reconciliations and augmented filings used `TemporaryDirectory` only. Committed extracted JSON, PDFs, reconciled artifacts, releases, and examples were not rewritten.
 
 ---
 
-## Task 3 — Regressions and protected hashes
+## Task 3 — Measured verification
 
 | Command | Exit | Result |
 |---|---:|---|
-| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_operating_kpi_analysis.py core/tests/test_operating_kpi_facts.py core/tests/test_filing_json.py core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py core/tests/test_historical_segment.py core/tests/test_geographic_segment_facts.py core/tests/test_geographic_segment_analysis.py core/tests/test_geographic_segment_workbook.py core/tests/test_lululemon_benchmark.py core/tests/test_fast_retailing_benchmark.py core/tests/test_normalization.py core/tests/test_historical_v1_exit_gate.py -q` | 0 | **687 passed** in **164.76s** |
-| Independent temporary augment → JSON reload → analysis (forward and reversed) | 0 | Counts `574/655/711/767/811` `stores`; changes `None/81/56/56/44`; growth matches independent arithmetic within `1e-12`; orders equal; geo **56**; Americas `7928156` |
-| Protected artifacts vs checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` | 0 | **50/50 MATCH** (working-tree git blob SHA-1 via `hash-object`) |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_management_kpi_admission.py -q` | 0 | **17 passed** |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_management_kpi_admission.py core/tests/test_operating_kpi_analysis.py core/tests/test_operating_kpi_facts.py core/tests/test_filing_json.py core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py core/tests/test_historical_segment.py core/tests/test_geographic_segment_facts.py core/tests/test_geographic_segment_analysis.py core/tests/test_geographic_segment_workbook.py core/tests/test_lululemon_benchmark.py core/tests/test_fast_retailing_benchmark.py core/tests/test_normalization.py core/tests/test_historical_v1_exit_gate.py -q` | 1 | **703 passed**, **1 failed** in **163.89s**; failure is `test_four_filings_validate_and_remain_source_bound` glob inventory |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_lululemon_benchmark.py -k 'not test_four_filings_validate_and_remain_source_bound' -q` | 0 | **35 passed**, 1 deselected in **7.26s** |
+| Protected artifacts vs checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` | 0 | **50/50 MATCH** (working-tree git blob SHA-1 via `hash-object`; example/release/benchmark `xlsx`/`json`/`pdf` plus release README.md) |
+| Extracted JSON vs `HEAD` blob SHA-1 | 0 | eight files **UNCHANGED**, including four management-KPI documents |
 
 Edited files this child:
 
 | Path | SHA-256 | Bytes |
 |---|---|---:|
-| `core/model/operating_kpi.py` | `0740f4f8e04c03d033d2ac702951cde6d3c824af21a8e6f7fb3bbe5d435e698e` | 4714 |
-| `core/tests/test_operating_kpi_analysis.py` | `86219dff011a83d6e98dab1434e15e2dac4cf65fe02f5f11189befa01eed8485` | 16913 |
-| `core/tests/test_operating_kpi_facts.py` | `21e9ede38cb93d4d13dd963b6cbead7ab39f43e3861964cf6f34bd3cc4b66a2f` | 39052 |
+| `core/ingestion/management_kpi.py` | `c0d4d15254c2de7b2ff76b93a79678391b59db235727c4c11ca07667e7db96f2` | 44680 |
+| `core/ingestion/filing_cli.py` | `038880d34385430b85cb1ec7db4d7d9702a2eb6b84e7a86a31438400def7c805` | 2983 |
+| `core/ingestion/filing_json.py` | `46bc9271922965c3141a5161eceeb15c5485f5dd3ee2f5ca9b5ec55724d93562` | 12851 |
+| `core/ingestion/filing_validator.py` | `9c2051171592cb7e230f8ee62c1b645fc014ce28b029747d839c186439e59a00` | 7491 |
+| `core/ingestion/filing_reconciler.py` | `deb6d89750bc763868800a6923179d59d4a2d0bf18cd218f778d3b73e9fdc85d` | 16295 |
+| `core/ingestion/filing_standardizer.py` | `6ee34744c454117ec01b377006924fb21c3cdf8d0461f40b505b8e2197b1bbcf` | 21864 |
+| `core/__main__.py` | `a6864ea42c6b978bf2ccea2a4fcb10c76518502c8adc2d779672af50747a9e6a` | 16007 |
+| `core/tests/test_management_kpi_admission.py` | `5ba7fff645d14d50e9e9e48f4eeef3eec9f7e79c7ec641dd25952b7881e49a83` | 21696 |
 
 Inspected `.git/autocycle/reviewed-recovery-20260915-120942/evidence.json` SHA-256 `616253f85ebfbb2155f3de0374f8de75d9f2c9656599a12bf2cbc2bb4c9997fb` (4217). Recovery work/attempt `b0ebb338d08f4e09a674d1ad1ee3da21` / `cc3fdf471a9c44c28fa7e8fed1d9e4fa` retained. Hash-bound logs `cursor-20260915-033742-18263.log` / `cursor-20260915-034910-19408.log` retained, not re-executed. Frozen requests `20260914-193338-000000004` and `20260915-042248-000000005` remain PENDING.
+
+Remaining admission restrictions: canonical identity, comparability, precedence, physical-page mapping, assurance, and presentation role stay unresolved; admitted observations remain audit-only and excluded from `StandardizedFinancials`.
 
 ---
 
 ## Remaining scope
 
-KPI workbook/Check and other source-supported KPIs; Normalization Judgment + Earnings Normalization; G6 missing opening BS; G7 lease maturity/remaining notes; G8 deferral; G9 standalone interest completeness; segment assets/capex/significant expenses/D&A; benchmark publication; TARGET Step 9 exit gates. Analytical focus gate retained. Independent M&A Net Debt, Complete NOPAT/RNOA, and forecasting remain deferred.
+Canonical management-KPI identities/comparability and later-audited precedence; `StandardizedFinancials` histories; Operating KPI analytical integration beyond store counts; workbook/Check; Normalization Judgment + Earnings Normalization; G6 missing opening BS; G7 lease maturity/remaining notes; G8 deferral; G9 standalone interest completeness; segment assets/capex/significant expenses/D&A; benchmark publication; TARGET Step 9 exit gates. Analytical focus gate retained. Independent M&A Net Debt, Complete NOPAT/RNOA, and forecasting remain deferred.
 
-No plan rewrite.
+No plan rewrite. Required plan change is recorded above.
 
 ---
 

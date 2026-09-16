@@ -63,6 +63,64 @@ def _is_within_source_root(root: Path, candidate: Path) -> bool:
         return False
 
 
+def bind_source_file(
+    source_file: str,
+    *,
+    source_root: Path,
+    declared_sha256: str = "",
+) -> tuple[tuple[FilingValidationIssue, ...], str | None]:
+    """Contain a portable source_file and optionally verify its SHA-256."""
+    issues: list[FilingValidationIssue] = []
+    root = Path(source_root).resolve()
+    raw = Path(source_file)
+    # Reject POSIX/Windows absolute paths and any ".." segment before
+    # existence checks or hashing so escaped candidates are never read.
+    if (
+        raw.is_absolute()
+        or PureWindowsPath(source_file).is_absolute()
+        or ".." in raw.parts
+    ):
+        issues.append(
+            FilingValidationIssue(
+                "error",
+                "invalid_source_path",
+                f"source_file must be a portable relative path inside "
+                f"source_root: {source_file!r}",
+            )
+        )
+        return tuple(issues), None
+    candidate = (root / source_file).resolve()
+    if not _is_within_source_root(root, candidate):
+        issues.append(
+            FilingValidationIssue(
+                "error",
+                "invalid_source_path",
+                f"source_file escapes source_root: {source_file!r}",
+            )
+        )
+        return tuple(issues), None
+    if not candidate.is_file():
+        issues.append(
+            FilingValidationIssue(
+                "error",
+                "source_file_missing",
+                f"source file missing: {candidate}",
+            )
+        )
+        return tuple(issues), None
+    computed = hashlib.sha256(candidate.read_bytes()).hexdigest()
+    declared = declared_sha256.strip()
+    if declared and declared != computed:
+        issues.append(
+            FilingValidationIssue(
+                "error",
+                "source_hash_mismatch",
+                f"declared source_sha256 {declared} != computed {computed}",
+            )
+        )
+    return tuple(issues), computed
+
+
 def validate_extracted_filing(
     filing: ExtractedFiling,
     *,
@@ -73,53 +131,12 @@ def validate_extracted_filing(
     computed: str | None = None
 
     if source_root is not None:
-        source_file = filing.filing.source_file
-        root = Path(source_root).resolve()
-        raw = Path(source_file)
-        # Reject POSIX/Windows absolute paths and any ".." segment before
-        # existence checks or hashing so escaped candidates are never read.
-        if (
-            raw.is_absolute()
-            or PureWindowsPath(source_file).is_absolute()
-            or ".." in raw.parts
-        ):
-            issues.append(
-                FilingValidationIssue(
-                    "error",
-                    "invalid_source_path",
-                    f"source_file must be a portable relative path inside "
-                    f"source_root: {source_file!r}",
-                )
-            )
-        else:
-            candidate = (root / source_file).resolve()
-            if not _is_within_source_root(root, candidate):
-                issues.append(
-                    FilingValidationIssue(
-                        "error",
-                        "invalid_source_path",
-                        f"source_file escapes source_root: {source_file!r}",
-                    )
-                )
-            elif not candidate.is_file():
-                issues.append(
-                    FilingValidationIssue(
-                        "error",
-                        "source_file_missing",
-                        f"source file missing: {candidate}",
-                    )
-                )
-            else:
-                computed = hashlib.sha256(candidate.read_bytes()).hexdigest()
-                declared = filing.filing.source_sha256.strip()
-                if declared and declared != computed:
-                    issues.append(
-                        FilingValidationIssue(
-                            "error",
-                            "source_hash_mismatch",
-                            f"declared source_sha256 {declared} != computed {computed}",
-                        )
-                    )
+        bind_issues, computed = bind_source_file(
+            filing.filing.source_file,
+            source_root=source_root,
+            declared_sha256=filing.filing.source_sha256,
+        )
+        issues.extend(bind_issues)
 
     statements = {
         "income_statement": filing.income_statement,

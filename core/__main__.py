@@ -19,6 +19,7 @@ from .ingestion.filing_cli import load_and_validate_extracted_dir
 from .ingestion.filing_reconciler import reconcile_filings
 from .ingestion.filing_standardizer import (
     reconciliation_conflicts_payload,
+    reconciliation_management_admission_payload,
     reconciliation_provenance_payload,
     standardize_reconciled,
 )
@@ -211,10 +212,26 @@ def cmd_validate_source(args: argparse.Namespace) -> int:
             warnings += 1
             print(f"WARN {label}: {issue.code}: {issue.message}")
 
+    management_docs = getattr(validated, "management_documents", ())
+    for bound in management_docs:
+        label = bound.document.extraction_document
+        if bound.ok:
+            print(
+                f"OK management-kpi {label} "
+                f"sha256={bound.bound_source_sha256} "
+                f"status=admitted_unreconciled"
+            )
+        else:
+            hard_errors += len(bound.issues)
+            for issue in bound.issues:
+                print(f"ERROR {label}: {issue.code}: {issue.message}")
+
     print(
         f"validated {len(validated)} filing(s): "
         f"{hard_errors} error(s), {warnings} warning(s)"
     )
+    if management_docs:
+        print(f"management-kpi documents: {len(management_docs)}")
     return 0 if hard_errors == 0 else 1
 
 
@@ -229,11 +246,20 @@ def cmd_reconcile(args: argparse.Namespace) -> int:
         print(f"error: {exc}")
         return 1
 
-    if any(not report.ok for _, report in validated):
+    if any(not report.ok for _, report in validated) or any(
+        not bound.ok
+        for bound in getattr(validated, "management_documents", ())
+    ):
         for filing, report in validated:
             for issue in report.errors:
                 print(
                     f"ERROR {filing.filing.source_file}: "
+                    f"{issue.code}: {issue.message}"
+                )
+        for bound in getattr(validated, "management_documents", ()):
+            for issue in bound.issues:
+                print(
+                    f"ERROR {bound.document.extraction_document}: "
                     f"{issue.code}: {issue.message}"
                 )
         print("reconcile aborted: validation errors present; wrote no artifacts")
@@ -270,6 +296,9 @@ def cmd_reconcile(args: argparse.Namespace) -> int:
         "provenance.json": provenance,
         "conflicts.json": conflicts,
     }
+    management_payload = reconciliation_management_admission_payload(reconciled)
+    if management_payload is not None:
+        artifacts["management_kpi_admission.json"] = management_payload
     for name, payload in artifacts.items():
         (out_dir / name).write_text(
             json.dumps(payload, indent=2, sort_keys=True) + "\n",

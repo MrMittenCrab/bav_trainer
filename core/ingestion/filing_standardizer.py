@@ -502,6 +502,17 @@ def reconciliation_provenance_payload(
     return payload
 
 
+def reconciliation_management_admission_payload(
+    reconciled: ReconciledCompanyData,
+) -> dict[str, Any] | None:
+    """Separate audit artifact for admitted management-KPI observations."""
+    if reconciled.management_admission is None:
+        return None
+    from .management_kpi import management_admission_payload
+
+    return management_admission_payload(reconciled.management_admission)
+
+
 def reconciliation_conflicts_payload(
     reconciled: ReconciledCompanyData,
 ) -> dict[str, Any]:

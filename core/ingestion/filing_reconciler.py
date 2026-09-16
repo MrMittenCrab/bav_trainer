@@ -136,6 +136,7 @@ class ReconciledCompanyData:
     requested_admit_periods: tuple[date, ...] = ()
     admitted_comparative_periods: tuple[date, ...] = ()
     excluded_comparative_periods: tuple[date, ...] = ()
+    management_admission: object | None = None
 
 
 def _select_observation(
@@ -252,6 +253,7 @@ def reconcile_filings(
     filings: list[tuple[ExtractedFiling, FilingValidationReport]],
     *,
     admit_periods: Iterable[date] | None = None,
+    management_documents: tuple | None = None,
 ) -> ReconciledCompanyData:
     """Reconcile validated filings for one company into documentary selections.
 
@@ -431,6 +433,18 @@ def reconcile_filings(
         model_periods=model_periods,
     )
     selected_operating_kpi_facts = select_operating_kpi_facts(note_facts_t)
+    if management_documents is None:
+        management_documents = tuple(
+            getattr(filings, "management_documents", ()) or ()
+        )
+    management_admission = None
+    if management_documents:
+        from .management_kpi import admit_management_documents
+
+        management_admission = admit_management_documents(
+            tuple(management_documents),
+            selected_store_facts=selected_operating_kpi_facts,
+        )
     # Explicit registry of every validated bound source — not derived from
     # selected statement observations (losers and supplemental-only stay).
     source_files = tuple(
@@ -466,4 +480,5 @@ def reconcile_filings(
         requested_admit_periods=requested_admit,
         admitted_comparative_periods=admitted,
         excluded_comparative_periods=excluded,
+        management_admission=management_admission,
     )
