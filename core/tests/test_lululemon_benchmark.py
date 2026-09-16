@@ -129,7 +129,7 @@ def _sha256(path: Path) -> str:
 
 
 def test_four_filings_validate_and_remain_source_bound():
-    files = sorted(EXTRACTED.glob("LULU_FY*.json"))
+    files = sorted(EXTRACTED.glob("LULU_FY[0-9][0-9][0-9][0-9].json"))
     assert {int(p.stem.replace("LULU_FY", "")) for p in files} == {2022, 2023, 2024, 2025}
 
     for fiscal_year, (pdf_name, digest, nbytes) in SOURCE_PDFS.items():
