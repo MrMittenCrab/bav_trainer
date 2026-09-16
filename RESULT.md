@@ -1,57 +1,44 @@
-# RESULT.md — Step 9M.2.4.1.1.1.40 Operating KPIs: supported observation duplicate and conflict reconciliation
+# RESULT.md — Step 9M.2.4.1.1.1.41 Operating KPIs: source-grounded presentation and assurance evidence
 
 **Status:** COMPLETE (this child; parents remain UNRESOLVED)  
-**Step:** 9M.2.4.1.1.1.40 — Operating KPIs: supported observation duplicate and conflict reconciliation  
-**Work:** `6f7f2400babe4b87987f3ec5314e45a9`  
-**Plan:** `09d89b38143d4988b968fefd4f82f496`  
+**Step:** 9M.2.4.1.1.1.41 — Operating KPIs — Source-grounded presentation and assurance evidence  
+**Work:** `c968a1160acf423097b38570ce2c6cb3`  
+**Plan:** `62c958c557c348de8bcb72b738c48d57`  
 **Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
 **INPUT_STATUS:** `20260916-075534-000000006`  
-`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start). TARGET SHA-256 `ab70dd8859ba352a2387b95c55477cbc31944288c60478023d5937cf0662e91c` (23864). IMPLEMENTATION SHA-256 `8b9f79d5eaa71bb655b7c60e6d70e9b1971421d2b88501ad710c035d0f0a562b` (10453).  
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start). TARGET SHA-256 `ab70dd8859ba352a2387b95c55477cbc31944288c60478023d5937cf0662e91c` (23864). IMPLEMENTATION SHA-256 `08d6dc2c28495f1d19f51dd1b48b02e1cebede060beb23484a92d1976b5f23b8` (10886).  
 No commit / push / sync / checkpoint / branch change. No release rewrite, forecasting, or valuation. Spreadsheet recalculation was **not** performed.  
 This child does **not** declare parent, Operating KPIs product, workbook/Check, canonical history selection, or Step 9 acceptance.
 
-Edits this child: `core/ingestion/management_kpi_reconciliation.py` (new), `core/ingestion/management_kpi.py`, `core/ingestion/management_kpi_identity.py`, `core/tests/test_management_kpi_reconciliation.py` (new), `core/tests/test_management_kpi_identity.py`, `core/tests/test_management_kpi_admission.py`, `core/tests/test_filing_cli.py`, and `RESULT.md`.
+Edits this child: `core/ingestion/management_kpi.py`, `core/ingestion/management_kpi_reconciliation.py`, `core/tests/test_management_kpi_admission.py`, `core/tests/test_management_kpi_reconciliation.py`, `core/tests/test_management_kpi_identity.py`, `core/tests/test_filing_cli.py`, and `RESULT.md`.
 
 No required plan change.
 
-Ordinary admission now serializes occurrence-preserving pairwise reconciliation for the two supported families. Supplied mixed inputs remain zero comparable, 22 not-comparable, six unresolved, and 107 outside-scope. Measured supplied pair outcomes are 24 incompatible, 0 unresolved pairs, 0 agreeing duplicates, and 0 conflicting candidates. Canonical selection remains deferred.
+Ordinary admission now validates optional occurrence-specific presentation and assurance evidence on the two supported families. Supplied mixed inputs remain unknown on both dimensions, zero comparable, 22 not-comparable, six unresolved, and 107 outside-scope. Measured supplied pair outcomes remain 24 incompatible, 0 unresolved pairs, 0 agreeing duplicates, and 0 conflicting candidates. Canonical selection remains deferred.
 
 ---
 
-## Task 1 — Source-grounded pair reconciliation
+## Task 1 — Occurrence-level evidence contract
 
-Within each supported metric identity, ordinary admission emits exactly one unordered pair per distinct occurrence pair. Self-pairs are not created. Singleton, unsupported-variant, and outside-scope observations serialize as explicit coverage records. All source occurrences are retained.
+Supported `reported_kpis` entries may optionally supply nested `presentation` (`role`, `evidence`, `source`) and `assurance` (`status`, `evidence`, `source`) objects.
 
-Each pair is evaluated independently from the two members only. A third incomplete or incompatible peer does not suppress an otherwise valid same-period pair and does not establish transitive equivalence.
+Admitted roles are `current`, `comparative`, `restated`, `prior`, and `unknown`. Admitted assurance values are `audited`, `unaudited`, and `unknown`. A non-unknown dimension requires nonblank documentary evidence and a printed source bound to that observation’s source document. Supplied evidence text, printed locator, and source are retained in serialized admission.
 
-Fully evidenced same-period pairs with two supplied numeric values classify as `agreeing_duplicate` when values agree exactly, or `conflicting_candidate` when they differ. No rounding tolerance, unit conversion, or missing-to-zero coercion is applied. Missing values, including missing versus reported zero, prevent duplicate/conflict classification.
+Dimensions validate independently. Absent, null, empty, or whitespace-only evidence leaves that dimension `unknown` with an explicit unresolved reason. Malformed types, invalid roles/statuses, contradictory top-level assertions, unbound `source_file`, asserted physical-page mapping, missing evidence/source on a non-unknown value, and non-unknown roles on unsupported observations fail closed through ordinary parse/admission.
 
-Evidenced definition, calendar, and period incompatibility classifies as `incompatible`, separately from value conflict. Missing required evidence prevents agreement or conflict. Dimension-specific local and `peer_*` gaps are retained alongside proven incompatibility. Cross-year affirmative comparability remains `comparable` in assessments; those pairs are `incompatible` with `period_mismatch` and are not treated as duplicates.
+`prior` is only an explicitly evidenced presentation role. Filing year, annual-report membership, filenames, equal values, and peer evidence do not infer presentation or assurance. Printed page references remain distinct from physical PDF pages; evidence sources always serialize `physical_page_mapping=unresolved`.
 
-Status remains `admitted_unreconciled`. Canonical selection remains deferred. Equal values, filing recency, extracted preferred values, and matching labels do not establish precedence or restatement.
+Legacy supplied documents are unchanged. Store-count and nonhistorical target observations stay unknown and cannot acquire accepted roles. Document-level admission serialization remains unknown and does not imply document-wide completeness.
 
 ---
 
-## Task 2 — Ordinary-admission regressions
+## Task 2 — Pair-member evidence propagation
 
-Independent mutations through ordinary admission, both families:
+Each reconciliation occurrence serializes its own `presentation_evidence` and `assurance_evidence`. Repeated same-document occurrences and three-peer groups keep occurrence-local records. Peers do not inherit evidenced roles or assurance.
 
-- same-period equal values: pair `agreeing_duplicate`; assessments remain comparable
-- same-period differing values: pair `conflicting_candidate`; assessments remain comparable; no preferred/canonical winner
-- missing value versus reported zero: pair `unresolved` with `missing_value` / `peer_missing_value`; not agreement or conflict
-- different periods with equal values: pair `incompatible` with `period_mismatch`; assessments remain comparable without `period_mismatch`
-- absent/`""`/`" "`/`" \t "` reporting basis on one peer: pair `unresolved` without mismatch; original blank strings retained
-- definition text conflict with equal values: pair `incompatible` with `definition_mismatch`
-- 52-week versus 53-week reporting bases: pair `incompatible` with `calendar_reporting_mismatch`; assessments `not_comparable`
-- proven reporting-basis conflict plus missing week-adjustment: pair `incompatible`, retaining mismatch plus week-gap reasons
-- three-peer affirmative pair plus incomplete peer: three pairs; the complete pair remains `agreeing_duplicate`; incomplete pairs `unresolved`; aggregate assessments unresolved via peer gaps
-- three-peer affirmative pair plus definition-incompatible peer with a different value: complete pair remains `agreeing_duplicate`; other pairs `incompatible` with `definition_mismatch`; no transitive agreement
-- three complete peers with values 10/10/11: one agreeing pair and two conflicting pairs; assessments remain comparable
-- singleton self-exclusion; distinct same-document occurrences with identical values remain two records and one agreeing pair
-- geographic/basis/population identities never share a pair
-- renamed/reordered inputs preserve pair outcomes and semantic evidence; locators follow renamed files
+Presentation and assurance evidence do not change metric identity, pair membership, comparability, pair outcomes, or dimension-specific gaps. Equal values with differing evidenced roles remain duplicate/conflict classifications under existing rules; precedence and canonical selection stay deferred.
 
-Supplied four annual filings plus four management documents: no invented agreeing-duplicate or conflicting-candidate evidence.
+Observation unresolved lists drop only the dimension actually evidenced. Admission-level `assurance` and `presentation_role` remain unresolved while any observation, including store and target rows, is still unknown. Physical-page mapping and precedence remain unresolved.
 
 ---
 
@@ -70,15 +57,14 @@ Independent mixed-directory load of supplied extracted inputs:
 - assessments: **135** items covering every reported observation; **28** supported, **107** outside_scope, **0** unsupported_variant
 - comparability: comparable **0**, not_comparable **22**, unresolved **6**, outside_scope **107**
 - reconciliation: pair_count **24**; agreeing_duplicate **0**; conflicting_candidate **0**; incompatible **24**; unresolved pairs **0**; singleton **6**; unsupported_variant **0**; outside_scope **107**
-- pair split: comparable-sales incompatible **18**, sales-per-square-foot incompatible **6**
-- pair reasons: `definition_mismatch` 24, `calendar_reporting_mismatch` 24, `period_date` 24, `calendar_week_adjustment` 23, `peer_period_date` 24, `peer_calendar_week_adjustment` 23, `missing_comparison` 6, `peer_missing_comparison` 6
-- union of reconciliation locators covers all 135 reported observations
-- reversed/renamed directory semantic pair outcomes match mixed; locators follow the renamed files
+- supplied presentation/assurance: all observations `unknown`; pair members serialize unknown evidence with `source=None`
 - annual-only vs mixed: canonical standardized (optional handoffs stripped), conflicts, and statement provenance match
 - mixed `historical_operating_kpis is None`; annual-only admission artifact absent (`None`)
 - extracted JSON bytes immutable after the exercise
 
 CLI `validate-source` / `reconcile` against temporary mixed and annual-only copies (admit `2022-01-30`): mixed writes `management_kpi_admission.json` with 135 assessment items, supported_count **28**, pair_count **24**, and comparability 0/22/6/107; annual-only writes only `standardized.json` / `provenance.json` / `conflicts.json`. Mixed validate-source: `validated 4 filing(s)` and `management-kpi documents: 4`, exit 0.
+
+Temporary fixtures exercised current/comparative/restated/prior, audited/unaudited, independently missing dimensions, absent/null/empty/whitespace evidence, invalid roles/types, contradictory assertions, mismatched source binding, repeated same-document occurrences, three-peer independence, renamed locators, and input immutability. Explicit `prior` is distinct from an older period or `comparative`; explicit `unaudited` is distinct from unknown assurance.
 
 ---
 
@@ -86,11 +72,11 @@ CLI `validate-source` / `reconcile` against temporary mixed and annual-only copi
 
 | Kind | This child |
 |---|---|
-| Fresh | Mixed directory 4+4; 135 reported (`29/36/37/33`), 9 definitions, 3 nonhistorical targets; assessments 135/28/107/0; comparability **0/22/6/107**; reconciliation pairs **24** all `incompatible`, agreeing/conflicting **0/0**, singletons **6**, outside-scope coverage **107**; annual-only vs mixed canonical standardized/conflicts/statement-provenance match; CLI mixed admission includes reconciliation and annual-only omits the artifact; focused pytest **117 passed**; required suite including new reconciliation tests **796 passed**, **0 failed**; checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` **50/50 MATCH**; eight extracted JSON blob SHA-1 values unchanged vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` |
+| Fresh | Mixed directory 4+4; 135 reported (`29/36/37/33`), 9 definitions, 3 nonhistorical targets; assessments 135/28/107/0; comparability **0/22/6/107**; reconciliation pairs **24** all `incompatible`, agreeing/conflicting **0/0**, singletons **6**, outside-scope coverage **107**; supplied presentation/assurance remain unknown; annual-only vs mixed canonical standardized/conflicts/statement-provenance match; CLI mixed admission includes occurrence evidence objects and annual-only omits the artifact; focused pytest **175 passed**; required suite **854 passed**, **0 failed**; checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` **50/50 MATCH**; eight extracted JSON blob SHA-1 values unchanged vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` |
 | Fresh via required suite this child | Mixed + temporary store prep keeps counts `574/655/711/767/811`, changes `None/81/56/56/44`, growth within `1e-12`, geo **56**, Americas `7928156`; five-period admit `2022-01-30`; Fast Retailing **577**; pale-yellow rejection; frozen compatibility authentication |
 | Retained, not re-measured independently | Geo **74** additions / preserved **486** / practice **560**; unavailable **101**; **15** margin formulas; superseded `7928256` only in audit evidence |
-| Historical, not this child | Prior-child focused **87** / required **766**, and older 53/732 and 67/1735-pass results, remain historical and were not re-run as acceptance |
-| Not claimed | Excel engine recalculation; workbook/Check/KPI learner surface; canonical management-history selection; parent or Step 9 completion; G6–G9 remainder |
+| Historical, not this child | Prior-child focused **117** / required **796**, and older 87/766 and 53/732 results, remain historical and were not re-run as acceptance |
+| Not claimed | Excel engine recalculation; workbook/Check/KPI learner surface; canonical management-history selection; later-audited precedence; parent or Step 9 completion; G6–G9 remainder |
 
 No freshly encountered required-suite failures.
 
@@ -100,37 +86,35 @@ No freshly encountered required-suite failures.
 
 | Command | Exit | Result |
 |---|---:|---|
-| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_management_kpi_reconciliation.py core/tests/test_management_kpi_identity.py core/tests/test_management_kpi_admission.py core/tests/test_filing_cli.py -q --tb=short` | 0 | **117 passed** in **4.48s** |
-| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_management_kpi_reconciliation.py core/tests/test_management_kpi_admission.py core/tests/test_operating_kpi_analysis.py core/tests/test_operating_kpi_facts.py core/tests/test_filing_json.py core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py core/tests/test_historical_segment.py core/tests/test_geographic_segment_facts.py core/tests/test_geographic_segment_analysis.py core/tests/test_geographic_segment_workbook.py core/tests/test_lululemon_benchmark.py core/tests/test_fast_retailing_benchmark.py core/tests/test_normalization.py core/tests/test_historical_v1_exit_gate.py core/tests/test_management_kpi_identity.py -q` | 0 | **796 passed** in **167.49s** |
-| Independent mixed vs annual-only Python load/reconcile (TemporaryDirectory annual copy; mixed from supplied extracted dir; admit `2022-01-30`) | 0 | 4+4 documents; 135 / 9 / 3 nonhistorical; assessments 135 (28 supported / 107 outside / 0 variant); comparability **0/22/6/107**; reconciliation **24/0/0/24/0/6/0/107**; std/conflicts/statement-provenance match; extracted JSON unchanged |
-| Independent affirmative pair mutations through ordinary admission (both families) | 0 | same-period equal values agreeing; differing values conflicting; missing vs 0 unresolved; different periods incompatible with `period_mismatch` while assessments stay comparable; blank reporting basis unresolved without mismatch; three-peer incomplete/incompatible peers do not suppress the affirmative pair |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_management_kpi_reconciliation.py core/tests/test_management_kpi_identity.py core/tests/test_management_kpi_admission.py core/tests/test_filing_cli.py -q --tb=short` | 0 | **175 passed** in **5.62s** |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_management_kpi_reconciliation.py core/tests/test_management_kpi_admission.py core/tests/test_operating_kpi_analysis.py core/tests/test_operating_kpi_facts.py core/tests/test_filing_json.py core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py core/tests/test_historical_segment.py core/tests/test_geographic_segment_facts.py core/tests/test_geographic_segment_analysis.py core/tests/test_geographic_segment_workbook.py core/tests/test_lululemon_benchmark.py core/tests/test_fast_retailing_benchmark.py core/tests/test_normalization.py core/tests/test_historical_v1_exit_gate.py core/tests/test_management_kpi_identity.py -q` | 0 | **854 passed** in **168.19s** |
+| Independent mixed vs annual-only Python load/reconcile (TemporaryDirectory annual copy; mixed from supplied extracted dir; admit `2022-01-30`) | 0 | 4+4 documents; 135 / 9 / 3 nonhistorical; assessments 135 (28 supported / 107 outside / 0 variant); comparability **0/22/6/107**; reconciliation **24/0/0/24/0/6/0/107**; supplied presentation/assurance unknown; std/conflicts/statement-provenance match; extracted JSON unchanged |
 | Independent CLI `validate-source` + `reconcile --admit-period 2022-01-30` on TemporaryDirectory mixed and annual-only copies | 0 | mixed validate-source: 4 filings + 4 management-kpi documents; mixed writes `management_kpi_admission.json` (reported 135, assessments 135/supported 28, comparability 0/22/6/107, pair_count 24, agreeing/conflicting 0/0); annual-only omits that artifact; extracted JSON immutable |
-| Protected artifacts vs checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` | 0 | **50/50 MATCH** (working-tree git blob SHA-1 via `hash-object` vs `rev-parse <commit>:<path>`; example/release/benchmark `xlsx`/`json`/`pdf` plus release README.md present at those checkpoints). Four management-KPI JSONs are extra vs those checkpoints and are checked separately below. |
+| Protected artifacts vs checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` | 0 | **50/50 MATCH** (working-tree git blob SHA-1 via `hash-object` vs `rev-parse <commit>:<path>`; example/release/benchmark `xlsx`/`json`/`pdf` plus release `README.md` present at those checkpoints). Four management-KPI JSONs are extra vs those checkpoints and are checked separately below. |
 | Eight extracted JSON vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` blob SHA-1 | 0 | eight files **UNCHANGED** (4 annual + 4 management-KPI) |
 
 Edited files this child:
 
 | Path | SHA-256 | Bytes |
 |---|---|---:|
-| `core/ingestion/management_kpi_reconciliation.py` | `74c2b73aacf73987512086f0fb3789aaee6c65f7e0f92504225b81daceb0cc5e` | 10736 |
-| `core/ingestion/management_kpi.py` | `56f3047a500c47f763963affe4bcb349f1540844b3fc33e046a1d9e385833632` | 45430 |
-| `core/ingestion/management_kpi_identity.py` | `b8b6af63a616847d81afadc9411bf3efc331076d9d0f8fd17aa7a9c87f28d07d` | 22873 |
-| `core/tests/test_management_kpi_reconciliation.py` | `eeb391d90f70d6e3d422d159ab8f81065a94529cb63b35c1c2549bef2261cefc` | 31081 |
-| `core/tests/test_management_kpi_identity.py` | `99a43994ca3f0471c2137b09646e8393890e1b250e7ee325fde8d63cc547d735` | 52606 |
-| `core/tests/test_management_kpi_admission.py` | `0f04e96ef97037fff6b3f241a976be668b42224d5fcb49aee13a293987abfbb1` | 24205 |
-| `core/tests/test_filing_cli.py` | `0b2df42c3b572022cb557d346e5f9b9d3b9814a03dc19cbc930cd3263d3b5fbd` | 12347 |
+| `core/ingestion/management_kpi.py` | `57d6473c39518db2ab3b688f8dd5cd1960b3f49a210a9a3ea119a00b82bf73d9` | 54632 |
+| `core/ingestion/management_kpi_reconciliation.py` | `cbf76d63034c7e9362faa1df44997c1abda6d373cda5a23f5ca3a63af9afa4f6` | 11880 |
+| `core/tests/test_management_kpi_admission.py` | `b9870433017559b4b60c7431195df7ec76cbcb8c8178a89bf51221713dadc085` | 42060 |
+| `core/tests/test_management_kpi_reconciliation.py` | `66a79e7a260bc847304de424efb85f30fafaf81146ecaff917660fe454e8b4e2` | 39640 |
+| `core/tests/test_management_kpi_identity.py` | `5d7dc73b4dda23060e2b7c5b4eb599e2183e704dfd9890d603dd70383e55a532` | 53000 |
+| `core/tests/test_filing_cli.py` | `3f8e5b1f3a1921880aa9d3bf1cf0a63f5ab5c4055f45131ee14dea22f2caeaa0` | 12830 |
 
 Inspected `.git/autocycle/reviewed-recovery-20260915-120942/evidence.json` SHA-256 `616253f85ebfbb2155f3de0374f8de75d9f2c9656599a12bf2cbc2bb4c9997fb` (4217). Five snapshot-matched production/test identities retained from `edit_replay_counts`: `core/model/capex.py`, `core/model/line_resolver.py`, `core/tests/test_capex.py`, `core/tests/test_line_resolver.py`, `core/tests/test_lululemon_benchmark.py`. Recovery work/attempt `b0ebb338d08f4e09a674d1ad1ee3da21` / `cc3fdf471a9c44c28fa7e8fed1d9e4fa` retained. Hash-bound logs `cursor-20260915-033742-18263.log` (`d1ebe9291a24a508dc4e1361955c5e6817ead1f776b0bee26082aeca574348e8`) / `cursor-20260915-034910-19408.log` (`57cfd40f1d7c266af8116a6d1cae450f645959746b4eb68744771973dd24a60c`) retained, not re-executed. Frozen requests `20260914-193338-000000004` and `20260915-042248-000000005` remain PENDING.
 
-Remaining admission restrictions: later-audited precedence, physical-page mapping, assurance, and presentation role stay unresolved; admitted observations remain audit-only and excluded from `StandardizedFinancials`. Canonical value selection is still deferred.
+Remaining admission restrictions: later-audited precedence and physical-page mapping stay unresolved; supplied documents still lack presentation/assurance evidence, so those dimensions remain unknown there. Admitted observations remain audit-only and excluded from `StandardizedFinancials`. Canonical value selection is still deferred. Current/comparative/restated/prior relationship reconciliation is not performed in this child.
 
 ---
 
 ## Remaining scope
 
-Beyond this increment remain additional supported identities, current/comparative/restated/prior reconciliation, evidenced later-audited precedence, superseded observations and canonical selection; unavailable assurance/presentation evidence remains unresolved. Then extend validated `StandardizedFinancials` histories/round trips, Operating KPI analytics and supported revenue/geography/margin/inventory/working-capital/capex relationships, followed by ordinary BAV/Trainer/Answer-Key/Check integration. Preserve missing values and definition/calendar discontinuities; distinguish reported/statement-derived/analyst-derived measures; infer no causality. Normalization Judgment + Earnings Normalization; G6 missing opening BS; G7 lease maturity/remaining notes; G8 deferral; G9 standalone interest completeness; segment assets/capex/significant expenses/D&A; benchmark publication; TARGET Step 9 exit gates. Analytical focus gate retained. Independent M&A Net Debt, Complete NOPAT/RNOA, and forecasting remain deferred.
+Beyond this increment remain additional supported identities, current/comparative/restated/prior relationship reconciliation, evidenced later-audited precedence, superseded observations and canonical selection; unavailable assurance/presentation evidence in supplied documents remains unresolved. Then extend validated `StandardizedFinancials` histories/round trips, Operating KPI analytics and supported revenue/geography/margin/inventory/working-capital/capex relationships, followed by ordinary BAV/Trainer/Answer-Key/Check integration. Preserve missing values and definition/calendar discontinuities; distinguish reported/statement-derived/analyst-derived measures; infer no causality. Normalization Judgment + Earnings Normalization; G6 missing opening BS; G7 lease maturity/remaining notes; G8 deferral; G9 standalone interest completeness; segment assets/capex/significant expenses/D&A; benchmark publication; TARGET Step 9 exit gates. Analytical focus gate retained. Independent M&A Net Debt, Complete NOPAT/RNOA, and forecasting remain deferred.
 
-Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Completed admission, `.37` and `.39` are not reopened. This child does not certify parent acceptance, publication, workbook integration, or Step 9 completion.
+Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Completed admission, `.37`, `.39` and `.40` are not reopened. This child does not certify parent acceptance, publication, workbook integration, or Step 9 completion.
 
 ---
 

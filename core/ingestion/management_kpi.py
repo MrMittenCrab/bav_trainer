@@ -32,6 +32,7 @@ _MANAGEMENT_SIGNAL_KEYS = (
     "management_targets",
 )
 _ANNUAL_SIGNAL_KEYS = ("filing", "statements")
+_MISSING = object()
 _PHYSICAL_PAGE_UNRESOLVED = "unresolved"
 _ASSURANCE_UNKNOWN = "unknown"
 _PRESENTATION_UNKNOWN = "unknown"
@@ -39,6 +40,15 @@ _ROLE_NONHISTORICAL = "nonhistorical"
 _ROLE_HISTORICAL = "historical"
 _ADMISSION_UNRECONCILED = "admitted_unreconciled"
 _CANONICAL_STORE_METRIC = "company_operated_store_count"
+_PRESENTATION_ROLES = frozenset(
+    {"current", "comparative", "restated", "prior", "unknown"}
+)
+_ASSURANCE_STATUSES = frozenset({"audited", "unaudited", "unknown"})
+_PRESENTATION_OBJECT_KEYS = frozenset({"role", "evidence", "source"})
+_ASSURANCE_OBJECT_KEYS = frozenset({"status", "evidence", "source"})
+_EVIDENCE_SOURCE_KEYS = frozenset(
+    {"section", "page_reference", "source_file", "physical_page_mapping"}
+)
 
 
 def _document_label(path: Path | str | None) -> str:
@@ -139,6 +149,26 @@ class PrintedSourceRef:
 
 
 @dataclass(frozen=True)
+class OccurrenceDimensionEvidence:
+    value: str
+    evidence: str = ""
+    source: PrintedSourceRef | None = None
+    locator: str = ""
+
+    def to_payload(self, *, value_key: str) -> dict[str, Any]:
+        return {
+            value_key: self.value,
+            "evidence": self.evidence,
+            "locator": self.locator,
+            "source": None if self.source is None else self.source.to_payload(),
+        }
+
+
+_UNKNOWN_PRESENTATION = OccurrenceDimensionEvidence(value=_PRESENTATION_UNKNOWN)
+_UNKNOWN_ASSURANCE = OccurrenceDimensionEvidence(value=_ASSURANCE_UNKNOWN)
+
+
+@dataclass(frozen=True)
 class ManagementKpiDefinition:
     definition_id: str
     metric_id: str
@@ -186,6 +216,8 @@ class ManagementObservation:
     target_id: str = ""
     target_payload: tuple[tuple[str, Any], ...] = ()
     unresolved: tuple[str, ...] = ()
+    presentation_record: OccurrenceDimensionEvidence = _UNKNOWN_PRESENTATION
+    assurance_record: OccurrenceDimensionEvidence = _UNKNOWN_ASSURANCE
 
     def to_payload(self) -> dict[str, Any]:
         out: dict[str, Any] = {
@@ -208,6 +240,10 @@ class ManagementObservation:
             "historical_role": self.historical_role,
             "assurance": self.assurance,
             "presentation_role": self.presentation_role,
+            "presentation_evidence": self.presentation_record.to_payload(
+                value_key="role"
+            ),
+            "assurance_evidence": self.assurance_record.to_payload(value_key="status"),
             "extraction_document": self.extraction_document,
             "bound_source_file": self.bound_source_file,
             "bound_source_sha256": self.bound_source_sha256,
@@ -434,6 +470,14 @@ def parse_management_kpi_document(
             item.get("value"),
             context=f"{label}.reported_kpis[{index}].value",
         )
+        _parse_reported_occurrence_evidence(
+            item,
+            context=f"{label}.reported_kpis[{index}]",
+            bound_source_file=source_file,
+            extraction_document=label,
+            index=index,
+            supported=_metric_supports_occurrence_evidence(item.get("metric_id")),
+        )
     store_counts = payload["store_counts_by_market"]
     if not isinstance(store_counts, dict):
         raise ValueError(f"{label}.store_counts_by_market must be an object")
@@ -476,6 +520,199 @@ def _parse_printed_source(payload: object, *, context: str) -> PrintedSourceRef:
         page_reference=page_reference,
         physical_page_mapping=_PHYSICAL_PAGE_UNRESOLVED,
     )
+
+
+def _metric_supports_occurrence_evidence(metric_id: object) -> bool:
+    from .management_kpi_identity import SUPPORTED_METRIC_MAPPINGS
+
+    return isinstance(metric_id, str) and metric_id in SUPPORTED_METRIC_MAPPINGS
+
+
+def _retain_evidence_text(value: object, *, context: str) -> str:
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise ValueError(f"{context} must be a string")
+    return value
+
+
+def _parse_evidence_source(
+    payload: object,
+    *,
+    context: str,
+    bound_source_file: str,
+) -> PrintedSourceRef:
+    if not isinstance(payload, dict):
+        raise ValueError(f"{context} must be an object")
+    extra = sorted(key for key in payload if key not in _EVIDENCE_SOURCE_KEYS)
+    if extra:
+        raise ValueError(f"{context} has unexpected fields: {extra}")
+    mapping = payload.get("physical_page_mapping")
+    if mapping not in (None, "", _PHYSICAL_PAGE_UNRESOLVED):
+        raise ValueError(
+            f"{context}.physical_page_mapping cannot certify a PDF page"
+        )
+    source_file = payload.get("source_file")
+    if source_file is not None:
+        if not isinstance(source_file, str):
+            raise ValueError(f"{context}.source_file must be a string")
+        if source_file.strip() != bound_source_file:
+            raise ValueError(
+                f"{context} is not bound to the observation source document"
+            )
+    parsed = _parse_printed_source(payload, context=context.rsplit(".", 1)[0])
+    return PrintedSourceRef(
+        section=parsed.section,
+        page_reference=parsed.page_reference,
+        physical_page_mapping=_PHYSICAL_PAGE_UNRESOLVED,
+    )
+
+
+def _parse_dimension_evidence(
+    item: Mapping[str, Any],
+    *,
+    object_key: str,
+    value_key: str,
+    allowed: frozenset[str],
+    unknown: str,
+    context: str,
+    bound_source_file: str,
+    locator: str,
+    supported: bool,
+    unresolved_reason: str,
+    top_level_key: str | None = None,
+) -> tuple[OccurrenceDimensionEvidence, str | None]:
+    raw = item.get(object_key, _MISSING)
+    if raw is _MISSING or raw is None:
+        top = _top_level_dimension_value(
+            item, key=top_level_key, allowed=allowed, unknown=unknown, context=context
+        )
+        if top is not None and top != unknown:
+            raise ValueError(
+                f"{context}.{top_level_key} asserts {top!r} without documentary evidence"
+            )
+        return (
+            OccurrenceDimensionEvidence(value=unknown, locator=locator),
+            unresolved_reason,
+        )
+    if not isinstance(raw, dict):
+        raise ValueError(f"{context}.{object_key} must be an object")
+    extra = sorted(key for key in raw if key not in (
+        _PRESENTATION_OBJECT_KEYS if object_key == "presentation" else _ASSURANCE_OBJECT_KEYS
+    ))
+    if extra:
+        raise ValueError(f"{context}.{object_key} has unexpected fields: {extra}")
+    value_raw = raw.get(value_key, _MISSING)
+    if value_raw is _MISSING or value_raw is None:
+        value = unknown
+    elif not isinstance(value_raw, str):
+        raise ValueError(f"{context}.{object_key}.{value_key} must be a string")
+    else:
+        value = value_raw.strip()
+        if not value:
+            value = unknown
+        elif value not in allowed:
+            raise ValueError(
+                f"{context}.{object_key}.{value_key} is invalid: {value_raw!r}"
+            )
+    top = _top_level_dimension_value(
+        item, key=top_level_key, allowed=allowed, unknown=unknown, context=context
+    )
+    if top is not None and top != value:
+        raise ValueError(
+            f"{context} has contradictory {unresolved_reason} assertions"
+        )
+    evidence = _retain_evidence_text(
+        raw.get("evidence") if "evidence" in raw else None,
+        context=f"{context}.{object_key}.evidence",
+    )
+    source_raw = raw.get("source", _MISSING)
+    source: PrintedSourceRef | None = None
+    if source_raw is not _MISSING and source_raw is not None:
+        source = _parse_evidence_source(
+            source_raw,
+            context=f"{context}.{object_key}.source",
+            bound_source_file=bound_source_file,
+        )
+    record = OccurrenceDimensionEvidence(
+        value=value,
+        evidence=evidence,
+        source=source,
+        locator=locator,
+    )
+    if value == unknown:
+        return record, unresolved_reason
+    if not supported:
+        raise ValueError(
+            f"{context}.{object_key} cannot assign {value!r} on an unsupported observation"
+        )
+    if not evidence.strip():
+        raise ValueError(
+            f"{context}.{object_key} requires nonblank documentary evidence"
+        )
+    if source is None:
+        raise ValueError(
+            f"{context}.{object_key} requires a source bound to the observation document"
+        )
+    return record, None
+
+
+def _top_level_dimension_value(
+    item: Mapping[str, Any],
+    *,
+    key: str | None,
+    allowed: frozenset[str],
+    unknown: str,
+    context: str,
+) -> str | None:
+    if not key or key not in item:
+        return None
+    raw = item[key]
+    if raw is None:
+        return unknown
+    if not isinstance(raw, str):
+        raise ValueError(f"{context}.{key} must be a string")
+    value = raw.strip() or unknown
+    if value not in allowed:
+        raise ValueError(f"{context}.{key} is invalid: {raw!r}")
+    return value
+
+
+def _parse_reported_occurrence_evidence(
+    item: Mapping[str, Any],
+    *,
+    context: str,
+    bound_source_file: str,
+    extraction_document: str,
+    index: int,
+    supported: bool,
+) -> tuple[OccurrenceDimensionEvidence, str | None, OccurrenceDimensionEvidence, str | None]:
+    presentation, presentation_unresolved = _parse_dimension_evidence(
+        item,
+        object_key="presentation",
+        value_key="role",
+        allowed=_PRESENTATION_ROLES,
+        unknown=_PRESENTATION_UNKNOWN,
+        context=context,
+        bound_source_file=bound_source_file,
+        locator=f"{extraction_document}:reported_kpis[{index}].presentation",
+        supported=supported,
+        unresolved_reason="presentation_role",
+        top_level_key="presentation_role",
+    )
+    assurance, assurance_unresolved = _parse_dimension_evidence(
+        item,
+        object_key="assurance",
+        value_key="status",
+        allowed=_ASSURANCE_STATUSES,
+        unknown=_ASSURANCE_UNKNOWN,
+        context=context,
+        bound_source_file=bound_source_file,
+        locator=f"{extraction_document}:reported_kpis[{index}].assurance",
+        supported=supported,
+        unresolved_reason="assurance",
+    )
+    return presentation, presentation_unresolved, assurance, assurance_unresolved
 
 
 def _parse_definition(payload: object, *, context: str) -> ManagementKpiDefinition:
@@ -580,13 +817,15 @@ def _unresolved_fields(
     period_kind: str,
     definition_id: str,
     historical_role: str,
+    assurance_unknown: bool = True,
+    presentation_unknown: bool = True,
 ) -> tuple[str, ...]:
-    unresolved = [
-        "physical_page_mapping",
-        "assurance",
-        "presentation_role",
-        "canonical_selection",
-    ]
+    unresolved = ["physical_page_mapping"]
+    if assurance_unknown:
+        unresolved.append("assurance")
+    if presentation_unknown:
+        unresolved.append("presentation_role")
+    unresolved.append("canonical_selection")
     if period_kind == "fiscal_year_label":
         unresolved.append("period_date")
     if not definition_id:
@@ -630,6 +869,16 @@ def _observation_from_reported(
         f"{bound.document.extraction_document}:reported_kpis[{index}]:"
         f"{metric_id}:{period}"
     )
+    presentation_record, presentation_unresolved, assurance_record, assurance_unresolved = (
+        _parse_reported_occurrence_evidence(
+            item,
+            context=context,
+            bound_source_file=bound.bound_source_file,
+            extraction_document=bound.document.extraction_document,
+            index=index,
+            supported=_metric_supports_occurrence_evidence(metric_id),
+        )
+    )
     return ManagementObservation(
         kind="reported_kpi",
         locator=locator,
@@ -651,8 +900,8 @@ def _observation_from_reported(
         drivers=drivers,
         source=_parse_printed_source(item.get("source"), context=context),
         historical_role=_ROLE_HISTORICAL,
-        assurance=_ASSURANCE_UNKNOWN,
-        presentation_role=_PRESENTATION_UNKNOWN,
+        assurance=assurance_record.value,
+        presentation_role=presentation_record.value,
         extraction_document=bound.document.extraction_document,
         bound_source_file=bound.bound_source_file,
         bound_source_sha256=bound.bound_source_sha256,
@@ -661,7 +910,11 @@ def _observation_from_reported(
             period_kind=period_kind,
             definition_id=definition_id,
             historical_role=_ROLE_HISTORICAL,
+            assurance_unknown=assurance_unresolved is not None,
+            presentation_unknown=presentation_unresolved is not None,
         ),
+        presentation_record=presentation_record,
+        assurance_record=assurance_record,
     )
 
 

@@ -69,6 +69,8 @@ class ManagementKpiReconciledOccurrence:
     extraction_document: str
     evidence: tuple[tuple[str, str], ...]
     required_reasons: tuple[str, ...]
+    presentation_evidence: tuple[tuple[str, Any], ...]
+    assurance_evidence: tuple[tuple[str, Any], ...]
 
     def to_payload(self) -> dict[str, Any]:
         return {
@@ -89,6 +91,8 @@ class ManagementKpiReconciledOccurrence:
             "extraction_document": self.extraction_document,
             "evidence": dict(self.evidence),
             "required_reasons": list(self.required_reasons),
+            "presentation_evidence": dict(self.presentation_evidence),
+            "assurance_evidence": dict(self.assurance_evidence),
         }
 
 
@@ -116,11 +120,34 @@ class ManagementKpiReconciliationRecord:
         }
 
 
+def _dimension_payload(observation: Any, *, attr: str, value_key: str) -> dict[str, Any]:
+    record = getattr(observation, attr, None)
+    if record is not None and hasattr(record, "to_payload"):
+        return dict(record.to_payload(value_key=value_key))
+    value = (
+        getattr(observation, "presentation_role", "unknown")
+        if attr == "presentation_record"
+        else getattr(observation, "assurance", "unknown")
+    )
+    return {
+        value_key: value,
+        "evidence": "",
+        "locator": "",
+        "source": None,
+    }
+
+
 def _occurrence_from(
     assessment: Any,
     observation: Any,
 ) -> ManagementKpiReconciledOccurrence:
     evidence = dict(assessment.evidence)
+    presentation = _dimension_payload(
+        observation, attr="presentation_record", value_key="role"
+    )
+    assurance = _dimension_payload(
+        observation, attr="assurance_record", value_key="status"
+    )
     return ManagementKpiReconciledOccurrence(
         locator=assessment.locator,
         occurrence_identity=assessment.occurrence_identity,
@@ -137,6 +164,8 @@ def _occurrence_from(
         extraction_document=observation.extraction_document,
         evidence=tuple(sorted(evidence.items())),
         required_reasons=required_comparison_reasons(evidence),
+        presentation_evidence=tuple(sorted(presentation.items())),
+        assurance_evidence=tuple(sorted(assurance.items())),
     )
 
 

@@ -312,6 +312,15 @@ def test_reconcile_serializes_management_identity_assessments(tmp_path: Path):
     assert counts["not_comparable"] == 22
     assert counts["unresolved"] == 6
     assert counts["outside_scope"] == 107
+    for item in admission["observations"]:
+        assert item["presentation_role"] == "unknown"
+        assert item["assurance"] == "unknown"
+        assert item["presentation_evidence"]["role"] == "unknown"
+        assert item["assurance_evidence"]["status"] == "unknown"
+    for item in recon["items"]:
+        for occ in item["occurrences"]:
+            assert occ["presentation_evidence"]["role"] == "unknown"
+            assert occ["assurance_evidence"]["status"] == "unknown"
     reported = {
         item["locator"]: item
         for item in admission["observations"]

@@ -781,3 +781,205 @@ def test_incompatible_plus_gap_retains_both_reasons(tmp_path: Path):
         item = _assessment(payload, locator)
         assert item["comparability"] == COMPARABILITY_NOT_COMPARABLE
         assert "calendar_reporting_mismatch" in item["unresolved_reasons"]
+
+
+def _attach_family_evidence(
+    payload: dict,
+    family: str,
+    *,
+    role: str | None = None,
+    status: str | None = None,
+) -> dict:
+    from core.tests.test_management_kpi_admission import (
+        _attach_assurance,
+        _attach_presentation,
+        _metric_items,
+    )
+
+    payload = copy.deepcopy(payload)
+    metric_id = _family_metric_id(family)
+    for item in _metric_items(payload, metric_id):
+        if role is not None:
+            _attach_presentation(item, role)
+        if status is not None:
+            _attach_assurance(item, status)
+    return payload
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_pair_members_keep_occurrence_local_presentation_and_assurance(
+    tmp_path: Path, family: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "ev")
+    _write_family_pair(
+        dest,
+        family,
+        left_value=10,
+        right_value=10,
+        left_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="current", status="audited"
+        ),
+        right_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="restated", status="unaudited"
+        ),
+    )
+    payload = _admission(dest)
+    locators = _family_metric_locators(payload, family)
+    pair = _pair_by_locators(_metric_pairs(payload, family), locators)
+    _assert_affirmative_duplicate(pair, values=(10, 10))
+    left, right = pair["occurrences"]
+    roles = {left["presentation_evidence"]["role"], right["presentation_evidence"]["role"]}
+    statuses = {
+        left["assurance_evidence"]["status"],
+        right["assurance_evidence"]["status"],
+    }
+    assert roles == {"current", "restated"}
+    assert statuses == {"audited", "unaudited"}
+    assert left["presentation_evidence"]["locator"] != right["presentation_evidence"]["locator"]
+    assert left["assurance_evidence"]["locator"] != right["assurance_evidence"]["locator"]
+    assert left["presentation_evidence"]["evidence"]
+    assert right["assurance_evidence"]["source"]["physical_page_mapping"] == "unresolved"
+    for locator in locators:
+        assert _assessment(payload, locator)["comparability"] == COMPARABILITY_COMPARABLE
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_presentation_evidence_does_not_change_pair_outcomes(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "nope")
+    _write_family_pair(dest, family, left_value=10, right_value=11)
+    baseline = _admission(dest)
+    locators = _family_metric_locators(baseline, family)
+    baseline_pair = _pair_by_locators(_metric_pairs(baseline, family), locators)
+    assert baseline_pair["outcome"] == OUTCOME_CONFLICTING_CANDIDATE
+
+    _write_family_pair(
+        dest,
+        family,
+        left_value=10,
+        right_value=11,
+        left_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="current", status="audited"
+        ),
+        right_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="prior", status="unaudited"
+        ),
+    )
+    evidenced = _admission(dest)
+    locators = _family_metric_locators(evidenced, family)
+    pair = _pair_by_locators(_metric_pairs(evidenced, family), locators)
+    assert pair["outcome"] == OUTCOME_CONFLICTING_CANDIDATE
+    assert pair["reasons"] == baseline_pair["reasons"]
+    assert pair["canonical_selection"] == "deferred"
+    roles = {
+        occ["presentation_evidence"]["role"] for occ in pair["occurrences"]
+    }
+    assert roles == {"current", "prior"}
+    assert "prior" in roles
+    periods = {occ["period"] for occ in pair["occurrences"]}
+    assert periods == {SHARED_PERIOD}
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_three_peer_evidence_does_not_transfer(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES[1:4] + MANAGEMENT_NAMES[1:4], tmp_path / "peer-ev")
+    _write_three_peer(
+        dest,
+        family,
+        values=(10, 10, 10),
+        third_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="comparative", status="audited"
+        ),
+    )
+    payload = _admission(dest)
+    locators = _family_metric_locators(payload, family)
+    pairs = _metric_pairs(payload, family)
+    assert len(pairs) == 3
+    assert {item["outcome"] for item in pairs} == {OUTCOME_AGREEING_DUPLICATE}
+    evidenced = [
+        item
+        for item in payload["observations"]
+        if item["locator"] in locators and item["presentation_role"] == "comparative"
+    ]
+    unknown = [
+        item
+        for item in payload["observations"]
+        if item["locator"] in locators and item["presentation_role"] == "unknown"
+    ]
+    assert len(evidenced) == 1
+    assert len(unknown) == 2
+    assert all(item["assurance"] == "unknown" for item in unknown)
+    assert evidenced[0]["assurance"] == "audited"
+    for item in pairs:
+        roles = {occ["presentation_evidence"]["role"] for occ in item["occurrences"]}
+        if evidenced[0]["locator"] in item["locators"]:
+            assert roles == {"comparative", "unknown"}
+        else:
+            assert roles == {"unknown"}
+
+
+def test_supplied_pairs_keep_unknown_presentation_and_assurance():
+    before = _bytes_by_name(EXTRACTED)
+    payload = reconciliation_management_admission_payload(
+        reconcile_filings(load_and_validate_extracted_dir(EXTRACTED, source_root=SOURCE))
+    )
+    recon = payload["reconciliation"]
+    assert payload["assessments"]["comparability_counts"]["comparable"] == 0
+    assert payload["assessments"]["comparability_counts"]["not_comparable"] == 22
+    assert payload["assessments"]["comparability_counts"]["unresolved"] == 6
+    assert payload["assessments"]["comparability_counts"]["outside_scope"] == 107
+    assert recon["pair_count"] == 24
+    assert recon["outcome_counts"][OUTCOME_INCOMPATIBLE] == 24
+    assert recon["outcome_counts"][OUTCOME_AGREEING_DUPLICATE] == 0
+    assert recon["outcome_counts"][OUTCOME_CONFLICTING_CANDIDATE] == 0
+    for item in payload["observations"]:
+        assert item["presentation_role"] == "unknown"
+        assert item["assurance"] == "unknown"
+        assert "assurance" in item["unresolved"]
+        assert "presentation_role" in item["unresolved"]
+    for item in recon["items"]:
+        for occ in item["occurrences"]:
+            assert occ["presentation_evidence"]["role"] == "unknown"
+            assert occ["assurance_evidence"]["status"] == "unknown"
+            assert occ["presentation_evidence"]["source"] is None
+            assert occ["assurance_evidence"]["source"] is None
+    assert "presentation_role" in payload["unresolved"]
+    assert "assurance" in payload["unresolved"]
+    assert _bytes_by_name(EXTRACTED) == before
+
+
+def test_renamed_inputs_preserve_local_evidence_locators(tmp_path: Path):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "ren-src")
+    _write_family_pair(
+        dest,
+        FAMILY_COMPARABLE_SALES_GROWTH,
+        left_value=10,
+        right_value=10,
+        left_mutate=lambda payload: _attach_family_evidence(
+            payload, FAMILY_COMPARABLE_SALES_GROWTH, role="current"
+        ),
+        right_mutate=lambda payload: _attach_family_evidence(
+            payload, FAMILY_COMPARABLE_SALES_GROWTH, role="comparative"
+        ),
+    )
+    renamed = tmp_path / "renamed"
+    renamed.mkdir()
+    for index, name in enumerate(sorted(path.name for path in dest.glob("*.json"))):
+        shutil.copy2(dest / name, renamed / f"{index:02d}-{name}")
+    original = _admission(dest)
+    renamed_payload = _admission(renamed)
+    orig_pair = _metric_pairs(original, FAMILY_COMPARABLE_SALES_GROWTH)[0]
+    renamed_pair = _metric_pairs(renamed_payload, FAMILY_COMPARABLE_SALES_GROWTH)[0]
+    assert orig_pair["outcome"] == renamed_pair["outcome"] == OUTCOME_AGREEING_DUPLICATE
+    orig_roles = sorted(
+        occ["presentation_evidence"]["role"] for occ in orig_pair["occurrences"]
+    )
+    renamed_roles = sorted(
+        occ["presentation_evidence"]["role"] for occ in renamed_pair["occurrences"]
+    )
+    assert orig_roles == renamed_roles == ["comparative", "current"]
+    orig_locators = {occ["presentation_evidence"]["locator"] for occ in orig_pair["occurrences"]}
+    renamed_locators = {
+        occ["presentation_evidence"]["locator"] for occ in renamed_pair["occurrences"]
+    }
+    assert orig_locators.isdisjoint(renamed_locators)
+    assert any("00-" in locator or "01-" in locator or "02-" in locator or "03-" in locator for locator in renamed_locators)

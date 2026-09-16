@@ -1155,6 +1155,13 @@ def test_ordinary_admission_keeps_canonical_payloads_unchanged(tmp_path: Path):
         if item["kind"] == "reported_kpi":
             counts[item["filing_year"]] = counts.get(item["filing_year"], 0) + 1
     assert counts == REPORTED_COUNTS
+    for item in mixed_payload["observations"]:
+        assert item["presentation_role"] == "unknown"
+        assert item["assurance"] == "unknown"
+        assert item["presentation_evidence"]["role"] == "unknown"
+        assert item["assurance_evidence"]["status"] == "unknown"
+    assert "presentation_role" in mixed_payload["unresolved"]
+    assert "assurance" in mixed_payload["unresolved"]
     assert _bytes_by_name(EXTRACTED) == before
 
 
