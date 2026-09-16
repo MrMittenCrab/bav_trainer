@@ -66,6 +66,24 @@ EXPECTED_SELECTION = {
     P2025: (2025, "comparative", "later_audited_presentation", 11),
     P2026: (2025, "current_period", "sole_source_observation", 11),
 }
+EXPECTED_SOURCE_NOTES = {
+    P2022: "Company-Operated Stores",
+    P2023: "Number of company-operated stores by market",
+    P2024: "Number of company-operated stores by market",
+    P2025: "Number of company-operated stores by market",
+    P2026: "Number of company-operated stores by market",
+}
+REPORTED_STORE_LABEL = "Total company-operated stores"
+_OMIT = object()
+LABEL_MUTATIONS = (
+    pytest.param(_OMIT, id="omitted"),
+    pytest.param("", id="empty"),
+    pytest.param(" \t ", id="whitespace"),
+)
+NOTE_CONTEXTS = (
+    pytest.param("Company-Operated Stores", id="note-populated"),
+    pytest.param(_OMIT, id="note-absent"),
+)
 
 
 def _store(
@@ -75,7 +93,8 @@ def _store(
     page: int = 7,
     role: PresentationRole = PresentationRole.CURRENT_PERIOD,
     unit: str = "stores",
-    label: str = "Total company-operated stores",
+    label: str = REPORTED_STORE_LABEL,
+    note: str = "Company-Operated Stores",
 ) -> SupplementalFact:
     return SupplementalFact(
         fact_type=STORE_COUNT_FACT_TYPE,
@@ -84,12 +103,33 @@ def _store(
         status="reported",
         source=SourceRef(
             page=page,
-            note="Company-Operated Stores",
+            note=note,
             label=label,
         ),
         presentation_role=role.value,
         unit=unit,
     )
+
+
+def _label_text(label: object) -> str:
+    return "" if label is _OMIT else str(label)
+
+
+def _note_text(note: object) -> str:
+    return "" if note is _OMIT else str(note)
+
+
+def _mutate_serialized_source(source: dict, *, label: object, note: object) -> dict:
+    mutated = dict(source)
+    if label is _OMIT:
+        mutated.pop("label", None)
+    else:
+        mutated["label"] = label
+    if note is _OMIT:
+        mutated.pop("note", None)
+    else:
+        mutated["note"] = note
+    return mutated
 
 
 def _prepare_augmented(tmp_path: Path) -> Path:
@@ -277,6 +317,8 @@ def test_valid_precedence_retains_superseded_observation(tmp_path: Path):
     )
     assert selected.value == 711
     assert selected.selection_reason == "later_audited_presentation"
+    assert selected.source_label == REPORTED_STORE_LABEL
+    assert selected.source_note == "Company-Operated Stores"
     superseded = [
         obs
         for obs in reconciled.note_facts
@@ -284,6 +326,8 @@ def test_valid_precedence_retains_superseded_observation(tmp_path: Path):
     ]
     assert len(superseded) == 1
     assert superseded[0].fact.value == 700
+    assert superseded[0].fact.source.label == REPORTED_STORE_LABEL
+    assert superseded[0].fact.source.note == "Company-Operated Stores"
     conflicts = [
         conflict
         for conflict in reconciled.supplemental_conflicts
@@ -384,6 +428,181 @@ def test_invalid_store_contracts_fail_without_mutation(tmp_path: Path, value, un
             )
         )
     assert good == original
+
+
+def _kpi_observation(fact: SupplementalFact) -> SupplementalObservation:
+    return SupplementalObservation(
+        kind="note",
+        filing_year=2025,
+        source_file="a2025.pdf",
+        source_sha256="abc",
+        fact=fact,
+    )
+
+
+@pytest.mark.parametrize("label", LABEL_MUTATIONS)
+@pytest.mark.parametrize("note", NOTE_CONTEXTS)
+def test_missing_blank_labels_fail_even_with_note_context(label, note):
+    period = date(2025, 12, 31)
+    good = _store(period, 811)
+    original = copy.deepcopy(good)
+    bad = _store(period, 811, label=_label_text(label), note=_note_text(note))
+    with pytest.raises(ValueError, match="missing reported label"):
+        select_operating_kpi_facts((_kpi_observation(bad),))
+    assert good == original
+    assert good.source.label == REPORTED_STORE_LABEL
+    assert good.source.note == "Company-Operated Stores"
+
+
+@pytest.mark.parametrize("label", LABEL_MUTATIONS)
+@pytest.mark.parametrize("note", NOTE_CONTEXTS)
+def test_serialized_label_mutations_fail_filing_validation_and_reconcile(
+    tmp_path: Path, label, note
+):
+    dest = _prepare_augmented(tmp_path)
+    target = dest / "LULU_FY2025.json"
+    before = {path: path.read_bytes() for path in dest.glob("*.json")}
+    payload = json.loads(target.read_text(encoding="utf-8"))
+    original_payload = copy.deepcopy(payload)
+    stores = [
+        fact
+        for fact in payload["note_facts"]
+        if fact.get("fact_type") == STORE_COUNT_FACT_TYPE
+    ]
+    assert stores
+    for fact in stores:
+        fact["source"] = _mutate_serialized_source(
+            fact["source"], label=label, note=note
+        )
+    mutated_path = tmp_path / "mutated-fy2025.json"
+    mutated_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    filing = load_extracted_filing(mutated_path)
+    report = validate_extracted_filing(filing, source_root=SOURCE)
+    assert not report.ok
+    assert any(
+        issue.code == "invalid_operating_kpi"
+        and "missing reported label" in issue.message
+        for issue in report.errors
+    )
+    with pytest.raises(ValueError, match="cannot reconcile filings with validation errors"):
+        reconcile_filings([(filing, report)])
+    assert json.loads(target.read_text(encoding="utf-8")) == original_payload
+    assert {path: path.read_bytes() for path in dest.glob("*.json")} == before
+    out = tmp_path / "reconciled"
+    assert not out.exists()
+
+
+def test_review_reproduction_removes_label_and_note_from_serialized_store(
+    tmp_path: Path,
+):
+    dest = _prepare_augmented(tmp_path)
+    target = dest / "LULU_FY2025.json"
+    before = target.read_bytes()
+    payload = json.loads(before)
+    observation = next(
+        fact
+        for fact in payload["note_facts"]
+        if fact.get("fact_type") == STORE_COUNT_FACT_TYPE
+    )
+    assert observation["source"]["label"] == REPORTED_STORE_LABEL
+    assert observation["source"]["note"]
+    observation["source"].pop("label")
+    observation["source"].pop("note")
+    mutated_path = tmp_path / "review-repro.json"
+    mutated_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    assert target.read_bytes() == before
+    filing = load_extracted_filing(mutated_path)
+    report = validate_extracted_filing(filing, source_root=SOURCE)
+    assert not report.ok
+    assert any(
+        issue.code == "invalid_operating_kpi"
+        and "missing reported label" in issue.message
+        for issue in report.errors
+    )
+    with pytest.raises(ValueError, match="cannot reconcile filings with validation errors"):
+        reconcile_filings([(filing, report)])
+    assert target.read_bytes() == before
+
+
+def test_reconcile_revalidates_kpi_fact_after_valid_report(tmp_path: Path):
+    period = date(2025, 12, 31)
+    good = _store(period, 811)
+    filing, report = _validated(
+        tmp_path,
+        _filing(
+            year=2025,
+            source_file="a2025.pdf",
+            revenue_values={period: (110.0, PresentationRole.CURRENT_PERIOD)},
+            note_facts=(good,),
+        ),
+        b"2025",
+    )
+    assert report.ok
+    original_fact = copy.deepcopy(filing.note_facts[0])
+    invalid = _store(period, 811, label="", note="Company-Operated Stores")
+    mutated = replace(filing, note_facts=(invalid,))
+    with pytest.raises(ValueError, match="missing reported label"):
+        reconcile_filings([(mutated, report)])
+    assert filing.note_facts[0] == original_fact
+    assert filing.note_facts[0].source.label == REPORTED_STORE_LABEL
+    assert mutated.note_facts[0].source.note == "Company-Operated Stores"
+
+
+def test_valid_label_without_note_is_accepted(tmp_path: Path):
+    period = date(2025, 12, 31)
+    fact = _store(period, 811, note="")
+    f2025 = _filing(
+        year=2025,
+        source_file="a2025.pdf",
+        revenue_values={period: (110.0, PresentationRole.CURRENT_PERIOD)},
+        note_facts=(fact,),
+    )
+    reconciled = reconcile_filings([_validated(tmp_path, f2025, b"2025")])
+    selected = reconciled.selected_operating_kpi_facts[0]
+    assert selected.value == 811
+    assert selected.source_label == REPORTED_STORE_LABEL
+    assert selected.source_note == ""
+    provenance = reconciliation_provenance_payload(reconciled)
+    assert provenance["selected_operating_kpi_facts"][0]["source_label"] == REPORTED_STORE_LABEL
+    assert "source_note" not in provenance["selected_operating_kpi_facts"][0]
+
+
+def test_missing_label_cli_leaves_inputs_and_output_unchanged(tmp_path: Path):
+    dest = _prepare_augmented(tmp_path)
+    target = dest / "LULU_FY2025.json"
+    payload = json.loads(target.read_text(encoding="utf-8"))
+    for fact in payload["note_facts"]:
+        if fact.get("fact_type") == STORE_COUNT_FACT_TYPE:
+            fact["source"].pop("label", None)
+            fact["source"].pop("note", None)
+    target.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    before = {path: path.read_bytes() for path in dest.glob("*.json")}
+    out = tmp_path / "reconciled"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "core",
+            "reconcile",
+            str(dest),
+            "--source-root",
+            str(SOURCE),
+            "--admit-period",
+            "2022-01-30",
+            "-o",
+            str(out),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    combined = completed.stdout + completed.stderr
+    assert completed.returncode != 0
+    assert "invalid_operating_kpi" in combined
+    assert "missing reported label" in combined
+    assert "wrote no artifacts" in combined
+    assert {path: path.read_bytes() for path in dest.glob("*.json")} == before
+    assert not out.exists() or not any(out.iterdir())
 
 
 def test_unknown_identity_and_invalid_date_fail_closed(tmp_path: Path):
@@ -568,7 +787,9 @@ def test_augmented_lululemon_filings_round_trip_and_selected_totals(tmp_path: Pa
             assert item.presentation_basis == role
             assert item.selection_reason == reason
             assert item.pdf_page == page
-            assert item.source_label == "Total company-operated stores"
+            assert item.source_label == REPORTED_STORE_LABEL
+            assert item.source_note == EXPECTED_SOURCE_NOTES[period]
+            assert item.source_label != item.fact_type
 
         assert len(reconciled.selected_geographic_facts) == 56
         americas = [
@@ -597,14 +818,20 @@ def test_augmented_lululemon_filings_round_trip_and_selected_totals(tmp_path: Pa
             assert model[period].value == value
             assert model[period].unit == "stores"
         payload = standardized_to_payload(fin)
-        assert "source_sha256" not in json.dumps(payload["historical_operating_kpis"])
-        assert "pdf_page" not in json.dumps(payload["historical_operating_kpis"])
+        kpi_json = json.dumps(payload["historical_operating_kpis"])
+        assert "source_sha256" not in kpi_json
+        assert "pdf_page" not in kpi_json
+        assert "source_label" not in kpi_json
+        assert "source_note" not in kpi_json
         assert restored.historical_segment == fin.historical_segment
         assert sum(len(snap.values) for snap in restored.historical_segment.periods) == 56
         provenance = reconciliation_provenance_payload(reconciled)
         assert len(provenance["selected_operating_kpi_facts"]) == 5
         assert all(
-            row["unit"] == "stores" and row["value"] == INDEPENDENT_STORE_TOTALS[date.fromisoformat(row["period"])]
+            row["unit"] == "stores"
+            and row["value"] == INDEPENDENT_STORE_TOTALS[date.fromisoformat(row["period"])]
+            and row["source_label"] == REPORTED_STORE_LABEL
+            and row["source_note"] == EXPECTED_SOURCE_NOTES[date.fromisoformat(row["period"])]
             for row in provenance["selected_operating_kpi_facts"]
         )
 

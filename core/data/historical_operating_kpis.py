@@ -70,6 +70,13 @@ def require_kpi_unit(identity: str, unit: object) -> str:
     return normalized
 
 
+def require_reported_label(identity: str, label: object) -> str:
+    """Require a reported source label; note text is not a substitute."""
+    if not isinstance(label, str) or not label.strip():
+        raise ValueError(f"operating-KPI {identity} missing reported label")
+    return label
+
+
 def validate_operating_kpi_fact(fact: SupplementalFact) -> tuple[str, str]:
     """Reject malformed store-KPI supplemental facts; return metric, population."""
     metric, population = split_operating_kpi_identity(fact.fact_type)
@@ -78,6 +85,7 @@ def validate_operating_kpi_fact(fact: SupplementalFact) -> tuple[str, str]:
         raise ValueError(f"operating-KPI {identity} must have status=reported")
     if fact.source.page <= 0:
         raise ValueError(f"operating-KPI {identity} missing positive source page")
+    require_reported_label(identity, fact.source.label)
     if fact.presentation_role not in _VALID_ROLES:
         raise ValueError(
             f"operating-KPI {identity} missing valid presentation_role"

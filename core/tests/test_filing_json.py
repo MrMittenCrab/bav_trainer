@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 from datetime import date
@@ -457,10 +458,14 @@ def test_operating_kpi_note_fact_round_trip_preserves_unit(tmp_path: Path, unit:
     dumped = extracted_filing_to_payload(filing)
     assert dumped["note_facts"][0]["unit"] == unit
     assert dumped["note_facts"][0]["value"] == 655
+    assert dumped["note_facts"][0]["source"]["label"] == "Total company-operated stores"
+    assert dumped["note_facts"][0]["source"]["note"] == "Company-Operated Stores"
     round_path = tmp_path / "kpi-round.json"
     round_path.write_text(json.dumps(dumped, indent=2) + "\n", encoding="utf-8")
     reloaded = load_extracted_filing(round_path)
     assert extracted_filing_to_payload(reloaded) == dumped
+    assert reloaded.note_facts[0].source.label == "Total company-operated stores"
+    assert reloaded.note_facts[0].source.note == "Company-Operated Stores"
     legacy = _minimal_filing_payload()
     legacy_path = tmp_path / "legacy.json"
     legacy_path.write_text(json.dumps(legacy, indent=2) + "\n", encoding="utf-8")
@@ -468,3 +473,114 @@ def test_operating_kpi_note_fact_round_trip_preserves_unit(tmp_path: Path, unit:
     legacy_dump = extracted_filing_to_payload(legacy_filing)
     assert all("unit" not in fact for fact in legacy_dump["note_facts"])
     assert legacy_dump["note_facts"] == []
+
+
+def _write_minimal_source(tmp_path: Path) -> Path:
+    source_root = tmp_path / "source"
+    source_root.mkdir(parents=True, exist_ok=True)
+    (source_root / "Fastretailing_CFS2025.pdf").write_bytes(b"%PDF-kpi-label")
+    return source_root
+
+
+_OMIT = object()
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        pytest.param(_OMIT, id="omitted"),
+        pytest.param("", id="empty"),
+        pytest.param(" \t ", id="whitespace"),
+    ],
+)
+@pytest.mark.parametrize(
+    "note",
+    [
+        pytest.param("Company-Operated Stores", id="note-populated"),
+        pytest.param(_OMIT, id="note-absent"),
+    ],
+)
+def test_operating_kpi_missing_label_fails_validation_after_reload(
+    tmp_path: Path, label, note
+):
+    source_root = _write_minimal_source(tmp_path)
+    payload = _minimal_filing_payload()
+    source = {"page": 7}
+    if note is not _OMIT:
+        source["note"] = note
+    if label is not _OMIT:
+        source["label"] = label
+    payload["note_facts"] = [
+        {
+            "fact_type": "kpi.operating.store_count.company_operated",
+            "period": "2025-08-31",
+            "value": 655,
+            "status": "reported",
+            "unit": "stores",
+            "source": source,
+            "presentation_role": "current_period",
+        }
+    ]
+    original = copy.deepcopy(payload)
+    path = tmp_path / "kpi-missing-label.json"
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    filing = load_extracted_filing(path)
+    report = validate_extracted_filing(filing, source_root=source_root)
+    assert not report.ok
+    assert any(
+        issue.code == "invalid_operating_kpi"
+        and "missing reported label" in issue.message
+        for issue in report.errors
+    )
+    assert json.loads(path.read_text(encoding="utf-8")) == original
+
+
+def test_operating_kpi_review_reproduction_omits_label_and_note(tmp_path: Path):
+    source_root = _write_minimal_source(tmp_path)
+    payload = _minimal_filing_payload()
+    observation = {
+        "fact_type": "kpi.operating.store_count.company_operated",
+        "period": "2025-08-31",
+        "value": 655,
+        "status": "reported",
+        "unit": "stores",
+        "source": {
+            "page": 7,
+            "note": "Company-Operated Stores",
+            "label": "Total company-operated stores",
+        },
+        "presentation_role": "current_period",
+    }
+    observation["source"].pop("label")
+    observation["source"].pop("note")
+    payload["note_facts"] = [observation]
+    original = copy.deepcopy(payload)
+    path = tmp_path / "kpi-review-repro.json"
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    filing = load_extracted_filing(path)
+    report = validate_extracted_filing(filing, source_root=source_root)
+    assert not report.ok
+    assert any("missing reported label" in issue.message for issue in report.errors)
+    assert json.loads(path.read_text(encoding="utf-8")) == original
+
+
+def test_unrelated_supplemental_without_label_still_validates(tmp_path: Path):
+    source_root = _write_minimal_source(tmp_path)
+    payload = _minimal_filing_payload()
+    payload["note_facts"] = [
+        {
+            "fact_type": "lease_interest_expense",
+            "period": "2025-08-31",
+            "value": 12,
+            "status": "reported",
+            "source": {"page": 14, "note": "17 Leases"},
+        }
+    ]
+    path = tmp_path / "lease.json"
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    filing = load_extracted_filing(path)
+    report = validate_extracted_filing(filing, source_root=source_root)
+    assert report.ok
+    dumped = extracted_filing_to_payload(filing)
+    assert "label" not in dumped["note_facts"][0]["source"]
+    assert dumped["note_facts"][0]["source"]["note"] == "17 Leases"
