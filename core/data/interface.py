@@ -88,6 +88,24 @@ class HistoricalSegmentData:
 
 
 @dataclass
+class HistoricalOperatingKpiObservation:
+    """One source-grounded historical operating-KPI observation."""
+
+    metric: str
+    population: str
+    period: date
+    value: float
+    unit: str
+
+
+@dataclass
+class HistoricalOperatingKpiData:
+    """Optional historical operating-KPI inputs used by later analysis."""
+
+    observations: list[HistoricalOperatingKpiObservation] = field(default_factory=list)
+
+
+@dataclass
 class StandardizedFinancials:
     """Canonical IS / BS / CF structure expected by the BAV engine."""
 
@@ -106,6 +124,7 @@ class StandardizedFinancials:
     provenance: list[dict[str, str]] = field(default_factory=list)
     historical_lease: HistoricalLeaseData | None = None
     historical_segment: HistoricalSegmentData | None = None
+    historical_operating_kpis: HistoricalOperatingKpiData | None = None
 
     def period_dates(self) -> list[date]:
         return [p.end_date for p in self.periods]

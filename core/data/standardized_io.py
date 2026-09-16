@@ -5,10 +5,13 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any
 
+from .historical_operating_kpis import validate_historical_operating_kpis
 from .historical_segments import validate_historical_segment
 from .interface import (
     FinancialPeriod,
     HistoricalLeaseData,
+    HistoricalOperatingKpiData,
+    HistoricalOperatingKpiObservation,
     HistoricalSegmentData,
     HistoricalSegmentPeriod,
     HistoricalShareData,
@@ -27,6 +30,27 @@ def _date_key(value: date | datetime | str) -> str:
 
 def _parse_date(value: str) -> date:
     return date.fromisoformat(str(value)[:10])
+
+
+def _parse_kpi_period(value: object) -> date:
+    if not isinstance(value, str) or len(value) != 10:
+        raise ValueError(
+            "historical_operating_kpis period must be a canonical YYYY-MM-DD date: "
+            f"{value!r}"
+        )
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError(
+            "historical_operating_kpis period must be a canonical YYYY-MM-DD date: "
+            f"{value!r}"
+        ) from exc
+    if parsed.isoformat() != value:
+        raise ValueError(
+            "historical_operating_kpis period must be a canonical YYYY-MM-DD date: "
+            f"{value!r}"
+        )
+    return parsed
 
 
 def _parse_segment_period(value: object) -> date:
@@ -199,6 +223,69 @@ def _deserialize_historical_segment_period(entry: object) -> HistoricalSegmentPe
     )
 
 
+def _serialize_historical_operating_kpis(
+    data: HistoricalOperatingKpiData | None,
+) -> dict[str, Any] | None:
+    if data is None:
+        return None
+    return {
+        "observations": [
+            {
+                "metric": item.metric,
+                "population": item.population,
+                "period": _date_key(item.period),
+                "value": float(item.value) if not float(item.value).is_integer() else int(item.value),
+                "unit": item.unit,
+            }
+            for item in sorted(
+                data.observations,
+                key=lambda row: (row.metric, row.population, _date_key(row.period)),
+            )
+        ]
+    }
+
+
+def _deserialize_historical_operating_kpi_observation(
+    entry: object,
+) -> HistoricalOperatingKpiObservation:
+    if not isinstance(entry, dict):
+        raise ValueError("historical_operating_kpis.observations entries must be objects")
+    if "period" not in entry:
+        raise ValueError("historical_operating_kpis period is required")
+    if "metric" not in entry:
+        raise ValueError("historical_operating_kpis metric is required")
+    if "population" not in entry:
+        raise ValueError("historical_operating_kpis population is required")
+    if "value" not in entry:
+        raise ValueError("historical_operating_kpis value is required")
+    if "unit" not in entry:
+        raise ValueError("historical_operating_kpis unit is required")
+    return HistoricalOperatingKpiObservation(
+        metric=str(entry.get("metric") or ""),
+        population=str(entry.get("population") or ""),
+        period=_parse_kpi_period(entry["period"]),
+        value=entry["value"],
+        unit=str(entry.get("unit") or ""),
+    )
+
+
+def _deserialize_historical_operating_kpis(
+    payload: object,
+) -> HistoricalOperatingKpiData | None:
+    if payload is None:
+        return None
+    if not isinstance(payload, dict):
+        raise ValueError("historical_operating_kpis must be an object or null")
+    raw_obs = payload.get("observations")
+    if not isinstance(raw_obs, list):
+        raise ValueError("historical_operating_kpis.observations must be a list")
+    return HistoricalOperatingKpiData(
+        observations=[
+            _deserialize_historical_operating_kpi_observation(entry) for entry in raw_obs
+        ]
+    )
+
+
 def _deserialize_historical_segment(payload: object) -> HistoricalSegmentData | None:
     if payload is None:
         return None
@@ -218,6 +305,7 @@ def _deserialize_historical_segment(payload: object) -> HistoricalSegmentData | 
 def standardized_to_payload(fin: StandardizedFinancials) -> dict:
     """Serialize model-relevant fields only (no source paths, provenance, or hints)."""
     validate_historical_segment(fin)
+    validate_historical_operating_kpis(fin)
     payload = {
         "ticker": fin.ticker,
         "company_name": fin.company_name,
@@ -242,6 +330,9 @@ def standardized_to_payload(fin: StandardizedFinancials) -> dict:
     serialized = _serialize_historical_segment(fin.historical_segment)
     if serialized is not None:
         payload["historical_segment"] = serialized
+    serialized_kpis = _serialize_historical_operating_kpis(fin.historical_operating_kpis)
+    if serialized_kpis is not None:
+        payload["historical_operating_kpis"] = serialized_kpis
     return payload
 
 
@@ -283,6 +374,12 @@ def standardized_from_payload(payload: dict) -> StandardizedFinancials:
             if "historical_segment" in payload
             else None
         ),
+        historical_operating_kpis=_deserialize_historical_operating_kpis(
+            payload["historical_operating_kpis"]
+            if "historical_operating_kpis" in payload
+            else None
+        ),
     )
     validate_historical_segment(fin)
+    validate_historical_operating_kpis(fin)
     return fin

@@ -7,6 +7,10 @@ from dataclasses import dataclass
 from pathlib import Path, PureWindowsPath
 
 from ..data.filing import ExtractedFiling, ExtractedStatementRow, PresentationRole
+from ..data.historical_operating_kpis import (
+    is_operating_kpi_fact_type,
+    validate_operating_kpi_fact,
+)
 
 
 def _match_text(value: str) -> str:
@@ -159,6 +163,7 @@ def validate_extracted_filing(
                     else:
                         saw_current = True
 
+    kpi_seen: set[tuple[str, str]] = set()
     for fact in (*filing.note_facts, *filing.share_facts):
         if fact.source.page <= 0:
             issues.append(
@@ -168,6 +173,28 @@ def validate_extracted_filing(
                     f"supplemental {fact.fact_type} missing positive source page",
                 )
             )
+        if is_operating_kpi_fact_type(fact.fact_type):
+            try:
+                validate_operating_kpi_fact(fact)
+            except ValueError as exc:
+                issues.append(
+                    FilingValidationIssue(
+                        "error",
+                        "invalid_operating_kpi",
+                        str(exc),
+                    )
+                )
+            key = (fact.fact_type, fact.period.isoformat())
+            if key in kpi_seen:
+                issues.append(
+                    FilingValidationIssue(
+                        "error",
+                        "duplicate_operating_kpi_identity",
+                        f"duplicate operating-KPI identity {fact.fact_type} "
+                        f"for {fact.period.isoformat()}",
+                    )
+                )
+            kpi_seen.add(key)
 
     if not saw_current:
         issues.append(

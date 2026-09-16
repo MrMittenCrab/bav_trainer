@@ -429,3 +429,42 @@ def test_geographic_note_fact_round_trip_preserves_presentation_role(
     round_path.write_text(json.dumps(dumped, indent=2) + "\n", encoding="utf-8")
     reloaded = load_extracted_filing(round_path)
     assert extracted_filing_to_payload(reloaded) == dumped
+
+
+@pytest.mark.parametrize("unit", ["stores", "ones"])
+def test_operating_kpi_note_fact_round_trip_preserves_unit(tmp_path: Path, unit: str):
+    payload = _minimal_filing_payload()
+    payload["note_facts"] = [
+        {
+            "fact_type": "kpi.operating.store_count.company_operated",
+            "period": "2025-08-31",
+            "value": 655,
+            "status": "reported",
+            "unit": unit,
+            "source": {
+                "page": 7,
+                "note": "Company-Operated Stores",
+                "label": "Total company-operated stores",
+            },
+            "presentation_role": "current_period",
+        }
+    ]
+    path = tmp_path / "kpi.json"
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    filing = load_extracted_filing(path)
+    assert filing.note_facts[0].unit == unit
+    assert filing.note_facts[0].value == 655
+    dumped = extracted_filing_to_payload(filing)
+    assert dumped["note_facts"][0]["unit"] == unit
+    assert dumped["note_facts"][0]["value"] == 655
+    round_path = tmp_path / "kpi-round.json"
+    round_path.write_text(json.dumps(dumped, indent=2) + "\n", encoding="utf-8")
+    reloaded = load_extracted_filing(round_path)
+    assert extracted_filing_to_payload(reloaded) == dumped
+    legacy = _minimal_filing_payload()
+    legacy_path = tmp_path / "legacy.json"
+    legacy_path.write_text(json.dumps(legacy, indent=2) + "\n", encoding="utf-8")
+    legacy_filing = load_extracted_filing(legacy_path)
+    legacy_dump = extracted_filing_to_payload(legacy_filing)
+    assert all("unit" not in fact for fact in legacy_dump["note_facts"])
+    assert legacy_dump["note_facts"] == []

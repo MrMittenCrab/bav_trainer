@@ -202,13 +202,15 @@ def _statement_provenance(payload: dict) -> dict:
     comparable = dict(payload)
     comparable["note_facts"] = []
     comparable.pop("selected_geographic_segment_facts", None)
+    comparable.pop("selected_operating_kpi_facts", None)
     return comparable
 
 
 def _comparable_standardized(payload: dict) -> dict:
-    """Canonical-comparable standardized payload: ignore optional segment handoff."""
+    """Canonical-comparable standardized payload: ignore optional handoffs."""
     comparable = dict(payload)
     comparable.pop("historical_segment", None)
+    comparable.pop("historical_operating_kpis", None)
     return comparable
 
 

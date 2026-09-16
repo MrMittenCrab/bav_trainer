@@ -145,6 +145,13 @@ def _parse_supplemental(payload: object) -> SupplementalFact:
             presentation_role = PresentationRole(str(role_raw)).value
         except ValueError as exc:
             raise ValueError(f"unknown presentation_role: {role_raw!r}") from exc
+    unit_raw = payload.get("unit", "")
+    if unit_raw in (None, ""):
+        unit = ""
+    elif not isinstance(unit_raw, str):
+        raise ValueError("supplemental unit must be a string")
+    else:
+        unit = unit_raw
     return SupplementalFact(
         fact_type=fact_type,
         period=_parse_date(payload.get("period"), context="supplemental.period"),
@@ -153,6 +160,7 @@ def _parse_supplemental(payload: object) -> SupplementalFact:
         source=_parse_source(payload.get("source")),
         derivation=derivation,
         presentation_role=presentation_role,
+        unit=unit,
     )
 
 
@@ -271,6 +279,8 @@ def extracted_filing_to_payload(filing: ExtractedFiling) -> dict[str, Any]:
             out["derivation"] = fact.derivation
         if fact.presentation_role:
             out["presentation_role"] = fact.presentation_role
+        if fact.unit:
+            out["unit"] = fact.unit
         return out
 
     meta: dict[str, Any] = {

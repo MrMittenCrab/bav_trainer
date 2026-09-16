@@ -1,0 +1,114 @@
+{
+  "LULU_FY2022.json": [
+    {
+      "fact_type": "kpi.operating.store_count.company_operated",
+      "period": "2023-01-29",
+      "value": 655,
+      "status": "reported",
+      "unit": "stores",
+      "source": {
+        "page": 7,
+        "note": "Company-Operated Stores",
+        "label": "Total company-operated stores"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "kpi.operating.store_count.company_operated",
+      "period": "2022-01-30",
+      "value": 574,
+      "status": "reported",
+      "unit": "stores",
+      "source": {
+        "page": 7,
+        "note": "Company-Operated Stores",
+        "label": "Total company-operated stores"
+      },
+      "presentation_role": "comparative"
+    }
+  ],
+  "LULU_FY2023.json": [
+    {
+      "fact_type": "kpi.operating.store_count.company_operated",
+      "period": "2024-01-28",
+      "value": 711,
+      "status": "reported",
+      "unit": "stores",
+      "source": {
+        "page": 11,
+        "note": "Number of company-operated stores by market",
+        "label": "Total company-operated stores"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "kpi.operating.store_count.company_operated",
+      "period": "2023-01-29",
+      "value": 655,
+      "status": "reported",
+      "unit": "stores",
+      "source": {
+        "page": 11,
+        "note": "Number of company-operated stores by market",
+        "label": "Total company-operated stores"
+      },
+      "presentation_role": "comparative"
+    }
+  ],
+  "LULU_FY2024.json": [
+    {
+      "fact_type": "kpi.operating.store_count.company_operated",
+      "period": "2025-02-02",
+      "value": 767,
+      "status": "reported",
+      "unit": "stores",
+      "source": {
+        "page": 11,
+        "note": "Number of company-operated stores by market",
+        "label": "Total company-operated stores"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "kpi.operating.store_count.company_operated",
+      "period": "2024-01-28",
+      "value": 711,
+      "status": "reported",
+      "unit": "stores",
+      "source": {
+        "page": 11,
+        "note": "Number of company-operated stores by market",
+        "label": "Total company-operated stores"
+      },
+      "presentation_role": "comparative"
+    }
+  ],
+  "LULU_FY2025.json": [
+    {
+      "fact_type": "kpi.operating.store_count.company_operated",
+      "period": "2026-02-01",
+      "value": 811,
+      "status": "reported",
+      "unit": "stores",
+      "source": {
+        "page": 11,
+        "note": "Number of company-operated stores by market",
+        "label": "Total company-operated stores"
+      },
+      "presentation_role": "current_period"
+    },
+    {
+      "fact_type": "kpi.operating.store_count.company_operated",
+      "period": "2025-02-02",
+      "value": 767,
+      "status": "reported",
+      "unit": "stores",
+      "source": {
+        "page": 11,
+        "note": "Number of company-operated stores by market",
+        "label": "Total company-operated stores"
+      },
+      "presentation_role": "comparative"
+    }
+  ]
+}

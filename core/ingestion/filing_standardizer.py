@@ -7,6 +7,7 @@ from datetime import date
 from typing import Any
 
 from ..data.filing import PresentationRole
+from ..data.historical_operating_kpis import validate_historical_operating_kpis
 from ..data.historical_segments import (
     GEOGRAPHIC_SEGMENT_NAMESPACE,
     expected_bridge_operations,
@@ -17,6 +18,8 @@ from ..data.historical_segments import (
 from ..data.interface import (
     FinancialPeriod,
     HistoricalLeaseData,
+    HistoricalOperatingKpiData,
+    HistoricalOperatingKpiObservation,
     HistoricalSegmentData,
     HistoricalSegmentPeriod,
     HistoricalShareData,
@@ -105,6 +108,8 @@ def _supplemental_observation_payload(obs: SupplementalObservation) -> dict[str,
         out["derivation"] = obs.fact.derivation
     if obs.fact.presentation_role:
         out["presentation_role"] = obs.fact.presentation_role
+    if obs.fact.unit:
+        out["unit"] = obs.fact.unit
     return out
 
 
@@ -179,6 +184,7 @@ def standardize_reconciled(
     historical_shares = _historical_shares(reconciled)
     historical_lease = _historical_lease(reconciled)
     historical_segment = _historical_segment(reconciled)
+    historical_operating_kpis = _historical_operating_kpis(reconciled)
 
     fin = StandardizedFinancials(
         ticker=reconciled.ticker,
@@ -197,8 +203,10 @@ def standardize_reconciled(
         historical_shares=historical_shares,
         historical_lease=historical_lease,
         historical_segment=historical_segment,
+        historical_operating_kpis=historical_operating_kpis,
     )
     validate_historical_segment(fin)
+    validate_historical_operating_kpis(fin)
     return fin
 
 
@@ -301,6 +309,38 @@ def _historical_segment(
         namespace=GEOGRAPHIC_SEGMENT_NAMESPACE,
         periods=snapshots,
     )
+
+
+def _historical_operating_kpis(
+    reconciled: ReconciledCompanyData,
+) -> HistoricalOperatingKpiData | None:
+    """Emit selected operating-KPI facts on the admitted model axis only."""
+    model_periods = set(reconciled.periods)
+    observations: list[HistoricalOperatingKpiObservation] = []
+    seen: set[tuple[str, str, date]] = set()
+    for item in reconciled.selected_operating_kpi_facts:
+        if item.period not in model_periods:
+            continue
+        key = (item.metric, item.population, item.period)
+        if key in seen:
+            raise ValueError(
+                "duplicate operating-KPI identity "
+                f"{item.metric}/{item.population} for {item.period.isoformat()}"
+            )
+        seen.add(key)
+        observations.append(
+            HistoricalOperatingKpiObservation(
+                metric=item.metric,
+                population=item.population,
+                period=item.period,
+                value=float(item.value),
+                unit=item.unit,
+            )
+        )
+    if not observations:
+        return None
+    observations.sort(key=lambda row: (row.metric, row.population, row.period.isoformat()))
+    return HistoricalOperatingKpiData(observations=observations)
 
 
 def reconciliation_provenance_payload(
@@ -447,6 +487,11 @@ def reconciliation_provenance_payload(
             _selected_geographic_payload(item)
             for item in reconciled.selected_geographic_facts
         ]
+    if reconciled.selected_operating_kpi_facts:
+        payload["selected_operating_kpi_facts"] = [
+            _selected_operating_kpi_payload(item)
+            for item in reconciled.selected_operating_kpi_facts
+        ]
     if reconciled.requested_admit_periods:
         payload["admitted_comparative_periods"] = [
             period.isoformat() for period in reconciled.admitted_comparative_periods
@@ -494,6 +539,28 @@ def reconciliation_conflicts_payload(
         "supplemental_conflicts": supplemental_conflicts,
         "supplemental_conflict_count": len(supplemental_conflicts),
     }
+
+
+def _selected_operating_kpi_payload(item) -> dict[str, Any]:
+    out: dict[str, Any] = {
+        "identity": item.fact_type,
+        "metric": item.metric,
+        "population": item.population,
+        "period": item.period.isoformat(),
+        "value": _num(item.value),
+        "unit": item.unit,
+        "filing_year": item.filing_year,
+        "source_file": item.source_file,
+        "source_sha256": item.source_sha256,
+        "pdf_page": item.pdf_page,
+        "presentation_basis": item.presentation_basis,
+        "selection_reason": item.selection_reason,
+    }
+    if item.source_note:
+        out["source_note"] = item.source_note
+    if item.source_label:
+        out["source_label"] = item.source_label
+    return out
 
 
 def _selected_geographic_payload(item) -> dict[str, Any]:

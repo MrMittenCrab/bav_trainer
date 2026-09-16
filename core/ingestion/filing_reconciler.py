@@ -75,6 +75,24 @@ class SupplementalConflict:
 
 
 @dataclass(frozen=True)
+class SelectedOperatingKpiFact:
+    fact_type: str
+    metric: str
+    population: str
+    period: date
+    value: float
+    unit: str
+    filing_year: int
+    source_file: str
+    source_sha256: str
+    pdf_page: int
+    presentation_basis: str
+    selection_reason: str
+    source_note: str = ""
+    source_label: str = ""
+
+
+@dataclass(frozen=True)
 class SelectedGeographicFact:
     fact_type: str
     period: date
@@ -112,6 +130,7 @@ class ReconciledCompanyData:
     share_facts: tuple[SupplementalObservation, ...]
     supplemental_conflicts: tuple[SupplementalConflict, ...] = ()
     selected_geographic_facts: tuple[SelectedGeographicFact, ...] = ()
+    selected_operating_kpi_facts: tuple[SelectedOperatingKpiFact, ...] = ()
     source_files: tuple[BoundSourceFile, ...] = ()
     omitted_incomplete_axis: tuple[dict, ...] = ()
     requested_admit_periods: tuple[date, ...] = ()
@@ -403,6 +422,7 @@ def reconcile_filings(
         (*note_facts_t, *share_facts_t)
     )
     from .geographic_segment import select_geographic_segment_facts
+    from .operating_kpi import select_operating_kpi_facts
 
     values_t = tuple(values)
     selected_geographic_facts = select_geographic_segment_facts(
@@ -410,6 +430,7 @@ def reconcile_filings(
         reconciled_values=values_t,
         model_periods=model_periods,
     )
+    selected_operating_kpi_facts = select_operating_kpi_facts(note_facts_t)
     # Explicit registry of every validated bound source — not derived from
     # selected statement observations (losers and supplemental-only stay).
     source_files = tuple(
@@ -440,6 +461,7 @@ def reconcile_filings(
         share_facts=share_facts_t,
         supplemental_conflicts=supplemental_conflicts,
         selected_geographic_facts=selected_geographic_facts,
+        selected_operating_kpi_facts=selected_operating_kpi_facts,
         source_files=source_files,
         requested_admit_periods=requested_admit,
         admitted_comparative_periods=admitted,
