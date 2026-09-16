@@ -1,26 +1,24 @@
-# RESULT.md — Step 9M.2.4.1.1.1.36 Operating KPIs: reject serialized non-string provenance labels
+# RESULT.md — Step 9M.2.4.1.1.1.37 Operating KPIs: historical company-operated store analysis
 
 **Status:** COMPLETE (this child; parents remain UNRESOLVED)  
-**Step:** 9M.2.4.1.1.1.36 — Operating KPIs: reject serialized non-string provenance labels  
-**Work:** `0a6a4585ec404220aa91d71fc7439eb6`  
-**Plan:** `f88e276677ac468fb5d6ef063a35d003`  
+**Step:** 9M.2.4.1.1.1.37 — Operating KPIs: historical company-operated store analysis  
+**Work:** `7608d8dab10c49959e9d24407e3cc040`  
+**Plan:** `88639dae567748c4971027f20b81df83`  
 **Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
 **INPUT_STATUS:** empty (`inputs: []`)  
-`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start). TARGET SHA-256 `ab70dd8859ba352a2387b95c55477cbc31944288c60478023d5937cf0662e91c` (23864). IMPLEMENTATION SHA-256 `cb9293a890d71eb71dd3d138a17a30532f5a0688da7fb9b245a7ce2daac6806b` (8932).  
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start). TARGET SHA-256 `ab70dd8859ba352a2387b95c55477cbc31944288c60478023d5937cf0662e91c` (23864). IMPLEMENTATION SHA-256 `301c09f3696e88d8dfa9f3ab307f12c75e00a5cccc35eda71d783f1179e7b59b` (8419).  
 No commit / push / sync / checkpoint / branch change. No release rewrite, forecasting, or valuation. Spreadsheet recalculation was **not** performed.  
-This child does **not** declare parent, Operating KPIs product, or Step 9 acceptance.
+This child does **not** declare parent, Operating KPIs product, workbook/Check, or Step 9 acceptance.
 
-Edits this child: `core/data/historical_operating_kpis.py`, `core/ingestion/filing_json.py`, `core/tests/test_operating_kpi_facts.py`, `core/tests/test_filing_json.py`, `core/tests/test_filing_reconciler.py`, `core/tests/test_filing_cli.py`, `RESULT.md`.
+Edits this child: `core/model/operating_kpi.py`, `core/tests/test_operating_kpi_analysis.py`, narrowly necessary helpers in `core/tests/test_operating_kpi_facts.py`, `RESULT.md`.
 
 ---
 
-## Correction of prior incomplete string-label acceptance claim
+## Task 1 — Optional analytical series
 
-The previous child claimed string-label acceptance after rejecting omitted / empty / whitespace-only labels. That claim was **incomplete**. Production `_parse_source` still did `str(payload.get("label") or "")`, so serialized non-string KPI labels (`123`, `true`, nonempty objects/arrays) became accepted provenance strings and passed filing validation and reconciliation.
+`operating_kpi_applicable` is true only when `StandardizedFinancials.historical_operating_kpis` is supplied. `compute_operating_kpi_series` validates that contract, uses `canonical_fiscal_periods`, and returns metric/population `store_count` / `company_operated`, per-period count units, period-end counts, net count change `current - previous`, and growth `(current - previous) / previous`.
 
-This child rejects non-string operating-KPI `source.label` values at supplemental JSON parsing, before `_parse_source` can stringify them, using `is_operating_kpi_fact_type` and `reject_non_string_reported_label`. `None` / omitted / empty / whitespace-only labels remain object-level validation defects. Populated notes still cannot substitute.
-
-Parser rejection is distinct from validation-report rejection: `load_extracted_filing` raises `ValueError` (`missing reported label`) and creates no accepted filing; omitted/null/blank labels still load and fail as `invalid_operating_kpi`.
+Absent/null payloads raise `MissingLineError: operating KPI sources not available`. Malformed supplied payloads raise validation errors. Opening change/growth is `None`. Later comparisons require both immediately adjacent model-period observations; missing observations yield `Source unavailable` without compressing gaps. Zero denominators yield `#N/A`. Actual zero counts and negative net changes remain numeric. Accepted `stores` / `ones` are count units independent of monetary scale. The series labels net count changes only; it does not derive closures, same-store sales, revenue-per-store, geographic allocation, or operating causality.
 
 ---
 
@@ -28,70 +26,61 @@ Parser rejection is distinct from validation-report rejection: `load_extracted_f
 
 | Kind | This child |
 |---|---|
-| Fresh | Pre-coercion parser rejection of serialized KPI labels `123`, `1.5`, `0`, `true`, `false`, nonempty/empty objects and nonempty/empty arrays, with and without notes, on `note_facts` and `share_facts`; in-memory non-string labels fail shared validation including superseded observations after a previously valid report; CLI parse path prints `error:` without `invalid_operating_kpi` or `wrote no artifacts`; blank/null/omitted labels still fail as validation-report `invalid_operating_kpi`; non-KPI numeric labels still coerce (`123`, statement `99`); temporary augmented filings still select `574/655/711/767/811` with unit `stores`, labels `Total company-operated stores`, retained notes, and geo **56**; required pytest **678 passed** in **163.94s**; checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` **50/50 MATCH** |
-| Retained via passing required tests this child | Rendered-page store totals `574` / `655` / `711` / `767` / `811` (not re-transcribed from PDFs this child); five-period admit `2022-01-30`; geo **74** / preserved **486** / practice **560**; unavailable **101**; **15** margin formulas; selected Americas `7928156`; superseded `7928256` only in audit evidence; Fast Retailing **577**; pale-yellow rejection; frozen compatibility authentication |
-| Not claimed | Excel engine recalculation; workbook/Check/KPI analytics; parent or Step 9 completion; G6–G9 remainder |
+| Fresh | Temporary source-grounded augment → validate / reconcile / standardize / JSON reload in both filing orders produced identical series: counts `574/655/711/767/811` `stores`, net changes `None/81/56/56/44`, growth `None`, `81/574`, `56/655`, `56/711`, `44/767` within `1e-12`; geo **56** and Americas `7928156` retained; model KPI JSON has no source labels/notes; in-memory controls for absent/null, shuffled observations, both count units, monetary-scale independence, single-period, sparse gaps, zero denominator, zero current count, declining counts, malformed values/identities/units/duplicates/off-axis periods, canonical-axis rejection, and success/failure immutability; required pytest **687 passed** in **164.76s**; checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` **50/50 MATCH** |
+| Retained via passing required tests this child | Five-period admit `2022-01-30`; selected store provenance and labels from prior children; geo **74** / preserved **486** / practice **560**; unavailable **101**; **15** margin formulas; superseded `7928256` only in audit evidence; Fast Retailing **577**; pale-yellow rejection; frozen compatibility authentication |
+| Not claimed | Excel engine recalculation; workbook/Check/KPI learner surface; other Operating KPIs; parent or Step 9 completion; G6–G9 remainder |
 
 Interpreter: `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. Augmented filings and reconciliations used `TemporaryDirectory` only. Committed extracted JSON, PDFs, reconciled artifacts, releases, and examples were not rewritten.
 
 ---
 
-## Task 1 — Reject non-string labels before coercion
+## Task 2 — Measured arithmetic and source-to-analysis continuity
 
-`reject_non_string_reported_label` leaves `None` and strings to object-level `require_reported_label`. `_parse_supplemental` applies the guard on KPI `source.label` before `_parse_source`. Errors identify the KPI reported-label defect (`operating-KPI {identity} missing reported label`). Notes are not inspected as a substitute.
+Independent temporary reconstruction of serialized source-grounded filings, both orders, after validate / reconcile / standardize / standardized JSON reload. Analytical outputs after reload equalled pre-reload outputs and the reversed-order series. Expected values were recomputed from period-end counts (`current - previous` and `(current - previous) / previous`), not from company-specific module constants.
 
-Non-KPI supplemental facts and statement-row sources keep existing coercion. Selected audit payloads still copy supplied string labels and notes; model-facing `historical_operating_kpis` still contains only metric/population/period/value/unit.
+| Period | Count | Unit | Net change | Growth |
+|---|---:|---|---:|---:|
+| 2022-01-30 | 574 | stores | None | None |
+| 2023-01-29 | 655 | stores | 81 | 81/574 = 0.14111498257839722 |
+| 2024-01-28 | 711 | stores | 56 | 56/655 = 0.08549618320610687 |
+| 2025-02-02 | 767 | stores | 56 | 56/711 = 0.07876230661040788 |
+| 2026-02-01 | 811 | stores | 44 | 44/767 = 0.05736636245110821 |
+
+Measured availability / control outcomes:
+
+| Case | Result | Inputs |
+|---|---|---|
+| Absent / null payload | `operating_kpi_applicable` false; `MissingLineError` | unchanged |
+| Fast Retailing standardized.json | no `historical_operating_kpis`; same unavailable behavior | committed JSON unread as KPI source |
+| Shuffled / reversed observations | same series; observation list order preserved after success | observations unchanged except explicit reorder assertion |
+| `stores` vs `ones`; thousands vs millions units text | identical counts/changes/growth; unit identity preserved | monetary scale ignored |
+| Single period 811 | count 811; change/growth `None` | unchanged |
+| Sparse 655, gap, 767 | gap and later change/growth `Source unavailable`; 767-vs-655 growth not substituted | unchanged |
+| Prior count 0, current 10 | change 10; growth `#N/A` | unchanged |
+| Current count 0 after 10 | count 0; change -10; growth -1.0 | unchanged |
+| Decline 711 → 655 | change -56; growth -56/711 | unchanged |
+| Malformed value/identity/unit, duplicate key, off-axis period | `ValueError`; mutated payload unchanged | success path also leaves inputs unchanged |
+| Non-canonical `periods` argument | `operating KPI series must use the canonical fiscal axis` | original payload unchanged |
+
+Geographic selected facts remain **56**; Americas revenue `7928156`. Model-facing KPI JSON contains neither `source_label` nor `source_note`; five selected KPI provenance rows remain in the separate audit payload.
 
 ---
 
-## Task 2 — Measured parser vs validation-report rejection
-
-Serialized non-string labels: `123`, `1.5`, `0`, `true`, `false`, `{"x": 1}`, `{}`, `[1]`, `[]`, each with populated note `Company-Operated Stores` and with note omitted.
-
-| Case | Production load | Validation / reconcile | Inputs / output |
-|---|---|---|---|
-| 9×2 serialized KPI mutations (note_facts and share_facts) | `ValueError: missing reported label` from `load_extracted_filing`; no `ExtractedFiling`; not `invalid_operating_kpi` | never reached | mutated JSON bytes unchanged; no reconciled dir |
-| 9×2 object-level non-string labels | n/a (in-memory) | `select_operating_kpi_facts` / `validate_operating_kpi_fact` raise `missing reported label` | original good fact unchanged |
-| Previously valid report + superseded PRIOR_PRESENTATION fact with non-string label | original `report.ok` | shared reconcile revalidation raises `missing reported label` | original filing unchanged |
-| CLI `reconcile` / `validate-source` on serialized `123` | `error: ... missing reported label`; exit ≠ 0 | no validation-report path (`invalid_operating_kpi` absent; `wrote no artifacts` absent) | dest JSON bytes unchanged; output empty |
-| Omitted / null / empty / whitespace labels (retained) | load succeeds | `invalid_operating_kpi` / `missing reported label`; reconcile `cannot reconcile filings with validation errors` | source JSON unchanged |
-| Review reproduction: remove both `label` and `note` | load succeeds | same validation-report failure | source JSON unchanged |
-| Non-KPI `lease_interest_expense` label `123` and statement-row label `99` | load succeeds; coerced to `"123"` / `"99"` | `report.ok` | labels remain coerced strings |
-
-Positive controls: valid label/note text preserved exactly; valid label without note accepted; legacy absent/null KPI payloads still omit `historical_operating_kpis`; unrelated lease facts without labels still validate.
-
----
-
-## Task 3 — Retained handoff and verification commands
-
-Temporary source-grounded augmented filings, both filing orders, after validate / reconcile / standardize / standardized JSON reload:
-
-| Period | Selected count | Unit | Label | Note |
-|---|---:|---|---|---|
-| 2022-01-30 | 574 | stores | Total company-operated stores | Company-Operated Stores |
-| 2023-01-29 | 655 | stores | Total company-operated stores | Number of company-operated stores by market |
-| 2024-01-28 | 711 | stores | Total company-operated stores | Number of company-operated stores by market |
-| 2025-02-02 | 767 | stores | Total company-operated stores | Number of company-operated stores by market |
-| 2026-02-01 | 811 | stores | Total company-operated stores | Number of company-operated stores by market |
-
-Geographic selected facts remain **56**; Americas revenue `7928156`. Model KPI JSON contains neither `source_label` nor `source_note`. Unit `ones` remains independently accepted on the synthetic path. Independent parser probe of FY2025 serialized label `123` raised `ValueError` before validation; blank labels still produced `invalid_operating_kpi`. Committed extracted JSON unchanged.
+## Task 3 — Regressions and protected hashes
 
 | Command | Exit | Result |
 |---|---:|---|
-| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_operating_kpi_facts.py core/tests/test_filing_json.py core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py core/tests/test_historical_segment.py core/tests/test_geographic_segment_facts.py core/tests/test_geographic_segment_analysis.py core/tests/test_geographic_segment_workbook.py core/tests/test_lululemon_benchmark.py core/tests/test_fast_retailing_benchmark.py core/tests/test_normalization.py core/tests/test_historical_v1_exit_gate.py -q` | 0 | **678 passed** in **163.94s** |
-| Independent temporary augment → JSON reload → validate/reconcile/standardize/reload (forward and reversed) | 0 | Selected `574/655/711/767/811` `stores`; labels and notes retained in audit; geo **56**; Americas `7928156` |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_operating_kpi_analysis.py core/tests/test_operating_kpi_facts.py core/tests/test_filing_json.py core/tests/test_filing_reconciler.py core/tests/test_filing_cli.py core/tests/test_historical_segment.py core/tests/test_geographic_segment_facts.py core/tests/test_geographic_segment_analysis.py core/tests/test_geographic_segment_workbook.py core/tests/test_lululemon_benchmark.py core/tests/test_fast_retailing_benchmark.py core/tests/test_normalization.py core/tests/test_historical_v1_exit_gate.py -q` | 0 | **687 passed** in **164.76s** |
+| Independent temporary augment → JSON reload → analysis (forward and reversed) | 0 | Counts `574/655/711/767/811` `stores`; changes `None/81/56/56/44`; growth matches independent arithmetic within `1e-12`; orders equal; geo **56**; Americas `7928156` |
 | Protected artifacts vs checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` | 0 | **50/50 MATCH** (working-tree git blob SHA-1 via `hash-object`) |
 
 Edited files this child:
 
 | Path | SHA-256 | Bytes |
 |---|---|---:|
-| `core/data/historical_operating_kpis.py` | `7fffe018162cb65a5f4b5e6cfd31aa06fbf0639e68693ff3dca0dad74ea1c198` | 6230 |
-| `core/ingestion/filing_json.py` | `dc0266f8fb441d0eb1cb28d1bcb9ad9a05b86522432dc1e8be45e5d59ec2aff0` | 12518 |
-| `core/tests/test_operating_kpi_facts.py` | `0a95bcffbdf69782bbc69aad4ea97e6dafc051ad4d5365158e71e96f0016191c` | 37644 |
-| `core/tests/test_filing_json.py` | `dec03d23dfa9ba896f1ad6bd22f07ef42675b8c0e2f55eb5256c8ff235dc0bbc` | 24027 |
-| `core/tests/test_filing_reconciler.py` | `dbfc192bbbd90d213dcda7487dc09e6185bce6ec14b38c01e7678b2ee7420f91` | 76804 |
-| `core/tests/test_filing_cli.py` | `265101ad7bd514ba33660fdbdd4641b6b565ca3abde681aa97d702323c3d74ca` | 7811 |
+| `core/model/operating_kpi.py` | `0740f4f8e04c03d033d2ac702951cde6d3c824af21a8e6f7fb3bbe5d435e698e` | 4714 |
+| `core/tests/test_operating_kpi_analysis.py` | `86219dff011a83d6e98dab1434e15e2dac4cf65fe02f5f11189befa01eed8485` | 16913 |
+| `core/tests/test_operating_kpi_facts.py` | `21e9ede38cb93d4d13dd963b6cbead7ab39f43e3861964cf6f34bd3cc4b66a2f` | 39052 |
 
 Inspected `.git/autocycle/reviewed-recovery-20260915-120942/evidence.json` SHA-256 `616253f85ebfbb2155f3de0374f8de75d9f2c9656599a12bf2cbc2bb4c9997fb` (4217). Recovery work/attempt `b0ebb338d08f4e09a674d1ad1ee3da21` / `cc3fdf471a9c44c28fa7e8fed1d9e4fa` retained. Hash-bound logs `cursor-20260915-033742-18263.log` / `cursor-20260915-034910-19408.log` retained, not re-executed. Frozen requests `20260914-193338-000000004` and `20260915-042248-000000005` remain PENDING.
 
@@ -99,7 +88,7 @@ Inspected `.git/autocycle/reviewed-recovery-20260915-120942/evidence.json` SHA-2
 
 ## Remaining scope
 
-KPI analytics/workbook/Check; other source-supported KPIs; Normalization Judgment + Earnings Normalization; G6 missing opening BS; G7 lease maturity/remaining notes; G8 deferral; G9 standalone interest completeness; segment assets/capex/significant expenses/D&A; benchmark publication; TARGET Step 9 exit gates. Analytical focus gate retained. Independent M&A Net Debt, Complete NOPAT/RNOA, and forecasting remain deferred.
+KPI workbook/Check and other source-supported KPIs; Normalization Judgment + Earnings Normalization; G6 missing opening BS; G7 lease maturity/remaining notes; G8 deferral; G9 standalone interest completeness; segment assets/capex/significant expenses/D&A; benchmark publication; TARGET Step 9 exit gates. Analytical focus gate retained. Independent M&A Net Debt, Complete NOPAT/RNOA, and forecasting remain deferred.
 
 No plan rewrite.
 

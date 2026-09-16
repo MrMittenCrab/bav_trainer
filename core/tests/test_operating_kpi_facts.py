@@ -19,6 +19,12 @@ from core.data.historical_operating_kpis import (
     POPULATION_COMPANY_OPERATED,
     STORE_COUNT_FACT_TYPE,
 )
+from core.data.interface import (
+    FinancialPeriod,
+    HistoricalOperatingKpiData,
+    HistoricalOperatingKpiObservation,
+    StandardizedFinancials,
+)
 from core.data.standardized_io import standardized_from_payload, standardized_to_payload
 from core.ingestion.filing_json import extracted_filing_to_payload, load_extracted_filing
 from core.ingestion.filing_reconciler import SupplementalObservation, reconcile_filings
@@ -180,6 +186,51 @@ def _validated_augmented(tmp_path: Path):
         assert report.ok
         validated.append((filing, report))
     return dest, validated
+
+
+def _kpi_model_observation(
+    period: date,
+    value: float,
+    *,
+    unit: str = "stores",
+    metric: str = METRIC_STORE_COUNT,
+    population: str = POPULATION_COMPANY_OPERATED,
+) -> HistoricalOperatingKpiObservation:
+    return HistoricalOperatingKpiObservation(
+        metric=metric,
+        population=population,
+        period=period,
+        value=value,
+        unit=unit,
+    )
+
+
+def _fin_with_operating_kpis(
+    *observations: HistoricalOperatingKpiObservation,
+    extra_periods: list[date] | None = None,
+    units: str = "USD in Thousands",
+    include_payload: bool = True,
+) -> StandardizedFinancials:
+    dates = extra_periods if extra_periods is not None else [item.period for item in observations]
+    if not dates:
+        dates = [date(2025, 12, 31)]
+    payload = (
+        HistoricalOperatingKpiData(observations=list(observations))
+        if include_payload
+        else None
+    )
+    return StandardizedFinancials(
+        ticker="T",
+        company_name="Co",
+        currency="USD",
+        units=units,
+        jurisdiction="US",
+        periods=[
+            FinancialPeriod(end_date=period, label=f"FY{period.year}")
+            for period in dates
+        ],
+        historical_operating_kpis=payload,
+    )
 
 
 def test_absent_and_null_operating_kpis_are_equivalent():
