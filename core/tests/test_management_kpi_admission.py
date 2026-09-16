@@ -298,6 +298,26 @@ def test_mixed_directory_admits_all_135_observations(tmp_path: Path):
     assert payload["assessments"]["comparability_counts"]["not_comparable"] == 22
     assert payload["assessments"]["comparability_counts"]["unresolved"] == 6
     assert payload["assessments"]["comparability_counts"]["outside_scope"] == 107
+    recon = payload["reconciliation"]
+    assert recon["canonical_selection"] == "deferred"
+    assert recon["outcome_counts"]["agreeing_duplicate"] == 0
+    assert recon["outcome_counts"]["conflicting_candidate"] == 0
+    assert recon["outcome_counts"]["outside_scope"] == 107
+    assert recon["outcome_counts"]["singleton"] == 6
+    assert recon["outcome_counts"]["unsupported_variant"] == 0
+    assert (
+        recon["outcome_counts"]["incompatible"] + recon["outcome_counts"]["unresolved"]
+        == recon["pair_count"]
+    )
+    covered = {
+        occ["locator"]
+        for item in recon["items"]
+        for occ in item["occurrences"]
+    }
+    reported_locators = {
+        item["locator"] for item in payload["observations"] if item["kind"] == "reported_kpi"
+    }
+    assert covered == reported_locators
     assert all(
         item["evidence"]["calendar_reporting_basis"]
         for item in payload["assessments"]["items"]
@@ -315,6 +335,7 @@ def test_mixed_directory_admits_all_135_observations(tmp_path: Path):
         item["code"] == "deferred_canonical_selection" for item in payload["diagnostics"]
     )
     reversed_payload = reconciliation_management_admission_payload(reversed_reconciled)
+    assert reversed_payload["reconciliation"]["outcome_counts"] == recon["outcome_counts"]
     assert [item["identity"] for item in payload["observations"]] == [
         item["identity"] for item in reversed_payload["observations"]
     ]
@@ -504,6 +525,10 @@ def test_cli_mixed_directory_writes_separate_admission_artifact(tmp_path: Path):
     assert admission["document_count"] == 4
     assert len(admission["assessments"]["items"]) == 135
     assert admission["assessments"]["canonical_selection"] == "deferred"
+    assert admission["reconciliation"]["canonical_selection"] == "deferred"
+    assert admission["reconciliation"]["outcome_counts"]["agreeing_duplicate"] == 0
+    assert admission["reconciliation"]["outcome_counts"]["conflicting_candidate"] == 0
+    assert admission["status"] == "admitted_unreconciled"
     validate = subprocess.run(
         [
             sys.executable,

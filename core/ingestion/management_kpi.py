@@ -72,6 +72,12 @@ def _require_finite_number(value: object, *, context: str) -> float:
     return amount
 
 
+def _optional_finite_number(value: object, *, context: str) -> float | None:
+    if value is None:
+        return None
+    return _require_finite_number(value, context=context)
+
+
 def _num(value: float) -> int | float:
     return int(value) if float(value).is_integer() else float(value)
 
@@ -288,6 +294,7 @@ class ManagementAdmission:
     observations: tuple[ManagementObservation, ...]
     diagnostics: tuple[ManagementAdmissionDiagnostic, ...]
     assessments: tuple[Any, ...] = ()
+    reconciliation: tuple[Any, ...] = ()
     unresolved: tuple[str, ...] = _REMAINING_UNRESOLVED
 
 
@@ -423,7 +430,7 @@ def parse_management_kpi_document(
                     f"{label}.reported_kpis[{index}]: dangling definition_id "
                     f"{definition_id!r}"
                 )
-        _require_finite_number(
+        _optional_finite_number(
             item.get("value"),
             context=f"{label}.reported_kpis[{index}].value",
         )
@@ -634,7 +641,7 @@ def _observation_from_reported(
         category=_optional_str(item, "category", context=context),
         period=period,
         period_kind=period_kind,
-        value=_require_finite_number(item.get("value"), context=f"{context}.value"),
+        value=_optional_finite_number(item.get("value"), context=f"{context}.value"),
         unit=unit,
         basis=basis,
         comparison=comparison,
@@ -1184,7 +1191,9 @@ def admit_management_documents(
         key=lambda item: (item.code, item.identity, item.occurrences)
     )
     from .management_kpi_identity import assess_reported_observations
+    from .management_kpi_reconciliation import reconcile_reported_observations
 
+    assessments = assess_reported_observations(ordered, documents)
     return ManagementAdmission(
         status=_ADMISSION_UNRECONCILED,
         documents=documents,
@@ -1193,13 +1202,15 @@ def admit_management_documents(
         ),
         observations=ordered,
         diagnostics=tuple(diagnostics),
-        assessments=assess_reported_observations(ordered, documents),
+        assessments=assessments,
+        reconciliation=reconcile_reported_observations(ordered, assessments),
     )
 
 
 def management_admission_payload(admission: ManagementAdmission | None) -> dict[str, Any]:
     """Deterministic audit serialization for admitted management observations."""
     from .management_kpi_identity import assessments_payload
+    from .management_kpi_reconciliation import reconciliation_payload
 
     if admission is None:
         return {
@@ -1212,6 +1223,7 @@ def management_admission_payload(admission: ManagementAdmission | None) -> dict[
             "definitions": [],
             "diagnostics": [],
             "assessments": assessments_payload(()),
+            "reconciliation": reconciliation_payload(()),
             "unresolved": list(_REMAINING_UNRESOLVED),
         }
     reported = [
@@ -1255,4 +1267,5 @@ def management_admission_payload(admission: ManagementAdmission | None) -> dict[
         "observations": [item.to_payload() for item in admission.observations],
         "diagnostics": [item.to_payload() for item in admission.diagnostics],
         "assessments": assessments_payload(admission.assessments),
+        "reconciliation": reconciliation_payload(admission.reconciliation),
     }

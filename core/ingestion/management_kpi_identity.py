@@ -31,6 +31,7 @@ REASON_MISSING_COMPARISON = "missing_comparison"
 REASON_PERIOD_DATE = "period_date"
 REASON_CALENDAR_WEEK = "calendar_week_adjustment"
 REASON_CALENDAR_REPORTING = "calendar_reporting_basis"
+REASON_PERIOD_MISMATCH = "period_mismatch"
 REQUIRED_COMPARISON_REASONS = (
     REASON_MISSING_DEFINITION,
     REASON_UNBOUND_DEFINITION,
@@ -221,7 +222,7 @@ def _qualifiers_other(qualifiers: Mapping[str, str]) -> str:
     return json.dumps(remaining, sort_keys=True, separators=(",", ":"))
 
 
-def _text_present(value: object) -> bool:
+def text_present(value: object) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
@@ -359,39 +360,77 @@ def _classify_metric(
     return (STATUS_SUPPORTED, mapping.family, fields, ())
 
 
-def _required_comparison_reasons(evidence: Mapping[str, str]) -> tuple[str, ...]:
+def required_comparison_reasons(evidence: Mapping[str, str]) -> tuple[str, ...]:
     reasons: list[str] = []
-    if not _text_present(evidence.get("definition_id", "")):
+    if not text_present(evidence.get("definition_id", "")):
         reasons.append(REASON_MISSING_DEFINITION)
-    elif not _text_present(evidence.get("definition_text", "")):
+    elif not text_present(evidence.get("definition_text", "")):
         reasons.append(REASON_UNBOUND_DEFINITION)
-    if not _text_present(evidence.get("population", "")):
+    if not text_present(evidence.get("population", "")):
         reasons.append(REASON_MISSING_POPULATION)
-    if not _text_present(evidence.get("unit", "")):
+    if not text_present(evidence.get("unit", "")):
         reasons.append(REASON_MISSING_UNIT)
-    if not _text_present(evidence.get("basis", "")):
+    if not text_present(evidence.get("basis", "")):
         reasons.append(REASON_MISSING_BASIS)
-    if not _text_present(evidence.get("comparison", "")):
+    if not text_present(evidence.get("comparison", "")):
         reasons.append(REASON_MISSING_COMPARISON)
     if evidence.get("period_kind") != "date":
         reasons.append(REASON_PERIOD_DATE)
-    if not _text_present(evidence.get("calendar_week_adjustment", "")):
+    if not text_present(evidence.get("calendar_week_adjustment", "")):
         reasons.append(REASON_CALENDAR_WEEK)
-    if not _text_present(evidence.get("calendar_reporting_basis", "")):
+    if not text_present(evidence.get("calendar_reporting_basis", "")):
         reasons.append(REASON_CALENDAR_REPORTING)
     return tuple(reasons)
 
 
-def _evidenced_conflicts(
+def evidenced_conflicts(
     self_ev: Mapping[str, str], peer_ev: Mapping[str, str]
 ) -> tuple[str, ...]:
     reasons: list[str] = []
     for key, reason in _EVIDENCED_FIELDS:
         left = self_ev.get(key, "")
         right = peer_ev.get(key, "")
-        if _text_present(left) and _text_present(right) and left != right:
+        if text_present(left) and text_present(right) and left != right:
             reasons.append(reason)
     return tuple(reasons)
+
+
+def evidenced_period_conflict(
+    self_ev: Mapping[str, str], peer_ev: Mapping[str, str]
+) -> tuple[str, ...]:
+    left_kind = self_ev.get("period_kind", "")
+    right_kind = peer_ev.get("period_kind", "")
+    left_period = self_ev.get("period", "")
+    right_period = peer_ev.get("period", "")
+    if left_kind == "date" and right_kind == "date" and left_period != right_period:
+        return (REASON_PERIOD_MISMATCH,)
+    return ()
+
+
+def pair_is_fully_evidenced_same_period(
+    self_ev: Mapping[str, str], peer_ev: Mapping[str, str]
+) -> bool:
+    if required_comparison_reasons(self_ev) or required_comparison_reasons(peer_ev):
+        return False
+    if evidenced_conflicts(self_ev, peer_ev):
+        return False
+    if evidenced_period_conflict(self_ev, peer_ev):
+        return False
+    return (
+        self_ev.get("period_kind") == "date"
+        and peer_ev.get("period_kind") == "date"
+        and self_ev.get("period") == peer_ev.get("period")
+    )
+
+
+def _required_comparison_reasons(evidence: Mapping[str, str]) -> tuple[str, ...]:
+    return required_comparison_reasons(evidence)
+
+
+def _evidenced_conflicts(
+    self_ev: Mapping[str, str], peer_ev: Mapping[str, str]
+) -> tuple[str, ...]:
+    return evidenced_conflicts(self_ev, peer_ev)
 
 
 def _has_required_gap(unresolved: Sequence[str]) -> bool:

@@ -31,6 +31,7 @@ from core.ingestion.management_kpi_identity import (
     REASON_MISSING_DEFINITION,
     REASON_NO_DISTINCT_PEER,
     REASON_PERIOD_DATE,
+    REASON_PERIOD_MISMATCH,
     PEER_COMPARISON_REASONS,
     REQUIRED_COMPARISON_REASONS,
     STATUS_OUTSIDE_SCOPE,
@@ -38,6 +39,7 @@ from core.ingestion.management_kpi_identity import (
     STATUS_UNSUPPORTED_VARIANT,
     SUPPORTED_METRIC_MAPPINGS,
     encode_metric_identity,
+    evidenced_period_conflict,
     peer_gap_reason,
 )
 from core.tests.test_management_kpi_admission import (
@@ -1240,3 +1242,31 @@ def test_self_exclusion_and_input_order_independent_comparability(tmp_path: Path
     for item in forward + backward:
         _assert_comparable(item)
         assert len(item["peer_locators"]) == 1
+
+
+def test_period_mismatch_is_not_an_aggregate_comparability_reason(tmp_path: Path):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "pair-period")
+    fy2023, fy2024 = _affirmative_pair()
+    _write_json(dest / MANAGEMENT_NAMES[1], fy2023)
+    _write_json(dest / MANAGEMENT_NAMES[2], fy2024)
+    payload = _admission(dest)
+    items = _global_reported_compsales(_supported_items(payload))
+    assert len(items) == 2
+    assert {item["comparability"] for item in items} == {COMPARABILITY_COMPARABLE}
+    for item in items:
+        _assert_comparable(item)
+        assert REASON_PERIOD_MISMATCH not in item["unresolved_reasons"]
+    assert evidenced_period_conflict(items[0]["evidence"], items[1]["evidence"]) == (
+        REASON_PERIOD_MISMATCH,
+    )
+    recon = payload["reconciliation"]
+    locators = {item["locator"] for item in items}
+    pair = next(
+        item
+        for item in recon["items"]
+        if item["kind"] == "pair" and set(item["locators"]) == locators
+    )
+    assert pair["outcome"] == "incompatible"
+    assert REASON_PERIOD_MISMATCH in pair["reasons"]
+    assert recon["canonical_selection"] == "deferred"
+    assert payload["assessments"]["canonical_selection"] == "deferred"

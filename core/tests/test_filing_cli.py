@@ -294,6 +294,19 @@ def test_reconcile_serializes_management_identity_assessments(tmp_path: Path):
     assert admission["assessments"]["canonical_selection"] == "deferred"
     assert admission["assessments"]["supported_count"] == 28
     assert admission["assessments"]["outside_scope_count"] == 107
+    recon = admission["reconciliation"]
+    assert recon["canonical_selection"] == "deferred"
+    assert recon["outcome_counts"]["agreeing_duplicate"] == 0
+    assert recon["outcome_counts"]["conflicting_candidate"] == 0
+    assert recon["outcome_counts"]["outside_scope"] == 107
+    assert recon["outcome_counts"]["singleton"] == 6
+    pair_locators = [
+        tuple(item["locators"])
+        for item in recon["items"]
+        if item["kind"] == "pair"
+    ]
+    assert pair_locators == [tuple(sorted(item)) for item in pair_locators]
+    assert all(left != right for left, right in pair_locators)
     counts = admission["assessments"]["comparability_counts"]
     assert counts["comparable"] == 0
     assert counts["not_comparable"] == 22
