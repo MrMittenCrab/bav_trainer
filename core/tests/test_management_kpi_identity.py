@@ -7,6 +7,8 @@ import json
 import shutil
 from pathlib import Path
 
+import pytest
+
 from core.data.standardized_io import standardized_to_payload
 from core.ingestion.filing_cli import load_and_validate_extracted_dir
 from core.ingestion.filing_reconciler import reconcile_filings
@@ -23,6 +25,7 @@ from core.ingestion.management_kpi_identity import (
     COMPARABILITY_UNRESOLVED,
     FAMILY_COMPARABLE_SALES_GROWTH,
     FAMILY_SALES_PER_SQUARE_FOOT,
+    REASON_CALENDAR_REPORTING,
     REASON_CALENDAR_WEEK,
     REASON_MISSING_COMPARISON,
     REASON_MISSING_DEFINITION,
@@ -55,6 +58,15 @@ def _assessments_by_locator(payload: dict) -> dict[str, dict]:
 AFFIRMATIVE_COMPSALES_DEFINITION = (
     "Affirmative comparable-sales definition used only in temporary fixtures."
 )
+AFFIRMATIVE_SPSF_DEFINITION = (
+    "Affirmative sales-per-square-foot definition used only in temporary fixtures."
+)
+AFFIRMATIVE_REPORTING_BASIS = (
+    "Affirmative calendar reporting basis used only in temporary fixtures."
+)
+AFFIRMATIVE_SPSF_COMPARISON = "not_applicable"
+REPORTING_BASIS_52 = "Fiscal calendar contains 52 weeks."
+REPORTING_BASIS_53 = "Fiscal calendar contains 53 weeks."
 FALSE_POSITIVE_METRIC_IDS = {
     "comparable_store_sales_growth",
     "comparable_store_sales_growth_constant_dollar",
@@ -98,11 +110,59 @@ def _global_reported_compsales(items: list[dict]) -> list[dict]:
 def _apply_affirmative_compsales(payload: dict, *, week: bool = False) -> dict:
     payload = copy.deepcopy(payload)
     period = payload["report"]["fiscal_year_end"]
+    payload["report"]["reporting_basis"] = AFFIRMATIVE_REPORTING_BASIS
     payload["kpi_definitions"][0]["definition"] = AFFIRMATIVE_COMPSALES_DEFINITION
     for item in payload["reported_kpis"]:
         if item.get("metric_id") == "comparable_sales_growth":
             item["period"] = period
             item["qualifiers"] = {"excludes_53rd_week": week}
+    return payload
+
+
+def _apply_affirmative_spsf(payload: dict, *, week: bool = False) -> dict:
+    payload = copy.deepcopy(payload)
+    period = payload["report"]["fiscal_year_end"]
+    payload["report"]["reporting_basis"] = AFFIRMATIVE_REPORTING_BASIS
+    payload["kpi_definitions"][1]["definition"] = AFFIRMATIVE_SPSF_DEFINITION
+    for item in payload["reported_kpis"]:
+        if item.get("metric_id") == "sales_per_square_foot":
+            item["period"] = period
+            item["qualifiers"] = {"excludes_53rd_week": week}
+            item["comparison"] = AFFIRMATIVE_SPSF_COMPARISON
+    return payload
+
+
+def _spsf_items(items: list[dict]) -> list[dict]:
+    return [
+        item
+        for item in items
+        if item["family"] == FAMILY_SALES_PER_SQUARE_FOOT
+    ]
+
+
+def _family_items(items: list[dict], family: str) -> list[dict]:
+    if family == FAMILY_COMPARABLE_SALES_GROWTH:
+        return _global_reported_compsales(items)
+    return _spsf_items(items)
+
+
+def _affirmative_family_pair(family: str) -> tuple[dict, dict]:
+    fy2023 = json.loads((EXTRACTED / MANAGEMENT_NAMES[1]).read_text(encoding="utf-8"))
+    fy2024 = json.loads((EXTRACTED / MANAGEMENT_NAMES[2]).read_text(encoding="utf-8"))
+    if family == FAMILY_COMPARABLE_SALES_GROWTH:
+        return (
+            _apply_affirmative_compsales(fy2023),
+            _apply_affirmative_compsales(fy2024),
+        )
+    return (_apply_affirmative_spsf(fy2023), _apply_affirmative_spsf(fy2024))
+
+
+def _set_reporting_basis(payload: dict, value: str | None) -> dict:
+    payload = copy.deepcopy(payload)
+    if value is None:
+        payload["report"].pop("reporting_basis", None)
+    else:
+        payload["report"]["reporting_basis"] = value
     return payload
 
 
@@ -175,11 +235,13 @@ def test_supplied_families_receive_identities_and_outside_scope_is_explicit():
             assert item["definition"]["text"]
             assert item["definition"]["extraction_document"]
             assert item["definition"]["definition_id"]
+            assert item["evidence"]["calendar_reporting_basis"]
             if item["comparability"] == COMPARABILITY_COMPARABLE:
                 assert not set(REQUIRED_COMPARISON_REASONS) & set(
                     item["unresolved_reasons"]
                 )
                 assert item["peer_locators"]
+                assert item["evidence"]["calendar_reporting_basis"]
         else:
             assert item["status"] == STATUS_UNSUPPORTED_VARIANT
             assert item["comparability"] == COMPARABILITY_UNRESOLVED
@@ -355,7 +417,32 @@ def test_affirmative_evidence_makes_distinct_occurrences_comparable(tmp_path: Pa
         assert not set(REQUIRED_COMPARISON_REASONS) & set(item["unresolved_reasons"])
         assert item["evidence"]["period_kind"] == "date"
         assert item["evidence"]["calendar_week_adjustment"] == "included"
+        assert item["evidence"]["calendar_reporting_basis"] == (
+            AFFIRMATIVE_REPORTING_BASIS
+        )
         assert item["definition"]["text"] == AFFIRMATIVE_COMPSALES_DEFINITION
+
+
+def test_affirmative_spsf_distinct_occurrences_are_comparable(tmp_path: Path):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "spsf-ok")
+    fy2023, fy2024 = _affirmative_family_pair(FAMILY_SALES_PER_SQUARE_FOOT)
+    _write_json(dest / MANAGEMENT_NAMES[1], fy2023)
+    _write_json(dest / MANAGEMENT_NAMES[2], fy2024)
+    payload = _admission(dest)
+    items = _spsf_items(_supported_items(payload))
+    assert len(items) == 2
+    assert {item["comparability"] for item in items} == {COMPARABILITY_COMPARABLE}
+    for item in items:
+        assert item["locator"] not in item["peer_locators"]
+        assert item["peer_locators"]
+        assert not set(REQUIRED_COMPARISON_REASONS) & set(item["unresolved_reasons"])
+        assert item["evidence"]["period_kind"] == "date"
+        assert item["evidence"]["calendar_week_adjustment"] == "included"
+        assert item["evidence"]["calendar_reporting_basis"] == (
+            AFFIRMATIVE_REPORTING_BASIS
+        )
+        assert item["evidence"]["comparison"] == AFFIRMATIVE_SPSF_COMPARISON
+        assert item["definition"]["text"] == AFFIRMATIVE_SPSF_DEFINITION
 
 
 def test_removing_period_calendar_or_definition_unresolves_comparability(
@@ -438,6 +525,154 @@ def test_missing_calendar_on_either_or_both_peers_is_unresolved(tmp_path: Path):
     }
 
 
+@pytest.mark.parametrize(
+    "family",
+    [FAMILY_COMPARABLE_SALES_GROWTH, FAMILY_SALES_PER_SQUARE_FOOT],
+)
+@pytest.mark.parametrize("empty_repr", [None, ""])
+def test_missing_reporting_basis_on_either_or_both_peers_is_unresolved(
+    tmp_path: Path,
+    family: str,
+    empty_repr: str | None,
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "rb")
+    fy2023, fy2024 = _affirmative_family_pair(family)
+
+    both_left = _set_reporting_basis(fy2023, empty_repr)
+    both_right = _set_reporting_basis(fy2024, empty_repr)
+    _write_json(dest / MANAGEMENT_NAMES[1], both_left)
+    _write_json(dest / MANAGEMENT_NAMES[2], both_right)
+    both_items = _family_items(_supported_items(_admission(dest)), family)
+    assert len(both_items) == 2
+    assert {item["comparability"] for item in both_items} == {
+        COMPARABILITY_UNRESOLVED
+    }
+    assert all(
+        REASON_CALENDAR_REPORTING in item["unresolved_reasons"] for item in both_items
+    )
+    assert all(
+        "calendar_reporting_mismatch" not in item["unresolved_reasons"]
+        for item in both_items
+    )
+    assert all(item["peer_locators"] for item in both_items)
+    assert all(REASON_NO_DISTINCT_PEER not in item["unresolved_reasons"] for item in both_items)
+
+    fy2023, fy2024 = _affirmative_family_pair(family)
+    either_right = _set_reporting_basis(fy2024, empty_repr)
+    _write_json(dest / MANAGEMENT_NAMES[1], fy2023)
+    _write_json(dest / MANAGEMENT_NAMES[2], either_right)
+    either_items = _family_items(_supported_items(_admission(dest)), family)
+    assert {item["comparability"] for item in either_items} == {
+        COMPARABILITY_UNRESOLVED
+    }
+    assert any(
+        REASON_CALENDAR_REPORTING in item["unresolved_reasons"] for item in either_items
+    )
+    assert all(
+        "calendar_reporting_mismatch" not in item["unresolved_reasons"]
+        for item in either_items
+    )
+    assert COMPARABILITY_NOT_COMPARABLE not in {
+        item["comparability"] for item in either_items
+    }
+    assert all(item["peer_locators"] for item in either_items)
+
+    fy2023, fy2024 = _affirmative_family_pair(family)
+    either_left = _set_reporting_basis(fy2023, empty_repr)
+    _write_json(dest / MANAGEMENT_NAMES[1], either_left)
+    _write_json(dest / MANAGEMENT_NAMES[2], fy2024)
+    left_items = _family_items(_supported_items(_admission(dest)), family)
+    assert {item["comparability"] for item in left_items} == {COMPARABILITY_UNRESOLVED}
+    assert any(
+        REASON_CALENDAR_REPORTING in item["unresolved_reasons"] for item in left_items
+    )
+    assert all(
+        "calendar_reporting_mismatch" not in item["unresolved_reasons"]
+        for item in left_items
+    )
+
+
+@pytest.mark.parametrize(
+    "family",
+    [FAMILY_COMPARABLE_SALES_GROWTH, FAMILY_SALES_PER_SQUARE_FOOT],
+)
+def test_incompatible_reporting_bases_are_not_comparable(
+    tmp_path: Path,
+    family: str,
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "rbinc")
+    fy2023, fy2024 = _affirmative_family_pair(family)
+    fy2023 = _set_reporting_basis(fy2023, REPORTING_BASIS_52)
+    fy2024 = _set_reporting_basis(fy2024, REPORTING_BASIS_53)
+    _write_json(dest / MANAGEMENT_NAMES[1], fy2023)
+    _write_json(dest / MANAGEMENT_NAMES[2], fy2024)
+    items = _family_items(_supported_items(_admission(dest)), family)
+    assert {item["comparability"] for item in items} == {COMPARABILITY_NOT_COMPARABLE}
+    assert all(
+        item["evidence"]["calendar_week_adjustment"] == "included" for item in items
+    )
+    assert all(
+        item["evidence"]["period_kind"] == "date" for item in items
+    )
+    assert {item["definition"]["text"] for item in items} == {
+        AFFIRMATIVE_COMPSALES_DEFINITION
+        if family == FAMILY_COMPARABLE_SALES_GROWTH
+        else AFFIRMATIVE_SPSF_DEFINITION
+    }
+    assert all(
+        "calendar_reporting_mismatch" in item["unresolved_reasons"] for item in items
+    )
+    assert all("calendar_mismatch" not in item["unresolved_reasons"] for item in items)
+    assert all(REASON_CALENDAR_WEEK not in item["unresolved_reasons"] for item in items)
+    assert all(REASON_PERIOD_DATE not in item["unresolved_reasons"] for item in items)
+
+    reversed_2023 = _set_reporting_basis(
+        _affirmative_family_pair(family)[0], REPORTING_BASIS_53
+    )
+    reversed_2024 = _set_reporting_basis(
+        _affirmative_family_pair(family)[1], REPORTING_BASIS_52
+    )
+    _write_json(dest / MANAGEMENT_NAMES[1], reversed_2023)
+    _write_json(dest / MANAGEMENT_NAMES[2], reversed_2024)
+    reversed_items = _family_items(_supported_items(_admission(dest)), family)
+    assert {item["comparability"] for item in reversed_items} == {
+        COMPARABILITY_NOT_COMPARABLE
+    }
+    assert all(
+        "calendar_reporting_mismatch" in item["unresolved_reasons"]
+        for item in reversed_items
+    )
+
+
+@pytest.mark.parametrize(
+    "family",
+    [FAMILY_COMPARABLE_SALES_GROWTH, FAMILY_SALES_PER_SQUARE_FOOT],
+)
+def test_reporting_basis_conflict_with_missing_evidence_stays_not_comparable(
+    tmp_path: Path,
+    family: str,
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "rbmix")
+    fy2023, fy2024 = _affirmative_family_pair(family)
+    fy2024 = _set_reporting_basis(fy2024, REPORTING_BASIS_53)
+    metric_id = (
+        "comparable_sales_growth"
+        if family == FAMILY_COMPARABLE_SALES_GROWTH
+        else "sales_per_square_foot"
+    )
+    for item in fy2024["reported_kpis"]:
+        if item.get("metric_id") == metric_id:
+            item.pop("qualifiers", None)
+    _write_json(dest / MANAGEMENT_NAMES[1], fy2023)
+    _write_json(dest / MANAGEMENT_NAMES[2], fy2024)
+    items = _family_items(_supported_items(_admission(dest)), family)
+    assert {item["comparability"] for item in items} == {COMPARABILITY_NOT_COMPARABLE}
+    assert any(
+        "calendar_reporting_mismatch" in item["unresolved_reasons"] for item in items
+    )
+    assert any(REASON_CALENDAR_WEEK in item["unresolved_reasons"] for item in items)
+
+
 def test_complete_metadata_singleton_is_unresolved(tmp_path: Path):
     dest = _copy_json(ANNUAL_NAMES[1:2] + MANAGEMENT_NAMES[1:2], tmp_path / "one")
     fy2023 = _apply_affirmative_compsales(
@@ -453,6 +688,7 @@ def test_complete_metadata_singleton_is_unresolved(tmp_path: Path):
     assert item["evidence"]["period_kind"] == "date"
     assert item["definition"]["text"] == AFFIRMATIVE_COMPSALES_DEFINITION
     assert item["evidence"]["calendar_week_adjustment"] == "included"
+    assert item["evidence"]["calendar_reporting_basis"] == AFFIRMATIVE_REPORTING_BASIS
 
 
 def test_unknown_versus_known_metadata_is_not_a_proven_mismatch(tmp_path: Path):
@@ -546,6 +782,9 @@ def test_mutations_cannot_silently_preserve_comparability(tmp_path: Path):
         if item.get("metric_id") == "comparable_sales_growth":
             item["basis"] = "constant_dollar"
     cases.append(("basis", basis_mut))
+    reporting_mut = copy.deepcopy(fy2024)
+    reporting_mut["report"]["reporting_basis"] = REPORTING_BASIS_53
+    cases.append(("reporting_basis", reporting_mut))
 
     for kind, mutated in cases:
         _write_json(dest / MANAGEMENT_NAMES[2], mutated)
@@ -775,7 +1014,9 @@ def test_equal_missing_comparison_cannot_make_spsf_comparable(tmp_path: Path):
     fy2023 = json.loads((EXTRACTED / MANAGEMENT_NAMES[1]).read_text(encoding="utf-8"))
     fy2024 = json.loads((EXTRACTED / MANAGEMENT_NAMES[2]).read_text(encoding="utf-8"))
     shared = "Affirmative sales-per-square-foot definition for temporary fixtures."
+    shared_basis = AFFIRMATIVE_REPORTING_BASIS
     for payload in (fy2023, fy2024):
+        payload["report"]["reporting_basis"] = shared_basis
         payload["kpi_definitions"][1]["definition"] = shared
         period = payload["report"]["fiscal_year_end"]
         for item in payload["reported_kpis"]:

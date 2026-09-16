@@ -298,6 +298,16 @@ def test_mixed_directory_admits_all_135_observations(tmp_path: Path):
     assert payload["assessments"]["comparability_counts"]["not_comparable"] == 22
     assert payload["assessments"]["comparability_counts"]["unresolved"] == 6
     assert payload["assessments"]["comparability_counts"]["outside_scope"] == 107
+    assert all(
+        item["evidence"]["calendar_reporting_basis"]
+        for item in payload["assessments"]["items"]
+        if item["status"] == "supported"
+    )
+    assert all(
+        "calendar_reporting_basis" not in item["unresolved_reasons"]
+        for item in payload["assessments"]["items"]
+        if item["status"] == "supported"
+    )
     assert payload["assessments"]["supported_count"] + payload["assessments"][
         "outside_scope_count"
     ] + payload["assessments"]["unsupported_variant_count"] == 135

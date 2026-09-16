@@ -318,6 +318,7 @@ def test_reconcile_serializes_management_identity_assessments(tmp_path: Path):
         if item["comparability"] == "comparable":
             assert not set(REQUIRED_COMPARISON_REASONS) & set(item["unresolved_reasons"])
             assert item["peer_locators"]
+            assert item["evidence"]["calendar_reporting_basis"]
         assert item["locator"] not in item["peer_locators"]
     outside = [
         item

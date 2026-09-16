@@ -30,6 +30,7 @@ REASON_MISSING_BASIS = "missing_basis"
 REASON_MISSING_COMPARISON = "missing_comparison"
 REASON_PERIOD_DATE = "period_date"
 REASON_CALENDAR_WEEK = "calendar_week_adjustment"
+REASON_CALENDAR_REPORTING = "calendar_reporting_basis"
 REQUIRED_COMPARISON_REASONS = (
     REASON_MISSING_DEFINITION,
     REASON_UNBOUND_DEFINITION,
@@ -39,6 +40,7 @@ REQUIRED_COMPARISON_REASONS = (
     REASON_MISSING_COMPARISON,
     REASON_PERIOD_DATE,
     REASON_CALENDAR_WEEK,
+    REASON_CALENDAR_REPORTING,
 )
 _EVIDENCED_FIELDS = (
     ("definition_text", "definition_mismatch"),
@@ -47,6 +49,7 @@ _EVIDENCED_FIELDS = (
     ("basis", "basis_mismatch"),
     ("comparison", "comparison_mismatch"),
     ("calendar_week_adjustment", "calendar_mismatch"),
+    ("calendar_reporting_basis", "calendar_reporting_mismatch"),
     ("qualifiers_other", "qualifier_mismatch"),
 )
 
@@ -293,7 +296,7 @@ def _classify_metric(
         reasons.append("contradictory_unit")
     if observation.basis != mapping.basis:
         reasons.append("contradictory_basis")
-    if observation.comparison != mapping.comparison:
+    if mapping.comparison and observation.comparison != mapping.comparison:
         reasons.append("contradictory_comparison")
 
     scope = dict(observation.scope)
@@ -362,6 +365,8 @@ def _required_comparison_reasons(evidence: Mapping[str, str]) -> tuple[str, ...]
         reasons.append(REASON_PERIOD_DATE)
     if not evidence.get("calendar_week_adjustment"):
         reasons.append(REASON_CALENDAR_WEEK)
+    if not evidence.get("calendar_reporting_basis"):
+        reasons.append(REASON_CALENDAR_REPORTING)
     return tuple(reasons)
 
 
