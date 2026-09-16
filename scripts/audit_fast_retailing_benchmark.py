@@ -280,11 +280,12 @@ def _load_workbook_xlsx_bytes(data: bytes):
 
 
 def _rgb_is_yellow(rgb: str) -> bool:
-    """True for bright and pale yellow fills, including FFFFCC / theme tint 0.8.
+    """True for bright and pale yellow fills, including non-white yellow tints.
 
-    Classification uses brightness, chroma, and yellow-family hue. Known Excel
-    yellows remain yellow, but pale yellow is not gated on an isolated allowlist.
-    White, neutral gray, and non-yellow hues return False.
+    Classification uses brightness and yellow-family hue. Achromatic white/gray
+    (zero chroma) and non-yellow hues return False. Known Excel yellows remain
+    yellow, but pale tints are not gated on an isolated allowlist or a chroma
+    cutoff that would treat FFFFDD / FFFFE0 / FFFFFE as white.
     """
     if not rgb:
         return False
@@ -302,7 +303,7 @@ def _rgb_is_yellow(rgb: str) -> bool:
     if red < 0xC8 or green < 0xC0:
         return False
     chroma = max(red, green, blue) - min(red, green, blue)
-    if chroma < 0x28:
+    if chroma == 0:
         return False
     mx = max(red, green, blue)
     if mx == red:

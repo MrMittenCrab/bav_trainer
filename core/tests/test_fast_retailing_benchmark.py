@@ -3067,6 +3067,53 @@ def _answer_location_cell(wb, location: str):
     raise AssertionError(location)
 
 
+_PALE_SOLID_ENCODINGS = {
+    "ffffcc": "FFFFCC",
+    "ffffdd": "FFFFDD",
+    "fffe0": "FFFFE0",
+    "argb_ffffcc": "FFFFFFCC",
+    "argb_ffffdd": "FFFFFFDD",
+    "argb_fffe0": "FFFFFFE0",
+}
+_YELLOW_THEME_TINTS = {
+    "theme_tint": 0.2,
+    "theme_tint_08": 0.8,
+    "theme_tint_09": 0.9,
+    "theme_tint_095": 0.95,
+    "theme_tint_099": 0.99,
+    "theme_tint_10": 1.0,
+}
+_PALE_SURFACE_RGB = {
+    "ffffcc": "FFFFCC",
+    "ffffdd": "FFFFDD",
+    "fffe0": "FFFFE0",
+}
+_PALE_RESOLVED_RGB = {
+    "ffffcc": "FFFFCC",
+    "argb_ffffcc": "FFFFCC",
+    "theme_tint_08": "FFFFCC",
+    "ffffdd": "FFFFDD",
+    "argb_ffffdd": "FFFFDD",
+    "fffe0": "FFFFE0",
+    "argb_fffe0": "FFFFE0",
+    "theme_tint_09": "FFFFE5",
+    "theme_tint_095": "FFFFF2",
+    "theme_tint_099": "FFFFFD",
+}
+_CONDITIONAL_YELLOW_ENCODINGS = frozenset(
+    {
+        "conditional_dxf",
+        "color_scale",
+        "ffffcc_conditional_dxf",
+        "ffffcc_color_scale",
+        "ffffdd_conditional_dxf",
+        "ffffdd_color_scale",
+        "fffe0_conditional_dxf",
+        "fffe0_color_scale",
+    }
+)
+
+
 def _paint_answer_yellow(wb, location: str, encoding: str) -> None:
     from openpyxl.formatting.rule import CellIsRule, ColorScaleRule
     from openpyxl.styles import GradientFill, PatternFill
@@ -3075,66 +3122,44 @@ def _paint_answer_yellow(wb, location: str, encoding: str) -> None:
     cell = _answer_location_cell(wb, location)
     if encoding == "indexed":
         cell.fill = PatternFill(patternType="solid", fgColor=Color(indexed=5))
-    elif encoding == "darkGrid_fg":
+        return
+    if encoding == "darkGrid_fg":
         cell.fill = PatternFill(
             patternType="darkGrid", fgColor="FFFF00", bgColor="FFFFFF"
         )
-    elif encoding == "darkGrid_bg":
+        return
+    if encoding == "darkGrid_bg":
         cell.fill = PatternFill(
             patternType="darkGrid", fgColor="FFFFFF", bgColor="FFFF00"
         )
-    elif encoding == "theme":
+        return
+    if encoding == "theme":
         _set_scheme_color(wb, "accent1", "FFFF00")
         cell.fill = PatternFill(patternType="solid", fgColor=Color(theme=4))
-    elif encoding == "theme_tint":
+        return
+    if encoding in _YELLOW_THEME_TINTS:
         _set_scheme_color(wb, "accent1", "FFFF00")
         cell.fill = PatternFill(
-            patternType="solid", fgColor=Color(theme=4, tint=0.2)
+            patternType="solid",
+            fgColor=Color(theme=4, tint=_YELLOW_THEME_TINTS[encoding]),
         )
-    elif encoding == "ffffcc":
-        cell.fill = PatternFill(patternType="solid", fgColor="FFFFCC")
-    elif encoding == "argb_ffffcc":
-        cell.fill = PatternFill(patternType="solid", fgColor="FFFFFFCC")
-    elif encoding == "theme_tint_08":
-        _set_scheme_color(wb, "accent1", "FFFF00")
+        return
+    if encoding in _PALE_SOLID_ENCODINGS:
         cell.fill = PatternFill(
-            patternType="solid", fgColor=Color(theme=4, tint=0.8)
+            patternType="solid", fgColor=_PALE_SOLID_ENCODINGS[encoding]
         )
-    elif encoding == "ffffcc_darkGrid_fg":
-        cell.fill = PatternFill(
-            patternType="darkGrid", fgColor="FFFFCC", bgColor="FFFFFF"
-        )
-    elif encoding == "ffffcc_darkGrid_bg":
-        cell.fill = PatternFill(
-            patternType="darkGrid", fgColor="FFFFFF", bgColor="FFFFCC"
-        )
-    elif encoding == "ffffcc_gradient":
-        cell.fill = GradientFill(stop=("FFFFCC", "FFFFFF"))
-    elif encoding == "ffffcc_conditional_dxf":
-        pale = PatternFill("solid", fgColor="FFFFCC")
-        cell.parent.conditional_formatting.add(
-            cell.coordinate,
-            CellIsRule(operator="equal", formula=["1"], fill=pale),
-        )
-    elif encoding == "ffffcc_color_scale":
-        cell.parent.conditional_formatting.add(
-            cell.coordinate,
-            ColorScaleRule(
-                start_type="min",
-                start_color="FFFFCC",
-                end_type="max",
-                end_color="FFFFFF",
-            ),
-        )
-    elif encoding == "gradient":
+        return
+    if encoding == "gradient":
         cell.fill = GradientFill(stop=("FFFF00", "FFFFFF"))
-    elif encoding == "conditional_dxf":
+        return
+    if encoding == "conditional_dxf":
         yellow = PatternFill("solid", fgColor="FFFF00")
         cell.parent.conditional_formatting.add(
             cell.coordinate,
             CellIsRule(operator="equal", formula=["1"], fill=yellow),
         )
-    elif encoding == "color_scale":
+        return
+    if encoding == "color_scale":
         cell.parent.conditional_formatting.add(
             cell.coordinate,
             ColorScaleRule(
@@ -3144,8 +3169,65 @@ def _paint_answer_yellow(wb, location: str, encoding: str) -> None:
                 end_color="FFFFFF",
             ),
         )
-    else:
-        raise AssertionError(encoding)
+        return
+    for prefix, rgb in _PALE_SURFACE_RGB.items():
+        if encoding == f"{prefix}_darkGrid_fg":
+            cell.fill = PatternFill(
+                patternType="darkGrid", fgColor=rgb, bgColor="FFFFFF"
+            )
+            return
+        if encoding == f"{prefix}_darkGrid_bg":
+            cell.fill = PatternFill(
+                patternType="darkGrid", fgColor="FFFFFF", bgColor=rgb
+            )
+            return
+        if encoding == f"{prefix}_gradient":
+            cell.fill = GradientFill(stop=(rgb, "FFFFFF"))
+            return
+        if encoding == f"{prefix}_conditional_dxf":
+            pale = PatternFill("solid", fgColor=rgb)
+            cell.parent.conditional_formatting.add(
+                cell.coordinate,
+                CellIsRule(operator="equal", formula=["1"], fill=pale),
+            )
+            return
+        if encoding == f"{prefix}_color_scale":
+            cell.parent.conditional_formatting.add(
+                cell.coordinate,
+                ColorScaleRule(
+                    start_type="min",
+                    start_color=rgb,
+                    end_type="max",
+                    end_color="FFFFFF",
+                ),
+            )
+            return
+    raise AssertionError(encoding)
+
+
+def _xlsx_replace_styles_rgb(data: bytes, old_rgb: str, new_rgb: str) -> bytes:
+    """Replace an RGB token in xl/styles.xml without openpyxl fill helpers."""
+    import io
+    import zipfile
+
+    old_b = old_rgb.encode("ascii")
+    new_b = new_rgb.encode("ascii")
+    if len(old_b) != len(new_b):
+        raise AssertionError(f"replacement length mismatch {old_rgb!r} -> {new_rgb!r}")
+    src = io.BytesIO(data)
+    dst = io.BytesIO()
+    with zipfile.ZipFile(src, "r") as zin, zipfile.ZipFile(dst, "w") as zout:
+        replaced = 0
+        for info in zin.infolist():
+            payload = zin.read(info.filename)
+            if info.filename == "xl/styles.xml":
+                replaced = payload.count(old_b)
+                if replaced < 1:
+                    raise AssertionError(f"{old_rgb} missing from xl/styles.xml")
+                payload = payload.replace(old_b, new_b)
+            zout.writestr(info, payload)
+    assert replaced >= 1
+    return dst.getvalue()
 
 
 def test_frozen_compatibility_allowlist_matches_committed_release_pair():
@@ -3309,6 +3391,23 @@ def test_current_style_contract_failure_skips_check_via_audit_and_cli(tmp_path: 
         ("ffffcc_gradient", "Answer Key yellow fill"),
         ("ffffcc_conditional_dxf", "Answer Key yellow conditional formatting"),
         ("ffffcc_color_scale", "Answer Key yellow conditional formatting"),
+        ("ffffdd", "Answer Key yellow fill"),
+        ("argb_ffffdd", "Answer Key yellow fill"),
+        ("ffffdd_darkGrid_fg", "Answer Key yellow fill"),
+        ("ffffdd_darkGrid_bg", "Answer Key yellow fill"),
+        ("ffffdd_gradient", "Answer Key yellow fill"),
+        ("ffffdd_conditional_dxf", "Answer Key yellow conditional formatting"),
+        ("ffffdd_color_scale", "Answer Key yellow conditional formatting"),
+        ("fffe0", "Answer Key yellow fill"),
+        ("argb_fffe0", "Answer Key yellow fill"),
+        ("fffe0_darkGrid_fg", "Answer Key yellow fill"),
+        ("fffe0_darkGrid_bg", "Answer Key yellow fill"),
+        ("fffe0_gradient", "Answer Key yellow fill"),
+        ("fffe0_conditional_dxf", "Answer Key yellow conditional formatting"),
+        ("fffe0_color_scale", "Answer Key yellow conditional formatting"),
+        ("theme_tint_09", "Answer Key yellow fill"),
+        ("theme_tint_095", "Answer Key yellow fill"),
+        ("theme_tint_099", "Answer Key yellow fill"),
         ("gradient", "Answer Key yellow fill"),
         ("conditional_dxf", "Answer Key yellow conditional formatting"),
         ("color_scale", "Answer Key yellow conditional formatting"),
@@ -3325,12 +3424,7 @@ def test_saved_reopened_encoded_yellow_rejected(
     with pytest.raises(ValueError, match=expect) as excinfo:
         _verify_release_pair_contract(trainer, answer, fin)
     msg = str(excinfo.value)
-    if encoding in {
-        "conditional_dxf",
-        "color_scale",
-        "ffffcc_conditional_dxf",
-        "ffffcc_color_scale",
-    }:
+    if encoding in _CONDITIONAL_YELLOW_ENCODINGS:
         assert "range=" in msg
         assert "sheet=" in msg
     else:
@@ -3347,10 +3441,27 @@ def test_rgb_is_yellow_classifies_pale_yellow_without_allowlist():
         _rgb_is_yellow,
     )
 
-    assert "FFFFCC" not in YELLOW_RGBS
+    for rgb in ("FFFFCC", "FFFFDD", "FFFFE0", "FFFFFE"):
+        assert rgb not in YELLOW_RGBS
+        assert _rgb_is_yellow(rgb)
+        assert _rgb_is_yellow(f"FF{rgb}")
+        assert _rgb_is_yellow(f"00{rgb}")
     assert _apply_tint("FFFF00", 0.8) == "FFFFCC"
-    assert _rgb_is_yellow("FFFFCC")
-    assert _rgb_is_yellow("FFFFFFCC")
+    assert _apply_tint("FFFF00", 0.9) == "FFFFE5"
+    assert _apply_tint("FFFF00", 0.95) == "FFFFF2"
+    assert _apply_tint("FFFF00", 0.99) == "FFFFFD"
+    assert _apply_tint("FFFF00", 1.0) == "FFFFFF"
+    for tint in (0.8, 0.9, 0.95, 0.99):
+        resolved = _apply_tint("FFFF00", tint)
+        assert resolved != "FFFFFF"
+        assert _rgb_is_yellow(resolved)
+    assert not _rgb_is_yellow(_apply_tint("FFFF00", 1.0))
+    for blue in range(0x00, 0x100):
+        rgb = f"FFFF{blue:02X}"
+        if blue == 0xFF:
+            assert not _rgb_is_yellow(rgb)
+        else:
+            assert _rgb_is_yellow(rgb), rgb
     for rgb in YELLOW_RGBS:
         assert _rgb_is_yellow(rgb)
     for rgb in (
@@ -3365,12 +3476,20 @@ def test_rgb_is_yellow_classifies_pale_yellow_without_allowlist():
         "CCCCFF",
         "CCFFCC",
         "FFCCCC",
+        "FFFEFE",
+        "FEFFFE",
+        "FEFEFF",
+        "FFFEFF",
+        "FEFFFF",
+        "FFF0F0",
+        "F0FFF0",
+        "F0F0FF",
     ):
         assert not _rgb_is_yellow(rgb)
 
 
 @pytest.mark.parametrize("location", ["practice", "ordinary", "hidden"])
-@pytest.mark.parametrize("encoding", ["ffffcc", "argb_ffffcc", "theme_tint_08"])
+@pytest.mark.parametrize("encoding", list(_PALE_RESOLVED_RGB))
 def test_saved_reopened_pale_yellow_resolves_and_rejects(
     tmp_path: Path, location: str, encoding: str
 ):
@@ -3381,6 +3500,7 @@ def test_saved_reopened_pale_yellow_resolves_and_rejects(
         _verify_answer_key_no_yellow,
     )
 
+    expected = _PALE_RESOLVED_RGB[encoding]
     _trainer, answer, _fin = _fresh_fast_retailing_pair(tmp_path)
     _mutate_workbook(answer, lambda wb: _paint_answer_yellow(wb, location, encoding))
     _save_reopen_workbook(answer)
@@ -3388,7 +3508,7 @@ def test_saved_reopened_pale_yellow_resolves_and_rejects(
     try:
         cell = _answer_location_cell(wb, location)
         report = _inspect_cell_fill(cell)
-        assert "FFFFCC" in report.rgbs
+        assert expected in report.rgbs
         assert any(_rgb_is_yellow(rgb) for rgb in report.rgbs)
         with pytest.raises(ValueError, match="Answer Key yellow fill") as excinfo:
             _verify_answer_key_no_yellow(wb)
@@ -3404,8 +3524,31 @@ def test_saved_reopened_pale_yellow_resolves_and_rejects(
         wb.close()
 
 
+def test_saved_reopened_yellow_theme_tint_1_resolves_white(tmp_path: Path):
+    from openpyxl import load_workbook
+    from scripts.audit_fast_retailing_benchmark import (
+        _inspect_cell_fill,
+        _rgb_is_yellow,
+    )
+
+    _trainer, answer, _fin = _fresh_fast_retailing_pair(tmp_path)
+    _mutate_workbook(
+        answer, lambda wb: _paint_answer_yellow(wb, "ordinary", "theme_tint_10")
+    )
+    _save_reopen_workbook(answer)
+    wb = load_workbook(answer, data_only=False)
+    try:
+        report = _inspect_cell_fill(_answer_location_cell(wb, "ordinary"))
+        assert "FFFFFF" in report.rgbs
+        assert not any(_rgb_is_yellow(rgb) for rgb in report.rgbs)
+    finally:
+        wb.close()
+
+
+@pytest.mark.parametrize("pale", ["FFFFCC", "FFFFDD", "FFFFE0"])
 def test_historical_yellow_replaced_with_ffffcc_rejected_in_memory(
     tmp_path: Path,
+    pale: str,
 ):
     from openpyxl import load_workbook
     from openpyxl.styles import PatternFill
@@ -3426,7 +3569,7 @@ def test_historical_yellow_replaced_with_ffffcc_rejected_in_memory(
             for row in ws.iter_rows():
                 for cell in row:
                     if _fill_rgb(cell) == "FFFF00":
-                        cell.fill = PatternFill("solid", fgColor="FFFFCC")
+                        cell.fill = PatternFill("solid", fgColor=pale)
                         replaced += 1
         assert replaced >= 1
         payload = _workbook_xlsx_bytes(wb)
@@ -3437,8 +3580,8 @@ def test_historical_yellow_replaced_with_ffffcc_rejected_in_memory(
     try:
         probe = independent["Condensed Financials"]["B44"]
         report = _inspect_cell_fill(probe)
-        assert "FFFFCC" in report.rgbs
-        assert _rgb_is_yellow("FFFFCC")
+        assert pale in report.rgbs
+        assert _rgb_is_yellow(pale)
         with pytest.raises(ValueError, match="Answer Key yellow fill"):
             _verify_answer_key_no_yellow(independent)
     finally:
@@ -3454,15 +3597,73 @@ def test_historical_yellow_replaced_with_ffffcc_rejected_in_memory(
         reopened.close()
 
 
+@pytest.mark.parametrize(
+    "old_rgb,new_rgb,resolved",
+    [
+        ("00FFFF00", "00FFFFCC", "FFFFCC"),
+        ("00FFFF00", "00FFFFDD", "FFFFDD"),
+        ("00FFFF00", "00FFFFE0", "FFFFE0"),
+    ],
+)
+def test_zip_styles_pale_yellow_rejected_in_memory(
+    tmp_path: Path, old_rgb: str, new_rgb: str, resolved: str
+):
+    from openpyxl import load_workbook
+    from scripts.audit_fast_retailing_benchmark import (
+        _inspect_cell_fill,
+        _load_workbook_xlsx_bytes,
+        _rgb_is_yellow,
+        _verify_answer_key_no_yellow,
+    )
+
+    original = RELEASE_ANSWER.read_bytes()
+    patched = _xlsx_replace_styles_rgb(original, old_rgb, new_rgb)
+    independent = _load_workbook_xlsx_bytes(patched)
+    try:
+        probe = independent["Condensed Financials"]["B44"]
+        report = _inspect_cell_fill(probe)
+        raw = str(getattr(getattr(probe.fill, "fgColor", None), "rgb", "") or "")
+        assert resolved in report.rgbs
+        assert resolved in raw.upper()
+        assert _rgb_is_yellow(resolved)
+        with pytest.raises(ValueError, match="Answer Key yellow fill") as excinfo:
+            _verify_answer_key_no_yellow(independent)
+        msg = str(excinfo.value)
+        assert "sheet='Condensed Financials'" in msg
+        assert "cell=B44" in msg
+    finally:
+        independent.close()
+
+    disk = tmp_path / f"zip_{resolved}.xlsx"
+    disk.write_bytes(patched)
+    reopened = load_workbook(disk, data_only=False)
+    try:
+        with pytest.raises(ValueError, match="Answer Key yellow fill"):
+            _verify_answer_key_no_yellow(reopened)
+    finally:
+        reopened.close()
+    assert RELEASE_ANSWER.read_bytes() == original
+
+
+@pytest.mark.parametrize(
+    "encoding",
+    [
+        "conditional_dxf",
+        "ffffcc_conditional_dxf",
+        "ffffdd_conditional_dxf",
+        "fffe0_conditional_dxf",
+    ],
+)
 def test_referenced_differential_yellow_rejected_when_embedded_dxf_cleared(
     tmp_path: Path,
+    encoding: str,
 ):
     from openpyxl import load_workbook
     from scripts.audit_fast_retailing_benchmark import _verify_answer_key_no_yellow
 
     trainer, answer, _fin = _fresh_fast_retailing_pair(tmp_path)
     _mutate_workbook(
-        answer, lambda wb: _paint_answer_yellow(wb, "ordinary", "conditional_dxf")
+        answer, lambda wb: _paint_answer_yellow(wb, "ordinary", encoding)
     )
     _save_reopen_workbook(answer)
     wb = load_workbook(answer, data_only=False)
@@ -3528,6 +3729,11 @@ def test_white_and_non_yellow_fill_controls_pass_no_yellow(tmp_path: Path):
         ws["A15"].fill = PatternFill("solid", fgColor="CCFFCC")
         ws["A16"].fill = PatternFill("solid", fgColor="FFCCCC")
         ws["A17"].fill = PatternFill("solid", fgColor="FFFFFF")
+        ws["A18"].fill = PatternFill("solid", fgColor="FFFEFE")
+        ws["A19"].fill = PatternFill("solid", fgColor="FEFFFE")
+        ws["A20"].fill = PatternFill("solid", fgColor="FEFEFF")
+        ws["A21"].fill = PatternFill("solid", fgColor="FFFEFF")
+        ws["A22"].fill = PatternFill("solid", fgColor="FEFFFF")
         blue = PatternFill("solid", fgColor="0000FF")
         ws.conditional_formatting.add(
             "Z1", CellIsRule(operator="equal", formula=["1"], fill=blue)
