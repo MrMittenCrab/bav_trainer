@@ -27,7 +27,6 @@ from core.trainer.workbook import (
 ROOT = Path(__file__).resolve().parents[2]
 ALLOWED_FILLS = {"FFFFFF", "FFFF00"}
 WHITE_RGBS = {"", "FFFFFF"}
-YELLOW_RGBS = {"FFFF00", "FFF2CC", "FFFF99", "FFEE00", "FFCC00", "FFE599"}
 FORBIDDEN_README_TERMS = (
     "bavgems",
     "bav pipeline",
@@ -76,24 +75,11 @@ def _fill_rgb(cell) -> str:
 
 
 def _rgb_is_yellow(rgb: str) -> bool:
-    if not rgb:
-        return False
-    compact = rgb.upper()[-6:]
-    if compact in YELLOW_RGBS:
-        return True
-    try:
-        red = int(compact[0:2], 16)
-        green = int(compact[2:4], 16)
-        blue = int(compact[4:6], 16)
-    except ValueError:
-        return False
-    return (
-        red >= 0xC8
-        and green >= 0xC0
-        and blue <= 0x80
-        and (red - blue) >= 0x40
-        and (green - blue) >= 0x40
+    from scripts.audit_fast_retailing_benchmark import (
+        _rgb_is_yellow as classify_yellow,
     )
+
+    return classify_yellow(rgb)
 
 
 def _font_color_is_black(font) -> bool:

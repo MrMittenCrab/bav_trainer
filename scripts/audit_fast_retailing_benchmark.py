@@ -262,25 +262,56 @@ def _cell_is_white_or_none(cell) -> bool:
     return report.solid_fg in WHITE_RGBS
 
 
+def _workbook_xlsx_bytes(wb) -> bytes:
+    """Serialize an openpyxl workbook to XLSX bytes without touching source paths."""
+    from io import BytesIO
+
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def _load_workbook_xlsx_bytes(data: bytes):
+    """Load a workbook from serialized XLSX bytes for independent inspection."""
+    from io import BytesIO
+    from openpyxl import load_workbook
+
+    return load_workbook(BytesIO(data), data_only=False)
+
+
 def _rgb_is_yellow(rgb: str) -> bool:
+    """True for bright and pale yellow fills, including FFFFCC / theme tint 0.8.
+
+    Classification uses brightness, chroma, and yellow-family hue. Known Excel
+    yellows remain yellow, but pale yellow is not gated on an isolated allowlist.
+    White, neutral gray, and non-yellow hues return False.
+    """
     if not rgb:
         return False
     compact = _compact_hex(rgb)
-    if compact in YELLOW_RGBS:
-        return True
     try:
         red = int(compact[0:2], 16)
         green = int(compact[2:4], 16)
         blue = int(compact[4:6], 16)
     except ValueError:
         return False
-    return (
-        red >= 0xC8
-        and green >= 0xC0
-        and blue <= 0x80
-        and (red - blue) >= 0x40
-        and (green - blue) >= 0x40
-    )
+    if len(compact) < 6:
+        return False
+    if compact in YELLOW_RGBS:
+        return True
+    if red < 0xC8 or green < 0xC0:
+        return False
+    chroma = max(red, green, blue) - min(red, green, blue)
+    if chroma < 0x28:
+        return False
+    mx = max(red, green, blue)
+    if mx == red:
+        hue = 60.0 * (((green - blue) / chroma) % 6.0)
+    elif mx == green:
+        hue = 60.0 * ((blue - red) / chroma + 2.0)
+    else:
+        hue = 60.0 * ((red - green) / chroma + 4.0)
+    return 35.0 <= hue <= 75.0
 
 
 def _iter_conditional_rule_entries(ws):
