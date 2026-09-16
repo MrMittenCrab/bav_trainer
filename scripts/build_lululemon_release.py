@@ -31,7 +31,6 @@ README = RELEASE / "README.md"
 AVAILABILITY = RELEASE / "availability.json"
 
 ADMIT_PERIODS = (date(2022, 1, 30),)
-EXPECTED_SPECS = 486
 
 
 def _sha256(path: Path) -> str:
@@ -171,6 +170,7 @@ Forecasting and valuation remain dormant in this historical release.
 def verify_staged(trainer: Path, answer: Path, standardized_json: Path) -> None:
     from core.data.standardized_io import standardized_from_payload
     from core.engine.reference_model import ReferenceModelBuilder
+    from core.engine.build_contract import verify_complete_build
     from core.trainer.checker import check_workbook
     from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
     from openpyxl import load_workbook
@@ -178,21 +178,15 @@ def verify_staged(trainer: Path, answer: Path, standardized_json: Path) -> None:
     payload = json.loads(standardized_json.read_text(encoding="utf-8"))
     fin = standardized_from_payload(payload)
     builder = ReferenceModelBuilder(fin)
-    if len(builder.expected_specs) != EXPECTED_SPECS:
-        raise RuntimeError(
-            f"Lululemon expected_specs={len(builder.expected_specs)} != {EXPECTED_SPECS}"
-        )
     smap = load_semantic_map(answer)
-    if len(smap.all_ordered()) != EXPECTED_SPECS:
-        raise RuntimeError(
-            f"Lululemon registered components={len(smap.all_ordered())} != {EXPECTED_SPECS}"
-        )
+    verify_complete_build(builder.expected_specs, smap)
+    expected_total = len(builder.expected_specs)
     blank = check_workbook(trainer)
     if (blank.blank, blank.correct, blank.incorrect, blank.total) != (
-        EXPECTED_SPECS,
+        expected_total,
         0,
         0,
-        EXPECTED_SPECS,
+        expected_total,
     ):
         raise RuntimeError(
             f"blank Check {blank.correct}/{blank.incorrect}/{blank.blank}/{blank.total}"
@@ -219,10 +213,10 @@ def verify_staged(trainer: Path, answer: Path, standardized_json: Path) -> None:
     finally:
         shutil.rmtree(filled_dir, ignore_errors=True)
     if (filled.correct, filled.incorrect, filled.blank, filled.total) != (
-        EXPECTED_SPECS,
+        expected_total,
         0,
         0,
-        EXPECTED_SPECS,
+        expected_total,
     ):
         raise RuntimeError(
             f"filled Check {filled.correct}/{filled.incorrect}/{filled.blank}/{filled.total}"

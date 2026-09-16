@@ -243,6 +243,10 @@ def test_reconcile_rejects_unsupported_admit_period_before_write(tmp_path: Path)
 
 
 def test_reconcile_serializes_management_identity_assessments(tmp_path: Path):
+    from core.ingestion.management_kpi_identity import (
+        REASON_NO_DISTINCT_PEER,
+        REQUIRED_COMPARISON_REASONS,
+    )
     from core.tests.test_management_kpi_admission import (
         ANNUAL_NAMES,
         EXTRACTED,
@@ -252,6 +256,7 @@ def test_reconcile_serializes_management_identity_assessments(tmp_path: Path):
         _canonicalize,
         _copy_json,
     )
+    from core.tests.test_management_kpi_identity import FALSE_POSITIVE_METRIC_IDS
 
     before = _bytes_by_name(EXTRACTED)
     mixed = _copy_json(ANNUAL_NAMES + MANAGEMENT_NAMES, tmp_path / "mixed")
@@ -286,6 +291,41 @@ def test_reconcile_serializes_management_identity_assessments(tmp_path: Path):
     assert admission["reported_observation_count"] == 135
     assert len(admission["assessments"]["items"]) == 135
     assert admission["assessments"]["canonical_selection"] == "deferred"
+    assert admission["assessments"]["supported_count"] == 28
+    assert admission["assessments"]["outside_scope_count"] == 107
+    counts = admission["assessments"]["comparability_counts"]
+    assert counts["comparable"] == 0
+    assert counts["not_comparable"] == 22
+    assert counts["unresolved"] == 6
+    assert counts["outside_scope"] == 107
+    reported = {
+        item["locator"]: item
+        for item in admission["observations"]
+        if item["kind"] == "reported_kpi"
+    }
+    false_positives = [
+        item
+        for item in admission["assessments"]["items"]
+        if reported[item["locator"]]["metric_id"] in FALSE_POSITIVE_METRIC_IDS
+    ]
+    assert len(false_positives) == 6
+    for item in false_positives:
+        assert item["comparability"] == "unresolved"
+        assert REASON_NO_DISTINCT_PEER in item["unresolved_reasons"]
+        assert item["peer_locators"] == []
+        assert item["locator"] not in item["peer_locators"]
+    for item in admission["assessments"]["items"]:
+        if item["comparability"] == "comparable":
+            assert not set(REQUIRED_COMPARISON_REASONS) & set(item["unresolved_reasons"])
+            assert item["peer_locators"]
+        assert item["locator"] not in item["peer_locators"]
+    outside = [
+        item
+        for item in admission["assessments"]["items"]
+        if item["status"] == "outside_scope"
+    ]
+    assert len(outside) == 107
+    assert all(item["comparability"] == "outside_scope" for item in outside)
     assert not (annual_out / "management_kpi_admission.json").exists()
     mixed_std = json.loads((mixed_out / "standardized.json").read_text(encoding="utf-8"))
     annual_std = json.loads((annual_out / "standardized.json").read_text(encoding="utf-8"))

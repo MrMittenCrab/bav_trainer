@@ -292,6 +292,12 @@ def test_mixed_directory_admits_all_135_observations(tmp_path: Path):
     assert len(payload["assessments"]["items"]) == 135
     assert payload["assessments"]["reported_observation_count"] == 135
     assert payload["assessments"]["canonical_selection"] == "deferred"
+    assert payload["assessments"]["supported_count"] == 28
+    assert payload["assessments"]["outside_scope_count"] == 107
+    assert payload["assessments"]["comparability_counts"]["comparable"] == 0
+    assert payload["assessments"]["comparability_counts"]["not_comparable"] == 22
+    assert payload["assessments"]["comparability_counts"]["unresolved"] == 6
+    assert payload["assessments"]["comparability_counts"]["outside_scope"] == 107
     assert payload["assessments"]["supported_count"] + payload["assessments"][
         "outside_scope_count"
     ] + payload["assessments"]["unsupported_variant_count"] == 135

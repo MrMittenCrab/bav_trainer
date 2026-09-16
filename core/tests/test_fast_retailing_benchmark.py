@@ -71,6 +71,11 @@ def _load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _expected_checks():
+    total = len(ReferenceModelBuilder(standardized_from_payload(_load_json(STD_JSON))).expected_specs)
+    return (0, 0, total, total), (total, 0, 0, total)
+
+
 def test_source_manifest_locks_five_pdfs():
     manifest = _load_json(MANIFEST)
     assert len(manifest["sources"]) == 5
@@ -1686,11 +1691,7 @@ def _assert_current_style_judgment_modules(trainer: Path, answer: Path) -> None:
 def test_release_audit_explicit_pair_verification(tmp_path: Path):
     """Saved/reopened current-style Fast Retailing pair verifies without regenerating."""
     from core.trainer.workbook import build_training_workbook
-    from scripts.audit_fast_retailing_benchmark import (
-        EXPECTED_BLANK_CHECK,
-        EXPECTED_FILLED_CHECK,
-        _verify_release_pair_contract,
-    )
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
 
     from core.tests.test_learner_ready_presentation import (
         _assert_answer_key_no_yellow,
@@ -1741,8 +1742,8 @@ def test_release_audit_explicit_pair_verification(tmp_path: Path):
     assert stages["5_workbook_generation"].message == (
         "persisted release pair (not regenerated)"
     )
-    assert f"blank={EXPECTED_BLANK_CHECK[2]}" in (stages["6_blank_check"].message or "")
-    assert f"correct={EXPECTED_FILLED_CHECK[0]}" in (
+    assert f"blank={_expected_checks()[0][2]}" in (stages["6_blank_check"].message or "")
+    assert f"correct={_expected_checks()[1][0]}" in (
         stages["7_filled_check"].message or ""
     )
     after = {
@@ -1795,7 +1796,6 @@ def test_release_audit_mismatched_standardized_fails(tmp_path: Path):
 def test_release_audit_failed_counts_surface(tmp_path: Path):
     from core.trainer.workbook import build_training_workbook
     from openpyxl import load_workbook
-    from scripts.audit_fast_retailing_benchmark import EXPECTED_BLANK_CHECK
 
     fin = standardized_from_payload(_load_json(STD_JSON))
     trainer, answer = build_training_workbook(fin, tmp_path / "FastRetailing_Trainer.xlsx")
@@ -1819,7 +1819,7 @@ def test_release_audit_failed_counts_surface(tmp_path: Path):
     )
     stages = _stage_map(result)
     assert stages["6_blank_check"].status == "fail"
-    assert str(EXPECTED_BLANK_CHECK[2]) in (stages["6_blank_check"].message or "")
+    assert str(_expected_checks()[0][2]) in (stages["6_blank_check"].message or "")
     assert stages["7_filled_check"].status == "skipped"
 
 
@@ -2164,11 +2164,7 @@ def test_explicit_pair_verification_does_not_generate(tmp_path: Path, monkeypatc
 
 
 def test_persisted_release_pair_contract_and_check_counts():
-    from scripts.audit_fast_retailing_benchmark import (
-        EXPECTED_BLANK_CHECK,
-        EXPECTED_FILLED_CHECK,
-        _verify_release_pair_contract,
-    )
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
 
     if not RELEASE_TRAINER.is_file():
         pytest.skip("release/fast_retailing pair not built yet")
@@ -2192,9 +2188,9 @@ def test_persisted_release_pair_contract_and_check_counts():
     )
     stages = _stage_map(result)
     assert stages["6_blank_check"].status == "pass"
-    assert f"blank={EXPECTED_BLANK_CHECK[2]}" in (stages["6_blank_check"].message or "")
+    assert f"blank={_expected_checks()[0][2]}" in (stages["6_blank_check"].message or "")
     assert stages["7_filled_check"].status == "pass"
-    assert f"correct={EXPECTED_FILLED_CHECK[0]}" in (
+    assert f"correct={_expected_checks()[1][0]}" in (
         stages["7_filled_check"].message or ""
     )
     assert stages["8_release_pristine"].status == "pass"
@@ -2822,11 +2818,7 @@ def _restyle_frozen_pair_current_decorators(tmp_path: Path) -> tuple[Path, Path]
 
 
 def test_restyled_frozen_pair_current_contract_and_check(tmp_path: Path):
-    from scripts.audit_fast_retailing_benchmark import (
-        EXPECTED_BLANK_CHECK,
-        EXPECTED_FILLED_CHECK,
-        _verify_release_pair_contract,
-    )
+    from scripts.audit_fast_retailing_benchmark import _verify_release_pair_contract
     from core.tests.test_learner_ready_presentation import (
         _assert_answer_key_no_yellow,
         _assert_fresh_visible_style,
@@ -2865,8 +2857,8 @@ def test_restyled_frozen_pair_current_contract_and_check(tmp_path: Path):
         "8_release_pristine",
     ):
         assert stages[name].status == "pass", f"{name}: {stages[name].message}"
-    assert f"blank={EXPECTED_BLANK_CHECK[2]}" in (stages["6_blank_check"].message or "")
-    assert f"correct={EXPECTED_FILLED_CHECK[0]}" in (
+    assert f"blank={_expected_checks()[0][2]}" in (stages["6_blank_check"].message or "")
+    assert f"correct={_expected_checks()[1][0]}" in (
         stages["7_filled_check"].message or ""
     )
     assert _temp_pair_fingerprints(trainer, answer) == before

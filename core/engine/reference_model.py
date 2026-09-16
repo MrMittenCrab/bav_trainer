@@ -185,6 +185,17 @@ from .component_catalog import (
 )
 from .map_embed import embed_component_map_sheet
 from .semantic_map import SemanticMap
+from .build_contract import (
+    complete_build_modules, prepare_complete_build, write_complete_build,
+    verify_complete_build,
+)
+from ..model.historical_expected import (
+    historical_expected_series,
+    per_share_expected_series,
+    profitability_change_expected_series,
+    profitability_driver_expected_series,
+    roe_attribution_expected_series,
+)
 
 NUM_FMT = "#,##0;(#,##0)"
 PCT_FMT = "0.0%"
@@ -277,852 +288,10 @@ class ReferenceModelBuilder:
         self.assumptions.setdefault("classificationOverrides", {})
         self.assumptions.setdefault("normalizationCandidates", [])
         self.rowmap: dict[str, Any] = {}
-        self.historical_specs = expand_historical_specs(self.periods)
-        overrides = self.assumptions.get("classificationOverrides") or {}
-        self.anchor = compute_anchor(
-            financials,
-            self.periods,
-            classification_overrides=overrides,
-        )
-        self.interest_availability = assess_interest_availability(
-            financials, self.periods
-        )
-        self.rowmap["interest_availability"] = availability_payload(
-            self.interest_availability
-        )
-        from ..model.historical_expected import (
-            historical_expected_series,
-            per_share_expected_series,
-            profitability_change_expected_series,
-            profitability_driver_expected_series,
-            roe_attribution_expected_series,
-        )
-
-        self.historical_specs = filter_available_specs(
-            self.historical_specs,
-            historical_expected_series(self.anchor),
-        )
-        self.judgment_cases: tuple[JudgmentCase, ...] = classification_judgment_cases(
-            self.fin,
-            self.periods,
-            self.anchor.reformulation,
-        )
-        self.normalization_cases: tuple[NormalizationCase, ...] = normalization_cases(
-            self.fin,
-            self.periods,
-            self.assumptions,
-        )
-        self.normalization_specs = (
-            expand_normalization_specs(
-                self.periods,
-                start_order=len(self.historical_specs) + 1,
-            )
-            if self.normalization_cases
-            else ()
-        )
-        if self.normalization_specs:
-            self.normalization_specs = filter_available_specs(
-                self.normalization_specs,
-                {"normalized_nopat": tuple(self.anchor.historical.nopat)},
-            )
-        self.quality_availability = earnings_quality_availability(self.fin)
-        if self.quality_availability.operating_cash_flow:
-            self.quality_series = compute_earnings_quality_series(
-                self.fin,
-                self.periods,
-                self.anchor,
-            )
-            self.quality_specs = expand_quality_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs) + len(self.normalization_specs) + 1
-                ),
-                include_asset_scaled=self.quality_availability.total_assets,
-                include_sbc=(
-                    self.quality_series.operating_cash_flow_less_sbc is not None
-                ),
-            )
-        else:
-            self.quality_series = None
-            self.quality_specs = ()
-        if working_capital_applicable(self.anchor):
-            self.working_capital_series = compute_working_capital_series(self.anchor)
-            self.working_capital_specs = expand_working_capital_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + 1
-                ),
-            )
-        else:
-            self.working_capital_series = None
-            self.working_capital_specs = ()
-        self.profitability_driver_series = compute_profitability_driver_series(self.anchor)
-        self.profitability_driver_specs = filter_available_specs(
-            expand_profitability_driver_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + 1
-                ),
-            ),
-            profitability_driver_expected_series(self.anchor),
-        )
-        self.profitability_change_series = compute_profitability_change_series(self.anchor)
-        self.profitability_change_specs = filter_available_specs(
-            expand_profitability_change_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + 1
-                ),
-            ),
-            profitability_change_expected_series(self.anchor),
-        )
-        self.roe_attribution_series = compute_roe_attribution_series(self.anchor)
-        self.roe_attribution_specs = filter_available_specs(
-            expand_roe_attribution_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + 1
-                ),
-            ),
-            roe_attribution_expected_series(self.anchor),
-        )
-        if self.quality_series is not None:
-            self.quality_change_series = compute_earnings_quality_change_series(
-                self.quality_series
-            )
-            self.quality_change_specs = expand_quality_change_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + 1
-                ),
-                include_asset_scaled=self.quality_availability.total_assets,
-            )
-        else:
-            self.quality_change_series = None
-            self.quality_change_specs = ()
-        if per_share_available(self.fin):
-            self.per_share_series = compute_per_share_series(
-                self.fin,
-                self.periods,
-                self.anchor,
-            )
-            self.per_share_specs = filter_available_specs(
-                expand_per_share_specs(
-                    self.periods,
-                    start_order=(
-                        len(self.historical_specs)
-                        + len(self.normalization_specs)
-                        + len(self.quality_specs)
-                        + len(self.working_capital_specs)
-                        + len(self.profitability_driver_specs)
-                        + len(self.profitability_change_specs)
-                        + len(self.roe_attribution_specs)
-                        + len(self.quality_change_specs)
-                        + 1
-                    ),
-                ),
-                per_share_expected_series(self.per_share_series),
-            )
-            self.per_share_attribution_series = compute_per_share_attribution_series(
-                self.anchor,
-                self.per_share_series,
-            )
-            self.per_share_attribution_specs = expand_per_share_attribution_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + len(self.quality_change_specs)
-                    + len(self.per_share_specs)
-                    + 1
-                ),
-            )
-        else:
-            self.per_share_series = None
-            self.per_share_specs = ()
-            self.per_share_attribution_series = None
-            self.per_share_attribution_specs = ()
-        if self.per_share_series is not None and self.normalization_cases:
-            self.normalized_per_share_specs = expand_normalized_per_share_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + len(self.quality_change_specs)
-                    + len(self.per_share_specs)
-                    + len(self.per_share_attribution_specs)
-                    + 1
-                ),
-            )
-        else:
-            self.normalized_per_share_specs = ()
-        if fixed_asset_applicable(self.fin):
-            self.fixed_asset_series = compute_fixed_asset_series(
-                self.fin,
-                self.periods,
-                self.anchor,
-            )
-            self.fixed_asset_specs = expand_fixed_asset_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + len(self.quality_change_specs)
-                    + len(self.per_share_specs)
-                    + len(self.per_share_attribution_specs)
-                    + len(self.normalized_per_share_specs)
-                    + 1
-                ),
-            )
-        else:
-            self.fixed_asset_series = None
-            self.fixed_asset_specs = ()
-        if lease_liability_applicable(self.fin):
-            self.lease_liability_series = compute_lease_liability_series(
-                self.fin,
-                self.periods,
-                self.anchor,
-            )
-            self.lease_liability_specs = expand_lease_liability_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + len(self.quality_change_specs)
-                    + len(self.per_share_specs)
-                    + len(self.per_share_attribution_specs)
-                    + len(self.normalized_per_share_specs)
-                    + len(self.fixed_asset_specs)
-                    + 1
-                ),
-            )
-        else:
-            self.lease_liability_series = None
-            self.lease_liability_specs = ()
-        if ownership_attribution_applicable(self.fin):
-            self.ownership_attribution_series = compute_ownership_attribution_series(
-                self.fin,
-                self.periods,
-            )
-            self.ownership_attribution_specs = expand_ownership_attribution_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + len(self.quality_change_specs)
-                    + len(self.per_share_specs)
-                    + len(self.per_share_attribution_specs)
-                    + len(self.normalized_per_share_specs)
-                    + len(self.fixed_asset_specs)
-                    + len(self.lease_liability_specs)
-                    + 1
-                ),
-            )
-        else:
-            self.ownership_attribution_series = None
-            self.ownership_attribution_specs = ()
-        self.goodwill_intangibles_availability = goodwill_intangibles_availability(
-            self.fin
-        )
-        if goodwill_intangibles_applicable(self.fin):
-            self.goodwill_intangibles_series = compute_goodwill_intangibles_series(
-                self.fin,
-                self.periods,
-                self.anchor,
-            )
-            self.goodwill_intangibles_specs = expand_goodwill_intangibles_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + len(self.quality_change_specs)
-                    + len(self.per_share_specs)
-                    + len(self.per_share_attribution_specs)
-                    + len(self.normalized_per_share_specs)
-                    + len(self.fixed_asset_specs)
-                    + len(self.lease_liability_specs)
-                    + len(self.ownership_attribution_specs)
-                    + 1
-                ),
-                availability=self.goodwill_intangibles_availability,
-            )
-        else:
-            self.goodwill_intangibles_series = None
-            self.goodwill_intangibles_specs = ()
-        if lease_rou_applicable(self.fin):
-            self.lease_rou_series = compute_lease_rou_series(
-                self.fin,
-                self.periods,
-                self.anchor,
-            )
-            self.lease_rou_specs = expand_lease_rou_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + len(self.quality_change_specs)
-                    + len(self.per_share_specs)
-                    + len(self.per_share_attribution_specs)
-                    + len(self.normalized_per_share_specs)
-                    + len(self.fixed_asset_specs)
-                    + len(self.lease_liability_specs)
-                    + len(self.ownership_attribution_specs)
-                    + len(self.goodwill_intangibles_specs)
-                    + 1
-                ),
-            )
-        else:
-            self.lease_rou_series = None
-            self.lease_rou_specs = ()
-        if deferred_tax_applicable(self.fin):
-            self.deferred_tax_series = compute_deferred_tax_series(
-                self.fin,
-                self.periods,
-            )
-            self.deferred_tax_specs = expand_deferred_tax_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + len(self.quality_change_specs)
-                    + len(self.per_share_specs)
-                    + len(self.per_share_attribution_specs)
-                    + len(self.normalized_per_share_specs)
-                    + len(self.fixed_asset_specs)
-                    + len(self.lease_liability_specs)
-                    + len(self.ownership_attribution_specs)
-                    + len(self.goodwill_intangibles_specs)
-                    + len(self.lease_rou_specs)
-                    + 1
-                ),
-            )
-        else:
-            self.deferred_tax_series = None
-            self.deferred_tax_specs = ()
-        if capex_applicable(self.fin):
-            self.capex_series = compute_capex_series(
-                self.fin,
-                self.periods,
-                self.anchor,
-            )
-            self.capex_specs = expand_capex_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + len(self.quality_change_specs)
-                    + len(self.per_share_specs)
-                    + len(self.per_share_attribution_specs)
-                    + len(self.normalized_per_share_specs)
-                    + len(self.fixed_asset_specs)
-                    + len(self.lease_liability_specs)
-                    + len(self.ownership_attribution_specs)
-                    + len(self.goodwill_intangibles_specs)
-                    + len(self.lease_rou_specs)
-                    + len(self.deferred_tax_specs)
-                    + 1
-                ),
-                include_operating_cash=(
-                    self.capex_series.cash_after_ppe_capex is not None
-                ),
-            )
-        else:
-            self.capex_series = None
-            self.capex_specs = ()
-        if lease_repayment_applicable(self.fin):
-            self.lease_repayment_series = compute_lease_repayment_series(
-                self.fin,
-                self.periods,
-                self.anchor,
-            )
-            self.lease_repayment_specs = expand_lease_repayment_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + len(self.quality_change_specs)
-                    + len(self.per_share_specs)
-                    + len(self.per_share_attribution_specs)
-                    + len(self.normalized_per_share_specs)
-                    + len(self.fixed_asset_specs)
-                    + len(self.lease_liability_specs)
-                    + len(self.ownership_attribution_specs)
-                    + len(self.goodwill_intangibles_specs)
-                    + len(self.lease_rou_specs)
-                    + len(self.deferred_tax_specs)
-                    + len(self.capex_specs)
-                    + 1
-                ),
-            )
-        else:
-            self.lease_repayment_series = None
-            self.lease_repayment_specs = ()
-        if acquisition_cash_applicable(self.fin):
-            self.acquisition_cash_series = compute_acquisition_cash_series(
-                self.fin,
-                self.periods,
-                self.anchor,
-            )
-            self.acquisition_cash_specs = expand_acquisition_cash_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + len(self.quality_change_specs)
-                    + len(self.per_share_specs)
-                    + len(self.per_share_attribution_specs)
-                    + len(self.normalized_per_share_specs)
-                    + len(self.fixed_asset_specs)
-                    + len(self.lease_liability_specs)
-                    + len(self.ownership_attribution_specs)
-                    + len(self.goodwill_intangibles_specs)
-                    + len(self.lease_rou_specs)
-                    + len(self.deferred_tax_specs)
-                    + len(self.capex_specs)
-                    + len(self.lease_repayment_specs)
-                    + 1
-                ),
-                include_cash_after_capex=(
-                    self.acquisition_cash_series.cash_after_ppe_capex_and_acquisitions
-                    is not None
-                ),
-            )
-        else:
-            self.acquisition_cash_series = None
-            self.acquisition_cash_specs = ()
-        if share_repurchase_applicable(self.fin):
-            self.share_repurchase_series = compute_share_repurchase_series(
-                self.fin,
-                self.periods,
-                self.anchor,
-            )
-            self.share_repurchase_specs = expand_share_repurchase_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + len(self.quality_change_specs)
-                    + len(self.per_share_specs)
-                    + len(self.per_share_attribution_specs)
-                    + len(self.normalized_per_share_specs)
-                    + len(self.fixed_asset_specs)
-                    + len(self.lease_liability_specs)
-                    + len(self.ownership_attribution_specs)
-                    + len(self.goodwill_intangibles_specs)
-                    + len(self.lease_rou_specs)
-                    + len(self.deferred_tax_specs)
-                    + len(self.capex_specs)
-                    + len(self.lease_repayment_specs)
-                    + len(self.acquisition_cash_specs)
-                    + 1
-                ),
-                include_residual=(
-                    self.share_repurchase_series.cash_after_ppe_capex_acquisitions_and_repurchases
-                    is not None
-                ),
-            )
-        else:
-            self.share_repurchase_series = None
-            self.share_repurchase_specs = ()
-        if cash_rollforward_applicable(self.fin):
-            self.cash_rollforward_series = compute_cash_rollforward_series(
-                self.fin,
-                self.periods,
-            )
-            self.cash_rollforward_specs = expand_cash_rollforward_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + len(self.quality_change_specs)
-                    + len(self.per_share_specs)
-                    + len(self.per_share_attribution_specs)
-                    + len(self.normalized_per_share_specs)
-                    + len(self.fixed_asset_specs)
-                    + len(self.lease_liability_specs)
-                    + len(self.ownership_attribution_specs)
-                    + len(self.goodwill_intangibles_specs)
-                    + len(self.lease_rou_specs)
-                    + len(self.deferred_tax_specs)
-                    + len(self.capex_specs)
-                    + len(self.lease_repayment_specs)
-                    + len(self.acquisition_cash_specs)
-                    + len(self.share_repurchase_specs)
-                    + 1
-                ),
-                include_movement_difference=cash_movement_difference_applicable(
-                    self.fin
-                ),
-                include_ending_from_flows=cash_ending_from_flows_applicable(self.fin),
-                include_ending_difference=cash_ending_difference_applicable(self.fin),
-            )
-        else:
-            self.cash_rollforward_series = None
-            self.cash_rollforward_specs = ()
-        if reported_margin_applicable(self.fin):
-            self.reported_margin_series = compute_reported_margin_series(
-                self.fin,
-                self.periods,
-            )
-            self.reported_margin_specs = expand_reported_margin_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + len(self.quality_change_specs)
-                    + len(self.per_share_specs)
-                    + len(self.per_share_attribution_specs)
-                    + len(self.normalized_per_share_specs)
-                    + len(self.fixed_asset_specs)
-                    + len(self.lease_liability_specs)
-                    + len(self.ownership_attribution_specs)
-                    + len(self.goodwill_intangibles_specs)
-                    + len(self.lease_rou_specs)
-                    + len(self.deferred_tax_specs)
-                    + len(self.capex_specs)
-                    + len(self.lease_repayment_specs)
-                    + len(self.acquisition_cash_specs)
-                    + len(self.share_repurchase_specs)
-                    + len(self.cash_rollforward_specs)
-                    + 1
-                ),
-                include_gross_margin=gross_margin_applicable(self.fin),
-                include_operating_margin=reported_operating_margin_applicable(
-                    self.fin
-                ),
-                include_burden=net_operating_expense_burden_applicable(self.fin),
-                include_gross_margin_change=gross_margin_change_applicable(self.fin),
-                include_burden_change=net_operating_expense_burden_change_applicable(
-                    self.fin
-                ),
-                include_reconstructed=reconstructed_operating_margin_change_applicable(
-                    self.fin
-                ),
-            )
-        else:
-            self.reported_margin_series = None
-            self.reported_margin_specs = ()
-        if inventory_analysis_applicable(self.fin):
-            self.inventory_analysis_series = compute_inventory_analysis_series(
-                self.fin,
-                self.periods,
-            )
-            self.inventory_analysis_specs = expand_inventory_analysis_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + len(self.quality_change_specs)
-                    + len(self.per_share_specs)
-                    + len(self.per_share_attribution_specs)
-                    + len(self.normalized_per_share_specs)
-                    + len(self.fixed_asset_specs)
-                    + len(self.lease_liability_specs)
-                    + len(self.ownership_attribution_specs)
-                    + len(self.goodwill_intangibles_specs)
-                    + len(self.lease_rou_specs)
-                    + len(self.deferred_tax_specs)
-                    + len(self.capex_specs)
-                    + len(self.lease_repayment_specs)
-                    + len(self.acquisition_cash_specs)
-                    + len(self.share_repurchase_specs)
-                    + len(self.cash_rollforward_specs)
-                    + len(self.reported_margin_specs)
-                    + 1
-                ),
-                include_intensity=inventory_intensity_applicable(self.fin),
-                include_change=inventory_change_applicable(self.fin),
-                include_revenue_scale=inventory_revenue_scale_effect_applicable(
-                    self.fin
-                ),
-                include_intensity_effect=inventory_intensity_effect_applicable(
-                    self.fin
-                ),
-                include_reconstructed=reconstructed_inventory_change_applicable(
-                    self.fin
-                ),
-                include_balance_implied=inventory_balance_implied_cf_adjustment_applicable(
-                    self.fin
-                ),
-                include_cf_difference=inventory_cf_adjustment_difference_applicable(
-                    self.fin
-                ),
-            )
-        else:
-            self.inventory_analysis_series = None
-            self.inventory_analysis_specs = ()
-        if geographic_segment_applicable(self.fin):
-            self.geographic_series = compute_geographic_segment_series(
-                self.fin,
-                self.periods,
-            )
-            available_periods, growth_identities, bridge_identities = (
-                _geographic_expand_inputs(self.geographic_series)
-            )
-            self.geographic_specs = expand_geographic_segment_specs(
-                self.periods,
-                start_order=(
-                    len(self.historical_specs)
-                    + len(self.normalization_specs)
-                    + len(self.quality_specs)
-                    + len(self.working_capital_specs)
-                    + len(self.profitability_driver_specs)
-                    + len(self.profitability_change_specs)
-                    + len(self.roe_attribution_specs)
-                    + len(self.quality_change_specs)
-                    + len(self.per_share_specs)
-                    + len(self.per_share_attribution_specs)
-                    + len(self.normalized_per_share_specs)
-                    + len(self.fixed_asset_specs)
-                    + len(self.lease_liability_specs)
-                    + len(self.ownership_attribution_specs)
-                    + len(self.goodwill_intangibles_specs)
-                    + len(self.lease_rou_specs)
-                    + len(self.deferred_tax_specs)
-                    + len(self.capex_specs)
-                    + len(self.lease_repayment_specs)
-                    + len(self.acquisition_cash_specs)
-                    + len(self.share_repurchase_specs)
-                    + len(self.cash_rollforward_specs)
-                    + len(self.reported_margin_specs)
-                    + len(self.inventory_analysis_specs)
-                    + 1
-                ),
-                available_periods=available_periods,
-                growth_identities=growth_identities,
-                bridge_identities=bridge_identities,
-            )
-        else:
-            self.geographic_series = None
-            self.geographic_specs = ()
-        self.expected_specs = (
-            self.historical_specs
-            + self.normalization_specs
-            + self.quality_specs
-            + self.working_capital_specs
-            + self.profitability_driver_specs
-            + self.profitability_change_specs
-            + self.roe_attribution_specs
-            + self.quality_change_specs
-            + self.per_share_specs
-            + self.per_share_attribution_specs
-            + self.normalized_per_share_specs
-            + self.fixed_asset_specs
-            + self.lease_liability_specs
-            + self.ownership_attribution_specs
-            + self.goodwill_intangibles_specs
-            + self.lease_rou_specs
-            + self.deferred_tax_specs
-            + self.capex_specs
-            + self.lease_repayment_specs
-            + self.acquisition_cash_specs
-            + self.share_repurchase_specs
-            + self.cash_rollforward_specs
-            + self.reported_margin_specs
-            + self.inventory_analysis_specs
-            + self.geographic_specs
-        )
+        self.build_modules = complete_build_modules(financials)
+        self.expected_specs = prepare_complete_build(self)
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
-        self._historical_spec_index = {
-            (s.family_id, s.period_index): s for s in self.historical_specs
-        }
-        self._normalization_spec_index = {
-            (s.family_id, s.period_index): s for s in self.normalization_specs
-        }
-        self._quality_spec_index = {
-            (s.family_id, s.period_index): s for s in self.quality_specs
-        }
-        self._working_capital_spec_index = {
-            (s.family_id, s.period_index): s for s in self.working_capital_specs
-        }
-        self._profitability_driver_spec_index = {
-            (s.family_id, s.period_index): s for s in self.profitability_driver_specs
-        }
-        self._profitability_change_spec_index = {
-            (s.family_id, s.period_index): s for s in self.profitability_change_specs
-        }
-        self._roe_attribution_spec_index = {
-            (s.family_id, s.period_index): s for s in self.roe_attribution_specs
-        }
-        self._quality_change_spec_index = {
-            (s.family_id, s.period_index): s for s in self.quality_change_specs
-        }
-        self._per_share_spec_index = {
-            (s.family_id, s.period_index): s for s in self.per_share_specs
-        }
-        self._per_share_attribution_spec_index = {
-            (s.family_id, s.period_index): s
-            for s in self.per_share_attribution_specs
-        }
-        self._normalized_per_share_spec_index = {
-            (s.family_id, s.period_index): s
-            for s in self.normalized_per_share_specs
-        }
-        self._fixed_asset_spec_index = {
-            (s.family_id, s.period_index): s for s in self.fixed_asset_specs
-        }
-        self._lease_liability_spec_index = {
-            (s.family_id, s.period_index): s for s in self.lease_liability_specs
-        }
-        self._ownership_attribution_spec_index = {
-            (s.family_id, s.period_index): s for s in self.ownership_attribution_specs
-        }
-        self._goodwill_intangibles_spec_index = {
-            (s.family_id, s.period_index): s for s in self.goodwill_intangibles_specs
-        }
-        self._lease_rou_spec_index = {
-            (s.family_id, s.period_index): s for s in self.lease_rou_specs
-        }
-        self._deferred_tax_spec_index = {
-            (s.family_id, s.period_index): s for s in self.deferred_tax_specs
-        }
-        self._capex_spec_index = {
-            (s.family_id, s.period_index): s for s in self.capex_specs
-        }
-        self._lease_repayment_spec_index = {
-            (s.family_id, s.period_index): s for s in self.lease_repayment_specs
-        }
-        self._acquisition_cash_spec_index = {
-            (s.family_id, s.period_index): s for s in self.acquisition_cash_specs
-        }
-        self._share_repurchase_spec_index = {
-            (s.family_id, s.period_index): s for s in self.share_repurchase_specs
-        }
-        self._cash_rollforward_spec_index = {
-            (s.family_id, s.period_index): s for s in self.cash_rollforward_specs
-        }
-        self._reported_margin_spec_index = {
-            (s.family_id, s.period_index): s for s in self.reported_margin_specs
-        }
-        self._inventory_analysis_spec_index = {
-            (s.family_id, s.period_index): s for s in self.inventory_analysis_specs
-        }
-        self._geographic_spec_index = {
-            (s.family_id, s.period_index, geographic_spec_identity(s)): s
-            for s in self.geographic_specs
-        }
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
-        self.normalization_series = (
-            compute_normalization_series(
-                self.fin,
-                self.periods,
-                self.anchor,
-                self.normalization_cases,
-            )
-            if self.normalization_cases
-            else None
-        )
-        if (
-            self.normalized_per_share_specs
-            and self.normalization_series is not None
-            and self.per_share_series is not None
-        ):
-            self.normalized_per_share_series = compute_normalized_per_share_series(
-                self.normalization_series,
-                self.per_share_series,
-            )
-        else:
-            self.normalized_per_share_series = None
         self._judgment_row_by_identity = {
             case.line_identity: 4 + case.order
             for case in self.judgment_cases
@@ -1152,6 +321,472 @@ class ReferenceModelBuilder:
                 for name in ("Bear", "Base", "Bull")
             }
             self._base_result = self._scenario_results["Base"]
+
+    def _prepare_historical(self, start_order: int):
+        self.historical_specs = expand_historical_specs(self.periods)
+        overrides = self.assumptions.get("classificationOverrides") or {}
+        self.anchor = compute_anchor(
+            self.fin,
+            self.periods,
+            classification_overrides=overrides,
+        )
+        self.interest_availability = assess_interest_availability(
+            self.fin, self.periods
+        )
+        self.rowmap["interest_availability"] = availability_payload(
+            self.interest_availability
+        )
+
+        self.historical_specs = filter_available_specs(
+            self.historical_specs,
+            historical_expected_series(self.anchor),
+        )
+        self.judgment_cases: tuple[JudgmentCase, ...] = classification_judgment_cases(
+            self.fin,
+            self.periods,
+            self.anchor.reformulation,
+        )
+        return self.historical_specs
+
+    def _prepare_normalization(self, start_order: int):
+        self.normalization_cases: tuple[NormalizationCase, ...] = normalization_cases(
+            self.fin,
+            self.periods,
+            self.assumptions,
+        )
+        self.normalization_specs = (
+            expand_normalization_specs(
+                self.periods,
+                start_order=start_order,
+            )
+            if self.normalization_cases
+            else ()
+        )
+        if self.normalization_specs:
+            self.normalization_specs = filter_available_specs(
+                self.normalization_specs,
+                {"normalized_nopat": tuple(self.anchor.historical.nopat)},
+            )
+        self.normalization_series = (
+            compute_normalization_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+                self.normalization_cases,
+            )
+            if self.normalization_cases
+            else None
+        )
+        return self.normalization_specs
+
+    def _prepare_quality(self, start_order: int):
+        self.quality_availability = earnings_quality_availability(self.fin)
+        if self.quality_availability.operating_cash_flow:
+            self.quality_series = compute_earnings_quality_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.quality_specs = expand_quality_specs(
+                self.periods,
+                start_order=start_order,
+                include_asset_scaled=self.quality_availability.total_assets,
+                include_sbc=(
+                    self.quality_series.operating_cash_flow_less_sbc is not None
+                ),
+            )
+        else:
+            self.quality_series = None
+            self.quality_specs = ()
+        return self.quality_specs
+
+    def _prepare_working_capital(self, start_order: int):
+        if working_capital_applicable(self.anchor):
+            self.working_capital_series = compute_working_capital_series(self.anchor)
+            self.working_capital_specs = expand_working_capital_specs(
+                self.periods,
+                start_order=start_order,
+            )
+        else:
+            self.working_capital_series = None
+            self.working_capital_specs = ()
+        return self.working_capital_specs
+
+    def _prepare_profitability_driver(self, start_order: int):
+        self.profitability_driver_series = compute_profitability_driver_series(self.anchor)
+        self.profitability_driver_specs = filter_available_specs(
+            expand_profitability_driver_specs(
+                self.periods,
+                start_order=start_order,
+            ),
+            profitability_driver_expected_series(self.anchor),
+        )
+        return self.profitability_driver_specs
+
+    def _prepare_profitability_change(self, start_order: int):
+        self.profitability_change_series = compute_profitability_change_series(self.anchor)
+        self.profitability_change_specs = filter_available_specs(
+            expand_profitability_change_specs(
+                self.periods,
+                start_order=start_order,
+            ),
+            profitability_change_expected_series(self.anchor),
+        )
+        return self.profitability_change_specs
+
+    def _prepare_roe_attribution(self, start_order: int):
+        self.roe_attribution_series = compute_roe_attribution_series(self.anchor)
+        self.roe_attribution_specs = filter_available_specs(
+            expand_roe_attribution_specs(
+                self.periods,
+                start_order=start_order,
+            ),
+            roe_attribution_expected_series(self.anchor),
+        )
+        return self.roe_attribution_specs
+
+    def _prepare_quality_change(self, start_order: int):
+        if self.quality_series is not None:
+            self.quality_change_series = compute_earnings_quality_change_series(
+                self.quality_series
+            )
+            self.quality_change_specs = expand_quality_change_specs(
+                self.periods,
+                start_order=start_order,
+                include_asset_scaled=self.quality_availability.total_assets,
+            )
+        else:
+            self.quality_change_series = None
+            self.quality_change_specs = ()
+        return self.quality_change_specs
+
+    def _prepare_per_share(self, start_order: int):
+        if per_share_available(self.fin):
+            self.per_share_series = compute_per_share_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.per_share_specs = filter_available_specs(
+                expand_per_share_specs(
+                    self.periods,
+                    start_order=start_order,
+                ),
+                per_share_expected_series(self.per_share_series),
+            )
+        else:
+            self.per_share_series = None
+            self.per_share_specs = ()
+        return self.per_share_specs
+
+    def _prepare_per_share_attribution(self, start_order: int):
+        if self.per_share_series is not None:
+            self.per_share_attribution_series = compute_per_share_attribution_series(
+                self.anchor,
+                self.per_share_series,
+            )
+            self.per_share_attribution_specs = expand_per_share_attribution_specs(
+                self.periods,
+                start_order=start_order,
+            )
+        else:
+            self.per_share_attribution_series = None
+            self.per_share_attribution_specs = ()
+        return self.per_share_attribution_specs
+
+    def _prepare_normalized_per_share(self, start_order: int):
+        if self.per_share_series is not None and self.normalization_cases:
+            self.normalized_per_share_specs = expand_normalized_per_share_specs(
+                self.periods,
+                start_order=start_order,
+            )
+        else:
+            self.normalized_per_share_specs = ()
+        if (
+            self.normalized_per_share_specs
+            and self.normalization_series is not None
+            and self.per_share_series is not None
+        ):
+            self.normalized_per_share_series = compute_normalized_per_share_series(
+                self.normalization_series,
+                self.per_share_series,
+            )
+        else:
+            self.normalized_per_share_series = None
+        return self.normalized_per_share_specs
+
+    def _prepare_fixed_asset(self, start_order: int):
+        if fixed_asset_applicable(self.fin):
+            self.fixed_asset_series = compute_fixed_asset_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.fixed_asset_specs = expand_fixed_asset_specs(
+                self.periods,
+                start_order=start_order,
+            )
+        else:
+            self.fixed_asset_series = None
+            self.fixed_asset_specs = ()
+        return self.fixed_asset_specs
+
+    def _prepare_lease_liability(self, start_order: int):
+        if lease_liability_applicable(self.fin):
+            self.lease_liability_series = compute_lease_liability_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.lease_liability_specs = expand_lease_liability_specs(
+                self.periods,
+                start_order=start_order,
+            )
+        else:
+            self.lease_liability_series = None
+            self.lease_liability_specs = ()
+        return self.lease_liability_specs
+
+    def _prepare_ownership_attribution(self, start_order: int):
+        if ownership_attribution_applicable(self.fin):
+            self.ownership_attribution_series = compute_ownership_attribution_series(
+                self.fin,
+                self.periods,
+            )
+            self.ownership_attribution_specs = expand_ownership_attribution_specs(
+                self.periods,
+                start_order=start_order,
+            )
+        else:
+            self.ownership_attribution_series = None
+            self.ownership_attribution_specs = ()
+        return self.ownership_attribution_specs
+
+    def _prepare_goodwill_intangibles(self, start_order: int):
+        self.goodwill_intangibles_availability = goodwill_intangibles_availability(
+            self.fin
+        )
+        if goodwill_intangibles_applicable(self.fin):
+            self.goodwill_intangibles_series = compute_goodwill_intangibles_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.goodwill_intangibles_specs = expand_goodwill_intangibles_specs(
+                self.periods,
+                start_order=start_order,
+                availability=self.goodwill_intangibles_availability,
+            )
+        else:
+            self.goodwill_intangibles_series = None
+            self.goodwill_intangibles_specs = ()
+        return self.goodwill_intangibles_specs
+
+    def _prepare_lease_rou(self, start_order: int):
+        if lease_rou_applicable(self.fin):
+            self.lease_rou_series = compute_lease_rou_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.lease_rou_specs = expand_lease_rou_specs(
+                self.periods,
+                start_order=start_order,
+            )
+        else:
+            self.lease_rou_series = None
+            self.lease_rou_specs = ()
+        return self.lease_rou_specs
+
+    def _prepare_deferred_tax(self, start_order: int):
+        if deferred_tax_applicable(self.fin):
+            self.deferred_tax_series = compute_deferred_tax_series(
+                self.fin,
+                self.periods,
+            )
+            self.deferred_tax_specs = expand_deferred_tax_specs(
+                self.periods,
+                start_order=start_order,
+            )
+        else:
+            self.deferred_tax_series = None
+            self.deferred_tax_specs = ()
+        return self.deferred_tax_specs
+
+    def _prepare_capex(self, start_order: int):
+        if capex_applicable(self.fin):
+            self.capex_series = compute_capex_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.capex_specs = expand_capex_specs(
+                self.periods,
+                start_order=start_order,
+                include_operating_cash=(
+                    self.capex_series.cash_after_ppe_capex is not None
+                ),
+            )
+        else:
+            self.capex_series = None
+            self.capex_specs = ()
+        return self.capex_specs
+
+    def _prepare_lease_repayment(self, start_order: int):
+        if lease_repayment_applicable(self.fin):
+            self.lease_repayment_series = compute_lease_repayment_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.lease_repayment_specs = expand_lease_repayment_specs(
+                self.periods,
+                start_order=start_order,
+            )
+        else:
+            self.lease_repayment_series = None
+            self.lease_repayment_specs = ()
+        return self.lease_repayment_specs
+
+    def _prepare_acquisition_cash(self, start_order: int):
+        if acquisition_cash_applicable(self.fin):
+            self.acquisition_cash_series = compute_acquisition_cash_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.acquisition_cash_specs = expand_acquisition_cash_specs(
+                self.periods,
+                start_order=start_order,
+                include_cash_after_capex=(
+                    self.acquisition_cash_series.cash_after_ppe_capex_and_acquisitions
+                    is not None
+                ),
+            )
+        else:
+            self.acquisition_cash_series = None
+            self.acquisition_cash_specs = ()
+        return self.acquisition_cash_specs
+
+    def _prepare_share_repurchase(self, start_order: int):
+        if share_repurchase_applicable(self.fin):
+            self.share_repurchase_series = compute_share_repurchase_series(
+                self.fin,
+                self.periods,
+                self.anchor,
+            )
+            self.share_repurchase_specs = expand_share_repurchase_specs(
+                self.periods,
+                start_order=start_order,
+                include_residual=(
+                    self.share_repurchase_series.cash_after_ppe_capex_acquisitions_and_repurchases
+                    is not None
+                ),
+            )
+        else:
+            self.share_repurchase_series = None
+            self.share_repurchase_specs = ()
+        return self.share_repurchase_specs
+
+    def _prepare_cash_rollforward(self, start_order: int):
+        if cash_rollforward_applicable(self.fin):
+            self.cash_rollforward_series = compute_cash_rollforward_series(
+                self.fin,
+                self.periods,
+            )
+            self.cash_rollforward_specs = expand_cash_rollforward_specs(
+                self.periods,
+                start_order=start_order,
+                include_movement_difference=cash_movement_difference_applicable(
+                    self.fin
+                ),
+                include_ending_from_flows=cash_ending_from_flows_applicable(self.fin),
+                include_ending_difference=cash_ending_difference_applicable(self.fin),
+            )
+        else:
+            self.cash_rollforward_series = None
+            self.cash_rollforward_specs = ()
+        return self.cash_rollforward_specs
+
+    def _prepare_reported_margin(self, start_order: int):
+        if reported_margin_applicable(self.fin):
+            self.reported_margin_series = compute_reported_margin_series(
+                self.fin,
+                self.periods,
+            )
+            self.reported_margin_specs = expand_reported_margin_specs(
+                self.periods,
+                start_order=start_order,
+                include_gross_margin=gross_margin_applicable(self.fin),
+                include_operating_margin=reported_operating_margin_applicable(
+                    self.fin
+                ),
+                include_burden=net_operating_expense_burden_applicable(self.fin),
+                include_gross_margin_change=gross_margin_change_applicable(self.fin),
+                include_burden_change=net_operating_expense_burden_change_applicable(
+                    self.fin
+                ),
+                include_reconstructed=reconstructed_operating_margin_change_applicable(
+                    self.fin
+                ),
+            )
+        else:
+            self.reported_margin_series = None
+            self.reported_margin_specs = ()
+        return self.reported_margin_specs
+
+    def _prepare_inventory_analysis(self, start_order: int):
+        if inventory_analysis_applicable(self.fin):
+            self.inventory_analysis_series = compute_inventory_analysis_series(
+                self.fin,
+                self.periods,
+            )
+            self.inventory_analysis_specs = expand_inventory_analysis_specs(
+                self.periods,
+                start_order=start_order,
+                include_intensity=inventory_intensity_applicable(self.fin),
+                include_change=inventory_change_applicable(self.fin),
+                include_revenue_scale=inventory_revenue_scale_effect_applicable(
+                    self.fin
+                ),
+                include_intensity_effect=inventory_intensity_effect_applicable(
+                    self.fin
+                ),
+                include_reconstructed=reconstructed_inventory_change_applicable(
+                    self.fin
+                ),
+                include_balance_implied=inventory_balance_implied_cf_adjustment_applicable(
+                    self.fin
+                ),
+                include_cf_difference=inventory_cf_adjustment_difference_applicable(
+                    self.fin
+                ),
+            )
+        else:
+            self.inventory_analysis_series = None
+            self.inventory_analysis_specs = ()
+        return self.inventory_analysis_specs
+
+    def _prepare_geographic(self, start_order: int):
+        if geographic_segment_applicable(self.fin):
+            self.geographic_series = compute_geographic_segment_series(
+                self.fin,
+                self.periods,
+            )
+            available_periods, growth_identities, bridge_identities = (
+                _geographic_expand_inputs(self.geographic_series)
+            )
+            self.geographic_specs = expand_geographic_segment_specs(
+                self.periods,
+                start_order=start_order,
+                available_periods=available_periods,
+                growth_identities=growth_identities,
+                bridge_identities=bridge_identities,
+            )
+        else:
+            self.geographic_series = None
+            self.geographic_specs = ()
+        return self.geographic_specs
 
     def _default_assumptions(self) -> dict[str, Any]:
         anchor_rev = 1000.0
@@ -1200,23 +835,7 @@ class ReferenceModelBuilder:
 
     def build(self, output_path: Path) -> SemanticMap:
         wb = Workbook()
-        self._build_source_tabs(wb)
-        self._build_condensed(wb)
-        self._build_dupont(wb)
-        self._build_accounting_judgment(wb)
-        if self.ownership_attribution_series is not None:
-            self._build_ownership_attribution(wb)
-        if self.normalization_cases:
-            self._build_normalization_judgment(wb)
-            self._build_earnings_normalization(wb)
-        if self.quality_series is not None:
-            self._build_earnings_quality(wb)
-        if self.working_capital_series is not None:
-            self._build_working_capital_analysis(wb)
-        if self.per_share_series is not None:
-            self._build_per_share_analysis(wb)
-        if self.geographic_series is not None:
-            self._build_geographic_segment(wb)
+        write_complete_build(self, wb)
         if self.include_deferred_forecast:
             for scenario in ("Bear", "Base", "Bull"):
                 self._build_model_tab(wb, scenario)
@@ -1231,6 +850,9 @@ class ReferenceModelBuilder:
         errors = self.semantic_map.validate_complete()
         if errors:
             raise ValueError("Component map validation failed:\n" + "\n".join(errors))
+
+        if not self.include_deferred_forecast:
+            verify_complete_build(self.expected_specs, self.semantic_map)
 
         embed_component_map_sheet(wb, self.semantic_map)
         from ..trainer.check_context import build_check_context, embed_check_context_sheet

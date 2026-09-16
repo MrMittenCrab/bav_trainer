@@ -25,9 +25,6 @@ PROV_JSON = RECONCILED / "provenance.json"
 CONFLICTS_JSON = RECONCILED / "conflicts.json"
 MANIFEST = BENCH / "source_manifest.json"
 BASELINE = BENCH / "BASELINE.md"
-EXPECTED_PRACTICE_TOTAL = 577
-EXPECTED_BLANK_CHECK = (0, 0, EXPECTED_PRACTICE_TOTAL, EXPECTED_PRACTICE_TOTAL)
-EXPECTED_FILLED_CHECK = (EXPECTED_PRACTICE_TOTAL, 0, 0, EXPECTED_PRACTICE_TOTAL)
 PRACTICE_YELLOW_RGB = "FFFF00"
 WHITE_RGBS = frozenset({"", "FFFFFF"})
 YELLOW_RGBS = frozenset(
@@ -1297,10 +1294,10 @@ def _verify_release_pair_contents(
 
     smap = load_semantic_map(answer_key_path)
     comps = smap.all_ordered()
-    if len(comps) != EXPECTED_PRACTICE_TOTAL:
-        raise ValueError(
-            f"semantic practice cells={len(comps)} != {EXPECTED_PRACTICE_TOTAL}"
-        )
+    from core.engine.reference_model import ReferenceModelBuilder
+    from core.engine.build_contract import verify_complete_build
+
+    verify_complete_build(ReferenceModelBuilder(fin).expected_specs, smap)
     practice_coords = {
         (comp.tab, *parse_cell_ref(comp.cell)) for comp in comps
     }
@@ -1604,6 +1601,9 @@ def run_audit(
         from core.engine.reference_model import ReferenceModelBuilder
 
         builder = ReferenceModelBuilder(fin)
+        expected_total = len(builder.expected_specs)
+        expected_blank_check = (0, 0, expected_total, expected_total)
+        expected_filled_check = (expected_total, 0, 0, expected_total)
         stages.append(
             StageResult(
                 "4_reference_model_builder",
@@ -1688,6 +1688,9 @@ def run_audit(
                 }
                 stages.append(StageResult("5_workbook_generation", "pass"))
 
+            from core.engine.build_contract import verify_complete_build
+            verify_complete_build(builder.expected_specs, load_semantic_map(answer))
+
             # Stage 6
             try:
                 summary = check_workbook(trainer)
@@ -1697,9 +1700,9 @@ def run_audit(
                     summary.blank,
                     summary.total,
                 )
-                if require_check_counts and blank_tuple != EXPECTED_BLANK_CHECK:
+                if require_check_counts and blank_tuple != expected_blank_check:
                     raise ValueError(
-                        f"pristine Check counts {blank_tuple} != {EXPECTED_BLANK_CHECK}"
+                        f"pristine Check counts {blank_tuple} != {expected_blank_check}"
                     )
                 stages.append(
                     StageResult(
@@ -1745,9 +1748,9 @@ def run_audit(
                     filled.total,
                 )
                 if require_check_counts:
-                    if filled_tuple != EXPECTED_FILLED_CHECK:
+                    if filled_tuple != expected_filled_check:
                         raise ValueError(
-                            f"filled Check counts {filled_tuple} != {EXPECTED_FILLED_CHECK}"
+                            f"filled Check counts {filled_tuple} != {expected_filled_check}"
                         )
                 elif filled.incorrect or filled.blank:
                     raise ValueError(
@@ -1948,7 +1951,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--require-check-counts",
         action="store_true",
-        help="Require pristine (0,0,577,577) and filled (577,0,0,577) Check counts",
+        help="Require pristine and filled Check counts from the runtime complete-Build contract",
     )
     parser.add_argument(
         "--verify-release-pair",

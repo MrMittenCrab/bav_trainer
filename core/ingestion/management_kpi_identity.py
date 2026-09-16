@@ -21,6 +21,34 @@ COMPARABILITY_COMPARABLE = "comparable"
 COMPARABILITY_NOT_COMPARABLE = "not_comparable"
 COMPARABILITY_UNRESOLVED = "unresolved"
 COMPARABILITY_OUTSIDE_SCOPE = "outside_scope"
+REASON_NO_DISTINCT_PEER = "no_distinct_peer"
+REASON_MISSING_DEFINITION = "missing_definition"
+REASON_UNBOUND_DEFINITION = "unbound_definition"
+REASON_MISSING_POPULATION = "missing_population"
+REASON_MISSING_UNIT = "missing_unit"
+REASON_MISSING_BASIS = "missing_basis"
+REASON_MISSING_COMPARISON = "missing_comparison"
+REASON_PERIOD_DATE = "period_date"
+REASON_CALENDAR_WEEK = "calendar_week_adjustment"
+REQUIRED_COMPARISON_REASONS = (
+    REASON_MISSING_DEFINITION,
+    REASON_UNBOUND_DEFINITION,
+    REASON_MISSING_POPULATION,
+    REASON_MISSING_UNIT,
+    REASON_MISSING_BASIS,
+    REASON_MISSING_COMPARISON,
+    REASON_PERIOD_DATE,
+    REASON_CALENDAR_WEEK,
+)
+_EVIDENCED_FIELDS = (
+    ("definition_text", "definition_mismatch"),
+    ("population", "population_mismatch"),
+    ("unit", "unit_mismatch"),
+    ("basis", "basis_mismatch"),
+    ("comparison", "comparison_mismatch"),
+    ("calendar_week_adjustment", "calendar_mismatch"),
+    ("qualifiers_other", "qualifier_mismatch"),
+)
 
 POP_STORES_AND_ECOMMERCE = "company_operated_stores_and_ecommerce"
 POP_STORES_AND_DTC = "company_operated_stores_and_direct_to_consumer"
@@ -177,6 +205,15 @@ def _week_adjustment(qualifiers: Mapping[str, str]) -> str:
     return ""
 
 
+def _qualifiers_other(qualifiers: Mapping[str, str]) -> str:
+    remaining = {
+        key: value for key, value in qualifiers.items() if key != "excludes_53rd_week"
+    }
+    if not remaining:
+        return ""
+    return json.dumps(remaining, sort_keys=True, separators=(",", ":"))
+
+
 @dataclass(frozen=True)
 class ManagementIdentityAssessment:
     locator: str
@@ -307,20 +344,41 @@ def _classify_metric(
     return (STATUS_SUPPORTED, mapping.family, fields, ())
 
 
-def _conflict_reason(self_ev: Mapping[str, str], peer_ev: Mapping[str, str]) -> str:
-    if self_ev["definition_text"] != peer_ev["definition_text"]:
-        return "definition_mismatch"
-    if self_ev["population"] != peer_ev["population"]:
-        return "population_mismatch"
-    if self_ev["calendar_reporting_basis"] != peer_ev["calendar_reporting_basis"]:
-        return "calendar_mismatch"
-    if self_ev["calendar_week_adjustment"] != peer_ev["calendar_week_adjustment"]:
-        return "calendar_mismatch"
-    if self_ev["qualifiers"] != peer_ev["qualifiers"]:
-        return "qualifier_mismatch"
-    if self_ev["period_kind"] != peer_ev["period_kind"]:
-        return "period_kind_mismatch"
-    return ""
+def _required_comparison_reasons(evidence: Mapping[str, str]) -> tuple[str, ...]:
+    reasons: list[str] = []
+    if not evidence.get("definition_id"):
+        reasons.append(REASON_MISSING_DEFINITION)
+    elif not evidence.get("definition_text"):
+        reasons.append(REASON_UNBOUND_DEFINITION)
+    if not evidence.get("population"):
+        reasons.append(REASON_MISSING_POPULATION)
+    if not evidence.get("unit"):
+        reasons.append(REASON_MISSING_UNIT)
+    if not evidence.get("basis"):
+        reasons.append(REASON_MISSING_BASIS)
+    if not evidence.get("comparison"):
+        reasons.append(REASON_MISSING_COMPARISON)
+    if evidence.get("period_kind") != "date":
+        reasons.append(REASON_PERIOD_DATE)
+    if not evidence.get("calendar_week_adjustment"):
+        reasons.append(REASON_CALENDAR_WEEK)
+    return tuple(reasons)
+
+
+def _evidenced_conflicts(
+    self_ev: Mapping[str, str], peer_ev: Mapping[str, str]
+) -> tuple[str, ...]:
+    reasons: list[str] = []
+    for key, reason in _EVIDENCED_FIELDS:
+        left = self_ev.get(key, "")
+        right = peer_ev.get(key, "")
+        if left and right and left != right:
+            reasons.append(reason)
+    return tuple(reasons)
+
+
+def _has_required_gap(unresolved: Sequence[str]) -> bool:
+    return any(reason in REQUIRED_COMPARISON_REASONS for reason in unresolved)
 
 
 def assess_reported_observations(
@@ -349,21 +407,12 @@ def assess_reported_observations(
         definition_text = ""
         definition_label = ""
         definition_document = ""
-        if status == STATUS_SUPPORTED:
-            if not observation.definition_id:
-                unresolved.append("missing_definition")
-            elif definition is None:
-                unresolved.append("unbound_definition")
-            else:
-                definition_text = definition.definition
-                definition_label = definition.reported_label
-                definition_document = observation.extraction_document
-            if observation.period_kind == "fiscal_year_label":
-                unresolved.append("period_date")
+        if definition is not None:
+            definition_text = definition.definition
+            definition_label = definition.reported_label
+            definition_document = observation.extraction_document
         qualifiers = _qualifier_map(observation)
         week_adjustment = _week_adjustment(qualifiers)
-        if status == STATUS_SUPPORTED and not week_adjustment:
-            unresolved.append("calendar_week_adjustment")
         identity = encode_metric_identity(fields) if fields else ""
         evidence = {
             "entity_ticker": ticker,
@@ -378,12 +427,15 @@ def assess_reported_observations(
             "calendar_reporting_basis": reporting_basis,
             "calendar_week_adjustment": week_adjustment,
             "qualifiers": _canonical_qualifiers(observation),
+            "qualifiers_other": _qualifiers_other(qualifiers),
             "scope": json.dumps(dict(observation.scope), sort_keys=True, separators=(",", ":")),
             "definition_text": definition_text,
             "definition_id": observation.definition_id,
             "extraction_document": observation.extraction_document,
             "bound_source_file": observation.bound_source_file,
         }
+        if status == STATUS_SUPPORTED:
+            unresolved.extend(_required_comparison_reasons(evidence))
         classified.append(
             {
                 "observation": observation,
@@ -413,27 +465,45 @@ def assess_reported_observations(
         observation = item["observation"]
         status = item["status"]
         unresolved = list(item["unresolved"])
-        peer_locators = tuple(peers.get(item["identity"], ()))
+        own_locator = observation.locator
+        peer_locators = tuple(
+            locator
+            for locator in peers.get(item["identity"], ())
+            if locator != own_locator
+        )
         if status == STATUS_OUTSIDE_SCOPE:
             comparability = COMPARABILITY_OUTSIDE_SCOPE
         elif status != STATUS_SUPPORTED:
             comparability = COMPARABILITY_UNRESOLVED
-        elif "missing_definition" in unresolved or "unbound_definition" in unresolved:
-            comparability = COMPARABILITY_UNRESOLVED
         else:
-            conflict = ""
-            for peer in classified:
-                if peer is item:
-                    continue
-                if peer["identity"] != item["identity"] or not item["identity"]:
-                    continue
-                conflict = _conflict_reason(item["evidence"], peer["evidence"])
-                if conflict:
-                    break
-            if conflict:
-                if conflict not in unresolved:
-                    unresolved.append(conflict)
+            distinct_peers = [
+                peer
+                for peer in classified
+                if peer is not item
+                and peer["status"] == STATUS_SUPPORTED
+                and peer["identity"]
+                and peer["identity"] == item["identity"]
+            ]
+            distinct_peers.sort(key=lambda peer: peer["observation"].locator)
+            conflict_reasons: list[str] = []
+            peer_unresolved = False
+            for peer in distinct_peers:
+                for reason in _evidenced_conflicts(item["evidence"], peer["evidence"]):
+                    if reason not in conflict_reasons:
+                        conflict_reasons.append(reason)
+                if _has_required_gap(peer["unresolved"]):
+                    peer_unresolved = True
+            for reason in conflict_reasons:
+                if reason not in unresolved:
+                    unresolved.append(reason)
+            if conflict_reasons:
                 comparability = COMPARABILITY_NOT_COMPARABLE
+            elif not distinct_peers:
+                if REASON_NO_DISTINCT_PEER not in unresolved:
+                    unresolved.append(REASON_NO_DISTINCT_PEER)
+                comparability = COMPARABILITY_UNRESOLVED
+            elif _has_required_gap(unresolved) or peer_unresolved:
+                comparability = COMPARABILITY_UNRESOLVED
             else:
                 comparability = COMPARABILITY_COMPARABLE
         ordered_assessments.append(
