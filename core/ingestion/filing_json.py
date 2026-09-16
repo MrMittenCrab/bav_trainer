@@ -20,6 +20,10 @@ from ..data.filing import (
     SourceRef,
     SupplementalFact,
 )
+from ..data.historical_operating_kpis import (
+    is_operating_kpi_fact_type,
+    reject_non_string_reported_label,
+)
 
 
 def _required_nonempty_str(payload: dict, key: str, *, context: str) -> str:
@@ -152,12 +156,15 @@ def _parse_supplemental(payload: object) -> SupplementalFact:
         raise ValueError("supplemental unit must be a string")
     else:
         unit = unit_raw
+    source_raw = payload.get("source")
+    if is_operating_kpi_fact_type(fact_type) and isinstance(source_raw, dict):
+        reject_non_string_reported_label(fact_type, source_raw.get("label"))
     return SupplementalFact(
         fact_type=fact_type,
         period=_parse_date(payload.get("period"), context="supplemental.period"),
         value=float(raw_value),
         status=status,
-        source=_parse_source(payload.get("source")),
+        source=_parse_source(source_raw),
         derivation=derivation,
         presentation_role=presentation_role,
         unit=unit,

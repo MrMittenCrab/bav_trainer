@@ -77,6 +77,16 @@ def require_reported_label(identity: str, label: object) -> str:
     return label
 
 
+def reject_non_string_reported_label(identity: str, label: object) -> None:
+    """Reject non-string serialized labels before source coercion.
+
+    ``None`` (omitted/null) is left to object-level validation.
+    """
+    if label is None or isinstance(label, str):
+        return
+    require_reported_label(identity, label)
+
+
 def validate_operating_kpi_fact(fact: SupplementalFact) -> tuple[str, str]:
     """Reject malformed store-KPI supplemental facts; return metric, population."""
     metric, population = split_operating_kpi_identity(fact.fact_type)

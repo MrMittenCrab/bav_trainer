@@ -77,12 +77,24 @@ REPORTED_STORE_LABEL = "Total company-operated stores"
 _OMIT = object()
 LABEL_MUTATIONS = (
     pytest.param(_OMIT, id="omitted"),
+    pytest.param(None, id="null"),
     pytest.param("", id="empty"),
     pytest.param(" \t ", id="whitespace"),
 )
 NOTE_CONTEXTS = (
     pytest.param("Company-Operated Stores", id="note-populated"),
     pytest.param(_OMIT, id="note-absent"),
+)
+NON_STRING_LABELS = (
+    pytest.param(123, id="int-123"),
+    pytest.param(1.5, id="float-1.5"),
+    pytest.param(0, id="int-0"),
+    pytest.param(True, id="true"),
+    pytest.param(False, id="false"),
+    pytest.param({"x": 1}, id="nonempty-object"),
+    pytest.param({}, id="empty-object"),
+    pytest.param([1], id="nonempty-array"),
+    pytest.param([], id="empty-array"),
 )
 
 
@@ -93,7 +105,7 @@ def _store(
     page: int = 7,
     role: PresentationRole = PresentationRole.CURRENT_PERIOD,
     unit: str = "stores",
-    label: str = REPORTED_STORE_LABEL,
+    label: object = REPORTED_STORE_LABEL,
     note: str = "Company-Operated Stores",
 ) -> SupplementalFact:
     return SupplementalFact(
@@ -104,15 +116,15 @@ def _store(
         source=SourceRef(
             page=page,
             note=note,
-            label=label,
+            label=label,  # type: ignore[arg-type]
         ),
         presentation_role=role.value,
         unit=unit,
     )
 
 
-def _label_text(label: object) -> str:
-    return "" if label is _OMIT else str(label)
+def _label_text(label: object) -> object:
+    return "" if label is _OMIT else label
 
 
 def _note_text(note: object) -> str:
@@ -492,6 +504,50 @@ def test_serialized_label_mutations_fail_filing_validation_and_reconcile(
     assert not out.exists()
 
 
+@pytest.mark.parametrize("label", NON_STRING_LABELS)
+@pytest.mark.parametrize("note", NOTE_CONTEXTS)
+def test_serialized_non_string_labels_rejected_before_parse_coercion(
+    tmp_path: Path, label, note
+):
+    dest = _prepare_augmented(tmp_path)
+    target = dest / "LULU_FY2025.json"
+    before = {path: path.read_bytes() for path in dest.glob("*.json")}
+    payload = json.loads(target.read_text(encoding="utf-8"))
+    original_payload = copy.deepcopy(payload)
+    stores = [
+        fact
+        for fact in payload["note_facts"]
+        if fact.get("fact_type") == STORE_COUNT_FACT_TYPE
+    ]
+    assert stores
+    for fact in stores:
+        fact["source"] = _mutate_serialized_source(
+            fact["source"], label=label, note=note
+        )
+    mutated_path = tmp_path / "mutated-non-string-fy2025.json"
+    mutated_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="missing reported label") as excinfo:
+        load_extracted_filing(mutated_path)
+    assert "invalid_operating_kpi" not in str(excinfo.value)
+    assert json.loads(target.read_text(encoding="utf-8")) == original_payload
+    assert {path: path.read_bytes() for path in dest.glob("*.json")} == before
+    assert not (tmp_path / "reconciled").exists()
+
+
+@pytest.mark.parametrize("label", NON_STRING_LABELS)
+@pytest.mark.parametrize("note", NOTE_CONTEXTS)
+def test_in_memory_non_string_labels_fail_even_with_note_context(label, note):
+    period = date(2025, 12, 31)
+    good = _store(period, 811)
+    original = copy.deepcopy(good)
+    bad = _store(period, 811, label=label, note=_note_text(note))
+    with pytest.raises(ValueError, match="missing reported label"):
+        select_operating_kpi_facts((_kpi_observation(bad),))
+    assert good == original
+    assert good.source.label == REPORTED_STORE_LABEL
+    assert good.source.note == "Company-Operated Stores"
+
+
 def test_review_reproduction_removes_label_and_note_from_serialized_store(
     tmp_path: Path,
 ):
@@ -548,6 +604,37 @@ def test_reconcile_revalidates_kpi_fact_after_valid_report(tmp_path: Path):
     assert mutated.note_facts[0].source.note == "Company-Operated Stores"
 
 
+@pytest.mark.parametrize("label", NON_STRING_LABELS)
+def test_reconcile_revalidates_non_string_label_after_valid_report(
+    tmp_path: Path, label
+):
+    period = date(2025, 12, 31)
+    good = _store(period, 811)
+    filing, report = _validated(
+        tmp_path,
+        _filing(
+            year=2025,
+            source_file="a2025.pdf",
+            revenue_values={period: (110.0, PresentationRole.CURRENT_PERIOD)},
+            note_facts=(good,),
+        ),
+        b"2025",
+    )
+    assert report.ok
+    original_fact = copy.deepcopy(filing.note_facts[0])
+    superseded = replace(
+        good,
+        source=replace(good.source, label=label),
+        presentation_role=PresentationRole.PRIOR_PRESENTATION.value,
+        value=700,
+    )
+    mutated = replace(filing, note_facts=(good, superseded))
+    with pytest.raises(ValueError, match="missing reported label"):
+        reconcile_filings([(mutated, report)])
+    assert filing.note_facts[0] == original_fact
+    assert filing.note_facts[0].source.label == REPORTED_STORE_LABEL
+
+
 def test_valid_label_without_note_is_accepted(tmp_path: Path):
     period = date(2025, 12, 31)
     fact = _store(period, 811, note="")
@@ -601,6 +688,47 @@ def test_missing_label_cli_leaves_inputs_and_output_unchanged(tmp_path: Path):
     assert "invalid_operating_kpi" in combined
     assert "missing reported label" in combined
     assert "wrote no artifacts" in combined
+    assert {path: path.read_bytes() for path in dest.glob("*.json")} == before
+    assert not out.exists() or not any(out.iterdir())
+
+
+@pytest.mark.parametrize("label", [123, True, {"x": 1}, [1]])
+def test_non_string_label_cli_leaves_inputs_and_output_unchanged(
+    tmp_path: Path, label
+):
+    dest = _prepare_augmented(tmp_path)
+    target = dest / "LULU_FY2025.json"
+    payload = json.loads(target.read_text(encoding="utf-8"))
+    for fact in payload["note_facts"]:
+        if fact.get("fact_type") == STORE_COUNT_FACT_TYPE:
+            fact["source"]["label"] = label
+    target.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    before = {path: path.read_bytes() for path in dest.glob("*.json")}
+    out = tmp_path / "reconciled"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "core",
+            "reconcile",
+            str(dest),
+            "--source-root",
+            str(SOURCE),
+            "--admit-period",
+            "2022-01-30",
+            "-o",
+            str(out),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    combined = completed.stdout + completed.stderr
+    assert completed.returncode != 0
+    assert "missing reported label" in combined
+    assert "error:" in combined
+    assert "invalid_operating_kpi" not in combined
+    assert "wrote no artifacts" not in combined
     assert {path: path.read_bytes() for path in dest.glob("*.json")} == before
     assert not out.exists() or not any(out.iterdir())
 

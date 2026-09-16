@@ -483,12 +483,24 @@ def _write_minimal_source(tmp_path: Path) -> Path:
 
 
 _OMIT = object()
+_NON_STRING_LABELS = (
+    pytest.param(123, id="int-123"),
+    pytest.param(1.5, id="float-1.5"),
+    pytest.param(0, id="int-0"),
+    pytest.param(True, id="true"),
+    pytest.param(False, id="false"),
+    pytest.param({"x": 1}, id="nonempty-object"),
+    pytest.param({}, id="empty-object"),
+    pytest.param([1], id="nonempty-array"),
+    pytest.param([], id="empty-array"),
+)
 
 
 @pytest.mark.parametrize(
     "label",
     [
         pytest.param(_OMIT, id="omitted"),
+        pytest.param(None, id="null"),
         pytest.param("", id="empty"),
         pytest.param(" \t ", id="whitespace"),
     ],
@@ -562,6 +574,67 @@ def test_operating_kpi_review_reproduction_omits_label_and_note(tmp_path: Path):
     assert not report.ok
     assert any("missing reported label" in issue.message for issue in report.errors)
     assert json.loads(path.read_text(encoding="utf-8")) == original
+
+
+@pytest.mark.parametrize("label", _NON_STRING_LABELS)
+@pytest.mark.parametrize(
+    "note",
+    [
+        pytest.param("Company-Operated Stores", id="note-populated"),
+        pytest.param(_OMIT, id="note-absent"),
+    ],
+)
+@pytest.mark.parametrize("bucket", ["note_facts", "share_facts"])
+def test_operating_kpi_non_string_label_rejected_before_parse_coercion(
+    tmp_path: Path, label, note, bucket
+):
+    payload = _minimal_filing_payload()
+    source = {"page": 7}
+    if note is not _OMIT:
+        source["note"] = note
+    source["label"] = label
+    payload[bucket] = [
+        {
+            "fact_type": "kpi.operating.store_count.company_operated",
+            "period": "2025-08-31",
+            "value": 655,
+            "status": "reported",
+            "unit": "stores",
+            "source": source,
+            "presentation_role": "current_period",
+        }
+    ]
+    original = copy.deepcopy(payload)
+    path = tmp_path / "kpi-non-string-label.json"
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="missing reported label"):
+        load_extracted_filing(path)
+    assert json.loads(path.read_text(encoding="utf-8")) == original
+
+
+def test_non_kpi_non_string_label_still_coerced(tmp_path: Path):
+    source_root = _write_minimal_source(tmp_path)
+    payload = _minimal_filing_payload()
+    payload["note_facts"] = [
+        {
+            "fact_type": "lease_interest_expense",
+            "period": "2025-08-31",
+            "value": 12,
+            "status": "reported",
+            "source": {"page": 14, "note": "17 Leases", "label": 123},
+        }
+    ]
+    payload["statements"]["income_statement"][0]["source"]["label"] = 99
+    path = tmp_path / "lease-coerced-label.json"
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    filing = load_extracted_filing(path)
+    report = validate_extracted_filing(filing, source_root=source_root)
+    assert report.ok
+    assert filing.note_facts[0].source.label == "123"
+    assert filing.income_statement[0].source.label == "99"
+    dumped = extracted_filing_to_payload(filing)
+    assert dumped["note_facts"][0]["source"]["label"] == "123"
+    assert dumped["statements"]["income_statement"][0]["source"]["label"] == "99"
 
 
 def test_unrelated_supplemental_without_label_still_validates(tmp_path: Path):

@@ -2102,3 +2102,86 @@ def test_operating_kpi_shared_validation_after_valid_report(tmp_path: Path):
     assert filing == original
     assert filing.note_facts[0].source.label == "Total company-operated stores"
 
+
+@pytest.mark.parametrize(
+    "label",
+    [123, 1.5, 0, True, False, {"x": 1}, {}, [1], []],
+)
+def test_operating_kpi_non_string_label_cannot_reconcile(tmp_path: Path, label):
+    from core.data.historical_operating_kpis import STORE_COUNT_FACT_TYPE
+
+    period = date(2025, 12, 31)
+    bad_label = SupplementalFact(
+        fact_type=STORE_COUNT_FACT_TYPE,
+        period=period,
+        value=811,
+        status="reported",
+        source=SourceRef(page=7, note="Company-Operated Stores", label=label),
+        presentation_role=PresentationRole.CURRENT_PERIOD.value,
+        unit="stores",
+    )
+    filing = _filing(
+        year=2025,
+        source_file="a2025.pdf",
+        revenue_values={period: (110.0, PresentationRole.CURRENT_PERIOD)},
+        note_facts=(bad_label,),
+    )
+    _write_source(tmp_path, filing.filing.source_file, b"2025")
+    original = copy.deepcopy(filing)
+    report = validate_extracted_filing(filing, source_root=tmp_path / "source")
+    assert not report.ok
+    assert any(
+        issue.code == "invalid_operating_kpi"
+        and "missing reported label" in issue.message
+        for issue in report.errors
+    )
+    with pytest.raises(ValueError, match="cannot reconcile filings with validation errors"):
+        reconcile_filings([(filing, report)])
+    assert filing == original
+
+
+@pytest.mark.parametrize("label", [123, True, {"x": 1}, [1]])
+def test_operating_kpi_shared_validation_rejects_non_string_superseded(
+    tmp_path: Path, label
+):
+    from core.data.historical_operating_kpis import STORE_COUNT_FACT_TYPE
+    from dataclasses import replace
+
+    period = date(2025, 12, 31)
+    good = SupplementalFact(
+        fact_type=STORE_COUNT_FACT_TYPE,
+        period=period,
+        value=811,
+        status="reported",
+        source=SourceRef(
+            page=7,
+            note="Company-Operated Stores",
+            label="Total company-operated stores",
+        ),
+        presentation_role=PresentationRole.CURRENT_PERIOD.value,
+        unit="stores",
+    )
+    filing, report = _validated(
+        tmp_path,
+        _filing(
+            year=2025,
+            source_file="a2025.pdf",
+            revenue_values={period: (110.0, PresentationRole.CURRENT_PERIOD)},
+            note_facts=(good,),
+        ),
+        b"2025",
+    )
+    assert report.ok
+    original = copy.deepcopy(filing)
+    superseded = replace(
+        good,
+        value=700,
+        presentation_role=PresentationRole.PRIOR_PRESENTATION.value,
+        source=SourceRef(page=7, note="Company-Operated Stores", label=label),
+    )
+    mutated = replace(filing, note_facts=(good, superseded))
+    with pytest.raises(ValueError, match="missing reported label"):
+        reconcile_filings([(mutated, report)])
+    assert filing == original
+    assert filing.note_facts[0].source.label == "Total company-operated stores"
+

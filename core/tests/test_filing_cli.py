@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import subprocess
@@ -176,6 +177,50 @@ def test_reconcile_rejects_invalid_admit_period_before_write(tmp_path: Path):
     )
     assert completed.returncode != 0
     assert "invalid --admit-period" in completed.stdout
+    assert not out.exists() or not any(out.iterdir())
+
+
+def test_validate_and_reconcile_reject_non_string_kpi_label_at_parse(tmp_path: Path):
+    extracted, source_root = _write_fixture(tmp_path)
+    payload = json.loads((extracted / "FY2025.json").read_text(encoding="utf-8"))
+    payload["note_facts"] = [
+        {
+            "fact_type": "kpi.operating.store_count.company_operated",
+            "period": "2025-12-31",
+            "value": 655,
+            "status": "reported",
+            "unit": "stores",
+            "source": {"page": 7, "note": "Company-Operated Stores", "label": 123},
+            "presentation_role": "current_period",
+        }
+    ]
+    original = copy.deepcopy(payload)
+    (extracted / "FY2025.json").write_text(json.dumps(payload), encoding="utf-8")
+    out = tmp_path / "reconciled"
+    bad_validate = _run(
+        "validate-source",
+        str(extracted),
+        "--source-root",
+        str(source_root),
+    )
+    assert bad_validate.returncode != 0
+    assert "missing reported label" in bad_validate.stdout
+    assert "error:" in bad_validate.stdout
+    assert "invalid_operating_kpi" not in bad_validate.stdout
+    bad_reconcile = _run(
+        "reconcile",
+        str(extracted),
+        "--source-root",
+        str(source_root),
+        "-o",
+        str(out),
+    )
+    assert bad_reconcile.returncode != 0
+    assert "missing reported label" in bad_reconcile.stdout
+    assert "error:" in bad_reconcile.stdout
+    assert "invalid_operating_kpi" not in bad_reconcile.stdout
+    assert "wrote no artifacts" not in bad_reconcile.stdout
+    assert json.loads((extracted / "FY2025.json").read_text(encoding="utf-8")) == original
     assert not out.exists() or not any(out.iterdir())
 
 
