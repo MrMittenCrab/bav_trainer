@@ -45,6 +45,10 @@ from core.model.operating_kpi import (
     compute_operating_kpi_series,
     operating_kpi_applicable,
 )
+from core.model.operating_kpi_relationships import (
+    compute_operating_kpi_revenue_store_relationship,
+    operating_kpi_revenue_store_relationship_applicable,
+)
 from core.model.period_axis import canonical_fiscal_periods
 from core.model.ratio_values import SOURCE_UNAVAILABLE, UNDEFINED_RATIO, ratio_or_na
 from core.tests.test_historical_segment import _base_payload
@@ -470,6 +474,8 @@ def test_mixed_histories_preserve_store_analytics_within_tolerance():
     )
     assert operating_kpi_applicable(store_only) is True
     assert operating_kpi_applicable(mixed) is True
+    assert operating_kpi_revenue_store_relationship_applicable(store_only) is True
+    assert operating_kpi_revenue_store_relationship_applicable(mixed) is True
     assert management_kpi_applicable(store_only) is False
     assert management_kpi_applicable(mixed) is True
     left = compute_operating_kpi_series(store_only)
@@ -634,8 +640,15 @@ def test_supplied_documents_yield_no_management_analytics(tmp_path: Path):
     assert annual_fin.historical_operating_kpis is None
     assert management_kpi_applicable(mixed_fin) is False
     assert management_kpi_applicable(annual_fin) is False
+    assert operating_kpi_revenue_store_relationship_applicable(mixed_fin) is False
+    assert operating_kpi_revenue_store_relationship_applicable(annual_fin) is False
     with pytest.raises(MissingLineError, match="management KPI sources not available"):
         compute_management_kpi_series(mixed_fin)
+    with pytest.raises(
+        MissingLineError,
+        match="operating KPI revenue/store relationship sources not available",
+    ):
+        compute_operating_kpi_revenue_store_relationship(mixed_fin)
     mixed_payload = standardized_to_payload(mixed_fin)
     annual_payload = standardized_to_payload(annual_fin)
     assert _canonicalize(mixed_payload) == _canonicalize(annual_payload)
@@ -659,6 +672,7 @@ def test_augmented_mixed_without_selection_keeps_store_analytics_only(tmp_path: 
     reconciled = _reconcile(dest, admit=ADMIT_2022)
     fin = standardize_reconciled(reconciled)
     assert operating_kpi_applicable(fin) is True
+    assert operating_kpi_revenue_store_relationship_applicable(fin) is True
     assert management_kpi_applicable(fin) is False
     series = compute_operating_kpi_series(fin)
     expected = _independent_from_counts(
