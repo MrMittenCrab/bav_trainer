@@ -203,6 +203,9 @@ from .component_catalog import (
     resolve_geographic_operating_margin_contribution_change_residual_formula,
     resolve_geographic_operating_margin_contribution_formula,
     resolve_geographic_operating_margin_contribution_residual_formula,
+    resolve_geographic_operating_margin_mix_effect_formula,
+    resolve_geographic_operating_margin_mix_within_residual_formula,
+    resolve_geographic_operating_margin_within_segment_effect_formula,
     resolve_geographic_reconciling_operating_margin_contribution_formula,
     resolve_geographic_revenue_growth_contribution_formula,
     resolve_geographic_revenue_growth_contribution_residual_formula,
@@ -7035,22 +7038,25 @@ class ReferenceModelBuilder:
         ws["A2"] = (
             "Source-supported geographic revenue mix, adjacent-period growth, "
             "reported operating margins, consolidated bridges, percentage-point "
-            "contributions to consolidated revenue growth, and an arithmetic "
+            "contributions to consolidated revenue growth, an arithmetic "
             "decomposition of consolidated reported operating margin and its "
-            "change. Reported operating margin is distinct from BAV NOPAT "
-            "margin. Revenue-growth contributions are an arithmetic "
+            "change, and a separate mix and within-segment decomposition of "
+            "that adjacent change. Reported operating margin is distinct from "
+            "BAV NOPAT margin. Revenue-growth contributions are an arithmetic "
             "decomposition of reported geographic revenue changes, not "
             "organic, constant-currency, or causal growth. Operating-margin "
-            "contributions are not mix, within-segment, normalization, or a "
-            "causal explanation."
+            "contributions are a direct contribution bridge, distinct from the "
+            "mix and within-segment decomposition, normalization, or a causal "
+            "explanation. Mix and within-segment effects use a symmetric "
+            "midpoint convention and remain arithmetic only."
         )
         ws["A3"] = f"Units: {self.fin.units}"
         ws["A4"] = (
             "Calculated segment totals are distinct from any reported segment_total. "
             "Sparse unavailable amounts remain unavailable; opening growth, "
-            "opening revenue-growth contributions, and opening operating-margin "
-            "contribution changes are not practiced. Signed residuals are not "
-            "forced to zero."
+            "opening revenue-growth contributions, opening operating-margin "
+            "contribution changes, and opening mix and within-segment effects "
+            "are not practiced. Signed residuals are not forced to zero."
         )
         ws.column_dimensions["A"].width = 56
 
@@ -7383,6 +7389,42 @@ class ReferenceModelBuilder:
             "Operating-margin contribution change residual (percentage points)",
         )
 
+        cursor += 2
+        _section(
+            cursor,
+            "MIX AND WITHIN-SEGMENT DECOMPOSITION OF OPERATING-MARGIN CHANGE",
+        )
+        mix_effect_rows = {}
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            cursor += 1
+            mix_effect_rows[identity] = cursor
+            _label(
+                cursor,
+                (
+                    f"{geographic_identity_label(identity)} mix effect on "
+                    "consolidated operating-margin change (percentage points)"
+                ),
+            )
+        within_effect_rows = {}
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            cursor += 1
+            within_effect_rows[identity] = cursor
+            _label(
+                cursor,
+                (
+                    f"{geographic_identity_label(identity)} within-segment "
+                    "margin effect on consolidated operating-margin change "
+                    "(percentage points)"
+                ),
+            )
+        cursor += 1
+        mix_within_residual_row = cursor
+        _label(
+            cursor,
+            "Operating-margin mix and within-segment decomposition residual "
+            "(percentage points)",
+        )
+
         self.rowmap["geographic_header_row"] = header_row
         self.rowmap["geographic_revenue_rows"] = dict(rev_rows)
         self.rowmap["geographic_ifop_rows"] = dict(ifop_rows)
@@ -7403,6 +7445,9 @@ class ReferenceModelBuilder:
                 opening_practice_rows.add(reconciling_margin_change_row)
                 opening_practice_rows.add(cons_margin_change_row)
                 opening_practice_rows.add(margin_change_residual_row)
+                opening_practice_rows.update(mix_effect_rows.values())
+                opening_practice_rows.update(within_effect_rows.values())
+                opening_practice_rows.add(mix_within_residual_row)
                 for row in (
                     family_row,
                     *rev_rows.values(),
@@ -7432,6 +7477,9 @@ class ReferenceModelBuilder:
                     reconciling_margin_change_row,
                     cons_margin_change_row,
                     margin_change_residual_row,
+                    *mix_effect_rows.values(),
+                    *within_effect_rows.values(),
+                    mix_within_residual_row,
                 ):
                     if j == 0 and row in opening_practice_rows:
                         ws.cell(row=row, column=col_idx, value="N/A")
@@ -8023,6 +8071,168 @@ class ReferenceModelBuilder:
                     col_idx,
                     de_f,
                     de_value,
+                )
+
+            mix_practice_refs: list[SemanticCellRef] = []
+            within_practice_refs: list[SemanticCellRef] = []
+            for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+                mix_value = series.operating_margin_mix_effect[period][identity]
+                mix_row = mix_effect_rows[identity]
+                within_value = series.operating_margin_within_segment_effect[period][
+                    identity
+                ]
+                within_row = within_effect_rows[identity]
+                if j == 0 or mix_value is None:
+                    ws.cell(row=mix_row, column=col_idx, value="N/A")
+                    ws.cell(row=within_row, column=col_idx, value="N/A")
+                    continue
+                if is_source_unavailable(mix_value):
+                    self._stamp_unavailable(ws, mix_row, col_idx, SOURCE_UNAVAILABLE)
+                    self._stamp_unavailable(
+                        ws, within_row, col_idx, SOURCE_UNAVAILABLE
+                    )
+                    continue
+                mix_f = resolve_geographic_operating_margin_mix_effect_formula(
+                    _practice_ref(
+                        "geographic_revenue_share",
+                        period,
+                        share_rows[identity],
+                        col_idx,
+                        identity=identity,
+                    ),
+                    _practice_ref(
+                        "geographic_revenue_share",
+                        self.periods[j - 1],
+                        share_rows[identity],
+                        col_idx - 1,
+                        identity=identity,
+                    ),
+                    _practice_ref(
+                        "geographic_reported_operating_margin",
+                        period,
+                        margin_rows[identity],
+                        col_idx,
+                        identity=identity,
+                    ),
+                    _practice_ref(
+                        "geographic_reported_operating_margin",
+                        self.periods[j - 1],
+                        margin_rows[identity],
+                        col_idx - 1,
+                        identity=identity,
+                    ),
+                    from_tab=GEOGRAPHIC_SHEET,
+                )
+                _put_formula(mix_row, col_idx, mix_f, points=True)
+                _register(
+                    "geographic_operating_margin_mix_effect",
+                    j,
+                    identity,
+                    mix_row,
+                    col_idx,
+                    mix_f,
+                    mix_value,
+                )
+                mix_practice_refs.append(
+                    _practice_ref(
+                        "geographic_operating_margin_mix_effect",
+                        period,
+                        mix_row,
+                        col_idx,
+                        identity=identity,
+                    )
+                )
+                within_f = (
+                    resolve_geographic_operating_margin_within_segment_effect_formula(
+                        _practice_ref(
+                            "geographic_revenue_share",
+                            period,
+                            share_rows[identity],
+                            col_idx,
+                            identity=identity,
+                        ),
+                        _practice_ref(
+                            "geographic_revenue_share",
+                            self.periods[j - 1],
+                            share_rows[identity],
+                            col_idx - 1,
+                            identity=identity,
+                        ),
+                        _practice_ref(
+                            "geographic_reported_operating_margin",
+                            period,
+                            margin_rows[identity],
+                            col_idx,
+                            identity=identity,
+                        ),
+                        _practice_ref(
+                            "geographic_reported_operating_margin",
+                            self.periods[j - 1],
+                            margin_rows[identity],
+                            col_idx - 1,
+                            identity=identity,
+                        ),
+                        from_tab=GEOGRAPHIC_SHEET,
+                    )
+                )
+                _put_formula(within_row, col_idx, within_f, points=True)
+                _register(
+                    "geographic_operating_margin_within_segment_effect",
+                    j,
+                    identity,
+                    within_row,
+                    col_idx,
+                    within_f,
+                    within_value,
+                )
+                within_practice_refs.append(
+                    _practice_ref(
+                        "geographic_operating_margin_within_segment_effect",
+                        period,
+                        within_row,
+                        col_idx,
+                        identity=identity,
+                    )
+                )
+
+            mix_residual_value = series.operating_margin_mix_within_residual[period]
+            if j == 0 or mix_residual_value is None:
+                ws.cell(row=mix_within_residual_row, column=col_idx, value="N/A")
+            elif is_source_unavailable(mix_residual_value):
+                self._stamp_unavailable(
+                    ws, mix_within_residual_row, col_idx, SOURCE_UNAVAILABLE
+                )
+            else:
+                mix_residual_f = (
+                    resolve_geographic_operating_margin_mix_within_residual_formula(
+                        _practice_ref(
+                            "geographic_consolidated_operating_margin_change",
+                            period,
+                            cons_margin_change_row,
+                            col_idx,
+                        ),
+                        tuple(mix_practice_refs),
+                        tuple(within_practice_refs),
+                        _practice_ref(
+                            "geographic_reconciling_operating_margin_contribution_change",
+                            period,
+                            reconciling_margin_change_row,
+                            col_idx,
+                        ),
+                        from_tab=GEOGRAPHIC_SHEET,
+                    )
+                )
+                _put_formula(
+                    mix_within_residual_row, col_idx, mix_residual_f, points=True
+                )
+                _register(
+                    "geographic_operating_margin_mix_within_residual",
+                    j,
+                    "",
+                    mix_within_residual_row,
+                    col_idx,
+                    mix_residual_f,
+                    mix_residual_value,
                 )
 
     def _geographic_revenue_source_placement(

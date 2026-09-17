@@ -87,6 +87,8 @@ def _independent_from_snapshots(axis: list[date], snapshots: dict):
     prior_cs = None
     prior_b = None
     prior_m = None
+    prior_share = None
+    prior_seg_m = None
     for index, period in enumerate(axis):
         snapshot = snapshots.get(period)
         opening = index == 0
@@ -121,6 +123,17 @@ def _independent_from_snapshots(axis: list[date], snapshots: dict):
                 "db": None if opening else SOURCE_UNAVAILABLE,
                 "dm": None if opening else SOURCE_UNAVAILABLE,
                 "de": None if opening else SOURCE_UNAVAILABLE,
+                "mix": (
+                    {name: None for name in SEGMENTS}
+                    if opening
+                    else {name: SOURCE_UNAVAILABLE for name in SEGMENTS}
+                ),
+                "within": (
+                    {name: None for name in SEGMENTS}
+                    if opening
+                    else {name: SOURCE_UNAVAILABLE for name in SEGMENTS}
+                ),
+                "mix_res": None if opening else SOURCE_UNAVAILABLE,
                 "rev_total": SOURCE_UNAVAILABLE,
                 "ifop_total": SOURCE_UNAVAILABLE,
                 "signed": SOURCE_UNAVAILABLE,
@@ -135,6 +148,8 @@ def _independent_from_snapshots(axis: list[date], snapshots: dict):
             prior_cs = None
             prior_b = None
             prior_m = None
+            prior_share = None
+            prior_seg_m = None
             continue
         revenue = {name: float(snapshot.values[f"net_revenue.{name}"]) for name in SEGMENTS}
         ifop = {
@@ -229,6 +244,54 @@ def _independent_from_snapshots(axis: list[date], snapshots: dict):
                 de = UNDEFINED_RATIO
             else:
                 de = float(dm) - sum(float(dcs[name]) for name in SEGMENTS) - float(db)
+        share = {name: ratio_or_na(revenue[name], cons_rev) for name in SEGMENTS}
+        seg_m = {name: ratio_or_na(ifop[name], revenue[name]) for name in SEGMENTS}
+        if opening:
+            mix = {name: None for name in SEGMENTS}
+            within = {name: None for name in SEGMENTS}
+            mix_res = None
+        elif prior_share is None or prior_seg_m is None:
+            mix = {name: SOURCE_UNAVAILABLE for name in SEGMENTS}
+            within = {name: SOURCE_UNAVAILABLE for name in SEGMENTS}
+            mix_res = SOURCE_UNAVAILABLE
+        else:
+            mix = {}
+            within = {}
+            for name in SEGMENTS:
+                inputs = (share[name], prior_share[name], seg_m[name], prior_seg_m[name])
+                if any(value == SOURCE_UNAVAILABLE for value in inputs):
+                    mix[name] = SOURCE_UNAVAILABLE
+                    within[name] = SOURCE_UNAVAILABLE
+                elif any(value == UNDEFINED_RATIO for value in inputs):
+                    mix[name] = UNDEFINED_RATIO
+                    within[name] = UNDEFINED_RATIO
+                else:
+                    mix[name] = (
+                        100.0
+                        * (float(share[name]) - float(prior_share[name]))
+                        * (float(seg_m[name]) + float(prior_seg_m[name]))
+                        / 2.0
+                    )
+                    within[name] = (
+                        100.0
+                        * (float(seg_m[name]) - float(prior_seg_m[name]))
+                        * (float(share[name]) + float(prior_share[name]))
+                        / 2.0
+                    )
+            mix_inputs = (dm, db, *mix.values(), *within.values())
+            if any(
+                value is None or value == SOURCE_UNAVAILABLE for value in mix_inputs
+            ):
+                mix_res = SOURCE_UNAVAILABLE
+            elif any(value == UNDEFINED_RATIO for value in mix_inputs):
+                mix_res = UNDEFINED_RATIO
+            else:
+                mix_res = (
+                    float(dm)
+                    - sum(float(mix[name]) for name in SEGMENTS)
+                    - sum(float(within[name]) for name in SEGMENTS)
+                    - float(db)
+                )
         expected[period] = {
             "family": snapshot.presentation_family,
             "revenue": revenue,
@@ -247,6 +310,9 @@ def _independent_from_snapshots(axis: list[date], snapshots: dict):
             "db": db,
             "dm": dm,
             "de": de,
+            "mix": mix,
+            "within": within,
+            "mix_res": mix_res,
             "rev_total": rev_total,
             "ifop_total": ifop_total,
             "signed": tuple(signed),
@@ -261,6 +327,8 @@ def _independent_from_snapshots(axis: list[date], snapshots: dict):
         prior_cs = cs
         prior_b = b
         prior_m = m
+        prior_share = share
+        prior_seg_m = seg_m
     return expected
 
 
@@ -285,6 +353,9 @@ def _assert_series_matches(series, expected) -> None:
         assert series.reconciling_operating_margin_contribution_change[period] == row["db"]
         assert series.consolidated_operating_margin_change[period] == row["dm"]
         assert series.operating_margin_contribution_change_residual[period] == row["de"]
+        assert series.operating_margin_mix_effect[period] == row["mix"]
+        assert series.operating_margin_within_segment_effect[period] == row["within"]
+        assert series.operating_margin_mix_within_residual[period] == row["mix_res"]
         assert series.calculated_segment_revenue_total[period] == row["rev_total"]
         assert series.calculated_segment_operating_profit_total[period] == row["ifop_total"]
         assert series.signed_reconciling_contributions[period] == row["signed"]
@@ -333,6 +404,26 @@ def _assert_series_matches(series, expected) -> None:
         ):
             reconstructed_de = dm - sum(dcs.values()) - db
             assert abs(reconstructed_de - de) <= GEOGRAPHIC_RATIO_TOLERANCE
+        mix = row["mix"]
+        within = row["within"]
+        mix_res = row["mix_res"]
+        if (
+            isinstance(dm, float)
+            and isinstance(db, float)
+            and isinstance(mix_res, float)
+            and all(isinstance(value, float) for value in mix.values())
+            and all(isinstance(value, float) for value in within.values())
+        ):
+            reconstructed_mix_res = (
+                dm - sum(mix.values()) - sum(within.values()) - db
+            )
+            assert abs(reconstructed_mix_res - mix_res) <= GEOGRAPHIC_RATIO_TOLERANCE
+            assert abs(mix_res - de) <= GEOGRAPHIC_RATIO_TOLERANCE
+            for name in SEGMENTS:
+                if isinstance(dcs[name], float):
+                    assert abs(
+                        float(mix[name]) + float(within[name]) - float(dcs[name])
+                    ) <= GEOGRAPHIC_RATIO_TOLERANCE
 
 
 def test_absent_and_null_payloads_make_module_absent():
@@ -386,6 +477,9 @@ def test_both_presentation_families_and_reordered_inputs():
     assert series.operating_margin_contribution_change[P1]["americas"] is None
     assert series.consolidated_operating_margin_change[P1] is None
     assert series.operating_margin_contribution_change_residual[P1] is None
+    assert series.operating_margin_mix_effect[P1]["americas"] is None
+    assert series.operating_margin_within_segment_effect[P1]["americas"] is None
+    assert series.operating_margin_mix_within_residual[P1] is None
     assert series.revenue_growth_contribution[P2]["americas"] == pytest.approx(30.0)
     assert series.revenue_growth_contribution[P2]["china_mainland"] == pytest.approx(-5.0)
     assert series.revenue_growth_contribution[P2]["rest_of_world"] == pytest.approx(-5.0)
@@ -437,6 +531,11 @@ def test_sparse_snapshots_do_not_compress_or_substitute_periods():
     assert series.operating_margin_contribution_change[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.operating_margin_contribution_change[P2]["americas"] == SOURCE_UNAVAILABLE
     assert series.operating_margin_contribution_change_residual[P2] == SOURCE_UNAVAILABLE
+    assert series.operating_margin_mix_effect[P0]["americas"] is None
+    assert series.operating_margin_mix_effect[P1]["americas"] == SOURCE_UNAVAILABLE
+    assert series.operating_margin_mix_effect[P2]["americas"] == SOURCE_UNAVAILABLE
+    assert series.operating_margin_within_segment_effect[P2]["china_mainland"] == SOURCE_UNAVAILABLE
+    assert series.operating_margin_mix_within_residual[P2] == SOURCE_UNAVAILABLE
     assert series.operating_margin_contribution[P2]["americas"] == pytest.approx(
         100.0 * 40.0 / 140.0
     )
@@ -482,6 +581,15 @@ def test_zero_denominators_zero_numerators_and_negative_profits():
     assert series.operating_margin_contribution[P2]["americas"] == pytest.approx(
         100.0 * -2.0 / 60.0
     )
+    assert series.operating_margin_mix_effect[P2]["americas"] == UNDEFINED_RATIO
+    assert series.operating_margin_within_segment_effect[P2]["americas"] == UNDEFINED_RATIO
+    assert series.operating_margin_mix_effect[P2]["rest_of_world"] == pytest.approx(
+        100.0 * (50.0 / 60.0 - 0.5) * (0.0 + -0.1) / 2.0
+    )
+    assert series.operating_margin_within_segment_effect[P2]["rest_of_world"] == pytest.approx(
+        100.0 * (0.0 - -0.1) * (50.0 / 60.0 + 0.5) / 2.0
+    )
+    assert series.operating_margin_mix_within_residual[P2] == UNDEFINED_RATIO
     assert series.revenue_growth[P2]["americas"] == UNDEFINED_RATIO
     assert series.revenue_growth[P2]["china_mainland"] == -1.0
     assert series.revenue_growth_contribution[P2]["americas"] == pytest.approx(10.0)
@@ -522,6 +630,9 @@ def test_growth_contributions_zero_consolidated_offsetting_and_singleton():
     assert zero_series.operating_margin_contribution_residual[P0] == UNDEFINED_RATIO
     assert zero_series.operating_margin_contribution_change[P1]["americas"] == UNDEFINED_RATIO
     assert zero_series.operating_margin_contribution_change_residual[P1] == UNDEFINED_RATIO
+    assert zero_series.operating_margin_mix_effect[P1]["americas"] == UNDEFINED_RATIO
+    assert zero_series.operating_margin_within_segment_effect[P1]["china_mainland"] == UNDEFINED_RATIO
+    assert zero_series.operating_margin_mix_within_residual[P1] == UNDEFINED_RATIO
 
     offsetting = _fin_with_segment(
         _snapshot(P1, values=_corp_values(rev=(50.0, 30.0, 20.0))),
@@ -549,6 +660,9 @@ def test_growth_contributions_zero_consolidated_offsetting_and_singleton():
     assert single_series.operating_margin_contribution_change[P2]["americas"] is None
     assert single_series.consolidated_operating_margin_change[P2] is None
     assert single_series.operating_margin_contribution_change_residual[P2] is None
+    assert single_series.operating_margin_mix_effect[P2]["americas"] is None
+    assert single_series.operating_margin_within_segment_effect[P2]["rest_of_world"] is None
+    assert single_series.operating_margin_mix_within_residual[P2] is None
     assert single_series.operating_margin_contribution[P2]["americas"] == pytest.approx(
         100.0 * 50.0 / 120.0
     )
@@ -583,8 +697,110 @@ def test_operating_margin_bridge_offsetting_losses_and_family_transition():
     assert series.operating_margin_contribution_residual[P1] == pytest.approx(0.0)
     assert series.operating_margin_contribution_residual[P2] == pytest.approx(0.0)
     assert series.operating_margin_contribution_change_residual[P2] == pytest.approx(0.0)
+    assert series.operating_margin_mix_within_residual[P2] == pytest.approx(0.0)
     assert series.presentation_family[P1] == FAMILY_ITEMIZED
     assert series.presentation_family[P2] == FAMILY_CORPORATE
+
+
+def test_mix_within_unchanged_shares_margins_offsetting_and_nonzero_residual():
+    unchanged_margin = _fin_with_segment(
+        _snapshot(
+            P1,
+            values=_corp_values(rev=(50.0, 30.0, 20.0), ifop=(10.0, 6.0, 4.0), corporate=-5.0),
+        ),
+        _snapshot(
+            P2,
+            values=_corp_values(rev=(60.0, 24.0, 16.0), ifop=(12.0, 4.8, 3.2), corporate=-5.0),
+        ),
+    )
+    margin_series = compute_geographic_segment_series(unchanged_margin)
+    _assert_series_matches(
+        margin_series,
+        _independent_from_snapshots(
+            [P1, P2],
+            {snap.period: snap for snap in unchanged_margin.historical_segment.periods},
+        ),
+    )
+    assert margin_series.operating_margin_within_segment_effect[P2]["americas"] == pytest.approx(0.0)
+    assert margin_series.operating_margin_mix_effect[P2]["americas"] == pytest.approx(2.0)
+    assert margin_series.operating_margin_mix_effect[P2]["americas"] + (
+        margin_series.operating_margin_within_segment_effect[P2]["americas"]
+    ) == pytest.approx(margin_series.operating_margin_contribution_change[P2]["americas"])
+
+    unchanged_share = _fin_with_segment(
+        _snapshot(
+            P1,
+            values=_corp_values(rev=(50.0, 30.0, 20.0), ifop=(10.0, 6.0, 4.0), corporate=-5.0),
+        ),
+        _snapshot(
+            P2,
+            values=_corp_values(rev=(50.0, 30.0, 20.0), ifop=(15.0, 6.0, 4.0), corporate=-5.0),
+        ),
+    )
+    share_series = compute_geographic_segment_series(unchanged_share)
+    _assert_series_matches(
+        share_series,
+        _independent_from_snapshots(
+            [P1, P2],
+            {snap.period: snap for snap in unchanged_share.historical_segment.periods},
+        ),
+    )
+    assert share_series.operating_margin_mix_effect[P2]["americas"] == pytest.approx(0.0)
+    assert share_series.operating_margin_within_segment_effect[P2]["americas"] == pytest.approx(5.0)
+
+    offsetting = _fin_with_segment(
+        _snapshot(
+            P1,
+            values=_corp_values(rev=(50.0, 30.0, 20.0), ifop=(20.0, 6.0, 4.0), corporate=-10.0),
+        ),
+        _snapshot(
+            P2,
+            values=_corp_values(rev=(60.0, 24.0, 16.0), ifop=(12.0, 9.6, 6.4), corporate=-10.0),
+        ),
+    )
+    offset_series = compute_geographic_segment_series(offsetting)
+    _assert_series_matches(
+        offset_series,
+        _independent_from_snapshots(
+            [P1, P2],
+            {snap.period: snap for snap in offsetting.historical_segment.periods},
+        ),
+    )
+    amer_mix = offset_series.operating_margin_mix_effect[P2]["americas"]
+    amer_within = offset_series.operating_margin_within_segment_effect[P2]["americas"]
+    assert amer_mix > 0
+    assert amer_within < 0
+    assert amer_mix + amer_within == pytest.approx(
+        offset_series.operating_margin_contribution_change[P2]["americas"]
+    )
+    assert offset_series.operating_margin_mix_within_residual[P2] == pytest.approx(
+        offset_series.operating_margin_contribution_change_residual[P2]
+    )
+
+    nonzero = _fin_with_segment(
+        _snapshot(P1, family=FAMILY_ITEMIZED, values=_itemized_values()),
+        _snapshot(
+            P2,
+            family=FAMILY_CORPORATE,
+            values=_corp_values(ifop=(60.0, 10.0, -5.0), corporate=-15.0),
+        ),
+    )
+    # Existing validation admits a signed reconstructed-vs-reported difference of 0
+    # on these fixtures; a nonzero mix residual is admitted when ΔM/ΔB identity holds.
+    nonzero_series = compute_geographic_segment_series(nonzero)
+    _assert_series_matches(
+        nonzero_series,
+        _independent_from_snapshots(
+            [P1, P2],
+            {snap.period: snap for snap in nonzero.historical_segment.periods},
+        ),
+    )
+    assert nonzero_series.operating_margin_contribution[P2]["rest_of_world"] == pytest.approx(
+        100.0 * -5.0 / 120.0
+    )
+    assert nonzero_series.operating_margin_mix_within_residual[P2] == pytest.approx(
+        nonzero_series.operating_margin_contribution_change_residual[P2]
+    )
 
 
 def test_invalid_contracts_fail_closed_without_mutation():

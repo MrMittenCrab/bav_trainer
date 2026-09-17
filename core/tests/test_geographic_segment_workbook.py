@@ -39,6 +39,9 @@ from core.engine.component_catalog import (
     resolve_geographic_operating_margin_contribution_change_residual_formula,
     resolve_geographic_operating_margin_contribution_formula,
     resolve_geographic_operating_margin_contribution_residual_formula,
+    resolve_geographic_operating_margin_mix_effect_formula,
+    resolve_geographic_operating_margin_mix_within_residual_formula,
+    resolve_geographic_operating_margin_within_segment_effect_formula,
     resolve_geographic_reconciling_operating_margin_contribution_formula,
     resolve_geographic_revenue_growth_contribution_formula,
     resolve_geographic_revenue_growth_contribution_residual_formula,
@@ -102,30 +105,35 @@ FAST_RETAILING_SPECS = 577
 GEOGRAPHIC_LULULEMON_SPECS_BASELINE = 74
 GEOGRAPHIC_CONTRIBUTION_SPECS = 20
 GEOGRAPHIC_MARGIN_BRIDGE_SPECS = 54
+GEOGRAPHIC_MIX_WITHIN_SPECS = 28
 GEOGRAPHIC_LULULEMON_SPECS = (
     GEOGRAPHIC_LULULEMON_SPECS_BASELINE
     + GEOGRAPHIC_CONTRIBUTION_SPECS
     + GEOGRAPHIC_MARGIN_BRIDGE_SPECS
+    + GEOGRAPHIC_MIX_WITHIN_SPECS
 )
 LULULEMON_UNAVAILABLE_DISPLAYS = 101
 GEOGRAPHIC_A2 = (
     "Source-supported geographic revenue mix, adjacent-period growth, "
     "reported operating margins, consolidated bridges, percentage-point "
-    "contributions to consolidated revenue growth, and an arithmetic "
+    "contributions to consolidated revenue growth, an arithmetic "
     "decomposition of consolidated reported operating margin and its "
-    "change. Reported operating margin is distinct from BAV NOPAT "
-    "margin. Revenue-growth contributions are an arithmetic "
+    "change, and a separate mix and within-segment decomposition of "
+    "that adjacent change. Reported operating margin is distinct from "
+    "BAV NOPAT margin. Revenue-growth contributions are an arithmetic "
     "decomposition of reported geographic revenue changes, not "
     "organic, constant-currency, or causal growth. Operating-margin "
-    "contributions are not mix, within-segment, normalization, or a "
-    "causal explanation."
+    "contributions are a direct contribution bridge, distinct from the "
+    "mix and within-segment decomposition, normalization, or a causal "
+    "explanation. Mix and within-segment effects use a symmetric "
+    "midpoint convention and remain arithmetic only."
 )
 GEOGRAPHIC_A4 = (
     "Calculated segment totals are distinct from any reported segment_total. "
     "Sparse unavailable amounts remain unavailable; opening growth, "
-    "opening revenue-growth contributions, and opening operating-margin "
-    "contribution changes are not practiced. Signed residuals are not "
-    "forced to zero."
+    "opening revenue-growth contributions, opening operating-margin "
+    "contribution changes, and opening mix and within-segment effects "
+    "are not practiced. Signed residuals are not forced to zero."
 )
 
 
@@ -355,7 +363,7 @@ def _assert_visible_parity(
 def test_catalog_orders_and_expand_identities():
     assert GEOGRAPHIC_SHEET == GEOGRAPHIC_SHEET_NAME
     assert [family.order for family in GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG] == list(
-        range(152, 172)
+        range(152, 175)
     )
     assert [family.id for family in GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG] == [
         "geographic_revenue_share",
@@ -378,6 +386,9 @@ def test_catalog_orders_and_expand_identities():
         "geographic_reconciling_operating_margin_contribution_change",
         "geographic_consolidated_operating_margin_change",
         "geographic_operating_margin_contribution_change_residual",
+        "geographic_operating_margin_mix_effect",
+        "geographic_operating_margin_within_segment_effect",
+        "geographic_operating_margin_mix_within_residual",
     ]
     specs = expand_geographic_segment_specs(
         [P1, P2],
@@ -421,6 +432,29 @@ def test_catalog_orders_and_expand_identities():
     assert geographic_component_id(
         "geographic_operating_margin_contribution_change", P2, "americas"
     ) in {s.id for s in specs}
+    assert geographic_component_id(
+        "geographic_operating_margin_mix_effect", P2, "americas"
+    ) in {s.id for s in specs}
+    assert geographic_component_id(
+        "geographic_operating_margin_within_segment_effect", P2, "americas"
+    ) in {s.id for s in specs}
+    assert not any(
+        s.family_id == "geographic_operating_margin_mix_effect"
+        and s.period_end == P1.isoformat()
+        for s in specs
+    )
+    mix_residual = next(
+        s
+        for s in specs
+        if s.family_id == "geographic_operating_margin_mix_within_residual"
+    )
+    assert mix_residual.period_end == P2.isoformat()
+    assert geographic_component_id(
+        "geographic_consolidated_operating_margin_change", P2
+    ) in mix_residual.depends_on
+    assert geographic_component_id(
+        "geographic_reconciling_operating_margin_contribution_change", P2
+    ) in mix_residual.depends_on
     change_residual = next(
         s
         for s in specs
@@ -551,6 +585,15 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
         and c.period_index == 0
         for c in geo_comps
     )
+    assert not any(
+        c.family_id == "geographic_operating_margin_mix_effect"
+        and c.period_index == 0
+        for c in geo_comps
+    )
+    assert any(
+        c.family_id == "geographic_operating_margin_mix_effect" and c.period_index == 1
+        for c in geo_comps
+    )
 
     awb = load_workbook(answer, data_only=False)
     twb = load_workbook(trainer, data_only=False)
@@ -615,6 +658,56 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
     assert aws.cell(dcs_row, 2).value == "N/A"
     assert tws.cell(dcs_row, 2).value == "N/A"
     assert str(aws.cell(dcs_row, 3).value).startswith("=")
+    mix_row = _row_by_label(
+        aws,
+        "Americas mix effect on consolidated operating-margin change "
+        "(percentage points)",
+    )
+    assert aws.cell(mix_row, 2).value == "N/A"
+    assert tws.cell(mix_row, 2).value == "N/A"
+    assert str(aws.cell(mix_row, 3).value).startswith("=")
+    assert "100*" in str(aws.cell(mix_row, 3).value).replace(" ", "")
+    within_row = _row_by_label(
+        aws,
+        "Americas within-segment margin effect on consolidated "
+        "operating-margin change (percentage points)",
+    )
+    assert aws.cell(within_row, 2).value == "N/A"
+    assert str(aws.cell(within_row, 3).value).startswith("=")
+    mix_res_row = _row_by_label(
+        aws,
+        "Operating-margin mix and within-segment decomposition residual "
+        "(percentage points)",
+    )
+    assert aws.cell(mix_res_row, 2).value == "N/A"
+    mix_note = (
+        (aws.cell(mix_row, 3).comment.text or "")
+        if aws.cell(mix_row, 3).comment
+        else ""
+    )
+    lowered_mix = mix_note.lower()
+    assert "midpoint" in lowered_mix
+    assert "equally" in lowered_mix
+    assert "contribution" in lowered_mix
+    assert "nopat" in lowered_mix
+    assert "price" in lowered_mix
+    assert "volume" in lowered_mix
+    assert "organic" in lowered_mix
+    assert "causal" in lowered_mix
+    assert "normalization" in lowered_mix
+    within_note = (
+        (aws.cell(within_row, 3).comment.text or "")
+        if aws.cell(within_row, 3).comment
+        else ""
+    )
+    assert "midpoint" in within_note.lower()
+    mix_res_note = (
+        (aws.cell(mix_res_row, 3).comment.text or "")
+        if aws.cell(mix_res_row, 3).comment
+        else ""
+    )
+    assert "residual" in mix_res_note.lower()
+    assert "contribution" in mix_res_note.lower()
     cs_note = (
         (aws.cell(cs_row, 2).comment.text or "")
         if aws.cell(cs_row, 2).comment
@@ -738,6 +831,10 @@ def test_sparse_undefined_negative_reorder_and_source_edit(tmp_path):
     assert series.operating_margin_contribution[P0]["americas"] == SOURCE_UNAVAILABLE
     assert series.operating_margin_contribution_change[P0]["americas"] is None
     assert series.operating_margin_contribution_change[P1]["americas"] == SOURCE_UNAVAILABLE
+    assert series.operating_margin_mix_effect[P0]["americas"] is None
+    assert series.operating_margin_mix_effect[P1]["americas"] == SOURCE_UNAVAILABLE
+    assert series.operating_margin_within_segment_effect[P1]["americas"] == SOURCE_UNAVAILABLE
+    assert series.operating_margin_mix_within_residual[P1] == SOURCE_UNAVAILABLE
     assert series.revenue_growth[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.revenue_growth_contribution[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.reported_operating_margin[P1]["americas"] == UNDEFINED_RATIO
@@ -761,6 +858,11 @@ def test_sparse_undefined_negative_reorder_and_source_edit(tmp_path):
     )
     assert not any(
         s.family_id == "geographic_operating_margin_contribution_change"
+        and s.period_end == P1.isoformat()
+        for s in builder.geographic_specs
+    )
+    assert not any(
+        s.family_id == "geographic_operating_margin_mix_effect"
         and s.period_end == P1.isoformat()
         for s in builder.geographic_specs
     )
@@ -817,6 +919,13 @@ def test_sparse_undefined_negative_reorder_and_source_edit(tmp_path):
     )
     assert aws.cell(dcs_row, 2).value == "N/A"
     assert aws.cell(dcs_row, 3).value == SOURCE_UNAVAILABLE
+    mix_row = _row_by_label(
+        aws,
+        "Americas mix effect on consolidated operating-margin change "
+        "(percentage points)",
+    )
+    assert aws.cell(mix_row, 2).value == "N/A"
+    assert aws.cell(mix_row, 3).value == SOURCE_UNAVAILABLE
     margin_row = _row_by_label(aws, "Americas reported operating margin")
     assert "NA()" in str(aws.cell(margin_row, 3).value)
     awb.close()
@@ -1183,6 +1292,159 @@ def test_margin_bridge_formulas_follow_relocated_sources(tmp_path, monkeypatch):
             from_tab=GEOGRAPHIC_SHEET,
         ).replace(" ", "")
     )
+    mix = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_operating_margin_mix_effect"
+        and geographic_spec_identity(c) == "americas"
+        and c.period_index == 1
+    )
+    prior_share = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_revenue_share"
+        and geographic_spec_identity(c) == "americas"
+        and c.period_index == 0
+    )
+    current_share = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_revenue_share"
+        and geographic_spec_identity(c) == "americas"
+        and c.period_index == 1
+    )
+    prior_margin = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_reported_operating_margin"
+        and geographic_spec_identity(c) == "americas"
+        and c.period_index == 0
+    )
+    current_margin = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_reported_operating_margin"
+        and geographic_spec_identity(c) == "americas"
+        and c.period_index == 1
+    )
+    assert mix.formula.replace(" ", "") == (
+        resolve_geographic_operating_margin_mix_effect_formula(
+            SemanticCellRef(
+                current_share.id,
+                current_share.semantic_key,
+                current_share.period_end,
+                current_share.cell,
+                current_share.tab,
+            ),
+            SemanticCellRef(
+                prior_share.id,
+                prior_share.semantic_key,
+                prior_share.period_end,
+                prior_share.cell,
+                prior_share.tab,
+            ),
+            SemanticCellRef(
+                current_margin.id,
+                current_margin.semantic_key,
+                current_margin.period_end,
+                current_margin.cell,
+                current_margin.tab,
+            ),
+            SemanticCellRef(
+                prior_margin.id,
+                prior_margin.semantic_key,
+                prior_margin.period_end,
+                prior_margin.cell,
+                prior_margin.tab,
+            ),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    within = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_operating_margin_within_segment_effect"
+        and geographic_spec_identity(c) == "americas"
+        and c.period_index == 1
+    )
+    assert within.formula.replace(" ", "") == (
+        resolve_geographic_operating_margin_within_segment_effect_formula(
+            SemanticCellRef(
+                current_share.id,
+                current_share.semantic_key,
+                current_share.period_end,
+                current_share.cell,
+                current_share.tab,
+            ),
+            SemanticCellRef(
+                prior_share.id,
+                prior_share.semantic_key,
+                prior_share.period_end,
+                prior_share.cell,
+                prior_share.tab,
+            ),
+            SemanticCellRef(
+                current_margin.id,
+                current_margin.semantic_key,
+                current_margin.period_end,
+                current_margin.cell,
+                current_margin.tab,
+            ),
+            SemanticCellRef(
+                prior_margin.id,
+                prior_margin.semantic_key,
+                prior_margin.period_end,
+                prior_margin.cell,
+                prior_margin.tab,
+            ),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    mix_res = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_operating_margin_mix_within_residual"
+        and c.period_index == 1
+    )
+    mix_refs = [
+        next(
+            c
+            for c in smap.all_ordered()
+            if c.family_id == "geographic_operating_margin_mix_effect"
+            and geographic_spec_identity(c) == identity
+            and c.period_index == 1
+        )
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES
+    ]
+    within_refs = [
+        next(
+            c
+            for c in smap.all_ordered()
+            if c.family_id == "geographic_operating_margin_within_segment_effect"
+            and geographic_spec_identity(c) == identity
+            and c.period_index == 1
+        )
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES
+    ]
+    assert mix_res.formula.replace(" ", "") == (
+        resolve_geographic_operating_margin_mix_within_residual_formula(
+            SemanticCellRef(dm.id, dm.semantic_key, dm.period_end, dm.cell, dm.tab),
+            tuple(
+                SemanticCellRef(
+                    item.id, item.semantic_key, item.period_end, item.cell, item.tab
+                )
+                for item in mix_refs
+            ),
+            tuple(
+                SemanticCellRef(
+                    item.id, item.semantic_key, item.period_end, item.cell, item.tab
+                )
+                for item in within_refs
+            ),
+            SemanticCellRef(db.id, db.semantic_key, db.period_end, db.cell, db.tab),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
     awb = load_workbook(answer, data_only=False)
     row, col = MOVED_GEO_IFOP_SOURCE_PLACEMENT[("americas", 0)][:2]
     assert awb[GEOGRAPHIC_SHEET].cell(row, col).value not in (None, "")
@@ -1441,6 +1703,17 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
         }
     ]
     assert len(margin_bridge_n) == GEOGRAPHIC_MARGIN_BRIDGE_SPECS
+    mix_within_n = [
+        c
+        for c in geo_comps
+        if c.family_id
+        in {
+            "geographic_operating_margin_mix_effect",
+            "geographic_operating_margin_within_segment_effect",
+            "geographic_operating_margin_mix_within_residual",
+        }
+    ]
+    assert len(mix_within_n) == GEOGRAPHIC_MIX_WITHIN_SPECS
     fy2026_cs = next(
         c
         for c in geo_comps
@@ -1539,6 +1812,16 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
         and c.period_end == opening.isoformat()
         for c in geo_comps
     )
+    assert not any(
+        c.family_id
+        in {
+            "geographic_operating_margin_mix_effect",
+            "geographic_operating_margin_within_segment_effect",
+            "geographic_operating_margin_mix_within_residual",
+        }
+        and c.period_end == opening.isoformat()
+        for c in geo_comps
+    )
     fy2026_de = next(
         c
         for c in geo_comps
@@ -1574,6 +1857,177 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
     )
     assert fy2026_de.expected_value == pytest.approx(
         independent_de, abs=GEOGRAPHIC_RATIO_TOLERANCE
+    )
+    fy2026_mix = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_operating_margin_mix_effect"
+        and c.period_end == FY2026.isoformat()
+        and geographic_spec_identity(c) == "americas"
+    )
+    fy2026_within = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_operating_margin_within_segment_effect"
+        and c.period_end == FY2026.isoformat()
+        and geographic_spec_identity(c) == "americas"
+    )
+    fy2026_mix_res = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_operating_margin_mix_within_residual"
+        and c.period_end == FY2026.isoformat()
+    )
+    prior_fy2026_snap = snapshots[prior_fy2026]
+    w_c = float(snapshots[FY2026].values["net_revenue.americas"]) / fy2026_cons_rev
+    w_p = float(prior_fy2026_snap.values["net_revenue.americas"]) / float(
+        prior_fy2026_snap.values["net_revenue.consolidated"]
+    )
+    m_c = float(snapshots[FY2026].values["income_from_operations.americas"]) / float(
+        snapshots[FY2026].values["net_revenue.americas"]
+    )
+    m_p = float(prior_fy2026_snap.values["income_from_operations.americas"]) / float(
+        prior_fy2026_snap.values["net_revenue.americas"]
+    )
+    independent_mix = 100.0 * (w_c - w_p) * (m_c + m_p) / 2.0
+    independent_within = 100.0 * (m_c - m_p) * (w_c + w_p) / 2.0
+    assert fy2026_mix.expected_value == pytest.approx(
+        independent_mix, abs=GEOGRAPHIC_RATIO_TOLERANCE
+    )
+    assert fy2026_within.expected_value == pytest.approx(
+        independent_within, abs=GEOGRAPHIC_RATIO_TOLERANCE
+    )
+    assert fy2026_mix.expected_value + fy2026_within.expected_value == pytest.approx(
+        next(
+            c
+            for c in dcs_comps
+            if geographic_spec_identity(c) == "americas"
+        ).expected_value,
+        abs=GEOGRAPHIC_RATIO_TOLERANCE,
+    )
+    mix_comps = [
+        next(
+            c
+            for c in geo_comps
+            if c.family_id == "geographic_operating_margin_mix_effect"
+            and c.period_end == FY2026.isoformat()
+            and geographic_spec_identity(c) == identity
+        )
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES
+    ]
+    within_comps = [
+        next(
+            c
+            for c in geo_comps
+            if c.family_id == "geographic_operating_margin_within_segment_effect"
+            and c.period_end == FY2026.isoformat()
+            and geographic_spec_identity(c) == identity
+        )
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES
+    ]
+    independent_mix_res = (
+        float(fy2026_dm.expected_value)
+        - sum(float(item.expected_value) for item in mix_comps)
+        - sum(float(item.expected_value) for item in within_comps)
+        - float(fy2026_db.expected_value)
+    )
+    assert fy2026_mix_res.expected_value == pytest.approx(
+        independent_mix_res, abs=GEOGRAPHIC_RATIO_TOLERANCE
+    )
+    assert fy2026_mix_res.expected_value == pytest.approx(
+        fy2026_de.expected_value, abs=GEOGRAPHIC_RATIO_TOLERANCE
+    )
+    fy2026_share = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_revenue_share"
+        and c.period_end == FY2026.isoformat()
+        and geographic_spec_identity(c) == "americas"
+    )
+    prior_share_comp = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_revenue_share"
+        and c.period_end == prior_fy2026.isoformat()
+        and geographic_spec_identity(c) == "americas"
+    )
+    fy2026_seg_m = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_reported_operating_margin"
+        and c.period_end == FY2026.isoformat()
+        and geographic_spec_identity(c) == "americas"
+    )
+    prior_seg_m = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_reported_operating_margin"
+        and c.period_end == prior_fy2026.isoformat()
+        and geographic_spec_identity(c) == "americas"
+    )
+    assert fy2026_mix.formula.replace(" ", "") == (
+        resolve_geographic_operating_margin_mix_effect_formula(
+            SemanticCellRef(
+                fy2026_share.id,
+                fy2026_share.semantic_key,
+                fy2026_share.period_end,
+                fy2026_share.cell,
+                fy2026_share.tab,
+            ),
+            SemanticCellRef(
+                prior_share_comp.id,
+                prior_share_comp.semantic_key,
+                prior_share_comp.period_end,
+                prior_share_comp.cell,
+                prior_share_comp.tab,
+            ),
+            SemanticCellRef(
+                fy2026_seg_m.id,
+                fy2026_seg_m.semantic_key,
+                fy2026_seg_m.period_end,
+                fy2026_seg_m.cell,
+                fy2026_seg_m.tab,
+            ),
+            SemanticCellRef(
+                prior_seg_m.id,
+                prior_seg_m.semantic_key,
+                prior_seg_m.period_end,
+                prior_seg_m.cell,
+                prior_seg_m.tab,
+            ),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    assert fy2026_mix_res.formula.replace(" ", "") == (
+        resolve_geographic_operating_margin_mix_within_residual_formula(
+            SemanticCellRef(
+                fy2026_dm.id,
+                fy2026_dm.semantic_key,
+                fy2026_dm.period_end,
+                fy2026_dm.cell,
+                fy2026_dm.tab,
+            ),
+            tuple(
+                SemanticCellRef(
+                    item.id, item.semantic_key, item.period_end, item.cell, item.tab
+                )
+                for item in mix_comps
+            ),
+            tuple(
+                SemanticCellRef(
+                    item.id, item.semantic_key, item.period_end, item.cell, item.tab
+                )
+                for item in within_comps
+            ),
+            SemanticCellRef(
+                fy2026_db.id,
+                fy2026_db.semantic_key,
+                fy2026_db.period_end,
+                fy2026_db.cell,
+                fy2026_db.tab,
+            ),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
     )
     cons_growth_comp = next(
         c
@@ -1719,6 +2173,9 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
             "geographic_reconciling_operating_margin_contribution_change",
             "geographic_consolidated_operating_margin_change",
             "geographic_operating_margin_contribution_change_residual",
+            "geographic_operating_margin_mix_effect",
+            "geographic_operating_margin_within_segment_effect",
+            "geographic_operating_margin_mix_within_residual",
         }:
             assert trainer_cell.comment is None
             assert answer_cell.comment is not None

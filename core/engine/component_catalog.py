@@ -4866,6 +4866,111 @@ GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         ),
         tolerance=1e-12,
     ),
+    ComponentFamily(
+        id="geographic_operating_margin_mix_effect",
+        order=172,
+        title="Geographic mix effect on consolidated operating-margin change",
+        short_hint=(
+            "Mix effect in percentage points = 100 × (current revenue share − "
+            "prior share) × (current reported operating margin + prior margin) "
+            "/ 2. Symmetric midpoint convention splits the interaction equally. "
+            "Arithmetic decomposition of the adjacent change in reported "
+            "operating margin, distinct from the direct contribution-change "
+            "bridge. Opening effect is absent. A missing adjacent snapshot is "
+            "unavailable. Zero current or prior segment or consolidated "
+            "revenue is undefined (#N/A). Not evidence of price, volume, cost, "
+            "organic growth, causality, normalization, or BAV NOPAT margin."
+        ),
+        semantic_key="geographic.operating_margin_mix_effect",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(
+            "geographic_revenue_share",
+            "geographic_reported_operating_margin",
+        ),
+        depends_on_previous=(
+            "geographic_revenue_share",
+            "geographic_reported_operating_margin",
+        ),
+        hints=(
+            "Mix uses the symmetric midpoint of current and prior reported operating margins.",
+            "It splits the interaction equally and is not the direct contribution-change bridge.",
+            "Not price, volume, cost, organic growth, causality, normalization, or BAV NOPAT margin.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_operating_margin_within_segment_effect",
+        order=173,
+        title="Geographic within-segment margin effect on consolidated operating-margin change",
+        short_hint=(
+            "Within-segment margin effect in percentage points = 100 × "
+            "(current reported operating margin − prior margin) × (current "
+            "revenue share + prior share) / 2. Symmetric midpoint convention "
+            "splits the interaction equally. Arithmetic decomposition of the "
+            "adjacent change in reported operating margin, distinct from the "
+            "direct contribution-change bridge. Mix plus within-segment equals "
+            "the segment contribution change when both ratios are defined. "
+            "Opening effect is absent. A missing adjacent snapshot is "
+            "unavailable. Zero current or prior segment or consolidated "
+            "revenue is undefined (#N/A). Not evidence of price, volume, cost, "
+            "organic growth, causality, normalization, or BAV NOPAT margin."
+        ),
+        semantic_key="geographic.operating_margin_within_segment_effect",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(
+            "geographic_revenue_share",
+            "geographic_reported_operating_margin",
+        ),
+        depends_on_previous=(
+            "geographic_revenue_share",
+            "geographic_reported_operating_margin",
+        ),
+        hints=(
+            "Within-segment uses the symmetric midpoint of current and prior revenue shares.",
+            "It splits the interaction equally and is not the direct contribution-change bridge.",
+            "Not price, volume, cost, organic growth, causality, normalization, or BAV NOPAT margin.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_operating_margin_mix_within_residual",
+        order=174,
+        title="Operating-margin mix and within-segment decomposition residual",
+        short_hint=(
+            "Decomposition residual in percentage points = change in "
+            "consolidated reported operating margin − sum of mix effects − "
+            "sum of within-segment effects − change in the aggregate "
+            "reconciling contribution. Reuse the existing ΔM and ΔB cells; "
+            "do not recompute those identities. Preserve the signed residual; "
+            "do not force it to zero. Equals the contribution-change residual "
+            "wherever all required ratios are defined. Opening residual is "
+            "absent. A missing adjacent snapshot is unavailable. Zero current "
+            "or prior segment or consolidated revenue is undefined (#N/A). "
+            "Arithmetic reconciliation of the midpoint decomposition only, "
+            "not price, volume, cost, organic growth, causality, "
+            "normalization, or BAV NOPAT margin."
+        ),
+        semantic_key="geographic.operating_margin_mix_within_residual",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(
+            "geographic_consolidated_operating_margin_change",
+            "geographic_operating_margin_mix_effect",
+            "geographic_operating_margin_within_segment_effect",
+            "geographic_reconciling_operating_margin_contribution_change",
+        ),
+        hints=(
+            "Residual = Δ consolidated margin − Σ mix effects − Σ within-segment effects − Δ reconciling contribution.",
+            "Keep the signed residual; it equals the contribution-change residual when all ratios are defined.",
+            "Reuse existing ΔM and ΔB; arithmetic only, not the contribution bridge or BAV NOPAT margin.",
+        ),
+        tolerance=1e-12,
+    ),
 )
 
 
@@ -4961,6 +5066,9 @@ def expand_geographic_segment_specs(
     margin_change_residual = families[
         "geographic_operating_margin_contribution_change_residual"
     ]
+    mix_effect = families["geographic_operating_margin_mix_effect"]
+    within_effect = families["geographic_operating_margin_within_segment_effect"]
+    mix_within_residual = families["geographic_operating_margin_mix_within_residual"]
     contribution_ids = contribution_identities or {}
     cons_growth_periods = set(consolidated_growth_periods or ())
     margin_change_set = set(margin_change_periods or ())
@@ -5167,6 +5275,54 @@ def expand_geographic_segment_specs(
             ),
             title=(
                 "Operating-margin contribution change residual "
+                "(percentage points)"
+            ),
+        )
+        mix_deps: list[str] = []
+        within_deps: list[str] = []
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            label = geographic_identity_label(identity)
+            mix_id = geographic_component_id(mix_effect.id, period, identity)
+            within_id = geographic_component_id(within_effect.id, period, identity)
+            mix_deps.append(mix_id)
+            within_deps.append(within_id)
+            share_deps = (
+                geographic_component_id(share.id, period, identity),
+                geographic_component_id(share.id, prior, identity),
+                geographic_component_id(margin.id, period, identity),
+                geographic_component_id(margin.id, prior, identity),
+            )
+            _append(
+                mix_effect,
+                period,
+                identity=identity,
+                depends_on=share_deps,
+                title=(
+                    f"{label} mix effect on consolidated operating-margin "
+                    "change (percentage points)"
+                ),
+            )
+            _append(
+                within_effect,
+                period,
+                identity=identity,
+                depends_on=share_deps,
+                title=(
+                    f"{label} within-segment margin effect on consolidated "
+                    "operating-margin change (percentage points)"
+                ),
+            )
+        _append(
+            mix_within_residual,
+            period,
+            depends_on=(
+                geographic_component_id(cons_margin_change.id, period),
+                *mix_deps,
+                *within_deps,
+                geographic_component_id(reconciling_margin_change.id, period),
+            ),
+            title=(
+                "Operating-margin mix and within-segment decomposition residual "
                 "(percentage points)"
             ),
         )
@@ -5665,6 +5821,72 @@ def resolve_geographic_operating_margin_contribution_change_residual_formula(
         contribution_changes,
         reconciling_change,
         from_tab=from_tab,
+    )
+
+
+def resolve_geographic_operating_margin_mix_effect_formula(
+    current_share: SemanticCellRef,
+    prior_share: SemanticCellRef,
+    current_margin: SemanticCellRef,
+    prior_margin: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Percentage-point mix effect from mapped current/prior share and margin."""
+    w_current = semantic_formula_cell(current_share, from_tab=from_tab)
+    w_prior = semantic_formula_cell(prior_share, from_tab=from_tab)
+    m_current = semantic_formula_cell(current_margin, from_tab=from_tab)
+    m_prior = semantic_formula_cell(prior_margin, from_tab=from_tab)
+    return f"=100*({w_current}-{w_prior})*({m_current}+{m_prior})/2"
+
+
+def resolve_geographic_operating_margin_within_segment_effect_formula(
+    current_share: SemanticCellRef,
+    prior_share: SemanticCellRef,
+    current_margin: SemanticCellRef,
+    prior_margin: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Percentage-point within-segment effect from mapped share and margin."""
+    w_current = semantic_formula_cell(current_share, from_tab=from_tab)
+    w_prior = semantic_formula_cell(prior_share, from_tab=from_tab)
+    m_current = semantic_formula_cell(current_margin, from_tab=from_tab)
+    m_prior = semantic_formula_cell(prior_margin, from_tab=from_tab)
+    return f"=100*({m_current}-{m_prior})*({w_current}+{w_prior})/2"
+
+
+def resolve_geographic_operating_margin_mix_within_residual_formula(
+    margin_change: SemanticCellRef,
+    mix_effects: tuple[SemanticCellRef, ...],
+    within_effects: tuple[SemanticCellRef, ...],
+    reconciling_change: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Signed mix/within residual from mapped ΔM, effects, and ΔB."""
+    if not mix_effects or not within_effects:
+        raise ValueError(
+            "mix/within residual requires mapped mix and within-segment effects"
+        )
+    if len(mix_effects) != len(within_effects):
+        raise ValueError(
+            "mix/within residual requires matching mix and within-segment effects"
+        )
+    margin_cell = semantic_formula_cell(margin_change, from_tab=from_tab)
+    mix_cells = [
+        semantic_formula_cell(item, from_tab=from_tab) for item in mix_effects
+    ]
+    within_cells = [
+        semantic_formula_cell(item, from_tab=from_tab) for item in within_effects
+    ]
+    reconciling_cell = semantic_formula_cell(reconciling_change, from_tab=from_tab)
+    return (
+        "="
+        + margin_cell
+        + "".join(f"-{cell}" for cell in mix_cells)
+        + "".join(f"-{cell}" for cell in within_cells)
+        + f"-{reconciling_cell}"
     )
 
 
