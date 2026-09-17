@@ -44,6 +44,7 @@ from core.ingestion.management_kpi_reconciliation import (
     PRESENTATION_ROLE_COMBINATIONS,
     REASON_MISSING_VALUE,
     REASON_MISSING_TARGET,
+    REASON_MISSING_EVIDENCE,
     REASON_AMBIGUOUS_TARGET,
     REASON_OUTSIDE_SCOPE_TARGET,
     REASON_RECIPROCAL,
@@ -1702,6 +1703,19 @@ def _write_revised_family_pair(
     return left, right
 
 
+def _set_family_revision_evidence(payload: dict, family: str, blank: object) -> dict:
+    payload = copy.deepcopy(payload)
+    for item in _family_items(payload, family):
+        revision = item.get("revision")
+        if not isinstance(revision, dict):
+            continue
+        if blank is Ellipsis:
+            revision.pop("evidence", None)
+        else:
+            revision["evidence"] = blank
+    return payload
+
+
 def _assert_revision_link(
     payload: dict,
     *,
@@ -1709,6 +1723,7 @@ def _assert_revision_link(
     reviser_year: int,
     revised_year: int,
     family: str,
+    require_evidence: bool = True,
 ) -> dict:
     links = payload["reconciliation"]["revision_links"]
     assert links
@@ -1737,7 +1752,8 @@ def _assert_revision_link(
     assert link["kind"] == "revision_link"
     assert link["status"] == status
     assert link["canonical_selection"] == "deferred"
-    assert link["evidence"]
+    if require_evidence:
+        assert link["evidence"]
     assert link["source"]["physical_page_mapping"] == "unresolved"
     assert link["named_target"]["source_file"].endswith(".pdf")
     assert "value" not in link["named_target"]
@@ -1774,6 +1790,89 @@ def test_explicit_revision_links_are_directed_and_gated(tmp_path: Path, family: 
     roles = {occ["presentation_evidence"]["role"] for occ in pair["occurrences"]}
     assert roles == {"unknown"}
     assert pair["canonical_selection"] == "deferred"
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize("blank", [Ellipsis, None, "", " ", " \t "])
+def test_named_target_blank_evidence_keeps_bound_revision_unresolved(
+    tmp_path: Path, family: str, blank: object
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "blank")
+    _left, right = _write_revised_family_pair(dest, family)
+    recognized = _admission(dest)
+    _assert_revision_link(
+        recognized,
+        status=RELATIONSHIP_RECOGNIZED,
+        reviser_year=2024,
+        revised_year=2023,
+        family=family,
+    )
+    right = _set_family_revision_evidence(right, family, blank)
+    _write_json(dest / MANAGEMENT_NAMES[2], right)
+    payload = _admission(dest)
+    locators = _family_metric_locators(payload, family)
+    pair = _pair_by_locators(_metric_pairs(payload, family), locators)
+    _assert_affirmative_duplicate(pair, values=(10, 10))
+    expected_evidence = "" if blank in {Ellipsis, None} else blank
+    link = _assert_revision_link(
+        payload,
+        status=RELATIONSHIP_UNRESOLVED,
+        reviser_year=2024,
+        revised_year=2023,
+        family=family,
+        require_evidence=False,
+    )
+    assert link["evidence"] == expected_evidence
+    assert REASON_MISSING_EVIDENCE in link["reasons"]
+    assert payload["reconciliation"]["revision_link_counts"]["recognized"] == 0
+    assert all(
+        item["status"] != RELATIONSHIP_RECOGNIZED
+        for item in payload["reconciliation"]["revision_links"]
+    )
+    reviser = next(
+        item
+        for item in payload["observations"]
+        if item["locator"] == link["reviser"]["locator"]
+    )
+    assert reviser["revision_evidence"]["revises"] == link["named_target"]
+    assert reviser["revision_evidence"]["source"]["page_reference"]
+    assert "revision" in reviser["unresolved"]
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_blank_evidence_retains_comparison_failures_without_recognizing(
+    tmp_path: Path, family: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "gap")
+    changed = AFFIRMATIVE_COMPSALES_DEFINITION + " changed"
+    if family == FAMILY_SALES_PER_SQUARE_FOOT:
+        changed = AFFIRMATIVE_SPSF_DEFINITION + " changed"
+
+    def mutate_right(payload: dict) -> dict:
+        payload = copy.deepcopy(payload)
+        payload["kpi_definitions"][
+            0 if family == FAMILY_COMPARABLE_SALES_GROWTH else 1
+        ]["definition"] = changed
+        return payload
+
+    _left, right = _write_revised_family_pair(
+        dest, family, right_mutate=mutate_right
+    )
+    right = _set_family_revision_evidence(right, family, "")
+    _write_json(dest / MANAGEMENT_NAMES[2], right)
+    payload = _admission(dest)
+    link = _assert_revision_link(
+        payload,
+        status=RELATIONSHIP_UNRESOLVED,
+        reviser_year=2024,
+        revised_year=2023,
+        family=family,
+        require_evidence=False,
+    )
+    assert link["evidence"] == ""
+    assert "definition_mismatch" in link["reasons"]
+    assert REASON_MISSING_EVIDENCE in link["reasons"]
+    assert payload["reconciliation"]["revision_link_counts"].get("recognized", 0) == 0
 
 
 @pytest.mark.parametrize("family", FAMILIES)
@@ -2171,3 +2270,70 @@ def test_cli_serializes_directed_revision_links(tmp_path: Path):
     ]
     assert pair
     assert pair[0]["outcome"] == OUTCOME_AGREEING_DUPLICATE
+
+
+def _cli_validate_and_reconcile(dest: Path, out: Path):
+    validate = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "core",
+            "validate-source",
+            str(dest),
+            "--source-root",
+            str(SOURCE),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    reconcile = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "core",
+            "reconcile",
+            str(dest),
+            "--source-root",
+            str(SOURCE),
+            "--admit-period",
+            "2022-01-30",
+            "-o",
+            str(out),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    return validate, reconcile
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize("blank", [Ellipsis, None, "", " ", " \t "])
+def test_cli_serializes_named_target_blank_evidence_as_unresolved(
+    tmp_path: Path, family: str, blank: object
+):
+    dest = _copy_json(ANNUAL_NAMES + MANAGEMENT_NAMES, tmp_path / "cli-blank")
+    _left, right = _write_revised_family_pair(dest, family)
+    right = _set_family_revision_evidence(right, family, blank)
+    _write_json(dest / MANAGEMENT_NAMES[2], right)
+    out = tmp_path / "out"
+    validate, reconcile = _cli_validate_and_reconcile(dest, out)
+    assert validate.returncode == 0, validate.stdout + validate.stderr
+    assert reconcile.returncode == 0, reconcile.stdout + reconcile.stderr
+    admission = json.loads(
+        (out / "management_kpi_admission.json").read_text(encoding="utf-8")
+    )
+    expected_evidence = "" if blank in {Ellipsis, None} else blank
+    link = _assert_revision_link(
+        admission,
+        status=RELATIONSHIP_UNRESOLVED,
+        reviser_year=2024,
+        revised_year=2023,
+        family=family,
+        require_evidence=False,
+    )
+    assert link["evidence"] == expected_evidence
+    assert REASON_MISSING_EVIDENCE in link["reasons"]
+    assert admission["reconciliation"]["revision_link_counts"]["recognized"] == 0
+    assert admission["status"] == "admitted_unreconciled"

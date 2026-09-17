@@ -30,6 +30,7 @@ OUTCOME_INCOMPATIBLE = "incompatible"
 OUTCOME_UNRESOLVED = "unresolved"
 REASON_MISSING_VALUE = "missing_value"
 REASON_MISSING_TARGET = "missing_target"
+REASON_MISSING_EVIDENCE = "missing_evidence"
 REASON_AMBIGUOUS_TARGET = "ambiguous_target"
 REASON_OUTSIDE_SCOPE_TARGET = "outside_scope_target"
 REASON_UNSUPPORTED_TARGET = "unsupported_variant_target"
@@ -423,6 +424,13 @@ def _revision_status(
     return RELATIONSHIP_RECOGNIZED
 
 
+def _documentary_revision_reasons(evidence: object, *reasons: str) -> tuple[str, ...]:
+    out = list(reasons)
+    if not text_present(evidence) and REASON_MISSING_EVIDENCE not in out:
+        out.append(REASON_MISSING_EVIDENCE)
+    return tuple(out)
+
+
 def _revision_source_payload(observation: Any) -> tuple[tuple[str, Any], ...]:
     record = getattr(observation, "revision_record", None)
     source = getattr(record, "source", None) if record is not None else None
@@ -499,7 +507,9 @@ def reconcile_revision_links(
                     named_target=named,
                     evidence=evidence,
                     source=source,
-                    reasons=(REASON_MISSING_TARGET,),
+                    reasons=_documentary_revision_reasons(
+                        evidence, REASON_MISSING_TARGET
+                    ),
                 )
             )
             continue
@@ -512,7 +522,9 @@ def reconcile_revision_links(
                     named_target=named,
                     evidence=evidence,
                     source=source,
-                    reasons=(REASON_AMBIGUOUS_TARGET,),
+                    reasons=_documentary_revision_reasons(
+                        evidence, REASON_AMBIGUOUS_TARGET
+                    ),
                     candidate_locators=tuple(
                         sorted(item.locator for item in matches)
                     ),
@@ -546,21 +558,27 @@ def reconcile_revision_links(
                     named_target=named,
                     evidence=evidence,
                     source=source,
-                    reasons=(reason,),
+                    reasons=_documentary_revision_reasons(evidence, reason),
                 )
             )
             continue
         left = _occurrence_from(reviser_assessment, observation)
         right = _occurrence_from(target_assessment, target)
+        reasons = _documentary_revision_reasons(
+            evidence, *_revision_gate_reasons(left, right)
+        )
+        status = _revision_status(left, right)
+        if not text_present(evidence):
+            status = RELATIONSHIP_UNRESOLVED
         links.append(
             ManagementKpiRevisionLink(
-                status=_revision_status(left, right),
+                status=status,
                 reviser=reviser,
                 revised=revised,
                 named_target=named,
                 evidence=evidence,
                 source=source,
-                reasons=_revision_gate_reasons(left, right),
+                reasons=reasons,
             )
         )
 

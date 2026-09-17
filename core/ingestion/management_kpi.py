@@ -878,10 +878,6 @@ def _parse_revision_evidence(
         raise ValueError(
             f"{context}.revision cannot assign a target on an unsupported observation"
         )
-    if not evidence.strip():
-        raise ValueError(
-            f"{context}.revision requires nonblank documentary evidence"
-        )
     if source is None:
         raise ValueError(
             f"{context}.revision requires a source bound to the observation document"
@@ -900,6 +896,8 @@ def _parse_revision_evidence(
     }
     if all(self_fields.get(key, "") == value for key, value in named.items()):
         raise ValueError(f"{context}.revision is self-referential")
+    if not evidence.strip():
+        return record, "revision"
     return record, None
 
 

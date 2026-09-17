@@ -919,19 +919,6 @@ def test_blank_or_absent_evidence_does_not_assert_a_role(
                     "source_file": "LULU_FY2022_Annual_Report.pdf",
                     "page_reference": item["source"]["page_reference"],
                 },
-                evidence="",
-            ),
-            "nonblank documentary evidence",
-        ),
-        (
-            lambda item: _attach_revision(
-                item,
-                {
-                    "metric_id": item["metric_id"],
-                    "period": item["period"],
-                    "source_file": "LULU_FY2022_Annual_Report.pdf",
-                    "page_reference": item["source"]["page_reference"],
-                },
                 include_source=False,
             ),
             "source bound to the observation document",
@@ -1028,6 +1015,84 @@ def test_blank_or_absent_evidence_does_not_assert_a_role(
                 },
             ),
             "unexpected fields",
+        ),
+        (
+            lambda item: _attach_revision(
+                item,
+                {
+                    "metric_id": item["metric_id"],
+                    "period": item["period"],
+                    "source_file": "LULU_FY2022_Annual_Report.pdf",
+                    "page_reference": item["source"]["page_reference"],
+                },
+                evidence="",
+                include_source=False,
+            ),
+            "source bound to the observation document",
+        ),
+        (
+            lambda item: _attach_revision(
+                item,
+                {
+                    "metric_id": item["metric_id"],
+                    "period": item["period"],
+                    "source_file": "LULU_FY2022_Annual_Report.pdf",
+                    "page_reference": item["source"]["page_reference"],
+                },
+                evidence=" \t ",
+                source_file="LULU_FY2024_Annual_Report.pdf",
+            ),
+            "not bound to the observation source document",
+        ),
+        (
+            lambda item: _attach_revision(
+                item,
+                {
+                    "metric_id": item["metric_id"],
+                    "period": item["period"],
+                    "source_file": "LULU_FY2023_Annual_Report.pdf",
+                    "page_reference": item["source"]["page_reference"],
+                },
+                evidence="",
+            ),
+            "self-referential",
+        ),
+        (
+            lambda item: (
+                _attach_revision(
+                    item,
+                    {
+                        "metric_id": item["metric_id"],
+                        "period": item["period"],
+                        "source_file": "LULU_FY2022_Annual_Report.pdf",
+                        "page_reference": item["source"]["page_reference"],
+                    },
+                    evidence=None,
+                ),
+                item.__setitem__(
+                    "revises",
+                    {
+                        "metric_id": item["metric_id"],
+                        "period": "2022-01-30",
+                        "source_file": "LULU_FY2022_Annual_Report.pdf",
+                        "page_reference": item["source"]["page_reference"],
+                    },
+                ),
+            ),
+            "contradictory revises",
+        ),
+        (
+            lambda item: _attach_revision(
+                item,
+                {
+                    "metric_id": item["metric_id"],
+                    "period": item["period"],
+                    "source_file": "LULU_FY2022_Annual_Report.pdf",
+                    "page_reference": item["source"]["page_reference"],
+                },
+                evidence="",
+            ),
+            "unsupported observation",
         ),
         (
             lambda item: _attach_revision(
@@ -1279,6 +1344,70 @@ def test_blank_revision_evidence_stays_unresolved(tmp_path: Path, blank: str | N
     assert item["revision_evidence"]["evidence"] == ("" if blank is None else blank)
     assert "revision" in item["unresolved"]
     assert admitted["reconciliation"]["revision_links"] == []
+
+
+def _set_named_revision_evidence(item: dict, blank: object) -> None:
+    revision = item["revision"]
+    if blank is Ellipsis:
+        revision.pop("evidence", None)
+    else:
+        revision["evidence"] = blank
+
+
+@pytest.mark.parametrize(
+    "metric_id",
+    ("comparable_sales_growth", "sales_per_square_foot"),
+)
+@pytest.mark.parametrize("blank", [Ellipsis, None, "", " ", " \t "])
+def test_named_target_blank_evidence_admits_unresolved_revision(
+    tmp_path: Path, metric_id: str, blank: object
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "blank")
+    left = json.loads((dest / MANAGEMENT_NAMES[1]).read_text(encoding="utf-8"))
+    right = json.loads((dest / MANAGEMENT_NAMES[2]).read_text(encoding="utf-8"))
+    target = next(item for item in left["reported_kpis"] if item.get("metric_id") == metric_id)
+    reviser = next(item for item in right["reported_kpis"] if item.get("metric_id") == metric_id)
+    reviser["period"] = target["period"]
+    named = _revision_target(target, left["report"]["source_file"])
+    _attach_revision(
+        reviser,
+        named,
+        source_file=right["report"]["source_file"],
+    )
+    _set_named_revision_evidence(reviser, blank)
+    (dest / MANAGEMENT_NAMES[1]).write_text(json.dumps(left), encoding="utf-8")
+    (dest / MANAGEMENT_NAMES[2]).write_text(json.dumps(right), encoding="utf-8")
+    admitted = reconciliation_management_admission_payload(
+        reconcile_filings(load_and_validate_extracted_dir(dest, source_root=SOURCE))
+    )
+    item = next(
+        row
+        for row in admitted["observations"]
+        if row["kind"] == "reported_kpi"
+        and row["metric_id"] == metric_id
+        and row["filing_year"] == 2024
+    )
+    expected_evidence = "" if blank in {Ellipsis, None} else blank
+    assert item["revision_evidence"]["revises"] == named
+    assert item["revision_evidence"]["evidence"] == expected_evidence
+    assert item["revision_evidence"]["locator"].endswith(".revision")
+    assert item["revision_evidence"]["source"]["page_reference"]
+    assert item["revision_evidence"]["source"]["physical_page_mapping"] == "unresolved"
+    assert item["bound_source_file"] == right["report"]["source_file"]
+    assert "revision" in item["unresolved"]
+    links = admitted["reconciliation"]["revision_links"]
+    assert len(links) == 1
+    link = links[0]
+    assert link["status"] == "unresolved"
+    assert link["named_target"] == named
+    assert link["evidence"] == expected_evidence
+    assert link["source"]["page_reference"]
+    assert link["reviser"]["locator"] == item["locator"]
+    assert link["revised"] is not None
+    assert link["revised"]["locator"] != item["locator"]
+    assert "missing_evidence" in link["reasons"]
+    assert admitted["reconciliation"]["revision_link_counts"]["recognized"] == 0
+    assert all(row["status"] != "recognized" for row in links)
 
 
 def test_missing_and_ambiguous_revision_targets_do_not_select(tmp_path: Path):
