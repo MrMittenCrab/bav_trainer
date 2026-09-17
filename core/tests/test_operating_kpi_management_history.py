@@ -6,11 +6,13 @@ import copy
 import json
 import math
 import shutil
+from dataclasses import replace
 from datetime import date
 
 import pytest
 
 from core.data.historical_operating_kpis import (
+    MANAGEMENT_TEXT_FIELDS,
     UNIT_PERCENT,
     UNIT_USD_PER_SQUARE_FOOT,
     validate_historical_operating_kpi_data,
@@ -61,6 +63,30 @@ DEF_COMPSALES_B = "Temporary comparable-sales definition B after a calendar chan
 DEF_SPSF = "Temporary sales-per-square-foot definition for contract fixtures."
 TICKER = "LULU"
 COMPANY = "Example Co"
+_NON_STRING_TEXT_VALUES = (
+    pytest.param(True, id="true"),
+    pytest.param(False, id="false"),
+    pytest.param(None, id="null"),
+    pytest.param(0, id="zero"),
+    pytest.param(1, id="int"),
+    pytest.param(1.5, id="float"),
+    pytest.param([], id="empty-list"),
+    pytest.param(["LULU"], id="list"),
+    pytest.param({}, id="empty-dict"),
+    pytest.param({"basis": "52_week"}, id="dict"),
+)
+_VALIDATION_MODES = (
+    pytest.param("object", id="object"),
+    pytest.param("default", id="reload-default"),
+    pytest.param("strict-false", id="reload-strict-false"),
+    pytest.param("strict-true", id="reload-strict-true"),
+)
+_REVIEW_PROBES = (
+    pytest.param("definition_text", True, id="boolean-definition-text"),
+    pytest.param("entity_ticker", ["LULU"], id="list-entity-ticker"),
+    pytest.param("calendar_week_adjustment", False, id="boolean-calendar-adjustment"),
+    pytest.param("calendar_reporting_basis", {"basis": "52_week"}, id="dict-calendar-basis"),
+)
 
 
 def _mgmt(
@@ -188,6 +214,53 @@ def _reorder_payload(value):
     return value
 
 
+def _family_item(family: str) -> HistoricalManagementKpiObservation:
+    if family == FAMILY_COMPARABLE_SALES_GROWTH:
+        return _compsales(period=P2026, value=2.0)
+    return _spsf(period=P2026, value=1426)
+
+
+def _from_payload(payload: dict, *, mode: str):
+    if mode == "default":
+        return standardized_from_payload(payload)
+    if mode == "strict-false":
+        return standardized_from_payload(payload, strict=False)
+    if mode == "strict-true":
+        return standardized_from_payload(payload, strict=True)
+    raise AssertionError(f"unsupported reload mode: {mode}")
+
+
+def _assert_rejects_non_string_management_text(
+    family: str,
+    field: str,
+    value: object,
+    mode: str,
+) -> None:
+    item = _family_item(family)
+    if mode == "object":
+        mutated = replace(item, **{field: value})
+        fin = _fin_with_operating_kpis(management=[mutated], extra_periods=[P2026])
+        original = copy.deepcopy(fin.historical_operating_kpis)
+        with pytest.raises(ValueError, match="must be a string"):
+            validate_historical_operating_kpis(fin)
+        assert fin.historical_operating_kpis == original
+        with pytest.raises(ValueError, match="must be a string"):
+            validate_historical_operating_kpi_data(
+                fin.historical_operating_kpis,
+                model_periods=fin.period_dates(),
+            )
+        assert fin.historical_operating_kpis == original
+        return
+    payload = standardized_to_payload(
+        _fin_with_operating_kpis(management=[item], extra_periods=[P2026])
+    )
+    payload["historical_operating_kpis"]["management_observations"][0][field] = value
+    frozen = copy.deepcopy(payload)
+    with pytest.raises(ValueError):
+        _from_payload(payload, mode=mode)
+    assert payload == frozen
+
+
 def _assert_export_reload_export(fin) -> dict:
     first = standardized_to_payload(fin)
     restored = standardized_from_payload(copy.deepcopy(first))
@@ -297,6 +370,14 @@ def test_both_family_round_trip_preserves_identity_and_discontinuities():
     assert all(row["unit"] == UNIT_PERCENT for row in rows if row["family"] == FAMILY_COMPARABLE_SALES_GROWTH)
 
 
+def test_both_family_reload_modes_preserve_valid_histories():
+    fin = _both_family_fin()
+    payload = standardized_to_payload(fin)
+    for mode in ("default", "strict-false", "strict-true"):
+        restored = _from_payload(copy.deepcopy(payload), mode=mode)
+        assert standardized_to_payload(restored) == payload
+
+
 def test_reordered_collections_and_identity_fields_are_canonical():
     fin = _both_family_fin()
     fin.historical_operating_kpis.management_observations = list(
@@ -377,6 +458,129 @@ def test_malformed_serialized_management_histories_fail_closed(mutate, match):
     with pytest.raises(ValueError, match=match):
         standardized_from_payload(payload)
     assert payload == frozen
+
+
+@pytest.mark.parametrize(
+    "family",
+    [FAMILY_COMPARABLE_SALES_GROWTH, FAMILY_SALES_PER_SQUARE_FOOT],
+    ids=["compsales", "spsf"],
+)
+@pytest.mark.parametrize("field", MANAGEMENT_TEXT_FIELDS)
+@pytest.mark.parametrize("value", _NON_STRING_TEXT_VALUES)
+@pytest.mark.parametrize("mode", _VALIDATION_MODES)
+def test_non_string_management_text_fails_closed(family, field, value, mode):
+    _assert_rejects_non_string_management_text(family, field, value, mode)
+
+
+@pytest.mark.parametrize(
+    "family",
+    [FAMILY_COMPARABLE_SALES_GROWTH, FAMILY_SALES_PER_SQUARE_FOOT],
+    ids=["compsales", "spsf"],
+)
+@pytest.mark.parametrize("field,value", _REVIEW_PROBES)
+@pytest.mark.parametrize("mode", _VALIDATION_MODES)
+def test_review_probes_reject_malformed_management_text(family, field, value, mode):
+    _assert_rejects_non_string_management_text(family, field, value, mode)
+
+
+@pytest.mark.parametrize("field,value", _REVIEW_PROBES)
+def test_review_probes_reject_on_both_family_default_reload(field, value):
+    payload = standardized_to_payload(_both_family_fin())
+    payload["historical_operating_kpis"]["management_observations"][0][field] = value
+    frozen = copy.deepcopy(payload)
+    with pytest.raises(ValueError):
+        standardized_from_payload(payload)
+    assert payload == frozen
+    with pytest.raises(ValueError):
+        standardized_from_payload(payload, strict=False)
+    assert payload == frozen
+    with pytest.raises(ValueError):
+        standardized_from_payload(payload, strict=True)
+    assert payload == frozen
+
+
+def test_legitimate_empty_optional_management_text_is_preserved():
+    fin = _fin_with_operating_kpis(
+        management=[
+            _compsales(
+                period=P2026,
+                value=2.0,
+                geography="",
+                population=POP_COMPANY_OPERATED_STORES,
+                calendar_week_adjustment="",
+                calendar_reporting_basis="",
+            ),
+            _spsf(
+                period=P2026,
+                value=1426,
+                calendar_week_adjustment="",
+                calendar_reporting_basis="",
+            ),
+        ],
+        extra_periods=[P2026],
+    )
+    payload = _assert_export_reload_export(fin)
+    rows = payload["historical_operating_kpis"]["management_observations"]
+    compsales = next(
+        row for row in rows if row["family"] == FAMILY_COMPARABLE_SALES_GROWTH
+    )
+    spsf = next(row for row in rows if row["family"] == FAMILY_SALES_PER_SQUARE_FOOT)
+    assert compsales["geography"] == ""
+    assert compsales["calendar_week_adjustment"] == ""
+    assert compsales["calendar_reporting_basis"] == ""
+    assert spsf["geography"] == ""
+    assert spsf["comparison"] == ""
+    assert spsf["calendar_week_adjustment"] == ""
+    assert spsf["calendar_reporting_basis"] == ""
+    assert compsales["definition_text"] == DEF_COMPSALES_A
+    assert spsf["definition_text"] == DEF_SPSF
+    assert compsales["period_kind"] == "date"
+    assert spsf["qualifiers"] == {}
+
+
+def test_malformed_management_qualifiers_fail_closed():
+    item = _compsales(period=P2026, value=2.0)
+    original_item = copy.deepcopy(item)
+    fin = _fin_with_operating_kpis(
+        management=[replace(item, qualifiers=["note"])],
+        extra_periods=[P2026],
+    )
+    original = copy.deepcopy(fin.historical_operating_kpis)
+    with pytest.raises(ValueError, match="qualifiers must be an object"):
+        validate_historical_operating_kpis(fin)
+    assert fin.historical_operating_kpis == original
+    assert item == original_item
+
+    keyed = replace(item, qualifiers={"": "blank"})
+    fin = _fin_with_operating_kpis(management=[keyed], extra_periods=[P2026])
+    original = copy.deepcopy(fin.historical_operating_kpis)
+    with pytest.raises(ValueError, match="qualifier keys must be strings"):
+        validate_historical_operating_kpis(fin)
+    assert fin.historical_operating_kpis == original
+
+    valued = replace(item, qualifiers={"note": False})
+    fin = _fin_with_operating_kpis(management=[valued], extra_periods=[P2026])
+    original = copy.deepcopy(fin.historical_operating_kpis)
+    with pytest.raises(ValueError, match="must be a string"):
+        validate_historical_operating_kpis(fin)
+    assert fin.historical_operating_kpis == original
+
+    payload = standardized_to_payload(
+        _fin_with_operating_kpis(management=[item], extra_periods=[P2026])
+    )
+    for mutation, match in (
+        (["note"], "qualifiers must be an object"),
+        ({1: "x"}, "qualifier keys must be strings"),
+        ({"note": False}, "must be a string"),
+    ):
+        mutated = copy.deepcopy(payload)
+        mutated["historical_operating_kpis"]["management_observations"][0]["qualifiers"] = (
+            mutation
+        )
+        frozen = copy.deepcopy(mutated)
+        with pytest.raises(ValueError, match=match):
+            standardized_from_payload(mutated)
+        assert mutated == frozen
 
 
 def test_negative_spsf_and_invalid_types_fail_closed():

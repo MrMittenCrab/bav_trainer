@@ -11,6 +11,7 @@ from typing import Any, get_args, get_origin, get_type_hints
 from .historical_operating_kpis import (
     MANAGEMENT_IDENTITY_FIELDS,
     management_identity_fields,
+    require_management_observation_text_fields,
     validate_historical_operating_kpis,
 )
 from .historical_segments import validate_historical_segment
@@ -376,24 +377,25 @@ def _deserialize_management_observation(
             "historical_operating_kpis.management_observations missing field(s): "
             + ", ".join(sorted(missing))
         )
+    texts = require_management_observation_text_fields(entry)
     return HistoricalManagementKpiObservation(
-        family=str(entry.get("family") or ""),
-        entity_ticker=str(entry.get("entity_ticker") or ""),
-        entity_company=str(entry.get("entity_company") or ""),
-        geography=str(entry.get("geography") or ""),
-        population=str(entry.get("population") or ""),
-        unit=str(entry.get("unit") or ""),
-        basis=str(entry.get("basis") or ""),
-        comparison=str(entry.get("comparison") or ""),
+        family=texts["family"],
+        entity_ticker=texts["entity_ticker"],
+        entity_company=texts["entity_company"],
+        geography=texts["geography"],
+        population=texts["population"],
+        unit=texts["unit"],
+        basis=texts["basis"],
+        comparison=texts["comparison"],
         period=_parse_kpi_period(entry["period"]),
         value=entry["value"],
-        definition_text=str(entry.get("definition_text") or ""),
-        period_kind=str(entry.get("period_kind") or ""),
-        calendar_week_adjustment=str(entry.get("calendar_week_adjustment") or ""),
-        calendar_reporting_basis=str(entry.get("calendar_reporting_basis") or ""),
+        definition_text=texts["definition_text"],
+        period_kind=texts["period_kind"],
+        calendar_week_adjustment=texts["calendar_week_adjustment"],
+        calendar_reporting_basis=texts["calendar_reporting_basis"],
         qualifiers=_deserialize_management_qualifiers(
             entry.get("qualifiers"),
-            identity=str(entry.get("family") or "management"),
+            identity=texts["family"] or "management",
         ),
     )
 

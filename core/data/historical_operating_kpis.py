@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from datetime import date
-from typing import Iterable
+from typing import Iterable, Mapping
 
 from ..ingestion.management_kpi_identity import (
     FAMILY_COMPARABLE_SALES_GROWTH,
@@ -77,6 +77,10 @@ _OPTIONAL_EMPTY_MANAGEMENT_TEXT_FIELDS = (
     "comparison",
     "calendar_week_adjustment",
     "calendar_reporting_basis",
+)
+MANAGEMENT_TEXT_FIELDS = (
+    *_REQUIRED_MANAGEMENT_TEXT_FIELDS,
+    *_OPTIONAL_EMPTY_MANAGEMENT_TEXT_FIELDS,
 )
 
 
@@ -172,6 +176,22 @@ def _require_management_text(
     return value
 
 
+def require_management_observation_text_fields(
+    values: Mapping[str, object],
+) -> dict[str, str]:
+    """Reject non-string management text before any observation construction."""
+    family = values.get("family")
+    identity = family if isinstance(family, str) and family.strip() else "management"
+    texts: dict[str, str] = {}
+    for field in _REQUIRED_MANAGEMENT_TEXT_FIELDS:
+        texts[field] = _require_management_text(identity, field, values[field])
+    for field in _OPTIONAL_EMPTY_MANAGEMENT_TEXT_FIELDS:
+        texts[field] = _require_management_text(
+            identity, field, values[field], allow_empty=True
+        )
+    return texts
+
+
 def _require_management_number(identity: str, value: object) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"operating-KPI {identity} has a non-numeric value")
@@ -255,13 +275,9 @@ def _validate_management_observation(
             "historical_operating_kpis.management_observations entries must be "
             "management-KPI observations"
         )
-    identity = item.family if isinstance(item.family, str) and item.family else "management"
-    for field in _REQUIRED_MANAGEMENT_TEXT_FIELDS:
-        _require_management_text(identity, field, getattr(item, field))
-    for field in _OPTIONAL_EMPTY_MANAGEMENT_TEXT_FIELDS:
-        _require_management_text(
-            identity, field, getattr(item, field), allow_empty=True
-        )
+    require_management_observation_text_fields(
+        {field: getattr(item, field) for field in MANAGEMENT_TEXT_FIELDS}
+    )
     if item.family not in SUPPORTED_FAMILIES:
         raise ValueError(f"unsupported management-KPI family: {item.family!r}")
     identity = item.family
