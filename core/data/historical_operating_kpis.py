@@ -6,8 +6,16 @@ import math
 from datetime import date
 from typing import Iterable
 
+from ..ingestion.management_kpi_identity import (
+    FAMILY_COMPARABLE_SALES_GROWTH,
+    FAMILY_SALES_PER_SQUARE_FOOT,
+    SUPPORTED_FAMILIES,
+    SUPPORTED_METRIC_MAPPINGS,
+    encode_metric_identity,
+)
 from .filing import PresentationRole, SupplementalFact
 from .interface import (
+    HistoricalManagementKpiObservation,
     HistoricalOperatingKpiData,
     HistoricalOperatingKpiObservation,
     StandardizedFinancials,
@@ -25,6 +33,51 @@ ALLOWED_POPULATIONS = frozenset({POPULATION_COMPANY_OPERATED})
 ALLOWED_UNITS = frozenset({"stores", "ones"})
 ALLOWED_FACT_TYPES = frozenset({STORE_COUNT_FACT_TYPE})
 _VALID_ROLES = {role.value for role in PresentationRole}
+
+MANAGEMENT_IDENTITY_FIELDS = (
+    "family",
+    "entity_ticker",
+    "entity_company",
+    "geography",
+    "population",
+    "unit",
+    "basis",
+    "comparison",
+)
+MANAGEMENT_PERIOD_KIND_DATE = "date"
+UNIT_PERCENT = "percent"
+UNIT_USD_PER_SQUARE_FOOT = "USD_per_square_foot"
+FAMILY_UNITS = {
+    FAMILY_COMPARABLE_SALES_GROWTH: UNIT_PERCENT,
+    FAMILY_SALES_PER_SQUARE_FOOT: UNIT_USD_PER_SQUARE_FOOT,
+}
+SUPPORTED_MANAGEMENT_IDENTITY_KEYS = frozenset(
+    (
+        mapping.family,
+        mapping.geography,
+        mapping.population,
+        mapping.unit,
+        mapping.basis,
+        mapping.comparison,
+    )
+    for mapping in SUPPORTED_METRIC_MAPPINGS.values()
+)
+_REQUIRED_MANAGEMENT_TEXT_FIELDS = (
+    "family",
+    "entity_ticker",
+    "entity_company",
+    "population",
+    "unit",
+    "basis",
+    "definition_text",
+    "period_kind",
+)
+_OPTIONAL_EMPTY_MANAGEMENT_TEXT_FIELDS = (
+    "geography",
+    "comparison",
+    "calendar_week_adjustment",
+    "calendar_reporting_basis",
+)
 
 
 def is_operating_kpi_fact_type(fact_type: str) -> bool:
@@ -105,17 +158,64 @@ def validate_operating_kpi_fact(fact: SupplementalFact) -> tuple[str, str]:
     return metric, population
 
 
-def validate_historical_operating_kpi_data(
-    data: HistoricalOperatingKpiData,
+def _require_management_text(
+    identity: str,
+    field: str,
+    value: object,
     *,
-    model_periods: Iterable[date],
+    allow_empty: bool = False,
+) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"operating-KPI {identity} {field} must be a string")
+    if not allow_empty and not value.strip():
+        raise ValueError(f"operating-KPI {identity} missing {field}")
+    return value
+
+
+def _require_management_number(identity: str, value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"operating-KPI {identity} has a non-numeric value")
+    amount = float(value)
+    if not math.isfinite(amount):
+        raise ValueError(f"operating-KPI {identity} has a non-finite value")
+    return amount
+
+
+def management_identity_fields(
+    item: HistoricalManagementKpiObservation,
+) -> dict[str, str]:
+    return {
+        "family": item.family,
+        "entity_ticker": item.entity_ticker,
+        "entity_company": item.entity_company,
+        "geography": item.geography,
+        "population": item.population,
+        "unit": item.unit,
+        "basis": item.basis,
+        "comparison": item.comparison,
+    }
+
+
+def management_identity_key(
+    item: HistoricalManagementKpiObservation,
+) -> tuple[str, date]:
+    return encode_metric_identity(management_identity_fields(item)), item.period
+
+
+def has_store_count_observations(data: HistoricalOperatingKpiData) -> bool:
+    return any(
+        item.metric == METRIC_STORE_COUNT
+        and item.population == POPULATION_COMPANY_OPERATED
+        for item in data.observations
+    )
+
+
+def _validate_store_observations(
+    observations: list[HistoricalOperatingKpiObservation],
+    axis: set[date],
 ) -> None:
-    """Reject malformed supplied KPI payloads; absence is handled by callers."""
-    if not isinstance(data.observations, list) or not data.observations:
-        raise ValueError("historical_operating_kpis.observations must be a non-empty list")
-    axis = set(model_periods)
     seen: set[tuple[str, str, date]] = set()
-    for item in data.observations:
+    for item in observations:
         if not isinstance(item, HistoricalOperatingKpiObservation):
             raise ValueError(
                 "historical_operating_kpis.observations entries must be KPI observations"
@@ -142,6 +242,107 @@ def validate_historical_operating_kpi_data(
         identity = f"{KPI_NAMESPACE}.{item.metric}.{item.population}"
         require_count_value(identity, item.value)
         require_kpi_unit(identity, item.unit)
+
+
+def _validate_management_observation(
+    item: HistoricalManagementKpiObservation,
+    *,
+    axis: set[date],
+    seen: set[tuple[str, date]],
+) -> None:
+    if not isinstance(item, HistoricalManagementKpiObservation):
+        raise ValueError(
+            "historical_operating_kpis.management_observations entries must be "
+            "management-KPI observations"
+        )
+    identity = item.family if isinstance(item.family, str) and item.family else "management"
+    for field in _REQUIRED_MANAGEMENT_TEXT_FIELDS:
+        _require_management_text(identity, field, getattr(item, field))
+    for field in _OPTIONAL_EMPTY_MANAGEMENT_TEXT_FIELDS:
+        _require_management_text(
+            identity, field, getattr(item, field), allow_empty=True
+        )
+    if item.family not in SUPPORTED_FAMILIES:
+        raise ValueError(f"unsupported management-KPI family: {item.family!r}")
+    identity = item.family
+    expected_unit = FAMILY_UNITS[item.family]
+    if item.unit != expected_unit:
+        raise ValueError(
+            f"operating-KPI {identity} has unsupported unit: {item.unit!r}"
+        )
+    combo = (
+        item.family,
+        item.geography,
+        item.population,
+        item.unit,
+        item.basis,
+        item.comparison,
+    )
+    if combo not in SUPPORTED_MANAGEMENT_IDENTITY_KEYS:
+        raise ValueError(
+            f"inconsistent management-KPI identity fields for {identity}"
+        )
+    if item.period_kind != MANAGEMENT_PERIOD_KIND_DATE:
+        raise ValueError(
+            f"operating-KPI {identity} period_kind must be {MANAGEMENT_PERIOD_KIND_DATE!r}"
+        )
+    if not isinstance(item.period, date):
+        raise ValueError("historical_operating_kpis period must be a date")
+    if item.period not in axis:
+        raise ValueError(
+            f"operating-KPI period {item.period.isoformat()} is outside the model axis"
+        )
+    amount = _require_management_number(identity, item.value)
+    if item.family == FAMILY_SALES_PER_SQUARE_FOOT and amount < 0:
+        raise ValueError(
+            f"operating-KPI {identity} must be a non-negative {UNIT_USD_PER_SQUARE_FOOT} value"
+        )
+    if not isinstance(item.qualifiers, dict):
+        raise ValueError(f"operating-KPI {identity} qualifiers must be an object")
+    for key, value in item.qualifiers.items():
+        if not isinstance(key, str) or not key:
+            raise ValueError(f"operating-KPI {identity} qualifier keys must be strings")
+        if not isinstance(value, str):
+            raise ValueError(
+                f"operating-KPI {identity} qualifier {key!r} must be a string"
+            )
+    key = management_identity_key(item)
+    if key in seen:
+        raise ValueError(
+            "duplicate management-KPI identity-period "
+            f"{key[0]} for {item.period.isoformat()}"
+        )
+    seen.add(key)
+
+
+def _validate_management_observations(
+    observations: list[HistoricalManagementKpiObservation],
+    axis: set[date],
+) -> None:
+    seen: set[tuple[str, date]] = set()
+    for item in observations:
+        _validate_management_observation(item, axis=axis, seen=seen)
+
+
+def validate_historical_operating_kpi_data(
+    data: HistoricalOperatingKpiData,
+    *,
+    model_periods: Iterable[date],
+) -> None:
+    """Reject malformed supplied KPI payloads; absence is handled by callers."""
+    if not isinstance(data.observations, list):
+        raise ValueError("historical_operating_kpis.observations must be a list")
+    if not isinstance(data.management_observations, list):
+        raise ValueError(
+            "historical_operating_kpis.management_observations must be a list"
+        )
+    if not data.observations and not data.management_observations:
+        raise ValueError(
+            "historical_operating_kpis must contain at least one observation"
+        )
+    axis = set(model_periods)
+    _validate_store_observations(data.observations, axis)
+    _validate_management_observations(data.management_observations, axis)
 
 
 def validate_historical_operating_kpis(fin: StandardizedFinancials) -> None:

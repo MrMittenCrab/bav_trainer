@@ -28,6 +28,7 @@ from datetime import date
 from ..data.historical_operating_kpis import (
     METRIC_STORE_COUNT,
     POPULATION_COMPANY_OPERATED,
+    has_store_count_observations,
     validate_historical_operating_kpis,
 )
 from ..data.interface import HistoricalOperatingKpiObservation, StandardizedFinancials
@@ -52,8 +53,9 @@ class OperatingKpiSeries:
 
 
 def operating_kpi_applicable(financials: StandardizedFinancials) -> bool:
-    """Module is present only when a historical_operating_kpis payload is supplied."""
-    return financials.historical_operating_kpis is not None
+    """Module is present only when store-count observations are supplied."""
+    data = financials.historical_operating_kpis
+    return data is not None and has_store_count_observations(data)
 
 
 def _store_observation_index(

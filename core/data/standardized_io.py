@@ -8,11 +8,16 @@ import math
 from types import UnionType
 from typing import Any, get_args, get_origin, get_type_hints
 
-from .historical_operating_kpis import validate_historical_operating_kpis
+from .historical_operating_kpis import (
+    MANAGEMENT_IDENTITY_FIELDS,
+    management_identity_fields,
+    validate_historical_operating_kpis,
+)
 from .historical_segments import validate_historical_segment
 from .interface import (
     FinancialPeriod,
     HistoricalLeaseData,
+    HistoricalManagementKpiObservation,
     HistoricalOperatingKpiData,
     HistoricalOperatingKpiObservation,
     HistoricalSegmentData,
@@ -226,18 +231,70 @@ def _deserialize_historical_segment_period(entry: object) -> HistoricalSegmentPe
     )
 
 
+_KPI_PAYLOAD_KEYS = frozenset({"observations", "management_observations"})
+_MANAGEMENT_OBSERVATION_KEYS = frozenset(
+    (
+        *MANAGEMENT_IDENTITY_FIELDS,
+        "period",
+        "value",
+        "definition_text",
+        "period_kind",
+        "calendar_week_adjustment",
+        "calendar_reporting_basis",
+        "qualifiers",
+    )
+)
+
+
+def _json_number(value: object) -> int | float:
+    amount = float(value)
+    return int(amount) if amount.is_integer() else amount
+
+
+def _serialize_management_qualifiers(qualifiers: dict[str, str]) -> dict[str, str]:
+    return {str(key): str(value) for key, value in sorted(qualifiers.items())}
+
+
+def _serialize_management_observation(
+    item: HistoricalManagementKpiObservation,
+) -> dict[str, Any]:
+    fields = management_identity_fields(item)
+    payload: dict[str, Any] = {key: fields[key] for key in MANAGEMENT_IDENTITY_FIELDS}
+    payload.update(
+        {
+            "period": _date_key(item.period),
+            "value": _json_number(item.value),
+            "definition_text": item.definition_text,
+            "period_kind": item.period_kind,
+            "calendar_week_adjustment": item.calendar_week_adjustment,
+            "calendar_reporting_basis": item.calendar_reporting_basis,
+            "qualifiers": _serialize_management_qualifiers(item.qualifiers),
+        }
+    )
+    return payload
+
+
+def _management_sort_key(
+    item: HistoricalManagementKpiObservation,
+) -> tuple[str, ...]:
+    fields = management_identity_fields(item)
+    return tuple(fields[key] for key in MANAGEMENT_IDENTITY_FIELDS) + (
+        _date_key(item.period),
+    )
+
+
 def _serialize_historical_operating_kpis(
     data: HistoricalOperatingKpiData | None,
 ) -> dict[str, Any] | None:
     if data is None:
         return None
-    return {
+    payload: dict[str, Any] = {
         "observations": [
             {
                 "metric": item.metric,
                 "population": item.population,
                 "period": _date_key(item.period),
-                "value": float(item.value) if not float(item.value).is_integer() else int(item.value),
+                "value": _json_number(item.value),
                 "unit": item.unit,
             }
             for item in sorted(
@@ -246,6 +303,12 @@ def _serialize_historical_operating_kpis(
             )
         ]
     }
+    if data.management_observations:
+        payload["management_observations"] = [
+            _serialize_management_observation(item)
+            for item in sorted(data.management_observations, key=_management_sort_key)
+        ]
+    return payload
 
 
 def _deserialize_historical_operating_kpi_observation(
@@ -272,6 +335,78 @@ def _deserialize_historical_operating_kpi_observation(
     )
 
 
+def _deserialize_management_qualifiers(payload: object, *, identity: str) -> dict[str, str]:
+    if not isinstance(payload, dict):
+        raise ValueError(
+            f"historical_operating_kpis.management_observations {identity} "
+            "qualifiers must be an object"
+        )
+    qualifiers: dict[str, str] = {}
+    for key, value in payload.items():
+        if not isinstance(key, str) or not key:
+            raise ValueError(
+                "historical_operating_kpis.management_observations qualifier keys "
+                "must be strings"
+            )
+        if not isinstance(value, str):
+            raise ValueError(
+                "historical_operating_kpis.management_observations qualifier "
+                f"{key!r} must be a string"
+            )
+        qualifiers[key] = value
+    return qualifiers
+
+
+def _deserialize_management_observation(
+    entry: object,
+) -> HistoricalManagementKpiObservation:
+    if not isinstance(entry, dict):
+        raise ValueError(
+            "historical_operating_kpis.management_observations entries must be objects"
+        )
+    unknown = entry.keys() - _MANAGEMENT_OBSERVATION_KEYS
+    if unknown:
+        raise ValueError(
+            "historical_operating_kpis.management_observations unsupported field(s): "
+            + ", ".join(sorted(unknown))
+        )
+    missing = _MANAGEMENT_OBSERVATION_KEYS - entry.keys()
+    if missing:
+        raise ValueError(
+            "historical_operating_kpis.management_observations missing field(s): "
+            + ", ".join(sorted(missing))
+        )
+    return HistoricalManagementKpiObservation(
+        family=str(entry.get("family") or ""),
+        entity_ticker=str(entry.get("entity_ticker") or ""),
+        entity_company=str(entry.get("entity_company") or ""),
+        geography=str(entry.get("geography") or ""),
+        population=str(entry.get("population") or ""),
+        unit=str(entry.get("unit") or ""),
+        basis=str(entry.get("basis") or ""),
+        comparison=str(entry.get("comparison") or ""),
+        period=_parse_kpi_period(entry["period"]),
+        value=entry["value"],
+        definition_text=str(entry.get("definition_text") or ""),
+        period_kind=str(entry.get("period_kind") or ""),
+        calendar_week_adjustment=str(entry.get("calendar_week_adjustment") or ""),
+        calendar_reporting_basis=str(entry.get("calendar_reporting_basis") or ""),
+        qualifiers=_deserialize_management_qualifiers(
+            entry.get("qualifiers"),
+            identity=str(entry.get("family") or "management"),
+        ),
+    )
+
+
+def _deserialize_observation_list(payload: dict[str, Any], *, field: str) -> list:
+    if field not in payload:
+        return []
+    raw = payload[field]
+    if not isinstance(raw, list):
+        raise ValueError(f"historical_operating_kpis.{field} must be a list")
+    return raw
+
+
 def _deserialize_historical_operating_kpis(
     payload: object,
 ) -> HistoricalOperatingKpiData | None:
@@ -279,13 +414,21 @@ def _deserialize_historical_operating_kpis(
         return None
     if not isinstance(payload, dict):
         raise ValueError("historical_operating_kpis must be an object or null")
-    raw_obs = payload.get("observations")
-    if not isinstance(raw_obs, list):
-        raise ValueError("historical_operating_kpis.observations must be a list")
+    unknown = payload.keys() - _KPI_PAYLOAD_KEYS
+    if unknown:
+        raise ValueError(
+            "historical_operating_kpis: unsupported field(s): "
+            + ", ".join(sorted(unknown))
+        )
+    raw_obs = _deserialize_observation_list(payload, field="observations")
+    raw_mgmt = _deserialize_observation_list(payload, field="management_observations")
     return HistoricalOperatingKpiData(
         observations=[
             _deserialize_historical_operating_kpi_observation(entry) for entry in raw_obs
-        ]
+        ],
+        management_observations=[
+            _deserialize_management_observation(entry) for entry in raw_mgmt
+        ],
     )
 
 

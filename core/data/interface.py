@@ -99,10 +99,34 @@ class HistoricalOperatingKpiObservation:
 
 
 @dataclass
+class HistoricalManagementKpiObservation:
+    """One validated model-facing management-KPI history observation."""
+
+    family: str
+    entity_ticker: str
+    entity_company: str
+    geography: str
+    population: str
+    unit: str
+    basis: str
+    comparison: str
+    period: date
+    value: float
+    definition_text: str
+    period_kind: str
+    calendar_week_adjustment: str
+    calendar_reporting_basis: str
+    qualifiers: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
 class HistoricalOperatingKpiData:
     """Optional historical operating-KPI inputs used by later analysis."""
 
     observations: list[HistoricalOperatingKpiObservation] = field(default_factory=list)
+    management_observations: list[HistoricalManagementKpiObservation] = field(
+        default_factory=list
+    )
 
 
 @dataclass

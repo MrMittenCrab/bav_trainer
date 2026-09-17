@@ -21,6 +21,7 @@ from core.data.historical_operating_kpis import (
 )
 from core.data.interface import (
     FinancialPeriod,
+    HistoricalManagementKpiObservation,
     HistoricalOperatingKpiData,
     HistoricalOperatingKpiObservation,
     StandardizedFinancials,
@@ -210,12 +211,24 @@ def _fin_with_operating_kpis(
     extra_periods: list[date] | None = None,
     units: str = "USD in Thousands",
     include_payload: bool = True,
+    management: list[HistoricalManagementKpiObservation] | None = None,
 ) -> StandardizedFinancials:
-    dates = extra_periods if extra_periods is not None else [item.period for item in observations]
+    if extra_periods is not None:
+        dates = extra_periods
+    else:
+        dates = []
+        seen: set[date] = set()
+        for item in (*observations, *(management or ())):
+            if item.period not in seen:
+                dates.append(item.period)
+                seen.add(item.period)
     if not dates:
         dates = [date(2025, 12, 31)]
     payload = (
-        HistoricalOperatingKpiData(observations=list(observations))
+        HistoricalOperatingKpiData(
+            observations=list(observations),
+            management_observations=list(management or ()),
+        )
         if include_payload
         else None
     )

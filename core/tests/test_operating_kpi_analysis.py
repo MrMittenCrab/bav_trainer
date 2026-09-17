@@ -12,8 +12,17 @@ import pytest
 from core.data.historical_operating_kpis import (
     METRIC_STORE_COUNT,
     POPULATION_COMPANY_OPERATED,
+    UNIT_PERCENT,
+    UNIT_USD_PER_SQUARE_FOOT,
 )
+from core.data.interface import HistoricalManagementKpiObservation
 from core.data.standardized_io import standardized_from_payload, standardized_to_payload
+from core.ingestion.management_kpi_identity import (
+    FAMILY_COMPARABLE_SALES_GROWTH,
+    FAMILY_SALES_PER_SQUARE_FOOT,
+    POP_COMPANY_OPERATED_STORES,
+    POP_STORES_AND_ECOMMERCE,
+)
 from core.ingestion.filing_reconciler import reconcile_filings
 from core.ingestion.filing_standardizer import (
     reconciliation_provenance_payload,
@@ -402,3 +411,105 @@ def test_source_grounded_reload_matches_independent_count_arithmetic(tmp_path: P
         )
 
     assert series_by_order[0] == series_by_order[1]
+
+
+def _analysis_management_obs(
+    *,
+    family: str,
+    period: date,
+    value: float,
+    geography: str = "",
+    population: str = "",
+    unit: str = "",
+    basis: str = "reported",
+    comparison: str = "",
+) -> HistoricalManagementKpiObservation:
+    if family == FAMILY_COMPARABLE_SALES_GROWTH:
+        unit = unit or UNIT_PERCENT
+        comparison = comparison or "year_over_year"
+        population = population or POP_STORES_AND_ECOMMERCE
+        geography = geography or "global"
+    else:
+        unit = unit or UNIT_USD_PER_SQUARE_FOOT
+        population = population or POP_COMPANY_OPERATED_STORES
+    return HistoricalManagementKpiObservation(
+        family=family,
+        entity_ticker="LULU",
+        entity_company="Example Co",
+        geography=geography,
+        population=population,
+        unit=unit,
+        basis=basis,
+        comparison=comparison,
+        period=period,
+        value=value,
+        definition_text="Temporary analysis-fixture definition.",
+        period_kind="date",
+        calendar_week_adjustment="included",
+        calendar_reporting_basis="52_week",
+        qualifiers={},
+    )
+
+
+def test_management_only_histories_do_not_activate_store_module():
+    fin = _fin_with_operating_kpis(
+        management=[
+            _analysis_management_obs(
+                family=FAMILY_COMPARABLE_SALES_GROWTH,
+                period=P2,
+                value=2.0,
+            ),
+            _analysis_management_obs(
+                family=FAMILY_SALES_PER_SQUARE_FOOT,
+                period=P2,
+                value=1426,
+            ),
+        ],
+        extra_periods=[P1, P2],
+    )
+    assert operating_kpi_applicable(fin) is False
+    with pytest.raises(MissingLineError, match="operating KPI sources not available"):
+        compute_operating_kpi_series(fin)
+    payload = standardized_to_payload(fin)
+    assert payload["historical_operating_kpis"]["observations"] == []
+    assert "management_observations" in payload["historical_operating_kpis"]
+
+
+def test_mixed_histories_preserve_store_growth_within_tolerance():
+    stores = (
+        _kpi_model_observation(P0, 655),
+        _kpi_model_observation(P1, 711),
+        _kpi_model_observation(P2, 767),
+    )
+    store_only = _fin_with_operating_kpis(*stores, extra_periods=[P0, P1, P2])
+    mixed = _fin_with_operating_kpis(
+        *stores,
+        management=[
+            _analysis_management_obs(
+                family=FAMILY_COMPARABLE_SALES_GROWTH,
+                period=P2,
+                value=-3.0,
+            ),
+            _analysis_management_obs(
+                family=FAMILY_SALES_PER_SQUARE_FOOT,
+                period=P2,
+                value=0,
+            ),
+        ],
+        extra_periods=[P0, P1, P2],
+    )
+    left = compute_operating_kpi_series(store_only)
+    right = compute_operating_kpi_series(mixed)
+    expected = _independent_from_counts([P0, P1, P2], {P0: 655, P1: 711, P2: 767})
+    _assert_series_matches(left, expected)
+    _assert_series_matches(right, expected)
+    for period in (P0, P1, P2):
+        growth_left = left.growth[period]
+        growth_right = right.growth[period]
+        if isinstance(growth_left, float) and isinstance(growth_right, float):
+            assert abs(growth_left - growth_right) <= OPERATING_KPI_RATIO_TOLERANCE
+        else:
+            assert growth_left == growth_right
+    restored = standardized_from_payload(standardized_to_payload(mixed))
+    reloaded = compute_operating_kpi_series(restored)
+    _assert_series_matches(reloaded, expected)
