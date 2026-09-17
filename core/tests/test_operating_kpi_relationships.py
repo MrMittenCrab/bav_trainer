@@ -46,16 +46,23 @@ from core.model.operating_kpi_relationships import (
     OPERATING_KPI_RELATIONSHIP_TOLERANCE,
     REASON_MISSING_COMPARABLE_SALES,
     REASON_MISSING_PRIOR_REVENUE,
+    REASON_MISSING_PRIOR_SALES_PER_SQUARE_FOOT,
     REASON_MISSING_PRIOR_STORE_COUNT,
     REASON_MISSING_REVENUE,
+    REASON_MISSING_SALES_PER_SQUARE_FOOT,
     REASON_MISSING_STORE_COUNT,
     REVENUE_GROWTH_KIND,
     REVENUE_INPUT_LABEL,
+    SALES_PER_SQUARE_FOOT_INPUT_LABEL,
+    SALES_PER_SQUARE_FOOT_KIND,
+    SALES_PER_SQUARE_FOOT_REVENUE_SCOPE_NOTE,
     SCOPE_NOTE,
     STORE_COUNT_INPUT_LABEL,
     compute_operating_kpi_revenue_comparable_sales_relationship,
+    compute_operating_kpi_revenue_sales_per_square_foot_relationship,
     compute_operating_kpi_revenue_store_relationship,
     operating_kpi_revenue_comparable_sales_relationship_applicable,
+    operating_kpi_revenue_sales_per_square_foot_relationship_applicable,
     operating_kpi_revenue_store_relationship_applicable,
 )
 from core.model.period_axis import PeriodAxisError, canonical_fiscal_periods
@@ -1537,3 +1544,386 @@ def test_augmented_selected_mixed_preserves_store_relationship(tmp_path: Path):
     restored = standardized_from_payload(standardized_to_payload(fin))
     assert compute_operating_kpi_revenue_comparable_sales_relationship(restored) == result
     assert compute_operating_kpi_revenue_store_relationship(restored) == store
+
+
+def _assert_spsf_relationship_meta(result) -> None:
+    assert result.revenue_input_label == REVENUE_INPUT_LABEL
+    assert result.sales_per_square_foot_input_label == SALES_PER_SQUARE_FOOT_INPUT_LABEL
+    assert result.revenue_growth_kind == REVENUE_GROWTH_KIND
+    assert result.sales_per_square_foot_kind == SALES_PER_SQUARE_FOOT_KIND
+    assert result.difference_kind == DIFFERENCE_KIND
+    assert result.difference_unit == DIFFERENCE_UNIT
+    assert result.scope_note == SALES_PER_SQUARE_FOOT_REVENUE_SCOPE_NOTE
+    assert "different scopes" in result.scope_note
+    assert "revenue attribution" in result.scope_note
+    assert "selling-area growth" in result.scope_note
+    assert "causal" in result.scope_note
+
+
+def test_absent_null_store_only_and_compsales_only_have_no_spsf_relationship():
+    payload = _base_payload()
+    absent = standardized_from_payload(payload)
+    assert operating_kpi_revenue_sales_per_square_foot_relationship_applicable(absent) is False
+    with pytest.raises(
+        MissingLineError,
+        match="operating KPI revenue/sales-per-square-foot relationship sources not available",
+    ):
+        compute_operating_kpi_revenue_sales_per_square_foot_relationship(absent)
+
+    payload["historical_operating_kpis"] = None
+    null = standardized_from_payload(payload)
+    assert operating_kpi_revenue_sales_per_square_foot_relationship_applicable(null) is False
+
+    store_only = _fin_with_relationship(
+        _kpi_model_observation(P1, 711),
+        _kpi_model_observation(P2, 767),
+        revenue={P1: 100.0, P2: 110.0},
+    )
+    assert operating_kpi_revenue_sales_per_square_foot_relationship_applicable(store_only) is False
+    with pytest.raises(
+        MissingLineError,
+        match="operating KPI revenue/sales-per-square-foot relationship sources not available",
+    ):
+        compute_operating_kpi_revenue_sales_per_square_foot_relationship(store_only)
+
+    compsales_only = _fin_with_relationship(
+        management=[_compsales(period=P1, value=2.0), _compsales(period=P2, value=4.0)],
+        revenue={P1: 100.0, P2: 110.0},
+    )
+    assert operating_kpi_revenue_comparable_sales_relationship_applicable(compsales_only) is True
+    assert operating_kpi_revenue_sales_per_square_foot_relationship_applicable(
+        compsales_only
+    ) is False
+    with pytest.raises(
+        MissingLineError,
+        match="operating KPI revenue/sales-per-square-foot relationship sources not available",
+    ):
+        compute_operating_kpi_revenue_sales_per_square_foot_relationship(compsales_only)
+
+
+def test_ineligible_spsf_geographies_bases_and_populations_do_not_activate():
+    excluded = _fin_with_relationship(
+        management=[
+            _spsf(period=P2, value=1426, geography="americas"),
+            _spsf(period=P2, value=1500, geography="global"),
+            _spsf(period=P2, value=1400, basis="constant_dollar"),
+            _spsf(period=P2, value=1410, population=POP_STORES_AND_ECOMMERCE),
+            _compsales(period=P2, value=4.0),
+        ],
+        revenue={P1: 100.0, P2: 110.0},
+        extra_periods=[P1, P2],
+    )
+    assert management_kpi_applicable(excluded) is True
+    assert operating_kpi_revenue_sales_per_square_foot_relationship_applicable(excluded) is False
+    with pytest.raises(
+        MissingLineError,
+        match="operating KPI revenue/sales-per-square-foot relationship sources not available",
+    ):
+        compute_operating_kpi_revenue_sales_per_square_foot_relationship(excluded)
+
+
+def test_spsf_growth_difference_reuses_management_series_and_revenue():
+    fin = _fin_with_relationship(
+        management=[_spsf(period=P1, value=1410), _spsf(period=P2, value=1430)],
+        revenue={P1: 100.0, P2: 110.0},
+    )
+    result = compute_operating_kpi_revenue_sales_per_square_foot_relationship(fin)
+    _assert_spsf_relationship_meta(result)
+    assert len(result.identities) == 1
+    series = next(iter(result.series.values()))
+    management = compute_management_kpi_series(fin)
+    mgmt = management.series[series.identity]
+    expected_rev = (110.0 - 100.0) / 100.0
+    expected_spsf = 20.0 / 1410.0
+    assert series.sales_per_square_foot[P1] == 1410
+    assert series.sales_per_square_foot[P2] == 1430
+    assert series.sales_per_square_foot_unit[P2] == "USD_per_square_foot"
+    assert series.revenue_growth[P1] is None
+    assert series.spsf_growth[P1] is None
+    assert series.growth_difference_pp[P1] is None
+    assert series.revenue_growth[P2] == pytest.approx(expected_rev)
+    assert series.spsf_growth[P2] == pytest.approx(expected_spsf)
+    assert series.spsf_growth[P2] == pytest.approx(mgmt.growth[P2])
+    assert abs(series.spsf_growth[P2] - (20 / 1410)) <= OPERATING_KPI_RELATIONSHIP_TOLERANCE
+    assert series.growth_difference_pp[P2] == pytest.approx(
+        100.0 * (expected_rev - expected_spsf), abs=OPERATING_KPI_RELATIONSHIP_TOLERANCE
+    )
+    assert series.unavailable_reasons[P2] is None
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    assert compute_operating_kpi_revenue_sales_per_square_foot_relationship(restored) == result
+
+
+def test_spsf_sparse_semantic_mismatch_qualifier_order_zero_decline_and_missing():
+    singleton = _fin_with_relationship(
+        management=[_spsf(period=P2, value=1410)],
+        revenue={P1: 100.0, P2: 110.0},
+        extra_periods=[P1, P2],
+    )
+    single = next(
+        iter(compute_operating_kpi_revenue_sales_per_square_foot_relationship(singleton).series.values())
+    )
+    assert single.sales_per_square_foot[P1] == SOURCE_UNAVAILABLE
+    assert single.spsf_growth[P2] == SOURCE_UNAVAILABLE
+    assert single.growth_difference_pp[P2] == SOURCE_UNAVAILABLE
+    assert single.unavailable_reasons[P2] == (REASON_MISSING_PRIOR_SALES_PER_SQUARE_FOOT,)
+    assert single.revenue_growth[P2] == pytest.approx(0.1)
+
+    sparse = _fin_with_relationship(
+        management=[_spsf(period=P0, value=1400), _spsf(period=P2, value=1430)],
+        revenue={P0: 80.0, P1: 100.0, P2: 120.0},
+        extra_periods=[P0, P1, P2],
+    )
+    sparse_series = next(
+        iter(compute_operating_kpi_revenue_sales_per_square_foot_relationship(sparse).series.values())
+    )
+    assert sparse_series.sales_per_square_foot[P1] == SOURCE_UNAVAILABLE
+    assert sparse_series.spsf_growth[P1] == SOURCE_UNAVAILABLE
+    assert sparse_series.growth_difference_pp[P1] == SOURCE_UNAVAILABLE
+    assert sparse_series.unavailable_reasons[P1] == (REASON_MISSING_SALES_PER_SQUARE_FOOT,)
+    assert sparse_series.spsf_growth[P2] == SOURCE_UNAVAILABLE
+    assert sparse_series.growth_difference_pp[P2] == SOURCE_UNAVAILABLE
+    assert sparse_series.unavailable_reasons[P2] == (
+        REASON_MISSING_PRIOR_SALES_PER_SQUARE_FOOT,
+    )
+    assert sparse_series.sales_per_square_foot[P0] == 1400
+    assert sparse_series.sales_per_square_foot[P2] == 1430
+
+    from core.model.management_kpi import (
+        REASON_CALENDAR_REPORTING_MISMATCH,
+        REASON_CALENDAR_WEEK_MISMATCH,
+        REASON_DEFINITION_MISMATCH,
+        REASON_QUALIFIER_MISMATCH,
+    )
+
+    mismatch_cases = (
+        ("definition_text", "Changed SPSF definition.", (REASON_DEFINITION_MISMATCH,)),
+        ("calendar_week_adjustment", "excluded", (REASON_CALENDAR_WEEK_MISMATCH,)),
+        ("calendar_reporting_basis", "53_week", (REASON_CALENDAR_REPORTING_MISMATCH,)),
+        ("qualifiers", {"note": "changed"}, (REASON_QUALIFIER_MISMATCH,)),
+    )
+    for field, value, reasons in mismatch_cases:
+        kwargs = {field: value}
+        fin = _fin_with_relationship(
+            management=[
+                _spsf(period=P1, value=1410),
+                _spsf(period=P2, value=1430, **kwargs),
+            ],
+            revenue={P1: 100.0, P2: 110.0},
+        )
+        original = copy.deepcopy(fin.historical_operating_kpis)
+        series = next(
+            iter(compute_operating_kpi_revenue_sales_per_square_foot_relationship(fin).series.values())
+        )
+        assert series.sales_per_square_foot[P1] == 1410
+        assert series.sales_per_square_foot[P2] == 1430
+        assert series.spsf_growth[P2] == SOURCE_UNAVAILABLE
+        assert series.growth_difference_pp[P2] == SOURCE_UNAVAILABLE
+        assert series.unavailable_reasons[P2] == reasons
+        assert fin.historical_operating_kpis == original
+
+    ordered = _fin_with_relationship(
+        management=[
+            _spsf(period=P1, value=1410, qualifiers={"a": "1", "b": "2"}),
+            _spsf(period=P2, value=1430, qualifiers={"b": "2", "a": "1"}),
+        ],
+        revenue={P1: 100.0, P2: 110.0},
+    )
+    ordered_series = next(
+        iter(compute_operating_kpi_revenue_sales_per_square_foot_relationship(ordered).series.values())
+    )
+    assert ordered_series.spsf_growth[P2] == pytest.approx(20 / 1410)
+    assert ordered_series.unavailable_reasons[P2] is None
+
+    zero = _fin_with_relationship(
+        management=[_spsf(period=P1, value=0.0), _spsf(period=P2, value=20.0)],
+        revenue={P1: 100.0, P2: 110.0},
+    )
+    zero_series = next(
+        iter(compute_operating_kpi_revenue_sales_per_square_foot_relationship(zero).series.values())
+    )
+    assert zero_series.spsf_growth[P2] == UNDEFINED_RATIO
+    assert zero_series.growth_difference_pp[P2] == UNDEFINED_RATIO
+    assert zero_series.unavailable_reasons[P2] is None
+
+    missing_and_zero = _fin_with_relationship(
+        management=[_spsf(period=P2, value=20.0)],
+        revenue={P1: 0.0, P2: 50.0},
+        extra_periods=[P1, P2],
+    )
+    mixed = next(
+        iter(
+            compute_operating_kpi_revenue_sales_per_square_foot_relationship(
+                missing_and_zero
+            ).series.values()
+        )
+    )
+    assert mixed.revenue_growth[P2] == UNDEFINED_RATIO
+    assert mixed.spsf_growth[P2] == SOURCE_UNAVAILABLE
+    assert mixed.growth_difference_pp[P2] == SOURCE_UNAVAILABLE
+    assert mixed.unavailable_reasons[P2] == (REASON_MISSING_PRIOR_SALES_PER_SQUARE_FOOT,)
+
+    decline = _fin_with_relationship(
+        management=[_spsf(period=P1, value=1500), _spsf(period=P2, value=1200)],
+        revenue={P1: 200.0, P2: 160.0},
+    )
+    decline_series = next(
+        iter(compute_operating_kpi_revenue_sales_per_square_foot_relationship(decline).series.values())
+    )
+    expected_rev = (160.0 - 200.0) / 200.0
+    expected_spsf = (1200.0 - 1500.0) / 1500.0
+    assert decline_series.spsf_growth[P2] == pytest.approx(expected_spsf)
+    assert decline_series.growth_difference_pp[P2] == pytest.approx(
+        100.0 * (expected_rev - expected_spsf)
+    )
+
+    missing_rev = _fin_with_relationship(
+        management=[_spsf(period=P1, value=1410), _spsf(period=P2, value=1430)],
+        revenue={P1: 100.0},
+    )
+    before = copy.deepcopy(missing_rev.income_statement)
+    missing_series = next(
+        iter(
+            compute_operating_kpi_revenue_sales_per_square_foot_relationship(
+                missing_rev
+            ).series.values()
+        )
+    )
+    assert missing_series.revenue[P2] == SOURCE_UNAVAILABLE
+    assert missing_series.sales_per_square_foot[P2] == 1430
+    assert missing_series.growth_difference_pp[P2] == SOURCE_UNAVAILABLE
+    assert missing_series.unavailable_reasons[P2] == (REASON_MISSING_REVENUE,)
+    assert missing_rev.income_statement == before
+
+
+def test_multiple_spsf_identities_are_isolated_and_not_merged():
+    left = (
+        _spsf(period=P1, value=1410, entity_ticker="LULU"),
+        _spsf(period=P2, value=1430, entity_ticker="LULU"),
+    )
+    right = (
+        _spsf(period=P1, value=1000, entity_ticker="EXCO"),
+        _spsf(period=P2, value=1100, entity_ticker="EXCO"),
+    )
+    fin = _fin_with_relationship(
+        management=[*left, *right, _compsales(period=P2, value=4.0)],
+        revenue={P1: 100.0, P2: 110.0},
+        extra_periods=[P1, P2],
+    )
+    result = compute_operating_kpi_revenue_sales_per_square_foot_relationship(fin)
+    assert len(result.identities) == 2
+    assert result.identities == tuple(sorted(result.identities))
+    left_series = result.series[_identity_of(left[0])]
+    right_series = result.series[_identity_of(right[0])]
+    assert left_series.entity_ticker == "LULU"
+    assert right_series.entity_ticker == "EXCO"
+    expected_rev = 0.1
+    assert left_series.growth_difference_pp[P2] == pytest.approx(
+        100.0 * (expected_rev - (20 / 1410))
+    )
+    assert right_series.growth_difference_pp[P2] == pytest.approx(
+        100.0 * (expected_rev - (100 / 1000))
+    )
+    assert operating_kpi_revenue_comparable_sales_relationship_applicable(fin) is True
+
+
+def test_spsf_axis_ambiguity_and_malformed_contracts_reject_without_mutation():
+    precedence = _fin_with_relationship(
+        management=[_spsf(period=P1, value=1410), _spsf(period=P2, value=1430)],
+        extra_periods=[P1, P2],
+        income_statement=[
+            _revenue_line({P1: 999.0, P2: 999.0}, label="Revenue", concept=""),
+            _revenue_line({P1: 200.0, P2: 220.0}, label="Net sales", concept="revenue"),
+        ],
+    )
+    before = copy.deepcopy(precedence.income_statement)
+    result = compute_operating_kpi_revenue_sales_per_square_foot_relationship(precedence)
+    series = next(iter(result.series.values()))
+    assert series.revenue[P1] == 200.0
+    assert series.revenue[P2] == 220.0
+    assert series.revenue_growth[P2] == pytest.approx(0.1)
+    assert precedence.income_statement == before
+
+    ambiguous = _fin_with_relationship(
+        management=[_spsf(period=P1, value=1410), _spsf(period=P2, value=1430)],
+        extra_periods=[P1, P2],
+        income_statement=[
+            _revenue_line({P1: 10.0, P2: 11.0}, label="Revenue", concept="revenue"),
+            _revenue_line({P1: 20.0, P2: 22.0}, label="Turnover", concept="revenue"),
+        ],
+    )
+    original = copy.deepcopy(ambiguous)
+    with pytest.raises(AmbiguousLineError, match="Ambiguous concept='revenue'"):
+        compute_operating_kpi_revenue_sales_per_square_foot_relationship(ambiguous)
+    assert ambiguous.income_statement == original.income_statement
+    assert ambiguous.historical_operating_kpis == original.historical_operating_kpis
+
+    fin = _fin_with_relationship(
+        management=[_spsf(period=P1, value=1410), _spsf(period=P2, value=1430)],
+        revenue={P1: 100.0, P2: 110.0},
+    )
+    original_mgmt = copy.deepcopy(fin.historical_operating_kpis)
+    with pytest.raises(ValueError, match="canonical fiscal axis"):
+        compute_operating_kpi_revenue_sales_per_square_foot_relationship(fin, [P2, P1])
+    assert fin.historical_operating_kpis == original_mgmt
+
+    interim = _fin_with_relationship(
+        management=[_spsf(period=P1, value=1410), _spsf(period=P2, value=1430)],
+        revenue={P1: 100.0, P2: 110.0},
+        interim=True,
+    )
+    interim_before = copy.deepcopy(interim)
+    with pytest.raises(PeriodAxisError, match="annual fiscal periods"):
+        compute_operating_kpi_revenue_sales_per_square_foot_relationship(interim)
+    assert interim.historical_operating_kpis == interim_before.historical_operating_kpis
+
+    fin.historical_operating_kpis.management_observations[0].definition_text = ""
+    mutated = copy.deepcopy(fin.historical_operating_kpis)
+    with pytest.raises(ValueError, match="missing definition_text"):
+        compute_operating_kpi_revenue_sales_per_square_foot_relationship(fin)
+    assert fin.historical_operating_kpis == mutated
+
+
+def test_source_grounded_selected_spsf_handoff_and_reload(tmp_path: Path):
+    dest = _copy_json(ANNUAL_NAMES + MANAGEMENT_NAMES, tmp_path / "handoff")
+    _write_selected_on_docs(
+        dest,
+        FAMILY_SALES_PER_SQUARE_FOOT,
+        MANAGEMENT_NAMES[0],
+        MANAGEMENT_NAMES[1],
+        period=P2023.isoformat(),
+        values=(1400, 1410),
+        definition="Temporary sales-per-square-foot definition for contract fixtures.",
+        week=False,
+        reporting_basis=REPORTING_BASIS_52,
+    )
+    _write_selected_on_docs(
+        dest,
+        FAMILY_SALES_PER_SQUARE_FOOT,
+        MANAGEMENT_NAMES[2],
+        MANAGEMENT_NAMES[3],
+        period=P2024.isoformat(),
+        values=(1410, 1430),
+        definition="Temporary sales-per-square-foot definition for contract fixtures.",
+        week=False,
+        reporting_basis=REPORTING_BASIS_52,
+    )
+    reconciled = _reconcile(dest, admit=ADMIT_2022)
+    fin = standardize_reconciled(reconciled)
+    payload = _assert_export_reload_export(fin)
+    restored = standardized_from_payload(copy.deepcopy(payload))
+    first = compute_operating_kpi_revenue_sales_per_square_foot_relationship(fin)
+    second = compute_operating_kpi_revenue_sales_per_square_foot_relationship(restored)
+    assert first == second
+    _assert_spsf_relationship_meta(first)
+    series = next(iter(first.series.values()))
+    expected_rev_2024 = (REVENUE_ANCHORS[P2024] - REVENUE_ANCHORS[P2023]) / REVENUE_ANCHORS[P2023]
+    expected_spsf = 20 / 1410
+    assert series.sales_per_square_foot[P2023] == 1410
+    assert series.sales_per_square_foot[P2024] == 1430
+    assert abs(series.spsf_growth[P2024] - expected_spsf) <= OPERATING_KPI_RELATIONSHIP_TOLERANCE
+    assert abs(
+        series.growth_difference_pp[P2024]
+        - (100.0 * (expected_rev_2024 - expected_spsf))
+    ) <= OPERATING_KPI_RELATIONSHIP_TOLERANCE
+    assert series.growth_difference_pp[P2023] == SOURCE_UNAVAILABLE
+    assert operating_kpi_applicable(restored) is False

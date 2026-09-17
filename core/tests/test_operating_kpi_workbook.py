@@ -36,6 +36,7 @@ from core.engine.component_catalog import (
     REVENUE_STORE_SOURCE_FAMILY_ID,
     SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID,
     SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG,
+    SALES_PER_SQUARE_FOOT_DIFFERENCE_FAMILY_ID,
     SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
     SALES_PER_SQUARE_FOOT_SHEET_NAME,
     STORE_COUNT_COMPONENT_CATALOG,
@@ -54,6 +55,7 @@ from core.engine.component_catalog import (
     expand_comparable_sales_change_specs,
     expand_comparable_sales_source_specs,
     expand_comparable_sales_specs,
+    expand_sales_per_square_foot_difference_specs,
     expand_sales_per_square_foot_source_specs,
     expand_sales_per_square_foot_specs,
     expand_revenue_store_source_specs,
@@ -73,6 +75,7 @@ from core.engine.component_catalog import (
     resolve_management_kpi_adjacent_change_formula,
     resolve_management_kpi_growth_formula,
     resolve_revenue_comparable_sales_difference_formula,
+    resolve_revenue_sales_per_square_foot_difference_formula,
     resolve_revenue_store_difference_formula,
     resolve_revenue_store_growth_formula,
     resolve_store_count_growth_formula,
@@ -82,6 +85,7 @@ from core.engine.component_catalog import (
     revenue_store_difference_dependency_ids,
     revenue_store_source_component_id,
     revenue_store_source_semantic_key,
+    sales_per_square_foot_difference_dependency_ids,
     sales_per_square_foot_source_component_id,
     sales_per_square_foot_source_semantic_key,
     store_count_adjacent_source_ids,
@@ -126,10 +130,13 @@ from core.model.operating_kpi import (
 from core.model.operating_kpi_relationships import (
     COMPARABLE_SALES_SCOPE_NOTE,
     OPERATING_KPI_RELATIONSHIP_TOLERANCE,
+    SALES_PER_SQUARE_FOOT_REVENUE_SCOPE_NOTE,
     SCOPE_NOTE,
     compute_operating_kpi_revenue_comparable_sales_relationship,
+    compute_operating_kpi_revenue_sales_per_square_foot_relationship,
     compute_operating_kpi_revenue_store_relationship,
     operating_kpi_revenue_comparable_sales_relationship_applicable,
+    operating_kpi_revenue_sales_per_square_foot_relationship_applicable,
     operating_kpi_revenue_store_relationship_applicable,
 )
 from core.model.period_axis import canonical_fiscal_periods
@@ -318,6 +325,14 @@ def _compsales_source_components(smap):
 def _spsf_practice_components(smap):
     return [
         c for c in smap.all_ordered() if is_sales_per_square_foot_practice_identity(c)
+    ]
+
+
+def _spsf_difference_components(smap):
+    return [
+        c
+        for c in smap.all_ordered()
+        if c.family_id == SALES_PER_SQUARE_FOOT_DIFFERENCE_FAMILY_ID
     ]
 
 
@@ -2521,10 +2536,12 @@ def test_comparable_sales_catalog_orders_and_expand_identities():
     assert [family.order for family in SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG] == [
         170,
         171,
+        172,
     ]
     assert [family.id for family in SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG] == [
         SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID,
         SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
+        SALES_PER_SQUARE_FOOT_DIFFERENCE_FAMILY_ID,
     ]
     item = _compsales(period=P2, value=2.0)
     identity = _identity_of(item)
@@ -2596,6 +2613,16 @@ def test_comparable_sales_catalog_orders_and_expand_identities():
         SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID,
         SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
     ]
+    diffs = expand_sales_per_square_foot_difference_specs(
+        [P1, P2],
+        start_order=40,
+        identities=(spsf_id,),
+        difference_periods_by_identity={spsf_id: (P2,)},
+    )
+    assert [s.family_id for s in diffs] == [SALES_PER_SQUARE_FOOT_DIFFERENCE_FAMILY_ID]
+    assert diffs[0].depends_on == sales_per_square_foot_difference_dependency_ids(
+        P2, spsf_id
+    )
     assert not any(s.period_end == P1.isoformat() for s in specs)
     with pytest.raises(ValueError, match="duplicate fiscal periods"):
         expand_comparable_sales_specs(
@@ -2705,6 +2732,10 @@ def test_comparable_sales_formula_resolution_follows_mapped_identities():
         "=IF('Income Statement'!G52=0,NA(),(C28-'Income Statement'!G52)/"
         "'Income Statement'!G52)"
     )
+    spsf_diff = resolve_revenue_sales_per_square_foot_difference_formula(
+        growth, spsf_current, from_tab=SALES_PER_SQUARE_FOOT_SHEET_NAME
+    )
+    assert spsf_diff == "=100*('Store Count Analysis'!C12-C28)"
 
 
 def test_ineligible_histories_do_not_activate_comparable_sales(tmp_path):
@@ -2841,6 +2872,81 @@ def test_comparable_sales_only_and_mixed_reuse_revenue_growth(tmp_path):
     assert COMPARABLE_SALES_SHEET in mwb.sheetnames
     mwb.close()
     assert Path(mixed_trainer).is_file()
+
+
+def test_spsf_only_workbook_supplies_shared_revenue(tmp_path):
+    only = _compsales_tiny(_spsf(period=P1, value=1410), _spsf(period=P2, value=1430))
+    assert operating_kpi_revenue_comparable_sales_relationship_applicable(only) is False
+    assert operating_kpi_revenue_store_relationship_applicable(only) is False
+    assert operating_kpi_revenue_sales_per_square_foot_relationship_applicable(only) is True
+    builder = ReferenceModelBuilder(only)
+    assert builder.operating_kpi_series is None
+    assert builder.operating_kpi_relationship is None
+    assert builder.operating_kpi_compsales_relationship is None
+    trainer, answer = build_training_workbook(only, tmp_path / "SPSF_ONLY.xlsx")
+    assert {path.name for path in tmp_path.glob("*.xlsx")} == {
+        "SPSF_ONLY_Trainer.xlsx",
+        "SPSF_ONLY_Answer_Key.xlsx",
+    }
+    smap = load_semantic_map(answer)
+    growth = [c for c in smap.all_ordered() if c.family_id == REVENUE_STORE_GROWTH_FAMILY_ID]
+    revenue_sources = _revenue_source_components(smap)
+    spsf_sources = _spsf_source_components(smap)
+    spsf_diffs = _spsf_difference_components(smap)
+    spsf_growth = next(
+        c
+        for c in _spsf_practice_components(smap)
+        if c.family_id == SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID
+    )
+    assert len(growth) == 1
+    assert len(revenue_sources) == 2
+    assert len(spsf_sources) == 2
+    assert len(spsf_diffs) == 1
+    assert growth[0].tab == SALES_PER_SQUARE_FOOT_SHEET
+    expected_rev = (1100.0 - 1000.0) / 1000.0
+    expected_spsf = 20.0 / 1410.0
+    assert spsf_growth.expected_value == pytest.approx(expected_spsf, abs=1e-12)
+    assert spsf_diffs[0].expected_value == pytest.approx(
+        100.0 * (expected_rev - expected_spsf),
+        abs=OPERATING_KPI_RELATIONSHIP_TOLERANCE,
+    )
+    compact = spsf_diffs[0].formula.replace(" ", "")
+    assert compact == resolve_revenue_sales_per_square_foot_difference_formula(
+        SemanticCellRef(
+            growth[0].id,
+            growth[0].semantic_key,
+            growth[0].period_end,
+            growth[0].cell,
+            growth[0].tab,
+        ),
+        SemanticCellRef(
+            spsf_growth.id,
+            spsf_growth.semantic_key,
+            spsf_growth.period_end,
+            spsf_growth.cell,
+            spsf_growth.tab,
+        ),
+        from_tab=SALES_PER_SQUARE_FOOT_SHEET,
+    ).replace(" ", "")
+    awb = load_workbook(answer, data_only=False)
+    twb = load_workbook(trainer, data_only=False)
+    aws = awb[SALES_PER_SQUARE_FOOT_SHEET]
+    assert SALES_PER_SQUARE_FOOT_REVENUE_SCOPE_NOTE in str(aws["A4"].value)
+    _assert_spsf_a5_non_disclosing(aws["A5"].value)
+    _assert_trainer_management_history_undisclosed(twb)
+    _assert_answer_key_management_history_undisclosed(awb)
+    a_diff = awb[spsf_diffs[0].tab].cell(*parse_cell_ref(spsf_diffs[0].cell))
+    t_diff = twb[spsf_diffs[0].tab].cell(*parse_cell_ref(spsf_diffs[0].cell))
+    assert t_diff.value in (None, "")
+    assert t_diff.comment is None
+    assert _fill_rgb(t_diff) == "FFFF00"
+    assert _fill_rgb(a_diff) in WHITE_RGBS
+    assert (a_diff.comment.text or "").strip()
+    _assert_answer_key_no_yellow(answer)
+    awb.close()
+    twb.close()
+    assert COMPARABLE_SALES_SHEET not in load_workbook(answer).sheetnames
+    assert STORE_COUNT_SHEET not in load_workbook(answer).sheetnames
 
 
 def test_multiple_isolated_identities_are_not_merged(tmp_path):
@@ -3101,13 +3207,15 @@ def test_selected_document_compsales_workbook_uses_test_augmentation(tmp_path):
     sources = _compsales_source_components(smap)
     spsf_sources = _spsf_source_components(smap)
     spsf_practice = _spsf_practice_components(smap)
+    spsf_diffs = _spsf_difference_components(smap)
     growth = [c for c in smap.all_ordered() if c.family_id == REVENUE_STORE_GROWTH_FAMILY_ID]
     assert len(sources) == 2
     assert len(diffs) == 2
     assert len(changes) == 1
     assert len(growth) == 4
     assert len(spsf_sources) == 2
-    assert len(spsf_practice) == 2
+    assert len(spsf_practice) == 3
+    assert len(spsf_diffs) == 1
     by_period = {c.period_end: c for c in diffs}
     assert by_period[P2023.isoformat()].expected_value == pytest.approx(
         expected_diff_2023, abs=OPERATING_KPI_RELATIONSHIP_TOLERANCE
@@ -3125,6 +3233,30 @@ def test_selected_document_compsales_workbook_uses_test_augmentation(tmp_path):
     )
     assert spsf_change.expected_value == pytest.approx(20, abs=1e-12)
     assert spsf_growth.expected_value == pytest.approx(20 / 1410, abs=1e-12)
+    expected_spsf_diff_2024 = 100.0 * (expected_rev_2024 - (20 / 1410))
+    assert spsf_diffs[0].period_end == P2024.isoformat()
+    assert spsf_diffs[0].expected_value == pytest.approx(
+        expected_spsf_diff_2024, abs=OPERATING_KPI_RELATIONSHIP_TOLERANCE
+    )
+    compact_spsf = spsf_diffs[0].formula.replace(" ", "")
+    revenue_growth_2024 = next(c for c in growth if c.period_end == P2024.isoformat())
+    assert compact_spsf == resolve_revenue_sales_per_square_foot_difference_formula(
+        SemanticCellRef(
+            revenue_growth_2024.id,
+            revenue_growth_2024.semantic_key,
+            revenue_growth_2024.period_end,
+            revenue_growth_2024.cell,
+            revenue_growth_2024.tab,
+        ),
+        SemanticCellRef(
+            spsf_growth.id,
+            spsf_growth.semantic_key,
+            spsf_growth.period_end,
+            spsf_growth.cell,
+            spsf_growth.tab,
+        ),
+        from_tab=SALES_PER_SQUARE_FOOT_SHEET,
+    ).replace(" ", "")
     practice = {(c.tab, c.cell) for c in _check_components(smap)}
     _assert_visible_parity(trainer, answer, practice)
     _assert_fresh_visible_style(trainer, practice_cells=practice, role="trainer")
@@ -3136,6 +3268,12 @@ def test_selected_document_compsales_workbook_uses_test_augmentation(tmp_path):
     _assert_answer_key_management_history_undisclosed(awb)
     assert twb[SALES_PER_SQUARE_FOOT_SHEET]["A5"].value == SALES_PER_SQUARE_FOOT_SCOPE_NOTE
     assert awb[SALES_PER_SQUARE_FOOT_SHEET]["A5"].value == SALES_PER_SQUARE_FOOT_SCOPE_NOTE
+    assert SALES_PER_SQUARE_FOOT_REVENUE_SCOPE_NOTE in str(
+        twb[SALES_PER_SQUARE_FOOT_SHEET]["A4"].value
+    )
+    assert SALES_PER_SQUARE_FOOT_REVENUE_SCOPE_NOTE in str(
+        awb[SALES_PER_SQUARE_FOOT_SHEET]["A4"].value
+    )
     assert awb[COMPARABLE_SALES_SHEET]["A5"].value == COMPARABLE_SALES_SCOPE_NOTE
     change_note = (
         awb[spsf_change.tab].cell(*parse_cell_ref(spsf_change.cell)).comment.text or ""
@@ -3154,7 +3292,7 @@ def test_selected_document_compsales_workbook_uses_test_augmentation(tmp_path):
     twb.close()
     awb.close()
     blank = check_workbook(trainer)
-    assert blank.total == LEASE_DT_LULULEMON_SPECS + GEOGRAPHIC_LULULEMON_SPECS + 4 + 2 + 1 + 2
+    assert blank.total == LEASE_DT_LULULEMON_SPECS + GEOGRAPHIC_LULULEMON_SPECS + 4 + 2 + 1 + 3
     assert (blank.blank, blank.correct, blank.incorrect) == (blank.total, 0, 0)
     wb = load_workbook(trainer, data_only=False)
     for comp in _check_components(smap):
@@ -3442,6 +3580,7 @@ def test_management_history_workbook_adjacent_change_and_spsf(tmp_path):
     assert {c.family_id for c in spsf_practice} == {
         SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID,
         SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
+        SALES_PER_SQUARE_FOOT_DIFFERENCE_FAMILY_ID,
     }
     assert changes[0].expected_value == pytest.approx(5, abs=1e-12)
     spsf_change = next(
@@ -3452,6 +3591,16 @@ def test_management_history_workbook_adjacent_change_and_spsf(tmp_path):
     )
     assert spsf_change.expected_value == pytest.approx(20, abs=1e-12)
     assert spsf_growth.expected_value == pytest.approx(20 / 1410, abs=1e-12)
+    spsf_diff = next(
+        c
+        for c in spsf_practice
+        if c.family_id == SALES_PER_SQUARE_FOOT_DIFFERENCE_FAMILY_ID
+    )
+    expected_tiny_rev = (1100.0 - 1000.0) / 1000.0
+    assert spsf_diff.expected_value == pytest.approx(
+        100.0 * (expected_tiny_rev - (20 / 1410)),
+        abs=OPERATING_KPI_RELATIONSHIP_TOLERANCE,
+    )
     assert sidecar["components"]
     compact = changes[0].formula.replace(" ", "")
     source_p2 = next(
@@ -3757,6 +3906,38 @@ def test_generated_workbooks_follow_moved_management_sources(tmp_path, monkeypat
             from_tab=SALES_PER_SQUARE_FOOT_SHEET,
         ).replace(" ", "")
     )
+    spsf_diff = _spsf_difference_components(smap)[0]
+    spsf_growth = next(
+        c
+        for c in _spsf_practice_components(smap)
+        if c.family_id == SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID
+    )
+    revenue_growth = next(
+        c for c in smap.all_ordered() if c.family_id == REVENUE_STORE_GROWTH_FAMILY_ID
+    )
+    compact_diff = spsf_diff.formula.replace(" ", "")
+    assert compact_diff == resolve_revenue_sales_per_square_foot_difference_formula(
+        SemanticCellRef(
+            revenue_growth.id,
+            revenue_growth.semantic_key,
+            revenue_growth.period_end,
+            revenue_growth.cell,
+            revenue_growth.tab,
+        ),
+        SemanticCellRef(
+            spsf_growth.id,
+            spsf_growth.semantic_key,
+            spsf_growth.period_end,
+            spsf_growth.cell,
+            spsf_growth.tab,
+        ),
+        from_tab=SALES_PER_SQUARE_FOOT_SHEET,
+    ).replace(" ", "")
+    adjacent_growth = (
+        f"{get_column_letter(parse_cell_ref(spsf_growth.cell)[1] - 1)}"
+        f"{parse_cell_ref(spsf_growth.cell)[0]}"
+    )
+    assert adjacent_growth not in compact_diff
     blank = check_workbook(trainer)
     assert blank.blank == blank.total
     twb = load_workbook(trainer, data_only=False)

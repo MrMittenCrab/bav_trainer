@@ -5350,6 +5350,9 @@ SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID = (
 SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID = (
     "operating_kpi_sales_per_square_foot_growth"
 )
+SALES_PER_SQUARE_FOOT_DIFFERENCE_FAMILY_ID = (
+    "operating_kpi_revenue_sales_per_square_foot_difference"
+)
 
 
 def comparable_sales_identity_token(identity: str) -> str:
@@ -5888,6 +5891,37 @@ SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         ),
         tolerance=1e-12,
     ),
+    ComponentFamily(
+        id=SALES_PER_SQUARE_FOOT_DIFFERENCE_FAMILY_ID,
+        order=172,
+        title="Revenue vs sales-per-square-foot growth difference",
+        short_hint=(
+            "Analyst-derived difference in percentage points = 100 × "
+            "(statement-derived consolidated revenue growth − disclosed "
+            "sales-per-square-foot growth). Opening difference is absent. "
+            "A missing growth input is unavailable and takes precedence over "
+            "an undefined ratio. Consolidated revenue and the disclosed SPSF "
+            "population have different scopes. Not revenue attribution, "
+            "selling-area growth, or causality."
+        ),
+        semantic_key="operating_kpi.sales_per_square_foot.growth_difference_pp",
+        category=SALES_PER_SQUARE_FOOT_PRACTICE_CATEGORY,
+        tab_template=SALES_PER_SQUARE_FOOT_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(
+            REVENUE_STORE_GROWTH_FAMILY_ID,
+            SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
+        ),
+        hints=(
+            "The difference uses the same-period revenue-growth and "
+            "sales-per-square-foot-growth cells.",
+            "Opening difference is absent; a missing or semantically "
+            "unavailable input is not practiced.",
+            "A zero prior remains undefined and stays practiced.",
+            "The inputs have distinct scopes and do not imply causality.",
+        ),
+        tolerance=1e-12,
+    ),
 )
 
 
@@ -6034,6 +6068,96 @@ def expand_sales_per_square_foot_specs(
                 _append(change_family, period, identity)
             if period in growth_periods:
                 _append(growth_family, period, identity)
+    return tuple(specs)
+
+
+def sales_per_square_foot_difference_dependency_ids(
+    period: date, identity: str
+) -> tuple[str, str]:
+    """Same-period revenue-growth then SPSF-growth practice identities."""
+    return (
+        revenue_store_component_id(REVENUE_STORE_GROWTH_FAMILY_ID, period),
+        comparable_sales_component_id(
+            SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID, period, identity
+        ),
+    )
+
+
+def resolve_revenue_sales_per_square_foot_difference_formula(
+    revenue_growth: SemanticCellRef,
+    spsf_growth: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Percentage-point difference from mapped revenue-growth and SPSF-growth cells."""
+    return resolve_revenue_store_difference_formula(
+        revenue_growth, spsf_growth, from_tab=from_tab
+    )
+
+
+def expand_sales_per_square_foot_difference_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    identities: tuple[str, ...],
+    difference_periods_by_identity: dict[str, tuple[date, ...]],
+) -> tuple[ComponentSpec, ...]:
+    """Expand SPSF revenue-growth comparison practice by isolated identity."""
+    _require_comparable_sales_period_axis(
+        periods, caller="expand_sales_per_square_foot_difference_specs"
+    )
+    if len(identities) != len(set(identities)):
+        raise ValueError(
+            "duplicate identities are not allowed in "
+            "expand_sales_per_square_foot_difference_specs"
+        )
+    family = {item.id: item for item in SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG}[
+        SALES_PER_SQUARE_FOOT_DIFFERENCE_FAMILY_ID
+    ]
+    specs: list[ComponentSpec] = []
+    order = start_order
+    period_index = {period: index for index, period in enumerate(periods)}
+    for identity in identities:
+        difference_periods = difference_periods_by_identity.get(identity, ())
+        unknown = [
+            period for period in difference_periods if period not in period_index
+        ]
+        if unknown:
+            raise ValueError(
+                "expand_sales_per_square_foot_difference_specs received periods "
+                f"outside the canonical axis: {unknown}"
+            )
+        if len(difference_periods) != len(set(difference_periods)):
+            raise ValueError(
+                "duplicate difference periods are not allowed in "
+                "expand_sales_per_square_foot_difference_specs"
+            )
+        token = comparable_sales_identity_token(identity)
+        for period in periods:
+            if period not in difference_periods:
+                continue
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=comparable_sales_component_id(family.id, period, identity),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{token}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=period_index[period],
+                    period_end=period_end,
+                    depends_on=sales_per_square_foot_difference_dependency_ids(
+                        period, identity
+                    ),
+                    hints=family.hints + (f"Management identity: {identity}.",),
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
     return tuple(specs)
 
 

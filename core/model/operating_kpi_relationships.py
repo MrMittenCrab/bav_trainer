@@ -2,9 +2,14 @@
 
 Separate source-gated APIs. The store-count relationship requires validated
 store-count observations. The comparable-sales relationship requires
-validated global reported ``comparable_sales_growth`` observations. Absent,
-null, store-only, or sales-per-square-foot-only histories do not activate
-the comparable-sales API. Deferred management observations are not promoted.
+validated global reported ``comparable_sales_growth`` observations. The
+sales-per-square-foot relationship requires validated global reported
+company-operated-store ``sales_per_square_foot`` observations. Absent,
+null, or store-only histories activate neither management relationship.
+Sales-per-square-foot-only histories do not activate the comparable-sales
+API. Comparable-sales-only histories do not activate the
+sales-per-square-foot API. Deferred management observations are not
+promoted.
 
 Aligns reported consolidated revenue to the canonical annual fiscal axis.
 Revenue is resolved from income-statement lines with existing
@@ -24,11 +29,19 @@ It does not compute growth of a growth rate or substitute the adjacent
 percentage-point change. Series are keyed by full management identity
 and are never selected, merged, or averaged.
 
+The sales-per-square-foot API reuses ``compute_management_kpi_series``
+fractional SPSF growth and the same statement-derived revenue growth.
+The descriptive difference is ``100 * (revenue_growth - spsf_growth)``
+in percentage points. Reported ``USD_per_square_foot`` is retained
+without statement monetary scaling. Adjacent SPSF semantic gates are
+unchanged. Series stay keyed by full identity and are never merged.
+
 Opening revenue growth and differences are ``None``. Available reported
 comparable-sales values remain visible in the opening period. A current
 reported comparable-sales observation does not require a prior KPI
 observation. Revenue growth requires immediately adjacent canonical
-revenue inputs.
+revenue inputs. SPSF growth requires immediately adjacent semantically
+compatible reported observations.
 
 Missing required inputs suppress only dependent outputs with
 ``SOURCE_UNAVAILABLE`` and explicit reasons. Zero prior revenue retains
@@ -48,18 +61,26 @@ from datetime import date
 
 from ..data.historical_operating_kpis import (
     FAMILY_COMPARABLE_SALES_GROWTH,
+    FAMILY_SALES_PER_SQUARE_FOOT,
     MANAGEMENT_IDENTITY_FIELDS,
     UNIT_PERCENT,
+    UNIT_USD_PER_SQUARE_FOOT,
     encode_metric_identity,
     management_identity_fields,
     validate_historical_operating_kpis,
 )
+from ..ingestion.management_kpi_identity import POP_COMPANY_OPERATED_STORES
 from ..data.interface import (
     HistoricalManagementKpiObservation,
     LineItem,
     StandardizedFinancials,
 )
 from .line_resolver import MissingLineError, resolve_line
+from .management_kpi import (
+    REASON_MISSING_OBSERVATION,
+    REASON_MISSING_PRIOR_OBSERVATION,
+    compute_management_kpi_series,
+)
 from .operating_kpi import compute_operating_kpi_series, operating_kpi_applicable
 from .period_axis import PeriodAxisError, canonical_fiscal_periods
 from .ratio_values import SOURCE_UNAVAILABLE, UNDEFINED_RATIO, is_source_unavailable, ratio_or_na
@@ -69,15 +90,24 @@ REVENUE_CONCEPT = "revenue"
 REVENUE_INPUT_LABEL = "consolidated revenue"
 STORE_COUNT_INPUT_LABEL = "company-operated period-end store count"
 COMPARABLE_SALES_INPUT_LABEL = "reported global comparable-sales growth"
+SALES_PER_SQUARE_FOOT_INPUT_LABEL = (
+    "reported company-operated-store sales per square foot"
+)
 CALCULATION_KIND = "analyst-derived"
 REVENUE_GROWTH_KIND = "statement-derived"
 COMPARABLE_SALES_KIND = "reported"
+SALES_PER_SQUARE_FOOT_KIND = "reported"
 DIFFERENCE_KIND = "analyst-derived"
 DIFFERENCE_UNIT = "percentage points"
 ELIGIBLE_COMPARABLE_SALES_GEOGRAPHY = "global"
 ELIGIBLE_COMPARABLE_SALES_BASIS = "reported"
 ELIGIBLE_COMPARABLE_SALES_UNIT = UNIT_PERCENT
 ELIGIBLE_COMPARABLE_SALES_COMPARISON = "year_over_year"
+ELIGIBLE_SPSF_GEOGRAPHY = ""
+ELIGIBLE_SPSF_POPULATION = POP_COMPANY_OPERATED_STORES
+ELIGIBLE_SPSF_BASIS = "reported"
+ELIGIBLE_SPSF_UNIT = UNIT_USD_PER_SQUARE_FOOT
+ELIGIBLE_SPSF_COMPARISON = ""
 SCOPE_NOTE = (
     "The difference compares consolidated revenue growth with company-operated "
     "period-end store-count growth. These inputs have distinct scopes. The "
@@ -92,11 +122,20 @@ COMPARABLE_SALES_SCOPE_NOTE = (
     "normalized. The difference is not new-store contribution, revenue "
     "attribution, organic growth, productivity, or causal evidence."
 )
+SALES_PER_SQUARE_FOOT_REVENUE_SCOPE_NOTE = (
+    "The difference compares statement-derived consolidated revenue growth "
+    "with disclosed sales-per-square-foot growth. Consolidated revenue and "
+    "the disclosed SPSF population have different scopes. The comparison "
+    "does not establish revenue attribution, selling-area growth, or causal "
+    "effects."
+)
 REASON_MISSING_REVENUE = "missing_revenue"
 REASON_MISSING_PRIOR_REVENUE = "missing_prior_revenue"
 REASON_MISSING_STORE_COUNT = "missing_store_count"
 REASON_MISSING_PRIOR_STORE_COUNT = "missing_prior_store_count"
 REASON_MISSING_COMPARABLE_SALES = "missing_comparable_sales"
+REASON_MISSING_SALES_PER_SQUARE_FOOT = "missing_sales_per_square_foot"
+REASON_MISSING_PRIOR_SALES_PER_SQUARE_FOOT = "missing_prior_sales_per_square_foot"
 
 
 @dataclass(frozen=True)
@@ -569,5 +608,213 @@ def compute_operating_kpi_revenue_comparable_sales_relationship(
         difference_kind=DIFFERENCE_KIND,
         difference_unit=DIFFERENCE_UNIT,
         scope_note=COMPARABLE_SALES_SCOPE_NOTE,
+        series=series,
+    )
+
+
+@dataclass(frozen=True)
+class OperatingKpiRevenueSalesPerSquareFootIdentitySeries:
+    """One full-identity revenue versus SPSF-growth comparison."""
+
+    identity: str
+    family: str
+    entity_ticker: str
+    entity_company: str
+    geography: str
+    population: str
+    unit: str
+    basis: str
+    comparison: str
+    periods: tuple[date, ...]
+    revenue: dict[date, float | str]
+    sales_per_square_foot: dict[date, float | str]
+    sales_per_square_foot_unit: dict[date, str]
+    definition_text: dict[date, str]
+    period_kind: dict[date, str]
+    calendar_week_adjustment: dict[date, str]
+    calendar_reporting_basis: dict[date, str]
+    qualifiers: dict[date, dict[str, str] | str]
+    revenue_growth: dict[date, float | str | None]
+    spsf_growth: dict[date, float | str | None]
+    growth_difference_pp: dict[date, float | str | None]
+    unavailable_reasons: dict[date, tuple[str, ...] | None]
+
+
+@dataclass(frozen=True)
+class OperatingKpiRevenueSalesPerSquareFootRelationship:
+    """Descriptive revenue-growth versus SPSF-growth comparisons."""
+
+    periods: tuple[date, ...]
+    identities: tuple[str, ...]
+    currency: str
+    monetary_scale: str
+    revenue_input_label: str
+    sales_per_square_foot_input_label: str
+    revenue_growth_kind: str
+    sales_per_square_foot_kind: str
+    difference_kind: str
+    difference_unit: str
+    scope_note: str
+    series: dict[str, OperatingKpiRevenueSalesPerSquareFootIdentitySeries]
+
+
+def _is_eligible_global_reported_spsf(
+    item: HistoricalManagementKpiObservation,
+) -> bool:
+    return (
+        item.family == FAMILY_SALES_PER_SQUARE_FOOT
+        and item.geography == ELIGIBLE_SPSF_GEOGRAPHY
+        and item.population == ELIGIBLE_SPSF_POPULATION
+        and item.basis == ELIGIBLE_SPSF_BASIS
+        and item.unit == ELIGIBLE_SPSF_UNIT
+        and item.comparison == ELIGIBLE_SPSF_COMPARISON
+    )
+
+
+def _eligible_spsf_observations(
+    financials: StandardizedFinancials,
+) -> tuple[HistoricalManagementKpiObservation, ...]:
+    data = financials.historical_operating_kpis
+    if data is None:
+        return ()
+    return tuple(
+        item
+        for item in data.management_observations
+        if _is_eligible_global_reported_spsf(item)
+    )
+
+
+def operating_kpi_revenue_sales_per_square_foot_relationship_applicable(
+    financials: StandardizedFinancials,
+) -> bool:
+    """Module is present only when eligible SPSF observations exist."""
+    return bool(_eligible_spsf_observations(financials))
+
+
+def _spsf_unavailable_reasons(
+    reasons: tuple[str, ...] | None,
+) -> tuple[str, ...]:
+    if not reasons:
+        return ()
+    mapped = {
+        REASON_MISSING_OBSERVATION: REASON_MISSING_SALES_PER_SQUARE_FOOT,
+        REASON_MISSING_PRIOR_OBSERVATION: REASON_MISSING_PRIOR_SALES_PER_SQUARE_FOOT,
+    }
+    return tuple(mapped.get(reason, reason) for reason in reasons)
+
+
+def _spsf_identity_series(
+    *,
+    identity: str,
+    management_series,
+    axis: list[date],
+    revenue: dict[date, float | str],
+    revenue_growth: dict[date, float | str | None],
+    revenue_reasons: dict[date, tuple[str, ...]],
+) -> OperatingKpiRevenueSalesPerSquareFootIdentitySeries:
+    growth_difference_pp: dict[date, float | str | None] = {}
+    unavailable_reasons: dict[date, tuple[str, ...] | None] = {}
+    for index, period in enumerate(axis):
+        opening = index == 0
+        spsf_growth = management_series.growth[period]
+        difference = _difference_pp(
+            revenue_growth[period], spsf_growth, opening=opening
+        )
+        growth_difference_pp[period] = difference
+        if is_source_unavailable(difference):
+            spsf_reasons = ()
+            if not opening and is_source_unavailable(spsf_growth):
+                spsf_reasons = _spsf_unavailable_reasons(
+                    management_series.unavailable_reasons[period]
+                )
+            unavailable_reasons[period] = revenue_reasons[period] + spsf_reasons
+        else:
+            unavailable_reasons[period] = None
+    return OperatingKpiRevenueSalesPerSquareFootIdentitySeries(
+        identity=identity,
+        family=management_series.family,
+        entity_ticker=management_series.entity_ticker,
+        entity_company=management_series.entity_company,
+        geography=management_series.geography,
+        population=management_series.population,
+        unit=management_series.unit,
+        basis=management_series.basis,
+        comparison=management_series.comparison,
+        periods=tuple(axis),
+        revenue=dict(revenue),
+        sales_per_square_foot=dict(management_series.reported_value),
+        sales_per_square_foot_unit=dict(management_series.reported_unit),
+        definition_text=dict(management_series.definition_text),
+        period_kind=dict(management_series.period_kind),
+        calendar_week_adjustment=dict(management_series.calendar_week_adjustment),
+        calendar_reporting_basis=dict(management_series.calendar_reporting_basis),
+        qualifiers=dict(management_series.qualifiers),
+        revenue_growth=dict(revenue_growth),
+        spsf_growth=dict(management_series.growth),
+        growth_difference_pp=growth_difference_pp,
+        unavailable_reasons=unavailable_reasons,
+    )
+
+
+def compute_operating_kpi_revenue_sales_per_square_foot_relationship(
+    financials: StandardizedFinancials,
+    periods: list[date] | None = None,
+) -> OperatingKpiRevenueSalesPerSquareFootRelationship:
+    """Compare consolidated revenue growth with SPSF growth."""
+    if not operating_kpi_revenue_sales_per_square_foot_relationship_applicable(
+        financials
+    ):
+        raise MissingLineError(
+            "operating KPI revenue/sales-per-square-foot relationship sources "
+            "not available"
+        )
+
+    validate_historical_operating_kpis(financials)
+    _require_annual_axis(
+        financials,
+        message=(
+            "operating KPI revenue/sales-per-square-foot relationship requires "
+            "annual fiscal periods"
+        ),
+    )
+    axis = canonical_fiscal_periods(financials)
+    if periods is not None and list(periods) != axis:
+        raise ValueError(
+            "operating KPI revenue/sales-per-square-foot relationship must use "
+            "the canonical fiscal axis"
+        )
+
+    revenue, revenue_growth, revenue_reasons = _resolved_revenue_maps(financials, axis)
+    management = compute_management_kpi_series(financials, axis)
+    eligible = {
+        encode_metric_identity(management_identity_fields(item))
+        for item in _eligible_spsf_observations(financials)
+    }
+    ordered = tuple(
+        identity for identity in management.identities if identity in eligible
+    )
+    series = {
+        identity: _spsf_identity_series(
+            identity=identity,
+            management_series=management.series[identity],
+            axis=axis,
+            revenue=revenue,
+            revenue_growth=revenue_growth,
+            revenue_reasons=revenue_reasons,
+        )
+        for identity in ordered
+    }
+    return OperatingKpiRevenueSalesPerSquareFootRelationship(
+        periods=tuple(axis),
+        identities=ordered,
+        currency=financials.currency,
+        monetary_scale=financials.units,
+        revenue_input_label=REVENUE_INPUT_LABEL,
+        sales_per_square_foot_input_label=SALES_PER_SQUARE_FOOT_INPUT_LABEL,
+        revenue_growth_kind=REVENUE_GROWTH_KIND,
+        sales_per_square_foot_kind=SALES_PER_SQUARE_FOOT_KIND,
+        difference_kind=DIFFERENCE_KIND,
+        difference_unit=DIFFERENCE_UNIT,
+        scope_note=SALES_PER_SQUARE_FOOT_REVENUE_SCOPE_NOTE,
         series=series,
     )

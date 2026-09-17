@@ -75,8 +75,10 @@ from ..model.operating_kpi import (
 )
 from ..model.operating_kpi_relationships import (
     compute_operating_kpi_revenue_comparable_sales_relationship,
+    compute_operating_kpi_revenue_sales_per_square_foot_relationship,
     compute_operating_kpi_revenue_store_relationship,
     operating_kpi_revenue_comparable_sales_relationship_applicable,
+    operating_kpi_revenue_sales_per_square_foot_relationship_applicable,
     operating_kpi_revenue_store_relationship_applicable,
 )
 from ..model.capex import compute_capex_series, capex_applicable
@@ -440,6 +442,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
             operating_kpi = None
             operating_kpi_relationship = None
             operating_kpi_compsales_relationship = None
+            operating_kpi_spsf_relationship = None
             management_kpi = None
             needed_ids = (
                 operating_kpi_family_ids
@@ -465,6 +468,15 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                 ):
                     operating_kpi_compsales_relationship = (
                         compute_operating_kpi_revenue_comparable_sales_relationship(
+                            financials,
+                            list(modeled_periods),
+                        )
+                    )
+                if operating_kpi_revenue_sales_per_square_foot_relationship_applicable(
+                    financials
+                ):
+                    operating_kpi_spsf_relationship = (
+                        compute_operating_kpi_revenue_sales_per_square_foot_relationship(
                             financials,
                             list(modeled_periods),
                         )
@@ -501,6 +513,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     operating_kpi_compsales_relationship=(
                         operating_kpi_compsales_relationship
                     ),
+                    operating_kpi_spsf_relationship=operating_kpi_spsf_relationship,
                     management_kpi=management_kpi,
                 )
                 for comp in comps

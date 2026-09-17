@@ -50,10 +50,13 @@ from ..model.operating_kpi import (
 )
 from ..model.operating_kpi_relationships import (
     COMPARABLE_SALES_SCOPE_NOTE,
+    SALES_PER_SQUARE_FOOT_REVENUE_SCOPE_NOTE,
     SCOPE_NOTE,
     compute_operating_kpi_revenue_comparable_sales_relationship,
+    compute_operating_kpi_revenue_sales_per_square_foot_relationship,
     compute_operating_kpi_revenue_store_relationship,
     operating_kpi_revenue_comparable_sales_relationship_applicable,
+    operating_kpi_revenue_sales_per_square_foot_relationship_applicable,
 )
 from ..model.goodwill_intangibles import (
     compute_goodwill_intangibles_series,
@@ -188,6 +191,7 @@ from .component_catalog import (
     expand_comparable_sales_specs,
     expand_sales_per_square_foot_source_specs,
     expand_sales_per_square_foot_specs,
+    expand_sales_per_square_foot_difference_specs,
     expand_capex_specs,
     geographic_component_id,
     geographic_identity_label,
@@ -204,6 +208,7 @@ from .component_catalog import (
     COMPARABLE_SALES_SHEET_NAME,
     COMPARABLE_SALES_SOURCE_FAMILY_ID,
     SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID,
+    SALES_PER_SQUARE_FOOT_DIFFERENCE_FAMILY_ID,
     SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
     SALES_PER_SQUARE_FOOT_SHEET_NAME,
     SALES_PER_SQUARE_FOOT_SOURCE_FAMILY_ID,
@@ -211,10 +216,12 @@ from .component_catalog import (
     SemanticCellRef,
     comparable_sales_identity_label,
     comparable_sales_identity_token,
+    comparable_sales_component_id,
     comparable_sales_source_component_id,
     resolve_management_kpi_adjacent_change_formula,
     resolve_management_kpi_growth_formula,
     resolve_revenue_comparable_sales_difference_formula,
+    resolve_revenue_sales_per_square_foot_difference_formula,
     sales_per_square_foot_source_component_id,
     resolve_revenue_store_difference_formula,
     resolve_revenue_store_growth_formula,
@@ -413,6 +420,21 @@ def _comparable_sales_expand_inputs(
         source_periods[identity] = tuple(sources)
         difference_periods[identity] = tuple(differences)
     return source_periods, difference_periods
+
+
+def _spsf_relationship_expand_inputs(
+    relationship,
+) -> dict[str, tuple[date, ...]]:
+    difference_periods: dict[str, tuple[date, ...]] = {}
+    for identity in relationship.identities:
+        series = relationship.series[identity]
+        differences: list[date] = []
+        for period in relationship.periods:
+            difference = series.growth_difference_pp[period]
+            if difference is not None and not is_source_unavailable(difference):
+                differences.append(period)
+        difference_periods[identity] = tuple(differences)
+    return difference_periods
 
 
 def _management_kpi_expand_inputs(
@@ -975,6 +997,7 @@ class ReferenceModelBuilder:
         self.operating_kpi_series = None
         self.operating_kpi_relationship = None
         self.operating_kpi_compsales_relationship = None
+        self.operating_kpi_spsf_relationship = None
         self.management_kpi_series = None
         self.comparable_sales_schedule = False
         self.sales_per_square_foot_schedule = False
@@ -1073,6 +1096,7 @@ class ReferenceModelBuilder:
                 )
                 order += len(growth_specs)
                 specs.extend(revenue_source_specs + growth_specs)
+                revenue_registered = True
             compsales_source_specs = expand_comparable_sales_source_specs(
                 self.periods,
                 start_order=order,
@@ -1155,8 +1179,53 @@ class ReferenceModelBuilder:
                     change_periods_by_identity=spsf_changes,
                     growth_periods_by_identity=spsf_growths,
                 )
+                order += len(spsf_practice_specs)
                 specs.extend(spsf_source_specs + spsf_practice_specs)
                 self.sales_per_square_foot_schedule = True
+
+        if operating_kpi_revenue_sales_per_square_foot_relationship_applicable(
+            self.fin
+        ):
+            self.operating_kpi_spsf_relationship = (
+                compute_operating_kpi_revenue_sales_per_square_foot_relationship(
+                    self.fin,
+                    self.periods,
+                )
+            )
+            spsf_rel = self.operating_kpi_spsf_relationship
+            difference_by_identity = _spsf_relationship_expand_inputs(spsf_rel)
+            if not revenue_registered:
+                first = spsf_rel.series[spsf_rel.identities[0]]
+                revenue_source_periods, revenue_growth_periods = (
+                    _shared_revenue_expand_inputs(
+                        spsf_rel.periods,
+                        first.revenue,
+                        first.revenue_growth,
+                    )
+                )
+                revenue_source_specs = expand_revenue_store_source_specs(
+                    self.periods,
+                    start_order=order,
+                    source_periods=revenue_source_periods,
+                )
+                order += len(revenue_source_specs)
+                growth_specs = expand_revenue_store_specs(
+                    self.periods,
+                    start_order=order,
+                    growth_periods=revenue_growth_periods,
+                    difference_periods=(),
+                )
+                order += len(growth_specs)
+                specs.extend(revenue_source_specs + growth_specs)
+                revenue_registered = True
+            difference_specs = expand_sales_per_square_foot_difference_specs(
+                self.periods,
+                start_order=order,
+                identities=spsf_rel.identities,
+                difference_periods_by_identity=difference_by_identity,
+            )
+            specs.extend(difference_specs)
+            self.sales_per_square_foot_schedule = True
 
         self.operating_kpi_specs = tuple(specs)
         return self.operating_kpi_specs
@@ -8224,6 +8293,13 @@ class ReferenceModelBuilder:
                 "sales-per-square-foot identities required when building "
                 "Sales per Square Foot Analysis"
             )
+        relationship = self.operating_kpi_spsf_relationship
+        if relationship is not None and (
+            relationship.scope_note != SALES_PER_SQUARE_FOOT_REVENUE_SCOPE_NOTE
+        ):
+            raise RuntimeError(
+                "revenue/sales-per-square-foot scope note drifted from the accepted API"
+            )
         ws = wb.create_sheet(SALES_PER_SQUARE_FOOT_SHEET)
         ws["A1"] = f"{self.fin.company_name} — Sales per Square Foot Analysis"
         ws["A1"].font = BOLD
@@ -8236,11 +8312,19 @@ class ReferenceModelBuilder:
             "The API unit is USD_per_square_foot. Financial-statement monetary "
             "scaling is not applied."
         )
-        ws["A4"] = (
-            "Opening change and growth are not practiced. A missing or semantically "
-            "incompatible adjacent observation remains unavailable. A zero prior "
-            "is undefined."
-        )
+        if relationship is not None:
+            ws["A4"] = (
+                "Opening change, growth, and revenue comparison are not practiced. "
+                "A missing or semantically incompatible adjacent observation remains "
+                "unavailable. A zero prior is undefined. "
+                + relationship.scope_note
+            )
+        else:
+            ws["A4"] = (
+                "Opening change and growth are not practiced. A missing or semantically "
+                "incompatible adjacent observation remains unavailable. A zero prior "
+                "is undefined."
+            )
         ws["A5"] = SALES_PER_SQUARE_FOOT_SCOPE_NOTE
         ws.column_dimensions["A"].width = 64
 
@@ -8287,9 +8371,15 @@ class ReferenceModelBuilder:
             formula: str,
             *,
             pct: bool = False,
+            points: bool = False,
         ):
             cell = ws.cell(row=row, column=col_idx, value=formula)
-            cell.number_format = PCT_FMT if pct else NUM_FMT
+            if pct:
+                cell.number_format = PCT_FMT
+            elif points:
+                cell.number_format = "0.00"
+            else:
+                cell.number_format = NUM_FMT
             return cell
 
         def _register(
@@ -8330,10 +8420,40 @@ class ReferenceModelBuilder:
             assert isinstance(value, dict)
             return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
-        identity_layout: dict[str, dict[str, int]] = {}
+        place_shared_revenue = (
+            relationship is not None
+            and self.operating_kpi_relationship is None
+            and self.operating_kpi_compsales_relationship is None
+        )
+        relationship_identities = (
+            set(relationship.identities) if relationship is not None else set()
+        )
+        first = None
+        if relationship is not None:
+            first = relationship.series[relationship.identities[0]]
+
         cursor = 8
+        revenue_row = None
+        revenue_growth_row = None
+        if place_shared_revenue:
+            _section(cursor, "CONSOLIDATED REVENUE")
+            cursor += 1
+            revenue_row = cursor
+            _label(revenue_row, "Consolidated revenue (reported source)")
+            cursor += 2
+            _section(cursor, "CONSOLIDATED REVENUE GROWTH")
+            cursor += 1
+            revenue_growth_row = cursor
+            _label(
+                revenue_growth_row,
+                "Consolidated revenue growth (statement-derived)",
+            )
+            cursor += 2
+
+        identity_layout: dict[str, dict[str, int]] = {}
         for identity in identities:
             series = management.series[identity]
+            include_difference = identity in relationship_identities
             _section(
                 cursor,
                 "SALES PER SQUARE FOOT — "
@@ -8366,6 +8486,8 @@ class ReferenceModelBuilder:
                 "change": cursor + 14,
                 "growth": cursor + 15,
             }
+            if include_difference:
+                rows["difference"] = cursor + 16
             _label(rows["family"], "Family (reported)")
             _label(rows["entity_ticker"], "Entity ticker")
             _label(rows["entity_company"], "Entity company")
@@ -8388,13 +8510,87 @@ class ReferenceModelBuilder:
                 "Adjacent reported change (USD_per_square_foot)",
             )
             _label(rows["growth"], "Adjacent growth (fraction)")
+            if include_difference:
+                _label(
+                    rows["difference"],
+                    "Growth difference (analyst-derived, percentage points)",
+                )
+                cursor = rows["difference"] + 2
+            else:
+                cursor = rows["growth"] + 2
             identity_layout[identity] = rows
-            cursor = rows["growth"] + 2
 
         self.rowmap["sales_per_square_foot_header_row"] = header_row
+        if revenue_row is not None:
+            self.rowmap["sales_per_square_foot_revenue_row"] = revenue_row
+        if revenue_growth_row is not None:
+            self.rowmap["sales_per_square_foot_growth_row"] = revenue_growth_row
         self.rowmap["sales_per_square_foot_identity_rows"] = {
             identity: dict(rows) for identity, rows in identity_layout.items()
         }
+
+        if place_shared_revenue:
+            assert first is not None
+            assert revenue_row is not None and revenue_growth_row is not None
+            for j, period in enumerate(self.periods):
+                col_idx = 2 + j
+                revenue = first.revenue[period]
+                revenue_row_idx, revenue_col, revenue_tab = (
+                    self._normalize_source_placement(
+                        self._revenue_store_source_placement(j, revenue_row, col_idx),
+                        SALES_PER_SQUARE_FOOT_SHEET,
+                    )
+                )
+                if is_source_unavailable(revenue):
+                    self._stamp_unavailable(
+                        _target_sheet(revenue_tab),
+                        revenue_row_idx,
+                        revenue_col,
+                        SOURCE_UNAVAILABLE,
+                    )
+                else:
+                    _put_number(
+                        revenue_row_idx,
+                        revenue_col,
+                        float(revenue),
+                        tab=revenue_tab,
+                    )
+                    _register(
+                        REVENUE_STORE_SOURCE_FAMILY_ID,
+                        j,
+                        revenue_row_idx,
+                        revenue_col,
+                        store_count_source_map_formula(float(revenue)),
+                        float(revenue),
+                        tab=revenue_tab,
+                    )
+
+            for j, period in enumerate(self.periods):
+                col_idx = 2 + j
+                revenue_growth = first.revenue_growth[period]
+                if j == 0 or revenue_growth is None:
+                    ws.cell(row=revenue_growth_row, column=col_idx, value="N/A")
+                elif is_source_unavailable(revenue_growth):
+                    self._stamp_unavailable(
+                        ws, revenue_growth_row, col_idx, SOURCE_UNAVAILABLE
+                    )
+                else:
+                    current = _mapped_ref(revenue_store_source_component_id(period))
+                    prior = _mapped_ref(
+                        revenue_store_source_component_id(self.periods[j - 1])
+                    )
+                    growth_f = resolve_revenue_store_growth_formula(
+                        current, prior, from_tab=SALES_PER_SQUARE_FOOT_SHEET
+                    )
+                    _put_formula(revenue_growth_row, col_idx, growth_f, pct=True)
+                    _register(
+                        REVENUE_STORE_GROWTH_FAMILY_ID,
+                        j,
+                        revenue_growth_row,
+                        col_idx,
+                        growth_f,
+                        revenue_growth,
+                    )
 
         for identity in identities:
             series = management.series[identity]
@@ -8554,6 +8750,47 @@ class ReferenceModelBuilder:
                         col_idx,
                         growth_f,
                         growth,
+                        identity=token,
+                    )
+
+                if "difference" not in rows:
+                    continue
+                assert relationship is not None
+                difference = relationship.series[identity].growth_difference_pp[period]
+                if j == 0 or difference is None:
+                    ws.cell(row=rows["difference"], column=col_idx, value="N/A")
+                elif is_source_unavailable(difference):
+                    self._stamp_unavailable(
+                        ws, rows["difference"], col_idx, SOURCE_UNAVAILABLE
+                    )
+                else:
+                    revenue_growth_ref = _mapped_ref(
+                        revenue_store_component_id(
+                            REVENUE_STORE_GROWTH_FAMILY_ID, period
+                        )
+                    )
+                    spsf_growth_ref = _mapped_ref(
+                        comparable_sales_component_id(
+                            SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID, period, identity
+                        )
+                    )
+                    difference_f = (
+                        resolve_revenue_sales_per_square_foot_difference_formula(
+                            revenue_growth_ref,
+                            spsf_growth_ref,
+                            from_tab=SALES_PER_SQUARE_FOOT_SHEET,
+                        )
+                    )
+                    _put_formula(
+                        rows["difference"], col_idx, difference_f, points=True
+                    )
+                    _register(
+                        SALES_PER_SQUARE_FOOT_DIFFERENCE_FAMILY_ID,
+                        j,
+                        rows["difference"],
+                        col_idx,
+                        difference_f,
+                        difference,
                         identity=token,
                     )
 

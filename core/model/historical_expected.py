@@ -17,6 +17,7 @@ from ..engine.component_catalog import (
     COMPARABLE_SALES_DIFFERENCE_FAMILY_ID,
     SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID,
     SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG,
+    SALES_PER_SQUARE_FOOT_DIFFERENCE_FAMILY_ID,
     SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
     comparable_sales_identity_from_component,
     INVENTORY_ANALYSIS_COMPONENT_CATALOG,
@@ -59,6 +60,7 @@ from .management_kpi import ManagementKpiSeries
 from .operating_kpi import OperatingKpiSeries
 from .operating_kpi_relationships import (
     OperatingKpiRevenueComparableSalesRelationship,
+    OperatingKpiRevenueSalesPerSquareFootRelationship,
     OperatingKpiRevenueStoreRelationship,
 )
 from .goodwill_intangibles import (
@@ -280,6 +282,7 @@ _OPERATING_KPI_FAMILY_SERIES = (
     COMPARABLE_SALES_CHANGE_FAMILY_ID,
     SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID,
     SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
+    SALES_PER_SQUARE_FOOT_DIFFERENCE_FAMILY_ID,
 )
 
 _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
@@ -1076,13 +1079,19 @@ def operating_kpi_expected_value_for_component(
     operating_kpi_compsales_relationship: (
         OperatingKpiRevenueComparableSalesRelationship | None
     ) = None,
+    operating_kpi_spsf_relationship: (
+        OperatingKpiRevenueSalesPerSquareFootRelationship | None
+    ) = None,
     management_kpi: ManagementKpiSeries | None = None,
 ) -> float | str | None:
     """Look up one store-count, revenue/store, or management-KPI expected."""
     store_ids = {family.id for family in STORE_COUNT_COMPONENT_CATALOG}
     relationship_ids = {family.id for family in REVENUE_STORE_COMPONENT_CATALOG}
     compsales_ids = {family.id for family in COMPARABLE_SALES_COMPONENT_CATALOG}
-    spsf_ids = {family.id for family in SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG}
+    spsf_management_ids = {
+        SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID,
+        SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
+    }
     management_ids = {
         COMPARABLE_SALES_CHANGE_FAMILY_ID,
         SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID,
@@ -1093,7 +1102,19 @@ def operating_kpi_expected_value_for_component(
             f"operating KPI component {component.id!r} is missing period_end"
         )
     period = date.fromisoformat(component.period_end)
-    if component.family_id in management_ids or component.family_id in spsf_ids:
+    if component.family_id == SALES_PER_SQUARE_FOOT_DIFFERENCE_FAMILY_ID:
+        if operating_kpi_spsf_relationship is None:
+            raise ValueError(
+                f"Operating-KPI family {component.family_id!r} requires an "
+                "OperatingKpiRevenueSalesPerSquareFootRelationship"
+            )
+        identity = comparable_sales_identity_from_component(
+            component, operating_kpi_spsf_relationship.identities
+        )
+        return operating_kpi_spsf_relationship.series[identity].growth_difference_pp[
+            period
+        ]
+    if component.family_id in management_ids or component.family_id in spsf_management_ids:
         if management_kpi is None:
             raise ValueError(
                 f"Operating-KPI family {component.family_id!r} requires a "
@@ -1132,6 +1153,11 @@ def operating_kpi_expected_value_for_component(
             if operating_kpi_compsales_relationship is not None:
                 first = operating_kpi_compsales_relationship.series[
                     operating_kpi_compsales_relationship.identities[0]
+                ]
+                return first.revenue_growth[period]
+            if operating_kpi_spsf_relationship is not None:
+                first = operating_kpi_spsf_relationship.series[
+                    operating_kpi_spsf_relationship.identities[0]
                 ]
                 return first.revenue_growth[period]
             raise ValueError(
@@ -1287,6 +1313,9 @@ def expected_value_for_component(
     operating_kpi_compsales_relationship: (
         OperatingKpiRevenueComparableSalesRelationship | None
     ) = None,
+    operating_kpi_spsf_relationship: (
+        OperatingKpiRevenueSalesPerSquareFootRelationship | None
+    ) = None,
     management_kpi: ManagementKpiSeries | None = None,
 ) -> float | str | None:
     """Return the treatment-conditioned expected value for one practice component."""
@@ -1416,13 +1445,27 @@ def expected_value_for_component(
     elif family_id in _OPERATING_KPI_FAMILY_SERIES:
         compsales_ids = {family.id for family in COMPARABLE_SALES_COMPONENT_CATALOG}
         relationship_ids = {family.id for family in REVENUE_STORE_COMPONENT_CATALOG}
-        spsf_ids = {family.id for family in SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG}
+        spsf_management_ids = {
+            SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID,
+            SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
+        }
         management_ids = {
             COMPARABLE_SALES_CHANGE_FAMILY_ID,
             SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID,
             SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
         }
-        if family_id in management_ids or family_id in spsf_ids:
+        if family_id == SALES_PER_SQUARE_FOOT_DIFFERENCE_FAMILY_ID:
+            if operating_kpi_spsf_relationship is None:
+                raise ValueError(
+                    f"Operating-KPI family {family_id!r} requires an "
+                    "OperatingKpiRevenueSalesPerSquareFootRelationship"
+                )
+            return operating_kpi_expected_value_for_component(
+                operating_kpi,
+                component,
+                operating_kpi_spsf_relationship=operating_kpi_spsf_relationship,
+            )
+        if family_id in management_ids or family_id in spsf_management_ids:
             if management_kpi is None:
                 raise ValueError(
                     f"Operating-KPI family {family_id!r} requires a "
@@ -1450,6 +1493,7 @@ def expected_value_for_component(
             if (
                 operating_kpi_relationship is None
                 and operating_kpi_compsales_relationship is None
+                and operating_kpi_spsf_relationship is None
             ):
                 raise ValueError(
                     f"Operating-KPI family {family_id!r} requires a "
@@ -1466,6 +1510,7 @@ def expected_value_for_component(
                 operating_kpi_compsales_relationship=(
                     operating_kpi_compsales_relationship
                 ),
+                operating_kpi_spsf_relationship=operating_kpi_spsf_relationship,
             )
         if operating_kpi is None:
             raise ValueError(
