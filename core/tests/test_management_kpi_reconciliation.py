@@ -5,6 +5,8 @@ from __future__ import annotations
 import copy
 import json
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 from typing import Iterable
 
@@ -33,16 +35,24 @@ from core.ingestion.management_kpi_reconciliation import (
     KIND_PAIR,
     KIND_SINGLETON,
     KIND_UNSUPPORTED_VARIANT,
+    NAMED_PRESENTATION_COMBINATIONS,
     OUTCOME_AGREEING_DUPLICATE,
     OUTCOME_CONFLICTING_CANDIDATE,
     OUTCOME_INCOMPATIBLE,
     OUTCOME_UNRESOLVED,
+    PRESENTATION_RELATIONSHIP_ROLES,
+    PRESENTATION_ROLE_COMBINATIONS,
     REASON_MISSING_VALUE,
+    RELATIONSHIP_INCOMPATIBLE,
+    RELATIONSHIP_RECOGNIZED,
+    RELATIONSHIP_UNRESOLVED,
+    presentation_role_combination,
 )
 from core.tests.test_management_kpi_admission import (
     ANNUAL_NAMES,
     EXTRACTED,
     MANAGEMENT_NAMES,
+    ROOT,
     SOURCE,
     _bytes_by_name,
     _copy_json,
@@ -209,6 +219,49 @@ def _assert_pair_members(item: dict) -> None:
     assert right["evidence"]["basis"] == fields["basis"]
     assert left["evidence"]["geography"] == fields["geography"]
     assert right["evidence"]["geography"] == fields["geography"]
+    rel = item["presentation_relationship"]
+    assert rel["status"] in {
+        RELATIONSHIP_RECOGNIZED,
+        RELATIONSHIP_UNRESOLVED,
+        RELATIONSHIP_INCOMPATIBLE,
+    }
+    assert rel["combination"] in PRESENTATION_ROLE_COMBINATIONS.values()
+    assert [member["locator"] for member in rel["members"]] == item["locators"]
+    for member, occ in zip(rel["members"], item["occurrences"]):
+        assert member["occurrence_identity"] == occ["occurrence_identity"]
+        assert member["role"] == occ["presentation_evidence"]["role"]
+        assert member["role"] in PRESENTATION_RELATIONSHIP_ROLES
+    for key in (
+        "revises",
+        "revision",
+        "revision_link",
+        "equivalent",
+        "equivalence",
+        "preferred",
+        "precedence",
+        "winner",
+        "superseded",
+        "chronology",
+    ):
+        assert key not in rel
+
+
+def _assert_relationship(
+    item: dict, *, status: str, combination: str, roles: set[str]
+) -> None:
+    _assert_pair_members(item)
+    rel = item["presentation_relationship"]
+    assert rel["status"] == status
+    assert rel["combination"] == combination
+    assert {member["role"] for member in rel["members"]} == roles
+
+
+def _unordered_role_pairs() -> list[tuple[str, str]]:
+    pairs = []
+    for index, left in enumerate(PRESENTATION_RELATIONSHIP_ROLES):
+        for right in PRESENTATION_RELATIONSHIP_ROLES[index:]:
+            pairs.append((left, right))
+    return pairs
 
 
 def _assert_affirmative_duplicate(item: dict, *, values: tuple[object, object]) -> None:
@@ -518,6 +571,7 @@ def test_singleton_self_exclusion_and_distinct_identical_values(tmp_path: Path):
     coverage = _coverage(singleton, KIND_SINGLETON)
     assert any(item["locators"] == locators for item in coverage)
     assert locators[0] not in _assessment(singleton, locators[0])["peer_locators"]
+    assert all("presentation_relationship" not in item for item in coverage)
 
     duplicate = copy.deepcopy(original)
     payload["reported_kpis"].append(duplicate)
@@ -598,6 +652,16 @@ def test_renamed_and_reversed_inputs_preserve_pair_semantics(tmp_path: Path):
                     tuple(conflicts),
                     tuple(sorted(gaps)),
                     occs,
+                    item.get("presentation_relationship", {}).get("status"),
+                    item.get("presentation_relationship", {}).get("combination"),
+                    tuple(
+                        sorted(
+                            member["role"]
+                            for member in item.get("presentation_relationship", {}).get(
+                                "members", ()
+                            )
+                        )
+                    ),
                 )
             )
         return sorted(rows)
@@ -694,9 +758,12 @@ def test_supplied_inputs_have_no_invented_duplicates_or_conflicts():
             _assert_pair_members(item)
             assert item["outcome"] in {OUTCOME_INCOMPATIBLE, OUTCOME_UNRESOLVED}
             assert item["locators"][0] not in [item["locators"][1]]
+            assert item["presentation_relationship"]["status"] != RELATIONSHIP_RECOGNIZED
+            assert item["presentation_relationship"]["combination"] == "unknown_unknown"
         else:
             assert len(item["locators"]) == 1
             assert item["locators"][0] == item["occurrences"][0]["locator"]
+            assert "presentation_relationship" not in item
     outside = _coverage(payload, KIND_OUTSIDE_SCOPE)
     assert len(outside) == 107
     assert all(item["outcome"] == KIND_OUTSIDE_SCOPE for item in outside)
@@ -718,6 +785,7 @@ def test_unsupported_variant_is_coverage_not_a_self_pair(tmp_path: Path):
         assert item["metric_identity"] == ""
         assessment = _assessment(admission, item["locators"][0])
         assert assessment["status"] == STATUS_UNSUPPORTED_VARIANT
+        assert "presentation_relationship" not in item
     assert all(
         item["kind"] != KIND_PAIR or "digital_comparable_sales_growth" not in str(item)
         for item in admission["reconciliation"]["items"]
@@ -841,6 +909,12 @@ def test_pair_members_keep_occurrence_local_presentation_and_assurance(
     assert right["assurance_evidence"]["source"]["physical_page_mapping"] == "unresolved"
     for locator in locators:
         assert _assessment(payload, locator)["comparability"] == COMPARABILITY_COMPARABLE
+    _assert_relationship(
+        pair,
+        status=RELATIONSHIP_RECOGNIZED,
+        combination=presentation_role_combination("current", "restated"),
+        roles={"current", "restated"},
+    )
 
 
 @pytest.mark.parametrize("family", FAMILIES)
@@ -877,6 +951,14 @@ def test_presentation_evidence_does_not_change_pair_outcomes(tmp_path: Path, fam
     assert "prior" in roles
     periods = {occ["period"] for occ in pair["occurrences"]}
     assert periods == {SHARED_PERIOD}
+    _assert_relationship(
+        pair,
+        status=RELATIONSHIP_RECOGNIZED,
+        combination=presentation_role_combination("current", "prior"),
+        roles={"current", "prior"},
+    )
+    assert baseline_pair["presentation_relationship"]["status"] == RELATIONSHIP_UNRESOLVED
+    assert baseline_pair["presentation_relationship"]["combination"] == "unknown_unknown"
 
 
 @pytest.mark.parametrize("family", FAMILIES)
@@ -913,8 +995,20 @@ def test_three_peer_evidence_does_not_transfer(tmp_path: Path, family: str):
         roles = {occ["presentation_evidence"]["role"] for occ in item["occurrences"]}
         if evidenced[0]["locator"] in item["locators"]:
             assert roles == {"comparative", "unknown"}
+            _assert_relationship(
+                item,
+                status=RELATIONSHIP_UNRESOLVED,
+                combination=presentation_role_combination("comparative", "unknown"),
+                roles={"comparative", "unknown"},
+            )
         else:
             assert roles == {"unknown"}
+            _assert_relationship(
+                item,
+                status=RELATIONSHIP_UNRESOLVED,
+                combination="unknown_unknown",
+                roles={"unknown"},
+            )
 
 
 def test_supplied_pairs_keep_unknown_presentation_and_assurance():
@@ -942,6 +1036,16 @@ def test_supplied_pairs_keep_unknown_presentation_and_assurance():
             assert occ["assurance_evidence"]["status"] == "unknown"
             assert occ["presentation_evidence"]["source"] is None
             assert occ["assurance_evidence"]["source"] is None
+        if item["kind"] == KIND_PAIR:
+            _assert_relationship(
+                item,
+                status=RELATIONSHIP_INCOMPATIBLE,
+                combination="unknown_unknown",
+                roles={"unknown"},
+            )
+            assert item["presentation_relationship"]["status"] != RELATIONSHIP_RECOGNIZED
+        else:
+            assert "presentation_relationship" not in item
     assert "presentation_role" in payload["unresolved"]
     assert "assurance" in payload["unresolved"]
     assert _bytes_by_name(EXTRACTED) == before
@@ -983,3 +1087,541 @@ def test_renamed_inputs_preserve_local_evidence_locators(tmp_path: Path):
     }
     assert orig_locators.isdisjoint(renamed_locators)
     assert any("00-" in locator or "01-" in locator or "02-" in locator or "03-" in locator for locator in renamed_locators)
+    _assert_relationship(
+        orig_pair,
+        status=RELATIONSHIP_RECOGNIZED,
+        combination="current_comparative",
+        roles={"current", "comparative"},
+    )
+    _assert_relationship(
+        renamed_pair,
+        status=RELATIONSHIP_RECOGNIZED,
+        combination="current_comparative",
+        roles={"current", "comparative"},
+    )
+
+
+def test_presentation_role_combination_table_covers_unordered_roles():
+    expected = {}
+    for index, left in enumerate(PRESENTATION_RELATIONSHIP_ROLES):
+        for right in PRESENTATION_RELATIONSHIP_ROLES[index:]:
+            ordered = (left, right)
+            expected[ordered] = NAMED_PRESENTATION_COMBINATIONS.get(
+                ordered, f"{left}_{right}"
+            )
+    assert PRESENTATION_ROLE_COMBINATIONS == expected
+    assert len(PRESENTATION_ROLE_COMBINATIONS) == 15
+    assert presentation_role_combination("comparative", "current") == "current_comparative"
+    assert presentation_role_combination("prior", "restated") == "restated_prior"
+    assert presentation_role_combination("unknown", "unknown") == "unknown_unknown"
+    assert presentation_role_combination("current", "current") == "current_current"
+    assert presentation_role_combination("restated", "current") == "current_restated"
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize("left_role,right_role", _unordered_role_pairs())
+def test_role_pair_matrix_is_evidence_grounded(
+    tmp_path: Path, family: str, left_role: str, right_role: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "roles")
+    left_mutate = (
+        None
+        if left_role == "unknown"
+        else (lambda payload, role=left_role: _attach_family_evidence(payload, family, role=role))
+    )
+    right_mutate = (
+        None
+        if right_role == "unknown"
+        else (
+            lambda payload, role=right_role: _attach_family_evidence(payload, family, role=role)
+        )
+    )
+    _write_family_pair(
+        dest,
+        family,
+        left_value=10,
+        right_value=10,
+        left_mutate=left_mutate,
+        right_mutate=right_mutate,
+    )
+    payload = _admission(dest)
+    locators = _family_metric_locators(payload, family)
+    pair = _pair_by_locators(_metric_pairs(payload, family), locators)
+    expected_status = (
+        RELATIONSHIP_UNRESOLVED
+        if left_role == "unknown" or right_role == "unknown"
+        else RELATIONSHIP_RECOGNIZED
+    )
+    _assert_relationship(
+        pair,
+        status=expected_status,
+        combination=presentation_role_combination(left_role, right_role),
+        roles={left_role, right_role},
+    )
+    assert pair["outcome"] == OUTCOME_AGREEING_DUPLICATE
+    swapped = tmp_path / "swapped"
+    swapped.mkdir()
+    for name in ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3]:
+        shutil.copy2(dest / name, swapped / name)
+    _write_family_pair(
+        swapped,
+        family,
+        left_value=10,
+        right_value=10,
+        left_mutate=right_mutate,
+        right_mutate=left_mutate,
+    )
+    reversed_payload = _admission(swapped)
+    reversed_pair = _pair_by_locators(
+        _metric_pairs(reversed_payload, family),
+        _family_metric_locators(reversed_payload, family),
+    )
+    assert reversed_pair["presentation_relationship"]["combination"] == pair[
+        "presentation_relationship"
+    ]["combination"]
+    assert reversed_pair["presentation_relationship"]["status"] == pair[
+        "presentation_relationship"
+    ]["status"]
+    assert {member["role"] for member in reversed_pair["presentation_relationship"]["members"]} == {
+        left_role,
+        right_role,
+    }
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize(
+    "left_role,right_role,combination",
+    [
+        ("current", "comparative", "current_comparative"),
+        ("comparative", "current", "current_comparative"),
+        ("restated", "prior", "restated_prior"),
+        ("prior", "restated", "restated_prior"),
+    ],
+)
+def test_named_role_combinations_are_explicit_and_unordered(
+    tmp_path: Path,
+    family: str,
+    left_role: str,
+    right_role: str,
+    combination: str,
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "named")
+    _write_family_pair(
+        dest,
+        family,
+        left_value=10,
+        right_value=11,
+        left_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role=left_role
+        ),
+        right_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role=right_role
+        ),
+    )
+    payload = _admission(dest)
+    locators = _family_metric_locators(payload, family)
+    pair = _pair_by_locators(_metric_pairs(payload, family), locators)
+    assert pair["outcome"] == OUTCOME_CONFLICTING_CANDIDATE
+    _assert_relationship(
+        pair,
+        status=RELATIONSHIP_RECOGNIZED,
+        combination=combination,
+        roles={left_role, right_role},
+    )
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_missing_comparison_evidence_keeps_relationship_unresolved(
+    tmp_path: Path, family: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "gap")
+    _write_family_pair(
+        dest,
+        family,
+        left_value=10,
+        right_value=10,
+        left_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="current"
+        ),
+        right_mutate=lambda payload: _attach_family_evidence(
+            _set_reporting_basis(payload, None), family, role="comparative"
+        ),
+    )
+    payload = _admission(dest)
+    locators = _family_metric_locators(payload, family)
+    pair = _pair_by_locators(_metric_pairs(payload, family), locators)
+    assert pair["outcome"] == OUTCOME_UNRESOLVED
+    _assert_relationship(
+        pair,
+        status=RELATIONSHIP_UNRESOLVED,
+        combination="current_comparative",
+        roles={"current", "comparative"},
+    )
+    assert REASON_CALENDAR_REPORTING in pair["presentation_relationship"][
+        "reasons"
+    ] or peer_gap_reason(REASON_CALENDAR_REPORTING) in pair["presentation_relationship"][
+        "reasons"
+    ]
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize("conflict", ["definition", "calendar", "period", "qualifier"])
+def test_evidenced_dimension_conflicts_make_relationship_incompatible(
+    tmp_path: Path, family: str, conflict: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / conflict)
+    changed = AFFIRMATIVE_COMPSALES_DEFINITION + " changed"
+    if family == FAMILY_SALES_PER_SQUARE_FOOT:
+        changed = AFFIRMATIVE_SPSF_DEFINITION + " changed"
+
+    def mutate_right(payload: dict) -> dict:
+        payload = _attach_family_evidence(payload, family, role="prior")
+        if conflict == "definition":
+            payload = copy.deepcopy(payload)
+            payload["kpi_definitions"][
+                0 if family == FAMILY_COMPARABLE_SALES_GROWTH else 1
+            ]["definition"] = changed
+            return payload
+        if conflict == "calendar":
+            return _set_reporting_basis(payload, REPORTING_BASIS_53)
+        if conflict == "period":
+            payload = copy.deepcopy(payload)
+            metric_id = _family_metric_id(family)
+            for item in payload["reported_kpis"]:
+                if item.get("metric_id") == metric_id:
+                    item["period"] = "2023-01-29"
+            return payload
+        return _mutate_metric(
+            payload,
+            family,
+            lambda item: item.__setitem__(
+                "qualifiers",
+                {"excludes_53rd_week": False, "channel_mix": "stores_and_digital"},
+            ),
+        )
+
+    def mutate_left(payload: dict) -> dict:
+        if conflict == "calendar":
+            payload = _set_reporting_basis(payload, REPORTING_BASIS_52)
+        elif conflict == "qualifier":
+            payload = _mutate_metric(
+                payload,
+                family,
+                lambda item: item.__setitem__(
+                    "qualifiers",
+                    {"excludes_53rd_week": False, "channel_mix": "stores_only"},
+                ),
+            )
+        return _attach_family_evidence(payload, family, role="restated")
+
+    left, right = _affirmative_family_pair(family)
+    if conflict == "period":
+        metric_id = _family_metric_id(family)
+        for payload in (left, right):
+            for item in payload["reported_kpis"]:
+                if item.get("metric_id") == metric_id:
+                    item["value"] = 10
+        left = _attach_family_evidence(left, family, role="restated")
+        right = mutate_right(right)
+        _write_json(dest / MANAGEMENT_NAMES[1], left)
+        _write_json(dest / MANAGEMENT_NAMES[2], right)
+    else:
+        _write_family_pair(
+            dest,
+            family,
+            left_value=10,
+            right_value=10,
+            left_mutate=mutate_left,
+            right_mutate=mutate_right,
+        )
+    payload = _admission(dest)
+    locators = _family_metric_locators(payload, family)
+    pair = _pair_by_locators(_metric_pairs(payload, family), locators)
+    assert pair["outcome"] == OUTCOME_INCOMPATIBLE
+    _assert_relationship(
+        pair,
+        status=RELATIONSHIP_INCOMPATIBLE,
+        combination="restated_prior",
+        roles={"restated", "prior"},
+    )
+    expected_reason = {
+        "definition": "definition_mismatch",
+        "calendar": "calendar_reporting_mismatch",
+        "period": REASON_PERIOD_MISMATCH,
+        "qualifier": "qualifier_mismatch",
+    }[conflict]
+    assert expected_reason in pair["presentation_relationship"]["reasons"]
+    assert "revises" not in pair["presentation_relationship"]
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_missing_and_equal_values_do_not_invent_relationships(
+    tmp_path: Path, family: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "vals")
+    _write_family_pair(dest, family, left_value=10, right_value=10)
+    equal = _admission(dest)
+    locators = _family_metric_locators(equal, family)
+    equal_pair = _pair_by_locators(_metric_pairs(equal, family), locators)
+    assert equal_pair["outcome"] == OUTCOME_AGREEING_DUPLICATE
+    _assert_relationship(
+        equal_pair,
+        status=RELATIONSHIP_UNRESOLVED,
+        combination="unknown_unknown",
+        roles={"unknown"},
+    )
+
+    _write_family_pair(
+        dest,
+        family,
+        left_value=None,
+        right_value=0,
+        left_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="current"
+        ),
+        right_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="comparative"
+        ),
+    )
+    missing = _admission(dest)
+    locators = _family_metric_locators(missing, family)
+    missing_pair = _pair_by_locators(_metric_pairs(missing, family), locators)
+    assert missing_pair["outcome"] == OUTCOME_UNRESOLVED
+    _assert_relationship(
+        missing_pair,
+        status=RELATIONSHIP_RECOGNIZED,
+        combination="current_comparative",
+        roles={"current", "comparative"},
+    )
+    assert REASON_MISSING_VALUE not in missing_pair["presentation_relationship"]["reasons"]
+    assert peer_gap_reason(REASON_MISSING_VALUE) not in missing_pair[
+        "presentation_relationship"
+    ]["reasons"]
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_assurance_filenames_and_older_period_do_not_create_relationships(
+    tmp_path: Path, family: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "infer")
+    _write_family_pair(
+        dest,
+        family,
+        left_value=10,
+        right_value=10,
+        left_mutate=lambda payload: _attach_family_evidence(
+            payload, family, status="audited"
+        ),
+        right_mutate=lambda payload: _attach_family_evidence(
+            payload, family, status="unaudited"
+        ),
+    )
+    assured = _admission(dest)
+    locators = _family_metric_locators(assured, family)
+    pair = _pair_by_locators(_metric_pairs(assured, family), locators)
+    statuses = {occ["assurance_evidence"]["status"] for occ in pair["occurrences"]}
+    assert statuses == {"audited", "unaudited"}
+    _assert_relationship(
+        pair,
+        status=RELATIONSHIP_UNRESOLVED,
+        combination="unknown_unknown",
+        roles={"unknown"},
+    )
+
+    left, right = _affirmative_family_pair(family)
+    metric_id = _family_metric_id(family)
+    for payload in (left, right):
+        for item in payload["reported_kpis"]:
+            if item.get("metric_id") == metric_id:
+                item["value"] = 10
+    left = _attach_family_evidence(left, family, role="current")
+    _write_json(dest / MANAGEMENT_NAMES[1], left)
+    _write_json(dest / MANAGEMENT_NAMES[2], right)
+    older = _admission(dest)
+    locators = _family_metric_locators(older, family)
+    older_pair = _pair_by_locators(_metric_pairs(older, family), locators)
+    roles = {
+        occ["presentation_evidence"]["role"] for occ in older_pair["occurrences"]
+    }
+    assert roles == {"current", "unknown"}
+    assert "prior" not in roles
+    assert "comparative" not in roles
+    _assert_relationship(
+        older_pair,
+        status=RELATIONSHIP_INCOMPATIBLE,
+        combination=presentation_role_combination("current", "unknown"),
+        roles={"current", "unknown"},
+    )
+    assert REASON_PERIOD_MISMATCH in older_pair["presentation_relationship"]["reasons"]
+
+
+def test_spsf_comparison_conflict_is_incompatible_relationship(tmp_path: Path):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "spsf-cmp")
+    _write_family_pair(
+        dest,
+        FAMILY_SALES_PER_SQUARE_FOOT,
+        left_value=10,
+        right_value=10,
+        left_mutate=lambda payload: _attach_family_evidence(
+            payload, FAMILY_SALES_PER_SQUARE_FOOT, role="current"
+        ),
+        right_mutate=lambda payload: _attach_family_evidence(
+            _mutate_metric(
+                payload,
+                FAMILY_SALES_PER_SQUARE_FOOT,
+                lambda item: item.__setitem__("comparison", "year_over_year"),
+            ),
+            FAMILY_SALES_PER_SQUARE_FOOT,
+            role="comparative",
+        ),
+    )
+    payload = _admission(dest)
+    locators = _family_metric_locators(payload, FAMILY_SALES_PER_SQUARE_FOOT)
+    pair = _pair_by_locators(
+        _metric_pairs(payload, FAMILY_SALES_PER_SQUARE_FOOT), locators
+    )
+    assert pair["outcome"] == OUTCOME_INCOMPATIBLE
+    _assert_relationship(
+        pair,
+        status=RELATIONSHIP_INCOMPATIBLE,
+        combination="current_comparative",
+        roles={"current", "comparative"},
+    )
+    assert "comparison_mismatch" in pair["presentation_relationship"]["reasons"]
+
+
+def test_unit_basis_and_scope_conflicts_do_not_acquire_pair_relationships(
+    tmp_path: Path,
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "dims")
+    fy2023, fy2024 = _affirmative_family_pair(FAMILY_COMPARABLE_SALES_GROWTH)
+    fy2023 = _apply_same_period(
+        fy2023, FAMILY_COMPARABLE_SALES_GROWTH, period=SHARED_PERIOD, value=10
+    )
+    fy2024 = _apply_same_period(
+        fy2024, FAMILY_COMPARABLE_SALES_GROWTH, period=SHARED_PERIOD, value=10
+    )
+    cases = {
+        "unit": lambda item: item.__setitem__("unit", "USD"),
+        "basis": lambda item: item.__setitem__("basis", "constant_dollar"),
+        "scope": lambda item: item.__setitem__("scope", {"geography": "Americas"}),
+    }
+    for kind, mutate in cases.items():
+        left = copy.deepcopy(fy2023)
+        right = _mutate_metric(copy.deepcopy(fy2024), FAMILY_COMPARABLE_SALES_GROWTH, mutate)
+        _write_json(dest / MANAGEMENT_NAMES[1], left)
+        _write_json(dest / MANAGEMENT_NAMES[2], right)
+        payload = _admission(dest)
+        mutated = next(
+            item
+            for item in payload["assessments"]["items"]
+            if item["status"] == STATUS_UNSUPPORTED_VARIANT
+        )
+        coverage = [
+            item
+            for item in payload["reconciliation"]["items"]
+            if mutated["locator"] in item["locators"]
+        ]
+        assert coverage
+        assert all(item["kind"] != KIND_PAIR for item in coverage)
+        assert all("presentation_relationship" not in item for item in coverage)
+        assert kind in {"unit", "basis", "scope"}
+
+
+def test_same_document_repeated_occurrences_keep_local_relationships(tmp_path: Path):
+    dest = _copy_json(ANNUAL_NAMES[1:2] + MANAGEMENT_NAMES[1:2], tmp_path / "repeat")
+    payload = json.loads((dest / MANAGEMENT_NAMES[1]).read_text(encoding="utf-8"))
+    from core.tests.test_management_kpi_identity import _apply_affirmative_compsales
+    from core.tests.test_management_kpi_admission import _attach_presentation
+
+    payload = _apply_affirmative_compsales(payload)
+    original = next(
+        item
+        for item in payload["reported_kpis"]
+        if item.get("metric_id") == "comparable_sales_growth"
+    )
+    original["period"] = SHARED_PERIOD
+    original["value"] = 10
+    duplicate = copy.deepcopy(original)
+    _attach_presentation(original, "current")
+    _attach_presentation(duplicate, "comparative")
+    payload["reported_kpis"].append(duplicate)
+    _write_json(dest / MANAGEMENT_NAMES[1], payload)
+    admitted = _admission(dest)
+    locators = _family_metric_locators(admitted, FAMILY_COMPARABLE_SALES_GROWTH)
+    assert len(locators) == 2
+    pair = _pair_by_locators(
+        _metric_pairs(admitted, FAMILY_COMPARABLE_SALES_GROWTH), locators
+    )
+    _assert_relationship(
+        pair,
+        status=RELATIONSHIP_RECOGNIZED,
+        combination="current_comparative",
+        roles={"current", "comparative"},
+    )
+    sources = {occ["bound_source_file"] for occ in pair["occurrences"]}
+    assert len(sources) == 1
+
+
+def test_cli_serializes_recognized_and_unknown_relationships(tmp_path: Path):
+    dest = _copy_json(ANNUAL_NAMES + MANAGEMENT_NAMES, tmp_path / "cli")
+    _write_family_pair(
+        dest,
+        FAMILY_COMPARABLE_SALES_GROWTH,
+        left_value=10,
+        right_value=10,
+        left_mutate=lambda payload: _attach_family_evidence(
+            payload, FAMILY_COMPARABLE_SALES_GROWTH, role="current", status="audited"
+        ),
+        right_mutate=lambda payload: _attach_family_evidence(
+            payload, FAMILY_COMPARABLE_SALES_GROWTH, role="comparative", status="unaudited"
+        ),
+    )
+    out = tmp_path / "out"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "core",
+            "reconcile",
+            str(dest),
+            "--source-root",
+            str(SOURCE),
+            "--admit-period",
+            "2022-01-30",
+            "-o",
+            str(out),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    admission = json.loads(
+        (out / "management_kpi_admission.json").read_text(encoding="utf-8")
+    )
+    matches = [
+        item
+        for item in _metric_pairs(admission, FAMILY_COMPARABLE_SALES_GROWTH)
+        if {occ["presentation_evidence"]["role"] for occ in item["occurrences"]}
+        == {"current", "comparative"}
+    ]
+    assert len(matches) == 1
+    pair = matches[0]
+    _assert_relationship(
+        pair,
+        status=RELATIONSHIP_RECOGNIZED,
+        combination="current_comparative",
+        roles={"current", "comparative"},
+    )
+    statuses = {occ["assurance_evidence"]["status"] for occ in pair["occurrences"]}
+    assert statuses == {"audited", "unaudited"}
+    for occ in pair["occurrences"]:
+        assert occ["presentation_evidence"]["source"]["physical_page_mapping"] == (
+            "unresolved"
+        )
+    for item in admission["reconciliation"]["items"]:
+        if item["kind"] == KIND_PAIR:
+            assert "presentation_relationship" in item
+        else:
+            assert "presentation_relationship" not in item

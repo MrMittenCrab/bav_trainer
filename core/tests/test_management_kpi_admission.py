@@ -1033,6 +1033,15 @@ def test_cli_serializes_occurrence_evidence(tmp_path: Path):
         for occ in item["occurrences"]:
             assert "presentation_evidence" in occ
             assert "assurance_evidence" in occ
+        if item["kind"] == "pair":
+            rel = item["presentation_relationship"]
+            assert rel["combination"]
+            assert [member["locator"] for member in rel["members"]] == item["locators"]
+            for member, occ in zip(rel["members"], item["occurrences"]):
+                assert member["role"] == occ["presentation_evidence"]["role"]
+                assert member["occurrence_identity"] == occ["occurrence_identity"]
+        else:
+            assert "presentation_relationship" not in item
     assert all(
         item["assurance"] == "unknown" and item["presentation_role"] == "unknown"
         for item in admission["documents"]

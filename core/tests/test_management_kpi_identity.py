@@ -993,6 +993,15 @@ def test_mutations_cannot_silently_preserve_comparability(tmp_path: Path):
             assert fy2024_item["status"] == STATUS_SUPPORTED
             assert fy2024_item["comparability"] == COMPARABILITY_NOT_COMPARABLE
             assert fy2024_item["metric_identity"] == identity
+        if kind in {"scope", "unit", "basis"}:
+            coverage = [
+                item
+                for item in payload["reconciliation"]["items"]
+                if fy2024_item["locator"] in item["locators"]
+            ]
+            assert coverage
+            assert all(item["kind"] != "pair" for item in coverage)
+            assert all("presentation_relationship" not in item for item in coverage)
 
 
 def test_unknown_variant_is_retained_with_reason(tmp_path: Path):
@@ -1162,6 +1171,14 @@ def test_ordinary_admission_keeps_canonical_payloads_unchanged(tmp_path: Path):
         assert item["assurance_evidence"]["status"] == "unknown"
     assert "presentation_role" in mixed_payload["unresolved"]
     assert "assurance" in mixed_payload["unresolved"]
+    for item in mixed_payload["reconciliation"]["items"]:
+        if item["kind"] == "pair":
+            rel = item["presentation_relationship"]
+            assert rel["status"] != "recognized"
+            assert rel["combination"] == "unknown_unknown"
+            assert {member["role"] for member in rel["members"]} == {"unknown"}
+        else:
+            assert "presentation_relationship" not in item
     assert _bytes_by_name(EXTRACTED) == before
 
 

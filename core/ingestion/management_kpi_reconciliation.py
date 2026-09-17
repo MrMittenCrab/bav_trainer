@@ -28,12 +28,53 @@ OUTCOME_CONFLICTING_CANDIDATE = "conflicting_candidate"
 OUTCOME_INCOMPATIBLE = "incompatible"
 OUTCOME_UNRESOLVED = "unresolved"
 REASON_MISSING_VALUE = "missing_value"
+RELATIONSHIP_RECOGNIZED = "recognized"
+RELATIONSHIP_UNRESOLVED = "unresolved"
+RELATIONSHIP_INCOMPATIBLE = "incompatible"
+PRESENTATION_RELATIONSHIP_ROLES = (
+    "current",
+    "comparative",
+    "restated",
+    "prior",
+    "unknown",
+)
+NAMED_PRESENTATION_COMBINATIONS = {
+    ("current", "comparative"): "current_comparative",
+    ("restated", "prior"): "restated_prior",
+}
 _KIND_RANK = {
     KIND_PAIR: 0,
     KIND_SINGLETON: 1,
     KIND_UNSUPPORTED_VARIANT: 2,
     KIND_OUTSIDE_SCOPE: 3,
 }
+_ROLE_RANK = {
+    role: index for index, role in enumerate(PRESENTATION_RELATIONSHIP_ROLES)
+}
+
+
+def _ordered_role_pair(left_role: str, right_role: str) -> tuple[str, str]:
+    first, second = sorted((left_role, right_role), key=_ROLE_RANK.__getitem__)
+    return (first, second)
+
+
+def _build_presentation_role_combinations() -> dict[tuple[str, str], str]:
+    table: dict[tuple[str, str], str] = {}
+    for index, left in enumerate(PRESENTATION_RELATIONSHIP_ROLES):
+        for right in PRESENTATION_RELATIONSHIP_ROLES[index:]:
+            ordered = _ordered_role_pair(left, right)
+            table[ordered] = NAMED_PRESENTATION_COMBINATIONS.get(
+                ordered, f"{ordered[0]}_{ordered[1]}"
+            )
+    return table
+
+
+PRESENTATION_ROLE_COMBINATIONS = _build_presentation_role_combinations()
+
+
+def presentation_role_combination(left_role: str, right_role: str) -> str:
+    """Deterministic unordered role-pair label; order does not imply precedence."""
+    return PRESENTATION_ROLE_COMBINATIONS[_ordered_role_pair(left_role, right_role)]
 
 
 def _json_num(value: float | None) -> int | float | None:
@@ -97,6 +138,36 @@ class ManagementKpiReconciledOccurrence:
 
 
 @dataclass(frozen=True)
+class ManagementKpiPresentationRelationshipMember:
+    locator: str
+    occurrence_identity: str
+    role: str
+
+    def to_payload(self) -> dict[str, str]:
+        return {
+            "locator": self.locator,
+            "occurrence_identity": self.occurrence_identity,
+            "role": self.role,
+        }
+
+
+@dataclass(frozen=True)
+class ManagementKpiPresentationRelationship:
+    status: str
+    combination: str
+    members: tuple[ManagementKpiPresentationRelationshipMember, ...]
+    reasons: tuple[str, ...]
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "status": self.status,
+            "combination": self.combination,
+            "members": [item.to_payload() for item in self.members],
+            "reasons": list(self.reasons),
+        }
+
+
+@dataclass(frozen=True)
 class ManagementKpiReconciliationRecord:
     kind: str
     outcome: str
@@ -105,9 +176,10 @@ class ManagementKpiReconciliationRecord:
     metric_identity_fields: tuple[tuple[str, str], ...]
     occurrences: tuple[ManagementKpiReconciledOccurrence, ...]
     reasons: tuple[str, ...]
+    presentation_relationship: ManagementKpiPresentationRelationship | None = None
 
     def to_payload(self) -> dict[str, Any]:
-        return {
+        payload = {
             "kind": self.kind,
             "outcome": self.outcome,
             "family": self.family,
@@ -118,6 +190,11 @@ class ManagementKpiReconciliationRecord:
             "reasons": list(self.reasons),
             "canonical_selection": "deferred",
         }
+        if self.presentation_relationship is not None:
+            payload["presentation_relationship"] = (
+                self.presentation_relationship.to_payload()
+            )
+        return payload
 
 
 def _dimension_payload(observation: Any, *, attr: str, value_key: str) -> dict[str, Any]:
@@ -195,6 +272,74 @@ def _pair_reasons(
     if right.value is None:
         reasons.append(peer_gap_reason(REASON_MISSING_VALUE))
     return tuple(reasons)
+
+
+def _occurrence_role(occurrence: ManagementKpiReconciledOccurrence) -> str:
+    role = dict(occurrence.presentation_evidence).get("role", "unknown")
+    return str(role or "unknown")
+
+
+def _relationship_gate_reasons(
+    left: ManagementKpiReconciledOccurrence,
+    right: ManagementKpiReconciledOccurrence,
+) -> tuple[str, ...]:
+    left_ev = dict(left.evidence)
+    right_ev = dict(right.evidence)
+    local_gaps = set(required_comparison_reasons(left_ev))
+    peer_gaps = set(required_comparison_reasons(right_ev))
+    reasons: list[str] = []
+    for reason in evidenced_conflicts(left_ev, right_ev):
+        reasons.append(reason)
+    for reason in evidenced_period_conflict(left_ev, right_ev):
+        reasons.append(reason)
+    for reason in REQUIRED_COMPARISON_REASONS:
+        if reason in local_gaps:
+            reasons.append(reason)
+    for reason in REQUIRED_COMPARISON_REASONS:
+        if reason in peer_gaps:
+            reasons.append(peer_gap_reason(reason))
+    return tuple(reasons)
+
+
+def _relationship_status(
+    left: ManagementKpiReconciledOccurrence,
+    right: ManagementKpiReconciledOccurrence,
+) -> str:
+    left_ev = dict(left.evidence)
+    right_ev = dict(right.evidence)
+    if evidenced_conflicts(left_ev, right_ev) or evidenced_period_conflict(
+        left_ev, right_ev
+    ):
+        return RELATIONSHIP_INCOMPATIBLE
+    if required_comparison_reasons(left_ev) or required_comparison_reasons(right_ev):
+        return RELATIONSHIP_UNRESOLVED
+    if _occurrence_role(left) == "unknown" or _occurrence_role(right) == "unknown":
+        return RELATIONSHIP_UNRESOLVED
+    return RELATIONSHIP_RECOGNIZED
+
+
+def _presentation_relationship(
+    left: ManagementKpiReconciledOccurrence,
+    right: ManagementKpiReconciledOccurrence,
+) -> ManagementKpiPresentationRelationship:
+    members = (
+        ManagementKpiPresentationRelationshipMember(
+            locator=left.locator,
+            occurrence_identity=left.occurrence_identity,
+            role=_occurrence_role(left),
+        ),
+        ManagementKpiPresentationRelationshipMember(
+            locator=right.locator,
+            occurrence_identity=right.occurrence_identity,
+            role=_occurrence_role(right),
+        ),
+    )
+    return ManagementKpiPresentationRelationship(
+        status=_relationship_status(left, right),
+        combination=presentation_role_combination(members[0].role, members[1].role),
+        members=members,
+        reasons=_relationship_gate_reasons(left, right),
+    )
 
 
 def _pair_outcome(
@@ -300,6 +445,7 @@ def reconcile_reported_observations(
                     metric_identity_fields=fields,
                     occurrences=(left, right),
                     reasons=reasons,
+                    presentation_relationship=_presentation_relationship(left, right),
                 )
             )
 

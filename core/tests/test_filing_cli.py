@@ -321,6 +321,17 @@ def test_reconcile_serializes_management_identity_assessments(tmp_path: Path):
         for occ in item["occurrences"]:
             assert occ["presentation_evidence"]["role"] == "unknown"
             assert occ["assurance_evidence"]["status"] == "unknown"
+        if item["kind"] == "pair":
+            rel = item["presentation_relationship"]
+            assert rel["status"] in {"unresolved", "incompatible"}
+            assert rel["status"] != "recognized"
+            assert rel["combination"] == "unknown_unknown"
+            assert [member["locator"] for member in rel["members"]] == item["locators"]
+            assert {member["role"] for member in rel["members"]} == {"unknown"}
+            assert "revises" not in rel
+            assert "preferred" not in rel
+        else:
+            assert "presentation_relationship" not in item
     reported = {
         item["locator"]: item
         for item in admission["observations"]
