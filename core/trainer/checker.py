@@ -21,6 +21,7 @@ from ..engine.component_catalog import (
     STORE_COUNT_COMPONENT_CATALOG,
     REVENUE_STORE_COMPONENT_CATALOG,
     COMPARABLE_SALES_COMPONENT_CATALOG,
+    SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG,
     is_operating_kpi_source_identity,
     INVENTORY_ANALYSIS_COMPONENT_CATALOG,
     REPORTED_MARGIN_COMPONENT_CATALOG,
@@ -63,6 +64,10 @@ from ..model.inventory_analysis import (
 from ..model.geographic_segment import (
     compute_geographic_segment_series,
     geographic_segment_applicable,
+)
+from ..model.management_kpi import (
+    compute_management_kpi_series,
+    management_kpi_applicable,
 )
 from ..model.operating_kpi import (
     compute_operating_kpi_series,
@@ -429,13 +434,18 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
             compsales_family_ids = {
                 family.id for family in COMPARABLE_SALES_COMPONENT_CATALOG
             }
+            spsf_family_ids = {
+                family.id for family in SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG
+            }
             operating_kpi = None
             operating_kpi_relationship = None
             operating_kpi_compsales_relationship = None
+            management_kpi = None
             needed_ids = (
                 operating_kpi_family_ids
                 | relationship_family_ids
                 | compsales_family_ids
+                | spsf_family_ids
             )
             if any(comp.family_id in needed_ids for comp in comps):
                 if operating_kpi_applicable(financials):
@@ -458,6 +468,11 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                             financials,
                             list(modeled_periods),
                         )
+                    )
+                if management_kpi_applicable(financials):
+                    management_kpi = compute_management_kpi_series(
+                        financials,
+                        list(modeled_periods),
                     )
             dynamic_expected = {
                 comp.id: expected_value_for_component(
@@ -486,6 +501,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     operating_kpi_compsales_relationship=(
                         operating_kpi_compsales_relationship
                     ),
+                    management_kpi=management_kpi,
                 )
                 for comp in comps
             }

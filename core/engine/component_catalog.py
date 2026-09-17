@@ -5039,11 +5039,22 @@ def is_revenue_store_practice_identity(component: object) -> bool:
     return getattr(component, "category", None) == REVENUE_STORE_PRACTICE_CATEGORY
 
 
+def is_sales_per_square_foot_source_identity(component: object) -> bool:
+    return getattr(component, "category", None) == SALES_PER_SQUARE_FOOT_SOURCE_CATEGORY
+
+
+def is_sales_per_square_foot_practice_identity(component: object) -> bool:
+    return (
+        getattr(component, "category", None) == SALES_PER_SQUARE_FOOT_PRACTICE_CATEGORY
+    )
+
+
 def is_operating_kpi_source_identity(component: object) -> bool:
     return (
         is_store_count_source_identity(component)
         or is_revenue_store_source_identity(component)
         or is_comparable_sales_source_identity(component)
+        or is_sales_per_square_foot_source_identity(component)
     )
 
 
@@ -5319,7 +5330,26 @@ COMPARABLE_SALES_PRACTICE_CATEGORY = "operating_kpi_comparable_sales"
 COMPARABLE_SALES_DIFFERENCE_FAMILY_ID = (
     "operating_kpi_revenue_comparable_sales_difference"
 )
+COMPARABLE_SALES_CHANGE_FAMILY_ID = (
+    "operating_kpi_comparable_sales_adjacent_change"
+)
 COMPARABLE_SALES_PCT_FORMAT = '0.00"%"'
+SALES_PER_SQUARE_FOOT_SHEET_NAME = "Sales per Square Foot Analysis"
+SALES_PER_SQUARE_FOOT_SOURCE_FAMILY_ID = (
+    "operating_kpi_sales_per_square_foot_source"
+)
+SALES_PER_SQUARE_FOOT_SOURCE_CATEGORY = (
+    "operating_kpi_sales_per_square_foot_source"
+)
+SALES_PER_SQUARE_FOOT_PRACTICE_CATEGORY = (
+    "operating_kpi_sales_per_square_foot"
+)
+SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID = (
+    "operating_kpi_sales_per_square_foot_change"
+)
+SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID = (
+    "operating_kpi_sales_per_square_foot_growth"
+)
 
 
 def comparable_sales_identity_token(identity: str) -> str:
@@ -5460,6 +5490,33 @@ COMPARABLE_SALES_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
             "Opening difference is absent; a missing input is unavailable, not compressed.",
             "A missing prior comparable-sales observation does not suppress a current comparison.",
             "The inputs have distinct scopes and do not imply causality.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id=COMPARABLE_SALES_CHANGE_FAMILY_ID,
+        order=168,
+        title="Comparable-sales adjacent change",
+        short_hint=(
+            "Analyst-derived adjacent change in percentage points = current "
+            "reported comparable-sales percent minus the immediately prior "
+            "reported percent. This is not growth of growth, revenue "
+            "attribution, or causality. Opening change is absent. A missing "
+            "or semantically incompatible adjacent observation is unavailable."
+        ),
+        semantic_key="operating_kpi.comparable_sales.adjacent_change_pp",
+        category=COMPARABLE_SALES_PRACTICE_CATEGORY,
+        tab_template=COMPARABLE_SALES_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(COMPARABLE_SALES_SOURCE_FAMILY_ID,),
+        depends_on_previous=(COMPARABLE_SALES_SOURCE_FAMILY_ID,),
+        hints=(
+            "Adjacent change uses the mapped current and immediately prior "
+            "reported comparable-sales source cells.",
+            "The result is in percentage points: 7 minus 2 is 5, not 2.5.",
+            "Opening change is absent; a canonical gap or semantic discontinuity "
+            "is unavailable and is not practiced.",
+            "Reported values remain populated across discontinuities.",
         ),
         tolerance=1e-12,
     ),
@@ -5606,6 +5663,377 @@ def expand_comparable_sales_specs(
                 )
             )
             order += 1
+    return tuple(specs)
+
+
+def resolve_management_kpi_adjacent_change_formula(
+    current: SemanticCellRef,
+    prior: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Adjacent change from mapped current/prior reported source cells."""
+    current_cell = semantic_formula_cell(current, from_tab=from_tab)
+    prior_cell = semantic_formula_cell(prior, from_tab=from_tab)
+    return f"={current_cell}-{prior_cell}"
+
+
+def resolve_management_kpi_growth_formula(
+    current: SemanticCellRef,
+    prior: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Adjacent fractional growth from mapped current/prior reported source cells."""
+    current_cell = semantic_formula_cell(current, from_tab=from_tab)
+    prior_cell = semantic_formula_cell(prior, from_tab=from_tab)
+    return (
+        f"=IF({prior_cell}=0,NA(),({current_cell}-{prior_cell})/{prior_cell})"
+    )
+
+
+def comparable_sales_change_dependency_ids(
+    periods: list[date], period: date, identity: str
+) -> tuple[str, str]:
+    """Current then immediately preceding comparable-sales source identities."""
+    period_index = {item: index for index, item in enumerate(periods)}
+    if period not in period_index:
+        raise ValueError(
+            f"comparable-sales change period {period.isoformat()} is outside "
+            "the canonical axis"
+        )
+    index = period_index[period]
+    if index == 0:
+        raise ValueError(
+            "opening comparable-sales period has no immediately preceding source"
+        )
+    prior = periods[index - 1]
+    return (
+        comparable_sales_source_component_id(period, identity),
+        comparable_sales_source_component_id(prior, identity),
+    )
+
+
+def expand_comparable_sales_change_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    identities: tuple[str, ...],
+    change_periods_by_identity: dict[str, tuple[date, ...]],
+) -> tuple[ComponentSpec, ...]:
+    """Expand comparable-sales adjacent-change practice by isolated identity."""
+    _require_comparable_sales_period_axis(
+        periods, caller="expand_comparable_sales_change_specs"
+    )
+    if len(identities) != len(set(identities)):
+        raise ValueError(
+            "duplicate identities are not allowed in "
+            "expand_comparable_sales_change_specs"
+        )
+    family = {item.id: item for item in COMPARABLE_SALES_COMPONENT_CATALOG}[
+        COMPARABLE_SALES_CHANGE_FAMILY_ID
+    ]
+    specs: list[ComponentSpec] = []
+    order = start_order
+    period_index = {period: index for index, period in enumerate(periods)}
+    for identity in identities:
+        change_periods = change_periods_by_identity.get(identity, ())
+        unknown = [period for period in change_periods if period not in period_index]
+        if unknown:
+            raise ValueError(
+                "expand_comparable_sales_change_specs received periods outside "
+                f"the canonical axis: {unknown}"
+            )
+        if len(change_periods) != len(set(change_periods)):
+            raise ValueError(
+                "duplicate change periods are not allowed in "
+                "expand_comparable_sales_change_specs"
+            )
+        token = comparable_sales_identity_token(identity)
+        for period in periods:
+            if period not in change_periods:
+                continue
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=comparable_sales_component_id(family.id, period, identity),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=f"{family.semantic_key}.{token}.{period_end}",
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=period_index[period],
+                    period_end=period_end,
+                    depends_on=comparable_sales_change_dependency_ids(
+                        periods, period, identity
+                    ),
+                    hints=family.hints + (f"Management identity: {identity}.",),
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
+def sales_per_square_foot_source_component_id(period: date, identity: str) -> str:
+    return comparable_sales_component_id(
+        SALES_PER_SQUARE_FOOT_SOURCE_FAMILY_ID, period, identity
+    )
+
+
+def sales_per_square_foot_source_semantic_key(period: date, identity: str) -> str:
+    token = comparable_sales_identity_token(identity)
+    return (
+        "operating_kpi.sales_per_square_foot.source."
+        f"{token}.{period.isoformat()}"
+    )
+
+
+def sales_per_square_foot_adjacent_source_ids(
+    periods: list[date], period: date, identity: str
+) -> tuple[str, str]:
+    """Current then immediately preceding sales-per-square-foot source identities."""
+    period_index = {item: index for index, item in enumerate(periods)}
+    if period not in period_index:
+        raise ValueError(
+            f"sales-per-square-foot practice period {period.isoformat()} is "
+            "outside the canonical axis"
+        )
+    index = period_index[period]
+    if index == 0:
+        raise ValueError(
+            "opening sales-per-square-foot period has no immediately preceding source"
+        )
+    prior = periods[index - 1]
+    return (
+        sales_per_square_foot_source_component_id(period, identity),
+        sales_per_square_foot_source_component_id(prior, identity),
+    )
+
+
+SALES_PER_SQUARE_FOOT_SOURCE_FAMILY = ComponentFamily(
+    id=SALES_PER_SQUARE_FOOT_SOURCE_FAMILY_ID,
+    order=169,
+    title="Reported sales per square foot",
+    short_hint=(
+        "Populated reported sales per square foot in USD_per_square_foot. "
+        "This is a reported source, not a practice cell. Financial-statement "
+        "monetary scaling is not applied."
+    ),
+    semantic_key="operating_kpi.sales_per_square_foot.source",
+    category=SALES_PER_SQUARE_FOOT_SOURCE_CATEGORY,
+    tab_template=SALES_PER_SQUARE_FOOT_SHEET_NAME,
+    period_scope="all",
+    hints=(
+        "Reported sales per square foot is a reported source, not a practice cell.",
+        "The API unit is USD_per_square_foot and is not scaled to statement units.",
+        "Identities stay isolated; they are not merged, averaged, or selected.",
+        "This source is populated and is not practiced or Checked.",
+    ),
+    tolerance=0.0,
+)
+
+
+SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id=SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID,
+        order=170,
+        title="Sales-per-square-foot adjacent change",
+        short_hint=(
+            "Analyst-derived adjacent absolute change = current reported "
+            "sales per square foot minus the immediately prior reported "
+            "value. Opening change is absent. A missing or semantically "
+            "incompatible adjacent observation is unavailable."
+        ),
+        semantic_key="operating_kpi.sales_per_square_foot.adjacent_change",
+        category=SALES_PER_SQUARE_FOOT_PRACTICE_CATEGORY,
+        tab_template=SALES_PER_SQUARE_FOOT_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(SALES_PER_SQUARE_FOOT_SOURCE_FAMILY_ID,),
+        depends_on_previous=(SALES_PER_SQUARE_FOOT_SOURCE_FAMILY_ID,),
+        hints=(
+            "Adjacent change uses the mapped current and immediately prior "
+            "reported sales-per-square-foot source cells.",
+            "The unit remains USD_per_square_foot; statement monetary scaling "
+            "is not applied.",
+            "Opening change is absent; a canonical gap or semantic discontinuity "
+            "is unavailable and is not practiced.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id=SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
+        order=171,
+        title="Sales-per-square-foot growth",
+        short_hint=(
+            "Analyst-derived adjacent fractional growth = (current - prior) / "
+            "prior from reported sales-per-square-foot sources. A zero prior "
+            "is undefined. Opening growth is absent. A missing or semantically "
+            "incompatible adjacent observation is unavailable."
+        ),
+        semantic_key="operating_kpi.sales_per_square_foot.growth",
+        category=SALES_PER_SQUARE_FOOT_PRACTICE_CATEGORY,
+        tab_template=SALES_PER_SQUARE_FOOT_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(SALES_PER_SQUARE_FOOT_SOURCE_FAMILY_ID,),
+        depends_on_previous=(SALES_PER_SQUARE_FOOT_SOURCE_FAMILY_ID,),
+        hints=(
+            "Growth uses the mapped current and immediately prior reported "
+            "sales-per-square-foot source cells.",
+            "A zero prior is undefined and uses NA().",
+            "Opening growth is absent; a missing input is unavailable, not compressed.",
+        ),
+        tolerance=1e-12,
+    ),
+)
+
+
+def expand_sales_per_square_foot_source_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    identities: tuple[str, ...],
+    source_periods_by_identity: dict[str, tuple[date, ...]],
+) -> tuple[ComponentSpec, ...]:
+    """Register populated reported sales-per-square-foot sources; never practice."""
+    _require_comparable_sales_period_axis(
+        periods, caller="expand_sales_per_square_foot_source_specs"
+    )
+    if len(identities) != len(set(identities)):
+        raise ValueError(
+            "duplicate identities are not allowed in "
+            "expand_sales_per_square_foot_source_specs"
+        )
+    period_index = {period: index for index, period in enumerate(periods)}
+    family = SALES_PER_SQUARE_FOOT_SOURCE_FAMILY
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for identity in identities:
+        source_periods = source_periods_by_identity.get(identity, ())
+        unknown = [period for period in source_periods if period not in period_index]
+        if unknown:
+            raise ValueError(
+                "expand_sales_per_square_foot_source_specs received periods "
+                f"outside the canonical axis: {unknown}"
+            )
+        if len(source_periods) != len(set(source_periods)):
+            raise ValueError(
+                "duplicate source periods are not allowed in "
+                "expand_sales_per_square_foot_source_specs"
+            )
+        for period in periods:
+            if period not in source_periods:
+                continue
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=sales_per_square_foot_source_component_id(period, identity),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=sales_per_square_foot_source_semantic_key(
+                        period, identity
+                    ),
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=period_index[period],
+                    period_end=period_end,
+                    depends_on=(),
+                    hints=family.hints + (f"Management identity: {identity}.",),
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
+def expand_sales_per_square_foot_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    identities: tuple[str, ...],
+    change_periods_by_identity: dict[str, tuple[date, ...]],
+    growth_periods_by_identity: dict[str, tuple[date, ...]],
+) -> tuple[ComponentSpec, ...]:
+    """Expand sales-per-square-foot change and growth practice by identity."""
+    _require_comparable_sales_period_axis(
+        periods, caller="expand_sales_per_square_foot_specs"
+    )
+    if len(identities) != len(set(identities)):
+        raise ValueError(
+            "duplicate identities are not allowed in expand_sales_per_square_foot_specs"
+        )
+    families = {item.id: item for item in SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG}
+    change_family = families[SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID]
+    growth_family = families[SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID]
+    specs: list[ComponentSpec] = []
+    order = start_order
+    period_index = {period: index for index, period in enumerate(periods)}
+
+    def _append(family: ComponentFamily, period: date, identity: str) -> None:
+        nonlocal order
+        unknown_family_periods = [
+            item
+            for item in (period,)
+            if item not in period_index
+        ]
+        if unknown_family_periods:
+            raise ValueError(
+                "expand_sales_per_square_foot_specs received periods outside "
+                f"the canonical axis: {unknown_family_periods}"
+            )
+        token = comparable_sales_identity_token(identity)
+        period_end = period.isoformat()
+        specs.append(
+            ComponentSpec(
+                id=comparable_sales_component_id(family.id, period, identity),
+                family_id=family.id,
+                order=order,
+                family_order=family.order,
+                title=family.title,
+                short_hint=family.short_hint,
+                semantic_key=f"{family.semantic_key}.{token}.{period_end}",
+                category=family.category,
+                tab_template=family.tab_template,
+                period_index=period_index[period],
+                period_end=period_end,
+                depends_on=sales_per_square_foot_adjacent_source_ids(
+                    periods, period, identity
+                ),
+                hints=family.hints + (f"Management identity: {identity}.",),
+                tolerance=family.tolerance,
+            )
+        )
+        order += 1
+
+    for identity in identities:
+        change_periods = change_periods_by_identity.get(identity, ())
+        growth_periods = growth_periods_by_identity.get(identity, ())
+        for collection, label in (
+            (change_periods, "change"),
+            (growth_periods, "growth"),
+        ):
+            unknown = [period for period in collection if period not in period_index]
+            if unknown:
+                raise ValueError(
+                    "expand_sales_per_square_foot_specs received periods outside "
+                    f"the canonical axis: {unknown}"
+                )
+            if len(collection) != len(set(collection)):
+                raise ValueError(
+                    f"duplicate {label} periods are not allowed in "
+                    "expand_sales_per_square_foot_specs"
+                )
+        for period in periods:
+            if period in change_periods:
+                _append(change_family, period, identity)
+            if period in growth_periods:
+                _append(growth_family, period, identity)
     return tuple(specs)
 
 

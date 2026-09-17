@@ -36,6 +36,14 @@ from ..model.geographic_segment import (
     compute_geographic_segment_series,
     geographic_segment_applicable,
 )
+from ..data.historical_operating_kpis import (
+    FAMILY_COMPARABLE_SALES_GROWTH,
+    FAMILY_SALES_PER_SQUARE_FOOT,
+)
+from ..model.management_kpi import (
+    compute_management_kpi_series,
+    management_kpi_applicable,
+)
 from ..model.operating_kpi import (
     compute_operating_kpi_series,
     operating_kpi_applicable,
@@ -175,8 +183,11 @@ from .component_catalog import (
     expand_store_count_specs,
     expand_revenue_store_source_specs,
     expand_revenue_store_specs,
+    expand_comparable_sales_change_specs,
     expand_comparable_sales_source_specs,
     expand_comparable_sales_specs,
+    expand_sales_per_square_foot_source_specs,
+    expand_sales_per_square_foot_specs,
     expand_capex_specs,
     geographic_component_id,
     geographic_identity_label,
@@ -187,16 +198,24 @@ from .component_catalog import (
     REVENUE_STORE_DIFFERENCE_FAMILY_ID,
     REVENUE_STORE_GROWTH_FAMILY_ID,
     REVENUE_STORE_SOURCE_FAMILY_ID,
+    COMPARABLE_SALES_CHANGE_FAMILY_ID,
     COMPARABLE_SALES_DIFFERENCE_FAMILY_ID,
     COMPARABLE_SALES_PCT_FORMAT,
     COMPARABLE_SALES_SHEET_NAME,
     COMPARABLE_SALES_SOURCE_FAMILY_ID,
+    SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID,
+    SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
+    SALES_PER_SQUARE_FOOT_SHEET_NAME,
+    SALES_PER_SQUARE_FOOT_SOURCE_FAMILY_ID,
     StoreCountSourceRef,
     SemanticCellRef,
     comparable_sales_identity_label,
     comparable_sales_identity_token,
     comparable_sales_source_component_id,
+    resolve_management_kpi_adjacent_change_formula,
+    resolve_management_kpi_growth_formula,
     resolve_revenue_comparable_sales_difference_formula,
+    sales_per_square_foot_source_component_id,
     resolve_revenue_store_difference_formula,
     resolve_revenue_store_growth_formula,
     resolve_store_count_growth_formula,
@@ -262,6 +281,7 @@ OWNERSHIP_ATTRIBUTION_SHEET = "Ownership Attribution"
 GEOGRAPHIC_SHEET = GEOGRAPHIC_SHEET_NAME
 STORE_COUNT_SHEET = STORE_COUNT_SHEET_NAME
 COMPARABLE_SALES_SHEET = COMPARABLE_SALES_SHEET_NAME
+SALES_PER_SQUARE_FOOT_SHEET = SALES_PER_SQUARE_FOOT_SHEET_NAME
 JUDGMENT_INSTRUCTION = (
     "The supplied treatment is the model's reference treatment, not a universal "
     "accounting truth. Compare it with the listed alternative(s), choose the "
@@ -389,6 +409,45 @@ def _comparable_sales_expand_inputs(
         source_periods[identity] = tuple(sources)
         difference_periods[identity] = tuple(differences)
     return source_periods, difference_periods
+
+
+def _management_kpi_expand_inputs(
+    series,
+    *,
+    family: str,
+) -> tuple[
+    tuple[str, ...],
+    dict[str, tuple[date, ...]],
+    dict[str, tuple[date, ...]],
+    dict[str, tuple[date, ...]],
+]:
+    identities = tuple(
+        identity
+        for identity in series.identities
+        if series.series[identity].family == family
+    )
+    source_periods: dict[str, tuple[date, ...]] = {}
+    change_periods: dict[str, tuple[date, ...]] = {}
+    growth_periods: dict[str, tuple[date, ...]] = {}
+    for identity in identities:
+        item = series.series[identity]
+        sources: list[date] = []
+        changes: list[date] = []
+        growths: list[date] = []
+        for period in series.periods:
+            reported = item.reported_value[period]
+            if reported is not None and not is_source_unavailable(reported):
+                sources.append(period)
+            change = item.adjacent_change[period]
+            if change is not None and not is_source_unavailable(change):
+                changes.append(period)
+            growth = item.growth[period]
+            if growth is not None and not is_source_unavailable(growth):
+                growths.append(period)
+        source_periods[identity] = tuple(sources)
+        change_periods[identity] = tuple(changes)
+        growth_periods[identity] = tuple(growths)
+    return identities, source_periods, change_periods, growth_periods
 
 
 class ReferenceModelBuilder:
@@ -912,6 +971,9 @@ class ReferenceModelBuilder:
         self.operating_kpi_series = None
         self.operating_kpi_relationship = None
         self.operating_kpi_compsales_relationship = None
+        self.management_kpi_series = None
+        self.comparable_sales_schedule = False
+        self.sales_per_square_foot_schedule = False
         specs: list = []
         order = start_order
         revenue_registered = False
@@ -1020,7 +1082,77 @@ class ReferenceModelBuilder:
                 identities=compsales.identities,
                 difference_periods_by_identity=difference_by_identity,
             )
+            order += len(compsales_practice_specs)
             specs.extend(compsales_source_specs + compsales_practice_specs)
+            self.comparable_sales_schedule = True
+
+        if management_kpi_applicable(self.fin):
+            self.management_kpi_series = compute_management_kpi_series(
+                self.fin,
+                self.periods,
+            )
+            management = self.management_kpi_series
+            compsales_identities, compsales_sources, compsales_changes, _ = (
+                _management_kpi_expand_inputs(
+                    management, family=FAMILY_COMPARABLE_SALES_GROWTH
+                )
+            )
+            spsf_identities, spsf_sources, spsf_changes, spsf_growths = (
+                _management_kpi_expand_inputs(
+                    management, family=FAMILY_SALES_PER_SQUARE_FOOT
+                )
+            )
+            registered_ids = {spec.id for spec in specs}
+            remaining_sources = {
+                identity: tuple(
+                    period
+                    for period in compsales_sources.get(identity, ())
+                    if comparable_sales_source_component_id(period, identity)
+                    not in registered_ids
+                )
+                for identity in compsales_identities
+            }
+            remaining_identities = tuple(
+                identity
+                for identity in compsales_identities
+                if remaining_sources[identity]
+            )
+            if remaining_identities:
+                extra_sources = expand_comparable_sales_source_specs(
+                    self.periods,
+                    start_order=order,
+                    identities=remaining_identities,
+                    source_periods_by_identity=remaining_sources,
+                )
+                order += len(extra_sources)
+                specs.extend(extra_sources)
+            if compsales_identities:
+                change_specs = expand_comparable_sales_change_specs(
+                    self.periods,
+                    start_order=order,
+                    identities=compsales_identities,
+                    change_periods_by_identity=compsales_changes,
+                )
+                order += len(change_specs)
+                specs.extend(change_specs)
+                self.comparable_sales_schedule = True
+            if spsf_identities:
+                spsf_source_specs = expand_sales_per_square_foot_source_specs(
+                    self.periods,
+                    start_order=order,
+                    identities=spsf_identities,
+                    source_periods_by_identity=spsf_sources,
+                )
+                order += len(spsf_source_specs)
+                spsf_practice_specs = expand_sales_per_square_foot_specs(
+                    self.periods,
+                    start_order=order,
+                    identities=spsf_identities,
+                    change_periods_by_identity=spsf_changes,
+                    growth_periods_by_identity=spsf_growths,
+                )
+                specs.extend(spsf_source_specs + spsf_practice_specs)
+                self.sales_per_square_foot_schedule = True
 
         self.operating_kpi_specs = tuple(specs)
         return self.operating_kpi_specs
@@ -7209,6 +7341,22 @@ class ReferenceModelBuilder:
         """
         return default_row, default_col
 
+    def _sales_per_square_foot_source_placement(
+        self,
+        identity: str,
+        period_index: int,
+        default_row: int,
+        default_col: int,
+    ) -> tuple[int, int] | tuple[int, int, str]:
+        """Return the worksheet placement for one reported sales-per-square-foot source.
+
+        Default layout keeps sources on the identity source row at consecutive
+        period columns. Tests may override this hook to relocate sources,
+        including nonadjacent columns and another existing sheet, before
+        registration and formula resolution.
+        """
+        return default_row, default_col
+
     def _normalize_source_placement(
         self,
         placed: tuple[int, int] | tuple[int, int, str],
@@ -7542,36 +7690,66 @@ class ReferenceModelBuilder:
                 )
 
     def _build_comparable_sales(self, wb: Workbook) -> None:
-        if self.operating_kpi_compsales_relationship is None:
+        relationship = self.operating_kpi_compsales_relationship
+        management = self.management_kpi_series
+        if relationship is None and management is None:
             raise RuntimeError(
-                "operating_kpi_compsales_relationship required when building "
+                "comparable-sales schedule required when building "
                 "Comparable Sales Analysis"
             )
-        relationship = self.operating_kpi_compsales_relationship
-        if relationship.scope_note != COMPARABLE_SALES_SCOPE_NOTE:
+        if relationship is not None and relationship.scope_note != COMPARABLE_SALES_SCOPE_NOTE:
             raise RuntimeError(
                 "revenue/comparable-sales scope note drifted from the accepted API"
+            )
+        if management is not None:
+            identities = tuple(
+                identity
+                for identity in management.identities
+                if management.series[identity].family == FAMILY_COMPARABLE_SALES_GROWTH
+            )
+        else:
+            identities = relationship.identities
+        if not identities:
+            raise RuntimeError(
+                "comparable-sales identities required when building "
+                "Comparable Sales Analysis"
             )
         ws = wb.create_sheet(COMPARABLE_SALES_SHEET)
         ws["A1"] = f"{self.fin.company_name} — Comparable Sales Analysis"
         ws["A1"].font = BOLD
         ws["A2"] = (
-            "Source-supported reported global comparable-sales percentages "
-            "compared with statement-derived consolidated revenue growth. "
-            "Full management identities stay isolated."
+            "Source-supported reported comparable-sales percentages with "
+            "identity-specific adjacent change. Full management identities "
+            "stay isolated."
         )
-        ws["A3"] = (
-            f"Currency {relationship.currency}; monetary scale "
-            f"{relationship.monetary_scale}. Reported comparable-sales remain "
-            "in percent units (2 means 2%)."
-        )
+        if relationship is not None:
+            ws["A3"] = (
+                f"Currency {relationship.currency}; monetary scale "
+                f"{relationship.monetary_scale}. Reported comparable-sales remain "
+                "in percent units (2 means 2%). Adjacent change is in percentage "
+                "points, not growth of growth."
+            )
+        else:
+            ws["A3"] = (
+                "Reported comparable-sales remain in percent units (2 means 2%). "
+                "Adjacent change is in percentage points, not growth of growth."
+            )
         ws["A4"] = (
-            "Opening difference is not practiced. A missing current "
-            "comparable-sales or revenue input remains unavailable. A missing "
-            "prior comparable-sales observation does not suppress a current "
-            "comparison."
+            "Opening adjacent change and difference are not practiced. A missing "
+            "current comparable-sales or revenue input remains unavailable. A "
+            "missing prior comparable-sales observation does not suppress a "
+            "current revenue comparison, but it does suppress adjacent change."
         )
-        ws["A5"] = relationship.scope_note
+        if relationship is not None:
+            ws["A5"] = relationship.scope_note
+        else:
+            ws["A5"] = (
+                "Adjacent comparable-sales change compares the current reported "
+                "percent with the immediately prior reported percent for the same "
+                "full identity. Semantic discontinuities are not normalized or "
+                "bridged. The change is not growth of growth, revenue attribution, "
+                "or causal evidence."
+            )
         ws.column_dimensions["A"].width = 64
 
         header_row = 6
@@ -7667,8 +7845,15 @@ class ReferenceModelBuilder:
             assert isinstance(value, dict)
             return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
-        first = relationship.series[relationship.identities[0]]
-        place_shared_revenue = self.operating_kpi_relationship is None
+        first = None
+        if relationship is not None:
+            first = relationship.series[relationship.identities[0]]
+        place_shared_revenue = (
+            relationship is not None and self.operating_kpi_relationship is None
+        )
+        relationship_identities = (
+            set(relationship.identities) if relationship is not None else set()
+        )
 
         cursor = 8
         revenue_row = None
@@ -7689,8 +7874,13 @@ class ReferenceModelBuilder:
             cursor += 2
 
         identity_layout: dict[str, dict[str, int]] = {}
-        for identity in relationship.identities:
-            series = relationship.series[identity]
+        for identity in identities:
+            series = (
+                management.series[identity]
+                if management is not None
+                else relationship.series[identity]
+            )
+            include_difference = identity in relationship_identities
             _section(
                 cursor,
                 "COMPARABLE SALES — "
@@ -7720,8 +7910,10 @@ class ReferenceModelBuilder:
                 "calendar_basis": cursor + 11,
                 "qualifiers": cursor + 12,
                 "source": cursor + 13,
-                "difference": cursor + 14,
+                "change": cursor + 14,
             }
+            if include_difference:
+                rows["difference"] = cursor + 15
             _label(rows["family"], "Family (reported)")
             _label(rows["entity_ticker"], "Entity ticker")
             _label(rows["entity_company"], "Entity company")
@@ -7740,11 +7932,18 @@ class ReferenceModelBuilder:
                 "Reported comparable-sales growth (percent; 2 means 2%)",
             )
             _label(
-                rows["difference"],
-                "Growth difference (analyst-derived, percentage points)",
+                rows["change"],
+                "Adjacent reported change (percentage points)",
             )
+            if include_difference:
+                _label(
+                    rows["difference"],
+                    "Growth difference (analyst-derived, percentage points)",
+                )
+                cursor = rows["difference"] + 2
+            else:
+                cursor = rows["change"] + 2
             identity_layout[identity] = rows
-            cursor = rows["difference"] + 2
 
         self.rowmap["comparable_sales_header_row"] = header_row
         if revenue_row is not None:
@@ -7756,6 +7955,7 @@ class ReferenceModelBuilder:
         }
 
         if place_shared_revenue:
+            assert first is not None
             assert revenue_row is not None and revenue_growth_row is not None
             for j, period in enumerate(self.periods):
                 col_idx = 2 + j
@@ -7817,13 +8017,26 @@ class ReferenceModelBuilder:
                         revenue_growth,
                     )
 
-        for identity in relationship.identities:
-            series = relationship.series[identity]
+        for identity in identities:
+            series = (
+                management.series[identity]
+                if management is not None
+                else relationship.series[identity]
+            )
+            relationship_series = (
+                relationship.series[identity]
+                if relationship is not None and identity in relationship_identities
+                else None
+            )
             rows = identity_layout[identity]
             token = comparable_sales_identity_token(identity)
             for j, period in enumerate(self.periods):
                 col_idx = 2 + j
-                compsales = series.comparable_sales_growth[period]
+                compsales = (
+                    series.reported_value[period]
+                    if management is not None
+                    else series.comparable_sales_growth[period]
+                )
                 source_row, source_col, source_tab = self._normalize_source_placement(
                     self._comparable_sales_source_placement(
                         identity,
@@ -7922,7 +8135,41 @@ class ReferenceModelBuilder:
                         identity=token,
                     )
 
-                difference = series.growth_difference_pp[period]
+                change = (
+                    series.adjacent_change[period] if management is not None else None
+                )
+                if j == 0 or change is None:
+                    ws.cell(row=rows["change"], column=col_idx, value="N/A")
+                elif is_source_unavailable(change):
+                    self._stamp_unavailable(
+                        ws, rows["change"], col_idx, SOURCE_UNAVAILABLE
+                    )
+                else:
+                    current = _mapped_ref(
+                        comparable_sales_source_component_id(period, identity)
+                    )
+                    prior = _mapped_ref(
+                        comparable_sales_source_component_id(
+                            self.periods[j - 1], identity
+                        )
+                    )
+                    change_f = resolve_management_kpi_adjacent_change_formula(
+                        current, prior, from_tab=COMPARABLE_SALES_SHEET
+                    )
+                    _put_formula(rows["change"], col_idx, change_f, points=True)
+                    _register(
+                        COMPARABLE_SALES_CHANGE_FAMILY_ID,
+                        j,
+                        rows["change"],
+                        col_idx,
+                        change_f,
+                        change,
+                        identity=token,
+                    )
+
+                if "difference" not in rows:
+                    continue
+                difference = relationship_series.growth_difference_pp[period]
                 if j == 0 or difference is None:
                     ws.cell(row=rows["difference"], column=col_idx, value="N/A")
                 elif is_source_unavailable(difference):
@@ -7953,6 +8200,361 @@ class ReferenceModelBuilder:
                         col_idx,
                         difference_f,
                         difference,
+                        identity=token,
+                    )
+
+    def _build_sales_per_square_foot(self, wb: Workbook) -> None:
+        management = self.management_kpi_series
+        if management is None:
+            raise RuntimeError(
+                "management_kpi_series required when building "
+                "Sales per Square Foot Analysis"
+            )
+        identities = tuple(
+            identity
+            for identity in management.identities
+            if management.series[identity].family == FAMILY_SALES_PER_SQUARE_FOOT
+        )
+        if not identities:
+            raise RuntimeError(
+                "sales-per-square-foot identities required when building "
+                "Sales per Square Foot Analysis"
+            )
+        ws = wb.create_sheet(SALES_PER_SQUARE_FOOT_SHEET)
+        ws["A1"] = f"{self.fin.company_name} — Sales per Square Foot Analysis"
+        ws["A1"].font = BOLD
+        ws["A2"] = (
+            "Source-supported reported sales per square foot with identity-specific "
+            "adjacent change and fractional growth. Full management identities "
+            "stay isolated."
+        )
+        ws["A3"] = (
+            "The API unit is USD_per_square_foot. Financial-statement monetary "
+            "scaling is not applied."
+        )
+        ws["A4"] = (
+            "Opening change and growth are not practiced. A missing or semantically "
+            "incompatible adjacent observation remains unavailable. A zero prior "
+            "is undefined."
+        )
+        ws["A5"] = (
+            "Adjacent change is current minus prior reported sales per square "
+            "foot. Growth is (current - prior) / prior. These are analyst-derived "
+            "calculations, not causal evidence, and are distinct from comparable-sales "
+            "percentage-point change."
+        )
+        ws.column_dimensions["A"].width = 64
+
+        header_row = 6
+        ws.cell(row=header_row, column=1, value="Metric").font = BOLD
+        for j, pd in enumerate(self.periods):
+            cell = ws.cell(row=header_row, column=2 + j, value=pd)
+            cell.number_format = "mmm dd, yyyy"
+            cell.font = BOLD
+            ws.column_dimensions[self._col(2 + j)].width = 16
+
+        def _section(row: int, title: str) -> None:
+            ws.cell(row=row, column=1, value=title).font = BOLD
+
+        def _label(row: int, text: str) -> None:
+            ws.cell(row=row, column=1, value=text)
+
+        def _expected(value: float | str | None) -> float | str:
+            assert value is not None
+            return value if isinstance(value, str) else float(value)
+
+        def _target_sheet(tab: str):
+            if tab == SALES_PER_SQUARE_FOOT_SHEET:
+                return ws
+            if tab not in wb.sheetnames:
+                raise RuntimeError(
+                    f"sales-per-square-foot source tab {tab!r} does not exist"
+                )
+            return wb[tab]
+
+        def _put_number(
+            row: int,
+            col_idx: int,
+            value: float,
+            *,
+            tab: str = SALES_PER_SQUARE_FOOT_SHEET,
+        ) -> None:
+            cell = _target_sheet(tab).cell(row=row, column=col_idx, value=float(value))
+            cell.number_format = NUM_FMT
+
+        def _put_formula(
+            row: int,
+            col_idx: int,
+            formula: str,
+            *,
+            pct: bool = False,
+        ):
+            cell = ws.cell(row=row, column=col_idx, value=formula)
+            cell.number_format = PCT_FMT if pct else NUM_FMT
+            return cell
+
+        def _register(
+            family_id: str,
+            period_index: int,
+            row: int,
+            col_idx: int,
+            formula: str,
+            expected: float | str | None,
+            *,
+            tab: str = SALES_PER_SQUARE_FOOT_SHEET,
+            identity: str = "",
+        ) -> None:
+            self._register_operating_kpi(
+                family_id,
+                period_index,
+                tab,
+                row,
+                col_idx,
+                formula,
+                _expected(expected),
+                identity=identity,
+            )
+
+        def _mapped_ref(component_id: str) -> SemanticCellRef:
+            mapped = self.semantic_map.get(component_id)
+            return SemanticCellRef(
+                id=mapped.id,
+                semantic_key=mapped.semantic_key,
+                period_end=mapped.period_end,
+                cell=mapped.cell,
+                tab=mapped.tab,
+            )
+
+        def _format_qualifiers(value: dict[str, str] | str) -> str:
+            if is_source_unavailable(value):
+                return SOURCE_UNAVAILABLE
+            assert isinstance(value, dict)
+            return json.dumps(value, sort_keys=True, separators=(",", ":"))
+
+        identity_layout: dict[str, dict[str, int]] = {}
+        cursor = 8
+        for identity in identities:
+            series = management.series[identity]
+            _section(
+                cursor,
+                "SALES PER SQUARE FOOT — "
+                + comparable_sales_identity_label(
+                    entity_ticker=series.entity_ticker,
+                    entity_company=series.entity_company,
+                    geography=series.geography,
+                    population=series.population,
+                    unit=series.unit,
+                    basis=series.basis,
+                    comparison=series.comparison,
+                ),
+            )
+            cursor += 1
+            rows = {
+                "family": cursor,
+                "entity_ticker": cursor + 1,
+                "entity_company": cursor + 2,
+                "geography": cursor + 3,
+                "population": cursor + 4,
+                "unit": cursor + 5,
+                "basis": cursor + 6,
+                "comparison": cursor + 7,
+                "definition": cursor + 8,
+                "period_kind": cursor + 9,
+                "calendar_week": cursor + 10,
+                "calendar_basis": cursor + 11,
+                "qualifiers": cursor + 12,
+                "source": cursor + 13,
+                "change": cursor + 14,
+                "growth": cursor + 15,
+            }
+            _label(rows["family"], "Family (reported)")
+            _label(rows["entity_ticker"], "Entity ticker")
+            _label(rows["entity_company"], "Entity company")
+            _label(rows["geography"], "Geography")
+            _label(rows["population"], "Population")
+            _label(rows["unit"], "Unit")
+            _label(rows["basis"], "Reporting basis")
+            _label(rows["comparison"], "Comparison")
+            _label(rows["definition"], "Definition")
+            _label(rows["period_kind"], "Period kind")
+            _label(rows["calendar_week"], "Calendar week adjustment")
+            _label(rows["calendar_basis"], "Calendar reporting basis")
+            _label(rows["qualifiers"], "Qualifiers")
+            _label(
+                rows["source"],
+                "Reported sales per square foot (USD_per_square_foot)",
+            )
+            _label(
+                rows["change"],
+                "Adjacent reported change (USD_per_square_foot)",
+            )
+            _label(rows["growth"], "Adjacent growth (fraction)")
+            identity_layout[identity] = rows
+            cursor = rows["growth"] + 2
+
+        self.rowmap["sales_per_square_foot_header_row"] = header_row
+        self.rowmap["sales_per_square_foot_identity_rows"] = {
+            identity: dict(rows) for identity, rows in identity_layout.items()
+        }
+
+        for identity in identities:
+            series = management.series[identity]
+            rows = identity_layout[identity]
+            token = comparable_sales_identity_token(identity)
+            for j, period in enumerate(self.periods):
+                col_idx = 2 + j
+                reported = series.reported_value[period]
+                source_row, source_col, source_tab = self._normalize_source_placement(
+                    self._sales_per_square_foot_source_placement(
+                        identity,
+                        j,
+                        rows["source"],
+                        col_idx,
+                    ),
+                    SALES_PER_SQUARE_FOOT_SHEET,
+                )
+                if is_source_unavailable(reported):
+                    for key in (
+                        "family",
+                        "entity_ticker",
+                        "entity_company",
+                        "geography",
+                        "population",
+                        "unit",
+                        "basis",
+                        "comparison",
+                        "definition",
+                        "period_kind",
+                        "calendar_week",
+                        "calendar_basis",
+                        "qualifiers",
+                    ):
+                        self._stamp_unavailable(
+                            ws, rows[key], col_idx, SOURCE_UNAVAILABLE
+                        )
+                    self._stamp_unavailable(
+                        _target_sheet(source_tab),
+                        source_row,
+                        source_col,
+                        SOURCE_UNAVAILABLE,
+                    )
+                else:
+                    ws.cell(row=rows["family"], column=col_idx, value=series.family)
+                    ws.cell(
+                        row=rows["entity_ticker"],
+                        column=col_idx,
+                        value=series.entity_ticker,
+                    )
+                    ws.cell(
+                        row=rows["entity_company"],
+                        column=col_idx,
+                        value=series.entity_company,
+                    )
+                    ws.cell(row=rows["geography"], column=col_idx, value=series.geography)
+                    ws.cell(
+                        row=rows["population"], column=col_idx, value=series.population
+                    )
+                    ws.cell(row=rows["unit"], column=col_idx, value=series.unit)
+                    ws.cell(row=rows["basis"], column=col_idx, value=series.basis)
+                    ws.cell(
+                        row=rows["comparison"], column=col_idx, value=series.comparison
+                    )
+                    ws.cell(
+                        row=rows["definition"],
+                        column=col_idx,
+                        value=series.definition_text[period],
+                    )
+                    ws.cell(
+                        row=rows["period_kind"],
+                        column=col_idx,
+                        value=series.period_kind[period],
+                    )
+                    ws.cell(
+                        row=rows["calendar_week"],
+                        column=col_idx,
+                        value=series.calendar_week_adjustment[period],
+                    )
+                    ws.cell(
+                        row=rows["calendar_basis"],
+                        column=col_idx,
+                        value=series.calendar_reporting_basis[period],
+                    )
+                    ws.cell(
+                        row=rows["qualifiers"],
+                        column=col_idx,
+                        value=_format_qualifiers(series.qualifiers[period]),
+                    )
+                    _put_number(
+                        source_row, source_col, float(reported), tab=source_tab
+                    )
+                    _register(
+                        SALES_PER_SQUARE_FOOT_SOURCE_FAMILY_ID,
+                        j,
+                        source_row,
+                        source_col,
+                        store_count_source_map_formula(float(reported)),
+                        float(reported),
+                        tab=source_tab,
+                        identity=token,
+                    )
+
+                change = series.adjacent_change[period]
+                growth = series.growth[period]
+                if j == 0 or change is None:
+                    ws.cell(row=rows["change"], column=col_idx, value="N/A")
+                elif is_source_unavailable(change):
+                    self._stamp_unavailable(
+                        ws, rows["change"], col_idx, SOURCE_UNAVAILABLE
+                    )
+                else:
+                    current = _mapped_ref(
+                        sales_per_square_foot_source_component_id(period, identity)
+                    )
+                    prior = _mapped_ref(
+                        sales_per_square_foot_source_component_id(
+                            self.periods[j - 1], identity
+                        )
+                    )
+                    change_f = resolve_management_kpi_adjacent_change_formula(
+                        current, prior, from_tab=SALES_PER_SQUARE_FOOT_SHEET
+                    )
+                    _put_formula(rows["change"], col_idx, change_f)
+                    _register(
+                        SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID,
+                        j,
+                        rows["change"],
+                        col_idx,
+                        change_f,
+                        change,
+                        identity=token,
+                    )
+
+                if j == 0 or growth is None:
+                    ws.cell(row=rows["growth"], column=col_idx, value="N/A")
+                elif is_source_unavailable(growth):
+                    self._stamp_unavailable(
+                        ws, rows["growth"], col_idx, SOURCE_UNAVAILABLE
+                    )
+                else:
+                    current = _mapped_ref(
+                        sales_per_square_foot_source_component_id(period, identity)
+                    )
+                    prior = _mapped_ref(
+                        sales_per_square_foot_source_component_id(
+                            self.periods[j - 1], identity
+                        )
+                    )
+                    growth_f = resolve_management_kpi_growth_formula(
+                        current, prior, from_tab=SALES_PER_SQUARE_FOOT_SHEET
+                    )
+                    _put_formula(rows["growth"], col_idx, growth_f, pct=True)
+                    _register(
+                        SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
+                        j,
+                        rows["growth"],
+                        col_idx,
+                        growth_f,
+                        growth,
                         identity=token,
                     )
 

@@ -165,7 +165,10 @@ PER_SHARE = _writer("_build_per_share_analysis", 9, when="per_share_series")
 GEOGRAPHIC = _writer("_build_geographic_segment", 10, when="geographic_series")
 OPERATING_KPI = _writer("_build_store_count", 11, when="operating_kpi_series")
 COMPARABLE_SALES = _writer(
-    "_build_comparable_sales", 12, when="operating_kpi_compsales_relationship"
+    "_build_comparable_sales", 12, when="comparable_sales_schedule"
+)
+SALES_PER_SQUARE_FOOT = _writer(
+    "_build_sales_per_square_foot", 13, when="sales_per_square_foot_schedule"
 )
 
 
@@ -211,7 +214,7 @@ BUILD_MODULES = (
     )),
     _integrated(
         "operating_kpi",
-        (OPERATING_KPI, COMPARABLE_SALES),
+        (OPERATING_KPI, COMPARABLE_SALES, SALES_PER_SQUARE_FOOT),
         spec_key=lambda s: (
             s.family_id, s.period_index, operating_kpi_spec_identity(s),
         ),

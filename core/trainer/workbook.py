@@ -18,6 +18,7 @@ from ..engine.component_catalog import (
     STORE_COUNT_COMPONENT_CATALOG,
     REVENUE_STORE_COMPONENT_CATALOG,
     COMPARABLE_SALES_COMPONENT_CATALOG,
+    SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG,
     is_operating_kpi_source_identity,
     GOODWILL_INTANGIBLES_COMPONENT_CATALOG,
     LEASE_LIABILITY_COMPONENT_CATALOG,
@@ -304,6 +305,7 @@ def group_components_by_family(smap: SemanticMap) -> list[dict]:
     family_meta.update({f.id: f for f in STORE_COUNT_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in REVENUE_STORE_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in COMPARABLE_SALES_COMPONENT_CATALOG})
+    family_meta.update({f.id: f for f in SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG})
     groups: list[dict] = []
     for family_id, comps in by_family.items():
         comps = [c for c in comps if not is_operating_kpi_source_identity(c)]

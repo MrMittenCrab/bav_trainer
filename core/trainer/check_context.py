@@ -31,6 +31,7 @@ PER_SHARE_SHEET = "Per Share Analysis"
 GEOGRAPHIC_SHEET = "Geographic Segment Analysis"
 STORE_COUNT_SHEET = "Store Count Analysis"
 COMPARABLE_SALES_SHEET = "Comparable Sales Analysis"
+SALES_PER_SQUARE_FOOT_SHEET = "Sales per Square Foot Analysis"
 
 
 @dataclass(frozen=True)
@@ -676,6 +677,26 @@ def validate_live_model_structure(
             answer_key_wb[COMPARABLE_SALES_SHEET],
             sheet_name=COMPARABLE_SALES_SHEET,
             editable_cells=compsales_practice,
+        )
+
+    spsf_practice = {
+        cell for tab, cell in practice_cells if tab == SALES_PER_SQUARE_FOOT_SHEET
+    }
+    spsf_sheet_present = (
+        SALES_PER_SQUARE_FOOT_SHEET in trainer_wb.sheetnames
+        or SALES_PER_SQUARE_FOOT_SHEET in answer_key_wb.sheetnames
+    )
+    if spsf_practice or spsf_sheet_present:
+        for wb, label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
+            if SALES_PER_SQUARE_FOOT_SHEET not in wb.sheetnames:
+                raise ValueError(
+                    f"{label} is missing Sales per Square Foot Analysis sheet"
+                )
+        _validate_trusted_sheet_cells(
+            trainer_wb[SALES_PER_SQUARE_FOOT_SHEET],
+            answer_key_wb[SALES_PER_SQUARE_FOOT_SHEET],
+            sheet_name=SALES_PER_SQUARE_FOOT_SHEET,
+            editable_cells=spsf_practice,
         )
 
     _validate_trusted_sheet_cells(
