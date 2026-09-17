@@ -1141,6 +1141,10 @@ def test_ordinary_admission_keeps_canonical_payloads_unchanged(tmp_path: Path):
     mixed_payload = reconciliation_management_admission_payload(mixed_rec)
     assert mixed_payload["canonical_selection"] == "deferred"
     assert mixed_payload["assessments"]["canonical_selection"] == "deferred"
+    assert mixed_payload["reconciliation"]["canonical_selection"] == "deferred"
+    assert mixed_payload["reconciliation"]["selected_count"] == 0
+    assert mixed_payload["reconciliation"]["superseded_count"] == 0
+    assert mixed_payload["reconciliation"]["group_selection_counts"]["selected"] == 0
     assert "canonical_identity" not in mixed_payload["unresolved"]
     assert "comparability" not in mixed_payload["unresolved"]
     targets = [

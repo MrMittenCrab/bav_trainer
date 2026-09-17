@@ -49,9 +49,18 @@ from core.ingestion.management_kpi_reconciliation import (
     REASON_OUTSIDE_SCOPE_TARGET,
     REASON_RECIPROCAL,
     REASON_CYCLIC,
+    REASON_SINGLETON,
+    REASON_GROUP_LARGER_THAN_TWO,
+    REASON_MISSING_REVISION_LINK,
+    REASON_COMPETING_DIRECTION,
+    REASON_MISSING_REVISER_VALUE,
+    REASON_UNKNOWN_ASSURANCE,
+    REASON_UNAUDITED_REVISER,
     RELATIONSHIP_INCOMPATIBLE,
     RELATIONSHIP_RECOGNIZED,
     RELATIONSHIP_UNRESOLVED,
+    SELECTION_DEFERRED,
+    SELECTION_SELECTED,
     presentation_role_combination,
 )
 from core.tests.test_management_kpi_admission import (
@@ -709,6 +718,21 @@ def test_supplied_inputs_have_no_invented_duplicates_or_conflicts():
     counts = recon["outcome_counts"]
     assert payload["status"] == "admitted_unreconciled"
     assert recon["canonical_selection"] == "deferred"
+    assert recon["selected_count"] == 0
+    assert recon["superseded_count"] == 0
+    assert recon["group_selection_counts"][SELECTION_SELECTED] == 0
+    assert recon["group_selection_counts"][SELECTION_DEFERRED] == len(
+        recon["group_selections"]
+    )
+    assert recon["group_selections"]
+    for item in recon["group_selections"]:
+        assert item["kind"] == "group_selection"
+        assert item["status"] == SELECTION_DEFERRED
+        assert item["selected"] is None
+        assert item["superseded"] is None
+        assert item["revision"] is None
+        assert "canonical_selection" not in item
+        assert item["reasons"]
     assert payload["assessments"]["comparability_counts"]["comparable"] == 0
     assert payload["assessments"]["comparability_counts"]["not_comparable"] == 22
     assert payload["assessments"]["comparability_counts"]["unresolved"] == 6
@@ -1770,6 +1794,101 @@ def _assert_revision_link(
     return link
 
 
+def _write_audited_revised_family_pair(
+    dest: Path,
+    family: str,
+    *,
+    left_value: object | None = 10,
+    right_value: object | None = 10,
+    left_mutate=None,
+    right_mutate=None,
+    reviser: str = "right",
+) -> tuple[dict, dict]:
+    def compose(mutate, audit: bool):
+        def inner(payload: dict) -> dict:
+            if mutate is not None:
+                payload = mutate(payload)
+            if audit:
+                payload = _attach_family_evidence(payload, family, status="audited")
+            return payload
+
+        return inner
+
+    return _write_revised_family_pair(
+        dest,
+        family,
+        left_value=left_value,
+        right_value=right_value,
+        left_mutate=compose(left_mutate, reviser in {"left", "both"}),
+        right_mutate=compose(right_mutate, reviser in {"right", "both"}),
+        reviser=reviser,
+    )
+
+
+def _group_selections(payload: dict) -> list[dict]:
+    return list(payload["reconciliation"]["group_selections"])
+
+
+def _family_period_group(
+    payload: dict, family: str, *, period: str = SHARED_PERIOD
+) -> dict:
+    metric_id = _family_metric_id(family)
+    locators = {
+        item["locator"]
+        for item in payload["observations"]
+        if item["kind"] == "reported_kpi"
+        and item["metric_id"] == metric_id
+        and item["period"] == period
+    }
+    matches = [
+        item for item in _group_selections(payload) if set(item["locators"]) == locators
+    ]
+    assert locators
+    assert len(matches) == 1
+    return matches[0]
+
+
+def _assert_selected_group(group: dict, *, reviser_locator: str, superseded_locator: str) -> None:
+    assert group["kind"] == "group_selection"
+    assert group["status"] == SELECTION_SELECTED
+    assert "canonical_selection" not in group
+    assert group["reasons"] == []
+    assert group["selected"]["locator"] == reviser_locator
+    assert group["superseded"]["locator"] == superseded_locator
+    assert group["selected"]["locator"] != group["superseded"]["locator"]
+    assert group["revision"]["reviser"]["locator"] == reviser_locator
+    assert group["revision"]["revised"]["locator"] == superseded_locator
+    assert group["revision"]["evidence"]
+    assert "canonical_selection" not in group["revision"]
+    assert group["assurance_evidence"]["status"] == "audited"
+    assert group["assurance_evidence"]["evidence"]
+    assert group["assurance_evidence"]["locator"]
+    assert group["assurance_evidence"]["source"]["page_reference"]
+    by_locator = {occ["locator"]: occ for occ in group["occurrences"]}
+    assert reviser_locator in by_locator
+    assert superseded_locator in by_locator
+    superseded = by_locator[superseded_locator]
+    reviser = by_locator[reviser_locator]
+    assert superseded["source"]["page_reference"]
+    assert superseded["bound_source_file"].endswith(".pdf")
+    assert superseded["definition"]["text"]
+    assert reviser["value"] is not None
+    assert reviser["assurance_evidence"]["status"] == "audited"
+
+
+def _assert_deferred_group(group: dict, *needles: str) -> None:
+    assert group["kind"] == "group_selection"
+    assert group["status"] == SELECTION_DEFERRED
+    assert group["selected"] is None
+    assert group["superseded"] is None
+    assert group["revision"] is None
+    assert group["assurance_evidence"] is None
+    assert "canonical_selection" not in group
+    assert group["reasons"]
+    for needle in needles:
+        assert needle in group["reasons"]
+
+
 @pytest.mark.parametrize("family", FAMILIES)
 def test_explicit_revision_links_are_directed_and_gated(tmp_path: Path, family: str):
     dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "rev")
@@ -2337,3 +2456,429 @@ def test_cli_serializes_named_target_blank_evidence_as_unresolved(
     assert REASON_MISSING_EVIDENCE in link["reasons"]
     assert admission["reconciliation"]["revision_link_counts"]["recognized"] == 0
     assert admission["status"] == "admitted_unreconciled"
+
+
+def _selected_locators(payload: dict, family: str) -> tuple[str, str, dict]:
+    link = _assert_revision_link(
+        payload,
+        status=RELATIONSHIP_RECOGNIZED,
+        reviser_year=2024,
+        revised_year=2023,
+        family=family,
+    )
+    return link["reviser"]["locator"], link["revised"]["locator"], link
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize(
+    ("left_value", "right_value"),
+    [(10, 10), (10, 11), (None, 10), (10, 0)],
+)
+def test_audited_reviser_is_selected_and_original_survives(
+    tmp_path: Path, family: str, left_value: object, right_value: object
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "sel")
+    _write_audited_revised_family_pair(
+        dest, family, left_value=left_value, right_value=right_value
+    )
+    payload = _admission(dest)
+    assert payload["status"] == "admitted_unreconciled"
+    assert payload["canonical_selection"] == "deferred"
+    assert payload["reconciliation"]["canonical_selection"] == "deferred"
+    reviser, superseded, link = _selected_locators(payload, family)
+    group = _family_period_group(payload, family)
+    _assert_selected_group(group, reviser_locator=reviser, superseded_locator=superseded)
+    by_locator = {occ["locator"]: occ for occ in group["occurrences"]}
+    assert by_locator[reviser]["value"] == right_value
+    assert by_locator[superseded]["value"] == left_value
+    assert payload["reconciliation"]["selected_count"] >= 1
+    assert payload["reconciliation"]["superseded_count"] >= 1
+    pair = _pair_by_locators(_metric_pairs(payload, family), group["locators"])
+    assert pair["canonical_selection"] == "deferred"
+    assert "selected" not in pair
+    assert "superseded" not in pair
+    if left_value is None:
+        assert pair["outcome"] == OUTCOME_UNRESOLVED
+    elif left_value == right_value:
+        assert pair["outcome"] == OUTCOME_AGREEING_DUPLICATE
+    else:
+        assert pair["outcome"] == OUTCOME_CONFLICTING_CANDIDATE
+    assert link["canonical_selection"] == "deferred"
+    assert "superseded" not in link
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize("status", [None, "unknown", "unaudited"])
+def test_unknown_or_unaudited_reviser_defers_selection(
+    tmp_path: Path, family: str, status: str | None
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "asr")
+    if status is None:
+        _write_revised_family_pair(dest, family)
+        expected = REASON_UNKNOWN_ASSURANCE
+    else:
+        _write_revised_family_pair(
+            dest,
+            family,
+            right_mutate=lambda payload: _attach_family_evidence(
+                payload, family, status=status
+            ),
+        )
+        expected = (
+            REASON_UNAUDITED_REVISER if status == "unaudited" else REASON_UNKNOWN_ASSURANCE
+        )
+    payload = _admission(dest)
+    assert payload["status"] == "admitted_unreconciled"
+    _assert_revision_link(
+        payload,
+        status=RELATIONSHIP_RECOGNIZED,
+        reviser_year=2024,
+        revised_year=2023,
+        family=family,
+    )
+    group = _family_period_group(payload, family)
+    _assert_deferred_group(group, expected)
+    assert payload["reconciliation"]["selected_count"] == 0
+    assert payload["reconciliation"]["superseded_count"] == 0
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize("blank", [Ellipsis, None, "", " ", " \t "])
+def test_blank_revision_evidence_defers_selection_without_rejecting(
+    tmp_path: Path, family: str, blank: object
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "blank-sel")
+    _left, right = _write_audited_revised_family_pair(dest, family)
+    right = _set_family_revision_evidence(right, family, blank)
+    _write_json(dest / MANAGEMENT_NAMES[2], right)
+    payload = _admission(dest)
+    assert payload["status"] == "admitted_unreconciled"
+    group = _family_period_group(payload, family)
+    _assert_deferred_group(group, REASON_MISSING_EVIDENCE, REASON_MISSING_REVISION_LINK)
+    assert payload["reconciliation"]["selected_count"] == 0
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_missing_reviser_value_defers_selection(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "miss")
+    _write_audited_revised_family_pair(dest, family, left_value=10, right_value=None)
+    payload = _admission(dest)
+    group = _family_period_group(payload, family)
+    _assert_deferred_group(group, REASON_MISSING_REVISER_VALUE)
+    assert payload["reconciliation"]["selected_count"] == 0
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_incompatible_revision_defers_selection(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "inc")
+    changed = AFFIRMATIVE_COMPSALES_DEFINITION + " changed"
+    if family == FAMILY_SALES_PER_SQUARE_FOOT:
+        changed = AFFIRMATIVE_SPSF_DEFINITION + " changed"
+
+    def mutate_right(payload: dict) -> dict:
+        payload = copy.deepcopy(payload)
+        payload["kpi_definitions"][
+            0 if family == FAMILY_COMPARABLE_SALES_GROWTH else 1
+        ]["definition"] = changed
+        return payload
+
+    _write_audited_revised_family_pair(dest, family, right_mutate=mutate_right)
+    payload = _admission(dest)
+    group = _family_period_group(payload, family)
+    _assert_deferred_group(group, "definition_mismatch", REASON_MISSING_REVISION_LINK)
+    assert payload["reconciliation"]["selected_count"] == 0
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_third_peer_prevents_subset_selection(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES[1:4] + MANAGEMENT_NAMES[1:4], tmp_path / "three-sel")
+    _write_three_peer(dest, family, values=(10, 10, None))
+    first = json.loads((dest / MANAGEMENT_NAMES[1]).read_text(encoding="utf-8"))
+    second = json.loads((dest / MANAGEMENT_NAMES[2]).read_text(encoding="utf-8"))
+    second = _attach_family_revision(second, first, family)
+    second = _attach_family_evidence(second, family, status="audited")
+    _write_json(dest / MANAGEMENT_NAMES[2], second)
+    payload = _admission(dest)
+    group = _family_period_group(payload, family)
+    assert len(group["occurrences"]) == 3
+    _assert_deferred_group(group, REASON_GROUP_LARGER_THAN_TWO)
+    assert payload["reconciliation"]["selected_count"] == 0
+    assert {occ["value"] for occ in group["occurrences"]} == {10, None}
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_incompatible_third_peer_is_not_filtered_away(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES[1:4] + MANAGEMENT_NAMES[1:4], tmp_path / "three-inc")
+    changed = AFFIRMATIVE_COMPSALES_DEFINITION + " changed"
+    if family == FAMILY_SALES_PER_SQUARE_FOOT:
+        changed = AFFIRMATIVE_SPSF_DEFINITION + " changed"
+
+    def mutate_third(payload: dict) -> dict:
+        payload = copy.deepcopy(payload)
+        payload["kpi_definitions"][
+            0 if family == FAMILY_COMPARABLE_SALES_GROWTH else 1
+        ]["definition"] = changed
+        return payload
+
+    _write_three_peer(dest, family, values=(10, 11, 12), third_mutate=mutate_third)
+    first = json.loads((dest / MANAGEMENT_NAMES[1]).read_text(encoding="utf-8"))
+    second = json.loads((dest / MANAGEMENT_NAMES[2]).read_text(encoding="utf-8"))
+    second = _attach_family_revision(second, first, family)
+    second = _attach_family_evidence(second, family, status="audited")
+    _write_json(dest / MANAGEMENT_NAMES[2], second)
+    payload = _admission(dest)
+    group = _family_period_group(payload, family)
+    assert len(group["occurrences"]) == 3
+    _assert_deferred_group(group, REASON_GROUP_LARGER_THAN_TWO)
+    assert payload["reconciliation"]["selected_count"] == 0
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_reciprocal_revision_defers_competing_selection(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "recip-sel")
+    _write_audited_revised_family_pair(dest, family, reviser="both")
+    payload = _admission(dest)
+    group = _family_period_group(payload, family)
+    _assert_deferred_group(group, REASON_RECIPROCAL, REASON_COMPETING_DIRECTION)
+    assert payload["reconciliation"]["selected_count"] == 0
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_independent_groups_do_not_lend_selection(tmp_path: Path, family: str):
+    other = (
+        FAMILY_SALES_PER_SQUARE_FOOT
+        if family == FAMILY_COMPARABLE_SALES_GROWTH
+        else FAMILY_COMPARABLE_SALES_GROWTH
+    )
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "indep")
+    left, right = _write_audited_revised_family_pair(dest, family)
+    from core.tests.test_management_kpi_identity import (
+        _apply_affirmative_compsales,
+        _apply_affirmative_spsf,
+    )
+
+    apply_other = (
+        _apply_affirmative_spsf
+        if other == FAMILY_SALES_PER_SQUARE_FOOT
+        else _apply_affirmative_compsales
+    )
+    left = apply_other(json.loads((dest / MANAGEMENT_NAMES[1]).read_text(encoding="utf-8")))
+    right = apply_other(json.loads((dest / MANAGEMENT_NAMES[2]).read_text(encoding="utf-8")))
+    left = _apply_same_period(left, other, period=SHARED_PERIOD, value=20)
+    right = _apply_same_period(right, other, period=SHARED_PERIOD, value=21)
+    left = _apply_same_period(left, family, period=SHARED_PERIOD, value=10)
+    right = _apply_same_period(right, family, period=SHARED_PERIOD, value=10)
+    right = _attach_family_revision(right, left, family)
+    right = _attach_family_evidence(right, family, status="audited")
+    _write_json(dest / MANAGEMENT_NAMES[1], left)
+    _write_json(dest / MANAGEMENT_NAMES[2], right)
+    payload = _admission(dest)
+    selected = _family_period_group(payload, family)
+    deferred = _family_period_group(payload, other)
+    reviser, superseded, _link = _selected_locators(payload, family)
+    _assert_selected_group(
+        selected, reviser_locator=reviser, superseded_locator=superseded
+    )
+    _assert_deferred_group(deferred, REASON_MISSING_REVISION_LINK)
+    other_locators = set(deferred["locators"])
+    assert reviser not in other_locators
+    assert superseded not in other_locators
+
+
+def test_geographic_variant_is_an_independent_group(tmp_path: Path):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "geo")
+    _write_audited_revised_family_pair(dest, FAMILY_COMPARABLE_SALES_GROWTH)
+    left = json.loads((dest / MANAGEMENT_NAMES[1]).read_text(encoding="utf-8"))
+    right = json.loads((dest / MANAGEMENT_NAMES[2]).read_text(encoding="utf-8"))
+    for payload, value in ((left, 8), (right, 9)):
+        for item in payload["reported_kpis"]:
+            if item.get("metric_id") == "americas_comparable_sales_growth":
+                item["period"] = SHARED_PERIOD
+                item["value"] = value
+                item["qualifiers"] = {"excludes_53rd_week": False}
+    _write_json(dest / MANAGEMENT_NAMES[1], left)
+    _write_json(dest / MANAGEMENT_NAMES[2], right)
+    admitted = _admission(dest)
+    global_group = _family_period_group(admitted, FAMILY_COMPARABLE_SALES_GROWTH)
+    reviser, superseded, _link = _selected_locators(
+        admitted, FAMILY_COMPARABLE_SALES_GROWTH
+    )
+    _assert_selected_group(
+        global_group, reviser_locator=reviser, superseded_locator=superseded
+    )
+    americas = [
+        item
+        for item in _group_selections(admitted)
+        if item["metric_identity_fields"].get("geography") == "americas"
+        and item["period"] == SHARED_PERIOD
+        and item["family"] == FAMILY_COMPARABLE_SALES_GROWTH
+    ]
+    assert len(americas) == 1
+    _assert_deferred_group(americas[0], REASON_MISSING_REVISION_LINK)
+    assert set(americas[0]["locators"]).isdisjoint(global_group["locators"])
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_selection_follows_documentary_direction_not_order(
+    tmp_path: Path, family: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "dir-sel")
+    _write_audited_revised_family_pair(dest, family, reviser="right")
+    original = _admission(dest)
+    orig_reviser, orig_superseded, orig_link = _selected_locators(original, family)
+    _assert_selected_group(
+        _family_period_group(original, family),
+        reviser_locator=orig_reviser,
+        superseded_locator=orig_superseded,
+    )
+
+    swapped = tmp_path / "swapped-sel"
+    swapped.mkdir()
+    for name in ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3]:
+        shutil.copy2(dest / name, swapped / name)
+    _write_audited_revised_family_pair(swapped, family, reviser="left")
+    reversed_payload = _admission(swapped)
+    reversed_link = _assert_revision_link(
+        reversed_payload,
+        status=RELATIONSHIP_RECOGNIZED,
+        reviser_year=2023,
+        revised_year=2024,
+        family=family,
+    )
+    reversed_group = _family_period_group(reversed_payload, family)
+    _assert_selected_group(
+        reversed_group,
+        reviser_locator=reversed_link["reviser"]["locator"],
+        superseded_locator=reversed_link["revised"]["locator"],
+    )
+    assert reversed_link["named_target"]["source_file"] != orig_link["named_target"]["source_file"]
+
+    renamed = tmp_path / "renamed-sel"
+    renamed.mkdir()
+    for index, name in enumerate(sorted(path.name for path in dest.glob("*.json"))):
+        shutil.copy2(dest / name, renamed / f"{index:02d}-{name}")
+    renamed_payload = _admission(renamed)
+    renamed_reviser, renamed_superseded, renamed_link = _selected_locators(
+        renamed_payload, family
+    )
+    _assert_selected_group(
+        _family_period_group(renamed_payload, family),
+        reviser_locator=renamed_reviser,
+        superseded_locator=renamed_superseded,
+    )
+    assert renamed_link["named_target"] == orig_link["named_target"]
+    assert renamed_reviser != orig_reviser
+
+
+def test_outside_scope_and_unsupported_are_not_selected(tmp_path: Path):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "out-sel")
+    left, right = _affirmative_family_pair(FAMILY_COMPARABLE_SALES_GROWTH)
+    left = _apply_same_period(
+        left, FAMILY_COMPARABLE_SALES_GROWTH, period=SHARED_PERIOD, value=10
+    )
+    right = _apply_same_period(
+        right, FAMILY_COMPARABLE_SALES_GROWTH, period=SHARED_PERIOD, value=10
+    )
+    target = next(
+        item for item in left["reported_kpis"] if item.get("metric_id") == "net_revenue"
+    )
+    from core.tests.test_management_kpi_admission import (
+        _attach_revision,
+        _revision_target,
+        _attach_assurance,
+    )
+
+    for item in _family_items(right, FAMILY_COMPARABLE_SALES_GROWTH):
+        _attach_revision(
+            item,
+            _revision_target(target, left["report"]["source_file"]),
+            source_file=right["report"]["source_file"],
+        )
+        _attach_assurance(item, "audited", source_file=right["report"]["source_file"])
+    _write_json(dest / MANAGEMENT_NAMES[1], left)
+    _write_json(dest / MANAGEMENT_NAMES[2], right)
+    payload = _admission(dest)
+    group = _family_period_group(payload, FAMILY_COMPARABLE_SALES_GROWTH)
+    _assert_deferred_group(group, REASON_OUTSIDE_SCOPE_TARGET, REASON_MISSING_REVISION_LINK)
+    assert payload["reconciliation"]["selected_count"] == 0
+    locators = {occ["locator"] for item in _group_selections(payload) for occ in item["occurrences"]}
+    outside = [
+        item["locator"]
+        for item in payload["observations"]
+        if item["metric_id"] == "net_revenue"
+    ]
+    assert not set(outside) & locators
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_cli_serializes_selected_and_deferred_groups(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES + MANAGEMENT_NAMES, tmp_path / "cli-sel")
+    _write_audited_revised_family_pair(dest, family)
+    out = tmp_path / "out"
+    validate, reconcile = _cli_validate_and_reconcile(dest, out)
+    assert validate.returncode == 0, validate.stdout + validate.stderr
+    assert reconcile.returncode == 0, reconcile.stdout + reconcile.stderr
+    admission = json.loads(
+        (out / "management_kpi_admission.json").read_text(encoding="utf-8")
+    )
+    assert admission["status"] == "admitted_unreconciled"
+    assert admission["canonical_selection"] == "deferred"
+    assert admission["reconciliation"]["canonical_selection"] == "deferred"
+    reviser, superseded, link = _selected_locators(admission, family)
+    group = _family_period_group(admission, family)
+    _assert_selected_group(group, reviser_locator=reviser, superseded_locator=superseded)
+    assert link["canonical_selection"] == "deferred"
+    assert "superseded" not in link
+    assert admission["reconciliation"]["selected_count"] >= 1
+    assert admission["reconciliation"]["superseded_count"] >= 1
+    standardized = json.loads((out / "standardized.json").read_text(encoding="utf-8"))
+    assert "historical_operating_kpis" not in standardized or standardized.get(
+        "historical_operating_kpis"
+    ) in {None, []}
+    before = _bytes_by_name(EXTRACTED)
+    assert _bytes_by_name(EXTRACTED) == before
+    extracted_copy = {
+        path.name: path.read_bytes()
+        for path in dest.glob("*.json")
+        if path.name in set(ANNUAL_NAMES + MANAGEMENT_NAMES)
+    }
+    validate2, reconcile2 = _cli_validate_and_reconcile(dest, tmp_path / "out2")
+    assert validate2.returncode == 0
+    assert reconcile2.returncode == 0
+    after_copy = {
+        path.name: path.read_bytes()
+        for path in dest.glob("*.json")
+        if path.name in extracted_copy
+    }
+    assert after_copy == extracted_copy
+
+
+def test_cli_supplied_inputs_select_nothing(tmp_path: Path):
+    before = _bytes_by_name(EXTRACTED)
+    dest = _copy_json(ANNUAL_NAMES + MANAGEMENT_NAMES, tmp_path / "cli-none")
+    out = tmp_path / "out"
+    validate, reconcile = _cli_validate_and_reconcile(dest, out)
+    assert validate.returncode == 0, validate.stdout + validate.stderr
+    assert reconcile.returncode == 0, reconcile.stdout + reconcile.stderr
+    admission = json.loads(
+        (out / "management_kpi_admission.json").read_text(encoding="utf-8")
+    )
+    recon = admission["reconciliation"]
+    assert recon["canonical_selection"] == "deferred"
+    assert recon["selected_count"] == 0
+    assert recon["superseded_count"] == 0
+    assert recon["revision_links"] == []
+    assert recon["group_selection_counts"][SELECTION_SELECTED] == 0
+    for item in recon["group_selections"]:
+        _assert_deferred_group(item)
+    annual = _copy_json(ANNUAL_NAMES, tmp_path / "annual")
+    annual_out = tmp_path / "annual-out"
+    _validate, annual_run = _cli_validate_and_reconcile(annual, annual_out)
+    assert annual_run.returncode == 0
+    mixed_std = json.loads((out / "standardized.json").read_text(encoding="utf-8"))
+    annual_std = json.loads((annual_out / "standardized.json").read_text(encoding="utf-8"))
+    from core.tests.test_management_kpi_admission import _canonicalize
+
+    assert _canonicalize(mixed_std) == _canonicalize(annual_std)
+    assert not (annual_out / "management_kpi_admission.json").exists()
+    assert _bytes_by_name(EXTRACTED) == before

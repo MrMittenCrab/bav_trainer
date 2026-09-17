@@ -303,6 +303,9 @@ def test_mixed_directory_admits_all_135_observations(tmp_path: Path):
     recon = payload["reconciliation"]
     assert recon["canonical_selection"] == "deferred"
     assert recon["revision_links"] == []
+    assert recon["selected_count"] == 0
+    assert recon["superseded_count"] == 0
+    assert recon["group_selection_counts"]["selected"] == 0
     assert recon["revision_link_counts"]["recognized"] == 0
     assert recon["outcome_counts"]["agreeing_duplicate"] == 0
     assert recon["outcome_counts"]["conflicting_candidate"] == 0
@@ -530,6 +533,9 @@ def test_cli_mixed_directory_writes_separate_admission_artifact(tmp_path: Path):
     assert len(admission["assessments"]["items"]) == 135
     assert admission["assessments"]["canonical_selection"] == "deferred"
     assert admission["reconciliation"]["canonical_selection"] == "deferred"
+    assert admission["reconciliation"]["selected_count"] == 0
+    assert admission["reconciliation"]["superseded_count"] == 0
+    assert admission["reconciliation"]["group_selection_counts"]["selected"] == 0
     assert admission["reconciliation"]["outcome_counts"]["agreeing_duplicate"] == 0
     assert admission["reconciliation"]["outcome_counts"]["conflicting_candidate"] == 0
     assert admission["status"] == "admitted_unreconciled"

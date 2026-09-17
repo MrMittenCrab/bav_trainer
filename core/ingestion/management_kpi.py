@@ -369,6 +369,7 @@ class ManagementAdmission:
     assessments: tuple[Any, ...] = ()
     reconciliation: tuple[Any, ...] = ()
     revision_links: tuple[Any, ...] = ()
+    group_selections: tuple[Any, ...] = ()
     unresolved: tuple[str, ...] = _REMAINING_UNRESOLVED
 
 
@@ -1698,11 +1699,13 @@ def admit_management_documents(
     )
     from .management_kpi_identity import assess_reported_observations
     from .management_kpi_reconciliation import (
+        reconcile_group_selections,
         reconcile_reported_observations,
         reconcile_revision_links,
     )
 
     assessments = assess_reported_observations(ordered, documents)
+    revision_links = reconcile_revision_links(ordered, assessments)
     return ManagementAdmission(
         status=_ADMISSION_UNRECONCILED,
         documents=documents,
@@ -1713,7 +1716,10 @@ def admit_management_documents(
         diagnostics=tuple(diagnostics),
         assessments=assessments,
         reconciliation=reconcile_reported_observations(ordered, assessments),
-        revision_links=reconcile_revision_links(ordered, assessments),
+        revision_links=revision_links,
+        group_selections=reconcile_group_selections(
+            ordered, assessments, revision_links
+        ),
     )
 
 
@@ -1780,5 +1786,6 @@ def management_admission_payload(admission: ManagementAdmission | None) -> dict[
             "reconciliation": reconciliation_payload(
                 admission.reconciliation,
                 revision_links=admission.revision_links,
+                group_selections=admission.group_selections,
             ),
     }

@@ -296,6 +296,9 @@ def test_reconcile_serializes_management_identity_assessments(tmp_path: Path):
     assert admission["assessments"]["outside_scope_count"] == 107
     recon = admission["reconciliation"]
     assert recon["canonical_selection"] == "deferred"
+    assert recon["selected_count"] == 0
+    assert recon["superseded_count"] == 0
+    assert recon["group_selection_counts"]["selected"] == 0
     assert recon["outcome_counts"]["agreeing_duplicate"] == 0
     assert recon["outcome_counts"]["conflicting_candidate"] == 0
     assert recon["outcome_counts"]["outside_scope"] == 107

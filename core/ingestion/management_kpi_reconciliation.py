@@ -37,9 +37,19 @@ REASON_UNSUPPORTED_TARGET = "unsupported_variant_target"
 REASON_SCOPE_MISMATCH = "scope_mismatch"
 REASON_RECIPROCAL = "reciprocal_revision"
 REASON_CYCLIC = "cyclic_revision"
+REASON_SINGLETON = "singleton"
+REASON_GROUP_LARGER_THAN_TWO = "group_larger_than_two"
+REASON_MISSING_REVISION_LINK = "missing_revision_link"
+REASON_COMPETING_DIRECTION = "competing_revision_direction"
+REASON_MISSING_REVISER_VALUE = "missing_reviser_value"
+REASON_UNKNOWN_ASSURANCE = "unknown_assurance"
+REASON_UNAUDITED_REVISER = "unaudited_reviser"
+REASON_AMBIGUOUS_OCCURRENCE = "ambiguous_occurrence"
 RELATIONSHIP_RECOGNIZED = "recognized"
 RELATIONSHIP_UNRESOLVED = "unresolved"
 RELATIONSHIP_INCOMPATIBLE = "incompatible"
+SELECTION_SELECTED = "selected"
+SELECTION_DEFERRED = "deferred"
 PRESENTATION_RELATIONSHIP_ROLES = (
     "current",
     "comparative",
@@ -215,6 +225,59 @@ class ManagementKpiRevisionLink:
         }
         if self.candidate_locators:
             payload["candidate_locators"] = list(self.candidate_locators)
+        return payload
+
+
+@dataclass(frozen=True)
+class ManagementKpiSupportingRevision:
+    reviser: ManagementKpiRevisionMember
+    revised: ManagementKpiRevisionMember
+    evidence: str
+    source: tuple[tuple[str, Any], ...]
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "reviser": self.reviser.to_payload(),
+            "revised": self.revised.to_payload(),
+            "evidence": self.evidence,
+            "source": dict(self.source),
+        }
+
+
+@dataclass(frozen=True)
+class ManagementKpiGroupSelection:
+    status: str
+    family: str
+    metric_identity: str
+    metric_identity_fields: tuple[tuple[str, str], ...]
+    period: str
+    occurrences: tuple[ManagementKpiReconciledOccurrence, ...]
+    reasons: tuple[str, ...]
+    selected: ManagementKpiRevisionMember | None = None
+    superseded: ManagementKpiRevisionMember | None = None
+    revision: ManagementKpiSupportingRevision | None = None
+    assurance_evidence: tuple[tuple[str, Any], ...] = ()
+
+    def to_payload(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "kind": "group_selection",
+            "status": self.status,
+            "family": self.family,
+            "metric_identity": self.metric_identity,
+            "metric_identity_fields": dict(self.metric_identity_fields),
+            "period": self.period,
+            "occurrences": [item.to_payload() for item in self.occurrences],
+            "locators": [item.locator for item in self.occurrences],
+            "reasons": list(self.reasons),
+            "selected": None if self.selected is None else self.selected.to_payload(),
+            "superseded": (
+                None if self.superseded is None else self.superseded.to_payload()
+            ),
+            "revision": None if self.revision is None else self.revision.to_payload(),
+            "assurance_evidence": (
+                dict(self.assurance_evidence) if self.assurance_evidence else None
+            ),
+        }
         return payload
 
 
@@ -626,6 +689,234 @@ def reconcile_revision_links(
     return tuple(annotated)
 
 
+def _occurrence_assurance_status(occurrence: ManagementKpiReconciledOccurrence) -> str:
+    status = dict(occurrence.assurance_evidence).get("status", "unknown")
+    return str(status or "unknown")
+
+
+def _reviser_is_audited(occurrence: ManagementKpiReconciledOccurrence) -> bool:
+    evidence = dict(occurrence.assurance_evidence)
+    if evidence.get("status") != "audited":
+        return False
+    if not text_present(evidence.get("evidence", "")):
+        return False
+    if not text_present(evidence.get("locator", "")):
+        return False
+    source = evidence.get("source")
+    if not isinstance(source, dict):
+        return False
+    return text_present(source.get("page_reference", ""))
+
+
+def _link_involves(link: ManagementKpiRevisionLink, locators: set[str]) -> bool:
+    if link.reviser.locator in locators:
+        return True
+    return link.revised is not None and link.revised.locator in locators
+
+
+def _link_is_intra(link: ManagementKpiRevisionLink, locators: set[str]) -> bool:
+    return (
+        link.revised is not None
+        and link.reviser.locator in locators
+        and link.revised.locator in locators
+    )
+
+
+def _append_reason(reasons: list[str], reason: str) -> None:
+    if reason and reason not in reasons:
+        reasons.append(reason)
+
+
+def _member_from_occurrence(
+    occurrence: ManagementKpiReconciledOccurrence,
+) -> ManagementKpiRevisionMember:
+    return ManagementKpiRevisionMember(
+        locator=occurrence.locator,
+        occurrence_identity=occurrence.occurrence_identity,
+    )
+
+
+def _select_two_occurrence_group(
+    occurrences: tuple[ManagementKpiReconciledOccurrence, ...],
+    revision_links: Sequence[ManagementKpiRevisionLink],
+) -> tuple[
+    str,
+    tuple[str, ...],
+    ManagementKpiRevisionMember | None,
+    ManagementKpiRevisionMember | None,
+    ManagementKpiSupportingRevision | None,
+    tuple[tuple[str, Any], ...],
+]:
+    locators = {item.locator for item in occurrences}
+    by_locator = {item.locator: item for item in occurrences}
+    reasons: list[str] = []
+    identities = [item.occurrence_identity for item in occurrences]
+    if len(set(identities)) != len(occurrences):
+        _append_reason(reasons, REASON_AMBIGUOUS_OCCURRENCE)
+    if len(occurrences) == 1:
+        _append_reason(reasons, REASON_SINGLETON)
+    elif len(occurrences) > 2:
+        _append_reason(reasons, REASON_GROUP_LARGER_THAN_TWO)
+
+    involved = [item for item in revision_links if _link_involves(item, locators)]
+    intra = [item for item in involved if _link_is_intra(item, locators)]
+    for link in involved:
+        for reason in link.reasons:
+            _append_reason(reasons, reason)
+        if link.status == RELATIONSHIP_UNRESOLVED:
+            _append_reason(reasons, RELATIONSHIP_UNRESOLVED)
+        elif link.status == RELATIONSHIP_INCOMPATIBLE:
+            _append_reason(reasons, RELATIONSHIP_INCOMPATIBLE)
+
+    recognized_intra = [
+        item
+        for item in intra
+        if item.status == RELATIONSHIP_RECOGNIZED
+        and REASON_RECIPROCAL not in item.reasons
+        and REASON_CYCLIC not in item.reasons
+    ]
+    if len(involved) > 1:
+        _append_reason(reasons, REASON_COMPETING_DIRECTION)
+    if len(occurrences) == 2:
+        if (
+            len(recognized_intra) != 1
+            or len(involved) != 1
+            or involved[0] is not recognized_intra[0]
+        ):
+            if not recognized_intra:
+                _append_reason(reasons, REASON_MISSING_REVISION_LINK)
+            elif len(recognized_intra) > 1:
+                _append_reason(reasons, REASON_COMPETING_DIRECTION)
+
+    candidate = recognized_intra[0] if len(recognized_intra) == 1 else None
+    if candidate is not None:
+        reviser = by_locator.get(candidate.reviser.locator)
+        revised = by_locator.get(candidate.revised.locator) if candidate.revised else None
+        if reviser is None or revised is None:
+            _append_reason(reasons, REASON_MISSING_REVISION_LINK)
+            candidate = None
+        else:
+            if reviser.value is None:
+                _append_reason(reasons, REASON_MISSING_REVISER_VALUE)
+            assurance = _occurrence_assurance_status(reviser)
+            if assurance == "unaudited":
+                _append_reason(reasons, REASON_UNAUDITED_REVISER)
+            elif not _reviser_is_audited(reviser):
+                _append_reason(reasons, REASON_UNKNOWN_ASSURANCE)
+            if len(occurrences) == 2:
+                gate_status = _revision_status(occurrences[0], occurrences[1])
+                if gate_status != RELATIONSHIP_RECOGNIZED:
+                    for reason in _revision_gate_reasons(occurrences[0], occurrences[1]):
+                        _append_reason(reasons, reason)
+                    _append_reason(reasons, gate_status)
+
+    selected = None
+    superseded = None
+    revision = None
+    assurance_evidence: tuple[tuple[str, Any], ...] = ()
+    eligible = (
+        len(occurrences) == 2
+        and len(set(identities)) == 2
+        and candidate is not None
+        and len(involved) == 1
+        and involved[0] is candidate
+        and candidate.revised is not None
+        and candidate.reviser.locator in by_locator
+        and candidate.revised.locator in by_locator
+        and by_locator[candidate.reviser.locator].value is not None
+        and _reviser_is_audited(by_locator[candidate.reviser.locator])
+        and not reasons
+    )
+    if eligible and candidate is not None and candidate.revised is not None:
+        reviser_occ = by_locator[candidate.reviser.locator]
+        revised_occ = by_locator[candidate.revised.locator]
+        selected = _member_from_occurrence(reviser_occ)
+        superseded = _member_from_occurrence(revised_occ)
+        revision = ManagementKpiSupportingRevision(
+            reviser=candidate.reviser,
+            revised=candidate.revised,
+            evidence=candidate.evidence,
+            source=candidate.source,
+        )
+        assurance_evidence = reviser_occ.assurance_evidence
+        return (
+            SELECTION_SELECTED,
+            (),
+            selected,
+            superseded,
+            revision,
+            assurance_evidence,
+        )
+    if not reasons:
+        _append_reason(reasons, REASON_MISSING_REVISION_LINK)
+    return (
+        SELECTION_DEFERRED,
+        tuple(reasons),
+        None,
+        None,
+        None,
+        (),
+    )
+
+
+def reconcile_group_selections(
+    observations: Sequence[Any],
+    assessments: Sequence[Any],
+    revision_links: Sequence[ManagementKpiRevisionLink],
+) -> tuple[ManagementKpiGroupSelection, ...]:
+    """Select audited revisers only for complete two-occurrence evidenced groups."""
+    by_locator = {item.locator: item for item in observations}
+    grouped: dict[tuple[str, str, str], list[Any]] = defaultdict(list)
+    for assessment in assessments:
+        if assessment.status != STATUS_SUPPORTED or not assessment.metric_identity:
+            continue
+        observation = by_locator.get(assessment.locator)
+        if observation is None:
+            continue
+        grouped[
+            (assessment.family, assessment.metric_identity, observation.period)
+        ].append(assessment)
+
+    records: list[ManagementKpiGroupSelection] = []
+    for (family, identity, period), group in grouped.items():
+        ordered = sorted(group, key=lambda item: item.locator)
+        occurrences = tuple(
+            _occurrence_from(item, by_locator[item.locator]) for item in ordered
+        )
+        (
+            status,
+            reasons,
+            selected,
+            superseded,
+            revision,
+            assurance_evidence,
+        ) = _select_two_occurrence_group(occurrences, revision_links)
+        records.append(
+            ManagementKpiGroupSelection(
+                status=status,
+                family=family,
+                metric_identity=identity,
+                metric_identity_fields=ordered[0].metric_identity_fields,
+                period=period,
+                occurrences=occurrences,
+                reasons=reasons,
+                selected=selected,
+                superseded=superseded,
+                revision=revision,
+                assurance_evidence=assurance_evidence,
+            )
+        )
+    records.sort(
+        key=lambda item: (
+            item.family,
+            item.metric_identity,
+            item.period,
+            tuple(occ.locator for occ in item.occurrences),
+        )
+    )
+    return tuple(records)
+
+
 def _presentation_relationship(
     left: ManagementKpiReconciledOccurrence,
     right: ManagementKpiReconciledOccurrence,
@@ -771,9 +1062,11 @@ def reconcile_reported_observations(
 def reconciliation_payload(
     records: Iterable[ManagementKpiReconciliationRecord],
     revision_links: Iterable[ManagementKpiRevisionLink] = (),
+    group_selections: Iterable[ManagementKpiGroupSelection] = (),
 ) -> dict[str, Any]:
     items = list(records)
     links = list(revision_links)
+    selections = list(group_selections)
     outcome_counts = {
         OUTCOME_AGREEING_DUPLICATE: 0,
         OUTCOME_CONFLICTING_CANDIDATE: 0,
@@ -795,11 +1088,27 @@ def reconciliation_payload(
     }
     for item in links:
         revision_counts[item.status] = revision_counts.get(item.status, 0) + 1
+    selection_counts = {
+        SELECTION_SELECTED: 0,
+        SELECTION_DEFERRED: 0,
+    }
+    selected_count = 0
+    superseded_count = 0
+    for item in selections:
+        selection_counts[item.status] = selection_counts.get(item.status, 0) + 1
+        if item.selected is not None:
+            selected_count += 1
+        if item.superseded is not None:
+            superseded_count += 1
     return {
         "canonical_selection": "deferred",
         "pair_count": pair_count,
         "outcome_counts": outcome_counts,
         "revision_link_counts": revision_counts,
         "revision_links": [item.to_payload() for item in links],
+        "group_selection_counts": selection_counts,
+        "selected_count": selected_count,
+        "superseded_count": superseded_count,
+        "group_selections": [item.to_payload() for item in selections],
         "items": [item.to_payload() for item in items],
     }
