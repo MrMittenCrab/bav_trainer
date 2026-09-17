@@ -314,7 +314,9 @@ def _historical_segment(
 def _historical_operating_kpis(
     reconciled: ReconciledCompanyData,
 ) -> HistoricalOperatingKpiData | None:
-    """Emit selected operating-KPI facts on the admitted model axis only."""
+    """Emit selected store facts and evidenced management histories on the axis."""
+    from .management_kpi_history import selected_management_kpi_histories
+
     model_periods = set(reconciled.periods)
     observations: list[HistoricalOperatingKpiObservation] = []
     seen: set[tuple[str, str, date]] = set()
@@ -337,10 +339,17 @@ def _historical_operating_kpis(
                 unit=item.unit,
             )
         )
-    if not observations:
+    management = selected_management_kpi_histories(
+        reconciled.management_admission,
+        model_periods=reconciled.periods,
+    )
+    if not observations and not management:
         return None
     observations.sort(key=lambda row: (row.metric, row.population, row.period.isoformat()))
-    return HistoricalOperatingKpiData(observations=observations)
+    return HistoricalOperatingKpiData(
+        observations=observations,
+        management_observations=management,
+    )
 
 
 def reconciliation_provenance_payload(

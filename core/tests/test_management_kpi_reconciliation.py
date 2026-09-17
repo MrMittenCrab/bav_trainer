@@ -2833,9 +2833,19 @@ def test_cli_serializes_selected_and_deferred_groups(tmp_path: Path, family: str
     assert admission["reconciliation"]["selected_count"] >= 1
     assert admission["reconciliation"]["superseded_count"] >= 1
     standardized = json.loads((out / "standardized.json").read_text(encoding="utf-8"))
-    assert "historical_operating_kpis" not in standardized or standardized.get(
-        "historical_operating_kpis"
-    ) in {None, []}
+    kpi = standardized["historical_operating_kpis"]
+    reviser_occ = next(
+        occ for occ in group["occurrences"] if occ["locator"] == reviser
+    )
+    rows = [
+        row
+        for row in kpi["management_observations"]
+        if row["family"] == family and row["period"] == SHARED_PERIOD
+    ]
+    assert len(rows) == 1
+    assert rows[0]["value"] == reviser_occ["value"]
+    assert rows[0]["definition_text"] == reviser_occ["definition"]["text"]
+    assert "source_file" not in json.dumps(kpi)
     before = _bytes_by_name(EXTRACTED)
     assert _bytes_by_name(EXTRACTED) == before
     extracted_copy = {

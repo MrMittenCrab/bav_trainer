@@ -1681,24 +1681,10 @@ def admit_management_documents(
         )
     )
     diagnostics.extend(_revision_target_diagnostics(ordered))
-    diagnostics.append(
-        ManagementAdmissionDiagnostic(
-            code="deferred_canonical_selection",
-            identity="management_kpi",
-            message=(
-                "admitted management observations remain outside canonical "
-                "selectors and StandardizedFinancials"
-            ),
-            occurrences=tuple(
-                item.document.extraction_document for item in documents
-            ),
-        )
-    )
-    diagnostics.sort(
-        key=lambda item: (item.code, item.identity, item.occurrences)
-    )
     from .management_kpi_identity import assess_reported_observations
     from .management_kpi_reconciliation import (
+        SELECTION_DEFERRED,
+        SELECTION_SELECTED,
         reconcile_group_selections,
         reconcile_reported_observations,
         reconcile_revision_links,
@@ -1706,6 +1692,45 @@ def admit_management_documents(
 
     assessments = assess_reported_observations(ordered, documents)
     revision_links = reconcile_revision_links(ordered, assessments)
+    group_selections = reconcile_group_selections(
+        ordered, assessments, revision_links
+    )
+    selected_locators = tuple(
+        item.selected.locator
+        for item in group_selections
+        if item.status == SELECTION_SELECTED and item.selected is not None
+    )
+    deferred_count = sum(
+        1 for item in group_selections if item.status == SELECTION_DEFERRED
+    )
+    diagnostics.append(
+        ManagementAdmissionDiagnostic(
+            code="deferred_canonical_selection",
+            identity="management_kpi",
+            message=(
+                "canonical later-audited selection remains deferred; general "
+                "admission is not complete"
+            ),
+            occurrences=tuple(
+                item.document.extraction_document for item in documents
+            ),
+        )
+    )
+    diagnostics.append(
+        ManagementAdmissionDiagnostic(
+            code="management_kpi_history_handoff",
+            identity="management_kpi",
+            message=(
+                f"{len(selected_locators)} evidenced selected occurrence(s) are "
+                "eligible for StandardizedFinancials history handoff; "
+                f"{deferred_count} deferred group(s) remain audit-only"
+            ),
+            occurrences=selected_locators,
+        )
+    )
+    diagnostics.sort(
+        key=lambda item: (item.code, item.identity, item.occurrences)
+    )
     return ManagementAdmission(
         status=_ADMISSION_UNRECONCILED,
         documents=documents,
@@ -1717,9 +1742,7 @@ def admit_management_documents(
         assessments=assessments,
         reconciliation=reconcile_reported_observations(ordered, assessments),
         revision_links=revision_links,
-        group_selections=reconcile_group_selections(
-            ordered, assessments, revision_links
-        ),
+        group_selections=group_selections,
     )
 
 
