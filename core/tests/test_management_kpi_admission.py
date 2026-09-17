@@ -285,6 +285,8 @@ def test_mixed_directory_admits_all_135_observations(tmp_path: Path):
         assert item.bound_source_file.endswith(".pdf")
         assert "physical_page_mapping" in item.unresolved
         assert "canonical_selection" in item.unresolved
+        assert "revision" in item.unresolved
+        assert item.revision_record.revises == ()
     payload = reconciliation_management_admission_payload(mixed_reconciled)
     assert payload["reported_observation_count"] == 135
     assert payload["status"] == "admitted_unreconciled"
@@ -300,6 +302,8 @@ def test_mixed_directory_admits_all_135_observations(tmp_path: Path):
     assert payload["assessments"]["comparability_counts"]["outside_scope"] == 107
     recon = payload["reconciliation"]
     assert recon["canonical_selection"] == "deferred"
+    assert recon["revision_links"] == []
+    assert recon["revision_link_counts"]["recognized"] == 0
     assert recon["outcome_counts"]["agreeing_duplicate"] == 0
     assert recon["outcome_counts"]["conflicting_candidate"] == 0
     assert recon["outcome_counts"]["outside_scope"] == 107
@@ -578,6 +582,7 @@ PRESENTATION_ROLES = ("current", "comparative", "restated", "prior")
 ASSURANCE_STATUSES = ("audited", "unaudited")
 PRESENTATION_EVIDENCE = "MD&A presents this KPI in the stated role."
 ASSURANCE_EVIDENCE = "The filing states this KPI's assurance in the cited section."
+REVISION_EVIDENCE = "The later filing restates this previously reported KPI."
 
 
 def _metric_items(payload: dict, metric_id: str) -> list[dict]:
@@ -633,6 +638,36 @@ def _attach_assurance(
     if include_source:
         payload["source"] = _printed_source(item, source_file)
     item["assurance"] = payload
+    return item
+
+
+def _revision_target(item: dict, source_file: str, **overrides: str) -> dict[str, str]:
+    target = {
+        "metric_id": item["metric_id"],
+        "period": item["period"],
+        "source_file": source_file,
+        "page_reference": item["source"]["page_reference"],
+    }
+    target.update(overrides)
+    return target
+
+
+def _attach_revision(
+    item: dict,
+    revises: dict | None,
+    *,
+    evidence: object = REVISION_EVIDENCE,
+    source_file: str | None = None,
+    include_source: bool = True,
+) -> dict:
+    payload: dict[str, object] = {}
+    if revises is not None:
+        payload["revises"] = revises
+    if evidence is not Ellipsis:
+        payload["evidence"] = evidence
+    if include_source:
+        payload["source"] = _printed_source(item, source_file)
+    item["revision"] = payload
     return item
 
 
@@ -871,6 +906,141 @@ def test_blank_or_absent_evidence_does_not_assert_a_role(
             lambda item: _attach_presentation(item, "current"),
             "unsupported observation",
         ),
+        (
+            lambda item: item.__setitem__("revision", "restated"),
+            "revision must be an object",
+        ),
+        (
+            lambda item: _attach_revision(
+                item,
+                {
+                    "metric_id": item["metric_id"],
+                    "period": item["period"],
+                    "source_file": "LULU_FY2022_Annual_Report.pdf",
+                    "page_reference": item["source"]["page_reference"],
+                },
+                evidence="",
+            ),
+            "nonblank documentary evidence",
+        ),
+        (
+            lambda item: _attach_revision(
+                item,
+                {
+                    "metric_id": item["metric_id"],
+                    "period": item["period"],
+                    "source_file": "LULU_FY2022_Annual_Report.pdf",
+                    "page_reference": item["source"]["page_reference"],
+                },
+                include_source=False,
+            ),
+            "source bound to the observation document",
+        ),
+        (
+            lambda item: _attach_revision(
+                item,
+                {
+                    "metric_id": item["metric_id"],
+                    "period": item["period"],
+                    "source_file": "LULU_FY2022_Annual_Report.pdf",
+                    "page_reference": item["source"]["page_reference"],
+                },
+                source_file="LULU_FY2024_Annual_Report.pdf",
+            ),
+            "not bound to the observation source document",
+        ),
+        (
+            lambda item: _attach_revision(
+                item,
+                {
+                    "metric_id": item["metric_id"],
+                    "period": item["period"],
+                    "source_file": "LULU_FY2023_Annual_Report.pdf",
+                    "page_reference": item["source"]["page_reference"],
+                },
+            ),
+            "self-referential",
+        ),
+        (
+            lambda item: item.__setitem__(
+                "revision",
+                {
+                    "revises": {
+                        "metric_id": item["metric_id"],
+                        "period": item["period"],
+                        "source_file": "LULU_FY2022_Annual_Report.pdf",
+                        "page_reference": item["source"]["page_reference"],
+                    },
+                    "evidence": REVISION_EVIDENCE,
+                    "source": {
+                        "section": item["source"]["section"],
+                        "page_reference": item["source"]["page_reference"],
+                        "physical_page_mapping": "12",
+                    },
+                },
+            ),
+            "cannot certify a PDF page",
+        ),
+        (
+            lambda item: (
+                _attach_revision(
+                    item,
+                    {
+                        "metric_id": item["metric_id"],
+                        "period": item["period"],
+                        "source_file": "LULU_FY2022_Annual_Report.pdf",
+                        "page_reference": item["source"]["page_reference"],
+                    },
+                ),
+                item.__setitem__(
+                    "revises",
+                    {
+                        "metric_id": item["metric_id"],
+                        "period": "2022-01-30",
+                        "source_file": "LULU_FY2022_Annual_Report.pdf",
+                        "page_reference": item["source"]["page_reference"],
+                    },
+                ),
+            ),
+            "contradictory revises",
+        ),
+        (
+            lambda item: item.__setitem__(
+                "revises",
+                {
+                    "metric_id": item["metric_id"],
+                    "period": item["period"],
+                    "source_file": "LULU_FY2022_Annual_Report.pdf",
+                    "page_reference": item["source"]["page_reference"],
+                },
+            ),
+            "without documentary evidence",
+        ),
+        (
+            lambda item: _attach_revision(
+                item,
+                {
+                    "metric_id": item["metric_id"],
+                    "period": item["period"],
+                    "source_file": "LULU_FY2022_Annual_Report.pdf",
+                    "page_reference": item["source"]["page_reference"],
+                    "value": "10",
+                },
+            ),
+            "unexpected fields",
+        ),
+        (
+            lambda item: _attach_revision(
+                item,
+                {
+                    "metric_id": item["metric_id"],
+                    "period": item["period"],
+                    "source_file": "LULU_FY2022_Annual_Report.pdf",
+                    "page_reference": item["source"]["page_reference"],
+                },
+            ),
+            "unsupported observation",
+        ),
     ],
 )
 def test_malformed_contradictory_and_unbound_evidence_fail_closed(
@@ -1033,6 +1203,7 @@ def test_cli_serializes_occurrence_evidence(tmp_path: Path):
         for occ in item["occurrences"]:
             assert "presentation_evidence" in occ
             assert "assurance_evidence" in occ
+            assert "revision_evidence" in occ
         if item["kind"] == "pair":
             rel = item["presentation_relationship"]
             assert rel["combination"]
@@ -1046,3 +1217,141 @@ def test_cli_serializes_occurrence_evidence(tmp_path: Path):
         item["assurance"] == "unknown" and item["presentation_role"] == "unknown"
         for item in admission["documents"]
     )
+    assert admission["reconciliation"]["revision_links"] == []
+    assert admission["reconciliation"]["revision_link_counts"]["recognized"] == 0
+
+
+@pytest.mark.parametrize(
+    "metric_id",
+    ("comparable_sales_growth", "sales_per_square_foot"),
+)
+def test_revision_contract_admits_explicit_named_targets(
+    tmp_path: Path, metric_id: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "rev")
+    left = json.loads((dest / MANAGEMENT_NAMES[1]).read_text(encoding="utf-8"))
+    right = json.loads((dest / MANAGEMENT_NAMES[2]).read_text(encoding="utf-8"))
+    target = next(item for item in left["reported_kpis"] if item.get("metric_id") == metric_id)
+    reviser = next(item for item in right["reported_kpis"] if item.get("metric_id") == metric_id)
+    reviser["period"] = target["period"]
+    named = _revision_target(target, left["report"]["source_file"])
+    _attach_revision(
+        reviser,
+        named,
+        source_file=right["report"]["source_file"],
+    )
+    (dest / MANAGEMENT_NAMES[1]).write_text(json.dumps(left), encoding="utf-8")
+    (dest / MANAGEMENT_NAMES[2]).write_text(json.dumps(right), encoding="utf-8")
+    admitted = reconciliation_management_admission_payload(
+        reconcile_filings(load_and_validate_extracted_dir(dest, source_root=SOURCE))
+    )
+    item = next(
+        row
+        for row in admitted["observations"]
+        if row["kind"] == "reported_kpi"
+        and row["metric_id"] == metric_id
+        and row["filing_year"] == 2024
+    )
+    assert item["revision_evidence"]["revises"] == named
+    assert item["revision_evidence"]["evidence"] == REVISION_EVIDENCE
+    assert item["revision_evidence"]["locator"].endswith(".revision")
+    assert item["revision_evidence"]["source"]["page_reference"]
+    assert item["revision_evidence"]["source"]["physical_page_mapping"] == "unresolved"
+    assert item["bound_source_file"] == right["report"]["source_file"]
+    assert "revision" not in item["unresolved"]
+    assert not any(
+        row["code"] in {"revision_target_missing", "revision_target_ambiguous"}
+        for row in admitted["diagnostics"]
+        if item["locator"] in row["occurrences"]
+    )
+
+
+@pytest.mark.parametrize("blank", [None, "", " ", " \t "])
+def test_blank_revision_evidence_stays_unresolved(tmp_path: Path, blank: str | None):
+    def mutate(payload: dict) -> dict:
+        for item in _metric_items(payload, "comparable_sales_growth"):
+            item["revision"] = {"evidence": blank}
+        return payload
+
+    admitted = _admit_mutated(tmp_path, mutate)
+    item = _observation(admitted, "comparable_sales_growth")
+    assert item["revision_evidence"]["revises"] is None
+    assert item["revision_evidence"]["evidence"] == ("" if blank is None else blank)
+    assert "revision" in item["unresolved"]
+    assert admitted["reconciliation"]["revision_links"] == []
+
+
+def test_missing_and_ambiguous_revision_targets_do_not_select(tmp_path: Path):
+    dest = _copy_json(ANNUAL_NAMES[1:2] + MANAGEMENT_NAMES[1:2], tmp_path / "miss")
+    payload = json.loads((dest / MANAGEMENT_NAMES[1]).read_text(encoding="utf-8"))
+    original = next(
+        item
+        for item in payload["reported_kpis"]
+        if item.get("metric_id") == "comparable_sales_growth"
+    )
+    missing_item = copy.deepcopy(original)
+    _attach_revision(
+        missing_item,
+        _revision_target(
+            original,
+            payload["report"]["source_file"],
+            page_reference="Form 10-K p. 999",
+        ),
+        source_file=payload["report"]["source_file"],
+    )
+    payload["reported_kpis"] = [
+        item
+        for item in payload["reported_kpis"]
+        if item.get("metric_id") != "comparable_sales_growth"
+    ] + [missing_item]
+    (dest / MANAGEMENT_NAMES[1]).write_text(json.dumps(payload), encoding="utf-8")
+    missing = reconciliation_management_admission_payload(
+        reconcile_filings(load_and_validate_extracted_dir(dest, source_root=SOURCE))
+    )
+    assert any(item["code"] == "revision_target_missing" for item in missing["diagnostics"])
+    assert all(
+        link["revised"] is None and "missing_target" in link["reasons"]
+        for link in missing["reconciliation"]["revision_links"]
+    )
+    assert all(
+        link["status"] != "recognized"
+        for link in missing["reconciliation"]["revision_links"]
+    )
+
+    first = copy.deepcopy(original)
+    first.pop("revision", None)
+    second = copy.deepcopy(first)
+    third = copy.deepcopy(first)
+    third["source"] = dict(first["source"])
+    third["source"]["page_reference"] = "Form 10-K p. 40-unique"
+    _attach_revision(
+        third,
+        _revision_target(first, payload["report"]["source_file"]),
+        source_file=payload["report"]["source_file"],
+    )
+    payload["reported_kpis"] = [
+        item
+        for item in payload["reported_kpis"]
+        if item.get("metric_id") != "comparable_sales_growth"
+    ] + [first, second, third]
+    (dest / MANAGEMENT_NAMES[1]).write_text(json.dumps(payload), encoding="utf-8")
+    ambiguous = reconciliation_management_admission_payload(
+        reconcile_filings(load_and_validate_extracted_dir(dest, source_root=SOURCE))
+    )
+    ambiguous_diag = [
+        item
+        for item in ambiguous["diagnostics"]
+        if item["code"] == "revision_target_ambiguous"
+    ]
+    assert len(ambiguous_diag) == 1
+    assert len(ambiguous_diag[0]["occurrences"]) == 3
+    links = ambiguous["reconciliation"]["revision_links"]
+    assert len(links) == 1
+    assert links[0]["revised"] is None
+    assert links[0]["status"] == "unresolved"
+    assert "ambiguous_target" in links[0]["reasons"]
+    assert len(links[0]["candidate_locators"]) == 2
+    assert "preferred" not in links[0]
+    assert "winner" not in links[0]
+    assert "superseded" not in links[0]
+

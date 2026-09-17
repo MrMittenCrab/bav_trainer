@@ -43,6 +43,11 @@ from core.ingestion.management_kpi_reconciliation import (
     PRESENTATION_RELATIONSHIP_ROLES,
     PRESENTATION_ROLE_COMBINATIONS,
     REASON_MISSING_VALUE,
+    REASON_MISSING_TARGET,
+    REASON_AMBIGUOUS_TARGET,
+    REASON_OUTSIDE_SCOPE_TARGET,
+    REASON_RECIPROCAL,
+    REASON_CYCLIC,
     RELATIONSHIP_INCOMPATIBLE,
     RELATIONSHIP_RECOGNIZED,
     RELATIONSHIP_UNRESOLVED,
@@ -231,6 +236,7 @@ def _assert_pair_members(item: dict) -> None:
         assert member["occurrence_identity"] == occ["occurrence_identity"]
         assert member["role"] == occ["presentation_evidence"]["role"]
         assert member["role"] in PRESENTATION_RELATIONSHIP_ROLES
+        assert "revision_evidence" in occ
     for key in (
         "revises",
         "revision",
@@ -244,6 +250,8 @@ def _assert_pair_members(item: dict) -> None:
         "chronology",
     ):
         assert key not in rel
+    assert "revision_link" not in item
+    assert "revision_links" not in item
 
 
 def _assert_relationship(
@@ -682,6 +690,9 @@ def test_renamed_and_reversed_inputs_preserve_pair_semantics(tmp_path: Path):
     assert mixed_payload["reconciliation"]["outcome_counts"] == renamed_payload[
         "reconciliation"
     ]["outcome_counts"]
+    assert mixed_payload["reconciliation"]["revision_links"] == []
+    assert renamed_payload["reconciliation"]["revision_links"] == []
+    assert reversed_payload["reconciliation"]["revision_links"] == []
     assert mixed_payload["assessments"]["comparability_counts"] == renamed_payload[
         "assessments"
     ]["comparability_counts"]
@@ -1030,12 +1041,15 @@ def test_supplied_pairs_keep_unknown_presentation_and_assurance():
         assert item["assurance"] == "unknown"
         assert "assurance" in item["unresolved"]
         assert "presentation_role" in item["unresolved"]
+        assert "revision" in item["unresolved"]
+        assert item["revision_evidence"]["revises"] is None
     for item in recon["items"]:
         for occ in item["occurrences"]:
             assert occ["presentation_evidence"]["role"] == "unknown"
             assert occ["assurance_evidence"]["status"] == "unknown"
             assert occ["presentation_evidence"]["source"] is None
             assert occ["assurance_evidence"]["source"] is None
+            assert occ["revision_evidence"]["revises"] is None
         if item["kind"] == KIND_PAIR:
             _assert_relationship(
                 item,
@@ -1046,8 +1060,11 @@ def test_supplied_pairs_keep_unknown_presentation_and_assurance():
             assert item["presentation_relationship"]["status"] != RELATIONSHIP_RECOGNIZED
         else:
             assert "presentation_relationship" not in item
+    assert recon["revision_links"] == []
+    assert recon["revision_link_counts"]["recognized"] == 0
     assert "presentation_role" in payload["unresolved"]
     assert "assurance" in payload["unresolved"]
+    assert "revision" in payload["unresolved"]
     assert _bytes_by_name(EXTRACTED) == before
 
 
@@ -1625,3 +1642,532 @@ def test_cli_serializes_recognized_and_unknown_relationships(tmp_path: Path):
             assert "presentation_relationship" in item
         else:
             assert "presentation_relationship" not in item
+
+
+def _family_items(payload: dict, family: str) -> list[dict]:
+    from core.tests.test_management_kpi_admission import _metric_items
+
+    return _metric_items(payload, _family_metric_id(family))
+
+
+def _attach_family_revision(
+    reviser_payload: dict,
+    target_payload: dict,
+    family: str,
+    **target_overrides: str,
+) -> dict:
+    from core.tests.test_management_kpi_admission import (
+        _attach_revision,
+        _revision_target,
+    )
+
+    reviser_payload = copy.deepcopy(reviser_payload)
+    target_item = _family_items(target_payload, family)[0]
+    for item in _family_items(reviser_payload, family):
+        _attach_revision(
+            item,
+            _revision_target(
+                target_item,
+                target_payload["report"]["source_file"],
+                **target_overrides,
+            ),
+            source_file=reviser_payload["report"]["source_file"],
+        )
+    return reviser_payload
+
+
+def _write_revised_family_pair(
+    dest: Path,
+    family: str,
+    *,
+    left_value: object | None = 10,
+    right_value: object | None = 10,
+    left_mutate=None,
+    right_mutate=None,
+    reviser: str = "right",
+) -> tuple[dict, dict]:
+    left, right = _affirmative_family_pair(family)
+    left = _apply_same_period(left, family, period=SHARED_PERIOD, value=left_value)
+    right = _apply_same_period(right, family, period=SHARED_PERIOD, value=right_value)
+    if left_mutate is not None:
+        left = left_mutate(left)
+    if right_mutate is not None:
+        right = right_mutate(right)
+    if reviser in {"right", "both"}:
+        right = _attach_family_revision(right, left, family)
+    if reviser in {"left", "both"}:
+        left = _attach_family_revision(left, right, family)
+    _write_json(dest / MANAGEMENT_NAMES[1], left)
+    _write_json(dest / MANAGEMENT_NAMES[2], right)
+    return left, right
+
+
+def _assert_revision_link(
+    payload: dict,
+    *,
+    status: str,
+    reviser_year: int,
+    revised_year: int,
+    family: str,
+) -> dict:
+    links = payload["reconciliation"]["revision_links"]
+    assert links
+    metric_id = _family_metric_id(family)
+    observations = {
+        item["locator"]: item
+        for item in payload["observations"]
+        if item["kind"] == "reported_kpi" and item["metric_id"] == metric_id
+    }
+    matches = []
+    for link in links:
+        reviser = observations[link["reviser"]["locator"]]
+        revised = (
+            None
+            if link["revised"] is None
+            else observations.get(link["revised"]["locator"])
+        )
+        if (
+            reviser["filing_year"] == reviser_year
+            and revised is not None
+            and revised["filing_year"] == revised_year
+        ):
+            matches.append(link)
+    assert len(matches) == 1
+    link = matches[0]
+    assert link["kind"] == "revision_link"
+    assert link["status"] == status
+    assert link["canonical_selection"] == "deferred"
+    assert link["evidence"]
+    assert link["source"]["physical_page_mapping"] == "unresolved"
+    assert link["named_target"]["source_file"].endswith(".pdf")
+    assert "value" not in link["named_target"]
+    assert "preferred" not in link
+    assert "winner" not in link
+    assert "superseded" not in link
+    reviser = observations[link["reviser"]["locator"]]
+    revised = observations[link["revised"]["locator"]]
+    assert link["reviser"]["occurrence_identity"] == reviser["identity"]
+    assert link["revised"]["occurrence_identity"] == revised["identity"]
+    assert link["named_target"]["metric_id"] == metric_id
+    assert link["named_target"]["period"] == revised["period"]
+    assert link["named_target"]["page_reference"] == revised["source"]["page_reference"]
+    return link
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_explicit_revision_links_are_directed_and_gated(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "rev")
+    _write_revised_family_pair(dest, family)
+    payload = _admission(dest)
+    locators = _family_metric_locators(payload, family)
+    pair = _pair_by_locators(_metric_pairs(payload, family), locators)
+    _assert_affirmative_duplicate(pair, values=(10, 10))
+    link = _assert_revision_link(
+        payload,
+        status=RELATIONSHIP_RECOGNIZED,
+        reviser_year=2024,
+        revised_year=2023,
+        family=family,
+    )
+    assert payload["reconciliation"]["revision_link_counts"]["recognized"] == 1
+    assert link["reviser"]["locator"] != link["revised"]["locator"]
+    roles = {occ["presentation_evidence"]["role"] for occ in pair["occurrences"]}
+    assert roles == {"unknown"}
+    assert pair["canonical_selection"] == "deferred"
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_restated_roles_and_equal_values_do_not_invent_revision_links(
+    tmp_path: Path, family: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "roles")
+    _write_family_pair(
+        dest,
+        family,
+        left_value=10,
+        right_value=10,
+        left_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="prior", status="audited"
+        ),
+        right_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="restated", status="unaudited"
+        ),
+    )
+    payload = _admission(dest)
+    locators = _family_metric_locators(payload, family)
+    pair = _pair_by_locators(_metric_pairs(payload, family), locators)
+    _assert_relationship(
+        pair,
+        status=RELATIONSHIP_RECOGNIZED,
+        combination="restated_prior",
+        roles={"restated", "prior"},
+    )
+    assert payload["reconciliation"]["revision_links"] == []
+    years = {
+        item["filing_year"]
+        for item in payload["observations"]
+        if item["locator"] in locators
+    }
+    assert years == {2023, 2024}
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_revision_direction_survives_reordering_and_renaming(
+    tmp_path: Path, family: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "dir")
+    _write_revised_family_pair(dest, family, reviser="right")
+    original = _admission(dest)
+    original_link = _assert_revision_link(
+        original,
+        status=RELATIONSHIP_RECOGNIZED,
+        reviser_year=2024,
+        revised_year=2023,
+        family=family,
+    )
+
+    swapped = tmp_path / "swapped"
+    swapped.mkdir()
+    for name in ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3]:
+        shutil.copy2(dest / name, swapped / name)
+    _write_revised_family_pair(swapped, family, reviser="left")
+    reversed_payload = _admission(swapped)
+    reversed_link = _assert_revision_link(
+        reversed_payload,
+        status=RELATIONSHIP_RECOGNIZED,
+        reviser_year=2023,
+        revised_year=2024,
+        family=family,
+    )
+    assert (
+        reversed_link["named_target"]["source_file"]
+        != original_link["named_target"]["source_file"]
+    )
+
+    renamed = tmp_path / "renamed"
+    renamed.mkdir()
+    for index, name in enumerate(sorted(path.name for path in dest.glob("*.json"))):
+        shutil.copy2(dest / name, renamed / f"{index:02d}-{name}")
+    renamed_payload = _admission(renamed)
+    renamed_link = _assert_revision_link(
+        renamed_payload,
+        status=RELATIONSHIP_RECOGNIZED,
+        reviser_year=2024,
+        revised_year=2023,
+        family=family,
+    )
+    assert renamed_link["named_target"] == original_link["named_target"]
+    assert renamed_link["reviser"]["locator"] != original_link["reviser"]["locator"]
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize("conflict", ["definition", "calendar", "period", "qualifier"])
+def test_revision_links_use_existing_comparison_gates(
+    tmp_path: Path, family: str, conflict: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / conflict)
+    changed = AFFIRMATIVE_COMPSALES_DEFINITION + " changed"
+    if family == FAMILY_SALES_PER_SQUARE_FOOT:
+        changed = AFFIRMATIVE_SPSF_DEFINITION + " changed"
+
+    def mutate_left(payload: dict) -> dict:
+        if conflict == "calendar":
+            return _set_reporting_basis(payload, REPORTING_BASIS_52)
+        if conflict == "qualifier":
+            return _mutate_metric(
+                payload,
+                family,
+                lambda item: item.__setitem__(
+                    "qualifiers",
+                    {"excludes_53rd_week": False, "channel_mix": "stores_only"},
+                ),
+            )
+        return payload
+
+    def mutate_right(payload: dict) -> dict:
+        if conflict == "definition":
+            payload = copy.deepcopy(payload)
+            payload["kpi_definitions"][
+                0 if family == FAMILY_COMPARABLE_SALES_GROWTH else 1
+            ]["definition"] = changed
+            return payload
+        if conflict == "calendar":
+            return _set_reporting_basis(payload, REPORTING_BASIS_53)
+        if conflict == "period":
+            payload = copy.deepcopy(payload)
+            metric_id = _family_metric_id(family)
+            for item in payload["reported_kpis"]:
+                if item.get("metric_id") == metric_id:
+                    item["period"] = "2023-01-29"
+            return payload
+        return _mutate_metric(
+            payload,
+            family,
+            lambda item: item.__setitem__(
+                "qualifiers",
+                {"excludes_53rd_week": False, "channel_mix": "stores_and_digital"},
+            ),
+        )
+
+    if conflict == "period":
+        left, right = _affirmative_family_pair(family)
+        metric_id = _family_metric_id(family)
+        for payload in (left, right):
+            for item in payload["reported_kpis"]:
+                if item.get("metric_id") == metric_id:
+                    item["value"] = 10
+        right = mutate_right(right)
+        right = _attach_family_revision(right, left, family)
+        _write_json(dest / MANAGEMENT_NAMES[1], left)
+        _write_json(dest / MANAGEMENT_NAMES[2], right)
+    else:
+        _write_revised_family_pair(
+            dest,
+            family,
+            left_mutate=mutate_left,
+            right_mutate=mutate_right,
+        )
+    payload = _admission(dest)
+    link = _assert_revision_link(
+        payload,
+        status=RELATIONSHIP_INCOMPATIBLE,
+        reviser_year=2024,
+        revised_year=2023,
+        family=family,
+    )
+    expected = {
+        "definition": "definition_mismatch",
+        "calendar": "calendar_reporting_mismatch",
+        "period": REASON_PERIOD_MISMATCH,
+        "qualifier": "qualifier_mismatch",
+    }[conflict]
+    assert expected in link["reasons"]
+    locators = _family_metric_locators(payload, family)
+    pair = _pair_by_locators(_metric_pairs(payload, family), locators)
+    assert pair["outcome"] == OUTCOME_INCOMPATIBLE
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_missing_comparison_evidence_keeps_revision_unresolved(
+    tmp_path: Path, family: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "gap")
+    _write_revised_family_pair(
+        dest,
+        family,
+        right_mutate=lambda payload: _set_reporting_basis(payload, None),
+    )
+    payload = _admission(dest)
+    link = _assert_revision_link(
+        payload,
+        status=RELATIONSHIP_UNRESOLVED,
+        reviser_year=2024,
+        revised_year=2023,
+        family=family,
+    )
+    assert REASON_CALENDAR_REPORTING in link["reasons"] or peer_gap_reason(
+        REASON_CALENDAR_REPORTING
+    ) in link["reasons"]
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_agreeing_conflicting_and_missing_values_do_not_create_revision_links(
+    tmp_path: Path, family: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "vals")
+    _write_family_pair(dest, family, left_value=10, right_value=11)
+    conflicted = _admission(dest)
+    assert conflicted["reconciliation"]["revision_links"] == []
+    _write_revised_family_pair(dest, family, left_value=None, right_value=0)
+    missing = _admission(dest)
+    link = _assert_revision_link(
+        missing,
+        status=RELATIONSHIP_RECOGNIZED,
+        reviser_year=2024,
+        revised_year=2023,
+        family=family,
+    )
+    locators = _family_metric_locators(missing, family)
+    pair = _pair_by_locators(_metric_pairs(missing, family), locators)
+    assert pair["outcome"] == OUTCOME_UNRESOLVED
+    assert REASON_MISSING_VALUE not in link["reasons"]
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_three_peer_revision_is_not_transitive(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES[1:4] + MANAGEMENT_NAMES[1:4], tmp_path / "three")
+    first, second = _affirmative_family_pair(family)
+    third = json.loads((EXTRACTED / MANAGEMENT_NAMES[3]).read_text(encoding="utf-8"))
+    if family == FAMILY_COMPARABLE_SALES_GROWTH:
+        from core.tests.test_management_kpi_identity import _apply_affirmative_compsales
+
+        third = _apply_affirmative_compsales(third)
+    else:
+        from core.tests.test_management_kpi_identity import _apply_affirmative_spsf
+
+        third = _apply_affirmative_spsf(third)
+    payloads = [
+        _apply_same_period(first, family, period=SHARED_PERIOD, value=10),
+        _apply_same_period(second, family, period=SHARED_PERIOD, value=10),
+        _apply_same_period(third, family, period=SHARED_PERIOD, value=10),
+    ]
+    payloads[1] = _attach_family_revision(payloads[1], payloads[0], family)
+    for name, payload in zip(MANAGEMENT_NAMES[1:4], payloads):
+        _write_json(dest / name, payload)
+    admitted = _admission(dest)
+    links = admitted["reconciliation"]["revision_links"]
+    assert len(links) == 1
+    assert links[0]["status"] == RELATIONSHIP_RECOGNIZED
+    locators = _family_metric_locators(admitted, family)
+    assert len(locators) == 3
+    third_locator = [
+        item["locator"]
+        for item in admitted["observations"]
+        if item["locator"] in locators and item["filing_year"] == 2025
+    ][0]
+    assert third_locator not in {
+        links[0]["reviser"]["locator"],
+        links[0]["revised"]["locator"],
+    }
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_reciprocal_and_cyclic_revisions_are_diagnosed_without_precedence(
+    tmp_path: Path, family: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "recip")
+    _write_revised_family_pair(dest, family, reviser="both")
+    reciprocal = _admission(dest)
+    links = reciprocal["reconciliation"]["revision_links"]
+    assert len(links) == 2
+    assert {link["status"] for link in links} == {RELATIONSHIP_RECOGNIZED}
+    for link in links:
+        assert REASON_RECIPROCAL in link["reasons"]
+        assert "preferred" not in link
+        assert "winner" not in link
+        assert "superseded" not in link
+
+    dest = _copy_json(ANNUAL_NAMES[1:4] + MANAGEMENT_NAMES[1:4], tmp_path / "cycle")
+    first, second = _affirmative_family_pair(family)
+    third = json.loads((EXTRACTED / MANAGEMENT_NAMES[3]).read_text(encoding="utf-8"))
+    if family == FAMILY_COMPARABLE_SALES_GROWTH:
+        from core.tests.test_management_kpi_identity import _apply_affirmative_compsales
+
+        third = _apply_affirmative_compsales(third)
+    else:
+        from core.tests.test_management_kpi_identity import _apply_affirmative_spsf
+
+        third = _apply_affirmative_spsf(third)
+    payloads = [
+        _apply_same_period(first, family, period=SHARED_PERIOD, value=10),
+        _apply_same_period(second, family, period=SHARED_PERIOD, value=10),
+        _apply_same_period(third, family, period=SHARED_PERIOD, value=10),
+    ]
+    payloads[1] = _attach_family_revision(payloads[1], payloads[0], family)
+    payloads[2] = _attach_family_revision(payloads[2], payloads[1], family)
+    payloads[0] = _attach_family_revision(payloads[0], payloads[2], family)
+    for name, payload in zip(MANAGEMENT_NAMES[1:4], payloads):
+        _write_json(dest / name, payload)
+    cyclic = _admission(dest)
+    links = cyclic["reconciliation"]["revision_links"]
+    assert len(links) == 3
+    assert {link["status"] for link in links} == {RELATIONSHIP_RECOGNIZED}
+    for link in links:
+        assert REASON_CYCLIC in link["reasons"]
+        assert "preferred" not in link
+        assert "superseded" not in link
+
+
+def test_outside_scope_and_json_filename_targets_stay_unresolved(tmp_path: Path):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "out")
+    left, right = _affirmative_family_pair(FAMILY_COMPARABLE_SALES_GROWTH)
+    left = _apply_same_period(
+        left, FAMILY_COMPARABLE_SALES_GROWTH, period=SHARED_PERIOD, value=10
+    )
+    right = _apply_same_period(
+        right, FAMILY_COMPARABLE_SALES_GROWTH, period=SHARED_PERIOD, value=10
+    )
+    target = next(
+        item for item in left["reported_kpis"] if item.get("metric_id") == "net_revenue"
+    )
+    from core.tests.test_management_kpi_admission import (
+        _attach_revision,
+        _revision_target,
+    )
+
+    for item in _family_items(right, FAMILY_COMPARABLE_SALES_GROWTH):
+        _attach_revision(
+            item,
+            _revision_target(target, left["report"]["source_file"]),
+            source_file=right["report"]["source_file"],
+        )
+    _write_json(dest / MANAGEMENT_NAMES[1], left)
+    _write_json(dest / MANAGEMENT_NAMES[2], right)
+    outside = _admission(dest)
+    links = outside["reconciliation"]["revision_links"]
+    assert len(links) == 1
+    assert links[0]["status"] == RELATIONSHIP_UNRESOLVED
+    assert REASON_OUTSIDE_SCOPE_TARGET in links[0]["reasons"]
+    assert links[0]["revised"] is not None
+
+    for item in _family_items(right, FAMILY_COMPARABLE_SALES_GROWTH):
+        _attach_revision(
+            item,
+            _revision_target(
+                _family_items(left, FAMILY_COMPARABLE_SALES_GROWTH)[0],
+                MANAGEMENT_NAMES[1],
+            ),
+            source_file=right["report"]["source_file"],
+        )
+    _write_json(dest / MANAGEMENT_NAMES[2], right)
+    named_json = _admission(dest)
+    links = named_json["reconciliation"]["revision_links"]
+    assert len(links) == 1
+    assert links[0]["revised"] is None
+    assert REASON_MISSING_TARGET in links[0]["reasons"]
+    assert links[0]["named_target"]["source_file"] == MANAGEMENT_NAMES[1]
+
+
+def test_cli_serializes_directed_revision_links(tmp_path: Path):
+    dest = _copy_json(ANNUAL_NAMES + MANAGEMENT_NAMES, tmp_path / "cli")
+    _write_revised_family_pair(dest, FAMILY_COMPARABLE_SALES_GROWTH)
+    out = tmp_path / "out"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "core",
+            "reconcile",
+            str(dest),
+            "--source-root",
+            str(SOURCE),
+            "--admit-period",
+            "2022-01-30",
+            "-o",
+            str(out),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    admission = json.loads(
+        (out / "management_kpi_admission.json").read_text(encoding="utf-8")
+    )
+    link = _assert_revision_link(
+        admission,
+        status=RELATIONSHIP_RECOGNIZED,
+        reviser_year=2024,
+        revised_year=2023,
+        family=FAMILY_COMPARABLE_SALES_GROWTH,
+    )
+    assert admission["status"] == "admitted_unreconciled"
+    assert admission["reconciliation"]["canonical_selection"] == "deferred"
+    assert "superseded" not in link
+    pair = [
+        item
+        for item in _metric_pairs(admission, FAMILY_COMPARABLE_SALES_GROWTH)
+        if {occ["period"] for occ in item["occurrences"]} == {SHARED_PERIOD}
+    ]
+    assert pair
+    assert pair[0]["outcome"] == OUTCOME_AGREEING_DUPLICATE

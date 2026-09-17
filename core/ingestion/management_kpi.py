@@ -46,6 +46,23 @@ _PRESENTATION_ROLES = frozenset(
 _ASSURANCE_STATUSES = frozenset({"audited", "unaudited", "unknown"})
 _PRESENTATION_OBJECT_KEYS = frozenset({"role", "evidence", "source"})
 _ASSURANCE_OBJECT_KEYS = frozenset({"status", "evidence", "source"})
+_REVISION_OBJECT_KEYS = frozenset({"revises", "evidence", "source"})
+_REVISION_TARGET_REQUIRED = (
+    "metric_id",
+    "period",
+    "source_file",
+    "page_reference",
+)
+_REVISION_TARGET_OPTIONAL = (
+    "definition_id",
+    "unit",
+    "basis",
+    "comparison",
+    "section",
+)
+_REVISION_TARGET_KEYS = frozenset(
+    _REVISION_TARGET_REQUIRED + _REVISION_TARGET_OPTIONAL
+)
 _EVIDENCE_SOURCE_KEYS = frozenset(
     {"section", "page_reference", "source_file", "physical_page_mapping"}
 )
@@ -164,8 +181,25 @@ class OccurrenceDimensionEvidence:
         }
 
 
+@dataclass(frozen=True)
+class OccurrenceRevisionEvidence:
+    evidence: str = ""
+    source: PrintedSourceRef | None = None
+    locator: str = ""
+    revises: tuple[tuple[str, str], ...] = ()
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "evidence": self.evidence,
+            "locator": self.locator,
+            "source": None if self.source is None else self.source.to_payload(),
+            "revises": dict(self.revises) if self.revises else None,
+        }
+
+
 _UNKNOWN_PRESENTATION = OccurrenceDimensionEvidence(value=_PRESENTATION_UNKNOWN)
 _UNKNOWN_ASSURANCE = OccurrenceDimensionEvidence(value=_ASSURANCE_UNKNOWN)
+_UNKNOWN_REVISION = OccurrenceRevisionEvidence()
 
 
 @dataclass(frozen=True)
@@ -218,6 +252,7 @@ class ManagementObservation:
     unresolved: tuple[str, ...] = ()
     presentation_record: OccurrenceDimensionEvidence = _UNKNOWN_PRESENTATION
     assurance_record: OccurrenceDimensionEvidence = _UNKNOWN_ASSURANCE
+    revision_record: OccurrenceRevisionEvidence = _UNKNOWN_REVISION
 
     def to_payload(self) -> dict[str, Any]:
         out: dict[str, Any] = {
@@ -244,6 +279,7 @@ class ManagementObservation:
                 value_key="role"
             ),
             "assurance_evidence": self.assurance_record.to_payload(value_key="status"),
+            "revision_evidence": self.revision_record.to_payload(),
             "extraction_document": self.extraction_document,
             "bound_source_file": self.bound_source_file,
             "bound_source_sha256": self.bound_source_sha256,
@@ -319,6 +355,7 @@ _REMAINING_UNRESOLVED = (
     "physical_page_mapping",
     "assurance",
     "presentation_role",
+    "revision",
 )
 
 
@@ -331,6 +368,7 @@ class ManagementAdmission:
     diagnostics: tuple[ManagementAdmissionDiagnostic, ...]
     assessments: tuple[Any, ...] = ()
     reconciliation: tuple[Any, ...] = ()
+    revision_links: tuple[Any, ...] = ()
     unresolved: tuple[str, ...] = _REMAINING_UNRESOLVED
 
 
@@ -715,6 +753,156 @@ def _parse_reported_occurrence_evidence(
     return presentation, presentation_unresolved, assurance, assurance_unresolved
 
 
+def _parse_revision_target(
+    payload: object, *, context: str
+) -> tuple[tuple[str, str], ...]:
+    if not isinstance(payload, dict):
+        raise ValueError(f"{context}.revises must be an object")
+    extra = sorted(key for key in payload if key not in _REVISION_TARGET_KEYS)
+    if extra:
+        raise ValueError(f"{context}.revises has unexpected fields: {extra}")
+    parsed: dict[str, str] = {}
+    for key in _REVISION_TARGET_REQUIRED:
+        raw = payload.get(key, _MISSING)
+        if raw is _MISSING or raw is None:
+            raise ValueError(f"{context}.revises.{key} is required")
+        if not isinstance(raw, str) or not raw.strip():
+            raise ValueError(f"{context}.revises.{key} is required")
+        parsed[key] = raw.strip()
+    for key in _REVISION_TARGET_OPTIONAL:
+        if key not in payload or payload[key] is None:
+            continue
+        raw = payload[key]
+        if not isinstance(raw, str):
+            raise ValueError(f"{context}.revises.{key} must be a string")
+        stripped = raw.strip()
+        if stripped:
+            parsed[key] = stripped
+    return tuple(sorted(parsed.items()))
+
+
+def _observation_named_fields(observation: ManagementObservation) -> dict[str, str]:
+    return {
+        "metric_id": observation.metric_id,
+        "period": observation.period,
+        "source_file": observation.bound_source_file,
+        "page_reference": observation.source.page_reference,
+        "definition_id": observation.definition_id,
+        "unit": observation.unit,
+        "basis": observation.basis,
+        "comparison": observation.comparison,
+        "section": observation.source.section,
+    }
+
+
+def named_revision_target_matches(
+    named: Mapping[str, str], observation: ManagementObservation
+) -> bool:
+    fields = _observation_named_fields(observation)
+    return all(fields.get(key, "") == value for key, value in named.items())
+
+
+def revision_target_matches(
+    observation: ManagementObservation,
+    observations: Iterable[ManagementObservation],
+) -> tuple[ManagementObservation, ...]:
+    named = dict(observation.revision_record.revises)
+    if not named:
+        return ()
+    return tuple(
+        item
+        for item in observations
+        if named_revision_target_matches(named, item)
+    )
+
+
+def _parse_revision_evidence(
+    item: Mapping[str, Any],
+    *,
+    context: str,
+    bound_source_file: str,
+    extraction_document: str,
+    index: int,
+    supported: bool,
+    metric_id: str,
+    period: str,
+    definition_id: str,
+    unit: str,
+    basis: str,
+    comparison: str,
+    printed_source: PrintedSourceRef,
+) -> tuple[OccurrenceRevisionEvidence, str | None]:
+    locator = f"{extraction_document}:reported_kpis[{index}].revision"
+    raw = item.get("revision", _MISSING)
+    top = item.get("revises", _MISSING)
+    if raw is _MISSING or raw is None:
+        if top is not _MISSING and top is not None:
+            raise ValueError(
+                f"{context}.revises asserts a target without documentary evidence"
+            )
+        return OccurrenceRevisionEvidence(locator=locator), "revision"
+    if not isinstance(raw, dict):
+        raise ValueError(f"{context}.revision must be an object")
+    extra = sorted(key for key in raw if key not in _REVISION_OBJECT_KEYS)
+    if extra:
+        raise ValueError(f"{context}.revision has unexpected fields: {extra}")
+    revises_raw = raw.get("revises", _MISSING)
+    revises: tuple[tuple[str, str], ...] = ()
+    if revises_raw is not _MISSING and revises_raw is not None:
+        revises = _parse_revision_target(revises_raw, context=f"{context}.revision")
+    if top is not _MISSING and top is not None:
+        top_target = _parse_revision_target(top, context=context)
+        if top_target != revises:
+            raise ValueError(f"{context} has contradictory revises assertions")
+    evidence = _retain_evidence_text(
+        raw.get("evidence") if "evidence" in raw else None,
+        context=f"{context}.revision.evidence",
+    )
+    source_raw = raw.get("source", _MISSING)
+    source: PrintedSourceRef | None = None
+    if source_raw is not _MISSING and source_raw is not None:
+        source = _parse_evidence_source(
+            source_raw,
+            context=f"{context}.revision.source",
+            bound_source_file=bound_source_file,
+        )
+    record = OccurrenceRevisionEvidence(
+        evidence=evidence,
+        source=source,
+        locator=locator,
+        revises=revises,
+    )
+    if not revises:
+        return record, "revision"
+    if not supported:
+        raise ValueError(
+            f"{context}.revision cannot assign a target on an unsupported observation"
+        )
+    if not evidence.strip():
+        raise ValueError(
+            f"{context}.revision requires nonblank documentary evidence"
+        )
+    if source is None:
+        raise ValueError(
+            f"{context}.revision requires a source bound to the observation document"
+        )
+    named = dict(revises)
+    self_fields = {
+        "metric_id": metric_id,
+        "period": period,
+        "source_file": bound_source_file,
+        "page_reference": printed_source.page_reference,
+        "definition_id": definition_id,
+        "unit": unit,
+        "basis": basis,
+        "comparison": comparison,
+        "section": printed_source.section,
+    }
+    if all(self_fields.get(key, "") == value for key, value in named.items()):
+        raise ValueError(f"{context}.revision is self-referential")
+    return record, None
+
+
 def _parse_definition(payload: object, *, context: str) -> ManagementKpiDefinition:
     if not isinstance(payload, dict):
         raise ValueError(f"{context} must be an object")
@@ -819,12 +1007,15 @@ def _unresolved_fields(
     historical_role: str,
     assurance_unknown: bool = True,
     presentation_unknown: bool = True,
+    revision_unknown: bool = True,
 ) -> tuple[str, ...]:
     unresolved = ["physical_page_mapping"]
     if assurance_unknown:
         unresolved.append("assurance")
     if presentation_unknown:
         unresolved.append("presentation_role")
+    if revision_unknown:
+        unresolved.append("revision")
     unresolved.append("canonical_selection")
     if period_kind == "fiscal_year_label":
         unresolved.append("period_date")
@@ -869,6 +1060,7 @@ def _observation_from_reported(
         f"{bound.document.extraction_document}:reported_kpis[{index}]:"
         f"{metric_id}:{period}"
     )
+    printed_source = _parse_printed_source(item.get("source"), context=context)
     presentation_record, presentation_unresolved, assurance_record, assurance_unresolved = (
         _parse_reported_occurrence_evidence(
             item,
@@ -878,6 +1070,21 @@ def _observation_from_reported(
             index=index,
             supported=_metric_supports_occurrence_evidence(metric_id),
         )
+    )
+    revision_record, revision_unresolved = _parse_revision_evidence(
+        item,
+        context=context,
+        bound_source_file=bound.bound_source_file,
+        extraction_document=bound.document.extraction_document,
+        index=index,
+        supported=_metric_supports_occurrence_evidence(metric_id),
+        metric_id=metric_id,
+        period=period,
+        definition_id=definition_id,
+        unit=unit,
+        basis=basis,
+        comparison=comparison,
+        printed_source=printed_source,
     )
     return ManagementObservation(
         kind="reported_kpi",
@@ -898,7 +1105,7 @@ def _observation_from_reported(
         scope=scope,
         qualifiers=qualifiers,
         drivers=drivers,
-        source=_parse_printed_source(item.get("source"), context=context),
+        source=printed_source,
         historical_role=_ROLE_HISTORICAL,
         assurance=assurance_record.value,
         presentation_role=presentation_record.value,
@@ -912,9 +1119,11 @@ def _observation_from_reported(
             historical_role=_ROLE_HISTORICAL,
             assurance_unknown=assurance_unresolved is not None,
             presentation_unknown=presentation_unresolved is not None,
+            revision_unknown=revision_unresolved is not None,
         ),
         presentation_record=presentation_record,
         assurance_record=assurance_record,
+        revision_record=revision_record,
     )
 
 
@@ -1362,6 +1571,51 @@ def _classify_duplicates(
     return tuple(diagnostics)
 
 
+def _revision_target_diagnostics(
+    observations: tuple[ManagementObservation, ...],
+) -> tuple[ManagementAdmissionDiagnostic, ...]:
+    diagnostics: list[ManagementAdmissionDiagnostic] = []
+    for observation in observations:
+        named = dict(observation.revision_record.revises)
+        if not named:
+            continue
+        matches = [
+            item
+            for item in revision_target_matches(observation, observations)
+            if item.locator != observation.locator
+        ]
+        locators = tuple(item.locator for item in matches)
+        if not matches:
+            diagnostics.append(
+                ManagementAdmissionDiagnostic(
+                    code="revision_target_missing",
+                    identity=observation.identity,
+                    message=(
+                        "revision assertion names no uniquely identified "
+                        "occurrence and selects no target"
+                    ),
+                    occurrences=(observation.locator,),
+                )
+            )
+            continue
+        if len(matches) != 1:
+            diagnostics.append(
+                ManagementAdmissionDiagnostic(
+                    code="revision_target_ambiguous",
+                    identity=observation.identity,
+                    message=(
+                        "revision assertion matches multiple occurrences and "
+                        "selects no target"
+                    ),
+                    occurrences=(observation.locator,) + locators,
+                )
+            )
+    diagnostics.sort(
+        key=lambda item: (item.code, item.identity, item.occurrences)
+    )
+    return tuple(diagnostics)
+
+
 def admit_management_documents(
     documents: tuple[BoundManagementDocument, ...],
     *,
@@ -1427,6 +1681,7 @@ def admit_management_documents(
             selected_store_facts=tuple(selected),
         )
     )
+    diagnostics.extend(_revision_target_diagnostics(ordered))
     diagnostics.append(
         ManagementAdmissionDiagnostic(
             code="deferred_canonical_selection",
@@ -1444,7 +1699,10 @@ def admit_management_documents(
         key=lambda item: (item.code, item.identity, item.occurrences)
     )
     from .management_kpi_identity import assess_reported_observations
-    from .management_kpi_reconciliation import reconcile_reported_observations
+    from .management_kpi_reconciliation import (
+        reconcile_reported_observations,
+        reconcile_revision_links,
+    )
 
     assessments = assess_reported_observations(ordered, documents)
     return ManagementAdmission(
@@ -1457,6 +1715,7 @@ def admit_management_documents(
         diagnostics=tuple(diagnostics),
         assessments=assessments,
         reconciliation=reconcile_reported_observations(ordered, assessments),
+        revision_links=reconcile_revision_links(ordered, assessments),
     )
 
 
@@ -1519,6 +1778,9 @@ def management_admission_payload(admission: ManagementAdmission | None) -> dict[
         "definitions": [item.to_payload() for item in admission.definitions],
         "observations": [item.to_payload() for item in admission.observations],
         "diagnostics": [item.to_payload() for item in admission.diagnostics],
-        "assessments": assessments_payload(admission.assessments),
-        "reconciliation": reconciliation_payload(admission.reconciliation),
+            "assessments": assessments_payload(admission.assessments),
+            "reconciliation": reconciliation_payload(
+                admission.reconciliation,
+                revision_links=admission.revision_links,
+            ),
     }

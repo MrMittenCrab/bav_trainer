@@ -317,10 +317,13 @@ def test_reconcile_serializes_management_identity_assessments(tmp_path: Path):
         assert item["assurance"] == "unknown"
         assert item["presentation_evidence"]["role"] == "unknown"
         assert item["assurance_evidence"]["status"] == "unknown"
+        assert item["revision_evidence"]["revises"] is None
+        assert "revision" in item["unresolved"]
     for item in recon["items"]:
         for occ in item["occurrences"]:
             assert occ["presentation_evidence"]["role"] == "unknown"
             assert occ["assurance_evidence"]["status"] == "unknown"
+            assert occ["revision_evidence"]["revises"] is None
         if item["kind"] == "pair":
             rel = item["presentation_relationship"]
             assert rel["status"] in {"unresolved", "incompatible"}
@@ -332,6 +335,8 @@ def test_reconcile_serializes_management_identity_assessments(tmp_path: Path):
             assert "preferred" not in rel
         else:
             assert "presentation_relationship" not in item
+    assert recon["revision_links"] == []
+    assert recon["revision_link_counts"]["recognized"] == 0
     reported = {
         item["locator"]: item
         for item in admission["observations"]

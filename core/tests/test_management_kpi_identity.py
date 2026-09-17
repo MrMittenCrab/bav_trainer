@@ -1169,8 +1169,10 @@ def test_ordinary_admission_keeps_canonical_payloads_unchanged(tmp_path: Path):
         assert item["assurance"] == "unknown"
         assert item["presentation_evidence"]["role"] == "unknown"
         assert item["assurance_evidence"]["status"] == "unknown"
+        assert item["revision_evidence"]["revises"] is None
     assert "presentation_role" in mixed_payload["unresolved"]
     assert "assurance" in mixed_payload["unresolved"]
+    assert "revision" in mixed_payload["unresolved"]
     for item in mixed_payload["reconciliation"]["items"]:
         if item["kind"] == "pair":
             rel = item["presentation_relationship"]
@@ -1179,6 +1181,8 @@ def test_ordinary_admission_keeps_canonical_payloads_unchanged(tmp_path: Path):
             assert {member["role"] for member in rel["members"]} == {"unknown"}
         else:
             assert "presentation_relationship" not in item
+    assert mixed_payload["reconciliation"]["revision_links"] == []
+    assert mixed_payload["reconciliation"]["revision_link_counts"]["recognized"] == 0
     assert _bytes_by_name(EXTRACTED) == before
 
 

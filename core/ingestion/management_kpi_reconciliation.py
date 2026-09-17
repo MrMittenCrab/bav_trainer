@@ -17,6 +17,7 @@ from .management_kpi_identity import (
     pair_is_fully_evidenced_same_period,
     peer_gap_reason,
     required_comparison_reasons,
+    text_present,
 )
 
 KIND_PAIR = "pair"
@@ -28,6 +29,13 @@ OUTCOME_CONFLICTING_CANDIDATE = "conflicting_candidate"
 OUTCOME_INCOMPATIBLE = "incompatible"
 OUTCOME_UNRESOLVED = "unresolved"
 REASON_MISSING_VALUE = "missing_value"
+REASON_MISSING_TARGET = "missing_target"
+REASON_AMBIGUOUS_TARGET = "ambiguous_target"
+REASON_OUTSIDE_SCOPE_TARGET = "outside_scope_target"
+REASON_UNSUPPORTED_TARGET = "unsupported_variant_target"
+REASON_SCOPE_MISMATCH = "scope_mismatch"
+REASON_RECIPROCAL = "reciprocal_revision"
+REASON_CYCLIC = "cyclic_revision"
 RELATIONSHIP_RECOGNIZED = "recognized"
 RELATIONSHIP_UNRESOLVED = "unresolved"
 RELATIONSHIP_INCOMPATIBLE = "incompatible"
@@ -112,6 +120,7 @@ class ManagementKpiReconciledOccurrence:
     required_reasons: tuple[str, ...]
     presentation_evidence: tuple[tuple[str, Any], ...]
     assurance_evidence: tuple[tuple[str, Any], ...]
+    revision_evidence: tuple[tuple[str, Any], ...]
 
     def to_payload(self) -> dict[str, Any]:
         return {
@@ -134,6 +143,7 @@ class ManagementKpiReconciledOccurrence:
             "required_reasons": list(self.required_reasons),
             "presentation_evidence": dict(self.presentation_evidence),
             "assurance_evidence": dict(self.assurance_evidence),
+            "revision_evidence": dict(self.revision_evidence),
         }
 
 
@@ -168,6 +178,46 @@ class ManagementKpiPresentationRelationship:
 
 
 @dataclass(frozen=True)
+class ManagementKpiRevisionMember:
+    locator: str
+    occurrence_identity: str
+
+    def to_payload(self) -> dict[str, str]:
+        return {
+            "locator": self.locator,
+            "occurrence_identity": self.occurrence_identity,
+        }
+
+
+@dataclass(frozen=True)
+class ManagementKpiRevisionLink:
+    status: str
+    reviser: ManagementKpiRevisionMember
+    revised: ManagementKpiRevisionMember | None
+    named_target: tuple[tuple[str, str], ...]
+    evidence: str
+    source: tuple[tuple[str, Any], ...]
+    reasons: tuple[str, ...]
+    candidate_locators: tuple[str, ...] = ()
+
+    def to_payload(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "kind": "revision_link",
+            "status": self.status,
+            "reviser": self.reviser.to_payload(),
+            "revised": None if self.revised is None else self.revised.to_payload(),
+            "named_target": dict(self.named_target),
+            "evidence": self.evidence,
+            "source": dict(self.source),
+            "reasons": list(self.reasons),
+            "canonical_selection": "deferred",
+        }
+        if self.candidate_locators:
+            payload["candidate_locators"] = list(self.candidate_locators)
+        return payload
+
+
+@dataclass(frozen=True)
 class ManagementKpiReconciliationRecord:
     kind: str
     outcome: str
@@ -195,6 +245,18 @@ class ManagementKpiReconciliationRecord:
                 self.presentation_relationship.to_payload()
             )
         return payload
+
+
+def _revision_evidence_payload(observation: Any) -> tuple[tuple[str, Any], ...]:
+    record = getattr(observation, "revision_record", None)
+    if record is not None and hasattr(record, "to_payload"):
+        return tuple(sorted(record.to_payload().items()))
+    return (
+        ("evidence", ""),
+        ("locator", ""),
+        ("revises", None),
+        ("source", None),
+    )
 
 
 def _dimension_payload(observation: Any, *, attr: str, value_key: str) -> dict[str, Any]:
@@ -243,6 +305,7 @@ def _occurrence_from(
         required_reasons=required_comparison_reasons(evidence),
         presentation_evidence=tuple(sorted(presentation.items())),
         assurance_evidence=tuple(sorted(assurance.items())),
+        revision_evidence=_revision_evidence_payload(observation),
     )
 
 
@@ -316,6 +379,233 @@ def _relationship_status(
     if _occurrence_role(left) == "unknown" or _occurrence_role(right) == "unknown":
         return RELATIONSHIP_UNRESOLVED
     return RELATIONSHIP_RECOGNIZED
+
+
+def _revision_gate_reasons(
+    left: ManagementKpiReconciledOccurrence,
+    right: ManagementKpiReconciledOccurrence,
+) -> tuple[str, ...]:
+    reasons = list(_relationship_gate_reasons(left, right))
+    left_ev = dict(left.evidence)
+    right_ev = dict(right.evidence)
+    if (
+        text_present(left_ev.get("geography", ""))
+        and text_present(right_ev.get("geography", ""))
+        and left_ev.get("geography") != right_ev.get("geography")
+        and REASON_SCOPE_MISMATCH not in reasons
+    ):
+        reasons.append(REASON_SCOPE_MISMATCH)
+    if (
+        text_present(left_ev.get("scope", ""))
+        and text_present(right_ev.get("scope", ""))
+        and left_ev.get("scope") != right_ev.get("scope")
+        and REASON_SCOPE_MISMATCH not in reasons
+    ):
+        reasons.append(REASON_SCOPE_MISMATCH)
+    return tuple(reasons)
+
+
+def _revision_status(
+    left: ManagementKpiReconciledOccurrence,
+    right: ManagementKpiReconciledOccurrence,
+) -> str:
+    left_ev = dict(left.evidence)
+    right_ev = dict(right.evidence)
+    reasons = _revision_gate_reasons(left, right)
+    if (
+        evidenced_conflicts(left_ev, right_ev)
+        or evidenced_period_conflict(left_ev, right_ev)
+        or REASON_SCOPE_MISMATCH in reasons
+    ):
+        return RELATIONSHIP_INCOMPATIBLE
+    if required_comparison_reasons(left_ev) or required_comparison_reasons(right_ev):
+        return RELATIONSHIP_UNRESOLVED
+    return RELATIONSHIP_RECOGNIZED
+
+
+def _revision_source_payload(observation: Any) -> tuple[tuple[str, Any], ...]:
+    record = getattr(observation, "revision_record", None)
+    source = getattr(record, "source", None) if record is not None else None
+    if source is not None and hasattr(source, "to_payload"):
+        payload = dict(source.to_payload())
+    else:
+        payload = {}
+    payload.setdefault("physical_page_mapping", "unresolved")
+    return tuple(sorted(payload.items()))
+
+
+def _revision_member(observation: Any, assessment: Any | None) -> ManagementKpiRevisionMember:
+    identity = (
+        assessment.occurrence_identity
+        if assessment is not None
+        else observation.identity
+    )
+    return ManagementKpiRevisionMember(
+        locator=observation.locator,
+        occurrence_identity=identity,
+    )
+
+
+def _can_reach(
+    graph: dict[str, set[str]],
+    start: str,
+    goal: str,
+    *,
+    min_hops: int,
+) -> bool:
+    stack = [(start, 0)]
+    seen: set[str] = set()
+    while stack:
+        node, hops = stack.pop()
+        if hops >= min_hops and node == goal:
+            return True
+        if node in seen:
+            continue
+        seen.add(node)
+        for nxt in graph.get(node, ()):
+            stack.append((nxt, hops + 1))
+    return False
+
+
+def reconcile_revision_links(
+    observations: Sequence[Any],
+    assessments: Sequence[Any],
+) -> tuple[ManagementKpiRevisionLink, ...]:
+    """Serialize directed documentary revision links; never select a canonical winner."""
+    from .management_kpi import revision_target_matches
+
+    by_assessment = {item.locator: item for item in assessments}
+    links: list[ManagementKpiRevisionLink] = []
+    for observation in observations:
+        named = tuple(getattr(observation.revision_record, "revises", ()) or ())
+        if not named:
+            continue
+        matches = [
+            item
+            for item in revision_target_matches(observation, observations)
+            if item.locator != observation.locator
+        ]
+        reviser = _revision_member(
+            observation, by_assessment.get(observation.locator)
+        )
+        evidence = getattr(observation.revision_record, "evidence", "")
+        source = _revision_source_payload(observation)
+        if not matches:
+            links.append(
+                ManagementKpiRevisionLink(
+                    status=RELATIONSHIP_UNRESOLVED,
+                    reviser=reviser,
+                    revised=None,
+                    named_target=named,
+                    evidence=evidence,
+                    source=source,
+                    reasons=(REASON_MISSING_TARGET,),
+                )
+            )
+            continue
+        if len(matches) != 1:
+            links.append(
+                ManagementKpiRevisionLink(
+                    status=RELATIONSHIP_UNRESOLVED,
+                    reviser=reviser,
+                    revised=None,
+                    named_target=named,
+                    evidence=evidence,
+                    source=source,
+                    reasons=(REASON_AMBIGUOUS_TARGET,),
+                    candidate_locators=tuple(
+                        sorted(item.locator for item in matches)
+                    ),
+                )
+            )
+            continue
+        target = matches[0]
+        target_assessment = by_assessment.get(target.locator)
+        reviser_assessment = by_assessment.get(observation.locator)
+        revised = _revision_member(target, target_assessment)
+        if (
+            reviser_assessment is None
+            or reviser_assessment.status != STATUS_SUPPORTED
+            or target_assessment is None
+            or target_assessment.status != STATUS_SUPPORTED
+        ):
+            reason = REASON_OUTSIDE_SCOPE_TARGET
+            if (
+                target_assessment is not None
+                and target_assessment.status == STATUS_UNSUPPORTED_VARIANT
+            ) or (
+                reviser_assessment is not None
+                and reviser_assessment.status == STATUS_UNSUPPORTED_VARIANT
+            ):
+                reason = REASON_UNSUPPORTED_TARGET
+            links.append(
+                ManagementKpiRevisionLink(
+                    status=RELATIONSHIP_UNRESOLVED,
+                    reviser=reviser,
+                    revised=revised,
+                    named_target=named,
+                    evidence=evidence,
+                    source=source,
+                    reasons=(reason,),
+                )
+            )
+            continue
+        left = _occurrence_from(reviser_assessment, observation)
+        right = _occurrence_from(target_assessment, target)
+        links.append(
+            ManagementKpiRevisionLink(
+                status=_revision_status(left, right),
+                reviser=reviser,
+                revised=revised,
+                named_target=named,
+                evidence=evidence,
+                source=source,
+                reasons=_revision_gate_reasons(left, right),
+            )
+        )
+
+    bound_edges = [
+        (item.reviser.locator, item.revised.locator)
+        for item in links
+        if item.revised is not None
+    ]
+    edge_set = set(bound_edges)
+    graph: dict[str, set[str]] = {}
+    for start, end in edge_set:
+        graph.setdefault(start, set()).add(end)
+    annotated: list[ManagementKpiRevisionLink] = []
+    for item in links:
+        reasons = list(item.reasons)
+        if item.revised is not None:
+            start = item.reviser.locator
+            end = item.revised.locator
+            if (end, start) in edge_set and REASON_RECIPROCAL not in reasons:
+                reasons.append(REASON_RECIPROCAL)
+            if (
+                _can_reach(graph, end, start, min_hops=2)
+                and REASON_CYCLIC not in reasons
+            ):
+                reasons.append(REASON_CYCLIC)
+        annotated.append(
+            ManagementKpiRevisionLink(
+                status=item.status,
+                reviser=item.reviser,
+                revised=item.revised,
+                named_target=item.named_target,
+                evidence=item.evidence,
+                source=item.source,
+                reasons=tuple(reasons),
+                candidate_locators=item.candidate_locators,
+            )
+        )
+    annotated.sort(
+        key=lambda item: (
+            item.reviser.locator,
+            item.revised.locator if item.revised is not None else "",
+            tuple(item.named_target),
+        )
+    )
+    return tuple(annotated)
 
 
 def _presentation_relationship(
@@ -462,8 +752,10 @@ def reconcile_reported_observations(
 
 def reconciliation_payload(
     records: Iterable[ManagementKpiReconciliationRecord],
+    revision_links: Iterable[ManagementKpiRevisionLink] = (),
 ) -> dict[str, Any]:
     items = list(records)
+    links = list(revision_links)
     outcome_counts = {
         OUTCOME_AGREEING_DUPLICATE: 0,
         OUTCOME_CONFLICTING_CANDIDATE: 0,
@@ -478,9 +770,18 @@ def reconciliation_payload(
         if item.kind == KIND_PAIR:
             pair_count += 1
         outcome_counts[item.outcome] = outcome_counts.get(item.outcome, 0) + 1
+    revision_counts = {
+        RELATIONSHIP_RECOGNIZED: 0,
+        RELATIONSHIP_UNRESOLVED: 0,
+        RELATIONSHIP_INCOMPATIBLE: 0,
+    }
+    for item in links:
+        revision_counts[item.status] = revision_counts.get(item.status, 0) + 1
     return {
         "canonical_selection": "deferred",
         "pair_count": pair_count,
         "outcome_counts": outcome_counts,
+        "revision_link_counts": revision_counts,
+        "revision_links": [item.to_payload() for item in links],
         "items": [item.to_payload() for item in items],
     }
