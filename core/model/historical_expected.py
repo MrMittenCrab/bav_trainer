@@ -275,6 +275,14 @@ _GEOGRAPHIC_FAMILY_SERIES = (
     "geographic_revenue_growth_contribution",
     "geographic_consolidated_revenue_growth",
     "geographic_revenue_growth_contribution_residual",
+    "geographic_operating_margin_contribution",
+    "geographic_reconciling_operating_margin_contribution",
+    "geographic_consolidated_operating_margin",
+    "geographic_operating_margin_contribution_residual",
+    "geographic_operating_margin_contribution_change",
+    "geographic_reconciling_operating_margin_contribution_change",
+    "geographic_consolidated_operating_margin_change",
+    "geographic_operating_margin_contribution_change_residual",
 )
 _OPERATING_KPI_FAMILY_SERIES = (
     "store_count_net_change",
@@ -1077,6 +1085,22 @@ def geographic_expected_value_for_component(
         return geographic.consolidated_revenue_growth[period]
     if family_id == "geographic_revenue_growth_contribution_residual":
         return geographic.revenue_growth_contribution_residual[period]
+    if family_id == "geographic_operating_margin_contribution":
+        return geographic.operating_margin_contribution[period][identity]
+    if family_id == "geographic_reconciling_operating_margin_contribution":
+        return geographic.reconciling_operating_margin_contribution[period]
+    if family_id == "geographic_consolidated_operating_margin":
+        return geographic.consolidated_operating_margin[period]
+    if family_id == "geographic_operating_margin_contribution_residual":
+        return geographic.operating_margin_contribution_residual[period]
+    if family_id == "geographic_operating_margin_contribution_change":
+        return geographic.operating_margin_contribution_change[period][identity]
+    if family_id == "geographic_reconciling_operating_margin_contribution_change":
+        return geographic.reconciling_operating_margin_contribution_change[period]
+    if family_id == "geographic_consolidated_operating_margin_change":
+        return geographic.consolidated_operating_margin_change[period]
+    if family_id == "geographic_operating_margin_contribution_change_residual":
+        return geographic.operating_margin_contribution_change_residual[period]
     raise ValueError(f"Unknown geographic family {family_id!r}")
 
 

@@ -197,7 +197,13 @@ from .component_catalog import (
     geographic_component_id,
     geographic_identity_label,
     geographic_spec_identity,
+    resolve_geographic_adjacent_change_formula,
+    resolve_geographic_consolidated_operating_margin_formula,
     resolve_geographic_consolidated_revenue_growth_formula,
+    resolve_geographic_operating_margin_contribution_change_residual_formula,
+    resolve_geographic_operating_margin_contribution_formula,
+    resolve_geographic_operating_margin_contribution_residual_formula,
+    resolve_geographic_reconciling_operating_margin_contribution_formula,
     resolve_geographic_revenue_growth_contribution_formula,
     resolve_geographic_revenue_growth_contribution_residual_formula,
     semantic_formula_cell,
@@ -331,12 +337,14 @@ def _geographic_expand_inputs(series) -> tuple[
     dict[date, tuple[str, ...]],
     dict[date, tuple[str, ...]],
     tuple[date, ...],
+    tuple[date, ...],
 ]:
     available: list[date] = []
     growth_identities: dict[date, tuple[str, ...]] = {}
     bridge_identities: dict[date, tuple[str, ...]] = {}
     contribution_identities: dict[date, tuple[str, ...]] = {}
     consolidated_growth_periods: list[date] = []
+    margin_change_periods: list[date] = []
     for period in series.periods:
         if is_source_unavailable(series.presentation_family[period]):
             continue
@@ -371,12 +379,22 @@ def _geographic_expand_inputs(series) -> tuple[
         contributions = series.signed_reconciling_contributions[period]
         if not is_source_unavailable(contributions):
             bridge_identities[period] = tuple(name for name, _ in contributions)
+        margin_change = series.consolidated_operating_margin_change[period]
+        change_residual = series.operating_margin_contribution_change_residual[period]
+        if (
+            margin_change is not None
+            and not is_source_unavailable(margin_change)
+            and change_residual is not None
+            and not is_source_unavailable(change_residual)
+        ):
+            margin_change_periods.append(period)
     return (
         tuple(available),
         growth_identities,
         bridge_identities,
         contribution_identities,
         tuple(consolidated_growth_periods),
+        tuple(margin_change_periods),
     )
 
 
@@ -1012,7 +1030,7 @@ class ReferenceModelBuilder:
                 self.fin,
                 self.periods,
             )
-            available_periods, growth_identities, bridge_identities, contribution_identities, consolidated_growth_periods = (
+            available_periods, growth_identities, bridge_identities, contribution_identities, consolidated_growth_periods, margin_change_periods = (
                 _geographic_expand_inputs(self.geographic_series)
             )
             self.geographic_specs = expand_geographic_segment_specs(
@@ -1023,6 +1041,7 @@ class ReferenceModelBuilder:
                 bridge_identities=bridge_identities,
                 contribution_identities=contribution_identities,
                 consolidated_growth_periods=consolidated_growth_periods,
+                margin_change_periods=margin_change_periods,
             )
         else:
             self.geographic_series = None
@@ -7015,19 +7034,23 @@ class ReferenceModelBuilder:
         ws["A1"].font = BOLD
         ws["A2"] = (
             "Source-supported geographic revenue mix, adjacent-period growth, "
-            "reported operating margins, consolidated bridges, and "
-            "percentage-point contributions to consolidated revenue growth. "
-            "Reported operating margin is distinct from BAV NOPAT margin. "
-            "Contributions are an arithmetic decomposition of reported "
-            "geographic revenue changes, not organic, constant-currency, or "
-            "causal growth."
+            "reported operating margins, consolidated bridges, percentage-point "
+            "contributions to consolidated revenue growth, and an arithmetic "
+            "decomposition of consolidated reported operating margin and its "
+            "change. Reported operating margin is distinct from BAV NOPAT "
+            "margin. Revenue-growth contributions are an arithmetic "
+            "decomposition of reported geographic revenue changes, not "
+            "organic, constant-currency, or causal growth. Operating-margin "
+            "contributions are not mix, within-segment, normalization, or a "
+            "causal explanation."
         )
         ws["A3"] = f"Units: {self.fin.units}"
         ws["A4"] = (
             "Calculated segment totals are distinct from any reported segment_total. "
-            "Sparse unavailable amounts remain unavailable; opening growth and "
-            "opening contributions are not practiced. The signed contribution "
-            "residual is not forced to zero."
+            "Sparse unavailable amounts remain unavailable; opening growth, "
+            "opening revenue-growth contributions, and opening operating-margin "
+            "contribution changes are not practiced. Signed residuals are not "
+            "forced to zero."
         )
         ws.column_dimensions["A"].width = 56
 
@@ -7117,7 +7140,62 @@ class ReferenceModelBuilder:
                 tab=tab,
             )
 
+        def _ifop_source_cell_ref(
+            identity: str, period_index: int, default_row: int, default_col: int
+        ) -> SemanticCellRef:
+            row, col, tab = self._normalize_source_placement(
+                self._geographic_ifop_source_placement(
+                    identity, period_index, default_row, default_col
+                ),
+                GEOGRAPHIC_SHEET,
+            )
+            return SemanticCellRef(
+                id=f"geographic_ifop_source__{identity}__{period_index}",
+                semantic_key=f"geographic.ifop_source.{identity}",
+                period_end=self.periods[period_index].isoformat(),
+                cell=f"{self._col(col)}{row}",
+                tab=tab,
+            )
+
+        def _reconciling_source_cell_ref(
+            identity: str, period_index: int, default_row: int, default_col: int
+        ) -> SemanticCellRef:
+            row, col, tab = self._normalize_source_placement(
+                self._geographic_reconciling_source_placement(
+                    identity, period_index, default_row, default_col
+                ),
+                GEOGRAPHIC_SHEET,
+            )
+            return SemanticCellRef(
+                id=f"geographic_reconciling_source__{identity}__{period_index}",
+                semantic_key=f"geographic.reconciling_source.{identity}",
+                period_end=self.periods[period_index].isoformat(),
+                cell=f"{self._col(col)}{row}",
+                tab=tab,
+            )
+
+        def _practice_ref(
+            family_id: str,
+            period: date,
+            row: int,
+            col_idx: int,
+            *,
+            identity: str = "",
+        ) -> SemanticCellRef:
+            return SemanticCellRef(
+                id=geographic_component_id(family_id, period, identity),
+                semantic_key=(
+                    f"geographic.{family_id.removeprefix('geographic_')}."
+                    + (f"{identity}." if identity else "")
+                    + period.isoformat()
+                ),
+                period_end=period.isoformat(),
+                cell=f"{self._col(col_idx)}{row}",
+                tab=GEOGRAPHIC_SHEET,
+            )
+
         revenue_source_refs: dict[tuple[str, int], SemanticCellRef] = {}
+        ifop_source_refs: dict[tuple[str, int], SemanticCellRef] = {}
 
         cursor = 8
         _section(cursor, "NET REVENUE")
@@ -7244,6 +7322,67 @@ class ReferenceModelBuilder:
             "Difference vs reported consolidated operating profit",
         )
 
+        cursor += 2
+        _section(cursor, "CONTRIBUTIONS TO CONSOLIDATED OPERATING MARGIN")
+        margin_contrib_rows = {}
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            cursor += 1
+            margin_contrib_rows[identity] = cursor
+            _label(
+                cursor,
+                (
+                    f"{geographic_identity_label(identity)} contribution to "
+                    "consolidated operating margin (percentage points)"
+                ),
+            )
+        cursor += 1
+        reconciling_margin_row = cursor
+        _label(
+            cursor,
+            "Aggregate reconciling contribution to consolidated operating "
+            "margin (percentage points)",
+        )
+        cursor += 1
+        cons_margin_row = cursor
+        _label(cursor, "Consolidated reported operating margin (percentage points)")
+        cursor += 1
+        margin_residual_row = cursor
+        _label(cursor, "Operating-margin contribution residual (percentage points)")
+
+        cursor += 2
+        _section(cursor, "CHANGE IN CONTRIBUTIONS TO CONSOLIDATED OPERATING MARGIN")
+        margin_contrib_change_rows = {}
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            cursor += 1
+            margin_contrib_change_rows[identity] = cursor
+            _label(
+                cursor,
+                (
+                    f"{geographic_identity_label(identity)} change in "
+                    "contribution to consolidated operating margin "
+                    "(percentage points)"
+                ),
+            )
+        cursor += 1
+        reconciling_margin_change_row = cursor
+        _label(
+            cursor,
+            "Change in aggregate reconciling contribution to consolidated "
+            "operating margin (percentage points)",
+        )
+        cursor += 1
+        cons_margin_change_row = cursor
+        _label(
+            cursor,
+            "Change in consolidated reported operating margin (percentage points)",
+        )
+        cursor += 1
+        margin_change_residual_row = cursor
+        _label(
+            cursor,
+            "Operating-margin contribution change residual (percentage points)",
+        )
+
         self.rowmap["geographic_header_row"] = header_row
         self.rowmap["geographic_revenue_rows"] = dict(rev_rows)
         self.rowmap["geographic_ifop_rows"] = dict(ifop_rows)
@@ -7260,6 +7399,10 @@ class ReferenceModelBuilder:
                 opening_practice_rows.update(contribution_rows.values())
                 opening_practice_rows.add(cons_growth_row)
                 opening_practice_rows.add(residual_row)
+                opening_practice_rows.update(margin_contrib_change_rows.values())
+                opening_practice_rows.add(reconciling_margin_change_row)
+                opening_practice_rows.add(cons_margin_change_row)
+                opening_practice_rows.add(margin_change_residual_row)
                 for row in (
                     family_row,
                     *rev_rows.values(),
@@ -7281,6 +7424,14 @@ class ReferenceModelBuilder:
                     *bridge_signed_rows.values(),
                     reconstructed_row,
                     ifop_diff_row,
+                    *margin_contrib_rows.values(),
+                    reconciling_margin_row,
+                    cons_margin_row,
+                    margin_residual_row,
+                    *margin_contrib_change_rows.values(),
+                    reconciling_margin_change_row,
+                    cons_margin_change_row,
+                    margin_change_residual_row,
                 ):
                     if j == 0 and row in opening_practice_rows:
                         ws.cell(row=row, column=col_idx, value="N/A")
@@ -7301,10 +7452,14 @@ class ReferenceModelBuilder:
                     float(series.net_revenue[period][identity]),
                     tab=source_ref.tab,
                 )
-                _put_number(
-                    ifop_rows[identity],
-                    col_idx,
+                ifop_ref = _ifop_source_cell_ref(
+                    identity, j, ifop_rows[identity], col_idx
+                )
+                ifop_source_refs[(identity, j)] = ifop_ref
+                _put_number_at(
+                    *_a1_row_col(ifop_ref.cell),
                     float(series.income_from_operations[period][identity]),
+                    tab=ifop_ref.tab,
                 )
 
             cons_ref = _source_cell_ref("consolidated", j, rev_cons_row, col_idx)
@@ -7314,6 +7469,10 @@ class ReferenceModelBuilder:
                 float(series.reported_consolidated_revenue[period]),
                 tab=cons_ref.tab,
             )
+            cons_ifop_ref = _ifop_source_cell_ref(
+                "consolidated", j, ifop_cons_row, col_idx
+            )
+            ifop_source_refs[("consolidated", j)] = cons_ifop_ref
 
             segment_refs = [
                 revenue_source_refs[(name, j)]
@@ -7368,7 +7527,10 @@ class ReferenceModelBuilder:
                     series.revenue_share[period][identity],
                 )
                 margin_f = _ratio_formula(
-                    f"{col}{ifop_rows[identity]}", seg_cell
+                    semantic_formula_cell(
+                        ifop_source_refs[(identity, j)], from_tab=GEOGRAPHIC_SHEET
+                    ),
+                    seg_cell,
                 )
                 _put_formula(margin_rows[identity], col_idx, margin_f, pct=True)
                 _register(
@@ -7382,7 +7544,10 @@ class ReferenceModelBuilder:
                 )
 
             ifop_total_f = "=" + "+".join(
-                f"{col}{ifop_rows[name]}" for name in GEOGRAPHIC_SEGMENT_IDENTITIES
+                semantic_formula_cell(
+                    ifop_source_refs[(name, j)], from_tab=GEOGRAPHIC_SHEET
+                )
+                for name in GEOGRAPHIC_SEGMENT_IDENTITIES
             )
             _put_formula(ifop_total_row, col_idx, ifop_total_f)
             _register(
@@ -7400,10 +7565,10 @@ class ReferenceModelBuilder:
                     col_idx,
                     float(snapshot.values[IFOP_SEGMENT_TOTAL]),
                 )
-            _put_number(
-                ifop_cons_row,
-                col_idx,
+            _put_number_at(
+                *_a1_row_col(cons_ifop_ref.cell),
                 float(series.reported_consolidated_operating_profit[period]),
+                tab=cons_ifop_ref.tab,
             )
 
             for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
@@ -7541,6 +7706,7 @@ class ReferenceModelBuilder:
                 )
 
             signed_refs: list[str] = []
+            signed_practice_refs: list[SemanticCellRef] = []
             contributions = series.signed_reconciling_contributions[period]
             present = {
                 name: amount
@@ -7554,13 +7720,22 @@ class ReferenceModelBuilder:
                 if identity not in snapshot.bridge_operations:
                     continue
                 amount = float(snapshot.values[identity])
-                _put_number(source_row, col_idx, amount)
+                reconciling_ref = _reconciling_source_cell_ref(
+                    identity, j, source_row, col_idx
+                )
+                _put_number_at(
+                    *_a1_row_col(reconciling_ref.cell),
+                    amount,
+                    tab=reconciling_ref.tab,
+                )
                 operation = snapshot.bridge_operations[identity]
-                source_ref = f"{col}{source_row}"
+                source_cell = semantic_formula_cell(
+                    reconciling_ref, from_tab=GEOGRAPHIC_SHEET
+                )
                 if operation == OP_ADD:
-                    signed_f = f"={source_ref}"
+                    signed_f = f"={source_cell}"
                 elif operation == OP_SUBTRACT:
-                    signed_f = f"=-{source_ref}"
+                    signed_f = f"=-{source_cell}"
                 else:
                     raise ValueError(
                         f"unsupported geographic bridge operation {operation!r}"
@@ -7575,7 +7750,17 @@ class ReferenceModelBuilder:
                     signed_f,
                     present[identity],
                 )
-                signed_refs.append(f"{col}{signed_row}")
+                signed_cell = f"{col}{signed_row}"
+                signed_refs.append(signed_cell)
+                signed_practice_refs.append(
+                    _practice_ref(
+                        "geographic_signed_reconciling_contribution",
+                        period,
+                        signed_row,
+                        col_idx,
+                        identity=identity,
+                    )
+                )
 
             recon_f = f"={col}{ifop_total_row}"
             if signed_refs:
@@ -7590,7 +7775,10 @@ class ReferenceModelBuilder:
                 recon_f,
                 series.reconstructed_consolidated_operating_profit[period],
             )
-            ifop_diff_f = f"={col}{reconstructed_row}-{col}{ifop_cons_row}"
+            cons_ifop_cell = semantic_formula_cell(
+                cons_ifop_ref, from_tab=GEOGRAPHIC_SHEET
+            )
+            ifop_diff_f = f"={col}{reconstructed_row}-{cons_ifop_cell}"
             _put_formula(ifop_diff_row, col_idx, ifop_diff_f)
             _register(
                 "geographic_consolidated_operating_profit_difference",
@@ -7602,6 +7790,241 @@ class ReferenceModelBuilder:
                 series.consolidated_operating_profit_difference[period],
             )
 
+            margin_contrib_practice_refs: list[SemanticCellRef] = []
+            for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+                cs_value = series.operating_margin_contribution[period][identity]
+                cs_row = margin_contrib_rows[identity]
+                cs_f = resolve_geographic_operating_margin_contribution_formula(
+                    ifop_source_refs[(identity, j)],
+                    revenue_source_refs[("consolidated", j)],
+                    from_tab=GEOGRAPHIC_SHEET,
+                )
+                _put_formula(cs_row, col_idx, cs_f, points=True)
+                _register(
+                    "geographic_operating_margin_contribution",
+                    j,
+                    identity,
+                    cs_row,
+                    col_idx,
+                    cs_f,
+                    cs_value,
+                )
+                margin_contrib_practice_refs.append(
+                    _practice_ref(
+                        "geographic_operating_margin_contribution",
+                        period,
+                        cs_row,
+                        col_idx,
+                        identity=identity,
+                    )
+                )
+
+            b_value = series.reconciling_operating_margin_contribution[period]
+            b_f = resolve_geographic_reconciling_operating_margin_contribution_formula(
+                tuple(signed_practice_refs),
+                revenue_source_refs[("consolidated", j)],
+                from_tab=GEOGRAPHIC_SHEET,
+            )
+            _put_formula(reconciling_margin_row, col_idx, b_f, points=True)
+            _register(
+                "geographic_reconciling_operating_margin_contribution",
+                j,
+                "",
+                reconciling_margin_row,
+                col_idx,
+                b_f,
+                b_value,
+            )
+            m_value = series.consolidated_operating_margin[period]
+            m_f = resolve_geographic_consolidated_operating_margin_formula(
+                ifop_source_refs[("consolidated", j)],
+                revenue_source_refs[("consolidated", j)],
+                from_tab=GEOGRAPHIC_SHEET,
+            )
+            _put_formula(cons_margin_row, col_idx, m_f, points=True)
+            _register(
+                "geographic_consolidated_operating_margin",
+                j,
+                "",
+                cons_margin_row,
+                col_idx,
+                m_f,
+                m_value,
+            )
+            e_value = series.operating_margin_contribution_residual[period]
+            e_f = resolve_geographic_operating_margin_contribution_residual_formula(
+                _practice_ref(
+                    "geographic_consolidated_operating_margin",
+                    period,
+                    cons_margin_row,
+                    col_idx,
+                ),
+                tuple(margin_contrib_practice_refs),
+                _practice_ref(
+                    "geographic_reconciling_operating_margin_contribution",
+                    period,
+                    reconciling_margin_row,
+                    col_idx,
+                ),
+                from_tab=GEOGRAPHIC_SHEET,
+            )
+            _put_formula(margin_residual_row, col_idx, e_f, points=True)
+            _register(
+                "geographic_operating_margin_contribution_residual",
+                j,
+                "",
+                margin_residual_row,
+                col_idx,
+                e_f,
+                e_value,
+            )
+
+            change_practice_refs: list[SemanticCellRef] = []
+            for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+                dcs_value = series.operating_margin_contribution_change[period][
+                    identity
+                ]
+                dcs_row = margin_contrib_change_rows[identity]
+                if j == 0 or dcs_value is None:
+                    ws.cell(row=dcs_row, column=col_idx, value="N/A")
+                    continue
+                if is_source_unavailable(dcs_value):
+                    self._stamp_unavailable(ws, dcs_row, col_idx, SOURCE_UNAVAILABLE)
+                    continue
+                dcs_f = resolve_geographic_adjacent_change_formula(
+                    _practice_ref(
+                        "geographic_operating_margin_contribution",
+                        period,
+                        margin_contrib_rows[identity],
+                        col_idx,
+                        identity=identity,
+                    ),
+                    _practice_ref(
+                        "geographic_operating_margin_contribution",
+                        self.periods[j - 1],
+                        margin_contrib_rows[identity],
+                        col_idx - 1,
+                        identity=identity,
+                    ),
+                    from_tab=GEOGRAPHIC_SHEET,
+                )
+                _put_formula(dcs_row, col_idx, dcs_f, points=True)
+                _register(
+                    "geographic_operating_margin_contribution_change",
+                    j,
+                    identity,
+                    dcs_row,
+                    col_idx,
+                    dcs_f,
+                    dcs_value,
+                )
+                change_practice_refs.append(
+                    _practice_ref(
+                        "geographic_operating_margin_contribution_change",
+                        period,
+                        dcs_row,
+                        col_idx,
+                        identity=identity,
+                    )
+                )
+
+            db_value = series.reconciling_operating_margin_contribution_change[period]
+            dm_value = series.consolidated_operating_margin_change[period]
+            de_value = series.operating_margin_contribution_change_residual[period]
+            if j == 0 or db_value is None:
+                ws.cell(row=reconciling_margin_change_row, column=col_idx, value="N/A")
+                ws.cell(row=cons_margin_change_row, column=col_idx, value="N/A")
+                ws.cell(row=margin_change_residual_row, column=col_idx, value="N/A")
+            elif is_source_unavailable(db_value):
+                self._stamp_unavailable(
+                    ws, reconciling_margin_change_row, col_idx, SOURCE_UNAVAILABLE
+                )
+                self._stamp_unavailable(
+                    ws, cons_margin_change_row, col_idx, SOURCE_UNAVAILABLE
+                )
+                self._stamp_unavailable(
+                    ws, margin_change_residual_row, col_idx, SOURCE_UNAVAILABLE
+                )
+            else:
+                db_f = resolve_geographic_adjacent_change_formula(
+                    _practice_ref(
+                        "geographic_reconciling_operating_margin_contribution",
+                        period,
+                        reconciling_margin_row,
+                        col_idx,
+                    ),
+                    _practice_ref(
+                        "geographic_reconciling_operating_margin_contribution",
+                        self.periods[j - 1],
+                        reconciling_margin_row,
+                        col_idx - 1,
+                    ),
+                    from_tab=GEOGRAPHIC_SHEET,
+                )
+                _put_formula(reconciling_margin_change_row, col_idx, db_f, points=True)
+                _register(
+                    "geographic_reconciling_operating_margin_contribution_change",
+                    j,
+                    "",
+                    reconciling_margin_change_row,
+                    col_idx,
+                    db_f,
+                    db_value,
+                )
+                dm_f = resolve_geographic_adjacent_change_formula(
+                    _practice_ref(
+                        "geographic_consolidated_operating_margin",
+                        period,
+                        cons_margin_row,
+                        col_idx,
+                    ),
+                    _practice_ref(
+                        "geographic_consolidated_operating_margin",
+                        self.periods[j - 1],
+                        cons_margin_row,
+                        col_idx - 1,
+                    ),
+                    from_tab=GEOGRAPHIC_SHEET,
+                )
+                _put_formula(cons_margin_change_row, col_idx, dm_f, points=True)
+                _register(
+                    "geographic_consolidated_operating_margin_change",
+                    j,
+                    "",
+                    cons_margin_change_row,
+                    col_idx,
+                    dm_f,
+                    dm_value,
+                )
+                de_f = (
+                    resolve_geographic_operating_margin_contribution_change_residual_formula(
+                        _practice_ref(
+                            "geographic_consolidated_operating_margin_change",
+                            period,
+                            cons_margin_change_row,
+                            col_idx,
+                        ),
+                        tuple(change_practice_refs),
+                        _practice_ref(
+                            "geographic_reconciling_operating_margin_contribution_change",
+                            period,
+                            reconciling_margin_change_row,
+                            col_idx,
+                        ),
+                        from_tab=GEOGRAPHIC_SHEET,
+                    )
+                )
+                _put_formula(margin_change_residual_row, col_idx, de_f, points=True)
+                _register(
+                    "geographic_operating_margin_contribution_change_residual",
+                    j,
+                    "",
+                    margin_change_residual_row,
+                    col_idx,
+                    de_f,
+                    de_value,
+                )
+
     def _geographic_revenue_source_placement(
         self,
         identity: str,
@@ -7610,6 +8033,38 @@ class ReferenceModelBuilder:
         default_col: int,
     ) -> tuple[int, int] | tuple[int, int, str]:
         """Return the worksheet placement for one geographic revenue source.
+
+        Default layout keeps sources on the geographic schedule at consecutive
+        period columns. Tests may override this hook to relocate sources,
+        including nonadjacent columns and another existing sheet, before
+        formula resolution.
+        """
+        return default_row, default_col
+
+    def _geographic_ifop_source_placement(
+        self,
+        identity: str,
+        period_index: int,
+        default_row: int,
+        default_col: int,
+    ) -> tuple[int, int] | tuple[int, int, str]:
+        """Return the worksheet placement for one geographic operating-profit source.
+
+        Default layout keeps sources on the geographic schedule at consecutive
+        period columns. Tests may override this hook to relocate sources,
+        including nonadjacent columns and another existing sheet, before
+        formula resolution.
+        """
+        return default_row, default_col
+
+    def _geographic_reconciling_source_placement(
+        self,
+        identity: str,
+        period_index: int,
+        default_row: int,
+        default_col: int,
+    ) -> tuple[int, int] | tuple[int, int, str]:
+        """Return the worksheet placement for one geographic reconciling source.
 
         Default layout keeps sources on the geographic schedule at consecutive
         period columns. Tests may override this hook to relocate sources,

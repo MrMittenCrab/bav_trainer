@@ -4659,6 +4659,213 @@ GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         ),
         tolerance=1e-12,
     ),
+    ComponentFamily(
+        id="geographic_operating_margin_contribution",
+        order=164,
+        title="Geographic contribution to consolidated operating margin",
+        short_hint=(
+            "Contribution in percentage points = 100 × segment income from "
+            "operations / reported consolidated net revenue. Arithmetic "
+            "decomposition of reported operating margin only. Zero "
+            "consolidated revenue is undefined (#N/A). Zero segment revenue "
+            "does not suppress a valid contribution. Distinct from BAV NOPAT "
+            "margin. Not mix, within-segment, normalization, or causal "
+            "attribution."
+        ),
+        semantic_key="geographic.operating_margin_contribution",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        hints=(
+            "Use consolidated net revenue as the denominator, not segment revenue.",
+            "Zero segment revenue does not suppress a valid contribution.",
+            "Percentage-point arithmetic only; not mix, within-segment, or causal.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_reconciling_operating_margin_contribution",
+        order=165,
+        title="Aggregate reconciling contribution to consolidated operating margin",
+        short_hint=(
+            "Aggregate reconciling contribution in percentage points = 100 × "
+            "the sum of existing signed reconciling amounts / reported "
+            "consolidated net revenue. Reuse explicit ADD/SUBTRACT bridge "
+            "operations without combining corporate-column and itemized "
+            "identities. Arithmetic reconciliation of reported operating "
+            "margin only. Zero consolidated revenue is undefined (#N/A). "
+            "Not mix, within-segment, normalization, or causal attribution."
+        ),
+        semantic_key="geographic.reconciling_operating_margin_contribution",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        depends_on_current=("geographic_signed_reconciling_contribution",),
+        hints=(
+            "Sum signed reconciling amounts, then divide by consolidated net revenue.",
+            "Keep corporate-column and itemized identities separate; do not double count.",
+            "Aggregate reconciliation only; not item-level equivalence across families.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_consolidated_operating_margin",
+        order=166,
+        title="Consolidated reported operating margin",
+        short_hint=(
+            "Consolidated reported operating margin in percentage points = "
+            "100 × reported consolidated income from operations / reported "
+            "consolidated net revenue. Distinct from BAV NOPAT margin. Zero "
+            "consolidated revenue is undefined (#N/A). Arithmetic only; not "
+            "normalization or a causal explanation."
+        ),
+        semantic_key="geographic.consolidated_operating_margin",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        hints=(
+            "Consolidated reported operating margin uses consolidated profit and revenue.",
+            "Keep this distinct from BAV NOPAT margin.",
+            "Zero consolidated revenue yields the undefined-ratio result.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_operating_margin_contribution_residual",
+        order=167,
+        title="Operating-margin contribution residual",
+        short_hint=(
+            "Residual in percentage points = consolidated reported operating "
+            "margin − sum of Americas, China Mainland, and Rest of World "
+            "contributions − the aggregate reconciling contribution. Preserve "
+            "the signed residual; do not force it to zero. A missing snapshot "
+            "is unavailable. Zero consolidated revenue is undefined (#N/A). "
+            "Arithmetic reconciliation only, not mix, within-segment, "
+            "normalization, or a causal explanation."
+        ),
+        semantic_key="geographic.operating_margin_contribution_residual",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        depends_on_current=(
+            "geographic_consolidated_operating_margin",
+            "geographic_operating_margin_contribution",
+            "geographic_reconciling_operating_margin_contribution",
+        ),
+        hints=(
+            "Residual = consolidated reported operating margin − segment contributions − reconciling contribution.",
+            "Keep the signed residual; do not force reconciliation to zero.",
+            "Arithmetic only; not mix, within-segment, or causal attribution.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_operating_margin_contribution_change",
+        order=168,
+        title="Change in geographic contribution to consolidated operating margin",
+        short_hint=(
+            "Adjacent change in percentage points = current segment "
+            "contribution − immediately preceding contribution. Opening "
+            "change is absent. A missing adjacent snapshot is unavailable. "
+            "Zero consolidated revenue is undefined (#N/A). Arithmetic "
+            "decomposition of the change in reported operating margin only. "
+            "Not mix, within-segment, normalization, or causal attribution."
+        ),
+        semantic_key="geographic.operating_margin_contribution_change",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=("geographic_operating_margin_contribution",),
+        depends_on_previous=("geographic_operating_margin_contribution",),
+        hints=(
+            "Change uses the immediately preceding model period's contribution.",
+            "Opening change is absent; a gap is unavailable, not compressed.",
+            "Percentage-point arithmetic only; not mix, within-segment, or causal.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_reconciling_operating_margin_contribution_change",
+        order=169,
+        title="Change in aggregate reconciling contribution to consolidated operating margin",
+        short_hint=(
+            "Adjacent change in percentage points = current aggregate "
+            "reconciling contribution − immediately preceding aggregate. "
+            "Opening change is absent. A missing adjacent snapshot is "
+            "unavailable. Zero consolidated revenue is undefined (#N/A). "
+            "Compare aggregates only; do not assert item-level equivalence "
+            "across presentation families. Arithmetic only; not mix, "
+            "within-segment, normalization, or causal attribution."
+        ),
+        semantic_key="geographic.reconciling_operating_margin_contribution_change",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(
+            "geographic_reconciling_operating_margin_contribution",
+        ),
+        depends_on_previous=(
+            "geographic_reconciling_operating_margin_contribution",
+        ),
+        hints=(
+            "Change the aggregate reconciling contribution, not item-level identities.",
+            "Opening change is absent; a gap is unavailable, not compressed.",
+            "Do not assert corporate-column and itemized items are equivalent.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_consolidated_operating_margin_change",
+        order=170,
+        title="Change in consolidated reported operating margin",
+        short_hint=(
+            "Adjacent change in percentage points = current consolidated "
+            "reported operating margin − immediately preceding margin. "
+            "Opening change is absent. A missing adjacent snapshot is "
+            "unavailable. Zero consolidated revenue is undefined (#N/A). "
+            "Arithmetic decomposition of reported operating-margin change "
+            "only. Distinct from BAV NOPAT margin. Not mix, within-segment, "
+            "normalization, or causal attribution."
+        ),
+        semantic_key="geographic.consolidated_operating_margin_change",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=("geographic_consolidated_operating_margin",),
+        depends_on_previous=("geographic_consolidated_operating_margin",),
+        hints=(
+            "Change uses the immediately preceding consolidated reported operating margin.",
+            "Opening change is absent; a gap is unavailable, not compressed.",
+            "Keep this distinct from BAV NOPAT margin.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_operating_margin_contribution_change_residual",
+        order=171,
+        title="Operating-margin contribution change residual",
+        short_hint=(
+            "Change residual in percentage points = change in consolidated "
+            "reported operating margin − sum of segment contribution changes "
+            "− change in the aggregate reconciling contribution. Preserve the "
+            "signed residual; do not force it to zero. Opening residual is "
+            "absent. A missing adjacent snapshot is unavailable. Zero "
+            "consolidated revenue is undefined (#N/A). Arithmetic "
+            "reconciliation of the change only, not mix, within-segment, "
+            "normalization, or a causal explanation."
+        ),
+        semantic_key="geographic.operating_margin_contribution_change_residual",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(
+            "geographic_consolidated_operating_margin_change",
+            "geographic_operating_margin_contribution_change",
+            "geographic_reconciling_operating_margin_contribution_change",
+        ),
+        hints=(
+            "Change residual = Δ consolidated margin − Σ Δ segment contributions − Δ reconciling contribution.",
+            "Keep the signed residual; do not force reconciliation to zero.",
+            "Arithmetic only; not mix, within-segment, or causal attribution.",
+        ),
+        tolerance=1e-12,
+    ),
 )
 
 
@@ -4671,6 +4878,7 @@ def expand_geographic_segment_specs(
     bridge_identities: dict[date, tuple[str, ...]],
     contribution_identities: dict[date, tuple[str, ...]] | None = None,
     consolidated_growth_periods: tuple[date, ...] | None = None,
+    margin_change_periods: tuple[date, ...] | None = None,
 ) -> tuple[ComponentSpec, ...]:
     """Expand geographic families by segment/bridge identity and fiscal period."""
     if len(periods) != len(set(periods)):
@@ -4739,8 +4947,23 @@ def expand_geographic_segment_specs(
     contribution = families["geographic_revenue_growth_contribution"]
     cons_growth = families["geographic_consolidated_revenue_growth"]
     residual = families["geographic_revenue_growth_contribution_residual"]
+    margin_contrib = families["geographic_operating_margin_contribution"]
+    reconciling_margin = families[
+        "geographic_reconciling_operating_margin_contribution"
+    ]
+    cons_margin = families["geographic_consolidated_operating_margin"]
+    margin_residual = families["geographic_operating_margin_contribution_residual"]
+    margin_contrib_change = families["geographic_operating_margin_contribution_change"]
+    reconciling_margin_change = families[
+        "geographic_reconciling_operating_margin_contribution_change"
+    ]
+    cons_margin_change = families["geographic_consolidated_operating_margin_change"]
+    margin_change_residual = families[
+        "geographic_operating_margin_contribution_change_residual"
+    ]
     contribution_ids = contribution_identities or {}
     cons_growth_periods = set(consolidated_growth_periods or ())
+    margin_change_set = set(margin_change_periods or ())
 
     for period in periods:
         if period not in available:
@@ -4840,6 +5063,113 @@ def expand_geographic_segment_specs(
                 depends_on=tuple(residual_deps),
                 title="Contribution residual (percentage points)",
             )
+        margin_contrib_deps: list[str] = []
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            label = geographic_identity_label(identity)
+            contrib_id = geographic_component_id(margin_contrib.id, period, identity)
+            margin_contrib_deps.append(contrib_id)
+            _append(
+                margin_contrib,
+                period,
+                identity=identity,
+                title=(
+                    f"{label} contribution to consolidated operating margin "
+                    "(percentage points)"
+                ),
+            )
+        _append(
+            reconciling_margin,
+            period,
+            depends_on=tuple(
+                geographic_component_id(signed.id, period, identity)
+                for identity in period_bridges
+            ),
+            title=(
+                "Aggregate reconciling contribution to consolidated operating "
+                "margin (percentage points)"
+            ),
+        )
+        _append(
+            cons_margin,
+            period,
+            title="Consolidated reported operating margin (percentage points)",
+        )
+        _append(
+            margin_residual,
+            period,
+            depends_on=(
+                geographic_component_id(cons_margin.id, period),
+                *margin_contrib_deps,
+                geographic_component_id(reconciling_margin.id, period),
+            ),
+            title="Operating-margin contribution residual (percentage points)",
+        )
+        if period not in margin_change_set:
+            continue
+        index = period_index[period]
+        if index == 0:
+            raise ValueError(
+                "opening geographic period has no immediately preceding "
+                "operating-margin contribution"
+            )
+        prior = periods[index - 1]
+        change_deps: list[str] = []
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            label = geographic_identity_label(identity)
+            change_id = geographic_component_id(
+                margin_contrib_change.id, period, identity
+            )
+            change_deps.append(change_id)
+            _append(
+                margin_contrib_change,
+                period,
+                identity=identity,
+                depends_on=(
+                    geographic_component_id(margin_contrib.id, period, identity),
+                    geographic_component_id(margin_contrib.id, prior, identity),
+                ),
+                title=(
+                    f"{label} change in contribution to consolidated operating "
+                    "margin (percentage points)"
+                ),
+            )
+        _append(
+            reconciling_margin_change,
+            period,
+            depends_on=(
+                geographic_component_id(reconciling_margin.id, period),
+                geographic_component_id(reconciling_margin.id, prior),
+            ),
+            title=(
+                "Change in aggregate reconciling contribution to consolidated "
+                "operating margin (percentage points)"
+            ),
+        )
+        _append(
+            cons_margin_change,
+            period,
+            depends_on=(
+                geographic_component_id(cons_margin.id, period),
+                geographic_component_id(cons_margin.id, prior),
+            ),
+            title=(
+                "Change in consolidated reported operating margin "
+                "(percentage points)"
+            ),
+        )
+        _append(
+            margin_change_residual,
+            period,
+            depends_on=(
+                geographic_component_id(cons_margin_change.id, period),
+                *change_deps,
+                geographic_component_id(reconciling_margin_change.id, period),
+            ),
+            title=(
+                "Operating-margin contribution change residual "
+                "(percentage points)"
+            ),
+        )
     return tuple(specs)
 
 
@@ -5239,6 +5569,103 @@ def resolve_geographic_revenue_growth_contribution_residual_formula(
         semantic_formula_cell(item, from_tab=from_tab) for item in contributions
     ]
     return "=100*" + growth_cell + "".join(f"-{cell}" for cell in contrib_cells)
+
+
+def resolve_geographic_operating_margin_contribution_formula(
+    operating_profit: SemanticCellRef,
+    consolidated_revenue: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Percentage-point operating-margin contribution from mapped profit and revenue."""
+    profit_cell = semantic_formula_cell(operating_profit, from_tab=from_tab)
+    cons_cell = semantic_formula_cell(consolidated_revenue, from_tab=from_tab)
+    return f"=IF({cons_cell}=0,NA(),100*{profit_cell}/{cons_cell})"
+
+
+def resolve_geographic_reconciling_operating_margin_contribution_formula(
+    signed_reconciling: tuple[SemanticCellRef, ...],
+    consolidated_revenue: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Aggregate reconciling contribution from mapped signed amounts and revenue."""
+    cons_cell = semantic_formula_cell(consolidated_revenue, from_tab=from_tab)
+    if not signed_reconciling:
+        return f"=IF({cons_cell}=0,NA(),0)"
+    signed_cells = [
+        semantic_formula_cell(item, from_tab=from_tab) for item in signed_reconciling
+    ]
+    total = "+".join(signed_cells)
+    return f"=IF({cons_cell}=0,NA(),100*({total})/{cons_cell})"
+
+
+def resolve_geographic_consolidated_operating_margin_formula(
+    consolidated_operating_profit: SemanticCellRef,
+    consolidated_revenue: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Percentage-point consolidated reported operating margin from mapped sources."""
+    return resolve_geographic_operating_margin_contribution_formula(
+        consolidated_operating_profit,
+        consolidated_revenue,
+        from_tab=from_tab,
+    )
+
+
+def resolve_geographic_operating_margin_contribution_residual_formula(
+    consolidated_margin: SemanticCellRef,
+    contributions: tuple[SemanticCellRef, ...],
+    reconciling: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Signed residual from mapped margin, segment contributions, and reconciling."""
+    if not contributions:
+        raise ValueError(
+            "operating-margin contribution residual requires mapped segment "
+            "contributions"
+        )
+    margin_cell = semantic_formula_cell(consolidated_margin, from_tab=from_tab)
+    contrib_cells = [
+        semantic_formula_cell(item, from_tab=from_tab) for item in contributions
+    ]
+    reconciling_cell = semantic_formula_cell(reconciling, from_tab=from_tab)
+    return (
+        "="
+        + margin_cell
+        + "".join(f"-{cell}" for cell in contrib_cells)
+        + f"-{reconciling_cell}"
+    )
+
+
+def resolve_geographic_adjacent_change_formula(
+    current: SemanticCellRef,
+    prior: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Adjacent percentage-point change from mapped current and prior cells."""
+    current_cell = semantic_formula_cell(current, from_tab=from_tab)
+    prior_cell = semantic_formula_cell(prior, from_tab=from_tab)
+    return f"={current_cell}-{prior_cell}"
+
+
+def resolve_geographic_operating_margin_contribution_change_residual_formula(
+    margin_change: SemanticCellRef,
+    contribution_changes: tuple[SemanticCellRef, ...],
+    reconciling_change: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Signed change residual from mapped margin and contribution changes."""
+    return resolve_geographic_operating_margin_contribution_residual_formula(
+        margin_change,
+        contribution_changes,
+        reconciling_change,
+        from_tab=from_tab,
+    )
 
 
 def resolve_revenue_store_growth_formula(
