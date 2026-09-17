@@ -1490,3 +1490,71 @@ def test_missing_and_ambiguous_revision_targets_do_not_select(tmp_path: Path):
     assert "winner" not in links[0]
     assert "superseded" not in links[0]
 
+
+@pytest.mark.parametrize(
+    "family",
+    (
+        "comparable_sales_growth",
+        "sales_per_square_foot",
+    ),
+)
+@pytest.mark.parametrize("target", ["superseded", "reviser"])
+def test_ordinary_admission_incoming_ambiguous_candidate_defers(
+    tmp_path: Path, family: str, target: str
+):
+    from core.ingestion.management_kpi_identity import (
+        FAMILY_COMPARABLE_SALES_GROWTH,
+        FAMILY_SALES_PER_SQUARE_FOOT,
+        STATUS_UNSUPPORTED_VARIANT,
+    )
+    from core.ingestion.management_kpi_reconciliation import (
+        REASON_AMBIGUOUS_TARGET,
+        RELATIONSHIP_UNRESOLVED,
+    )
+    from core.tests.test_management_kpi_reconciliation import (
+        _admission,
+        _assert_deferred_group,
+        _assert_eligible_members_survive,
+        _family_period_group,
+        _incoming_ambiguous_link,
+        _selected_locators,
+        write_incoming_ambiguous_fixture,
+    )
+
+    family = (
+        FAMILY_COMPARABLE_SALES_GROWTH
+        if family == FAMILY_COMPARABLE_SALES_GROWTH
+        else FAMILY_SALES_PER_SQUARE_FOOT
+    )
+    dest = _copy_json(ANNUAL_NAMES[1:4] + MANAGEMENT_NAMES[1:4], tmp_path / "admit-in")
+    write_incoming_ambiguous_fixture(dest, family, target=target)
+    admitted = _admission(dest)
+    assert admitted["status"] == "admitted_unreconciled"
+    reviser, superseded, link = _selected_locators(admitted, family)
+    group = _family_period_group(admitted, family)
+    incoming = _incoming_ambiguous_link(admitted, group)
+    involved = superseded if target == "superseded" else reviser
+    assert incoming["status"] == RELATIONSHIP_UNRESOLVED
+    assert incoming["revised"] is None
+    assert involved in incoming["candidate_locators"]
+    assert len(incoming["candidate_locators"]) == 2
+    assert link["revised"]["locator"] == superseded
+    _assert_deferred_group(group, RELATIONSHIP_UNRESOLVED, REASON_AMBIGUOUS_TARGET)
+    _assert_eligible_members_survive(
+        group, reviser_locator=reviser, superseded_locator=superseded
+    )
+    duplicate = next(
+        locator
+        for locator in incoming["candidate_locators"]
+        if locator not in group["locators"]
+    )
+    assert _assessments_status(admitted, duplicate) == STATUS_UNSUPPORTED_VARIANT
+
+
+def _assessments_status(payload: dict, locator: str) -> str:
+    return next(
+        item["status"]
+        for item in payload["assessments"]["items"]
+        if item["locator"] == locator
+    )
+

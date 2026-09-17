@@ -9,6 +9,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -380,4 +382,53 @@ def test_reconcile_serializes_management_identity_assessments(tmp_path: Path):
     assert "assessments" not in json.loads(
         (mixed_out / "conflicts.json").read_text(encoding="utf-8")
     )
+    assert _bytes_by_name(EXTRACTED) == before
+
+
+@pytest.mark.parametrize("family", ("comparable_sales_growth", "sales_per_square_foot"))
+def test_cli_serializes_incoming_ambiguous_candidate_deferral(tmp_path: Path, family: str):
+    from core.ingestion.management_kpi_identity import (
+        FAMILY_COMPARABLE_SALES_GROWTH,
+        FAMILY_SALES_PER_SQUARE_FOOT,
+    )
+    from core.ingestion.management_kpi_reconciliation import (
+        REASON_AMBIGUOUS_TARGET,
+        RELATIONSHIP_UNRESOLVED,
+    )
+    from core.tests.test_management_kpi_admission import (
+        ANNUAL_NAMES,
+        EXTRACTED,
+        MANAGEMENT_NAMES,
+        _bytes_by_name,
+        _copy_json,
+    )
+    from core.tests.test_management_kpi_reconciliation import (
+        _assert_deferred_group,
+        _cli_validate_and_reconcile,
+        _family_period_group,
+        _incoming_ambiguous_link,
+        write_incoming_ambiguous_fixture,
+    )
+
+    family = (
+        FAMILY_COMPARABLE_SALES_GROWTH
+        if family == FAMILY_COMPARABLE_SALES_GROWTH
+        else FAMILY_SALES_PER_SQUARE_FOOT
+    )
+    before = _bytes_by_name(EXTRACTED)
+    dest = _copy_json(ANNUAL_NAMES + MANAGEMENT_NAMES, tmp_path / "cli-in")
+    write_incoming_ambiguous_fixture(dest, family, target="superseded")
+    out = tmp_path / "out"
+    validate, reconcile = _cli_validate_and_reconcile(dest, out)
+    assert validate.returncode == 0, validate.stdout + validate.stderr
+    assert reconcile.returncode == 0, reconcile.stdout + reconcile.stderr
+    admission = json.loads(
+        (out / "management_kpi_admission.json").read_text(encoding="utf-8")
+    )
+    group = _family_period_group(admission, family)
+    incoming = _incoming_ambiguous_link(admission, group)
+    _assert_deferred_group(group, RELATIONSHIP_UNRESOLVED, REASON_AMBIGUOUS_TARGET)
+    assert incoming["revised"] is None
+    assert incoming["candidate_locators"]
+    assert admission["reconciliation"]["selected_count"] == 0
     assert _bytes_by_name(EXTRACTED) == before

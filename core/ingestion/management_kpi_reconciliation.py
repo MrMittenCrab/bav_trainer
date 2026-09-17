@@ -711,7 +711,9 @@ def _reviser_is_audited(occurrence: ManagementKpiReconciledOccurrence) -> bool:
 def _link_involves(link: ManagementKpiRevisionLink, locators: set[str]) -> bool:
     if link.reviser.locator in locators:
         return True
-    return link.revised is not None and link.revised.locator in locators
+    if link.revised is not None and link.revised.locator in locators:
+        return True
+    return bool(locators.intersection(link.candidate_locators))
 
 
 def _link_is_intra(link: ManagementKpiRevisionLink, locators: set[str]) -> bool:

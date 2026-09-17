@@ -1839,6 +1839,7 @@ def _family_period_group(
         if item["kind"] == "reported_kpi"
         and item["metric_id"] == metric_id
         and item["period"] == period
+        and _assessment(payload, item["locator"])["status"] == STATUS_SUPPORTED
     }
     matches = [
         item for item in _group_selections(payload) if set(item["locators"]) == locators
@@ -2881,4 +2882,354 @@ def test_cli_supplied_inputs_select_nothing(tmp_path: Path):
 
     assert _canonicalize(mixed_std) == _canonicalize(annual_std)
     assert not (annual_out / "management_kpi_admission.json").exists()
+    assert _bytes_by_name(EXTRACTED) == before
+
+
+def _pair_document_names(reviser: str) -> tuple[str, str]:
+    if reviser == "right":
+        return MANAGEMENT_NAMES[1], MANAGEMENT_NAMES[2]
+    if reviser == "left":
+        return MANAGEMENT_NAMES[2], MANAGEMENT_NAMES[1]
+    raise ValueError(reviser)
+
+
+def _bind_intra_revision_with_unit(
+    dest: Path, family: str, *, reviser: str = "right"
+) -> tuple[dict, dict]:
+    left = json.loads((dest / MANAGEMENT_NAMES[1]).read_text(encoding="utf-8"))
+    right = json.loads((dest / MANAGEMENT_NAMES[2]).read_text(encoding="utf-8"))
+    if reviser in {"right", "both"}:
+        unit = _family_items(left, family)[0]["unit"]
+        right = _attach_family_revision(right, left, family, unit=unit)
+    if reviser in {"left", "both"}:
+        unit = _family_items(right, family)[0]["unit"]
+        left = _attach_family_revision(left, right, family, unit=unit)
+    _write_json(dest / MANAGEMENT_NAMES[1], left)
+    _write_json(dest / MANAGEMENT_NAMES[2], right)
+    return left, right
+
+
+def _append_unsupported_family_duplicate(payload: dict, family: str) -> dict:
+    payload = copy.deepcopy(payload)
+    original = _family_items(payload, family)[0]
+    duplicate = copy.deepcopy(original)
+    duplicate["unit"] = "not-a-mapped-unit"
+    duplicate.pop("revision", None)
+    duplicate.pop("assurance", None)
+    duplicate.pop("presentation", None)
+    payload["reported_kpis"].append(duplicate)
+    return payload
+
+
+def _append_net_revenue_duplicate(payload: dict) -> dict:
+    payload = copy.deepcopy(payload)
+    revenue = next(
+        item
+        for item in payload["reported_kpis"]
+        if item.get("metric_id") == "net_revenue"
+    )
+    payload["reported_kpis"].append(copy.deepcopy(revenue))
+    return payload
+
+
+def _affirmative_incoming_document(dest: Path, family: str) -> dict:
+    from core.tests.test_management_kpi_identity import (
+        _apply_affirmative_compsales,
+        _apply_affirmative_spsf,
+    )
+
+    third = json.loads((dest / MANAGEMENT_NAMES[3]).read_text(encoding="utf-8"))
+    if family == FAMILY_COMPARABLE_SALES_GROWTH:
+        return _apply_affirmative_compsales(third)
+    return _apply_affirmative_spsf(third)
+
+
+def _attach_incoming_revision(
+    dest: Path, family: str, target_payload: dict, *, named_overrides: dict | None = None
+) -> dict:
+    from core.tests.test_management_kpi_admission import (
+        _attach_revision,
+        _revision_target,
+    )
+
+    third = _affirmative_incoming_document(dest, family)
+    target_item = (
+        _family_items(target_payload, family)[0]
+        if named_overrides is None
+        else next(
+            item
+            for item in target_payload["reported_kpis"]
+            if item.get("metric_id") == named_overrides.get("metric_id")
+        )
+    )
+    named = _revision_target(
+        target_item,
+        target_payload["report"]["source_file"],
+        **(named_overrides or {}),
+    )
+    for item in _family_items(third, family):
+        _attach_revision(
+            item,
+            named,
+            source_file=third["report"]["source_file"],
+        )
+    _write_json(dest / MANAGEMENT_NAMES[3], third)
+    return third
+
+
+def write_incoming_ambiguous_fixture(
+    dest: Path,
+    family: str,
+    *,
+    target: str = "superseded",
+    include_incoming: bool = True,
+    reviser: str = "right",
+) -> None:
+    _write_audited_revised_family_pair(dest, family, reviser=reviser)
+    _bind_intra_revision_with_unit(dest, family, reviser=reviser)
+    superseded_name, reviser_name = _pair_document_names(reviser)
+    if target == "outside":
+        left = json.loads((dest / MANAGEMENT_NAMES[1]).read_text(encoding="utf-8"))
+        left = _append_net_revenue_duplicate(left)
+        _write_json(dest / MANAGEMENT_NAMES[1], left)
+        if include_incoming:
+            _attach_incoming_revision(
+                dest,
+                family,
+                left,
+                named_overrides={"metric_id": "net_revenue"},
+            )
+        else:
+            _write_json(
+                dest / MANAGEMENT_NAMES[3],
+                _affirmative_incoming_document(dest, family),
+            )
+        return
+    target_name = superseded_name if target == "superseded" else reviser_name
+    target_payload = json.loads((dest / target_name).read_text(encoding="utf-8"))
+    target_payload = _append_unsupported_family_duplicate(target_payload, family)
+    _write_json(dest / target_name, target_payload)
+    if include_incoming:
+        _attach_incoming_revision(dest, family, target_payload)
+    else:
+        _write_json(
+            dest / MANAGEMENT_NAMES[3],
+            _affirmative_incoming_document(dest, family),
+        )
+
+
+def _incoming_ambiguous_link(payload: dict, group: dict) -> dict:
+    matches = [
+        item
+        for item in payload["reconciliation"]["revision_links"]
+        if item["revised"] is None
+        and REASON_AMBIGUOUS_TARGET in item["reasons"]
+        and item["reviser"]["locator"] not in group["locators"]
+    ]
+    assert len(matches) == 1
+    return matches[0]
+
+
+def _assert_eligible_members_survive(
+    group: dict, *, reviser_locator: str, superseded_locator: str
+) -> None:
+    assert len(group["occurrences"]) == 2
+    assert len(set(group["locators"])) == 2
+    by_locator = {occ["locator"]: occ for occ in group["occurrences"]}
+    reviser = by_locator[reviser_locator]
+    superseded = by_locator[superseded_locator]
+    for occ in (reviser, superseded):
+        assert occ["locator"]
+        assert occ["occurrence_identity"]
+        assert occ["source"]["page_reference"]
+        assert occ["bound_source_file"].endswith(".pdf")
+        assert occ["definition"]["text"]
+    assert reviser["value"] is not None
+    assert reviser["assurance_evidence"]["status"] == "audited"
+    assert reviser["assurance_evidence"]["evidence"]
+    assert reviser["assurance_evidence"]["locator"]
+    assert reviser["revision_evidence"]["revises"]
+    assert reviser["revision_evidence"]["evidence"]
+    assert superseded["source"]["page_reference"]
+    assert reviser["occurrence_identity"] != superseded["occurrence_identity"]
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize("target", ["superseded", "reviser"])
+def test_incoming_ambiguous_candidate_defers_otherwise_eligible_group(
+    tmp_path: Path, family: str, target: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:4] + MANAGEMENT_NAMES[1:4], tmp_path / "in")
+    write_incoming_ambiguous_fixture(dest, family, target=target)
+    payload = _admission(dest)
+    assert payload["status"] == "admitted_unreconciled"
+    assert payload["canonical_selection"] == "deferred"
+    reviser, superseded, link = _selected_locators(payload, family)
+    group = _family_period_group(payload, family)
+    assert len(group["occurrences"]) == 2
+    incoming = _incoming_ambiguous_link(payload, group)
+    involved = superseded if target == "superseded" else reviser
+    assert incoming["status"] == RELATIONSHIP_UNRESOLVED
+    assert incoming["revised"] is None
+    assert involved in incoming["candidate_locators"]
+    assert len(incoming["candidate_locators"]) == 2
+    assert reviser not in incoming["candidate_locators"] or target == "reviser"
+    assert superseded not in incoming["candidate_locators"] or target == "superseded"
+    assert link["revised"]["locator"] == superseded
+    assert link["reviser"]["locator"] == reviser
+    assert "candidate_locators" not in link
+    _assert_deferred_group(group, RELATIONSHIP_UNRESOLVED, REASON_AMBIGUOUS_TARGET)
+    _assert_eligible_members_survive(
+        group, reviser_locator=reviser, superseded_locator=superseded
+    )
+    duplicate = next(
+        locator
+        for locator in incoming["candidate_locators"]
+        if locator not in group["locators"]
+    )
+    assert _assessment(payload, duplicate)["status"] == STATUS_UNSUPPORTED_VARIANT
+    assert payload["reconciliation"]["selected_count"] == 0
+    assert payload["reconciliation"]["superseded_count"] == 0
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_removing_incoming_ambiguous_assertion_selects(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES[1:4] + MANAGEMENT_NAMES[1:4], tmp_path / "rm")
+    write_incoming_ambiguous_fixture(
+        dest, family, target="superseded", include_incoming=False
+    )
+    payload = _admission(dest)
+    reviser, superseded, _link = _selected_locators(payload, family)
+    group = _family_period_group(payload, family)
+    assert len(group["occurrences"]) == 2
+    _assert_selected_group(group, reviser_locator=reviser, superseded_locator=superseded)
+    assert payload["reconciliation"]["selected_count"] >= 1
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_unrelated_ambiguous_candidates_do_not_block_selection(
+    tmp_path: Path, family: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:4] + MANAGEMENT_NAMES[1:4], tmp_path / "out")
+    write_incoming_ambiguous_fixture(dest, family, target="outside")
+    payload = _admission(dest)
+    reviser, superseded, _link = _selected_locators(payload, family)
+    group = _family_period_group(payload, family)
+    assert len(group["occurrences"]) == 2
+    incoming = _incoming_ambiguous_link(payload, group)
+    assert incoming["status"] == RELATIONSHIP_UNRESOLVED
+    assert set(incoming["candidate_locators"]).isdisjoint(group["locators"])
+    _assert_selected_group(group, reviser_locator=reviser, superseded_locator=superseded)
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_incoming_ambiguous_candidate_is_permutation_invariant(
+    tmp_path: Path, family: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:4] + MANAGEMENT_NAMES[1:4], tmp_path / "perm")
+    write_incoming_ambiguous_fixture(dest, family, target="superseded")
+    original = _admission(dest)
+    orig_group = _family_period_group(original, family)
+    orig_incoming = _incoming_ambiguous_link(original, orig_group)
+    orig_reviser, orig_superseded, orig_link = _selected_locators(original, family)
+    _assert_deferred_group(orig_group, RELATIONSHIP_UNRESOLVED, REASON_AMBIGUOUS_TARGET)
+
+    swapped = tmp_path / "swapped"
+    swapped.mkdir()
+    for name in ANNUAL_NAMES[1:4] + MANAGEMENT_NAMES[1:4]:
+        shutil.copy2(dest / name, swapped / name)
+    write_incoming_ambiguous_fixture(
+        swapped, family, target="superseded", reviser="left"
+    )
+    reversed_payload = _admission(swapped)
+    reversed_link = _assert_revision_link(
+        reversed_payload,
+        status=RELATIONSHIP_RECOGNIZED,
+        reviser_year=2023,
+        revised_year=2024,
+        family=family,
+    )
+    reversed_group = _family_period_group(reversed_payload, family)
+    reversed_incoming = _incoming_ambiguous_link(reversed_payload, reversed_group)
+    _assert_deferred_group(
+        reversed_group, RELATIONSHIP_UNRESOLVED, REASON_AMBIGUOUS_TARGET
+    )
+    assert reversed_incoming["revised"] is None
+    assert reversed_link["named_target"]["source_file"] != orig_link["named_target"][
+        "source_file"
+    ]
+    assert reversed_link["revised"]["locator"] in reversed_incoming["candidate_locators"]
+    assert len(reversed_group["occurrences"]) == 2
+
+    renamed = tmp_path / "renamed"
+    renamed.mkdir()
+    for index, name in enumerate(sorted(path.name for path in dest.glob("*.json"))):
+        shutil.copy2(dest / name, renamed / f"{index:02d}-{name}")
+    renamed_payload = _admission(renamed)
+    renamed_group = _family_period_group(renamed_payload, family)
+    renamed_incoming = _incoming_ambiguous_link(renamed_payload, renamed_group)
+    renamed_reviser, renamed_superseded, renamed_link = _selected_locators(
+        renamed_payload, family
+    )
+    _assert_deferred_group(
+        renamed_group, RELATIONSHIP_UNRESOLVED, REASON_AMBIGUOUS_TARGET
+    )
+    _assert_eligible_members_survive(
+        renamed_group,
+        reviser_locator=renamed_reviser,
+        superseded_locator=renamed_superseded,
+    )
+    assert renamed_incoming["named_target"] == orig_incoming["named_target"]
+    assert renamed_link["named_target"] == orig_link["named_target"]
+    assert renamed_reviser != orig_reviser
+    assert renamed_superseded != orig_superseded
+    assert orig_superseded in orig_incoming["candidate_locators"]
+    assert renamed_superseded in renamed_incoming["candidate_locators"]
+    before = _bytes_by_name(EXTRACTED)
+    assert _bytes_by_name(EXTRACTED) == before
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_cli_serializes_incoming_ambiguous_candidate_deferral(
+    tmp_path: Path, family: str
+):
+    before = _bytes_by_name(EXTRACTED)
+    dest = _copy_json(ANNUAL_NAMES + MANAGEMENT_NAMES, tmp_path / "cli-in")
+    write_incoming_ambiguous_fixture(dest, family, target="superseded")
+    admitted = _admission(dest)
+    out = tmp_path / "out"
+    validate, reconcile = _cli_validate_and_reconcile(dest, out)
+    assert validate.returncode == 0, validate.stdout + validate.stderr
+    assert reconcile.returncode == 0, reconcile.stdout + reconcile.stderr
+    admission = json.loads(
+        (out / "management_kpi_admission.json").read_text(encoding="utf-8")
+    )
+    assert admission["status"] == "admitted_unreconciled"
+    group = _family_period_group(admission, family)
+    admitted_group = _family_period_group(admitted, family)
+    incoming = _incoming_ambiguous_link(admission, group)
+    admitted_incoming = _incoming_ambiguous_link(admitted, admitted_group)
+    _assert_deferred_group(group, RELATIONSHIP_UNRESOLVED, REASON_AMBIGUOUS_TARGET)
+    assert group["status"] == admitted_group["status"]
+    assert group["reasons"] == admitted_group["reasons"]
+    assert group["selected"] is None
+    assert group["superseded"] is None
+    assert incoming == admitted_incoming
+    assert incoming["revised"] is None
+    assert incoming["candidate_locators"]
+    assert admission["reconciliation"]["selected_count"] == 0
+    extracted_copy = {
+        path.name: path.read_bytes()
+        for path in dest.glob("*.json")
+        if path.name in set(ANNUAL_NAMES + MANAGEMENT_NAMES)
+    }
+    validate2, reconcile2 = _cli_validate_and_reconcile(dest, tmp_path / "out2")
+    assert validate2.returncode == 0
+    assert reconcile2.returncode == 0
+    after_copy = {
+        path.name: path.read_bytes()
+        for path in dest.glob("*.json")
+        if path.name in extracted_copy
+    }
+    assert after_copy == extracted_copy
     assert _bytes_by_name(EXTRACTED) == before
