@@ -35,7 +35,9 @@ from core.model.operating_kpi import (
     operating_kpi_applicable,
 )
 from core.model.operating_kpi_relationships import (
+    compute_operating_kpi_revenue_comparable_sales_relationship,
     compute_operating_kpi_revenue_store_relationship,
+    operating_kpi_revenue_comparable_sales_relationship_applicable,
     operating_kpi_revenue_store_relationship_applicable,
 )
 from core.model.period_axis import canonical_fiscal_periods
@@ -120,6 +122,7 @@ def test_absent_and_null_payloads_make_module_absent():
     absent = standardized_from_payload(payload)
     assert operating_kpi_applicable(absent) is False
     assert operating_kpi_revenue_store_relationship_applicable(absent) is False
+    assert operating_kpi_revenue_comparable_sales_relationship_applicable(absent) is False
     with pytest.raises(MissingLineError, match="operating KPI sources not available"):
         compute_operating_kpi_series(absent)
     with pytest.raises(
@@ -132,6 +135,7 @@ def test_absent_and_null_payloads_make_module_absent():
     null = standardized_from_payload(payload)
     assert operating_kpi_applicable(null) is False
     assert operating_kpi_revenue_store_relationship_applicable(null) is False
+    assert operating_kpi_revenue_comparable_sales_relationship_applicable(null) is False
     with pytest.raises(MissingLineError, match="operating KPI sources not available"):
         compute_operating_kpi_series(null)
     with pytest.raises(
@@ -148,6 +152,7 @@ def test_legacy_fast_retailing_payload_omits_operating_kpi_module():
     assert fin.historical_operating_kpis is None
     assert operating_kpi_applicable(fin) is False
     assert operating_kpi_revenue_store_relationship_applicable(fin) is False
+    assert operating_kpi_revenue_comparable_sales_relationship_applicable(fin) is False
     with pytest.raises(MissingLineError, match="operating KPI sources not available"):
         compute_operating_kpi_series(fin)
     with pytest.raises(
@@ -491,6 +496,7 @@ def test_management_only_histories_do_not_activate_store_module():
     )
     assert operating_kpi_applicable(fin) is False
     assert operating_kpi_revenue_store_relationship_applicable(fin) is False
+    assert operating_kpi_revenue_comparable_sales_relationship_applicable(fin) is True
     with pytest.raises(MissingLineError, match="operating KPI sources not available"):
         compute_operating_kpi_series(fin)
     with pytest.raises(
@@ -498,6 +504,7 @@ def test_management_only_histories_do_not_activate_store_module():
         match="operating KPI revenue/store relationship sources not available",
     ):
         compute_operating_kpi_revenue_store_relationship(fin)
+    compute_operating_kpi_revenue_comparable_sales_relationship(fin)
     payload = standardized_to_payload(fin)
     assert payload["historical_operating_kpis"]["observations"] == []
     assert "management_observations" in payload["historical_operating_kpis"]
@@ -528,6 +535,8 @@ def test_mixed_histories_preserve_store_growth_within_tolerance():
     )
     assert operating_kpi_revenue_store_relationship_applicable(store_only) is True
     assert operating_kpi_revenue_store_relationship_applicable(mixed) is True
+    assert operating_kpi_revenue_comparable_sales_relationship_applicable(store_only) is False
+    assert operating_kpi_revenue_comparable_sales_relationship_applicable(mixed) is True
     left = compute_operating_kpi_series(store_only)
     right = compute_operating_kpi_series(mixed)
     expected = _independent_from_counts([P0, P1, P2], {P0: 655, P1: 711, P2: 767})
