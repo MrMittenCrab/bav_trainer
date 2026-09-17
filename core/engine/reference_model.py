@@ -6999,6 +6999,17 @@ class ReferenceModelBuilder:
                 series.consolidated_operating_profit_difference[period],
             )
 
+    def _store_count_source_placement(
+        self, period_index: int, default_row: int, default_col: int
+    ) -> tuple[int, int]:
+        """Return the worksheet row/column for one store-count source cell.
+
+        Default layout keeps sources on the count row at consecutive period
+        columns. Tests may override this hook to relocate sources before
+        registration and formula resolution.
+        """
+        return default_row, default_col
+
     def _build_store_count(self, wb: Workbook) -> None:
         if self.operating_kpi_series is None:
             raise RuntimeError(
@@ -7120,15 +7131,18 @@ class ReferenceModelBuilder:
                 column=col_idx,
                 value=STORE_COUNT_POPULATION_LABEL,
             )
+            source_row, source_col = self._store_count_source_placement(
+                j, count_row, col_idx
+            )
             if is_source_unavailable(count):
-                self._stamp_unavailable(ws, count_row, col_idx, SOURCE_UNAVAILABLE)
+                self._stamp_unavailable(ws, source_row, source_col, SOURCE_UNAVAILABLE)
             else:
-                _put_number(count_row, col_idx, float(count))
+                _put_number(source_row, source_col, float(count))
                 _register(
                     STORE_COUNT_SOURCE_FAMILY_ID,
                     j,
-                    count_row,
-                    col_idx,
+                    source_row,
+                    source_col,
                     store_count_source_map_formula(float(count)),
                     float(count),
                 )

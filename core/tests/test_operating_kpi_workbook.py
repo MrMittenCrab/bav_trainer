@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
 
 from core.data.interface import (
     DocumentManifest,
@@ -67,6 +68,7 @@ from core.model.operating_kpi_relationships import (
 from core.model.period_axis import canonical_fiscal_periods
 from core.model.ratio_values import SOURCE_UNAVAILABLE, UNDEFINED_RATIO
 from core.tests.test_capex import P1, P2, _tiny
+from core.tests.test_historical_segment import _base_payload
 from core.tests.test_learner_ready_presentation import (
     WHITE_RGBS,
     _assert_answer_key_no_yellow,
@@ -108,7 +110,7 @@ from core.trainer.checker import (
     INCORRECT_RGB,
     check_workbook,
 )
-from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
+from core.trainer.semantic_io import component_map_path_for, load_semantic_map, parse_cell_ref
 from core.trainer.workbook import build_training_workbook
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -122,6 +124,14 @@ GEOGRAPHIC_LULULEMON_SPECS = 74
 STORE_COUNT_LULULEMON_SPECS = 8
 STORE_COUNT_LULULEMON_SOURCES = 5
 LULULEMON_UNAVAILABLE_DISPLAYS = 101
+DEFAULT_STORE_COUNT_SOURCE_ROW = 10
+MOVED_STORE_COUNT_SOURCE_PLACEMENT = {
+    0: (32, 2),
+    1: (40, 5),
+    2: (32, 8),
+    3: (40, 11),
+    4: (32, 14),
+}
 STORE_A2 = (
     "Source-supported company-operated period-end store counts with "
     "adjacent net count change and count growth. Changes are net "
@@ -395,6 +405,103 @@ def test_formula_resolution_follows_mapped_source_identities():
             StoreCountSourceRef("a", "a", P2.isoformat(), ""),
             prior,
         )
+
+
+def _strict_base_payload() -> dict:
+    return copy.deepcopy(_base_payload())
+
+
+def test_strict_metadata_jurisdiction_fallback_contract():
+    demo = json.loads(DEMO_JSON.read_text(encoding="utf-8"))
+    demo_original = copy.deepcopy(demo)
+    assert "jurisdiction" not in demo
+    loaded = standardized_from_payload(demo, strict=True)
+    assert loaded.jurisdiction == "HK"
+    assert demo == demo_original
+    assert loaded.metadata is not demo["metadata"]
+    assert loaded.metadata["jurisdiction"] == "HK"
+    roundtrip = standardized_from_payload(standardized_to_payload(loaded), strict=True)
+    assert any(
+        item.concept == "restructuring_expense" for item in roundtrip.income_statement
+    )
+    assert roundtrip.jurisdiction == "HK"
+
+    explicit = _strict_base_payload()
+    explicit["metadata"] = {"jurisdiction": "HK"}
+    original = copy.deepcopy(explicit)
+    fin = standardized_from_payload(explicit, strict=True)
+    assert fin.jurisdiction == "US"
+    assert explicit == original
+
+    empty_top = _strict_base_payload()
+    empty_top["jurisdiction"] = ""
+    empty_top["metadata"] = {"jurisdiction": "HK", "source": "demo"}
+    original = copy.deepcopy(empty_top)
+    fin = standardized_from_payload(empty_top, strict=True)
+    assert fin.jurisdiction == "HK"
+    assert empty_top == original
+    assert fin.metadata["source"] == "demo"
+
+
+@pytest.mark.parametrize(
+    "fallback",
+    ({"code": "HK"}, ["HK"], 1, 0, True, False),
+)
+def test_strict_rejects_non_string_jurisdiction_fallback(fallback):
+    missing_top = _strict_base_payload()
+    missing_top.pop("jurisdiction")
+    missing_top["metadata"] = {"jurisdiction": fallback}
+    original = copy.deepcopy(missing_top)
+    with pytest.raises(ValueError, match=r"metadata\.jurisdiction must be str"):
+        standardized_from_payload(missing_top, strict=True)
+    assert missing_top == original
+
+    empty_top = _strict_base_payload()
+    empty_top["jurisdiction"] = ""
+    empty_top["metadata"] = {"jurisdiction": fallback}
+    original = copy.deepcopy(empty_top)
+    with pytest.raises(ValueError, match=r"metadata\.jurisdiction must be str"):
+        standardized_from_payload(empty_top, strict=True)
+    assert empty_top == original
+
+
+@pytest.mark.parametrize("fallback", (None, ""))
+def test_strict_null_empty_jurisdiction_fallback_stays_required(fallback):
+    payload = _strict_base_payload()
+    payload.pop("jurisdiction")
+    payload["metadata"] = {"jurisdiction": fallback}
+    original = copy.deepcopy(payload)
+    with pytest.raises(ValueError, match="missing field\\(s\\): jurisdiction"):
+        standardized_from_payload(payload, strict=True)
+    assert payload == original
+
+
+def test_strict_missing_metadata_jurisdiction_stays_required():
+    payload = _strict_base_payload()
+    payload.pop("jurisdiction")
+    payload["metadata"] = {"source": "x"}
+    original = copy.deepcopy(payload)
+    with pytest.raises(ValueError, match="missing field\\(s\\): jurisdiction"):
+        standardized_from_payload(payload, strict=True)
+    assert payload == original
+
+
+def test_strict_malformed_top_level_jurisdiction_is_rejected():
+    payload = _strict_base_payload()
+    payload["jurisdiction"] = 1
+    payload["metadata"] = {"jurisdiction": "HK"}
+    original = copy.deepcopy(payload)
+    with pytest.raises(ValueError, match=r"standardized\.jurisdiction must be str"):
+        standardized_from_payload(payload, strict=True)
+    assert payload == original
+
+    payload = _strict_base_payload()
+    payload["jurisdiction"] = None
+    payload["metadata"] = {"jurisdiction": "HK"}
+    original = copy.deepcopy(payload)
+    with pytest.raises(ValueError, match=r"standardized\.jurisdiction must be str"):
+        standardized_from_payload(payload, strict=True)
+    assert payload == original
 
 
 def test_absent_null_and_management_only_add_no_schedule(tmp_path):
@@ -840,17 +947,20 @@ def test_source_grounded_reload_workbook_and_check(tmp_path):
     assert aws["A2"].value == STORE_A2
     assert tws["A4"].value == STORE_A4
     _assert_no_disclosed_store_arithmetic(twb)
+    source_by_period = {c.period_end: c for c in source_comps}
     count_row = _row_by_label(aws, "Company-operated period-end store count")
+    assert count_row == DEFAULT_STORE_COUNT_SOURCE_ROW
     period_cols = {period: 2 + index for index, period in enumerate(builder.periods)}
     for period, value in INDEPENDENT_STORE_TOTALS.items():
         col_idx = period_cols[period]
         assert aws.cell(count_row, col_idx).value == value
         assert tws.cell(count_row, col_idx).value == value
+        mapped = source_by_period[period.isoformat()]
+        assert mapped.cell == f"{get_column_letter(col_idx)}{count_row}"
     change_row = _row_by_label(aws, "Net count change")
     growth_row = _row_by_label(aws, "Store-count growth")
     assert aws.cell(change_row, period_cols[P2022]).value == "N/A"
     assert tws.cell(growth_row, period_cols[P2022]).value == "N/A"
-    source_by_period = {c.period_end: c for c in source_comps}
     axis = list(builder.periods)
     for period, change in (
         (P2023, 81),
@@ -999,6 +1109,277 @@ def test_source_grounded_reload_workbook_and_check(tmp_path):
     assert bad.formula not in dumped
     assert _sha256(answer) == answer_hash
     assert _sha256(filled_answer) == answer_hash
+
+
+def test_generated_workbooks_follow_moved_source_placement(tmp_path, monkeypatch):
+    def _moved(self, period_index, default_row, default_col):
+        assert (default_row, default_col) == (
+            DEFAULT_STORE_COUNT_SOURCE_ROW,
+            2 + period_index,
+        )
+        return MOVED_STORE_COUNT_SOURCE_PLACEMENT[period_index]
+
+    monkeypatch.setattr(
+        ReferenceModelBuilder, "_store_count_source_placement", _moved
+    )
+    _dest, validated = _validated_augmented(tmp_path)
+    reloads = _reload_admitted_store_histories(validated)
+    _reconciled, fin, restored = reloads[0]
+    assert restored.historical_operating_kpis == fin.historical_operating_kpis
+    series = compute_operating_kpi_series(restored)
+    trainer, answer = build_training_workbook(
+        restored, tmp_path / "LULU_STORE_MOVED.xlsx"
+    )
+    trainer, answer = _copy_pair(trainer, answer, tmp_path / "reopened_moved")
+
+    sidecar = component_map_path_for(answer)
+    serialized = json.loads(sidecar.read_text(encoding="utf-8"))
+    smap = load_semantic_map(answer)
+    embedded = load_workbook(answer, data_only=False)
+    assert "_ComponentMap" in embedded.sheetnames
+    headers = [
+        embedded["_ComponentMap"].cell(1, col).value
+        for col in range(1, embedded["_ComponentMap"].max_column + 1)
+    ]
+    id_idx = headers.index("id")
+    cell_idx = headers.index("cell")
+    formula_idx = headers.index("formula")
+    deps_idx = headers.index("depends_on")
+    embedded_rows = {}
+    for row in range(2, (embedded["_ComponentMap"].max_row or 1) + 1):
+        cid = embedded["_ComponentMap"].cell(row, id_idx + 1).value
+        if cid:
+            embedded_rows[cid] = {
+                "cell": embedded["_ComponentMap"].cell(row, cell_idx + 1).value,
+                "formula": embedded["_ComponentMap"].cell(row, formula_idx + 1).value,
+                "depends_on": embedded["_ComponentMap"].cell(row, deps_idx + 1).value,
+            }
+    embedded.close()
+
+    source_comps = _source_components(smap)
+    store_comps = _practice_components(smap)
+    all_comps = [
+        c for c in smap.all_ordered() if not is_store_count_source_identity(c)
+    ]
+    assert len(source_comps) == STORE_COUNT_LULULEMON_SOURCES
+    assert len(store_comps) == STORE_COUNT_LULULEMON_SPECS
+    source_by_period = {c.period_end: c for c in source_comps}
+    serialized_by_id = {row["id"]: row for row in serialized["components"]}
+    axis = list(canonical_fiscal_periods(restored))
+    practice = {(c.tab, c.cell) for c in all_comps}
+    source_cells = {(c.tab, c.cell) for c in source_comps}
+    assert source_cells.isdisjoint(practice)
+
+    awb = load_workbook(answer, data_only=False)
+    twb = load_workbook(trainer, data_only=False)
+    aws = awb[STORE_COUNT_SHEET]
+    tws = twb[STORE_COUNT_SHEET]
+    _assert_no_disclosed_store_arithmetic(twb)
+
+    for index, period in enumerate(axis):
+        row, col = MOVED_STORE_COUNT_SOURCE_PLACEMENT[index]
+        expected_cell = f"{get_column_letter(col)}{row}"
+        default_cell = f"{get_column_letter(2 + index)}{DEFAULT_STORE_COUNT_SOURCE_ROW}"
+        mapped = source_by_period[period.isoformat()]
+        assert mapped.cell == expected_cell
+        assert mapped.cell != default_cell
+        assert serialized_by_id[mapped.id]["cell"] == expected_cell
+        assert embedded_rows[mapped.id]["cell"] == expected_cell
+        value = INDEPENDENT_STORE_TOTALS[period]
+        assert aws.cell(row, col).value == value
+        assert tws.cell(row, col).value == value
+        assert aws.cell(DEFAULT_STORE_COUNT_SOURCE_ROW, 2 + index).value in (None, "")
+        assert tws.cell(DEFAULT_STORE_COUNT_SOURCE_ROW, 2 + index).value in (None, "")
+        t_source = tws.cell(row, col)
+        a_source = aws.cell(row, col)
+        assert t_source.comment is None
+        assert a_source.comment is None
+        assert _fill_rgb(t_source) in WHITE_RGBS
+        assert _fill_rgb(a_source) in WHITE_RGBS
+
+    for period, change in (
+        (P2023, 81),
+        (P2024, 56),
+        (P2025, 56),
+        (P2026, 44),
+    ):
+        change_comp = next(
+            c
+            for c in store_comps
+            if c.family_id == "store_count_net_change"
+            and c.period_end == period.isoformat()
+        )
+        growth_comp = next(
+            c
+            for c in store_comps
+            if c.family_id == "store_count_growth"
+            and c.period_end == period.isoformat()
+        )
+        prior = axis[axis.index(period) - 1]
+        current_src = source_by_period[period.isoformat()]
+        prior_src = source_by_period[prior.isoformat()]
+        assert tuple(change_comp.depends_on) == (current_src.id, prior_src.id)
+        assert tuple(growth_comp.depends_on) == tuple(change_comp.depends_on)
+        serialized_change = serialized_by_id[change_comp.id]
+        assert serialized_change["cell"] == change_comp.cell
+        assert serialized_change["formula"].replace(" ", "") == change_comp.formula.replace(
+            " ", ""
+        )
+        assert tuple(serialized_change.get("depends_on") or ()) == tuple(
+            change_comp.depends_on
+        )
+        embedded_deps = [
+            item
+            for item in str(embedded_rows[change_comp.id]["depends_on"] or "").split(",")
+            if item
+        ]
+        assert tuple(embedded_deps) == tuple(change_comp.depends_on)
+
+        current_ref = StoreCountSourceRef(
+            id=current_src.id,
+            semantic_key=current_src.semantic_key,
+            period_end=current_src.period_end,
+            cell=current_src.cell,
+        )
+        prior_ref = StoreCountSourceRef(
+            id=prior_src.id,
+            semantic_key=prior_src.semantic_key,
+            period_end=prior_src.period_end,
+            cell=prior_src.cell,
+        )
+        expected_change = resolve_store_count_net_change_formula(
+            current_ref, prior_ref
+        ).replace(" ", "")
+        expected_growth = resolve_store_count_growth_formula(
+            current_ref, prior_ref
+        ).replace(" ", "")
+        compact_change = change_comp.formula.replace(" ", "")
+        compact_growth = growth_comp.formula.replace(" ", "")
+        assert compact_change == expected_change
+        assert compact_growth == expected_growth
+        assert compact_change == f"={current_src.cell}-{prior_src.cell}"
+        reversed_change = f"={prior_src.cell}-{current_src.cell}"
+        assert compact_change != reversed_change
+
+        current_row, current_col = parse_cell_ref(current_src.cell)
+        prior_row, prior_col = parse_cell_ref(prior_src.cell)
+        assert current_col != prior_col + 1
+        adjacent_prior = f"{get_column_letter(current_col - 1)}{current_row}"
+        default_current = f"{get_column_letter(2 + axis.index(period))}{DEFAULT_STORE_COUNT_SOURCE_ROW}"
+        default_prior = f"{get_column_letter(2 + axis.index(prior))}{DEFAULT_STORE_COUNT_SOURCE_ROW}"
+        assert adjacent_prior not in compact_change
+        assert default_current not in compact_change
+        assert default_prior not in compact_change
+        assert adjacent_prior not in compact_growth
+        assert default_current not in compact_growth
+        assert default_prior not in compact_growth
+
+        a_current = aws.cell(current_row, current_col).value
+        a_prior = aws.cell(prior_row, prior_col).value
+        assert a_current == INDEPENDENT_STORE_TOTALS[period]
+        assert a_prior == INDEPENDENT_STORE_TOTALS[prior]
+        assert a_current - a_prior == change
+        assert change_comp.expected_value == change
+        assert growth_comp.expected_value == pytest.approx(
+            series.growth[period], abs=OPERATING_KPI_RATIO_TOLERANCE
+        )
+
+        a_change = awb[change_comp.tab].cell(*parse_cell_ref(change_comp.cell))
+        t_change = twb[change_comp.tab].cell(*parse_cell_ref(change_comp.cell))
+        a_growth = awb[growth_comp.tab].cell(*parse_cell_ref(growth_comp.cell))
+        t_growth = twb[growth_comp.tab].cell(*parse_cell_ref(growth_comp.cell))
+        assert str(a_change.value).replace(" ", "") == compact_change
+        assert str(a_growth.value).replace(" ", "") == compact_growth
+        assert t_change.value in (None, "")
+        assert t_growth.value in (None, "")
+        assert t_change.comment is None
+        assert t_growth.comment is None
+        assert _fill_rgb(t_change) == "FFFF00"
+        assert _fill_rgb(t_growth) == "FFFF00"
+        assert _fill_rgb(a_change) in WHITE_RGBS
+        assert _fill_rgb(a_growth) in WHITE_RGBS
+        assert (a_change.comment.text or "").strip()
+        assert (a_growth.comment.text or "").strip()
+
+    awb.close()
+    twb.close()
+    _assert_visible_parity(trainer, answer, practice)
+    _assert_fresh_visible_style(trainer, practice_cells=practice, role="trainer")
+    _assert_fresh_visible_style(answer, practice_cells=practice, role="answer_key")
+    _assert_answer_key_no_yellow(answer)
+
+    answer_hash = _sha256(answer)
+    blank = check_workbook(trainer)
+    total = (
+        LEASE_DT_LULULEMON_SPECS
+        + GEOGRAPHIC_LULULEMON_SPECS
+        + STORE_COUNT_LULULEMON_SPECS
+    )
+    assert (blank.total, blank.blank, blank.correct, blank.incorrect) == (
+        total,
+        total,
+        0,
+        0,
+    )
+    dumped_blank = repr(blank)
+    assert "(current − prior) / prior" not in dumped_blank.lower()
+    assert "Net count change" not in dumped_blank
+
+    filled_trainer, filled_answer = _copy_pair(
+        trainer, answer, tmp_path / "moved_filled_check"
+    )
+    wb = load_workbook(filled_trainer, data_only=False)
+    for comp in all_comps:
+        row, col = parse_cell_ref(comp.cell)
+        wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    wb.save(filled_trainer)
+    wb.close()
+    filled = check_workbook(filled_trainer)
+    assert (filled.total, filled.correct, filled.incorrect, filled.blank) == (
+        total,
+        total,
+        0,
+        0,
+    )
+
+    incorrect_trainer, _incorrect_answer = _copy_pair(
+        filled_trainer, filled_answer, tmp_path / "moved_incorrect_check"
+    )
+    bad = next(
+        c
+        for c in store_comps
+        if c.family_id == "store_count_growth" and c.period_end == P2026.isoformat()
+    )
+    _inject_formula_and_cached_value(
+        incorrect_trainer,
+        bad.tab,
+        bad.cell,
+        formula="=999",
+        cached_value=999.0,
+    )
+    bad_summary = check_workbook(incorrect_trainer)
+    assert bad_summary.incorrect == 1
+    assert bad_summary.correct == bad_summary.total - 1
+    assert bad_summary.blank == 0
+    dumped = repr(bad_summary)
+    assert "=999" not in dumped
+    assert bad.formula not in dumped
+    assert _sha256(answer) == answer_hash
+    assert _sha256(filled_answer) == answer_hash
+
+    tamper_trainer, _tamper_answer = _copy_pair(
+        trainer, answer, tmp_path / "moved_tamper"
+    )
+    moved_row, moved_col = MOVED_STORE_COUNT_SOURCE_PLACEMENT[0]
+    wb = load_workbook(tamper_trainer, data_only=False)
+    wb[STORE_COUNT_SHEET].cell(moved_row, moved_col).value = 1
+    wb.save(tamper_trainer)
+    wb.close()
+    with pytest.raises(
+        ValueError,
+        match="Trusted workbook cell was modified: Store Count Analysis",
+    ):
+        check_workbook(tamper_trainer)
 
 
 def _count_source_unavailable(path: Path) -> int:

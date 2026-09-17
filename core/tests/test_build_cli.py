@@ -186,3 +186,50 @@ def test_missing_input_fails_clearly(tmp_path, capsys):
                  "-o", str(tmp_path / "build/output/Acme")]) != 0
     assert "error:" in capsys.readouterr().err
     assert not (tmp_path / "build/output").exists()
+
+
+@pytest.mark.parametrize("fallback", [{"code": "HK"}, ["HK"], 1, True])
+def test_non_string_jurisdiction_fallback_writes_no_workbook(
+    tmp_path, payload, capsys, fallback
+):
+    bad = copy.deepcopy(payload)
+    bad.pop("jurisdiction")
+    bad["metadata"] = {"jurisdiction": fallback}
+    source = _write_input(tmp_path, bad)
+    before = source.read_bytes()
+    output = tmp_path / "build/output/Acme"
+    assert main(["build", str(source), "-o", str(output)]) != 0
+    assert "error:" in capsys.readouterr().err
+    assert source.read_bytes() == before
+    assert not output.parent.exists()
+
+
+def test_empty_top_level_non_string_jurisdiction_fallback_writes_no_workbook(
+    tmp_path, payload, capsys
+):
+    bad = copy.deepcopy(payload)
+    bad["jurisdiction"] = ""
+    bad["metadata"] = {"jurisdiction": {"code": "HK"}}
+    source = _write_input(tmp_path, bad)
+    before = source.read_bytes()
+    output = tmp_path / "build/output/Acme"
+    assert main(["build", str(source), "-o", str(output)]) != 0
+    assert "error:" in capsys.readouterr().err
+    assert source.read_bytes() == before
+    assert not output.parent.exists()
+
+
+def test_metadata_jurisdiction_string_fallback_builds(tmp_path, payload):
+    good = copy.deepcopy(payload)
+    jurisdiction = good.pop("jurisdiction")
+    good["metadata"] = {"jurisdiction": jurisdiction}
+    source = _write_input(tmp_path, good)
+    output = tmp_path / "build/output/Acme_Trainer.xlsx"
+    assert main(["build", str(source), "-o", str(output)]) == 0
+    assert output.exists()
+    assert (tmp_path / "build/output/Acme_Answer_Key.xlsx").exists()
+    from core.data.standardized_io import standardized_from_payload
+    restored = standardized_from_payload(
+        json.loads(source.read_text(encoding="utf-8")), strict=True
+    )
+    assert restored.jurisdiction == jurisdiction

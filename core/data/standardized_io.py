@@ -484,6 +484,33 @@ def standardized_to_payload(fin: StandardizedFinancials) -> dict:
     return payload
 
 
+def _jurisdiction_fallback_needed(payload: dict) -> bool:
+    """True when top-level jurisdiction is missing or an empty string."""
+    if "jurisdiction" not in payload:
+        return True
+    return payload.get("jurisdiction") == ""
+
+
+def _fallback_jurisdiction_from_metadata(
+    payload: dict, *, path: str = "standardized"
+) -> str:
+    """Return metadata.jurisdiction as a canonical string, or "".
+
+    Validates the fallback against the jurisdiction string contract before
+    coercion. Missing, null, and empty values yield "" so the existing
+    required-field contract is unchanged.
+    """
+    raw_metadata = payload.get("metadata")
+    if not isinstance(raw_metadata, dict) or "jurisdiction" not in raw_metadata:
+        return ""
+    fallback = raw_metadata["jurisdiction"]
+    if fallback is None or fallback == "":
+        return ""
+    if type(fallback) is not str:
+        raise ValueError(f"{path}.metadata.jurisdiction must be str")
+    return fallback
+
+
 def _validate_canonical_value(value: object, expected: object, path: str) -> None:
     """Validate JSON against the model types, without coercion or unknown fields.
 
@@ -520,12 +547,10 @@ def _validate_canonical_value(value: object, expected: object, path: str) -> Non
                     if f.default is MISSING and f.default_factory is MISSING}
         if expected is StandardizedFinancials:
             required.update(("periods", "income_statement", "balance_sheet", "cash_flow"))
-            if (
-                "jurisdiction" not in value
-                and isinstance(raw_metadata, dict)
-                and raw_metadata.get("jurisdiction")
-            ):
-                required.discard("jurisdiction")
+            if _jurisdiction_fallback_needed(value):
+                fallback = _fallback_jurisdiction_from_metadata(value, path=path)
+                if fallback:
+                    required.discard("jurisdiction")
         missing = required - value.keys()
         if missing:
             raise ValueError(f"{path}: missing field(s): {', '.join(sorted(missing))}")
@@ -589,7 +614,7 @@ def standardized_from_payload(payload: dict, *, strict: bool = False) -> Standar
     metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
     jurisdiction = str(payload.get("jurisdiction") or "")
     if not jurisdiction:
-        jurisdiction = str(metadata.get("jurisdiction") or "")
+        jurisdiction = _fallback_jurisdiction_from_metadata(payload)
     fin = StandardizedFinancials(
         ticker=str(payload.get("ticker") or ""),
         company_name=str(payload.get("company_name") or ""),
