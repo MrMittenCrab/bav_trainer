@@ -18,6 +18,7 @@ from ..engine.component_catalog import (
     ACQUISITION_CASH_COMPONENT_CATALOG,
     CASH_ROLLFORWARD_COMPONENT_CATALOG,
     GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG,
+    STORE_COUNT_COMPONENT_CATALOG,
     INVENTORY_ANALYSIS_COMPONENT_CATALOG,
     REPORTED_MARGIN_COMPONENT_CATALOG,
     SHARE_REPURCHASE_COMPONENT_CATALOG,
@@ -59,6 +60,10 @@ from ..model.inventory_analysis import (
 from ..model.geographic_segment import (
     compute_geographic_segment_series,
     geographic_segment_applicable,
+)
+from ..model.operating_kpi import (
+    compute_operating_kpi_series,
+    operating_kpi_applicable,
 )
 from ..model.capex import compute_capex_series, capex_applicable
 from ..model.lease_repayment import (
@@ -404,6 +409,16 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                         financials,
                         list(modeled_periods),
                     )
+            operating_kpi_family_ids = {
+                family.id for family in STORE_COUNT_COMPONENT_CATALOG
+            }
+            operating_kpi = None
+            if any(comp.family_id in operating_kpi_family_ids for comp in comps):
+                if operating_kpi_applicable(financials):
+                    operating_kpi = compute_operating_kpi_series(
+                        financials,
+                        list(modeled_periods),
+                    )
             dynamic_expected = {
                 comp.id: expected_value_for_component(
                     anchor,
@@ -426,6 +441,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     reported_margin=reported_margin,
                     inventory_analysis=inventory_analysis,
                     geographic=geographic,
+                    operating_kpi=operating_kpi,
                 )
                 for comp in comps
             }

@@ -8,6 +8,7 @@ from ..engine.component_catalog import (
     ACQUISITION_CASH_COMPONENT_CATALOG,
     CASH_ROLLFORWARD_COMPONENT_CATALOG,
     GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG,
+    STORE_COUNT_COMPONENT_CATALOG,
     INVENTORY_ANALYSIS_COMPONENT_CATALOG,
     REPORTED_MARGIN_COMPONENT_CATALOG,
     SHARE_REPURCHASE_COMPONENT_CATALOG,
@@ -44,6 +45,7 @@ from .deferred_tax import DeferredTaxSeries
 from .financial_math import AnchorMetrics
 from .fixed_asset import FixedAssetSeries
 from .geographic_segment import GeographicSegmentSeries
+from .operating_kpi import OperatingKpiSeries
 from .goodwill_intangibles import (
     GoodwillIntangiblesAvailability,
     GoodwillIntangiblesSeries,
@@ -253,6 +255,10 @@ _GEOGRAPHIC_FAMILY_SERIES = (
     "geographic_reconstructed_consolidated_operating_profit",
     "geographic_consolidated_revenue_difference",
     "geographic_consolidated_operating_profit_difference",
+)
+_OPERATING_KPI_FAMILY_SERIES = (
+    "store_count_net_change",
+    "store_count_growth",
 )
 
 _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
@@ -1041,6 +1047,30 @@ def geographic_expected_value_for_component(
     raise ValueError(f"Unknown geographic family {family_id!r}")
 
 
+def operating_kpi_expected_value_for_component(
+    operating_kpi: OperatingKpiSeries,
+    component: ResolvedComponent,
+) -> float | str | None:
+    """Look up one store-count practice expected from the validated series."""
+    catalog_ids = {family.id for family in STORE_COUNT_COMPONENT_CATALOG}
+    if component.family_id not in catalog_ids:
+        raise ValueError(
+            f"operating_kpi_expected_value_for_component unknown family "
+            f"{component.family_id!r}"
+        )
+    if not component.period_end:
+        raise ValueError(
+            f"operating KPI component {component.id!r} is missing period_end"
+        )
+    period = date.fromisoformat(component.period_end)
+    family_id = component.family_id
+    if family_id == "store_count_net_change":
+        return operating_kpi.net_count_change[period]
+    if family_id == "store_count_growth":
+        return operating_kpi.growth[period]
+    raise ValueError(f"Unknown operating KPI family {family_id!r}")
+
+
 def ownership_attribution_expected_series(
     ownership_attribution: OwnershipAttributionSeries,
 ) -> dict[str, tuple[float | str | None, ...]]:
@@ -1160,6 +1190,7 @@ def expected_value_for_component(
     reported_margin: ReportedMarginSeries | None = None,
     inventory_analysis: InventoryAnalysisSeries | None = None,
     geographic: GeographicSegmentSeries | None = None,
+    operating_kpi: OperatingKpiSeries | None = None,
 ) -> float | str | None:
     """Return the treatment-conditioned expected value for one practice component."""
     family_id = component.family_id
@@ -1285,6 +1316,12 @@ def expected_value_for_component(
                 f"Geographic family {family_id!r} requires a GeographicSegmentSeries"
             )
         return geographic_expected_value_for_component(geographic, component)
+    elif family_id in _OPERATING_KPI_FAMILY_SERIES:
+        if operating_kpi is None:
+            raise ValueError(
+                f"Operating-KPI family {family_id!r} requires an OperatingKpiSeries"
+            )
+        return operating_kpi_expected_value_for_component(operating_kpi, component)
     elif family_id in _FIXED_ASSET_FAMILY_SERIES:
         if fixed_asset is None:
             raise ValueError(

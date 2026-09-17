@@ -159,6 +159,7 @@ QUALITY = _writer("_build_earnings_quality", 7, when="quality_series")
 WORKING_CAPITAL = _writer("_build_working_capital_analysis", 8, when="working_capital_series")
 PER_SHARE = _writer("_build_per_share_analysis", 9, when="per_share_series")
 GEOGRAPHIC = _writer("_build_geographic_segment", 10, when="geographic_series")
+OPERATING_KPI = _writer("_build_store_count", 11, when="operating_kpi_series")
 
 
 def _integrated(id: str, writers: tuple[WorkbookWriter, ...], *,
@@ -201,7 +202,6 @@ BUILD_MODULES = (
     _integrated("geographic", (GEOGRAPHIC,), spec_key=lambda s: (
         s.family_id, s.period_index, geographic_spec_identity(s),
     )),
-    # Computation exists, but workbook/spec integration does not yet exist.
-    BuildModule("operating_kpi", "complete", False, True),
+    _integrated("operating_kpi", (OPERATING_KPI,)),
     BuildModule("forecast", "deferred", True, True),
 )

@@ -36,6 +36,10 @@ from ..model.geographic_segment import (
     compute_geographic_segment_series,
     geographic_segment_applicable,
 )
+from ..model.operating_kpi import (
+    compute_operating_kpi_series,
+    operating_kpi_applicable,
+)
 from ..model.goodwill_intangibles import (
     compute_goodwill_intangibles_series,
     goodwill_intangibles_applicable,
@@ -160,10 +164,13 @@ from .component_catalog import (
     expand_reported_margin_specs,
     expand_inventory_analysis_specs,
     expand_geographic_segment_specs,
+    expand_store_count_specs,
     expand_capex_specs,
     geographic_component_id,
     geographic_identity_label,
     geographic_spec_identity,
+    STORE_COUNT_POPULATION_LABEL,
+    STORE_COUNT_SHEET_NAME,
     expand_fixed_asset_specs,
     expand_goodwill_intangibles_specs,
     expand_historical_specs,
@@ -218,6 +225,7 @@ WORKING_CAPITAL_SHEET = "Working Capital Analysis"
 PER_SHARE_SHEET = "Per Share Analysis"
 OWNERSHIP_ATTRIBUTION_SHEET = "Ownership Attribution"
 GEOGRAPHIC_SHEET = GEOGRAPHIC_SHEET_NAME
+STORE_COUNT_SHEET = STORE_COUNT_SHEET_NAME
 JUDGMENT_INSTRUCTION = (
     "The supplied treatment is the model's reference treatment, not a universal "
     "accounting truth. Compare it with the listed alternative(s), choose the "
@@ -269,6 +277,19 @@ def _geographic_expand_inputs(series) -> tuple[
         if not is_source_unavailable(contributions):
             bridge_identities[period] = tuple(name for name, _ in contributions)
     return tuple(available), growth_identities, bridge_identities
+
+
+def _store_count_expand_inputs(series) -> tuple[tuple[date, ...], tuple[date, ...]]:
+    change_periods: list[date] = []
+    growth_periods: list[date] = []
+    for period in series.periods:
+        change = series.net_count_change[period]
+        if change is not None and not is_source_unavailable(change):
+            change_periods.append(period)
+        growth = series.growth[period]
+        if growth is not None and not is_source_unavailable(growth):
+            growth_periods.append(period)
+    return tuple(change_periods), tuple(growth_periods)
 
 
 class ReferenceModelBuilder:
@@ -787,6 +808,26 @@ class ReferenceModelBuilder:
             self.geographic_series = None
             self.geographic_specs = ()
         return self.geographic_specs
+
+    def _prepare_operating_kpi(self, start_order: int):
+        if operating_kpi_applicable(self.fin):
+            self.operating_kpi_series = compute_operating_kpi_series(
+                self.fin,
+                self.periods,
+            )
+            change_periods, growth_periods = _store_count_expand_inputs(
+                self.operating_kpi_series
+            )
+            self.operating_kpi_specs = expand_store_count_specs(
+                self.periods,
+                start_order=start_order,
+                change_periods=change_periods,
+                growth_periods=growth_periods,
+            )
+        else:
+            self.operating_kpi_series = None
+            self.operating_kpi_specs = ()
+        return self.operating_kpi_specs
 
     def _default_assumptions(self) -> dict[str, Any]:
         anchor_rev = 1000.0
@@ -1504,6 +1545,22 @@ class ReferenceModelBuilder:
         related: list[str] | None = None,
     ) -> None:
         spec = self._geographic_spec_index[(family_id, period_index, identity)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_operating_kpi(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+    ) -> None:
+        spec = self._operating_kpi_spec_index[(family_id, period_index)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -6916,6 +6973,163 @@ class ReferenceModelBuilder:
                 ifop_diff_f,
                 series.consolidated_operating_profit_difference[period],
             )
+
+    def _build_store_count(self, wb: Workbook) -> None:
+        if self.operating_kpi_series is None:
+            raise RuntimeError(
+                "operating_kpi_series required when building Store Count Analysis"
+            )
+
+        series = self.operating_kpi_series
+        ws = wb.create_sheet(STORE_COUNT_SHEET)
+        ws["A1"] = f"{self.fin.company_name} — Store Count Analysis"
+        ws["A1"].font = BOLD
+        ws["A2"] = (
+            "Source-supported company-operated period-end store counts with "
+            "adjacent net count change and count growth. Changes are net "
+            "count changes, not openings or closures."
+        )
+        ws["A3"] = (
+            f"Count units are independent of monetary scale ({self.fin.units})."
+        )
+        ws["A4"] = (
+            "Opening change and growth are not practiced. A missing adjacent "
+            "snapshot remains unavailable. Count units stay independent of "
+            "monetary scale."
+        )
+        ws.column_dimensions["A"].width = 56
+
+        header_row = 6
+        ws.cell(row=header_row, column=1, value="Metric").font = BOLD
+        for j, pd in enumerate(self.periods):
+            cell = ws.cell(row=header_row, column=2 + j, value=pd)
+            cell.number_format = "mmm dd, yyyy"
+            cell.font = BOLD
+            ws.column_dimensions[self._col(2 + j)].width = 16
+
+        def _section(row: int, title: str) -> None:
+            ws.cell(row=row, column=1, value=title).font = BOLD
+
+        def _label(row: int, text: str) -> None:
+            ws.cell(row=row, column=1, value=text)
+
+        def _store_expected(value: float | str | None) -> float | str:
+            assert value is not None
+            return value if isinstance(value, str) else float(value)
+
+        def _put_number(row: int, col_idx: int, value: float) -> None:
+            cell = ws.cell(row=row, column=col_idx, value=float(value))
+            cell.number_format = NUM_FMT
+
+        def _put_formula(row: int, col_idx: int, formula: str, *, pct: bool = False):
+            cell = ws.cell(row=row, column=col_idx, value=formula)
+            cell.number_format = PCT_FMT if pct else NUM_FMT
+            return cell
+
+        def _growth_formula(curr_ref: str, prev_ref: str) -> str:
+            return f"=IF({prev_ref}=0,NA(),({curr_ref}-{prev_ref})/{prev_ref})"
+
+        def _register(
+            family_id: str,
+            period_index: int,
+            row: int,
+            col_idx: int,
+            formula: str,
+            expected: float | str | None,
+        ) -> None:
+            self._register_operating_kpi(
+                family_id,
+                period_index,
+                STORE_COUNT_SHEET,
+                row,
+                col_idx,
+                formula,
+                _store_expected(expected),
+            )
+
+        cursor = 8
+        _section(cursor, "COMPANY-OPERATED STORE COUNTS")
+        cursor += 1
+        population_row = cursor
+        _label(population_row, "Population")
+        cursor += 1
+        count_row = cursor
+        _label(count_row, "Company-operated period-end store count")
+        cursor += 1
+        unit_row = cursor
+        _label(unit_row, "Count unit")
+
+        cursor += 2
+        _section(cursor, "NET COUNT CHANGE")
+        cursor += 1
+        change_row = cursor
+        _label(change_row, "Net count change")
+
+        cursor += 2
+        _section(cursor, "STORE-COUNT GROWTH")
+        cursor += 1
+        growth_row = cursor
+        _label(growth_row, "Store-count growth")
+
+        self.rowmap["store_count_header_row"] = header_row
+        self.rowmap["store_count_count_row"] = count_row
+        self.rowmap["store_count_change_row"] = change_row
+        self.rowmap["store_count_growth_row"] = growth_row
+
+        for j, period in enumerate(self.periods):
+            col_idx = 2 + j
+            col = self._col(col_idx)
+            count = series.period_end_count[period]
+            unit = series.unit[period]
+            change = series.net_count_change[period]
+            growth = series.growth[period]
+            ws.cell(
+                row=population_row,
+                column=col_idx,
+                value=STORE_COUNT_POPULATION_LABEL,
+            )
+            if is_source_unavailable(count):
+                self._stamp_unavailable(ws, count_row, col_idx, SOURCE_UNAVAILABLE)
+            else:
+                _put_number(count_row, col_idx, float(count))
+            if is_source_unavailable(unit):
+                self._stamp_unavailable(ws, unit_row, col_idx, SOURCE_UNAVAILABLE)
+            else:
+                ws.cell(row=unit_row, column=col_idx, value=unit)
+
+            if j == 0 or change is None:
+                ws.cell(row=change_row, column=col_idx, value="N/A")
+            elif is_source_unavailable(change):
+                self._stamp_unavailable(ws, change_row, col_idx, SOURCE_UNAVAILABLE)
+            else:
+                prev_col = self._col(col_idx - 1)
+                change_f = f"={col}{count_row}-{prev_col}{count_row}"
+                _put_formula(change_row, col_idx, change_f)
+                _register(
+                    "store_count_net_change",
+                    j,
+                    change_row,
+                    col_idx,
+                    change_f,
+                    change,
+                )
+
+            if j == 0 or growth is None:
+                ws.cell(row=growth_row, column=col_idx, value="N/A")
+            elif is_source_unavailable(growth):
+                self._stamp_unavailable(ws, growth_row, col_idx, SOURCE_UNAVAILABLE)
+            else:
+                prev_col = self._col(col_idx - 1)
+                growth_f = _growth_formula(f"{col}{count_row}", f"{prev_col}{count_row}")
+                _put_formula(growth_row, col_idx, growth_f, pct=True)
+                _register(
+                    "store_count_growth",
+                    j,
+                    growth_row,
+                    col_idx,
+                    growth_f,
+                    growth,
+                )
 
     def _build_model_tab(self, wb: Workbook, scenario: str) -> None:
         ws = wb.create_sheet(f"Model_{scenario}")

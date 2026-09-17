@@ -4724,3 +4724,120 @@ def expand_geographic_segment_specs(
             depends_on=(geographic_component_id(reconstructed.id, period),),
         )
     return tuple(specs)
+
+
+STORE_COUNT_SHEET_NAME = "Store Count Analysis"
+STORE_COUNT_POPULATION_LABEL = "company-operated"
+
+
+def store_count_component_id(family_id: str, period: date) -> str:
+    return f"{family_id}__{period.strftime('%Y%m%d')}"
+
+
+STORE_COUNT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id="store_count_net_change",
+        order=161,
+        title="Store-count net change",
+        short_hint=(
+            "Net count change = current period-end company-operated store "
+            "count − the immediately preceding period-end count. This is a "
+            "net change, not gross openings or closures. Opening change is "
+            "absent. A missing adjacent snapshot is unavailable. Not "
+            "productivity, same-store sales, geographic allocation, or "
+            "causality."
+        ),
+        semantic_key="operating_kpi.store_count.net_change",
+        category="store_count",
+        tab_template=STORE_COUNT_SHEET_NAME,
+        period_scope="comparable",
+        hints=(
+            "Net count change uses the immediately preceding model period.",
+            "This is a net change, not gross openings or closures.",
+            "Opening change is absent; a gap is unavailable, not compressed.",
+        ),
+        tolerance=0.0,
+    ),
+    ComponentFamily(
+        id="store_count_growth",
+        order=162,
+        title="Store-count growth",
+        short_hint=(
+            "Store-count growth = (current − prior) / prior using the "
+            "immediately preceding model period. Opening growth is absent. "
+            "A missing adjacent snapshot is unavailable. Zero prior count is "
+            "undefined (#N/A). Not productivity, same-store sales, "
+            "geographic allocation, or causality."
+        ),
+        semantic_key="operating_kpi.store_count.growth",
+        category="store_count",
+        tab_template=STORE_COUNT_SHEET_NAME,
+        period_scope="comparable",
+        hints=(
+            "Adjacent-period growth uses the immediately preceding model period.",
+            "Opening growth is absent; a gap is unavailable, not compressed.",
+            "Zero prior count yields the undefined-ratio result.",
+        ),
+        tolerance=1e-12,
+    ),
+)
+
+
+def expand_store_count_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    change_periods: tuple[date, ...],
+    growth_periods: tuple[date, ...],
+) -> tuple[ComponentSpec, ...]:
+    """Expand store-count practice families for available adjacent periods."""
+    if len(periods) != len(set(periods)):
+        raise ValueError(
+            "duplicate fiscal periods are not allowed in expand_store_count_specs"
+        )
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                "expand_store_count_specs requires strictly chronological "
+                "(increasing) period dates"
+            )
+
+    families = {family.id: family for family in STORE_COUNT_COMPONENT_CATALOG}
+    specs: list[ComponentSpec] = []
+    order = start_order
+    period_index = {period: index for index, period in enumerate(periods)}
+    change_set = set(change_periods)
+    growth_set = set(growth_periods)
+
+    def _append(family: ComponentFamily, period: date) -> None:
+        nonlocal order
+        period_end = period.isoformat()
+        specs.append(
+            ComponentSpec(
+                id=store_count_component_id(family.id, period),
+                family_id=family.id,
+                order=order,
+                family_order=family.order,
+                title=family.title,
+                short_hint=family.short_hint,
+                semantic_key=f"{family.semantic_key}.{period_end}",
+                category=family.category,
+                tab_template=family.tab_template,
+                period_index=period_index[period],
+                period_end=period_end,
+                depends_on=(),
+                hints=family.hints,
+                tolerance=family.tolerance,
+            )
+        )
+        order += 1
+
+    change_family = families["store_count_net_change"]
+    growth_family = families["store_count_growth"]
+    for period in periods:
+        if period in change_set:
+            _append(change_family, period)
+        if period in growth_set:
+            _append(growth_family, period)
+    return tuple(specs)
+
