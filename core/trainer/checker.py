@@ -19,7 +19,8 @@ from ..engine.component_catalog import (
     CASH_ROLLFORWARD_COMPONENT_CATALOG,
     GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG,
     STORE_COUNT_COMPONENT_CATALOG,
-    is_store_count_source_identity,
+    REVENUE_STORE_COMPONENT_CATALOG,
+    is_operating_kpi_source_identity,
     INVENTORY_ANALYSIS_COMPONENT_CATALOG,
     REPORTED_MARGIN_COMPONENT_CATALOG,
     SHARE_REPURCHASE_COMPONENT_CATALOG,
@@ -65,6 +66,10 @@ from ..model.geographic_segment import (
 from ..model.operating_kpi import (
     compute_operating_kpi_series,
     operating_kpi_applicable,
+)
+from ..model.operating_kpi_relationships import (
+    compute_operating_kpi_revenue_store_relationship,
+    operating_kpi_revenue_store_relationship_applicable,
 )
 from ..model.capex import compute_capex_series, capex_applicable
 from ..model.lease_repayment import (
@@ -185,7 +190,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
 
     smap = load_semantic_map(answer_key_path)
     comps = [
-        comp for comp in smap.all_ordered() if not is_store_count_source_identity(comp)
+        comp for comp in smap.all_ordered() if not is_operating_kpi_source_identity(comp)
     ]
     context = load_check_context(answer_key_path)
 
@@ -415,12 +420,26 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
             operating_kpi_family_ids = {
                 family.id for family in STORE_COUNT_COMPONENT_CATALOG
             }
+            relationship_family_ids = {
+                family.id for family in REVENUE_STORE_COMPONENT_CATALOG
+            }
             operating_kpi = None
-            if any(comp.family_id in operating_kpi_family_ids for comp in comps):
+            operating_kpi_relationship = None
+            if any(
+                comp.family_id in operating_kpi_family_ids | relationship_family_ids
+                for comp in comps
+            ):
                 if operating_kpi_applicable(financials):
                     operating_kpi = compute_operating_kpi_series(
                         financials,
                         list(modeled_periods),
+                    )
+                if operating_kpi_revenue_store_relationship_applicable(financials):
+                    operating_kpi_relationship = (
+                        compute_operating_kpi_revenue_store_relationship(
+                            financials,
+                            list(modeled_periods),
+                        )
                     )
             dynamic_expected = {
                 comp.id: expected_value_for_component(
@@ -445,6 +464,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     inventory_analysis=inventory_analysis,
                     geographic=geographic,
                     operating_kpi=operating_kpi,
+                    operating_kpi_relationship=operating_kpi_relationship,
                 )
                 for comp in comps
             }

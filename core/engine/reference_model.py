@@ -40,6 +40,10 @@ from ..model.operating_kpi import (
     compute_operating_kpi_series,
     operating_kpi_applicable,
 )
+from ..model.operating_kpi_relationships import (
+    SCOPE_NOTE,
+    compute_operating_kpi_revenue_store_relationship,
+)
 from ..model.goodwill_intangibles import (
     compute_goodwill_intangibles_series,
     goodwill_intangibles_applicable,
@@ -166,6 +170,8 @@ from .component_catalog import (
     expand_geographic_segment_specs,
     expand_store_count_source_specs,
     expand_store_count_specs,
+    expand_revenue_store_source_specs,
+    expand_revenue_store_specs,
     expand_capex_specs,
     geographic_component_id,
     geographic_identity_label,
@@ -173,9 +179,18 @@ from .component_catalog import (
     STORE_COUNT_POPULATION_LABEL,
     STORE_COUNT_SHEET_NAME,
     STORE_COUNT_SOURCE_FAMILY_ID,
+    REVENUE_STORE_DIFFERENCE_FAMILY_ID,
+    REVENUE_STORE_GROWTH_FAMILY_ID,
+    REVENUE_STORE_SOURCE_FAMILY_ID,
     StoreCountSourceRef,
+    SemanticCellRef,
+    resolve_revenue_store_difference_formula,
+    resolve_revenue_store_growth_formula,
     resolve_store_count_growth_formula,
     resolve_store_count_net_change_formula,
+    revenue_store_component_id,
+    revenue_store_source_component_id,
+    store_count_component_id,
     store_count_source_component_id,
     store_count_source_map_formula,
     expand_fixed_asset_specs,
@@ -303,6 +318,25 @@ def _store_count_expand_inputs(
         if growth is not None and not is_source_unavailable(growth):
             growth_periods.append(period)
     return tuple(source_periods), tuple(change_periods), tuple(growth_periods)
+
+
+def _revenue_store_expand_inputs(
+    relationship,
+) -> tuple[tuple[date, ...], tuple[date, ...], tuple[date, ...]]:
+    source_periods: list[date] = []
+    growth_periods: list[date] = []
+    difference_periods: list[date] = []
+    for period in relationship.periods:
+        revenue = relationship.revenue[period]
+        if revenue is not None and not is_source_unavailable(revenue):
+            source_periods.append(period)
+        growth = relationship.revenue_growth[period]
+        if growth is not None and not is_source_unavailable(growth):
+            growth_periods.append(period)
+        difference = relationship.growth_difference_pp[period]
+        if difference is not None and not is_source_unavailable(difference):
+            difference_periods.append(period)
+    return tuple(source_periods), tuple(growth_periods), tuple(difference_periods)
 
 
 class ReferenceModelBuilder:
@@ -828,8 +862,17 @@ class ReferenceModelBuilder:
                 self.fin,
                 self.periods,
             )
+            self.operating_kpi_relationship = (
+                compute_operating_kpi_revenue_store_relationship(
+                    self.fin,
+                    self.periods,
+                )
+            )
             source_periods, change_periods, growth_periods = _store_count_expand_inputs(
                 self.operating_kpi_series
+            )
+            revenue_source_periods, revenue_growth_periods, difference_periods = (
+                _revenue_store_expand_inputs(self.operating_kpi_relationship)
             )
             units = {
                 period: str(self.operating_kpi_series.unit[period])
@@ -842,15 +885,34 @@ class ReferenceModelBuilder:
                 source_periods=source_periods,
                 units=units,
             )
-            practice_specs = expand_store_count_specs(
+            revenue_source_specs = expand_revenue_store_source_specs(
                 self.periods,
                 start_order=start_order + len(source_specs),
+                source_periods=revenue_source_periods,
+            )
+            practice_specs = expand_store_count_specs(
+                self.periods,
+                start_order=start_order + len(source_specs) + len(revenue_source_specs),
                 change_periods=change_periods,
                 growth_periods=growth_periods,
             )
-            self.operating_kpi_specs = source_specs + practice_specs
+            relationship_specs = expand_revenue_store_specs(
+                self.periods,
+                start_order=(
+                    start_order
+                    + len(source_specs)
+                    + len(revenue_source_specs)
+                    + len(practice_specs)
+                ),
+                growth_periods=revenue_growth_periods,
+                difference_periods=difference_periods,
+            )
+            self.operating_kpi_specs = (
+                source_specs + revenue_source_specs + practice_specs + relationship_specs
+            )
         else:
             self.operating_kpi_series = None
+            self.operating_kpi_relationship = None
             self.operating_kpi_specs = ()
         return self.operating_kpi_specs
 
@@ -7010,13 +7072,29 @@ class ReferenceModelBuilder:
         """
         return default_row, default_col
 
+    def _revenue_store_source_placement(
+        self, period_index: int, default_row: int, default_col: int
+    ) -> tuple[int, int]:
+        """Return the worksheet row/column for one consolidated-revenue source cell.
+
+        Default layout keeps sources on the revenue row at consecutive period
+        columns. Tests may override this hook to relocate sources before
+        registration and formula resolution.
+        """
+        return default_row, default_col
+
     def _build_store_count(self, wb: Workbook) -> None:
         if self.operating_kpi_series is None:
             raise RuntimeError(
                 "operating_kpi_series required when building Store Count Analysis"
             )
+        if self.operating_kpi_relationship is None:
+            raise RuntimeError(
+                "operating_kpi_relationship required when building Store Count Analysis"
+            )
 
         series = self.operating_kpi_series
+        relationship = self.operating_kpi_relationship
         ws = wb.create_sheet(STORE_COUNT_SHEET)
         ws["A1"] = f"{self.fin.company_name} — Store Count Analysis"
         ws["A1"].font = BOLD
@@ -7033,7 +7111,10 @@ class ReferenceModelBuilder:
             "snapshot remains unavailable. Count units stay independent of "
             "monetary scale."
         )
+        ws["A5"] = relationship.scope_note
         ws.column_dimensions["A"].width = 56
+        if relationship.scope_note != SCOPE_NOTE:
+            raise RuntimeError("revenue/store scope note drifted from the accepted API")
 
         header_row = 6
         ws.cell(row=header_row, column=1, value="Metric").font = BOLD
@@ -7057,9 +7138,21 @@ class ReferenceModelBuilder:
             cell = ws.cell(row=row, column=col_idx, value=float(value))
             cell.number_format = NUM_FMT
 
-        def _put_formula(row: int, col_idx: int, formula: str, *, pct: bool = False):
+        def _put_formula(
+            row: int,
+            col_idx: int,
+            formula: str,
+            *,
+            pct: bool = False,
+            points: bool = False,
+        ):
             cell = ws.cell(row=row, column=col_idx, value=formula)
-            cell.number_format = PCT_FMT if pct else NUM_FMT
+            if pct:
+                cell.number_format = PCT_FMT
+            elif points:
+                cell.number_format = "0.00"
+            else:
+                cell.number_format = NUM_FMT
             return cell
 
         def _register(
@@ -7093,6 +7186,16 @@ class ReferenceModelBuilder:
                 population=STORE_COUNT_POPULATION_LABEL,
             )
 
+        def _mapped_ref(component_id: str) -> SemanticCellRef:
+            mapped = self.semantic_map.get(component_id)
+            return SemanticCellRef(
+                id=mapped.id,
+                semantic_key=mapped.semantic_key,
+                period_end=mapped.period_end,
+                cell=mapped.cell,
+                tab=mapped.tab,
+            )
+
         cursor = 8
         _section(cursor, "COMPANY-OPERATED STORE COUNTS")
         cursor += 1
@@ -7117,10 +7220,34 @@ class ReferenceModelBuilder:
         growth_row = cursor
         _label(growth_row, "Store-count growth")
 
+        cursor += 2
+        _section(cursor, "CONSOLIDATED REVENUE")
+        cursor += 1
+        revenue_row = cursor
+        _label(revenue_row, "Consolidated revenue")
+
+        cursor += 2
+        _section(cursor, "CONSOLIDATED REVENUE GROWTH")
+        cursor += 1
+        revenue_growth_row = cursor
+        _label(revenue_growth_row, "Consolidated revenue growth (statement-derived)")
+
+        cursor += 2
+        _section(cursor, "REVENUE VS STORE-COUNT GROWTH")
+        cursor += 1
+        difference_row = cursor
+        _label(
+            difference_row,
+            "Growth difference (analyst-derived, percentage points)",
+        )
+
         self.rowmap["store_count_header_row"] = header_row
         self.rowmap["store_count_count_row"] = count_row
         self.rowmap["store_count_change_row"] = change_row
         self.rowmap["store_count_growth_row"] = growth_row
+        self.rowmap["revenue_store_revenue_row"] = revenue_row
+        self.rowmap["revenue_store_growth_row"] = revenue_growth_row
+        self.rowmap["revenue_store_difference_row"] = difference_row
 
         for j, period in enumerate(self.periods):
             col_idx = 2 + j
@@ -7150,6 +7277,27 @@ class ReferenceModelBuilder:
                 self._stamp_unavailable(ws, unit_row, col_idx, SOURCE_UNAVAILABLE)
             else:
                 ws.cell(row=unit_row, column=col_idx, value=unit)
+
+        for j, period in enumerate(self.periods):
+            col_idx = 2 + j
+            revenue = relationship.revenue[period]
+            revenue_row_idx, revenue_col = self._revenue_store_source_placement(
+                j, revenue_row, col_idx
+            )
+            if is_source_unavailable(revenue):
+                self._stamp_unavailable(
+                    ws, revenue_row_idx, revenue_col, SOURCE_UNAVAILABLE
+                )
+            else:
+                _put_number(revenue_row_idx, revenue_col, float(revenue))
+                _register(
+                    REVENUE_STORE_SOURCE_FAMILY_ID,
+                    j,
+                    revenue_row_idx,
+                    revenue_col,
+                    store_count_source_map_formula(float(revenue)),
+                    float(revenue),
+                )
 
         for j, period in enumerate(self.periods):
             col_idx = 2 + j
@@ -7189,6 +7337,64 @@ class ReferenceModelBuilder:
                     col_idx,
                     growth_f,
                     growth,
+                )
+
+        for j, period in enumerate(self.periods):
+            col_idx = 2 + j
+            revenue_growth = relationship.revenue_growth[period]
+            difference = relationship.growth_difference_pp[period]
+            if j == 0 or revenue_growth is None:
+                ws.cell(row=revenue_growth_row, column=col_idx, value="N/A")
+            elif is_source_unavailable(revenue_growth):
+                self._stamp_unavailable(
+                    ws, revenue_growth_row, col_idx, SOURCE_UNAVAILABLE
+                )
+            else:
+                current = _mapped_ref(revenue_store_source_component_id(period))
+                prior = _mapped_ref(
+                    revenue_store_source_component_id(self.periods[j - 1])
+                )
+                growth_f = resolve_revenue_store_growth_formula(
+                    current, prior, from_tab=STORE_COUNT_SHEET
+                )
+                _put_formula(revenue_growth_row, col_idx, growth_f, pct=True)
+                _register(
+                    REVENUE_STORE_GROWTH_FAMILY_ID,
+                    j,
+                    revenue_growth_row,
+                    col_idx,
+                    growth_f,
+                    revenue_growth,
+                )
+
+            if j == 0 or difference is None:
+                ws.cell(row=difference_row, column=col_idx, value="N/A")
+            elif is_source_unavailable(difference):
+                self._stamp_unavailable(
+                    ws, difference_row, col_idx, SOURCE_UNAVAILABLE
+                )
+            else:
+                revenue_growth_ref = _mapped_ref(
+                    revenue_store_component_id(
+                        REVENUE_STORE_GROWTH_FAMILY_ID, period
+                    )
+                )
+                store_growth_ref = _mapped_ref(
+                    store_count_component_id("store_count_growth", period)
+                )
+                difference_f = resolve_revenue_store_difference_formula(
+                    revenue_growth_ref,
+                    store_growth_ref,
+                    from_tab=STORE_COUNT_SHEET,
+                )
+                _put_formula(difference_row, col_idx, difference_f, points=True)
+                _register(
+                    REVENUE_STORE_DIFFERENCE_FAMILY_ID,
+                    j,
+                    difference_row,
+                    col_idx,
+                    difference_f,
+                    difference,
                 )
 
     def _build_model_tab(self, wb: Workbook, scenario: str) -> None:

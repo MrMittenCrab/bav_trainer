@@ -5010,3 +5010,301 @@ def expand_store_count_specs(
             _append(growth_family, period)
     return tuple(specs)
 
+
+REVENUE_STORE_SOURCE_FAMILY_ID = "operating_kpi_revenue_source"
+REVENUE_STORE_SOURCE_CATEGORY = "operating_kpi_revenue_source"
+REVENUE_STORE_PRACTICE_CATEGORY = "operating_kpi_revenue_store"
+REVENUE_STORE_GROWTH_FAMILY_ID = "operating_kpi_revenue_growth"
+REVENUE_STORE_DIFFERENCE_FAMILY_ID = "operating_kpi_revenue_store_growth_difference"
+
+
+def revenue_store_component_id(family_id: str, period: date) -> str:
+    return store_count_component_id(family_id, period)
+
+
+def revenue_store_source_component_id(period: date) -> str:
+    return revenue_store_component_id(REVENUE_STORE_SOURCE_FAMILY_ID, period)
+
+
+def revenue_store_source_semantic_key(period: date) -> str:
+    return f"operating_kpi.revenue_store.source.{period.isoformat()}"
+
+
+def is_revenue_store_source_identity(component: object) -> bool:
+    return getattr(component, "category", None) == REVENUE_STORE_SOURCE_CATEGORY
+
+
+def is_revenue_store_practice_identity(component: object) -> bool:
+    return getattr(component, "category", None) == REVENUE_STORE_PRACTICE_CATEGORY
+
+
+def is_operating_kpi_source_identity(component: object) -> bool:
+    return is_store_count_source_identity(component) or is_revenue_store_source_identity(
+        component
+    )
+
+
+@dataclass(frozen=True)
+class SemanticCellRef:
+    """Mapped workbook cell for a semantically identified source or practice."""
+
+    id: str
+    semantic_key: str
+    period_end: str
+    cell: str
+    tab: str = STORE_COUNT_SHEET_NAME
+
+
+def semantic_formula_cell(ref: SemanticCellRef, *, from_tab: str) -> str:
+    """A1 (or cross-sheet) reference from a mapped identity, never column adjacency."""
+    if not ref.cell:
+        raise ValueError("semantic formula cell requires a mapped coordinate")
+    if ref.tab == from_tab:
+        return ref.cell
+    escaped = ref.tab.replace("'", "''")
+    return f"'{escaped}'!{ref.cell}"
+
+
+def resolve_revenue_store_growth_formula(
+    current: SemanticCellRef,
+    prior: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Adjacent revenue growth from mapped current/prior revenue source cells."""
+    current_cell = semantic_formula_cell(current, from_tab=from_tab)
+    prior_cell = semantic_formula_cell(prior, from_tab=from_tab)
+    return (
+        f"=IF({prior_cell}=0,NA(),({current_cell}-{prior_cell})/{prior_cell})"
+    )
+
+
+def resolve_revenue_store_difference_formula(
+    revenue_growth: SemanticCellRef,
+    store_growth: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Percentage-point difference from mapped revenue-growth and store-growth cells."""
+    revenue_cell = semantic_formula_cell(revenue_growth, from_tab=from_tab)
+    store_cell = semantic_formula_cell(store_growth, from_tab=from_tab)
+    return f"=100*({revenue_cell}-{store_cell})"
+
+
+REVENUE_STORE_SOURCE_FAMILY = ComponentFamily(
+    id=REVENUE_STORE_SOURCE_FAMILY_ID,
+    order=163,
+    title="Consolidated revenue",
+    short_hint=(
+        "Populated consolidated revenue from the income-statement source. "
+        "This is a reported source, not a practice cell. Distinct from "
+        "company-operated period-end store counts."
+    ),
+    semantic_key="operating_kpi.revenue_store.source",
+    category=REVENUE_STORE_SOURCE_CATEGORY,
+    tab_template=STORE_COUNT_SHEET_NAME,
+    period_scope="all",
+    hints=(
+        "Consolidated revenue is a reported source, not a practice cell.",
+        "Company-operated store counts remain a distinct input.",
+        "This source is populated and is not practiced or Checked.",
+    ),
+    tolerance=0.0,
+)
+
+
+REVENUE_STORE_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id=REVENUE_STORE_GROWTH_FAMILY_ID,
+        order=164,
+        title="Consolidated revenue growth",
+        short_hint=(
+            "Statement-derived consolidated revenue growth = (current − prior) "
+            "/ prior using the immediately preceding model period. Opening "
+            "growth is absent. A missing adjacent revenue input is unavailable. "
+            "Zero prior revenue is undefined (#N/A). Not same-store sales, "
+            "store productivity, organic growth, or causality."
+        ),
+        semantic_key="operating_kpi.revenue_store.revenue_growth",
+        category=REVENUE_STORE_PRACTICE_CATEGORY,
+        tab_template=STORE_COUNT_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(REVENUE_STORE_SOURCE_FAMILY_ID,),
+        depends_on_previous=(REVENUE_STORE_SOURCE_FAMILY_ID,),
+        hints=(
+            "Adjacent-period revenue growth uses the immediately preceding model period.",
+            "Opening growth is absent; a gap is unavailable, not compressed.",
+            "Zero prior revenue yields the undefined-ratio result.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id=REVENUE_STORE_DIFFERENCE_FAMILY_ID,
+        order=165,
+        title="Revenue vs store-count growth difference",
+        short_hint=(
+            "Analyst-derived difference in percentage points = 100 × "
+            "(consolidated revenue growth − company-operated store-count "
+            "growth). Opening difference is absent. A missing growth input "
+            "is unavailable and takes precedence over an undefined ratio. "
+            "Not revenue attribution, same-store sales, productivity, "
+            "organic growth, or causal evidence."
+        ),
+        semantic_key="operating_kpi.revenue_store.growth_difference_pp",
+        category=REVENUE_STORE_PRACTICE_CATEGORY,
+        tab_template=STORE_COUNT_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(
+            REVENUE_STORE_GROWTH_FAMILY_ID,
+            "store_count_growth",
+        ),
+        hints=(
+            "The difference uses the same-period revenue-growth and store-count-growth cells.",
+            "Opening difference is absent; a missing input is unavailable, not compressed.",
+            "The inputs have distinct scopes and do not imply causality.",
+        ),
+        tolerance=1e-12,
+    ),
+)
+
+
+def expand_revenue_store_source_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    source_periods: tuple[date, ...],
+) -> tuple[ComponentSpec, ...]:
+    """Register populated consolidated-revenue sources; never practice identities."""
+    _require_store_count_period_axis(periods, caller="expand_revenue_store_source_specs")
+    period_index = {period: index for index, period in enumerate(periods)}
+    unknown = [period for period in source_periods if period not in period_index]
+    if unknown:
+        raise ValueError(
+            "expand_revenue_store_source_specs received periods outside the "
+            f"canonical axis: {unknown}"
+        )
+    if len(source_periods) != len(set(source_periods)):
+        raise ValueError(
+            "duplicate source periods are not allowed in expand_revenue_store_source_specs"
+        )
+    family = REVENUE_STORE_SOURCE_FAMILY
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for period in periods:
+        if period not in source_periods:
+            continue
+        period_end = period.isoformat()
+        specs.append(
+            ComponentSpec(
+                id=revenue_store_source_component_id(period),
+                family_id=family.id,
+                order=order,
+                family_order=family.order,
+                title=family.title,
+                short_hint=family.short_hint,
+                semantic_key=revenue_store_source_semantic_key(period),
+                category=family.category,
+                tab_template=family.tab_template,
+                period_index=period_index[period],
+                period_end=period_end,
+                depends_on=(),
+                hints=family.hints,
+                tolerance=family.tolerance,
+            )
+        )
+        order += 1
+    return tuple(specs)
+
+
+def revenue_store_adjacent_source_ids(
+    periods: list[date],
+    period: date,
+) -> tuple[str, str]:
+    """Current then immediately preceding canonical-period revenue source identities."""
+    period_index = {item: index for index, item in enumerate(periods)}
+    if period not in period_index:
+        raise ValueError(
+            f"revenue/store practice period {period.isoformat()} is outside the "
+            "canonical axis"
+        )
+    index = period_index[period]
+    if index == 0:
+        raise ValueError(
+            "opening revenue/store period has no immediately preceding source"
+        )
+    prior = periods[index - 1]
+    return (
+        revenue_store_source_component_id(period),
+        revenue_store_source_component_id(prior),
+    )
+
+
+def revenue_store_difference_dependency_ids(period: date) -> tuple[str, str]:
+    """Same-period revenue-growth then store-count-growth practice identities."""
+    return (
+        revenue_store_component_id(REVENUE_STORE_GROWTH_FAMILY_ID, period),
+        store_count_component_id("store_count_growth", period),
+    )
+
+
+def expand_revenue_store_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    growth_periods: tuple[date, ...],
+    difference_periods: tuple[date, ...],
+) -> tuple[ComponentSpec, ...]:
+    """Expand revenue/store-growth practice families for available adjacent periods."""
+    _require_store_count_period_axis(periods, caller="expand_revenue_store_specs")
+
+    families = {family.id: family for family in REVENUE_STORE_COMPONENT_CATALOG}
+    specs: list[ComponentSpec] = []
+    order = start_order
+    period_index = {period: index for index, period in enumerate(periods)}
+    growth_set = set(growth_periods)
+    difference_set = set(difference_periods)
+
+    def _append(
+        family: ComponentFamily,
+        period: date,
+        depends_on: tuple[str, ...],
+    ) -> None:
+        nonlocal order
+        period_end = period.isoformat()
+        specs.append(
+            ComponentSpec(
+                id=revenue_store_component_id(family.id, period),
+                family_id=family.id,
+                order=order,
+                family_order=family.order,
+                title=family.title,
+                short_hint=family.short_hint,
+                semantic_key=f"{family.semantic_key}.{period_end}",
+                category=family.category,
+                tab_template=family.tab_template,
+                period_index=period_index[period],
+                period_end=period_end,
+                depends_on=depends_on,
+                hints=family.hints,
+                tolerance=family.tolerance,
+            )
+        )
+        order += 1
+
+    growth_family = families[REVENUE_STORE_GROWTH_FAMILY_ID]
+    difference_family = families[REVENUE_STORE_DIFFERENCE_FAMILY_ID]
+    for period in periods:
+        if period in growth_set:
+            _append(
+                growth_family,
+                period,
+                revenue_store_adjacent_source_ids(periods, period),
+            )
+        if period in difference_set:
+            _append(
+                difference_family,
+                period,
+                revenue_store_difference_dependency_ids(period),
+            )
+    return tuple(specs)
+

@@ -9,6 +9,9 @@ from ..engine.component_catalog import (
     CASH_ROLLFORWARD_COMPONENT_CATALOG,
     GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG,
     STORE_COUNT_COMPONENT_CATALOG,
+    REVENUE_STORE_COMPONENT_CATALOG,
+    REVENUE_STORE_DIFFERENCE_FAMILY_ID,
+    REVENUE_STORE_GROWTH_FAMILY_ID,
     INVENTORY_ANALYSIS_COMPONENT_CATALOG,
     REPORTED_MARGIN_COMPONENT_CATALOG,
     SHARE_REPURCHASE_COMPONENT_CATALOG,
@@ -46,6 +49,7 @@ from .financial_math import AnchorMetrics
 from .fixed_asset import FixedAssetSeries
 from .geographic_segment import GeographicSegmentSeries
 from .operating_kpi import OperatingKpiSeries
+from .operating_kpi_relationships import OperatingKpiRevenueStoreRelationship
 from .goodwill_intangibles import (
     GoodwillIntangiblesAvailability,
     GoodwillIntangiblesSeries,
@@ -259,6 +263,8 @@ _GEOGRAPHIC_FAMILY_SERIES = (
 _OPERATING_KPI_FAMILY_SERIES = (
     "store_count_net_change",
     "store_count_growth",
+    REVENUE_STORE_GROWTH_FAMILY_ID,
+    REVENUE_STORE_DIFFERENCE_FAMILY_ID,
 )
 
 _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
@@ -1050,10 +1056,29 @@ def geographic_expected_value_for_component(
 def operating_kpi_expected_value_for_component(
     operating_kpi: OperatingKpiSeries,
     component: ResolvedComponent,
+    *,
+    operating_kpi_relationship: OperatingKpiRevenueStoreRelationship | None = None,
 ) -> float | str | None:
-    """Look up one store-count practice expected from the validated series."""
-    catalog_ids = {family.id for family in STORE_COUNT_COMPONENT_CATALOG}
-    if component.family_id not in catalog_ids:
+    """Look up one store-count or revenue/store practice expected."""
+    store_ids = {family.id for family in STORE_COUNT_COMPONENT_CATALOG}
+    relationship_ids = {family.id for family in REVENUE_STORE_COMPONENT_CATALOG}
+    if component.family_id in relationship_ids:
+        if operating_kpi_relationship is None:
+            raise ValueError(
+                f"Operating-KPI family {component.family_id!r} requires an "
+                "OperatingKpiRevenueStoreRelationship"
+            )
+        if not component.period_end:
+            raise ValueError(
+                f"operating KPI component {component.id!r} is missing period_end"
+            )
+        period = date.fromisoformat(component.period_end)
+        if component.family_id == REVENUE_STORE_GROWTH_FAMILY_ID:
+            return operating_kpi_relationship.revenue_growth[period]
+        if component.family_id == REVENUE_STORE_DIFFERENCE_FAMILY_ID:
+            return operating_kpi_relationship.growth_difference_pp[period]
+        raise ValueError(f"Unknown operating KPI family {component.family_id!r}")
+    if component.family_id not in store_ids:
         raise ValueError(
             f"operating_kpi_expected_value_for_component unknown family "
             f"{component.family_id!r}"
@@ -1191,6 +1216,7 @@ def expected_value_for_component(
     inventory_analysis: InventoryAnalysisSeries | None = None,
     geographic: GeographicSegmentSeries | None = None,
     operating_kpi: OperatingKpiSeries | None = None,
+    operating_kpi_relationship: OperatingKpiRevenueStoreRelationship | None = None,
 ) -> float | str | None:
     """Return the treatment-conditioned expected value for one practice component."""
     family_id = component.family_id
@@ -1317,6 +1343,21 @@ def expected_value_for_component(
             )
         return geographic_expected_value_for_component(geographic, component)
     elif family_id in _OPERATING_KPI_FAMILY_SERIES:
+        if family_id in {family.id for family in REVENUE_STORE_COMPONENT_CATALOG}:
+            if operating_kpi_relationship is None:
+                raise ValueError(
+                    f"Operating-KPI family {family_id!r} requires an "
+                    "OperatingKpiRevenueStoreRelationship"
+                )
+            if operating_kpi is None:
+                raise ValueError(
+                    f"Operating-KPI family {family_id!r} requires an OperatingKpiSeries"
+                )
+            return operating_kpi_expected_value_for_component(
+                operating_kpi,
+                component,
+                operating_kpi_relationship=operating_kpi_relationship,
+            )
         if operating_kpi is None:
             raise ValueError(
                 f"Operating-KPI family {family_id!r} requires an OperatingKpiSeries"

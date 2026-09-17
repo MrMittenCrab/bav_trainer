@@ -21,18 +21,37 @@ from core.data.interface import (
 )
 from core.data.standardized_io import standardized_from_payload, standardized_to_payload
 from core.engine.component_catalog import (
+    REVENUE_STORE_COMPONENT_CATALOG,
+    REVENUE_STORE_DIFFERENCE_FAMILY_ID,
+    REVENUE_STORE_GROWTH_FAMILY_ID,
+    REVENUE_STORE_PRACTICE_CATEGORY,
+    REVENUE_STORE_SOURCE_CATEGORY,
+    REVENUE_STORE_SOURCE_FAMILY_ID,
     STORE_COUNT_COMPONENT_CATALOG,
     STORE_COUNT_POPULATION_LABEL,
     STORE_COUNT_SHEET_NAME,
     STORE_COUNT_SOURCE_CATEGORY,
     STORE_COUNT_SOURCE_FAMILY_ID,
+    SemanticCellRef,
     StoreCountSourceRef,
+    expand_revenue_store_source_specs,
+    expand_revenue_store_specs,
     expand_store_count_source_specs,
     expand_store_count_specs,
+    is_operating_kpi_source_identity,
+    is_revenue_store_practice_identity,
+    is_revenue_store_source_identity,
     is_store_count_practice_identity,
     is_store_count_source_identity,
+    resolve_revenue_store_difference_formula,
+    resolve_revenue_store_growth_formula,
     resolve_store_count_growth_formula,
     resolve_store_count_net_change_formula,
+    revenue_store_adjacent_source_ids,
+    revenue_store_component_id,
+    revenue_store_difference_dependency_ids,
+    revenue_store_source_component_id,
+    revenue_store_source_semantic_key,
     store_count_adjacent_source_ids,
     store_count_component_id,
     store_count_source_component_id,
@@ -52,7 +71,8 @@ from core.ingestion.filing_standardizer import (
 from core.ingestion.management_kpi import management_admission_payload
 from core.ingestion.manual_hk import HKManualDocumentAdapter
 from core.model.historical_expected import operating_kpi_expected_value_for_component
-from core.model.line_resolver import MissingLineError
+from core.model.line_resolver import AmbiguousLineError, MissingLineError
+from core.model.source_values import MissingHistoricalValueError
 from core.model.management_kpi import compute_management_kpi_series, management_kpi_applicable
 from core.model.operating_kpi import (
     OPERATING_KPI_RATIO_TOLERANCE,
@@ -60,6 +80,8 @@ from core.model.operating_kpi import (
     operating_kpi_applicable,
 )
 from core.model.operating_kpi_relationships import (
+    OPERATING_KPI_RELATIONSHIP_TOLERANCE,
+    SCOPE_NOTE,
     compute_operating_kpi_revenue_comparable_sales_relationship,
     compute_operating_kpi_revenue_store_relationship,
     operating_kpi_revenue_comparable_sales_relationship_applicable,
@@ -104,6 +126,11 @@ from core.tests.test_operating_kpi_facts import (
     _validated_augmented,
 )
 from core.ingestion.management_kpi_identity import FAMILY_COMPARABLE_SALES_GROWTH
+from core.tests.test_lululemon_benchmark import REVENUE_ANCHORS
+from core.tests.test_operating_kpi_relationships import (
+    _fin_with_relationship,
+    _independent_relationship,
+)
 from core.trainer.checker import (
     BLANK_RGB,
     CORRECT_RGB,
@@ -123,14 +150,29 @@ FAST_RETAILING_SPECS = 577
 GEOGRAPHIC_LULULEMON_SPECS = 74
 STORE_COUNT_LULULEMON_SPECS = 8
 STORE_COUNT_LULULEMON_SOURCES = 5
+REVENUE_STORE_LULULEMON_SPECS = 8
+REVENUE_STORE_LULULEMON_SOURCES = 5
+LULULEMON_STORE_AUGMENTED_PRACTICE = (
+    LEASE_DT_LULULEMON_SPECS
+    + GEOGRAPHIC_LULULEMON_SPECS
+    + STORE_COUNT_LULULEMON_SPECS
+)
 LULULEMON_UNAVAILABLE_DISPLAYS = 101
 DEFAULT_STORE_COUNT_SOURCE_ROW = 10
+DEFAULT_REVENUE_STORE_SOURCE_ROW = 20
 MOVED_STORE_COUNT_SOURCE_PLACEMENT = {
     0: (32, 2),
     1: (40, 5),
     2: (32, 8),
     3: (40, 11),
     4: (32, 14),
+}
+MOVED_REVENUE_STORE_SOURCE_PLACEMENT = {
+    0: (28, 3),
+    1: (36, 6),
+    2: (28, 9),
+    3: (36, 12),
+    4: (28, 15),
 }
 STORE_A2 = (
     "Source-supported company-operated period-end store counts with "
@@ -147,6 +189,9 @@ _DISCLOSED_STORE_ARITHMETIC = (
     "(current - prior) / prior",
     "gross openings",
     "gross closures",
+    "100*(",
+    "100 × (",
+    "100 x (",
 )
 
 
@@ -158,12 +203,32 @@ def _source_components(smap):
     return [c for c in smap.all_ordered() if is_store_count_source_identity(c)]
 
 
+def _relationship_practice_components(smap):
+    return [c for c in smap.all_ordered() if is_revenue_store_practice_identity(c)]
+
+
+def _revenue_source_components(smap):
+    return [c for c in smap.all_ordered() if is_revenue_store_source_identity(c)]
+
+
+def _check_components(smap):
+    return [c for c in smap.all_ordered() if not is_operating_kpi_source_identity(c)]
+
+
 def _practice_specs(specs):
     return [s for s in specs if is_store_count_practice_identity(s)]
 
 
 def _source_specs(specs):
     return [s for s in specs if is_store_count_source_identity(s)]
+
+
+def _relationship_practice_specs(specs):
+    return [s for s in specs if is_revenue_store_practice_identity(s)]
+
+
+def _revenue_source_specs(specs):
+    return [s for s in specs if is_revenue_store_source_identity(s)]
 
 
 def _fill_rgb(cell) -> str:
@@ -584,7 +649,12 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
     existing = [
         s.id
         for s in builder.expected_specs
-        if s.category not in {"store_count", STORE_COUNT_SOURCE_CATEGORY}
+        if s.category not in {
+            "store_count",
+            STORE_COUNT_SOURCE_CATEGORY,
+            REVENUE_STORE_PRACTICE_CATEGORY,
+            REVENUE_STORE_SOURCE_CATEGORY,
+        }
     ]
     assert existing
     trainer, answer = build_training_workbook(fin, tmp_path / "STORE_BASE.xlsx")
@@ -683,7 +753,7 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
 
     wb = load_workbook(trainer, data_only=False)
     for comp in smap.all_ordered():
-        if is_store_count_source_identity(comp):
+        if is_operating_kpi_source_identity(comp):
             continue
         row, col = parse_cell_ref(comp.cell)
         wb[comp.tab].cell(row=row, column=col).value = comp.formula
@@ -906,7 +976,12 @@ def test_source_grounded_reload_workbook_and_check(tmp_path):
     preserved = [
         s
         for s in builder.expected_specs
-        if s.category not in {"store_count", STORE_COUNT_SOURCE_CATEGORY}
+        if s.category not in {
+            "store_count",
+            STORE_COUNT_SOURCE_CATEGORY,
+            REVENUE_STORE_PRACTICE_CATEGORY,
+            REVENUE_STORE_SOURCE_CATEGORY,
+        }
     ]
     committed = ReferenceModelBuilder(
         standardized_from_payload(json.loads(LULU_JSON.read_text(encoding="utf-8")))
@@ -923,22 +998,24 @@ def test_source_grounded_reload_workbook_and_check(tmp_path):
     )
     trainer, answer = _copy_pair(trainer, answer, tmp_path / "reopened")
     smap = load_semantic_map(answer)
-    all_comps = [
-        c for c in smap.all_ordered() if not is_store_count_source_identity(c)
-    ]
+    all_comps = _check_components(smap)
     store_comps = _practice_components(smap)
     source_comps = _source_components(smap)
+    relationship_comps = _relationship_practice_components(smap)
+    revenue_sources = _revenue_source_components(smap)
     assert len(store_comps) == STORE_COUNT_LULULEMON_SPECS
     assert len(source_comps) == STORE_COUNT_LULULEMON_SOURCES
+    assert len(relationship_comps) == REVENUE_STORE_LULULEMON_SPECS
+    assert len(revenue_sources) == REVENUE_STORE_LULULEMON_SOURCES
     assert {c.id for c in source_comps} == {s.id for s in source_specs}
     assert len(all_comps) == (
-        LEASE_DT_LULULEMON_SPECS
-        + GEOGRAPHIC_LULULEMON_SPECS
-        + STORE_COUNT_LULULEMON_SPECS
+        LULULEMON_STORE_AUGMENTED_PRACTICE + REVENUE_STORE_LULULEMON_SPECS
     )
     practice = {(c.tab, c.cell) for c in all_comps}
     source_cells = {(c.tab, c.cell) for c in source_comps}
+    revenue_source_cells = {(c.tab, c.cell) for c in revenue_sources}
     assert source_cells.isdisjoint(practice)
+    assert revenue_source_cells.isdisjoint(practice)
 
     awb = load_workbook(answer, data_only=False)
     twb = load_workbook(trainer, data_only=False)
@@ -1032,6 +1109,124 @@ def test_source_grounded_reload_workbook_and_check(tmp_path):
         assert (a_change.comment.text or "").strip()
         assert "cause" not in (a_change.comment.text or "").lower()
 
+    assert aws["A5"].value == SCOPE_NOTE
+    assert tws["A5"].value == SCOPE_NOTE
+    revenue_row = _row_by_label(aws, "Consolidated revenue")
+    assert revenue_row == DEFAULT_REVENUE_STORE_SOURCE_ROW
+    expected_rel = _independent_relationship(
+        axis, REVENUE_ANCHORS, INDEPENDENT_STORE_TOTALS
+    )
+    revenue_by_period = {c.period_end: c for c in revenue_sources}
+    growth_by_period = {
+        c.period_end: c
+        for c in relationship_comps
+        if c.family_id == REVENUE_STORE_GROWTH_FAMILY_ID
+    }
+    difference_by_period = {
+        c.period_end: c
+        for c in relationship_comps
+        if c.family_id == REVENUE_STORE_DIFFERENCE_FAMILY_ID
+    }
+    store_growth_by_period = {
+        c.period_end: c
+        for c in store_comps
+        if c.family_id == "store_count_growth"
+    }
+    for period in (P2023, P2024, P2025, P2026):
+        prior = axis[axis.index(period) - 1]
+        expected_rev_growth = (
+            REVENUE_ANCHORS[period] - REVENUE_ANCHORS[prior]
+        ) / REVENUE_ANCHORS[prior]
+        expected_store_growth = (
+            INDEPENDENT_STORE_TOTALS[period] - INDEPENDENT_STORE_TOTALS[prior]
+        ) / INDEPENDENT_STORE_TOTALS[prior]
+        expected_diff = 100.0 * (expected_rev_growth - expected_store_growth)
+        assert expected_rel[period]["revenue_growth"] == pytest.approx(
+            expected_rev_growth, abs=OPERATING_KPI_RELATIONSHIP_TOLERANCE
+        )
+        assert expected_rel[period]["difference"] == pytest.approx(
+            expected_diff, abs=OPERATING_KPI_RELATIONSHIP_TOLERANCE
+        )
+        growth_comp = growth_by_period[period.isoformat()]
+        diff_comp = difference_by_period[period.isoformat()]
+        current_rev = revenue_by_period[period.isoformat()]
+        prior_rev = revenue_by_period[prior.isoformat()]
+        store_growth_comp = store_growth_by_period[period.isoformat()]
+        assert tuple(growth_comp.depends_on) == (current_rev.id, prior_rev.id)
+        assert tuple(diff_comp.depends_on) == (
+            growth_comp.id,
+            store_growth_comp.id,
+        )
+        current_ref = SemanticCellRef(
+            id=current_rev.id,
+            semantic_key=current_rev.semantic_key,
+            period_end=current_rev.period_end,
+            cell=current_rev.cell,
+            tab=current_rev.tab,
+        )
+        prior_ref = SemanticCellRef(
+            id=prior_rev.id,
+            semantic_key=prior_rev.semantic_key,
+            period_end=prior_rev.period_end,
+            cell=prior_rev.cell,
+            tab=prior_rev.tab,
+        )
+        growth_ref = SemanticCellRef(
+            id=growth_comp.id,
+            semantic_key=growth_comp.semantic_key,
+            period_end=growth_comp.period_end,
+            cell=growth_comp.cell,
+            tab=growth_comp.tab,
+        )
+        store_ref = SemanticCellRef(
+            id=store_growth_comp.id,
+            semantic_key=store_growth_comp.semantic_key,
+            period_end=store_growth_comp.period_end,
+            cell=store_growth_comp.cell,
+            tab=store_growth_comp.tab,
+        )
+        assert growth_comp.formula.replace(" ", "") == (
+            resolve_revenue_store_growth_formula(
+                current_ref, prior_ref, from_tab=STORE_COUNT_SHEET
+            ).replace(" ", "")
+        )
+        assert diff_comp.formula.replace(" ", "") == (
+            resolve_revenue_store_difference_formula(
+                growth_ref, store_ref, from_tab=STORE_COUNT_SHEET
+            ).replace(" ", "")
+        )
+        assert growth_comp.expected_value == pytest.approx(
+            expected_rev_growth, abs=OPERATING_KPI_RELATIONSHIP_TOLERANCE
+        )
+        assert diff_comp.expected_value == pytest.approx(
+            expected_diff, abs=OPERATING_KPI_RELATIONSHIP_TOLERANCE
+        )
+        assert aws.cell(revenue_row, period_cols[period]).value == REVENUE_ANCHORS[period]
+        assert tws.cell(revenue_row, period_cols[period]).value == REVENUE_ANCHORS[period]
+        t_growth = twb[growth_comp.tab].cell(*parse_cell_ref(growth_comp.cell))
+        a_growth = awb[growth_comp.tab].cell(*parse_cell_ref(growth_comp.cell))
+        t_diff = twb[diff_comp.tab].cell(*parse_cell_ref(diff_comp.cell))
+        a_diff = awb[diff_comp.tab].cell(*parse_cell_ref(diff_comp.cell))
+        t_rev = twb[current_rev.tab].cell(*parse_cell_ref(current_rev.cell))
+        a_rev = awb[current_rev.tab].cell(*parse_cell_ref(current_rev.cell))
+        assert t_rev.value == a_rev.value == REVENUE_ANCHORS[period]
+        assert t_rev.comment is None
+        assert a_rev.comment is None
+        assert _fill_rgb(t_rev) in WHITE_RGBS
+        assert t_growth.value is None
+        assert t_diff.value is None
+        assert t_growth.comment is None
+        assert t_diff.comment is None
+        assert _fill_rgb(t_growth) == "FFFF00"
+        assert _fill_rgb(t_diff) == "FFFF00"
+        assert a_growth.value == growth_comp.formula
+        assert a_diff.value == diff_comp.formula
+        assert _fill_rgb(a_growth) in WHITE_RGBS
+        assert _fill_rgb(a_diff) in WHITE_RGBS
+        assert (a_growth.comment.text or "").strip()
+        assert (a_diff.comment.text or "").strip()
+        assert "attribution" in (a_diff.comment.text or "").lower()
+
     awb.close()
     twb.close()
     _assert_visible_parity(trainer, answer, practice)
@@ -1049,13 +1244,10 @@ def test_source_grounded_reload_workbook_and_check(tmp_path):
 
     answer_hash = _sha256(answer)
     blank = check_workbook(trainer)
+    total = LULULEMON_STORE_AUGMENTED_PRACTICE + REVENUE_STORE_LULULEMON_SPECS
     assert (blank.total, blank.blank, blank.correct, blank.incorrect) == (
-        LEASE_DT_LULULEMON_SPECS
-        + GEOGRAPHIC_LULULEMON_SPECS
-        + STORE_COUNT_LULULEMON_SPECS,
-        LEASE_DT_LULULEMON_SPECS
-        + GEOGRAPHIC_LULULEMON_SPECS
-        + STORE_COUNT_LULULEMON_SPECS,
+        total,
+        total,
         0,
         0,
     )
@@ -1073,11 +1265,6 @@ def test_source_grounded_reload_workbook_and_check(tmp_path):
     wb.save(filled_trainer)
     wb.close()
     filled = check_workbook(filled_trainer)
-    total = (
-        LEASE_DT_LULULEMON_SPECS
-        + GEOGRAPHIC_LULULEMON_SPECS
-        + STORE_COUNT_LULULEMON_SPECS
-    )
     assert (filled.total, filled.correct, filled.incorrect, filled.blank) == (
         total,
         total,
@@ -1158,17 +1345,21 @@ def test_generated_workbooks_follow_moved_source_placement(tmp_path, monkeypatch
 
     source_comps = _source_components(smap)
     store_comps = _practice_components(smap)
-    all_comps = [
-        c for c in smap.all_ordered() if not is_store_count_source_identity(c)
-    ]
+    all_comps = _check_components(smap)
     assert len(source_comps) == STORE_COUNT_LULULEMON_SOURCES
     assert len(store_comps) == STORE_COUNT_LULULEMON_SPECS
+    assert len(_relationship_practice_components(smap)) == REVENUE_STORE_LULULEMON_SPECS
+    assert len(_revenue_source_components(smap)) == REVENUE_STORE_LULULEMON_SOURCES
     source_by_period = {c.period_end: c for c in source_comps}
     serialized_by_id = {row["id"]: row for row in serialized["components"]}
     axis = list(canonical_fiscal_periods(restored))
     practice = {(c.tab, c.cell) for c in all_comps}
     source_cells = {(c.tab, c.cell) for c in source_comps}
+    revenue_source_cells = {
+        (c.tab, c.cell) for c in _revenue_source_components(smap)
+    }
     assert source_cells.isdisjoint(practice)
+    assert revenue_source_cells.isdisjoint(practice)
 
     awb = load_workbook(answer, data_only=False)
     twb = load_workbook(trainer, data_only=False)
@@ -1310,11 +1501,7 @@ def test_generated_workbooks_follow_moved_source_placement(tmp_path, monkeypatch
 
     answer_hash = _sha256(answer)
     blank = check_workbook(trainer)
-    total = (
-        LEASE_DT_LULULEMON_SPECS
-        + GEOGRAPHIC_LULULEMON_SPECS
-        + STORE_COUNT_LULULEMON_SPECS
-    )
+    total = LULULEMON_STORE_AUGMENTED_PRACTICE + REVENUE_STORE_LULULEMON_SPECS
     assert (blank.total, blank.blank, blank.correct, blank.incorrect) == (
         total,
         total,
@@ -1490,7 +1677,550 @@ def test_management_and_revenue_relationship_apis_unchanged(tmp_path):
         "store_count_net_change",
         "store_count_growth",
     }
+    assert {
+        c.family_id
+        for c in smap.all_ordered()
+        if c.category == REVENUE_STORE_PRACTICE_CATEGORY
+    } == {
+        REVENUE_STORE_GROWTH_FAMILY_ID,
+        REVENUE_STORE_DIFFERENCE_FAMILY_ID,
+    }
+    assert not any(
+        "comparable" in (c.family_id or "") for c in smap.all_ordered()
+    )
     assert operating_kpi_revenue_store_relationship_applicable(store_only) is True
     assert operating_kpi_revenue_comparable_sales_relationship_applicable(
         store_only
     ) is False
+
+
+def test_revenue_store_catalog_orders_and_expand_identities():
+    assert [family.order for family in REVENUE_STORE_COMPONENT_CATALOG] == [164, 165]
+    assert [family.id for family in REVENUE_STORE_COMPONENT_CATALOG] == [
+        REVENUE_STORE_GROWTH_FAMILY_ID,
+        REVENUE_STORE_DIFFERENCE_FAMILY_ID,
+    ]
+    sources = expand_revenue_store_source_specs(
+        [P1, P2],
+        start_order=1,
+        source_periods=(P1, P2),
+    )
+    assert [s.id for s in sources] == [
+        revenue_store_source_component_id(P1),
+        revenue_store_source_component_id(P2),
+    ]
+    assert [s.semantic_key for s in sources] == [
+        revenue_store_source_semantic_key(P1),
+        revenue_store_source_semantic_key(P2),
+    ]
+    assert all(s.category == REVENUE_STORE_SOURCE_CATEGORY for s in sources)
+    assert all(s.depends_on == () for s in sources)
+    assert all(s.family_id == REVENUE_STORE_SOURCE_FAMILY_ID for s in sources)
+    specs = expand_revenue_store_specs(
+        [P1, P2],
+        start_order=10,
+        growth_periods=(P2,),
+        difference_periods=(P2,),
+    )
+    assert [s.id for s in specs] == [
+        revenue_store_component_id(REVENUE_STORE_GROWTH_FAMILY_ID, P2),
+        revenue_store_component_id(REVENUE_STORE_DIFFERENCE_FAMILY_ID, P2),
+    ]
+    expected_growth_deps = revenue_store_adjacent_source_ids([P1, P2], P2)
+    assert expected_growth_deps == (
+        revenue_store_source_component_id(P2),
+        revenue_store_source_component_id(P1),
+    )
+    assert specs[0].depends_on == expected_growth_deps
+    assert specs[1].depends_on == revenue_store_difference_dependency_ids(P2)
+    assert specs[1].depends_on == (
+        revenue_store_component_id(REVENUE_STORE_GROWTH_FAMILY_ID, P2),
+        store_count_component_id("store_count_growth", P2),
+    )
+    assert not any(s.period_end == P1.isoformat() for s in specs)
+    with pytest.raises(ValueError, match="duplicate fiscal periods"):
+        expand_revenue_store_specs(
+            [P1, P1],
+            start_order=1,
+            growth_periods=(),
+            difference_periods=(),
+        )
+    with pytest.raises(ValueError, match="strictly chronological"):
+        expand_revenue_store_specs(
+            [P2, P1],
+            start_order=1,
+            growth_periods=(P2,),
+            difference_periods=(P2,),
+        )
+    with pytest.raises(ValueError, match="opening revenue/store period"):
+        revenue_store_adjacent_source_ids([P1, P2], P1)
+
+
+def test_revenue_store_formula_resolution_follows_mapped_identities():
+    current = SemanticCellRef(
+        id=revenue_store_source_component_id(P2),
+        semantic_key=revenue_store_source_semantic_key(P2),
+        period_end=P2.isoformat(),
+        cell="I28",
+        tab=STORE_COUNT_SHEET_NAME,
+    )
+    prior = SemanticCellRef(
+        id=revenue_store_source_component_id(P1),
+        semantic_key=revenue_store_source_semantic_key(P1),
+        period_end=P1.isoformat(),
+        cell="C28",
+        tab=STORE_COUNT_SHEET_NAME,
+    )
+    growth = resolve_revenue_store_growth_formula(
+        current, prior, from_tab=STORE_COUNT_SHEET_NAME
+    )
+    assert growth == "=IF(C28=0,NA(),(I28-C28)/C28)"
+    reversed_growth = resolve_revenue_store_growth_formula(
+        prior, current, from_tab=STORE_COUNT_SHEET_NAME
+    )
+    assert reversed_growth != growth
+    cross_current = SemanticCellRef(
+        id=current.id,
+        semantic_key=current.semantic_key,
+        period_end=current.period_end,
+        cell="E7",
+        tab="Income Statement",
+    )
+    cross_prior = SemanticCellRef(
+        id=prior.id,
+        semantic_key=prior.semantic_key,
+        period_end=prior.period_end,
+        cell="B7",
+        tab="Income Statement",
+    )
+    cross = resolve_revenue_store_growth_formula(
+        cross_current, cross_prior, from_tab=STORE_COUNT_SHEET_NAME
+    )
+    assert "'Income Statement'!E7" in cross
+    assert "'Income Statement'!B7" in cross
+    assert "C28" not in cross
+    revenue_growth = SemanticCellRef(
+        id=revenue_store_component_id(REVENUE_STORE_GROWTH_FAMILY_ID, P2),
+        semantic_key="operating_kpi.revenue_store.revenue_growth",
+        period_end=P2.isoformat(),
+        cell="C23",
+        tab=STORE_COUNT_SHEET_NAME,
+    )
+    store_growth = SemanticCellRef(
+        id=store_count_component_id("store_count_growth", P2),
+        semantic_key="operating_kpi.store_count.growth",
+        period_end=P2.isoformat(),
+        cell="C17",
+        tab=STORE_COUNT_SHEET_NAME,
+    )
+    difference = resolve_revenue_store_difference_formula(
+        revenue_growth, store_growth, from_tab=STORE_COUNT_SHEET_NAME
+    )
+    assert difference == "=100*(C23-C17)"
+    with pytest.raises(ValueError, match="mapped coordinate"):
+        resolve_revenue_store_growth_formula(
+            SemanticCellRef("a", "a", P2.isoformat(), "", STORE_COUNT_SHEET_NAME),
+            prior,
+            from_tab=STORE_COUNT_SHEET_NAME,
+        )
+
+
+def test_missing_revenue_and_zero_prior_are_not_practiced_or_undefined(tmp_path):
+    missing_api = _fin_with_relationship(
+        _kpi_model_observation(P1, 711),
+        _kpi_model_observation(P2, 767),
+        revenue={P1: 100.0},
+    )
+    missing_before = copy.deepcopy(missing_api.income_statement)
+    missing_rel = compute_operating_kpi_revenue_store_relationship(missing_api)
+    assert missing_rel.revenue[P2] == SOURCE_UNAVAILABLE
+    assert missing_rel.revenue_growth[P2] == SOURCE_UNAVAILABLE
+    assert missing_rel.growth_difference_pp[P2] == SOURCE_UNAVAILABLE
+    assert missing_api.income_statement == missing_before
+
+    missing_wb = _store_tiny(
+        _kpi_model_observation(P1, 711),
+        _kpi_model_observation(P2, 767),
+    )
+    for item in missing_wb.income_statement:
+        if item.concept == "revenue":
+            item.values[P2] = None
+    original = copy.deepcopy(missing_wb.income_statement)
+    original_kpi = copy.deepcopy(missing_wb.historical_operating_kpis)
+    with pytest.raises(MissingHistoricalValueError, match="no supplied value"):
+        ReferenceModelBuilder(missing_wb)
+    assert missing_wb.income_statement == original
+    assert missing_wb.historical_operating_kpis == original_kpi
+
+    gap = _store_tiny(
+        _kpi_model_observation(P0, 655),
+        _kpi_model_observation(P2, 767),
+        extra_opening=P0,
+    )
+    gap_builder = ReferenceModelBuilder(gap)
+    gap_rel = gap_builder.operating_kpi_relationship
+    assert gap_rel is not None
+    assert gap_rel.store_count[P1] == SOURCE_UNAVAILABLE
+    assert gap_rel.growth_difference_pp[P1] == SOURCE_UNAVAILABLE
+    assert gap_rel.growth_difference_pp[P2] == SOURCE_UNAVAILABLE
+    assert not any(
+        s.family_id == REVENUE_STORE_DIFFERENCE_FAMILY_ID
+        for s in _relationship_practice_specs(gap_builder.operating_kpi_specs)
+    )
+    trainer, answer = build_training_workbook(gap, tmp_path / "REV_GAP.xlsx")
+    awb = load_workbook(answer, data_only=False)
+    aws = awb[STORE_COUNT_SHEET]
+    diff_row = _row_by_label(
+        aws, "Growth difference (analyst-derived, percentage points)"
+    )
+    assert aws.cell(diff_row, 3).value == SOURCE_UNAVAILABLE
+    assert aws.cell(diff_row, 4).value == SOURCE_UNAVAILABLE
+    awb.close()
+
+    zero_open = _store_tiny(
+        _kpi_model_observation(P1, 711),
+        _kpi_model_observation(P2, 767),
+    )
+    for item in zero_open.income_statement:
+        if item.concept == "revenue":
+            item.values[P1] = 0.0
+            item.values[P2] = 10.0
+    zero_builder = ReferenceModelBuilder(zero_open)
+    assert zero_builder.operating_kpi_relationship.revenue_growth[P2] == UNDEFINED_RATIO
+    assert (
+        zero_builder.operating_kpi_relationship.growth_difference_pp[P2]
+        == UNDEFINED_RATIO
+    )
+    zero_trainer, zero_answer = build_training_workbook(
+        zero_open, tmp_path / "REV_ZERO.xlsx"
+    )
+    zawb = load_workbook(zero_answer, data_only=False)
+    zaws = zawb[STORE_COUNT_SHEET]
+    z_growth = _row_by_label(
+        zaws, "Consolidated revenue growth (statement-derived)"
+    )
+    assert "NA()" in str(zaws.cell(z_growth, 3).value)
+    zawb.close()
+    decline = _store_tiny(
+        _kpi_model_observation(P1, 711),
+        _kpi_model_observation(P2, 655),
+    )
+    for item in decline.income_statement:
+        if item.concept == "revenue":
+            item.values[P1] = 200.0
+            item.values[P2] = 160.0
+    decline_rel = compute_operating_kpi_revenue_store_relationship(decline)
+    expected_rev = (160.0 - 200.0) / 200.0
+    expected_store = (655 - 711) / 711
+    expected_diff = 100.0 * (expected_rev - expected_store)
+    assert decline_rel.revenue_growth[P2] == pytest.approx(
+        expected_rev, abs=OPERATING_KPI_RELATIONSHIP_TOLERANCE
+    )
+    assert decline_rel.growth_difference_pp[P2] == pytest.approx(
+        expected_diff, abs=OPERATING_KPI_RELATIONSHIP_TOLERANCE
+    )
+    decline_trainer, decline_answer = build_training_workbook(
+        decline, tmp_path / "REV_DECLINE.xlsx"
+    )
+    dmap = load_semantic_map(decline_answer)
+    diff = next(
+        c
+        for c in dmap.all_ordered()
+        if c.family_id == REVENUE_STORE_DIFFERENCE_FAMILY_ID
+    )
+    assert diff.expected_value == pytest.approx(
+        expected_diff, abs=OPERATING_KPI_RELATIONSHIP_TOLERANCE
+    )
+    assert Path(trainer).is_file()
+    assert Path(zero_trainer).is_file()
+    assert Path(decline_trainer).is_file()
+
+
+def test_ambiguous_revenue_fails_closed_without_mutation():
+    fin = _store_tiny(_kpi_model_observation(P1, 711), _kpi_model_observation(P2, 767))
+    fin.income_statement.append(
+        copy.deepcopy(fin.income_statement[0])
+    )
+    fin.income_statement[-1].label = "Turnover"
+    original = copy.deepcopy(fin.income_statement)
+    original_kpi = copy.deepcopy(fin.historical_operating_kpis)
+    with pytest.raises(AmbiguousLineError, match="Ambiguous concept='revenue'"):
+        ReferenceModelBuilder(fin)
+    assert fin.income_statement == original
+    assert fin.historical_operating_kpis == original_kpi
+
+
+def test_generated_workbooks_follow_moved_revenue_and_count_sources(
+    tmp_path, monkeypatch
+):
+    def _moved_count(self, period_index, default_row, default_col):
+        assert (default_row, default_col) == (
+            DEFAULT_STORE_COUNT_SOURCE_ROW,
+            2 + period_index,
+        )
+        return MOVED_STORE_COUNT_SOURCE_PLACEMENT[period_index]
+
+    def _moved_revenue(self, period_index, default_row, default_col):
+        assert (default_row, default_col) == (
+            DEFAULT_REVENUE_STORE_SOURCE_ROW,
+            2 + period_index,
+        )
+        return MOVED_REVENUE_STORE_SOURCE_PLACEMENT[period_index]
+
+    monkeypatch.setattr(
+        ReferenceModelBuilder, "_store_count_source_placement", _moved_count
+    )
+    monkeypatch.setattr(
+        ReferenceModelBuilder, "_revenue_store_source_placement", _moved_revenue
+    )
+    _dest, validated = _validated_augmented(tmp_path)
+    reloads = _reload_admitted_store_histories(validated)
+    _reconciled, fin, restored = reloads[0]
+    series = compute_operating_kpi_series(restored)
+    relationship = compute_operating_kpi_revenue_store_relationship(restored)
+    expected_rel = _independent_relationship(
+        list(canonical_fiscal_periods(restored)),
+        REVENUE_ANCHORS,
+        INDEPENDENT_STORE_TOTALS,
+    )
+    trainer, answer = build_training_workbook(
+        restored, tmp_path / "LULU_REV_STORE_MOVED.xlsx"
+    )
+    trainer, answer = _copy_pair(trainer, answer, tmp_path / "reopened_rev_moved")
+    sidecar = component_map_path_for(answer)
+    serialized = json.loads(sidecar.read_text(encoding="utf-8"))
+    smap = load_semantic_map(answer)
+    store_comps = _practice_components(smap)
+    relationship_comps = _relationship_practice_components(smap)
+    revenue_sources = _revenue_source_components(smap)
+    all_comps = _check_components(smap)
+    assert len(store_comps) == STORE_COUNT_LULULEMON_SPECS
+    assert len(relationship_comps) == REVENUE_STORE_LULULEMON_SPECS
+    assert len(revenue_sources) == REVENUE_STORE_LULULEMON_SOURCES
+    serialized_by_id = {row["id"]: row for row in serialized["components"]}
+    axis = list(canonical_fiscal_periods(restored))
+    practice = {(c.tab, c.cell) for c in all_comps}
+    revenue_source_cells = {(c.tab, c.cell) for c in revenue_sources}
+    assert revenue_source_cells.isdisjoint(practice)
+
+    awb = load_workbook(answer, data_only=False)
+    twb = load_workbook(trainer, data_only=False)
+    aws = awb[STORE_COUNT_SHEET]
+    tws = twb[STORE_COUNT_SHEET]
+    _assert_no_disclosed_store_arithmetic(twb)
+    assert aws["A5"].value == SCOPE_NOTE
+
+    revenue_by_period = {c.period_end: c for c in revenue_sources}
+    for index, period in enumerate(axis):
+        row, col = MOVED_REVENUE_STORE_SOURCE_PLACEMENT[index]
+        expected_cell = f"{get_column_letter(col)}{row}"
+        default_cell = (
+            f"{get_column_letter(2 + index)}{DEFAULT_REVENUE_STORE_SOURCE_ROW}"
+        )
+        mapped = revenue_by_period[period.isoformat()]
+        assert mapped.cell == expected_cell
+        assert mapped.cell != default_cell
+        assert serialized_by_id[mapped.id]["cell"] == expected_cell
+        assert aws.cell(row, col).value == REVENUE_ANCHORS[period]
+        assert tws.cell(row, col).value == REVENUE_ANCHORS[period]
+        assert aws.cell(DEFAULT_REVENUE_STORE_SOURCE_ROW, 2 + index).value in (
+            None,
+            "",
+        )
+        assert tws.cell(DEFAULT_REVENUE_STORE_SOURCE_ROW, 2 + index).value in (
+            None,
+            "",
+        )
+
+    growth_by_period = {
+        c.period_end: c
+        for c in relationship_comps
+        if c.family_id == REVENUE_STORE_GROWTH_FAMILY_ID
+    }
+    difference_by_period = {
+        c.period_end: c
+        for c in relationship_comps
+        if c.family_id == REVENUE_STORE_DIFFERENCE_FAMILY_ID
+    }
+    store_growth_by_period = {
+        c.period_end: c
+        for c in store_comps
+        if c.family_id == "store_count_growth"
+    }
+    for period in (P2023, P2024, P2025, P2026):
+        prior = axis[axis.index(period) - 1]
+        expected_rev_growth = (
+            REVENUE_ANCHORS[period] - REVENUE_ANCHORS[prior]
+        ) / REVENUE_ANCHORS[prior]
+        expected_store_growth = series.growth[period]
+        expected_diff = 100.0 * (expected_rev_growth - expected_store_growth)
+        assert abs(expected_rev_growth - expected_rel[period]["revenue_growth"]) <= (
+            OPERATING_KPI_RELATIONSHIP_TOLERANCE
+        )
+        assert abs(expected_diff - expected_rel[period]["difference"]) <= (
+            OPERATING_KPI_RELATIONSHIP_TOLERANCE
+        )
+        assert relationship.revenue_growth[period] == pytest.approx(
+            expected_rev_growth, abs=OPERATING_KPI_RELATIONSHIP_TOLERANCE
+        )
+        growth_comp = growth_by_period[period.isoformat()]
+        diff_comp = difference_by_period[period.isoformat()]
+        current_rev = revenue_by_period[period.isoformat()]
+        prior_rev = revenue_by_period[prior.isoformat()]
+        store_growth_comp = store_growth_by_period[period.isoformat()]
+        assert tuple(growth_comp.depends_on) == (current_rev.id, prior_rev.id)
+        assert tuple(diff_comp.depends_on) == (
+            growth_comp.id,
+            store_growth_comp.id,
+        )
+        current_ref = SemanticCellRef(
+            id=current_rev.id,
+            semantic_key=current_rev.semantic_key,
+            period_end=current_rev.period_end,
+            cell=current_rev.cell,
+            tab=current_rev.tab,
+        )
+        prior_ref = SemanticCellRef(
+            id=prior_rev.id,
+            semantic_key=prior_rev.semantic_key,
+            period_end=prior_rev.period_end,
+            cell=prior_rev.cell,
+            tab=prior_rev.tab,
+        )
+        compact_growth = growth_comp.formula.replace(" ", "")
+        expected_growth_f = resolve_revenue_store_growth_formula(
+            current_ref, prior_ref, from_tab=STORE_COUNT_SHEET
+        ).replace(" ", "")
+        assert compact_growth == expected_growth_f
+        current_row, current_col = parse_cell_ref(current_rev.cell)
+        prior_row, prior_col = parse_cell_ref(prior_rev.cell)
+        assert current_col != prior_col + 1
+        adjacent_prior = f"{get_column_letter(current_col - 1)}{current_row}"
+        default_current = (
+            f"{get_column_letter(2 + axis.index(period))}"
+            f"{DEFAULT_REVENUE_STORE_SOURCE_ROW}"
+        )
+        default_prior = (
+            f"{get_column_letter(2 + axis.index(prior))}"
+            f"{DEFAULT_REVENUE_STORE_SOURCE_ROW}"
+        )
+        assert adjacent_prior not in compact_growth
+        assert default_current not in compact_growth
+        assert default_prior not in compact_growth
+        growth_ref = SemanticCellRef(
+            id=growth_comp.id,
+            semantic_key=growth_comp.semantic_key,
+            period_end=growth_comp.period_end,
+            cell=growth_comp.cell,
+            tab=growth_comp.tab,
+        )
+        store_ref = SemanticCellRef(
+            id=store_growth_comp.id,
+            semantic_key=store_growth_comp.semantic_key,
+            period_end=store_growth_comp.period_end,
+            cell=store_growth_comp.cell,
+            tab=store_growth_comp.tab,
+        )
+        compact_diff = diff_comp.formula.replace(" ", "")
+        assert compact_diff == resolve_revenue_store_difference_formula(
+            growth_ref, store_ref, from_tab=STORE_COUNT_SHEET
+        ).replace(" ", "")
+        assert growth_comp.expected_value == pytest.approx(
+            expected_rev_growth, abs=OPERATING_KPI_RELATIONSHIP_TOLERANCE
+        )
+        assert diff_comp.expected_value == pytest.approx(
+            expected_diff, abs=OPERATING_KPI_RELATIONSHIP_TOLERANCE
+        )
+        a_growth = awb[growth_comp.tab].cell(*parse_cell_ref(growth_comp.cell))
+        t_growth = twb[growth_comp.tab].cell(*parse_cell_ref(growth_comp.cell))
+        a_diff = awb[diff_comp.tab].cell(*parse_cell_ref(diff_comp.cell))
+        t_diff = twb[diff_comp.tab].cell(*parse_cell_ref(diff_comp.cell))
+        assert str(a_growth.value).replace(" ", "") == compact_growth
+        assert str(a_diff.value).replace(" ", "") == compact_diff
+        assert t_growth.value in (None, "")
+        assert t_diff.value in (None, "")
+        assert t_growth.comment is None
+        assert t_diff.comment is None
+        assert _fill_rgb(t_growth) == "FFFF00"
+        assert _fill_rgb(t_diff) == "FFFF00"
+        assert _fill_rgb(a_growth) in WHITE_RGBS
+        assert _fill_rgb(a_diff) in WHITE_RGBS
+        assert (a_growth.comment.text or "").strip()
+        assert (a_diff.comment.text or "").strip()
+
+    awb.close()
+    twb.close()
+    _assert_visible_parity(trainer, answer, practice)
+    _assert_fresh_visible_style(trainer, practice_cells=practice, role="trainer")
+    _assert_fresh_visible_style(answer, practice_cells=practice, role="answer_key")
+    _assert_answer_key_no_yellow(answer)
+
+    answer_hash = _sha256(answer)
+    blank = check_workbook(trainer)
+    total = LULULEMON_STORE_AUGMENTED_PRACTICE + REVENUE_STORE_LULULEMON_SPECS
+    assert (blank.total, blank.blank, blank.correct, blank.incorrect) == (
+        total,
+        total,
+        0,
+        0,
+    )
+    dumped_blank = repr(blank)
+    assert "100*(" not in dumped_blank
+    assert "Growth difference" not in dumped_blank
+
+    filled_trainer, filled_answer = _copy_pair(
+        trainer, answer, tmp_path / "rev_moved_filled_check"
+    )
+    wb = load_workbook(filled_trainer, data_only=False)
+    for comp in all_comps:
+        row, col = parse_cell_ref(comp.cell)
+        wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    wb.save(filled_trainer)
+    wb.close()
+    filled = check_workbook(filled_trainer)
+    assert (filled.total, filled.correct, filled.incorrect, filled.blank) == (
+        total,
+        total,
+        0,
+        0,
+    )
+
+    incorrect_trainer, _incorrect_answer = _copy_pair(
+        filled_trainer, filled_answer, tmp_path / "rev_moved_incorrect_check"
+    )
+    bad = next(
+        c
+        for c in relationship_comps
+        if c.family_id == REVENUE_STORE_DIFFERENCE_FAMILY_ID
+        and c.period_end == P2026.isoformat()
+    )
+    _inject_formula_and_cached_value(
+        incorrect_trainer,
+        bad.tab,
+        bad.cell,
+        formula="=999",
+        cached_value=999.0,
+    )
+    bad_summary = check_workbook(incorrect_trainer)
+    assert bad_summary.incorrect == 1
+    assert bad_summary.correct == bad_summary.total - 1
+    assert bad_summary.blank == 0
+    dumped = repr(bad_summary)
+    assert "=999" not in dumped
+    assert bad.formula not in dumped
+    assert _sha256(answer) == answer_hash
+    assert _sha256(filled_answer) == answer_hash
+
+    tamper_trainer, _tamper_answer = _copy_pair(
+        trainer, answer, tmp_path / "rev_moved_tamper"
+    )
+    moved_row, moved_col = MOVED_REVENUE_STORE_SOURCE_PLACEMENT[0]
+    wb = load_workbook(tamper_trainer, data_only=False)
+    wb[STORE_COUNT_SHEET].cell(moved_row, moved_col).value = 1
+    wb.save(tamper_trainer)
+    wb.close()
+    with pytest.raises(
+        ValueError,
+        match="Trusted workbook cell was modified: Store Count Analysis",
+    ):
+        check_workbook(tamper_trainer)
