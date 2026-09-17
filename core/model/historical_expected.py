@@ -12,6 +12,9 @@ from ..engine.component_catalog import (
     REVENUE_STORE_COMPONENT_CATALOG,
     REVENUE_STORE_DIFFERENCE_FAMILY_ID,
     REVENUE_STORE_GROWTH_FAMILY_ID,
+    COMPARABLE_SALES_COMPONENT_CATALOG,
+    COMPARABLE_SALES_DIFFERENCE_FAMILY_ID,
+    comparable_sales_identity_from_component,
     INVENTORY_ANALYSIS_COMPONENT_CATALOG,
     REPORTED_MARGIN_COMPONENT_CATALOG,
     SHARE_REPURCHASE_COMPONENT_CATALOG,
@@ -49,7 +52,10 @@ from .financial_math import AnchorMetrics
 from .fixed_asset import FixedAssetSeries
 from .geographic_segment import GeographicSegmentSeries
 from .operating_kpi import OperatingKpiSeries
-from .operating_kpi_relationships import OperatingKpiRevenueStoreRelationship
+from .operating_kpi_relationships import (
+    OperatingKpiRevenueComparableSalesRelationship,
+    OperatingKpiRevenueStoreRelationship,
+)
 from .goodwill_intangibles import (
     GoodwillIntangiblesAvailability,
     GoodwillIntangiblesSeries,
@@ -265,6 +271,7 @@ _OPERATING_KPI_FAMILY_SERIES = (
     "store_count_growth",
     REVENUE_STORE_GROWTH_FAMILY_ID,
     REVENUE_STORE_DIFFERENCE_FAMILY_ID,
+    COMPARABLE_SALES_DIFFERENCE_FAMILY_ID,
 )
 
 _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
@@ -1054,28 +1061,56 @@ def geographic_expected_value_for_component(
 
 
 def operating_kpi_expected_value_for_component(
-    operating_kpi: OperatingKpiSeries,
+    operating_kpi: OperatingKpiSeries | None,
     component: ResolvedComponent,
     *,
     operating_kpi_relationship: OperatingKpiRevenueStoreRelationship | None = None,
+    operating_kpi_compsales_relationship: (
+        OperatingKpiRevenueComparableSalesRelationship | None
+    ) = None,
 ) -> float | str | None:
-    """Look up one store-count or revenue/store practice expected."""
+    """Look up one store-count, revenue/store, or comparable-sales expected."""
     store_ids = {family.id for family in STORE_COUNT_COMPONENT_CATALOG}
     relationship_ids = {family.id for family in REVENUE_STORE_COMPONENT_CATALOG}
-    if component.family_id in relationship_ids:
-        if operating_kpi_relationship is None:
+    compsales_ids = {family.id for family in COMPARABLE_SALES_COMPONENT_CATALOG}
+    if not component.period_end:
+        raise ValueError(
+            f"operating KPI component {component.id!r} is missing period_end"
+        )
+    period = date.fromisoformat(component.period_end)
+    if component.family_id in compsales_ids:
+        if operating_kpi_compsales_relationship is None:
             raise ValueError(
                 f"Operating-KPI family {component.family_id!r} requires an "
-                "OperatingKpiRevenueStoreRelationship"
+                "OperatingKpiRevenueComparableSalesRelationship"
             )
-        if not component.period_end:
-            raise ValueError(
-                f"operating KPI component {component.id!r} is missing period_end"
-            )
-        period = date.fromisoformat(component.period_end)
+        identity = comparable_sales_identity_from_component(
+            component, operating_kpi_compsales_relationship.identities
+        )
+        if component.family_id == COMPARABLE_SALES_DIFFERENCE_FAMILY_ID:
+            return operating_kpi_compsales_relationship.series[identity].growth_difference_pp[
+                period
+            ]
+        raise ValueError(f"Unknown operating KPI family {component.family_id!r}")
+    if component.family_id in relationship_ids:
         if component.family_id == REVENUE_STORE_GROWTH_FAMILY_ID:
-            return operating_kpi_relationship.revenue_growth[period]
+            if operating_kpi_relationship is not None:
+                return operating_kpi_relationship.revenue_growth[period]
+            if operating_kpi_compsales_relationship is not None:
+                first = operating_kpi_compsales_relationship.series[
+                    operating_kpi_compsales_relationship.identities[0]
+                ]
+                return first.revenue_growth[period]
+            raise ValueError(
+                f"Operating-KPI family {component.family_id!r} requires a "
+                "revenue-growth relationship"
+            )
         if component.family_id == REVENUE_STORE_DIFFERENCE_FAMILY_ID:
+            if operating_kpi_relationship is None:
+                raise ValueError(
+                    f"Operating-KPI family {component.family_id!r} requires an "
+                    "OperatingKpiRevenueStoreRelationship"
+                )
             return operating_kpi_relationship.growth_difference_pp[period]
         raise ValueError(f"Unknown operating KPI family {component.family_id!r}")
     if component.family_id not in store_ids:
@@ -1083,11 +1118,10 @@ def operating_kpi_expected_value_for_component(
             f"operating_kpi_expected_value_for_component unknown family "
             f"{component.family_id!r}"
         )
-    if not component.period_end:
+    if operating_kpi is None:
         raise ValueError(
-            f"operating KPI component {component.id!r} is missing period_end"
+            f"Operating-KPI family {component.family_id!r} requires an OperatingKpiSeries"
         )
-    period = date.fromisoformat(component.period_end)
     family_id = component.family_id
     if family_id == "store_count_net_change":
         return operating_kpi.net_count_change[period]
@@ -1217,6 +1251,9 @@ def expected_value_for_component(
     geographic: GeographicSegmentSeries | None = None,
     operating_kpi: OperatingKpiSeries | None = None,
     operating_kpi_relationship: OperatingKpiRevenueStoreRelationship | None = None,
+    operating_kpi_compsales_relationship: (
+        OperatingKpiRevenueComparableSalesRelationship | None
+    ) = None,
 ) -> float | str | None:
     """Return the treatment-conditioned expected value for one practice component."""
     family_id = component.family_id
@@ -1343,13 +1380,31 @@ def expected_value_for_component(
             )
         return geographic_expected_value_for_component(geographic, component)
     elif family_id in _OPERATING_KPI_FAMILY_SERIES:
-        if family_id in {family.id for family in REVENUE_STORE_COMPONENT_CATALOG}:
-            if operating_kpi_relationship is None:
+        compsales_ids = {family.id for family in COMPARABLE_SALES_COMPONENT_CATALOG}
+        relationship_ids = {family.id for family in REVENUE_STORE_COMPONENT_CATALOG}
+        if family_id in compsales_ids:
+            if operating_kpi_compsales_relationship is None:
                 raise ValueError(
                     f"Operating-KPI family {family_id!r} requires an "
-                    "OperatingKpiRevenueStoreRelationship"
+                    "OperatingKpiRevenueComparableSalesRelationship"
                 )
-            if operating_kpi is None:
+            return operating_kpi_expected_value_for_component(
+                operating_kpi,
+                component,
+                operating_kpi_compsales_relationship=(
+                    operating_kpi_compsales_relationship
+                ),
+            )
+        if family_id in relationship_ids:
+            if (
+                operating_kpi_relationship is None
+                and operating_kpi_compsales_relationship is None
+            ):
+                raise ValueError(
+                    f"Operating-KPI family {family_id!r} requires a "
+                    "revenue-growth relationship"
+                )
+            if family_id == REVENUE_STORE_DIFFERENCE_FAMILY_ID and operating_kpi is None:
                 raise ValueError(
                     f"Operating-KPI family {family_id!r} requires an OperatingKpiSeries"
                 )
@@ -1357,6 +1412,9 @@ def expected_value_for_component(
                 operating_kpi,
                 component,
                 operating_kpi_relationship=operating_kpi_relationship,
+                operating_kpi_compsales_relationship=(
+                    operating_kpi_compsales_relationship
+                ),
             )
         if operating_kpi is None:
             raise ValueError(

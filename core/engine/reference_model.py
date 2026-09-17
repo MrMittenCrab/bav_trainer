@@ -41,8 +41,11 @@ from ..model.operating_kpi import (
     operating_kpi_applicable,
 )
 from ..model.operating_kpi_relationships import (
+    COMPARABLE_SALES_SCOPE_NOTE,
     SCOPE_NOTE,
+    compute_operating_kpi_revenue_comparable_sales_relationship,
     compute_operating_kpi_revenue_store_relationship,
+    operating_kpi_revenue_comparable_sales_relationship_applicable,
 )
 from ..model.goodwill_intangibles import (
     compute_goodwill_intangibles_series,
@@ -172,6 +175,8 @@ from .component_catalog import (
     expand_store_count_specs,
     expand_revenue_store_source_specs,
     expand_revenue_store_specs,
+    expand_comparable_sales_source_specs,
+    expand_comparable_sales_specs,
     expand_capex_specs,
     geographic_component_id,
     geographic_identity_label,
@@ -182,8 +187,16 @@ from .component_catalog import (
     REVENUE_STORE_DIFFERENCE_FAMILY_ID,
     REVENUE_STORE_GROWTH_FAMILY_ID,
     REVENUE_STORE_SOURCE_FAMILY_ID,
+    COMPARABLE_SALES_DIFFERENCE_FAMILY_ID,
+    COMPARABLE_SALES_PCT_FORMAT,
+    COMPARABLE_SALES_SHEET_NAME,
+    COMPARABLE_SALES_SOURCE_FAMILY_ID,
     StoreCountSourceRef,
     SemanticCellRef,
+    comparable_sales_identity_label,
+    comparable_sales_identity_token,
+    comparable_sales_source_component_id,
+    resolve_revenue_comparable_sales_difference_formula,
     resolve_revenue_store_difference_formula,
     resolve_revenue_store_growth_formula,
     resolve_store_count_growth_formula,
@@ -248,6 +261,7 @@ PER_SHARE_SHEET = "Per Share Analysis"
 OWNERSHIP_ATTRIBUTION_SHEET = "Ownership Attribution"
 GEOGRAPHIC_SHEET = GEOGRAPHIC_SHEET_NAME
 STORE_COUNT_SHEET = STORE_COUNT_SHEET_NAME
+COMPARABLE_SALES_SHEET = COMPARABLE_SALES_SHEET_NAME
 JUDGMENT_INSTRUCTION = (
     "The supplied treatment is the model's reference treatment, not a universal "
     "accounting truth. Compare it with the listed alternative(s), choose the "
@@ -337,6 +351,44 @@ def _revenue_store_expand_inputs(
         if difference is not None and not is_source_unavailable(difference):
             difference_periods.append(period)
     return tuple(source_periods), tuple(growth_periods), tuple(difference_periods)
+
+
+def _shared_revenue_expand_inputs(
+    periods: tuple[date, ...],
+    revenue: dict[date, float | str],
+    revenue_growth: dict[date, float | str | None],
+) -> tuple[tuple[date, ...], tuple[date, ...]]:
+    source_periods: list[date] = []
+    growth_periods: list[date] = []
+    for period in periods:
+        current = revenue[period]
+        if current is not None and not is_source_unavailable(current):
+            source_periods.append(period)
+        growth = revenue_growth[period]
+        if growth is not None and not is_source_unavailable(growth):
+            growth_periods.append(period)
+    return tuple(source_periods), tuple(growth_periods)
+
+
+def _comparable_sales_expand_inputs(
+    relationship,
+) -> tuple[dict[str, tuple[date, ...]], dict[str, tuple[date, ...]]]:
+    source_periods: dict[str, tuple[date, ...]] = {}
+    difference_periods: dict[str, tuple[date, ...]] = {}
+    for identity in relationship.identities:
+        series = relationship.series[identity]
+        sources: list[date] = []
+        differences: list[date] = []
+        for period in relationship.periods:
+            compsales = series.comparable_sales_growth[period]
+            if compsales is not None and not is_source_unavailable(compsales):
+                sources.append(period)
+            difference = series.growth_difference_pp[period]
+            if difference is not None and not is_source_unavailable(difference):
+                differences.append(period)
+        source_periods[identity] = tuple(sources)
+        difference_periods[identity] = tuple(differences)
+    return source_periods, difference_periods
 
 
 class ReferenceModelBuilder:
@@ -857,6 +909,13 @@ class ReferenceModelBuilder:
         return self.geographic_specs
 
     def _prepare_operating_kpi(self, start_order: int):
+        self.operating_kpi_series = None
+        self.operating_kpi_relationship = None
+        self.operating_kpi_compsales_relationship = None
+        specs: list = []
+        order = start_order
+        revenue_registered = False
+
         if operating_kpi_applicable(self.fin):
             self.operating_kpi_series = compute_operating_kpi_series(
                 self.fin,
@@ -881,39 +940,89 @@ class ReferenceModelBuilder:
             }
             source_specs = expand_store_count_source_specs(
                 self.periods,
-                start_order=start_order,
+                start_order=order,
                 source_periods=source_periods,
                 units=units,
             )
+            order += len(source_specs)
             revenue_source_specs = expand_revenue_store_source_specs(
                 self.periods,
-                start_order=start_order + len(source_specs),
+                start_order=order,
                 source_periods=revenue_source_periods,
             )
+            order += len(revenue_source_specs)
             practice_specs = expand_store_count_specs(
                 self.periods,
-                start_order=start_order + len(source_specs) + len(revenue_source_specs),
+                start_order=order,
                 change_periods=change_periods,
                 growth_periods=growth_periods,
             )
+            order += len(practice_specs)
             relationship_specs = expand_revenue_store_specs(
                 self.periods,
-                start_order=(
-                    start_order
-                    + len(source_specs)
-                    + len(revenue_source_specs)
-                    + len(practice_specs)
-                ),
+                start_order=order,
                 growth_periods=revenue_growth_periods,
                 difference_periods=difference_periods,
             )
-            self.operating_kpi_specs = (
-                source_specs + revenue_source_specs + practice_specs + relationship_specs
+            order += len(relationship_specs)
+            specs.extend(
+                source_specs
+                + revenue_source_specs
+                + practice_specs
+                + relationship_specs
             )
-        else:
-            self.operating_kpi_series = None
-            self.operating_kpi_relationship = None
-            self.operating_kpi_specs = ()
+            revenue_registered = True
+
+        if operating_kpi_revenue_comparable_sales_relationship_applicable(self.fin):
+            self.operating_kpi_compsales_relationship = (
+                compute_operating_kpi_revenue_comparable_sales_relationship(
+                    self.fin,
+                    self.periods,
+                )
+            )
+            compsales = self.operating_kpi_compsales_relationship
+            source_by_identity, difference_by_identity = (
+                _comparable_sales_expand_inputs(compsales)
+            )
+            if not revenue_registered:
+                first = compsales.series[compsales.identities[0]]
+                revenue_source_periods, revenue_growth_periods = (
+                    _shared_revenue_expand_inputs(
+                        compsales.periods,
+                        first.revenue,
+                        first.revenue_growth,
+                    )
+                )
+                revenue_source_specs = expand_revenue_store_source_specs(
+                    self.periods,
+                    start_order=order,
+                    source_periods=revenue_source_periods,
+                )
+                order += len(revenue_source_specs)
+                growth_specs = expand_revenue_store_specs(
+                    self.periods,
+                    start_order=order,
+                    growth_periods=revenue_growth_periods,
+                    difference_periods=(),
+                )
+                order += len(growth_specs)
+                specs.extend(revenue_source_specs + growth_specs)
+            compsales_source_specs = expand_comparable_sales_source_specs(
+                self.periods,
+                start_order=order,
+                identities=compsales.identities,
+                source_periods_by_identity=source_by_identity,
+            )
+            order += len(compsales_source_specs)
+            compsales_practice_specs = expand_comparable_sales_specs(
+                self.periods,
+                start_order=order,
+                identities=compsales.identities,
+                difference_periods_by_identity=difference_by_identity,
+            )
+            specs.extend(compsales_source_specs + compsales_practice_specs)
+
+        self.operating_kpi_specs = tuple(specs)
         return self.operating_kpi_specs
 
     def _default_assumptions(self) -> dict[str, Any]:
@@ -1646,8 +1755,9 @@ class ReferenceModelBuilder:
         formula: str,
         expected: float | str,
         related: list[str] | None = None,
+        identity: str = "",
     ) -> None:
-        spec = self._operating_kpi_spec_index[(family_id, period_index)]
+        spec = self._operating_kpi_spec_index[(family_id, period_index, identity)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -7083,6 +7193,33 @@ class ReferenceModelBuilder:
         """
         return default_row, default_col
 
+    def _comparable_sales_source_placement(
+        self,
+        identity: str,
+        period_index: int,
+        default_row: int,
+        default_col: int,
+    ) -> tuple[int, int] | tuple[int, int, str]:
+        """Return the worksheet placement for one reported comparable-sales source.
+
+        Default layout keeps sources on the identity source row at consecutive
+        period columns. Tests may override this hook to relocate sources,
+        including nonadjacent columns and another existing sheet, before
+        registration and formula resolution.
+        """
+        return default_row, default_col
+
+    def _normalize_source_placement(
+        self,
+        placed: tuple[int, int] | tuple[int, int, str],
+        default_tab: str,
+    ) -> tuple[int, int, str]:
+        if len(placed) == 2:
+            return placed[0], placed[1], default_tab
+        if len(placed) == 3:
+            return placed[0], placed[1], placed[2]
+        raise ValueError("source placement must be (row, col) or (row, col, tab)")
+
     def _build_store_count(self, wb: Workbook) -> None:
         if self.operating_kpi_series is None:
             raise RuntimeError(
@@ -7134,7 +7271,9 @@ class ReferenceModelBuilder:
             assert value is not None
             return value if isinstance(value, str) else float(value)
 
-        def _put_number(row: int, col_idx: int, value: float) -> None:
+        def _put_number(
+            row: int, col_idx: int, value: float, *, ws=ws
+        ) -> None:
             cell = ws.cell(row=row, column=col_idx, value=float(value))
             cell.number_format = NUM_FMT
 
@@ -7162,11 +7301,13 @@ class ReferenceModelBuilder:
             col_idx: int,
             formula: str,
             expected: float | str | None,
+            *,
+            tab: str = STORE_COUNT_SHEET,
         ) -> None:
             self._register_operating_kpi(
                 family_id,
                 period_index,
-                STORE_COUNT_SHEET,
+                tab,
                 row,
                 col_idx,
                 formula,
@@ -7281,15 +7422,17 @@ class ReferenceModelBuilder:
         for j, period in enumerate(self.periods):
             col_idx = 2 + j
             revenue = relationship.revenue[period]
-            revenue_row_idx, revenue_col = self._revenue_store_source_placement(
-                j, revenue_row, col_idx
+            revenue_row_idx, revenue_col, revenue_tab = self._normalize_source_placement(
+                self._revenue_store_source_placement(j, revenue_row, col_idx),
+                STORE_COUNT_SHEET,
             )
+            revenue_ws = ws if revenue_tab == STORE_COUNT_SHEET else wb[revenue_tab]
             if is_source_unavailable(revenue):
                 self._stamp_unavailable(
-                    ws, revenue_row_idx, revenue_col, SOURCE_UNAVAILABLE
+                    revenue_ws, revenue_row_idx, revenue_col, SOURCE_UNAVAILABLE
                 )
             else:
-                _put_number(revenue_row_idx, revenue_col, float(revenue))
+                _put_number(revenue_row_idx, revenue_col, float(revenue), ws=revenue_ws)
                 _register(
                     REVENUE_STORE_SOURCE_FAMILY_ID,
                     j,
@@ -7297,6 +7440,7 @@ class ReferenceModelBuilder:
                     revenue_col,
                     store_count_source_map_formula(float(revenue)),
                     float(revenue),
+                    tab=revenue_tab,
                 )
 
         for j, period in enumerate(self.periods):
@@ -7396,6 +7540,421 @@ class ReferenceModelBuilder:
                     difference_f,
                     difference,
                 )
+
+    def _build_comparable_sales(self, wb: Workbook) -> None:
+        if self.operating_kpi_compsales_relationship is None:
+            raise RuntimeError(
+                "operating_kpi_compsales_relationship required when building "
+                "Comparable Sales Analysis"
+            )
+        relationship = self.operating_kpi_compsales_relationship
+        if relationship.scope_note != COMPARABLE_SALES_SCOPE_NOTE:
+            raise RuntimeError(
+                "revenue/comparable-sales scope note drifted from the accepted API"
+            )
+        ws = wb.create_sheet(COMPARABLE_SALES_SHEET)
+        ws["A1"] = f"{self.fin.company_name} — Comparable Sales Analysis"
+        ws["A1"].font = BOLD
+        ws["A2"] = (
+            "Source-supported reported global comparable-sales percentages "
+            "compared with statement-derived consolidated revenue growth. "
+            "Full management identities stay isolated."
+        )
+        ws["A3"] = (
+            f"Currency {relationship.currency}; monetary scale "
+            f"{relationship.monetary_scale}. Reported comparable-sales remain "
+            "in percent units (2 means 2%)."
+        )
+        ws["A4"] = (
+            "Opening difference is not practiced. A missing current "
+            "comparable-sales or revenue input remains unavailable. A missing "
+            "prior comparable-sales observation does not suppress a current "
+            "comparison."
+        )
+        ws["A5"] = relationship.scope_note
+        ws.column_dimensions["A"].width = 64
+
+        header_row = 6
+        ws.cell(row=header_row, column=1, value="Metric").font = BOLD
+        for j, pd in enumerate(self.periods):
+            cell = ws.cell(row=header_row, column=2 + j, value=pd)
+            cell.number_format = "mmm dd, yyyy"
+            cell.font = BOLD
+            ws.column_dimensions[self._col(2 + j)].width = 16
+
+        def _section(row: int, title: str) -> None:
+            ws.cell(row=row, column=1, value=title).font = BOLD
+
+        def _label(row: int, text: str) -> None:
+            ws.cell(row=row, column=1, value=text)
+
+        def _expected(value: float | str | None) -> float | str:
+            assert value is not None
+            return value if isinstance(value, str) else float(value)
+
+        def _target_sheet(tab: str):
+            if tab == COMPARABLE_SALES_SHEET:
+                return ws
+            if tab not in wb.sheetnames:
+                raise RuntimeError(
+                    f"comparable-sales source tab {tab!r} does not exist"
+                )
+            return wb[tab]
+
+        def _put_number(
+            row: int,
+            col_idx: int,
+            value: float,
+            *,
+            tab: str = COMPARABLE_SALES_SHEET,
+            percent: bool = False,
+        ) -> None:
+            cell = _target_sheet(tab).cell(row=row, column=col_idx, value=float(value))
+            cell.number_format = COMPARABLE_SALES_PCT_FORMAT if percent else NUM_FMT
+
+        def _put_formula(
+            row: int,
+            col_idx: int,
+            formula: str,
+            *,
+            pct: bool = False,
+            points: bool = False,
+        ):
+            cell = ws.cell(row=row, column=col_idx, value=formula)
+            if pct:
+                cell.number_format = PCT_FMT
+            elif points:
+                cell.number_format = "0.00"
+            else:
+                cell.number_format = NUM_FMT
+            return cell
+
+        def _register(
+            family_id: str,
+            period_index: int,
+            row: int,
+            col_idx: int,
+            formula: str,
+            expected: float | str | None,
+            *,
+            tab: str = COMPARABLE_SALES_SHEET,
+            identity: str = "",
+        ) -> None:
+            self._register_operating_kpi(
+                family_id,
+                period_index,
+                tab,
+                row,
+                col_idx,
+                formula,
+                _expected(expected),
+                identity=identity,
+            )
+
+        def _mapped_ref(component_id: str) -> SemanticCellRef:
+            mapped = self.semantic_map.get(component_id)
+            return SemanticCellRef(
+                id=mapped.id,
+                semantic_key=mapped.semantic_key,
+                period_end=mapped.period_end,
+                cell=mapped.cell,
+                tab=mapped.tab,
+            )
+
+        def _format_qualifiers(value: dict[str, str] | str) -> str:
+            if is_source_unavailable(value):
+                return SOURCE_UNAVAILABLE
+            assert isinstance(value, dict)
+            return json.dumps(value, sort_keys=True, separators=(",", ":"))
+
+        first = relationship.series[relationship.identities[0]]
+        place_shared_revenue = self.operating_kpi_relationship is None
+
+        cursor = 8
+        revenue_row = None
+        revenue_growth_row = None
+        if place_shared_revenue:
+            _section(cursor, "CONSOLIDATED REVENUE")
+            cursor += 1
+            revenue_row = cursor
+            _label(revenue_row, "Consolidated revenue (reported source)")
+            cursor += 2
+            _section(cursor, "CONSOLIDATED REVENUE GROWTH")
+            cursor += 1
+            revenue_growth_row = cursor
+            _label(
+                revenue_growth_row,
+                "Consolidated revenue growth (statement-derived)",
+            )
+            cursor += 2
+
+        identity_layout: dict[str, dict[str, int]] = {}
+        for identity in relationship.identities:
+            series = relationship.series[identity]
+            _section(
+                cursor,
+                "COMPARABLE SALES — "
+                + comparable_sales_identity_label(
+                    entity_ticker=series.entity_ticker,
+                    entity_company=series.entity_company,
+                    geography=series.geography,
+                    population=series.population,
+                    unit=series.unit,
+                    basis=series.basis,
+                    comparison=series.comparison,
+                ),
+            )
+            cursor += 1
+            rows = {
+                "family": cursor,
+                "entity_ticker": cursor + 1,
+                "entity_company": cursor + 2,
+                "geography": cursor + 3,
+                "population": cursor + 4,
+                "unit": cursor + 5,
+                "basis": cursor + 6,
+                "comparison": cursor + 7,
+                "definition": cursor + 8,
+                "period_kind": cursor + 9,
+                "calendar_week": cursor + 10,
+                "calendar_basis": cursor + 11,
+                "qualifiers": cursor + 12,
+                "source": cursor + 13,
+                "difference": cursor + 14,
+            }
+            _label(rows["family"], "Family (reported)")
+            _label(rows["entity_ticker"], "Entity ticker")
+            _label(rows["entity_company"], "Entity company")
+            _label(rows["geography"], "Geography")
+            _label(rows["population"], "Population")
+            _label(rows["unit"], "Unit")
+            _label(rows["basis"], "Reporting basis")
+            _label(rows["comparison"], "Comparison")
+            _label(rows["definition"], "Definition")
+            _label(rows["period_kind"], "Period kind")
+            _label(rows["calendar_week"], "Calendar week adjustment")
+            _label(rows["calendar_basis"], "Calendar reporting basis")
+            _label(rows["qualifiers"], "Qualifiers")
+            _label(
+                rows["source"],
+                "Reported comparable-sales growth (percent; 2 means 2%)",
+            )
+            _label(
+                rows["difference"],
+                "Growth difference (analyst-derived, percentage points)",
+            )
+            identity_layout[identity] = rows
+            cursor = rows["difference"] + 2
+
+        self.rowmap["comparable_sales_header_row"] = header_row
+        if revenue_row is not None:
+            self.rowmap["comparable_sales_revenue_row"] = revenue_row
+        if revenue_growth_row is not None:
+            self.rowmap["comparable_sales_growth_row"] = revenue_growth_row
+        self.rowmap["comparable_sales_identity_rows"] = {
+            identity: dict(rows) for identity, rows in identity_layout.items()
+        }
+
+        if place_shared_revenue:
+            assert revenue_row is not None and revenue_growth_row is not None
+            for j, period in enumerate(self.periods):
+                col_idx = 2 + j
+                revenue = first.revenue[period]
+                revenue_row_idx, revenue_col, revenue_tab = (
+                    self._normalize_source_placement(
+                        self._revenue_store_source_placement(j, revenue_row, col_idx),
+                        COMPARABLE_SALES_SHEET,
+                    )
+                )
+                if is_source_unavailable(revenue):
+                    self._stamp_unavailable(
+                        _target_sheet(revenue_tab),
+                        revenue_row_idx,
+                        revenue_col,
+                        SOURCE_UNAVAILABLE,
+                    )
+                else:
+                    _put_number(
+                        revenue_row_idx,
+                        revenue_col,
+                        float(revenue),
+                        tab=revenue_tab,
+                    )
+                    _register(
+                        REVENUE_STORE_SOURCE_FAMILY_ID,
+                        j,
+                        revenue_row_idx,
+                        revenue_col,
+                        store_count_source_map_formula(float(revenue)),
+                        float(revenue),
+                        tab=revenue_tab,
+                    )
+
+            for j, period in enumerate(self.periods):
+                col_idx = 2 + j
+                revenue_growth = first.revenue_growth[period]
+                if j == 0 or revenue_growth is None:
+                    ws.cell(row=revenue_growth_row, column=col_idx, value="N/A")
+                elif is_source_unavailable(revenue_growth):
+                    self._stamp_unavailable(
+                        ws, revenue_growth_row, col_idx, SOURCE_UNAVAILABLE
+                    )
+                else:
+                    current = _mapped_ref(revenue_store_source_component_id(period))
+                    prior = _mapped_ref(
+                        revenue_store_source_component_id(self.periods[j - 1])
+                    )
+                    growth_f = resolve_revenue_store_growth_formula(
+                        current, prior, from_tab=COMPARABLE_SALES_SHEET
+                    )
+                    _put_formula(revenue_growth_row, col_idx, growth_f, pct=True)
+                    _register(
+                        REVENUE_STORE_GROWTH_FAMILY_ID,
+                        j,
+                        revenue_growth_row,
+                        col_idx,
+                        growth_f,
+                        revenue_growth,
+                    )
+
+        for identity in relationship.identities:
+            series = relationship.series[identity]
+            rows = identity_layout[identity]
+            token = comparable_sales_identity_token(identity)
+            for j, period in enumerate(self.periods):
+                col_idx = 2 + j
+                compsales = series.comparable_sales_growth[period]
+                source_row, source_col, source_tab = self._normalize_source_placement(
+                    self._comparable_sales_source_placement(
+                        identity,
+                        j,
+                        rows["source"],
+                        col_idx,
+                    ),
+                    COMPARABLE_SALES_SHEET,
+                )
+                if is_source_unavailable(compsales):
+                    for key in (
+                        "family",
+                        "entity_ticker",
+                        "entity_company",
+                        "geography",
+                        "population",
+                        "unit",
+                        "basis",
+                        "comparison",
+                        "definition",
+                        "period_kind",
+                        "calendar_week",
+                        "calendar_basis",
+                        "qualifiers",
+                    ):
+                        self._stamp_unavailable(
+                            ws, rows[key], col_idx, SOURCE_UNAVAILABLE
+                        )
+                    self._stamp_unavailable(
+                        _target_sheet(source_tab),
+                        source_row,
+                        source_col,
+                        SOURCE_UNAVAILABLE,
+                    )
+                else:
+                    ws.cell(row=rows["family"], column=col_idx, value=series.family)
+                    ws.cell(
+                        row=rows["entity_ticker"],
+                        column=col_idx,
+                        value=series.entity_ticker,
+                    )
+                    ws.cell(
+                        row=rows["entity_company"],
+                        column=col_idx,
+                        value=series.entity_company,
+                    )
+                    ws.cell(row=rows["geography"], column=col_idx, value=series.geography)
+                    ws.cell(
+                        row=rows["population"], column=col_idx, value=series.population
+                    )
+                    ws.cell(row=rows["unit"], column=col_idx, value=series.unit)
+                    ws.cell(row=rows["basis"], column=col_idx, value=series.basis)
+                    ws.cell(
+                        row=rows["comparison"], column=col_idx, value=series.comparison
+                    )
+                    ws.cell(
+                        row=rows["definition"],
+                        column=col_idx,
+                        value=series.definition_text[period],
+                    )
+                    ws.cell(
+                        row=rows["period_kind"],
+                        column=col_idx,
+                        value=series.period_kind[period],
+                    )
+                    ws.cell(
+                        row=rows["calendar_week"],
+                        column=col_idx,
+                        value=series.calendar_week_adjustment[period],
+                    )
+                    ws.cell(
+                        row=rows["calendar_basis"],
+                        column=col_idx,
+                        value=series.calendar_reporting_basis[period],
+                    )
+                    ws.cell(
+                        row=rows["qualifiers"],
+                        column=col_idx,
+                        value=_format_qualifiers(series.qualifiers[period]),
+                    )
+                    _put_number(
+                        source_row,
+                        source_col,
+                        float(compsales),
+                        tab=source_tab,
+                        percent=True,
+                    )
+                    _register(
+                        COMPARABLE_SALES_SOURCE_FAMILY_ID,
+                        j,
+                        source_row,
+                        source_col,
+                        store_count_source_map_formula(float(compsales)),
+                        float(compsales),
+                        tab=source_tab,
+                        identity=token,
+                    )
+
+                difference = series.growth_difference_pp[period]
+                if j == 0 or difference is None:
+                    ws.cell(row=rows["difference"], column=col_idx, value="N/A")
+                elif is_source_unavailable(difference):
+                    self._stamp_unavailable(
+                        ws, rows["difference"], col_idx, SOURCE_UNAVAILABLE
+                    )
+                else:
+                    revenue_growth_ref = _mapped_ref(
+                        revenue_store_component_id(
+                            REVENUE_STORE_GROWTH_FAMILY_ID, period
+                        )
+                    )
+                    compsales_ref = _mapped_ref(
+                        comparable_sales_source_component_id(period, identity)
+                    )
+                    difference_f = resolve_revenue_comparable_sales_difference_formula(
+                        revenue_growth_ref,
+                        compsales_ref,
+                        from_tab=COMPARABLE_SALES_SHEET,
+                    )
+                    _put_formula(
+                        rows["difference"], col_idx, difference_f, points=True
+                    )
+                    _register(
+                        COMPARABLE_SALES_DIFFERENCE_FAMILY_ID,
+                        j,
+                        rows["difference"],
+                        col_idx,
+                        difference_f,
+                        difference,
+                        identity=token,
+                    )
 
     def _build_model_tab(self, wb: Workbook, scenario: str) -> None:
         ws = wb.create_sheet(f"Model_{scenario}")

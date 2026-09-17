@@ -30,6 +30,7 @@ WORKING_CAPITAL_SHEET = "Working Capital Analysis"
 PER_SHARE_SHEET = "Per Share Analysis"
 GEOGRAPHIC_SHEET = "Geographic Segment Analysis"
 STORE_COUNT_SHEET = "Store Count Analysis"
+COMPARABLE_SALES_SHEET = "Comparable Sales Analysis"
 
 
 @dataclass(frozen=True)
@@ -655,6 +656,26 @@ def validate_live_model_structure(
             answer_key_wb[STORE_COUNT_SHEET],
             sheet_name=STORE_COUNT_SHEET,
             editable_cells=store_practice,
+        )
+
+    compsales_practice = {
+        cell for tab, cell in practice_cells if tab == COMPARABLE_SALES_SHEET
+    }
+    compsales_sheet_present = (
+        COMPARABLE_SALES_SHEET in trainer_wb.sheetnames
+        or COMPARABLE_SALES_SHEET in answer_key_wb.sheetnames
+    )
+    if compsales_practice or compsales_sheet_present:
+        for wb, label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
+            if COMPARABLE_SALES_SHEET not in wb.sheetnames:
+                raise ValueError(
+                    f"{label} is missing Comparable Sales Analysis sheet"
+                )
+        _validate_trusted_sheet_cells(
+            trainer_wb[COMPARABLE_SALES_SHEET],
+            answer_key_wb[COMPARABLE_SALES_SHEET],
+            sheet_name=COMPARABLE_SALES_SHEET,
+            editable_cells=compsales_practice,
         )
 
     _validate_trusted_sheet_cells(

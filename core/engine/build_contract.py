@@ -10,7 +10,11 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Callable
 
-from .component_catalog import ComponentSpec, geographic_spec_identity
+from .component_catalog import (
+    ComponentSpec,
+    geographic_spec_identity,
+    operating_kpi_spec_identity,
+)
 
 if TYPE_CHECKING:
     from openpyxl import Workbook
@@ -160,6 +164,9 @@ WORKING_CAPITAL = _writer("_build_working_capital_analysis", 8, when="working_ca
 PER_SHARE = _writer("_build_per_share_analysis", 9, when="per_share_series")
 GEOGRAPHIC = _writer("_build_geographic_segment", 10, when="geographic_series")
 OPERATING_KPI = _writer("_build_store_count", 11, when="operating_kpi_series")
+COMPARABLE_SALES = _writer(
+    "_build_comparable_sales", 12, when="operating_kpi_compsales_relationship"
+)
 
 
 def _integrated(id: str, writers: tuple[WorkbookWriter, ...], *,
@@ -202,6 +209,12 @@ BUILD_MODULES = (
     _integrated("geographic", (GEOGRAPHIC,), spec_key=lambda s: (
         s.family_id, s.period_index, geographic_spec_identity(s),
     )),
-    _integrated("operating_kpi", (OPERATING_KPI,)),
+    _integrated(
+        "operating_kpi",
+        (OPERATING_KPI, COMPARABLE_SALES),
+        spec_key=lambda s: (
+            s.family_id, s.period_index, operating_kpi_spec_identity(s),
+        ),
+    ),
     BuildModule("forecast", "deferred", True, True),
 )

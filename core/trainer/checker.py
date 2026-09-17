@@ -20,6 +20,7 @@ from ..engine.component_catalog import (
     GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG,
     STORE_COUNT_COMPONENT_CATALOG,
     REVENUE_STORE_COMPONENT_CATALOG,
+    COMPARABLE_SALES_COMPONENT_CATALOG,
     is_operating_kpi_source_identity,
     INVENTORY_ANALYSIS_COMPONENT_CATALOG,
     REPORTED_MARGIN_COMPONENT_CATALOG,
@@ -68,7 +69,9 @@ from ..model.operating_kpi import (
     operating_kpi_applicable,
 )
 from ..model.operating_kpi_relationships import (
+    compute_operating_kpi_revenue_comparable_sales_relationship,
     compute_operating_kpi_revenue_store_relationship,
+    operating_kpi_revenue_comparable_sales_relationship_applicable,
     operating_kpi_revenue_store_relationship_applicable,
 )
 from ..model.capex import compute_capex_series, capex_applicable
@@ -423,12 +426,18 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
             relationship_family_ids = {
                 family.id for family in REVENUE_STORE_COMPONENT_CATALOG
             }
+            compsales_family_ids = {
+                family.id for family in COMPARABLE_SALES_COMPONENT_CATALOG
+            }
             operating_kpi = None
             operating_kpi_relationship = None
-            if any(
-                comp.family_id in operating_kpi_family_ids | relationship_family_ids
-                for comp in comps
-            ):
+            operating_kpi_compsales_relationship = None
+            needed_ids = (
+                operating_kpi_family_ids
+                | relationship_family_ids
+                | compsales_family_ids
+            )
+            if any(comp.family_id in needed_ids for comp in comps):
                 if operating_kpi_applicable(financials):
                     operating_kpi = compute_operating_kpi_series(
                         financials,
@@ -437,6 +446,15 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                 if operating_kpi_revenue_store_relationship_applicable(financials):
                     operating_kpi_relationship = (
                         compute_operating_kpi_revenue_store_relationship(
+                            financials,
+                            list(modeled_periods),
+                        )
+                    )
+                if operating_kpi_revenue_comparable_sales_relationship_applicable(
+                    financials
+                ):
+                    operating_kpi_compsales_relationship = (
+                        compute_operating_kpi_revenue_comparable_sales_relationship(
                             financials,
                             list(modeled_periods),
                         )
@@ -465,6 +483,9 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     geographic=geographic,
                     operating_kpi=operating_kpi,
                     operating_kpi_relationship=operating_kpi_relationship,
+                    operating_kpi_compsales_relationship=(
+                        operating_kpi_compsales_relationship
+                    ),
                 )
                 for comp in comps
             }

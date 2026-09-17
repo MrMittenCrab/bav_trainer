@@ -9,6 +9,7 @@ ComponentSpec rows are produced by expand_historical_specs(periods).
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from datetime import date
 
@@ -5039,8 +5040,10 @@ def is_revenue_store_practice_identity(component: object) -> bool:
 
 
 def is_operating_kpi_source_identity(component: object) -> bool:
-    return is_store_count_source_identity(component) or is_revenue_store_source_identity(
-        component
+    return (
+        is_store_count_source_identity(component)
+        or is_revenue_store_source_identity(component)
+        or is_comparable_sales_source_identity(component)
     )
 
 
@@ -5307,4 +5310,302 @@ def expand_revenue_store_specs(
                 revenue_store_difference_dependency_ids(period),
             )
     return tuple(specs)
+
+
+COMPARABLE_SALES_SHEET_NAME = "Comparable Sales Analysis"
+COMPARABLE_SALES_SOURCE_FAMILY_ID = "operating_kpi_comparable_sales_source"
+COMPARABLE_SALES_SOURCE_CATEGORY = "operating_kpi_comparable_sales_source"
+COMPARABLE_SALES_PRACTICE_CATEGORY = "operating_kpi_comparable_sales"
+COMPARABLE_SALES_DIFFERENCE_FAMILY_ID = (
+    "operating_kpi_revenue_comparable_sales_difference"
+)
+COMPARABLE_SALES_PCT_FORMAT = '0.00"%"'
+
+
+def comparable_sales_identity_token(identity: str) -> str:
+    return hashlib.sha256(identity.encode("utf-8")).hexdigest()
+
+
+def comparable_sales_component_id(
+    family_id: str, period: date, identity: str
+) -> str:
+    return (
+        f"{family_id}__{comparable_sales_identity_token(identity)}__"
+        f"{period.strftime('%Y%m%d')}"
+    )
+
+
+def comparable_sales_source_component_id(period: date, identity: str) -> str:
+    return comparable_sales_component_id(
+        COMPARABLE_SALES_SOURCE_FAMILY_ID, period, identity
+    )
+
+
+def comparable_sales_source_semantic_key(period: date, identity: str) -> str:
+    token = comparable_sales_identity_token(identity)
+    return f"operating_kpi.comparable_sales.source.{token}.{period.isoformat()}"
+
+
+def operating_kpi_spec_identity(spec: object) -> str:
+    component_id = getattr(spec, "id", "")
+    parts = str(component_id).split("__")
+    if len(parts) == 2:
+        return ""
+    if len(parts) != 3:
+        raise ValueError(f"malformed operating KPI spec id {component_id!r}")
+    return parts[1]
+
+
+def comparable_sales_identity_from_component(
+    component: object, identities: tuple[str, ...]
+) -> str:
+    token = operating_kpi_spec_identity(component)
+    matches = [
+        identity
+        for identity in identities
+        if comparable_sales_identity_token(identity) == token
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            "operating KPI comparable-sales identity token "
+            f"{token!r} is not unique"
+        )
+    return matches[0]
+
+
+def is_comparable_sales_source_identity(component: object) -> bool:
+    return getattr(component, "category", None) == COMPARABLE_SALES_SOURCE_CATEGORY
+
+
+def is_comparable_sales_practice_identity(component: object) -> bool:
+    return getattr(component, "category", None) == COMPARABLE_SALES_PRACTICE_CATEGORY
+
+
+def resolve_revenue_comparable_sales_difference_formula(
+    revenue_growth: SemanticCellRef,
+    comparable_sales: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Percentage-point difference from mapped growth and reported compsales cells."""
+    revenue_cell = semantic_formula_cell(revenue_growth, from_tab=from_tab)
+    compsales_cell = semantic_formula_cell(comparable_sales, from_tab=from_tab)
+    return f"=100*{revenue_cell}-{compsales_cell}"
+
+
+def comparable_sales_identity_label(
+    *,
+    entity_ticker: str,
+    entity_company: str,
+    geography: str,
+    population: str,
+    unit: str,
+    basis: str,
+    comparison: str,
+) -> str:
+    return (
+        f"{entity_ticker} · {entity_company} · {geography} · {population} · "
+        f"{unit} · {basis} · {comparison}"
+    )
+
+
+COMPARABLE_SALES_SOURCE_FAMILY = ComponentFamily(
+    id=COMPARABLE_SALES_SOURCE_FAMILY_ID,
+    order=166,
+    title="Reported comparable-sales growth",
+    short_hint=(
+        "Populated reported global comparable-sales growth in percent units. "
+        "This is a reported source, not a practice cell. Distinct from "
+        "statement-derived consolidated revenue growth. A value of 2 means 2%."
+    ),
+    semantic_key="operating_kpi.comparable_sales.source",
+    category=COMPARABLE_SALES_SOURCE_CATEGORY,
+    tab_template=COMPARABLE_SALES_SHEET_NAME,
+    period_scope="all",
+    hints=(
+        "Reported comparable-sales growth is a reported source, not a practice cell.",
+        "The API unit is percent: 2 means 2%, not a 2.00 ratio.",
+        "Identities stay isolated; they are not merged, averaged, or selected.",
+        "This source is populated and is not practiced or Checked.",
+    ),
+    tolerance=0.0,
+)
+
+
+COMPARABLE_SALES_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id=COMPARABLE_SALES_DIFFERENCE_FAMILY_ID,
+        order=167,
+        title="Revenue vs comparable-sales growth difference",
+        short_hint=(
+            "Analyst-derived difference in percentage points = 100 × "
+            "statement-derived consolidated revenue growth − the current "
+            "reported comparable-sales percent. Opening difference is absent. "
+            "A missing growth or current comparable-sales input is unavailable "
+            "and takes precedence over an undefined ratio. Not growth of "
+            "growth, adjacent percentage-point change, new-store contribution, "
+            "revenue attribution, organic growth, productivity, or causality."
+        ),
+        semantic_key="operating_kpi.comparable_sales.growth_difference_pp",
+        category=COMPARABLE_SALES_PRACTICE_CATEGORY,
+        tab_template=COMPARABLE_SALES_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(
+            REVENUE_STORE_GROWTH_FAMILY_ID,
+            COMPARABLE_SALES_SOURCE_FAMILY_ID,
+        ),
+        hints=(
+            "The difference uses the same-period revenue-growth cell and the "
+            "current reported comparable-sales source.",
+            "Opening difference is absent; a missing input is unavailable, not compressed.",
+            "A missing prior comparable-sales observation does not suppress a current comparison.",
+            "The inputs have distinct scopes and do not imply causality.",
+        ),
+        tolerance=1e-12,
+    ),
+)
+
+
+def _require_comparable_sales_period_axis(periods: list[date], *, caller: str) -> None:
+    if len(periods) != len(set(periods)):
+        raise ValueError(f"duplicate fiscal periods are not allowed in {caller}")
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                f"{caller} requires strictly chronological (increasing) period dates"
+            )
+
+
+def expand_comparable_sales_source_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    identities: tuple[str, ...],
+    source_periods_by_identity: dict[str, tuple[date, ...]],
+) -> tuple[ComponentSpec, ...]:
+    """Register populated reported comparable-sales sources; never practice identities."""
+    _require_comparable_sales_period_axis(
+        periods, caller="expand_comparable_sales_source_specs"
+    )
+    if len(identities) != len(set(identities)):
+        raise ValueError(
+            "duplicate identities are not allowed in expand_comparable_sales_source_specs"
+        )
+    period_index = {period: index for index, period in enumerate(periods)}
+    family = COMPARABLE_SALES_SOURCE_FAMILY
+    specs: list[ComponentSpec] = []
+    order = start_order
+    for identity in identities:
+        source_periods = source_periods_by_identity.get(identity, ())
+        unknown = [period for period in source_periods if period not in period_index]
+        if unknown:
+            raise ValueError(
+                "expand_comparable_sales_source_specs received periods outside "
+                f"the canonical axis: {unknown}"
+            )
+        if len(source_periods) != len(set(source_periods)):
+            raise ValueError(
+                "duplicate source periods are not allowed in "
+                "expand_comparable_sales_source_specs"
+            )
+        for period in periods:
+            if period not in source_periods:
+                continue
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=comparable_sales_source_component_id(period, identity),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=comparable_sales_source_semantic_key(
+                        period, identity
+                    ),
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=period_index[period],
+                    period_end=period_end,
+                    depends_on=(),
+                    hints=family.hints + (f"Management identity: {identity}.",),
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
+
+def comparable_sales_difference_dependency_ids(
+    period: date, identity: str
+) -> tuple[str, str]:
+    """Same-period revenue-growth then current reported comparable-sales source."""
+    return (
+        revenue_store_component_id(REVENUE_STORE_GROWTH_FAMILY_ID, period),
+        comparable_sales_source_component_id(period, identity),
+    )
+
+
+def expand_comparable_sales_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    identities: tuple[str, ...],
+    difference_periods_by_identity: dict[str, tuple[date, ...]],
+) -> tuple[ComponentSpec, ...]:
+    """Expand comparable-sales difference practice families by isolated identity."""
+    _require_comparable_sales_period_axis(
+        periods, caller="expand_comparable_sales_specs"
+    )
+    if len(identities) != len(set(identities)):
+        raise ValueError(
+            "duplicate identities are not allowed in expand_comparable_sales_specs"
+        )
+
+    family = {item.id: item for item in COMPARABLE_SALES_COMPONENT_CATALOG}[
+        COMPARABLE_SALES_DIFFERENCE_FAMILY_ID
+    ]
+    specs: list[ComponentSpec] = []
+    order = start_order
+    period_index = {period: index for index, period in enumerate(periods)}
+    for identity in identities:
+        difference_periods = difference_periods_by_identity.get(identity, ())
+        unknown = [
+            period for period in difference_periods if period not in period_index
+        ]
+        if unknown:
+            raise ValueError(
+                "expand_comparable_sales_specs received periods outside the "
+                f"canonical axis: {unknown}"
+            )
+        token = comparable_sales_identity_token(identity)
+        for period in periods:
+            if period not in difference_periods:
+                continue
+            period_end = period.isoformat()
+            specs.append(
+                ComponentSpec(
+                    id=comparable_sales_component_id(family.id, period, identity),
+                    family_id=family.id,
+                    order=order,
+                    family_order=family.order,
+                    title=family.title,
+                    short_hint=family.short_hint,
+                    semantic_key=(
+                        f"{family.semantic_key}.{token}.{period_end}"
+                    ),
+                    category=family.category,
+                    tab_template=family.tab_template,
+                    period_index=period_index[period],
+                    period_end=period_end,
+                    depends_on=comparable_sales_difference_dependency_ids(
+                        period, identity
+                    ),
+                    hints=family.hints + (f"Management identity: {identity}.",),
+                    tolerance=family.tolerance,
+                )
+            )
+            order += 1
+    return tuple(specs)
+
 
