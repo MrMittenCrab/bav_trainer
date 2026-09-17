@@ -92,6 +92,7 @@ from core.engine.component_catalog import (
 from core.engine.reference_model import (
     COMPARABLE_SALES_SHEET,
     JUDGMENT_SHEET,
+    SALES_PER_SQUARE_FOOT_SCOPE_NOTE,
     SALES_PER_SQUARE_FOOT_SHEET,
     STORE_COUNT_SHEET,
     ReferenceModelBuilder,
@@ -259,6 +260,19 @@ _DISCLOSED_STORE_ARITHMETIC = (
     "100 × (",
     "100 x (",
 )
+REVIEWED_SPSF_A5_DISCLOSURE = (
+    "Adjacent change is current minus prior reported sales per square "
+    "foot. Growth is (current - prior) / prior. These are analyst-derived "
+    "calculations, not causal evidence, and are distinct from comparable-sales "
+    "percentage-point change."
+)
+_DISCLOSED_SPSF_ARITHMETIC = (
+    "current minus prior",
+    "(current - prior) / prior",
+    "(current − prior) / prior",
+    "growth is (current",
+)
+MANAGEMENT_HISTORY_SHEETS = (COMPARABLE_SALES_SHEET, SALES_PER_SQUARE_FOOT_SHEET)
 
 
 def _practice_components(smap):
@@ -406,6 +420,119 @@ def _assert_no_disclosed_store_arithmetic(wb) -> None:
             assert fragment not in lowered, (
                 f"{sheet}!{coord} discloses store-count practice arithmetic: {text!r}"
             )
+
+
+def _assert_spsf_a5_non_disclosing(value: object) -> None:
+    assert value == SALES_PER_SQUARE_FOOT_SCOPE_NOTE
+    assert value != REVIEWED_SPSF_A5_DISCLOSURE
+    lowered = str(value).lower()
+    for fragment in _DISCLOSED_SPSF_ARITHMETIC:
+        assert fragment not in lowered, (
+            f"Sales per Square Foot Analysis!A5 discloses practice arithmetic: {value!r}"
+        )
+    assert "analyst-derived" in lowered
+    assert "comparable-sales" in lowered
+    assert "percentage-point" in lowered
+    assert "causal" in lowered
+
+
+def _assert_no_disclosed_spsf_arithmetic(wb, *, include_comments: bool) -> None:
+    for sheet, coord, text in _visible_cell_texts(wb):
+        if not include_comments and coord.endswith("#comment"):
+            continue
+        lowered = text.lower()
+        if text == REVIEWED_SPSF_A5_DISCLOSURE or lowered == REVIEWED_SPSF_A5_DISCLOSURE.lower():
+            raise AssertionError(
+                f"{sheet}!{coord} retains the reviewed A5 disclosure: {text!r}"
+            )
+        for fragment in _DISCLOSED_SPSF_ARITHMETIC:
+            assert fragment not in lowered, (
+                f"{sheet}!{coord} discloses SPSF practice arithmetic: {text!r}"
+            )
+
+
+def _management_history_explanatory_texts(wb) -> list[tuple[str, str, str]]:
+    found: list[tuple[str, str, str]] = []
+    for title in MANAGEMENT_HISTORY_SHEETS:
+        if title not in wb.sheetnames:
+            continue
+        ws = wb[title]
+        if ws.sheet_state != "visible":
+            continue
+        for row in range(1, (ws.max_row or 1) + 1):
+            cell = ws.cell(row, 1)
+            value = cell.value
+            if isinstance(value, str) and not value.startswith("="):
+                found.append((title, cell.coordinate, value))
+    return found
+
+
+def _assert_management_history_visible_text_undisclosed(wb) -> None:
+    texts = _management_history_explanatory_texts(wb)
+    assert any(
+        sheet == SALES_PER_SQUARE_FOOT_SHEET and coord == "A5"
+        for sheet, coord, _text in texts
+    )
+    for sheet, coord, text in texts:
+        lowered = text.lower()
+        assert text != REVIEWED_SPSF_A5_DISCLOSURE
+        for fragment in _DISCLOSED_SPSF_ARITHMETIC:
+            assert fragment not in lowered, (
+                f"{sheet}!{coord} discloses management-history practice arithmetic: {text!r}"
+            )
+    if SALES_PER_SQUARE_FOOT_SHEET in wb.sheetnames:
+        _assert_spsf_a5_non_disclosing(wb[SALES_PER_SQUARE_FOOT_SHEET]["A5"].value)
+
+
+def _spsf_answer_guidance() -> tuple[str, ...]:
+    texts: list[str] = []
+    for family in SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG:
+        if family.short_hint:
+            texts.append(family.short_hint)
+        texts.extend(family.hints)
+    return tuple(texts)
+
+
+def _assert_trainer_management_history_undisclosed(wb) -> None:
+    _assert_management_history_visible_text_undisclosed(wb)
+    _assert_no_disclosed_spsf_arithmetic(wb, include_comments=True)
+    blob = "\n".join(text for _sheet, _coord, text in _visible_cell_texts(wb))
+    lowered_blob = blob.lower()
+    for guidance in _spsf_answer_guidance():
+        assert guidance.lower() not in lowered_blob, (
+            f"Trainer visible text discloses Answer-Key SPSF guidance: {guidance!r}"
+        )
+    for sheet, coord, text in _visible_cell_texts(wb):
+        if coord.endswith("#comment"):
+            raise AssertionError(
+                f"{sheet}!{coord} retains a visible Note on the Trainer: {text!r}"
+            )
+
+
+def _assert_answer_key_management_history_undisclosed(wb) -> None:
+    _assert_management_history_visible_text_undisclosed(wb)
+    for sheet, coord, text in _visible_cell_texts(wb):
+        if sheet not in MANAGEMENT_HISTORY_SHEETS:
+            continue
+        if coord.endswith("#comment"):
+            continue
+        lowered = text.lower()
+        if text == REVIEWED_SPSF_A5_DISCLOSURE:
+            raise AssertionError(
+                f"{sheet}!{coord} retains the reviewed A5 disclosure: {text!r}"
+            )
+        for fragment in _DISCLOSED_SPSF_ARITHMETIC:
+            assert fragment not in lowered, (
+                f"{sheet}!{coord} discloses SPSF practice arithmetic: {text!r}"
+            )
+
+
+def _reserialize_xlsx(path: Path, dest: Path) -> Path:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    wb = load_workbook(path, data_only=False)
+    wb.save(dest)
+    wb.close()
+    return dest
 
 
 def _store_answer_guidance() -> tuple[str, ...]:
@@ -2853,6 +2980,13 @@ def test_comparable_sales_missing_revenue_fails_closed_without_mutation():
     assert ambiguous.historical_operating_kpis == original_kpi
 
 
+def test_reviewed_spsf_a5_disclosure_fails_before_repair():
+    with pytest.raises(AssertionError):
+        _assert_spsf_a5_non_disclosing(REVIEWED_SPSF_A5_DISCLOSURE)
+    _assert_spsf_a5_non_disclosing(SALES_PER_SQUARE_FOOT_SCOPE_NOTE)
+    assert SALES_PER_SQUARE_FOOT_SCOPE_NOTE != REVIEWED_SPSF_A5_DISCLOSURE
+
+
 def test_selected_document_compsales_workbook_uses_test_augmentation(tmp_path):
     before = _bytes_by_name(EXTRACTED)
     dest = _copy_json(ANNUAL_NAMES + MANAGEMENT_NAMES, tmp_path / "handoff")
@@ -2941,6 +3075,25 @@ def test_selected_document_compsales_workbook_uses_test_augmentation(tmp_path):
     assert spsf_hist.adjacent_change[P2024] == 20
     assert abs(spsf_hist.growth[P2024] - (20 / 1410)) <= 1e-12
     trainer, answer = build_training_workbook(restored, tmp_path / "COMP_SELECTED.xlsx")
+    assert {path.name for path in tmp_path.glob("*.xlsx")} == {
+        "COMP_SELECTED_Trainer.xlsx",
+        "COMP_SELECTED_Answer_Key.xlsx",
+    }
+    twb_before = load_workbook(trainer, data_only=False)
+    _assert_trainer_management_history_undisclosed(twb_before)
+    a5_before = twb_before[SALES_PER_SQUARE_FOOT_SHEET]["A5"].value
+    twb_before.close()
+    awb_before = load_workbook(answer, data_only=False)
+    _assert_answer_key_management_history_undisclosed(awb_before)
+    assert awb_before[SALES_PER_SQUARE_FOOT_SHEET]["A5"].value == a5_before
+    awb_before.close()
+    reloaded_trainer = _reserialize_xlsx(
+        trainer, tmp_path / "reserialized" / trainer.name
+    )
+    twb_reloaded = load_workbook(reloaded_trainer, data_only=False)
+    _assert_trainer_management_history_undisclosed(twb_reloaded)
+    assert twb_reloaded[SALES_PER_SQUARE_FOOT_SHEET]["A5"].value == a5_before
+    twb_reloaded.close()
     trainer, answer = _copy_pair(trainer, answer, tmp_path / "reopened_comp_selected")
     smap = load_semantic_map(answer)
     diffs = _compsales_difference_components(smap)
@@ -2977,6 +3130,29 @@ def test_selected_document_compsales_workbook_uses_test_augmentation(tmp_path):
     _assert_fresh_visible_style(trainer, practice_cells=practice, role="trainer")
     _assert_fresh_visible_style(answer, practice_cells=practice, role="answer_key")
     _assert_answer_key_no_yellow(answer)
+    twb = load_workbook(trainer, data_only=False)
+    awb = load_workbook(answer, data_only=False)
+    _assert_trainer_management_history_undisclosed(twb)
+    _assert_answer_key_management_history_undisclosed(awb)
+    assert twb[SALES_PER_SQUARE_FOOT_SHEET]["A5"].value == SALES_PER_SQUARE_FOOT_SCOPE_NOTE
+    assert awb[SALES_PER_SQUARE_FOOT_SHEET]["A5"].value == SALES_PER_SQUARE_FOOT_SCOPE_NOTE
+    assert awb[COMPARABLE_SALES_SHEET]["A5"].value == COMPARABLE_SALES_SCOPE_NOTE
+    change_note = (
+        awb[spsf_change.tab].cell(*parse_cell_ref(spsf_change.cell)).comment.text or ""
+    )
+    growth_note = (
+        awb[spsf_growth.tab].cell(*parse_cell_ref(spsf_growth.cell)).comment.text or ""
+    )
+    assert "minus" in change_note.lower()
+    assert "(current - prior) / prior" in growth_note.lower()
+    for comp in _check_components(smap):
+        tcell = twb[comp.tab].cell(*parse_cell_ref(comp.cell))
+        assert tcell.value in (None, "")
+        assert tcell.comment is None
+        acell = awb[comp.tab].cell(*parse_cell_ref(comp.cell))
+        assert (acell.comment.text or "").strip()
+    twb.close()
+    awb.close()
     blank = check_workbook(trainer)
     assert blank.total == LEASE_DT_LULULEMON_SPECS + GEOGRAPHIC_LULULEMON_SPECS + 4 + 2 + 1 + 2
     assert (blank.blank, blank.correct, blank.incorrect) == (blank.total, 0, 0)
@@ -3317,6 +3493,12 @@ def test_management_history_workbook_adjacent_change_and_spsf(tmp_path):
     )
     assert spsf_ws.cell(spsf_source_row, 2).value == 1410
     assert spsf_ws.cell(spsf_source_row, 3).value == 1430
+    _assert_trainer_management_history_undisclosed(twb)
+    _assert_answer_key_management_history_undisclosed(awb)
+    a_spsf_change = awb[spsf_change.tab].cell(*parse_cell_ref(spsf_change.cell))
+    a_spsf_growth = awb[spsf_growth.tab].cell(*parse_cell_ref(spsf_growth.cell))
+    assert "minus" in (a_spsf_change.comment.text or "").lower()
+    assert "(current - prior) / prior" in (a_spsf_growth.comment.text or "").lower()
     a_change = awb[changes[0].tab].cell(*parse_cell_ref(changes[0].cell))
     t_change = twb[changes[0].tab].cell(*parse_cell_ref(changes[0].cell))
     assert t_change.value in (None, "")
@@ -3577,6 +3759,12 @@ def test_generated_workbooks_follow_moved_management_sources(tmp_path, monkeypat
     )
     blank = check_workbook(trainer)
     assert blank.blank == blank.total
+    twb = load_workbook(trainer, data_only=False)
+    awb = load_workbook(answer, data_only=False)
+    _assert_trainer_management_history_undisclosed(twb)
+    _assert_answer_key_management_history_undisclosed(awb)
+    twb.close()
+    awb.close()
     tamper_trainer, _ = _copy_pair(trainer, answer, tmp_path / "mgmt_moved_tamper")
     row, col = parse_cell_ref(spsf_current.cell)
     wb = load_workbook(tamper_trainer, data_only=False)

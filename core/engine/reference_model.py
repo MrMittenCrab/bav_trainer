@@ -282,6 +282,10 @@ GEOGRAPHIC_SHEET = GEOGRAPHIC_SHEET_NAME
 STORE_COUNT_SHEET = STORE_COUNT_SHEET_NAME
 COMPARABLE_SALES_SHEET = COMPARABLE_SALES_SHEET_NAME
 SALES_PER_SQUARE_FOOT_SHEET = SALES_PER_SQUARE_FOOT_SHEET_NAME
+SALES_PER_SQUARE_FOOT_SCOPE_NOTE = (
+    "Adjacent change and growth are analyst-derived calculations, not causal "
+    "evidence, and are distinct from comparable-sales percentage-point change."
+)
 JUDGMENT_INSTRUCTION = (
     "The supplied treatment is the model's reference treatment, not a universal "
     "accounting truth. Compare it with the listed alternative(s), choose the "
@@ -8237,12 +8241,7 @@ class ReferenceModelBuilder:
             "incompatible adjacent observation remains unavailable. A zero prior "
             "is undefined."
         )
-        ws["A5"] = (
-            "Adjacent change is current minus prior reported sales per square "
-            "foot. Growth is (current - prior) / prior. These are analyst-derived "
-            "calculations, not causal evidence, and are distinct from comparable-sales "
-            "percentage-point change."
-        )
+        ws["A5"] = SALES_PER_SQUARE_FOOT_SCOPE_NOTE
         ws.column_dimensions["A"].width = 64
 
         header_row = 6
