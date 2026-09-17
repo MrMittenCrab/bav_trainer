@@ -781,8 +781,17 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
         if aws.cell(dpr_row, 3).comment
         else ""
     )
-    assert "residual" in dpr_note.lower()
-    assert "amount" in dpr_note.lower()
+    lowered_dpr = dpr_note.lower()
+    assert "residual" in lowered_dpr
+    assert "amount" in lowered_dpr
+    assert "reconstructed" in lowered_dpr
+    assert "reported" in lowered_dpr
+    assert "−(d current − d prior)" in lowered_dpr or "- (d current" in lowered_dpr
+    assert "not the positive" in lowered_dpr
+    assert "nopat" in lowered_dpr
+    assert "normalization" in lowered_dpr
+    assert "organic" in lowered_dpr
+    assert "causal" in lowered_dpr or "causality" in lowered_dpr
     cs_note = (
         (aws.cell(cs_row, 2).comment.text or "")
         if aws.cell(cs_row, 2).comment

@@ -21,6 +21,9 @@ bridge, distinct from the mix/within-segment decomposition, the monetary
 amount-change bridge, normalization, or causal attribution. Amount changes
 are current minus immediately prior reported operating profit, with no
 revenue denominator; zero revenue does not suppress available profit changes.
+The accepted difference is ``D_t = reconstructed_t − reported_t``. The
+amount-change residual is ``R_t = Δreported − ΣΔsegment − Δaggregate signed
+reconcilers``, which equals ``−(D_t − D_previous)``, not ``+ΔD``.
 
 Calculated segment revenue and operating-profit totals are identified separately
 from any reported ``segment_total``. Explicit bridge operations are applied in
@@ -457,6 +460,66 @@ def _reconciling_sum(
     return sum(amount for _, amount in contributions)
 
 
+def _operating_profit_difference(reconstructed: float, reported: float) -> float:
+    """D_t = reconstructed operating profit_t − reported consolidated operating profit_t."""
+    return float(reconstructed) - float(reported)
+
+
+def _operating_profit_amount_bridge(
+    current_profits: dict[str, float],
+    prior_profits: dict[str, float] | None,
+    current_reconciling_sum: float,
+    prior_reconciling_sum: float | None,
+    current_reported: float,
+    prior_reported: float | None,
+    *,
+    opening: bool,
+) -> tuple[
+    dict[str, float | str | None],
+    float | str | None,
+    float | str | None,
+    float | str | None,
+    float,
+]:
+    """Production adjacent amount-change bridge, including mismatched D.
+
+    Residual ``R_t = Δreported − ΣΔsegment − Δreconcilers``. When prior
+    reconstructed and reported exist, ``R_t = −(D_t − D_previous)``.
+    """
+    reconstructed = (
+        sum(float(current_profits[name]) for name in SEGMENTS)
+        + float(current_reconciling_sum)
+    )
+    difference = _operating_profit_difference(reconstructed, current_reported)
+    profit_amount_change = _adjacent_delta_map(
+        current_profits,
+        prior_profits,
+        opening=opening,
+    )
+    reconciling_amount_change = _adjacent_delta(
+        current_reconciling_sum,
+        prior_reconciling_sum,
+        opening=opening,
+    )
+    cons_profit_amount_change = _adjacent_delta(
+        current_reported,
+        prior_reported,
+        opening=opening,
+    )
+    residual = _margin_change_residual(
+        cons_profit_amount_change,
+        profit_amount_change,
+        reconciling_amount_change,
+    )
+    return (
+        profit_amount_change,
+        reconciling_amount_change,
+        cons_profit_amount_change,
+        residual,
+        difference,
+    )
+
+
 def compute_geographic_segment_series(
     financials: StandardizedFinancials,
     periods: list[date] | None = None,
@@ -679,25 +742,20 @@ def compute_geographic_segment_series(
             reconciling_change,
         )
         recon_sum = _reconciling_sum(contributions)
-        profit_amount_change = _adjacent_delta_map(
+        (
+            profit_amount_change,
+            reconciling_amount_change,
+            cons_profit_amount_change,
+            profit_amount_change_residual,
+            profit_difference,
+        ) = _operating_profit_amount_bridge(
             operating_profit,
             prior_operating_profit,
-            opening=opening,
-        )
-        reconciling_amount_change = _adjacent_delta(
-            recon_sum,
+            float(recon_sum),
             prior_reconciling_sum,
-            opening=opening,
-        )
-        cons_profit_amount_change = _adjacent_delta(
             consolidated_operating_profit,
             prior_consolidated_ifop,
             opening=opening,
-        )
-        profit_amount_change_residual = _margin_change_residual(
-            cons_profit_amount_change,
-            profit_amount_change,
-            reconciling_amount_change,
         )
 
         presentation_family[period] = snapshot.presentation_family
@@ -734,9 +792,7 @@ def compute_geographic_segment_series(
         reported_consolidated_revenue[period] = consolidated_revenue
         reported_consolidated_operating_profit[period] = consolidated_operating_profit
         consolidated_revenue_difference[period] = revenue_total - consolidated_revenue
-        consolidated_operating_profit_difference[period] = (
-            reconstructed - consolidated_operating_profit
-        )
+        consolidated_operating_profit_difference[period] = profit_difference
         prior_revenue = revenue
         prior_consolidated = consolidated_revenue
         prior_operating_profit = operating_profit

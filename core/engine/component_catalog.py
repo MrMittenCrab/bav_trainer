@@ -5061,16 +5061,16 @@ GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
             "Amount-change residual = consolidated operating-profit amount "
             "change − sum of Americas, China Mainland, and Rest of World "
             "operating-profit amount changes − aggregate reconciling "
-            "operating-profit amount change. Preserve the signed residual; do "
-            "not force it to zero. Equals the adjacent change in reported "
-            "minus reconstructed consolidated operating profit, equivalently "
-            "the negation of the adjacent change in the accepted consolidated "
-            "operating-profit difference. Opening residual is absent. A "
-            "missing adjacent snapshot is unavailable. Zero revenue does not "
-            "suppress an available residual. Distinct from the percentage-"
-            "point margin contribution-change residual and the mix/within "
-            "decomposition residual. Not organic growth, causality, "
-            "normalization, or BAV NOPAT."
+            "operating-profit amount change. Accepted difference D is "
+            "reconstructed operating profit − reported consolidated operating "
+            "profit; residual equals −(D current − D prior), not the positive "
+            "adjacent difference. Preserve the signed residual; do not force "
+            "it to zero. Opening residual is absent. A missing adjacent "
+            "snapshot is unavailable. Zero revenue does not suppress an "
+            "available residual. Distinct from the percentage-point margin "
+            "contribution-change residual and the mix/within decomposition "
+            "residual. Not organic growth, causality, normalization, or BAV "
+            "NOPAT."
         ),
         semantic_key="geographic.operating_profit_amount_change_residual",
         category="geographic_segment",
@@ -5083,6 +5083,7 @@ GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         ),
         hints=(
             "Residual = Δ consolidated operating profit − Σ Δ segment operating profit − Δ reconciling amount.",
+            "D is reconstructed minus reported; residual equals −ΔD, not +ΔD.",
             "Keep the signed residual; do not force reconciliation to zero.",
             "Monetary attribution only; not the margin-change or mix/within residual, or BAV NOPAT.",
         ),

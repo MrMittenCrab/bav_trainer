@@ -29,6 +29,8 @@ from core.ingestion.filing_validator import validate_extracted_filing
 from core.model.geographic_segment import (
     GEOGRAPHIC_RATIO_TOLERANCE,
     REPORTED_OPERATING_MARGIN_BASIS,
+    _operating_profit_amount_bridge,
+    _operating_profit_difference,
     compute_geographic_segment_series,
     geographic_segment_applicable,
 )
@@ -388,6 +390,7 @@ def _independent_from_snapshots(axis: list[date], snapshots: dict):
 def _assert_series_matches(series, expected) -> None:
     assert series.periods == tuple(expected)
     assert series.identities == SEGMENTS
+    prior_ifop_diff = None
     for period, row in expected.items():
         assert series.presentation_family[period] == row["family"]
         assert series.net_revenue[period] == row["revenue"]
@@ -424,8 +427,10 @@ def _assert_series_matches(series, expected) -> None:
         if all(isinstance(value, float) for value in row["share"].values()):
             assert abs(sum(row["share"].values()) - 1.0) <= GEOGRAPHIC_RATIO_TOLERANCE
         if isinstance(row["rev_diff"], float):
+            assert row["rev_diff"] == 0.0
             assert abs(row["rev_diff"]) <= SEGMENT_BRIDGE_TOLERANCE
         if isinstance(row["ifop_diff"], float):
+            assert row["ifop_diff"] == 0.0
             assert abs(row["ifop_diff"]) <= SEGMENT_BRIDGE_TOLERANCE
         contrib = row["contrib"]
         cons_growth = row["cons_growth"]
@@ -493,6 +498,10 @@ def _assert_series_matches(series, expected) -> None:
         ):
             reconstructed_dpr = dpc - sum(dp.values()) - dbr
             assert abs(reconstructed_dpr - dpr) <= GEOGRAPHIC_RATIO_TOLERANCE
+            assert dpr == 0.0
+            if isinstance(prior_ifop_diff, float) and isinstance(row["ifop_diff"], float):
+                assert dpr == -(row["ifop_diff"] - prior_ifop_diff)
+        prior_ifop_diff = row["ifop_diff"]
 
 
 def test_absent_and_null_payloads_make_module_absent():
@@ -881,7 +890,7 @@ def test_mix_within_unchanged_shares_margins_offsetting_and_nonzero_residual():
         offset_series.operating_margin_contribution_change_residual[P2]
     )
 
-    nonzero = _fin_with_segment(
+    family_transition = _fin_with_segment(
         _snapshot(P1, family=FAMILY_ITEMIZED, values=_itemized_values()),
         _snapshot(
             P2,
@@ -889,21 +898,22 @@ def test_mix_within_unchanged_shares_margins_offsetting_and_nonzero_residual():
             values=_corp_values(ifop=(60.0, 10.0, -5.0), corporate=-15.0),
         ),
     )
-    # Existing validation admits a signed reconstructed-vs-reported difference of 0
-    # on these fixtures; a nonzero mix residual is admitted when ΔM/ΔB identity holds.
-    nonzero_series = compute_geographic_segment_series(nonzero)
+    transition_series = compute_geographic_segment_series(family_transition)
     _assert_series_matches(
-        nonzero_series,
+        transition_series,
         _independent_from_snapshots(
             [P1, P2],
-            {snap.period: snap for snap in nonzero.historical_segment.periods},
+            {snap.period: snap for snap in family_transition.historical_segment.periods},
         ),
     )
-    assert nonzero_series.operating_margin_contribution[P2]["rest_of_world"] == pytest.approx(
+    assert transition_series.consolidated_operating_profit_difference[P1] == 0.0
+    assert transition_series.consolidated_operating_profit_difference[P2] == 0.0
+    assert transition_series.operating_profit_amount_change_residual[P2] == 0.0
+    assert transition_series.operating_margin_contribution[P2]["rest_of_world"] == pytest.approx(
         100.0 * -5.0 / 120.0
     )
-    assert nonzero_series.operating_margin_mix_within_residual[P2] == pytest.approx(
-        nonzero_series.operating_margin_contribution_change_residual[P2]
+    assert transition_series.operating_margin_mix_within_residual[P2] == pytest.approx(
+        transition_series.operating_margin_contribution_change_residual[P2]
     )
 
 
@@ -949,6 +959,122 @@ def test_invalid_contracts_fail_closed_without_mutation():
     with pytest.raises(ValueError, match="canonical fiscal axis"):
         compute_geographic_segment_series(fin, [P2, P1])
     assert fin.historical_segment == original
+
+    fin.historical_segment = copy.deepcopy(original)
+    original_is = copy.deepcopy(fin.income_statement)
+    mismatch = 11.0
+    fin.historical_segment.periods[0].values["income_from_operations.consolidated"] += (
+        mismatch
+    )
+    for item in fin.income_statement:
+        if item.concept == "operating_income":
+            item.values[P2] = float(item.values[P2]) + mismatch
+    mutated = copy.deepcopy(fin.historical_segment)
+    mutated_is = copy.deepcopy(fin.income_statement)
+    with pytest.raises(ValueError, match="IFOP bridge mismatch"):
+        compute_geographic_segment_series(fin)
+    assert fin.historical_segment == mutated
+    assert fin.income_statement == mutated_is
+    assert SEGMENT_BRIDGE_TOLERANCE == 0.0
+
+    itemized = _fin_with_segment(_snapshot(P2, family=FAMILY_ITEMIZED))
+    original_itemized = copy.deepcopy(itemized.historical_segment)
+    original_itemized_is = copy.deepcopy(itemized.income_statement)
+    itemized.historical_segment.periods[0].values[
+        "income_from_operations.consolidated"
+    ] -= 7.0
+    for item in itemized.income_statement:
+        if item.concept == "operating_income":
+            item.values[P2] = float(item.values[P2]) - 7.0
+    mutated_itemized = copy.deepcopy(itemized.historical_segment)
+    with pytest.raises(ValueError, match="IFOP bridge mismatch"):
+        compute_geographic_segment_series(itemized)
+    assert itemized.historical_segment == mutated_itemized
+    assert original_itemized != mutated_itemized
+    assert original_is is not None
+    assert original_itemized_is is not None
+
+
+def test_synthetic_nonzero_amount_change_residuals_both_signs():
+    """Arithmetic-only coverage at the production bridge helper; not admitted."""
+    positive_prior = {
+        "profits": {"americas": 100.0, "china_mainland": 40.0, "rest_of_world": 20.0},
+        "recon": -30.0,
+        "reported": 125.0,
+    }
+    positive_current = {
+        "profits": {"americas": 110.0, "china_mainland": 35.0, "rest_of_world": 25.0},
+        "recon": -28.0,
+        "reported": 148.0,
+    }
+    negative_prior = {
+        "profits": {"americas": 50.0, "china_mainland": 30.0, "rest_of_world": 10.0},
+        "recon": -8.0,
+        "reported": 82.0,
+    }
+    negative_current = {
+        "profits": {"americas": 48.0, "china_mainland": 33.0, "rest_of_world": 12.0},
+        "recon": -10.0,
+        "reported": 76.0,
+    }
+    cases = (
+        (positive_prior, positive_current, 11.0),
+        (negative_prior, negative_current, -7.0),
+    )
+    for prior, current, expected_residual in cases:
+        dp, dbr, dpc, dpr, d_t = _operating_profit_amount_bridge(
+            current["profits"],
+            prior["profits"],
+            current["recon"],
+            prior["recon"],
+            current["reported"],
+            prior["reported"],
+            opening=False,
+        )
+        independent_dp = {
+            name: current["profits"][name] - prior["profits"][name] for name in SEGMENTS
+        }
+        independent_dbr = current["recon"] - prior["recon"]
+        independent_dpc = current["reported"] - prior["reported"]
+        independent_r = independent_dpc - sum(independent_dp.values()) - independent_dbr
+        reconstructed_t = sum(current["profits"].values()) + current["recon"]
+        reconstructed_prior = sum(prior["profits"].values()) + prior["recon"]
+        independent_d_t = _operating_profit_difference(
+            reconstructed_t, current["reported"]
+        )
+        independent_d_prior = _operating_profit_difference(
+            reconstructed_prior, prior["reported"]
+        )
+        independent_neg_delta_d = -(independent_d_t - independent_d_prior)
+        assert dp == independent_dp
+        assert dbr == independent_dbr
+        assert dpc == independent_dpc
+        assert dpr == expected_residual
+        assert dpr == independent_r
+        assert dpr == independent_neg_delta_d
+        assert d_t == independent_d_t
+        assert dpr != 0.0
+        assert dpr != -expected_residual
+        assert expected_residual != 0.0
+        assert expected_residual != -expected_residual
+
+
+def test_admitted_amount_change_differences_are_actually_zero():
+    _, _, restored = _reload_admitted_lululemon()
+    series = compute_geographic_segment_series(restored)
+    payload = standardized_to_payload(restored)
+    reloaded = standardized_from_payload(copy.deepcopy(payload))
+    assert payload == standardized_to_payload(restored)
+    reloaded_series = compute_geographic_segment_series(reloaded)
+    for period in series.periods:
+        assert series.consolidated_operating_profit_difference[period] == 0.0
+        assert reloaded_series.consolidated_operating_profit_difference[period] == 0.0
+        residual = series.operating_profit_amount_change_residual[period]
+        if residual is None:
+            assert reloaded_series.operating_profit_amount_change_residual[period] is None
+            continue
+        assert residual == 0.0
+        assert reloaded_series.operating_profit_amount_change_residual[period] == 0.0
 
 
 def _reload_admitted_lululemon():
