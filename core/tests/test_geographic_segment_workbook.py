@@ -28,10 +28,14 @@ from core.engine.component_catalog import (
     GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG,
     GEOGRAPHIC_SEGMENT_IDENTITIES,
     GEOGRAPHIC_SHEET_NAME,
+    SemanticCellRef,
     expand_geographic_segment_specs,
     geographic_component_id,
     geographic_identity_label,
     geographic_spec_identity,
+    resolve_geographic_consolidated_revenue_growth_formula,
+    resolve_geographic_revenue_growth_contribution_formula,
+    resolve_geographic_revenue_growth_contribution_residual_formula,
 )
 from core.engine.reference_model import (
     GEOGRAPHIC_SHEET,
@@ -88,17 +92,26 @@ DEMO_JSON = ROOT / "example" / "DEMO_HK_Standardized.json"
 P0 = date(2023, 12, 31)
 LEASE_DT_LULULEMON_SPECS = 486
 FAST_RETAILING_SPECS = 577
-GEOGRAPHIC_LULULEMON_SPECS = 74
+GEOGRAPHIC_LULULEMON_SPECS_BASELINE = 74
+GEOGRAPHIC_CONTRIBUTION_SPECS = 20
+GEOGRAPHIC_LULULEMON_SPECS = (
+    GEOGRAPHIC_LULULEMON_SPECS_BASELINE + GEOGRAPHIC_CONTRIBUTION_SPECS
+)
 LULULEMON_UNAVAILABLE_DISPLAYS = 101
 GEOGRAPHIC_A2 = (
     "Source-supported geographic revenue mix, adjacent-period growth, "
-    "reported operating margins, and consolidated bridges. Reported "
-    "operating margin is distinct from BAV NOPAT margin."
+    "reported operating margins, consolidated bridges, and "
+    "percentage-point contributions to consolidated revenue growth. "
+    "Reported operating margin is distinct from BAV NOPAT margin. "
+    "Contributions are an arithmetic decomposition of reported "
+    "geographic revenue changes, not organic, constant-currency, or "
+    "causal growth."
 )
 GEOGRAPHIC_A4 = (
     "Calculated segment totals are distinct from any reported segment_total. "
-    "Sparse unavailable amounts remain unavailable; opening growth is not "
-    "practiced."
+    "Sparse unavailable amounts remain unavailable; opening growth and "
+    "opening contributions are not practiced. The signed contribution "
+    "residual is not forced to zero."
 )
 
 
@@ -170,6 +183,8 @@ _DISCLOSED_GEOGRAPHIC_ARITHMETIC = (
     "(current - prior) / prior",
     "corporate-column add",
     "itemized subtract",
+    "100 × (current segment",
+    "100*(",
 )
 
 
@@ -324,7 +339,7 @@ def _assert_visible_parity(
 def test_catalog_orders_and_expand_identities():
     assert GEOGRAPHIC_SHEET == GEOGRAPHIC_SHEET_NAME
     assert [family.order for family in GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG] == list(
-        range(152, 161)
+        range(152, 164)
     )
     assert [family.id for family in GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG] == [
         "geographic_revenue_share",
@@ -336,6 +351,9 @@ def test_catalog_orders_and_expand_identities():
         "geographic_reconstructed_consolidated_operating_profit",
         "geographic_consolidated_revenue_difference",
         "geographic_consolidated_operating_profit_difference",
+        "geographic_revenue_growth_contribution",
+        "geographic_consolidated_revenue_growth",
+        "geographic_revenue_growth_contribution_residual",
     ]
     specs = expand_geographic_segment_specs(
         [P1, P2],
@@ -349,6 +367,8 @@ def test_catalog_orders_and_expand_identities():
             ),
             P2: (IFOP_CORPORATE,),
         },
+        contribution_identities={P2: SEGMENTS},
+        consolidated_growth_periods=(P2,),
     )
     assert geographic_component_id("geographic_revenue_share", P1, "americas") in {
         s.id for s in specs
@@ -357,6 +377,23 @@ def test_catalog_orders_and_expand_identities():
         s.family_id == "geographic_revenue_growth" and s.period_end == P1.isoformat()
         for s in specs
     )
+    assert not any(
+        s.family_id == "geographic_revenue_growth_contribution"
+        and s.period_end == P1.isoformat()
+        for s in specs
+    )
+    assert geographic_component_id(
+        "geographic_revenue_growth_contribution", P2, "americas"
+    ) in {s.id for s in specs}
+    residual = next(
+        s
+        for s in specs
+        if s.family_id == "geographic_revenue_growth_contribution_residual"
+    )
+    assert residual.period_end == P2.isoformat()
+    assert geographic_component_id(
+        "geographic_consolidated_revenue_growth", P2
+    ) in residual.depends_on
     signed = [
         s
         for s in specs
@@ -456,6 +493,10 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
         c.family_id == "geographic_revenue_growth" and c.period_index == 0
         for c in geo_comps
     )
+    assert not any(
+        c.family_id == "geographic_revenue_growth_contribution" and c.period_index == 0
+        for c in geo_comps
+    )
 
     awb = load_workbook(answer, data_only=False)
     twb = load_workbook(trainer, data_only=False)
@@ -493,6 +534,33 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
     assert tws.cell(growth_row, 2).value == "N/A"
     assert str(aws.cell(growth_row, 3).value).startswith("=")
     assert "NA()" in str(aws.cell(growth_row, 3).value)
+    contrib_row = _row_by_label(
+        aws,
+        "Americas contribution to consolidated revenue growth (percentage points)",
+    )
+    assert aws.cell(contrib_row, 2).value == "N/A"
+    assert tws.cell(contrib_row, 2).value == "N/A"
+    assert str(aws.cell(contrib_row, 3).value).startswith("=")
+    assert "100*" in str(aws.cell(contrib_row, 3).value).replace(" ", "")
+    cons_growth_row = _row_by_label(aws, "Consolidated revenue growth")
+    assert aws.cell(cons_growth_row, 2).value == "N/A"
+    residual_row = _row_by_label(aws, "Contribution residual (percentage points)")
+    assert aws.cell(residual_row, 2).value == "N/A"
+    residual_note = (
+        (aws.cell(residual_row, 3).comment.text or "")
+        if aws.cell(residual_row, 3).comment
+        else ""
+    )
+    assert "percentage points" in residual_note.lower() or "100" in residual_note
+    assert "cause" not in residual_note.lower()
+    contrib_note = (
+        (aws.cell(contrib_row, 3).comment.text or "")
+        if aws.cell(contrib_row, 3).comment
+        else ""
+    )
+    assert "percentage points" in contrib_note.lower() or "100" in contrib_note
+    assert "organic" in contrib_note.lower()
+    assert "cause" not in contrib_note.lower() or "not" in contrib_note.lower()
 
     itemized_signed = _row_by_label(
         aws, "Amortization Of Intangible Assets signed contribution"
@@ -577,7 +645,9 @@ def test_sparse_undefined_negative_reorder_and_source_edit(tmp_path):
     assert series.presentation_family[P0] == SOURCE_UNAVAILABLE
     assert series.revenue_share[P0]["americas"] == SOURCE_UNAVAILABLE
     assert series.revenue_growth[P0]["americas"] is None
+    assert series.revenue_growth_contribution[P0]["americas"] is None
     assert series.revenue_growth[P1]["americas"] == SOURCE_UNAVAILABLE
+    assert series.revenue_growth_contribution[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.reported_operating_margin[P1]["americas"] == UNDEFINED_RATIO
     assert series.income_from_operations[P2]["americas"] == -4.0
     assert not any(
@@ -585,6 +655,11 @@ def test_sparse_undefined_negative_reorder_and_source_edit(tmp_path):
     )
     assert not any(
         s.family_id == "geographic_revenue_growth" and s.period_end == P1.isoformat()
+        for s in builder.geographic_specs
+    )
+    assert not any(
+        s.family_id == "geographic_revenue_growth_contribution"
+        and s.period_end == P1.isoformat()
         for s in builder.geographic_specs
     )
 
@@ -616,6 +691,12 @@ def test_sparse_undefined_negative_reorder_and_source_edit(tmp_path):
     growth_row = _row_by_label(aws, "Americas adjacent-period revenue growth")
     assert aws.cell(growth_row, 2).value == "N/A"
     assert aws.cell(growth_row, 3).value == SOURCE_UNAVAILABLE
+    contrib_row = _row_by_label(
+        aws,
+        "Americas contribution to consolidated revenue growth (percentage points)",
+    )
+    assert aws.cell(contrib_row, 2).value == "N/A"
+    assert aws.cell(contrib_row, 3).value == SOURCE_UNAVAILABLE
     margin_row = _row_by_label(aws, "Americas reported operating margin")
     assert "NA()" in str(aws.cell(margin_row, 3).value)
     awb.close()
@@ -649,6 +730,123 @@ def test_sparse_undefined_negative_reorder_and_source_edit(tmp_path):
     relocated = check_workbook(trainer2)
     assert relocated.incorrect == 0
     assert geo_comps
+
+
+MOVED_GEO_REVENUE_SOURCE_PLACEMENT = {
+    ("americas", 0): (28, 8),
+    ("china_mainland", 0): (29, 8),
+    ("rest_of_world", 0): (30, 8),
+    ("consolidated", 0): (31, 8),
+    ("americas", 1): (28, 12, "Income Statement"),
+    ("china_mainland", 1): (29, 12, "Income Statement"),
+    ("rest_of_world", 1): (32, 12, "Income Statement"),
+    ("consolidated", 1): (33, 12, "Income Statement"),
+}
+
+
+def test_contribution_formulas_follow_relocated_sources(tmp_path, monkeypatch):
+    def _moved(self, identity, period_index, default_row, default_col):
+        assert default_col == 2 + period_index
+        return MOVED_GEO_REVENUE_SOURCE_PLACEMENT[(identity, period_index)]
+
+    monkeypatch.setattr(
+        ReferenceModelBuilder, "_geographic_revenue_source_placement", _moved
+    )
+    fin = _geo_tiny(
+        _snapshot(P1, family=FAMILY_ITEMIZED, values=_itemized_values()),
+        _snapshot(P2, family=FAMILY_CORPORATE, values=_corp_values()),
+    )
+    trainer, answer = build_training_workbook(fin, tmp_path / "GEO_MOVED.xlsx")
+    smap = load_semantic_map(answer)
+    contrib = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_revenue_growth_contribution"
+        and geographic_spec_identity(c) == "americas"
+    )
+    cons_growth = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_consolidated_revenue_growth"
+    )
+    residual = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_revenue_growth_contribution_residual"
+    )
+    prior = MOVED_GEO_REVENUE_SOURCE_PLACEMENT[("americas", 0)]
+    curr = MOVED_GEO_REVENUE_SOURCE_PLACEMENT[("americas", 1)]
+    prior_cons = MOVED_GEO_REVENUE_SOURCE_PLACEMENT[("consolidated", 0)]
+    curr_cons = MOVED_GEO_REVENUE_SOURCE_PLACEMENT[("consolidated", 1)]
+
+    def _ref(placed, stamp: str) -> SemanticCellRef:
+        row, col = placed[0], placed[1]
+        tab = placed[2] if len(placed) == 3 else GEOGRAPHIC_SHEET
+        return SemanticCellRef(
+            stamp, stamp, stamp, f"{get_column_letter(col)}{row}", tab
+        )
+
+    compact = contrib.formula.replace(" ", "")
+    assert compact == resolve_geographic_revenue_growth_contribution_formula(
+        _ref(curr, "curr"),
+        _ref(prior, "prior"),
+        _ref(prior_cons, "cons"),
+        from_tab=GEOGRAPHIC_SHEET,
+    ).replace(" ", "")
+    aws = load_workbook(answer, data_only=False)[GEOGRAPHIC_SHEET]
+    default_amer = _row_by_label(aws, "Americas net revenue")
+    adjacent = (
+        f"{get_column_letter(parse_cell_ref(contrib.cell)[1] - 1)}{default_amer}"
+    )
+    assert adjacent not in compact
+    assert cons_growth.formula.replace(" ", "") == (
+        resolve_geographic_consolidated_revenue_growth_formula(
+            _ref(curr_cons, "curr_cons"),
+            _ref(prior_cons, "prior_cons"),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    contrib_refs = []
+    for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+        item = next(
+            c
+            for c in smap.all_ordered()
+            if c.family_id == "geographic_revenue_growth_contribution"
+            and geographic_spec_identity(c) == identity
+        )
+        contrib_refs.append(
+            SemanticCellRef(
+                item.id, item.semantic_key, item.period_end, item.cell, item.tab
+            )
+        )
+    assert residual.formula.replace(" ", "") == (
+        resolve_geographic_revenue_growth_contribution_residual_formula(
+            SemanticCellRef(
+                cons_growth.id,
+                cons_growth.semantic_key,
+                cons_growth.period_end,
+                cons_growth.cell,
+                cons_growth.tab,
+            ),
+            tuple(contrib_refs),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    awb = load_workbook(answer, data_only=False)
+    row, col = MOVED_GEO_REVENUE_SOURCE_PLACEMENT[("americas", 0)][:2]
+    assert awb[GEOGRAPHIC_SHEET].cell(row, col).value not in (None, "")
+    curr_row, curr_col, curr_tab = MOVED_GEO_REVENUE_SOURCE_PLACEMENT[("americas", 1)]
+    assert awb[curr_tab].cell(curr_row, curr_col).value not in (None, "")
+    awb.close()
+    wb = load_workbook(trainer, data_only=False)
+    for comp in smap.all_ordered():
+        row, col = parse_cell_ref(comp.cell)
+        wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    wb.save(trainer)
+    wb.close()
+    filled = check_workbook(trainer)
+    assert filled.incorrect == 0
+    assert filled.correct == filled.total
 
 
 def test_committed_lululemon_and_fast_retailing_identities_unchanged():
@@ -829,6 +1027,99 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
         f"{get_column_letter(fy2026_col)}{americas_rev}/"
         f"{get_column_letter(fy2026_col)}{cons_rev})"
     ).replace(" ", "")
+    prior_fy2026 = builder.periods[builder.periods.index(FY2026) - 1]
+    prior_col = period_cols[prior_fy2026]
+    amer_contrib = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_revenue_growth_contribution"
+        and c.period_end == FY2026.isoformat()
+        and geographic_spec_identity(c) == "americas"
+    )
+    assert amer_contrib.formula.replace(" ", "") == (
+        resolve_geographic_revenue_growth_contribution_formula(
+            SemanticCellRef(
+                "curr", "k", FY2026.isoformat(),
+                f"{get_column_letter(fy2026_col)}{americas_rev}",
+                GEOGRAPHIC_SHEET,
+            ),
+            SemanticCellRef(
+                "prior", "k", prior_fy2026.isoformat(),
+                f"{get_column_letter(prior_col)}{americas_rev}",
+                GEOGRAPHIC_SHEET,
+            ),
+            SemanticCellRef(
+                "cons", "k", prior_fy2026.isoformat(),
+                f"{get_column_letter(prior_col)}{cons_rev}",
+                GEOGRAPHIC_SHEET,
+            ),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    prior_cons = float(snapshots[prior_fy2026].values["net_revenue.consolidated"])
+    curr_amer = float(snapshots[FY2026].values["net_revenue.americas"])
+    prior_amer = float(snapshots[prior_fy2026].values["net_revenue.americas"])
+    independent_amer = 100.0 * (curr_amer - prior_amer) / prior_cons
+    assert amer_contrib.expected_value == pytest.approx(
+        independent_amer, abs=GEOGRAPHIC_RATIO_TOLERANCE
+    )
+    contrib_n = [
+        c
+        for c in geo_comps
+        if c.family_id
+        in {
+            "geographic_revenue_growth_contribution",
+            "geographic_consolidated_revenue_growth",
+            "geographic_revenue_growth_contribution_residual",
+        }
+    ]
+    assert len(contrib_n) == GEOGRAPHIC_CONTRIBUTION_SPECS
+    cons_growth_comp = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_consolidated_revenue_growth"
+        and c.period_end == FY2026.isoformat()
+    )
+    residual_comp = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_revenue_growth_contribution_residual"
+        and c.period_end == FY2026.isoformat()
+    )
+    contrib_comps = [
+        next(
+            c
+            for c in geo_comps
+            if c.family_id == "geographic_revenue_growth_contribution"
+            and c.period_end == FY2026.isoformat()
+            and geographic_spec_identity(c) == identity
+        )
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES
+    ]
+    assert residual_comp.formula.replace(" ", "") == (
+        resolve_geographic_revenue_growth_contribution_residual_formula(
+            SemanticCellRef(
+                cons_growth_comp.id,
+                cons_growth_comp.semantic_key,
+                cons_growth_comp.period_end,
+                cons_growth_comp.cell,
+                cons_growth_comp.tab,
+            ),
+            tuple(
+                SemanticCellRef(
+                    item.id, item.semantic_key, item.period_end, item.cell, item.tab
+                )
+                for item in contrib_comps
+            ),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    independent_residual = 100.0 * float(cons_growth_comp.expected_value) - sum(
+        float(item.expected_value) for item in contrib_comps
+    )
+    assert residual_comp.expected_value == pytest.approx(
+        independent_residual, abs=GEOGRAPHIC_RATIO_TOLERANCE
+    )
     corp_signed = next(
         c
         for c in geo_comps
@@ -916,6 +1207,9 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
             "geographic_revenue_growth",
             "geographic_signed_reconciling_contribution",
             "geographic_reconstructed_consolidated_operating_profit",
+            "geographic_revenue_growth_contribution",
+            "geographic_consolidated_revenue_growth",
+            "geographic_revenue_growth_contribution_residual",
         }:
             assert trainer_cell.comment is None
             assert answer_cell.comment is not None

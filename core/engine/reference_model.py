@@ -10,6 +10,7 @@ from typing import Any
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from openpyxl.utils.cell import column_index_from_string, coordinate_from_string
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from ..data.historical_segments import (
@@ -196,6 +197,10 @@ from .component_catalog import (
     geographic_component_id,
     geographic_identity_label,
     geographic_spec_identity,
+    resolve_geographic_consolidated_revenue_growth_formula,
+    resolve_geographic_revenue_growth_contribution_formula,
+    resolve_geographic_revenue_growth_contribution_residual_formula,
+    semantic_formula_cell,
     STORE_COUNT_POPULATION_LABEL,
     STORE_COUNT_SHEET_NAME,
     STORE_COUNT_SOURCE_FAMILY_ID,
@@ -324,10 +329,14 @@ def _geographic_expand_inputs(series) -> tuple[
     tuple[date, ...],
     dict[date, tuple[str, ...]],
     dict[date, tuple[str, ...]],
+    dict[date, tuple[str, ...]],
+    tuple[date, ...],
 ]:
     available: list[date] = []
     growth_identities: dict[date, tuple[str, ...]] = {}
     bridge_identities: dict[date, tuple[str, ...]] = {}
+    contribution_identities: dict[date, tuple[str, ...]] = {}
+    consolidated_growth_periods: list[date] = []
     for period in series.periods:
         if is_source_unavailable(series.presentation_family[period]):
             continue
@@ -340,10 +349,35 @@ def _geographic_expand_inputs(series) -> tuple[
         )
         if growth_ids:
             growth_identities[period] = growth_ids
+        contrib_ids = tuple(
+            name
+            for name in GEOGRAPHIC_SEGMENT_IDENTITIES
+            if series.revenue_growth_contribution[period][name] is not None
+            and not is_source_unavailable(
+                series.revenue_growth_contribution[period][name]
+            )
+        )
+        if contrib_ids:
+            contribution_identities[period] = contrib_ids
+        cons_growth = series.consolidated_revenue_growth[period]
+        residual = series.revenue_growth_contribution_residual[period]
+        if (
+            cons_growth is not None
+            and not is_source_unavailable(cons_growth)
+            and residual is not None
+            and not is_source_unavailable(residual)
+        ):
+            consolidated_growth_periods.append(period)
         contributions = series.signed_reconciling_contributions[period]
         if not is_source_unavailable(contributions):
             bridge_identities[period] = tuple(name for name, _ in contributions)
-    return tuple(available), growth_identities, bridge_identities
+    return (
+        tuple(available),
+        growth_identities,
+        bridge_identities,
+        contribution_identities,
+        tuple(consolidated_growth_periods),
+    )
 
 
 def _store_count_expand_inputs(
@@ -978,7 +1012,7 @@ class ReferenceModelBuilder:
                 self.fin,
                 self.periods,
             )
-            available_periods, growth_identities, bridge_identities = (
+            available_periods, growth_identities, bridge_identities, contribution_identities, consolidated_growth_periods = (
                 _geographic_expand_inputs(self.geographic_series)
             )
             self.geographic_specs = expand_geographic_segment_specs(
@@ -987,6 +1021,8 @@ class ReferenceModelBuilder:
                 available_periods=available_periods,
                 growth_identities=growth_identities,
                 bridge_identities=bridge_identities,
+                contribution_identities=contribution_identities,
+                consolidated_growth_periods=consolidated_growth_periods,
             )
         else:
             self.geographic_series = None
@@ -6979,14 +7015,19 @@ class ReferenceModelBuilder:
         ws["A1"].font = BOLD
         ws["A2"] = (
             "Source-supported geographic revenue mix, adjacent-period growth, "
-            "reported operating margins, and consolidated bridges. Reported "
-            "operating margin is distinct from BAV NOPAT margin."
+            "reported operating margins, consolidated bridges, and "
+            "percentage-point contributions to consolidated revenue growth. "
+            "Reported operating margin is distinct from BAV NOPAT margin. "
+            "Contributions are an arithmetic decomposition of reported "
+            "geographic revenue changes, not organic, constant-currency, or "
+            "causal growth."
         )
         ws["A3"] = f"Units: {self.fin.units}"
         ws["A4"] = (
             "Calculated segment totals are distinct from any reported segment_total. "
-            "Sparse unavailable amounts remain unavailable; opening growth is not "
-            "practiced."
+            "Sparse unavailable amounts remain unavailable; opening growth and "
+            "opening contributions are not practiced. The signed contribution "
+            "residual is not forced to zero."
         )
         ws.column_dimensions["A"].width = 56
 
@@ -7012,9 +7053,14 @@ class ReferenceModelBuilder:
             cell = ws.cell(row=row, column=col_idx, value=float(value))
             cell.number_format = NUM_FMT
 
-        def _put_formula(row: int, col_idx: int, formula: str, *, pct: bool = False):
+        def _put_formula(row: int, col_idx: int, formula: str, *, pct: bool = False, points: bool = False):
             cell = ws.cell(row=row, column=col_idx, value=formula)
-            cell.number_format = PCT_FMT if pct else NUM_FMT
+            if pct:
+                cell.number_format = PCT_FMT
+            elif points:
+                cell.number_format = "0.00"
+            else:
+                cell.number_format = NUM_FMT
             return cell
 
         def _ratio_formula(num_ref: str, den_ref: str) -> str:
@@ -7042,6 +7088,36 @@ class ReferenceModelBuilder:
                 formula,
                 _geo_expected(expected),
             )
+
+        def _a1_row_col(cell: str) -> tuple[int, int]:
+            col_letter, row = coordinate_from_string(cell)
+            return row, column_index_from_string(col_letter)
+
+        def _put_number_at(
+            row: int, col_idx: int, value: float, *, tab: str
+        ) -> None:
+            target = ws if tab == GEOGRAPHIC_SHEET else wb[tab]
+            cell = target.cell(row=row, column=col_idx, value=float(value))
+            cell.number_format = NUM_FMT
+
+        def _source_cell_ref(
+            identity: str, period_index: int, default_row: int, default_col: int
+        ) -> SemanticCellRef:
+            row, col, tab = self._normalize_source_placement(
+                self._geographic_revenue_source_placement(
+                    identity, period_index, default_row, default_col
+                ),
+                GEOGRAPHIC_SHEET,
+            )
+            return SemanticCellRef(
+                id=f"geographic_revenue_source__{identity}__{period_index}",
+                semantic_key=f"geographic.revenue_source.{identity}",
+                period_end=self.periods[period_index].isoformat(),
+                cell=f"{self._col(col)}{row}",
+                tab=tab,
+            )
+
+        revenue_source_refs: dict[tuple[str, int], SemanticCellRef] = {}
 
         cursor = 8
         _section(cursor, "NET REVENUE")
@@ -7084,6 +7160,26 @@ class ReferenceModelBuilder:
                 cursor,
                 f"{geographic_identity_label(identity)} adjacent-period revenue growth",
             )
+
+        cursor += 2
+        _section(cursor, "CONTRIBUTIONS TO CONSOLIDATED REVENUE GROWTH")
+        contribution_rows = {}
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            cursor += 1
+            contribution_rows[identity] = cursor
+            _label(
+                cursor,
+                (
+                    f"{geographic_identity_label(identity)} contribution to "
+                    "consolidated revenue growth (percentage points)"
+                ),
+            )
+        cursor += 1
+        cons_growth_row = cursor
+        _label(cursor, "Consolidated revenue growth")
+        cursor += 1
+        residual_row = cursor
+        _label(cursor, "Contribution residual (percentage points)")
 
         cursor += 2
         _section(cursor, "INCOME FROM OPERATIONS")
@@ -7160,6 +7256,10 @@ class ReferenceModelBuilder:
                 series.presentation_family[period]
             )
             if unavailable:
+                opening_practice_rows = set(growth_rows.values())
+                opening_practice_rows.update(contribution_rows.values())
+                opening_practice_rows.add(cons_growth_row)
+                opening_practice_rows.add(residual_row)
                 for row in (
                     family_row,
                     *rev_rows.values(),
@@ -7169,6 +7269,9 @@ class ReferenceModelBuilder:
                     rev_diff_row,
                     *share_rows.values(),
                     *growth_rows.values(),
+                    *contribution_rows.values(),
+                    cons_growth_row,
+                    residual_row,
                     *ifop_rows.values(),
                     ifop_total_row,
                     ifop_reported_total_row,
@@ -7179,7 +7282,7 @@ class ReferenceModelBuilder:
                     reconstructed_row,
                     ifop_diff_row,
                 ):
-                    if j == 0 and row in growth_rows.values():
+                    if j == 0 and row in opening_practice_rows:
                         ws.cell(row=row, column=col_idx, value="N/A")
                     else:
                         self._stamp_unavailable(
@@ -7189,10 +7292,14 @@ class ReferenceModelBuilder:
 
             ws.cell(row=family_row, column=col_idx, value=snapshot.presentation_family)
             for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
-                _put_number(
-                    rev_rows[identity],
-                    col_idx,
+                source_ref = _source_cell_ref(
+                    identity, j, rev_rows[identity], col_idx
+                )
+                revenue_source_refs[(identity, j)] = source_ref
+                _put_number_at(
+                    *_a1_row_col(source_ref.cell),
                     float(series.net_revenue[period][identity]),
+                    tab=source_ref.tab,
                 )
                 _put_number(
                     ifop_rows[identity],
@@ -7200,8 +7307,21 @@ class ReferenceModelBuilder:
                     float(series.income_from_operations[period][identity]),
                 )
 
+            cons_ref = _source_cell_ref("consolidated", j, rev_cons_row, col_idx)
+            revenue_source_refs[("consolidated", j)] = cons_ref
+            _put_number_at(
+                *_a1_row_col(cons_ref.cell),
+                float(series.reported_consolidated_revenue[period]),
+                tab=cons_ref.tab,
+            )
+
+            segment_refs = [
+                revenue_source_refs[(name, j)]
+                for name in GEOGRAPHIC_SEGMENT_IDENTITIES
+            ]
             rev_total_f = "=" + "+".join(
-                f"{col}{rev_rows[name]}" for name in GEOGRAPHIC_SEGMENT_IDENTITIES
+                semantic_formula_cell(ref, from_tab=GEOGRAPHIC_SHEET)
+                for ref in segment_refs
             )
             _put_formula(rev_total_row, col_idx, rev_total_f)
             _register(
@@ -7219,12 +7339,8 @@ class ReferenceModelBuilder:
                     col_idx,
                     float(snapshot.values[REVENUE_SEGMENT_TOTAL]),
                 )
-            _put_number(
-                rev_cons_row,
-                col_idx,
-                float(series.reported_consolidated_revenue[period]),
-            )
-            rev_diff_f = f"={col}{rev_total_row}-{col}{rev_cons_row}"
+            cons_cell = semantic_formula_cell(cons_ref, from_tab=GEOGRAPHIC_SHEET)
+            rev_diff_f = f"={col}{rev_total_row}-{cons_cell}"
             _put_formula(rev_diff_row, col_idx, rev_diff_f)
             _register(
                 "geographic_consolidated_revenue_difference",
@@ -7237,9 +7353,10 @@ class ReferenceModelBuilder:
             )
 
             for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
-                share_f = _ratio_formula(
-                    f"{col}{rev_rows[identity]}", f"{col}{rev_cons_row}"
+                seg_cell = semantic_formula_cell(
+                    revenue_source_refs[(identity, j)], from_tab=GEOGRAPHIC_SHEET
                 )
+                share_f = _ratio_formula(seg_cell, cons_cell)
                 _put_formula(share_rows[identity], col_idx, share_f, pct=True)
                 _register(
                     "geographic_revenue_share",
@@ -7251,7 +7368,7 @@ class ReferenceModelBuilder:
                     series.revenue_share[period][identity],
                 )
                 margin_f = _ratio_formula(
-                    f"{col}{ifop_rows[identity]}", f"{col}{rev_rows[identity]}"
+                    f"{col}{ifop_rows[identity]}", seg_cell
                 )
                 _put_formula(margin_rows[identity], col_idx, margin_f, pct=True)
                 _register(
@@ -7298,10 +7415,14 @@ class ReferenceModelBuilder:
                 if is_source_unavailable(growth_value):
                     self._stamp_unavailable(ws, growth_row, col_idx, SOURCE_UNAVAILABLE)
                     continue
-                prev_col = self._col(col_idx - 1)
                 growth_f = _growth_formula(
-                    f"{col}{rev_rows[identity]}",
-                    f"{prev_col}{rev_rows[identity]}",
+                    semantic_formula_cell(
+                        revenue_source_refs[(identity, j)], from_tab=GEOGRAPHIC_SHEET
+                    ),
+                    semantic_formula_cell(
+                        revenue_source_refs[(identity, j - 1)],
+                        from_tab=GEOGRAPHIC_SHEET,
+                    ),
                 )
                 _put_formula(growth_row, col_idx, growth_f, pct=True)
                 _register(
@@ -7312,6 +7433,111 @@ class ReferenceModelBuilder:
                     col_idx,
                     growth_f,
                     growth_value,
+                )
+
+            for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+                contrib_value = series.revenue_growth_contribution[period][identity]
+                contrib_row = contribution_rows[identity]
+                if j == 0 or contrib_value is None:
+                    ws.cell(row=contrib_row, column=col_idx, value="N/A")
+                    continue
+                if is_source_unavailable(contrib_value):
+                    self._stamp_unavailable(
+                        ws, contrib_row, col_idx, SOURCE_UNAVAILABLE
+                    )
+                    continue
+                contrib_f = resolve_geographic_revenue_growth_contribution_formula(
+                    revenue_source_refs[(identity, j)],
+                    revenue_source_refs[(identity, j - 1)],
+                    revenue_source_refs[("consolidated", j - 1)],
+                    from_tab=GEOGRAPHIC_SHEET,
+                )
+                _put_formula(contrib_row, col_idx, contrib_f, points=True)
+                _register(
+                    "geographic_revenue_growth_contribution",
+                    j,
+                    identity,
+                    contrib_row,
+                    col_idx,
+                    contrib_f,
+                    contrib_value,
+                )
+
+            cons_growth_value = series.consolidated_revenue_growth[period]
+            residual_value = series.revenue_growth_contribution_residual[period]
+            if j == 0 or cons_growth_value is None:
+                ws.cell(row=cons_growth_row, column=col_idx, value="N/A")
+                ws.cell(row=residual_row, column=col_idx, value="N/A")
+            elif is_source_unavailable(cons_growth_value):
+                self._stamp_unavailable(
+                    ws, cons_growth_row, col_idx, SOURCE_UNAVAILABLE
+                )
+                self._stamp_unavailable(ws, residual_row, col_idx, SOURCE_UNAVAILABLE)
+            else:
+                cons_growth_f = resolve_geographic_consolidated_revenue_growth_formula(
+                    revenue_source_refs[("consolidated", j)],
+                    revenue_source_refs[("consolidated", j - 1)],
+                    from_tab=GEOGRAPHIC_SHEET,
+                )
+                _put_formula(cons_growth_row, col_idx, cons_growth_f, pct=True)
+                _register(
+                    "geographic_consolidated_revenue_growth",
+                    j,
+                    "",
+                    cons_growth_row,
+                    col_idx,
+                    cons_growth_f,
+                    cons_growth_value,
+                )
+                contrib_practice_refs = tuple(
+                    SemanticCellRef(
+                        id=geographic_component_id(
+                            "geographic_revenue_growth_contribution",
+                            period,
+                            identity,
+                        ),
+                        semantic_key=(
+                            "geographic.revenue_growth_contribution."
+                            f"{identity}.{period.isoformat()}"
+                        ),
+                        period_end=period.isoformat(),
+                        cell=f"{col}{contribution_rows[identity]}",
+                        tab=GEOGRAPHIC_SHEET,
+                    )
+                    for identity in GEOGRAPHIC_SEGMENT_IDENTITIES
+                    if series.revenue_growth_contribution[period][identity] is not None
+                    and not is_source_unavailable(
+                        series.revenue_growth_contribution[period][identity]
+                    )
+                )
+                residual_f = (
+                    resolve_geographic_revenue_growth_contribution_residual_formula(
+                        SemanticCellRef(
+                            id=geographic_component_id(
+                                "geographic_consolidated_revenue_growth",
+                                period,
+                            ),
+                            semantic_key=(
+                                "geographic.consolidated_revenue_growth."
+                                f"{period.isoformat()}"
+                            ),
+                            period_end=period.isoformat(),
+                            cell=f"{col}{cons_growth_row}",
+                            tab=GEOGRAPHIC_SHEET,
+                        ),
+                        contrib_practice_refs,
+                        from_tab=GEOGRAPHIC_SHEET,
+                    )
+                )
+                _put_formula(residual_row, col_idx, residual_f, points=True)
+                _register(
+                    "geographic_revenue_growth_contribution_residual",
+                    j,
+                    "",
+                    residual_row,
+                    col_idx,
+                    residual_f,
+                    residual_value,
                 )
 
             signed_refs: list[str] = []
@@ -7375,6 +7601,22 @@ class ReferenceModelBuilder:
                 ifop_diff_f,
                 series.consolidated_operating_profit_difference[period],
             )
+
+    def _geographic_revenue_source_placement(
+        self,
+        identity: str,
+        period_index: int,
+        default_row: int,
+        default_col: int,
+    ) -> tuple[int, int] | tuple[int, int, str]:
+        """Return the worksheet placement for one geographic revenue source.
+
+        Default layout keeps sources on the geographic schedule at consecutive
+        period columns. Tests may override this hook to relocate sources,
+        including nonadjacent columns and another existing sheet, before
+        formula resolution.
+        """
+        return default_row, default_col
 
     def _store_count_source_placement(
         self, period_index: int, default_row: int, default_col: int

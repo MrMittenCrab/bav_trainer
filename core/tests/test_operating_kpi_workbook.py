@@ -214,7 +214,11 @@ DEMO_JSON = ROOT / "example" / "DEMO_HK_Standardized.json"
 P0 = date(2023, 12, 31)
 LEASE_DT_LULULEMON_SPECS = 486
 FAST_RETAILING_SPECS = 577
-GEOGRAPHIC_LULULEMON_SPECS = 74
+GEOGRAPHIC_LULULEMON_SPECS_BASELINE = 74
+GEOGRAPHIC_CONTRIBUTION_SPECS = 20
+GEOGRAPHIC_LULULEMON_SPECS = (
+    GEOGRAPHIC_LULULEMON_SPECS_BASELINE + GEOGRAPHIC_CONTRIBUTION_SPECS
+)
 STORE_COUNT_LULULEMON_SPECS = 8
 STORE_COUNT_LULULEMON_SOURCES = 5
 REVENUE_STORE_LULULEMON_SPECS = 8
@@ -3399,7 +3403,9 @@ def test_store_fixture_without_compsales_keeps_576(tmp_path):
     assert len(_revenue_source_components(smap)) == REVENUE_STORE_LULULEMON_SOURCES
     assert _compsales_practice_components(smap) == []
     blank = check_workbook(trainer)
-    assert blank.total == 576
+    assert blank.total == (
+        LULULEMON_STORE_AUGMENTED_PRACTICE + REVENUE_STORE_LULULEMON_SPECS
+    )
     assert COMPARABLE_SALES_SHEET not in load_workbook(answer).sheetnames
     assert SALES_PER_SQUARE_FOOT_SHEET not in load_workbook(answer).sheetnames
     fr = standardized_from_payload(json.loads(FR_JSON.read_text(encoding="utf-8")))

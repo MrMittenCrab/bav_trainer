@@ -62,6 +62,7 @@ def _independent_from_snapshots(axis: list[date], snapshots: dict):
     """Recompute mix/growth/margins/bridges from snapshot values only."""
     expected = {}
     prior = None
+    prior_cons = None
     for index, period in enumerate(axis):
         snapshot = snapshots.get(period)
         opening = index == 0
@@ -76,6 +77,13 @@ def _independent_from_snapshots(axis: list[date], snapshots: dict):
                     if opening
                     else {name: SOURCE_UNAVAILABLE for name in SEGMENTS}
                 ),
+                "contrib": (
+                    {name: None for name in SEGMENTS}
+                    if opening
+                    else {name: SOURCE_UNAVAILABLE for name in SEGMENTS}
+                ),
+                "cons_growth": None if opening else SOURCE_UNAVAILABLE,
+                "residual": None if opening else SOURCE_UNAVAILABLE,
                 "margin": {name: SOURCE_UNAVAILABLE for name in SEGMENTS},
                 "rev_total": SOURCE_UNAVAILABLE,
                 "ifop_total": SOURCE_UNAVAILABLE,
@@ -87,6 +95,7 @@ def _independent_from_snapshots(axis: list[date], snapshots: dict):
                 "ifop_diff": SOURCE_UNAVAILABLE,
             }
             prior = None
+            prior_cons = None
             continue
         revenue = {name: float(snapshot.values[f"net_revenue.{name}"]) for name in SEGMENTS}
         ifop = {
@@ -105,19 +114,43 @@ def _independent_from_snapshots(axis: list[date], snapshots: dict):
         reconstructed = ifop_total + sum(amount for _, amount in signed)
         if opening:
             growth = {name: None for name in SEGMENTS}
-        elif prior is None:
+            contrib = {name: None for name in SEGMENTS}
+            cons_growth = None
+            residual = None
+        elif prior is None or prior_cons is None:
             growth = {name: SOURCE_UNAVAILABLE for name in SEGMENTS}
+            contrib = {name: SOURCE_UNAVAILABLE for name in SEGMENTS}
+            cons_growth = SOURCE_UNAVAILABLE
+            residual = SOURCE_UNAVAILABLE
         else:
             growth = {
                 name: ratio_or_na(revenue[name] - prior[name], prior[name])
                 for name in SEGMENTS
             }
+            contrib = {}
+            for name in SEGMENTS:
+                raw = ratio_or_na(revenue[name] - prior[name], prior_cons)
+                contrib[name] = 100.0 * raw if isinstance(raw, float) else raw
+            cons_growth = ratio_or_na(cons_rev - prior_cons, prior_cons)
+            if cons_growth == SOURCE_UNAVAILABLE or any(
+                value == SOURCE_UNAVAILABLE for value in contrib.values()
+            ):
+                residual = SOURCE_UNAVAILABLE
+            elif cons_growth == UNDEFINED_RATIO or any(
+                value == UNDEFINED_RATIO for value in contrib.values()
+            ):
+                residual = UNDEFINED_RATIO
+            else:
+                residual = 100.0 * cons_growth - sum(contrib[name] for name in SEGMENTS)
         expected[period] = {
             "family": snapshot.presentation_family,
             "revenue": revenue,
             "ifop": ifop,
             "share": {name: ratio_or_na(revenue[name], cons_rev) for name in SEGMENTS},
             "growth": growth,
+            "contrib": contrib,
+            "cons_growth": cons_growth,
+            "residual": residual,
             "margin": {name: ratio_or_na(ifop[name], revenue[name]) for name in SEGMENTS},
             "rev_total": rev_total,
             "ifop_total": ifop_total,
@@ -129,6 +162,7 @@ def _independent_from_snapshots(axis: list[date], snapshots: dict):
             "ifop_diff": reconstructed - cons_ifop,
         }
         prior = revenue
+        prior_cons = cons_rev
     return expected
 
 
@@ -141,6 +175,9 @@ def _assert_series_matches(series, expected) -> None:
         assert series.income_from_operations[period] == row["ifop"]
         assert series.revenue_share[period] == row["share"]
         assert series.revenue_growth[period] == row["growth"]
+        assert series.revenue_growth_contribution[period] == row["contrib"]
+        assert series.consolidated_revenue_growth[period] == row["cons_growth"]
+        assert series.revenue_growth_contribution_residual[period] == row["residual"]
         assert series.reported_operating_margin[period] == row["margin"]
         assert series.calculated_segment_revenue_total[period] == row["rev_total"]
         assert series.calculated_segment_operating_profit_total[period] == row["ifop_total"]
@@ -156,6 +193,16 @@ def _assert_series_matches(series, expected) -> None:
             assert abs(row["rev_diff"]) <= SEGMENT_BRIDGE_TOLERANCE
         if isinstance(row["ifop_diff"], float):
             assert abs(row["ifop_diff"]) <= SEGMENT_BRIDGE_TOLERANCE
+        contrib = row["contrib"]
+        cons_growth = row["cons_growth"]
+        residual = row["residual"]
+        if (
+            isinstance(cons_growth, float)
+            and all(isinstance(value, float) for value in contrib.values())
+            and isinstance(residual, float)
+        ):
+            reconstructed = 100.0 * cons_growth - sum(contrib.values())
+            assert abs(reconstructed - residual) <= GEOGRAPHIC_RATIO_TOLERANCE
 
 
 def test_absent_and_null_payloads_make_module_absent():
@@ -197,6 +244,14 @@ def test_both_presentation_families_and_reordered_inputs():
     assert series.presentation_family[P1] == FAMILY_ITEMIZED
     assert series.presentation_family[P2] == FAMILY_CORPORATE
     assert series.revenue_growth[P1]["americas"] is None
+    assert series.revenue_growth_contribution[P1]["americas"] is None
+    assert series.consolidated_revenue_growth[P1] is None
+    assert series.revenue_growth_contribution_residual[P1] is None
+    assert series.revenue_growth_contribution[P2]["americas"] == pytest.approx(30.0)
+    assert series.revenue_growth_contribution[P2]["china_mainland"] == pytest.approx(-5.0)
+    assert series.revenue_growth_contribution[P2]["rest_of_world"] == pytest.approx(-5.0)
+    assert series.consolidated_revenue_growth[P2] == pytest.approx(0.2)
+    assert series.revenue_growth_contribution_residual[P2] == pytest.approx(0.0)
     assert series.signed_reconciling_contributions[P1] == (
         ("ifop_reconciling.amortization_of_intangible_assets", -3.0),
         ("ifop_reconciling.general_corporate_expenses", -12.0),
@@ -224,12 +279,18 @@ def test_sparse_snapshots_do_not_compress_or_substitute_periods():
     _assert_series_matches(series, expected)
     assert series.periods == (P0, P1, P2)
     assert series.revenue_growth[P0]["americas"] is None
+    assert series.revenue_growth_contribution[P0]["americas"] is None
+    assert series.consolidated_revenue_growth[P0] is None
     assert series.net_revenue[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.revenue_share[P1]["china_mainland"] == SOURCE_UNAVAILABLE
     assert series.reported_operating_margin[P1]["rest_of_world"] == SOURCE_UNAVAILABLE
     assert series.signed_reconciling_contributions[P1] == SOURCE_UNAVAILABLE
     assert series.revenue_growth[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.revenue_growth[P2]["americas"] == SOURCE_UNAVAILABLE
+    assert series.revenue_growth_contribution[P1]["americas"] == SOURCE_UNAVAILABLE
+    assert series.revenue_growth_contribution[P2]["americas"] == SOURCE_UNAVAILABLE
+    assert series.consolidated_revenue_growth[P2] == SOURCE_UNAVAILABLE
+    assert series.revenue_growth_contribution_residual[P2] == SOURCE_UNAVAILABLE
     assert series.net_revenue[P2]["americas"] == 90.0
     p0_rev = series.net_revenue[P0]["americas"]
     p2_rev = series.net_revenue[P2]["americas"]
@@ -267,9 +328,62 @@ def test_zero_denominators_zero_numerators_and_negative_profits():
     assert series.reported_operating_margin[P2]["rest_of_world"] == 0.0
     assert series.revenue_growth[P2]["americas"] == UNDEFINED_RATIO
     assert series.revenue_growth[P2]["china_mainland"] == -1.0
+    assert series.revenue_growth_contribution[P2]["americas"] == pytest.approx(10.0)
+    assert series.revenue_growth_contribution[P2]["china_mainland"] == pytest.approx(-50.0)
+    assert series.revenue_growth_contribution[P2]["rest_of_world"] == pytest.approx(0.0)
+    assert series.consolidated_revenue_growth[P2] == pytest.approx(-0.4)
+    assert series.revenue_growth_contribution_residual[P2] == pytest.approx(0.0)
     assert REPORTED_OPERATING_MARGIN_BASIS == "income_from_operations / net_revenue"
     assert "nopat" not in REPORTED_OPERATING_MARGIN_BASIS.lower()
     assert not hasattr(series, "nopat_margin")
+
+
+def test_growth_contributions_zero_consolidated_offsetting_and_singleton():
+    zero_cons = _snapshot(
+        P0,
+        values=_corp_values(rev=(0.0, 0.0, 0.0), ifop=(0.0, 0.0, 0.0), corporate=0.0),
+    )
+    later = _snapshot(
+        P1,
+        values=_corp_values(rev=(10.0, 20.0, 30.0), ifop=(4.0, 5.0, 6.0), corporate=-3.0),
+    )
+    zero_fin = _fin_with_segment(zero_cons, later, extra_periods=[P0, P1])
+    zero_series = compute_geographic_segment_series(zero_fin)
+    _assert_series_matches(
+        zero_series,
+        _independent_from_snapshots(
+            [P0, P1],
+            {snap.period: snap for snap in zero_fin.historical_segment.periods},
+        ),
+    )
+    assert zero_series.consolidated_revenue_growth[P1] == UNDEFINED_RATIO
+    assert zero_series.revenue_growth_contribution[P1]["americas"] == UNDEFINED_RATIO
+    assert zero_series.revenue_growth_contribution_residual[P1] == UNDEFINED_RATIO
+    assert zero_series.revenue_growth[P1]["americas"] == UNDEFINED_RATIO
+
+    offsetting = _fin_with_segment(
+        _snapshot(P1, values=_corp_values(rev=(50.0, 30.0, 20.0))),
+        _snapshot(P2, values=_corp_values(rev=(60.0, 20.0, 20.0))),
+    )
+    offset_series = compute_geographic_segment_series(offsetting)
+    _assert_series_matches(
+        offset_series,
+        _independent_from_snapshots(
+            [P1, P2],
+            {snap.period: snap for snap in offsetting.historical_segment.periods},
+        ),
+    )
+    assert offset_series.consolidated_revenue_growth[P2] == pytest.approx(0.0)
+    assert offset_series.revenue_growth_contribution[P2]["americas"] == pytest.approx(10.0)
+    assert offset_series.revenue_growth_contribution[P2]["china_mainland"] == pytest.approx(-10.0)
+    assert offset_series.revenue_growth_contribution[P2]["rest_of_world"] == pytest.approx(0.0)
+    assert offset_series.revenue_growth_contribution_residual[P2] == pytest.approx(0.0)
+
+    singleton = _fin_with_segment(_snapshot(P2))
+    single_series = compute_geographic_segment_series(singleton)
+    assert single_series.revenue_growth_contribution[P2]["americas"] is None
+    assert single_series.consolidated_revenue_growth[P2] is None
+    assert single_series.revenue_growth_contribution_residual[P2] is None
 
 
 def test_invalid_contracts_fail_closed_without_mutation():

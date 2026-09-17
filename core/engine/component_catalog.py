@@ -4583,6 +4583,82 @@ GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         ),
         tolerance=0.0,
     ),
+    ComponentFamily(
+        id="geographic_revenue_growth_contribution",
+        order=161,
+        title="Geographic contribution to consolidated revenue growth",
+        short_hint=(
+            "Contribution in percentage points = 100 × (current segment net "
+            "revenue − prior segment net revenue) / prior consolidated net "
+            "revenue. Arithmetic decomposition of reported geographic revenue "
+            "changes only. Opening contribution is absent. A missing adjacent "
+            "snapshot is unavailable. Zero prior consolidated revenue is "
+            "undefined (#N/A). Zero prior segment revenue does not suppress "
+            "the contribution. Not organic growth, constant-currency growth, "
+            "or a causal explanation."
+        ),
+        semantic_key="geographic.revenue_growth_contribution",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        hints=(
+            "Contribution uses prior consolidated revenue, not the segment's own prior revenue.",
+            "Opening contribution is absent; a gap is unavailable, not compressed.",
+            "Percentage-point arithmetic only; not organic, constant-currency, or causal growth.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_consolidated_revenue_growth",
+        order=162,
+        title="Consolidated revenue growth",
+        short_hint=(
+            "Consolidated revenue growth = (current − prior) / prior using "
+            "reported consolidated net revenue and the immediately preceding "
+            "model period. Opening growth is absent. A missing adjacent "
+            "snapshot makes growth unavailable. Zero prior consolidated "
+            "revenue is undefined (#N/A). Not organic, constant-currency, "
+            "or causal growth."
+        ),
+        semantic_key="geographic.consolidated_revenue_growth",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        hints=(
+            "Adjacent consolidated growth uses the immediately preceding model period.",
+            "Opening growth is absent; a gap is unavailable, not compressed.",
+            "Zero prior consolidated revenue yields the undefined-ratio result.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_revenue_growth_contribution_residual",
+        order=163,
+        title="Geographic contribution residual",
+        short_hint=(
+            "Residual in percentage points = 100 × consolidated revenue "
+            "growth − sum of Americas, China Mainland, and Rest of World "
+            "contributions. Preserve the signed residual; do not force it "
+            "to zero or divide by the consolidated revenue change. Opening "
+            "residual is absent. A missing adjacent snapshot is unavailable. "
+            "Zero prior consolidated revenue is undefined (#N/A). Arithmetic "
+            "reconciliation only, not a causal explanation."
+        ),
+        semantic_key="geographic.revenue_growth_contribution_residual",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(
+            "geographic_consolidated_revenue_growth",
+            "geographic_revenue_growth_contribution",
+        ),
+        hints=(
+            "Residual = 100 × consolidated revenue growth − the three segment contributions.",
+            "Keep the signed residual; do not force reconciliation to zero.",
+            "Do not divide by the consolidated revenue change.",
+        ),
+        tolerance=1e-12,
+    ),
 )
 
 
@@ -4593,6 +4669,8 @@ def expand_geographic_segment_specs(
     available_periods: tuple[date, ...],
     growth_identities: dict[date, tuple[str, ...]],
     bridge_identities: dict[date, tuple[str, ...]],
+    contribution_identities: dict[date, tuple[str, ...]] | None = None,
+    consolidated_growth_periods: tuple[date, ...] | None = None,
 ) -> tuple[ComponentSpec, ...]:
     """Expand geographic families by segment/bridge identity and fiscal period."""
     if len(periods) != len(set(periods)):
@@ -4658,6 +4736,11 @@ def expand_geographic_segment_specs(
     reconstructed = families["geographic_reconstructed_consolidated_operating_profit"]
     rev_diff = families["geographic_consolidated_revenue_difference"]
     ifop_diff = families["geographic_consolidated_operating_profit_difference"]
+    contribution = families["geographic_revenue_growth_contribution"]
+    cons_growth = families["geographic_consolidated_revenue_growth"]
+    residual = families["geographic_revenue_growth_contribution_residual"]
+    contribution_ids = contribution_identities or {}
+    cons_growth_periods = set(consolidated_growth_periods or ())
 
     for period in periods:
         if period not in available:
@@ -4724,6 +4807,39 @@ def expand_geographic_segment_specs(
             period,
             depends_on=(geographic_component_id(reconstructed.id, period),),
         )
+        contrib_ids = contribution_ids.get(period, ())
+        contrib_deps: list[str] = []
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            if identity not in contrib_ids:
+                continue
+            label = geographic_identity_label(identity)
+            contrib_id = geographic_component_id(contribution.id, period, identity)
+            contrib_deps.append(contrib_id)
+            _append(
+                contribution,
+                period,
+                identity=identity,
+                title=(
+                    f"{label} contribution to consolidated revenue growth "
+                    "(percentage points)"
+                ),
+            )
+        if period in cons_growth_periods:
+            _append(
+                cons_growth,
+                period,
+                title="Consolidated revenue growth",
+            )
+            residual_deps = [
+                geographic_component_id(cons_growth.id, period),
+                *contrib_deps,
+            ]
+            _append(
+                residual,
+                period,
+                depends_on=tuple(residual_deps),
+                title="Contribution residual (percentage points)",
+            )
     return tuple(specs)
 
 
@@ -5077,6 +5193,52 @@ def semantic_formula_cell(ref: SemanticCellRef, *, from_tab: str) -> str:
         return ref.cell
     escaped = ref.tab.replace("'", "''")
     return f"'{escaped}'!{ref.cell}"
+
+
+def resolve_geographic_revenue_growth_contribution_formula(
+    current_segment: SemanticCellRef,
+    prior_segment: SemanticCellRef,
+    prior_consolidated: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Percentage-point contribution from mapped current/prior revenue sources."""
+    current_cell = semantic_formula_cell(current_segment, from_tab=from_tab)
+    prior_cell = semantic_formula_cell(prior_segment, from_tab=from_tab)
+    prior_cons = semantic_formula_cell(prior_consolidated, from_tab=from_tab)
+    return (
+        f"=IF({prior_cons}=0,NA(),100*({current_cell}-{prior_cell})/{prior_cons})"
+    )
+
+
+def resolve_geographic_consolidated_revenue_growth_formula(
+    current_consolidated: SemanticCellRef,
+    prior_consolidated: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Adjacent consolidated revenue growth from mapped current/prior sources."""
+    current_cell = semantic_formula_cell(current_consolidated, from_tab=from_tab)
+    prior_cell = semantic_formula_cell(prior_consolidated, from_tab=from_tab)
+    return (
+        f"=IF({prior_cell}=0,NA(),({current_cell}-{prior_cell})/{prior_cell})"
+    )
+
+
+def resolve_geographic_revenue_growth_contribution_residual_formula(
+    consolidated_growth: SemanticCellRef,
+    contributions: tuple[SemanticCellRef, ...],
+    *,
+    from_tab: str,
+) -> str:
+    """Signed residual from mapped consolidated growth and segment contributions."""
+    if not contributions:
+        raise ValueError("contribution residual requires mapped segment contributions")
+    growth_cell = semantic_formula_cell(consolidated_growth, from_tab=from_tab)
+    contrib_cells = [
+        semantic_formula_cell(item, from_tab=from_tab) for item in contributions
+    ]
+    return "=100*" + growth_cell + "".join(f"-{cell}" for cell in contrib_cells)
 
 
 def resolve_revenue_store_growth_formula(

@@ -7,9 +7,12 @@ absent. Missing snapshots on an otherwise valid canonical fiscal axis yield
 and another period is never substituted.
 
 Computes each Americas / China Mainland / Rest of World segment's revenue share
-of consolidated revenue, adjacent-period revenue growth, and reported operating
-margin ``income_from_operations / net_revenue``. Reported operating margin is
-not BAV NOPAT margin.
+of consolidated revenue, adjacent-period revenue growth, reported operating
+margin ``income_from_operations / net_revenue``, and percentage-point
+contributions to consolidated revenue growth. Reported operating margin is
+not BAV NOPAT margin. Contributions are an arithmetic decomposition of
+reported geographic revenue changes, not organic, constant-currency, or
+causal growth.
 
 Calculated segment revenue and operating-profit totals are identified separately
 from any reported ``segment_total``. Explicit bridge operations are applied in
@@ -38,7 +41,7 @@ from ..data.historical_segments import (
 from ..data.interface import HistoricalSegmentPeriod, StandardizedFinancials
 from .line_resolver import MissingLineError
 from .period_axis import canonical_fiscal_periods
-from .ratio_values import SOURCE_UNAVAILABLE, ratio_or_na
+from .ratio_values import SOURCE_UNAVAILABLE, UNDEFINED_RATIO, is_source_unavailable, ratio_or_na
 
 GEOGRAPHIC_RATIO_TOLERANCE = 1e-12
 REPORTED_OPERATING_MARGIN_BASIS = "income_from_operations / net_revenue"
@@ -57,6 +60,9 @@ class GeographicSegmentSeries:
     income_from_operations: dict[date, dict[str, float | str]]
     revenue_share: dict[date, dict[str, float | str]]
     revenue_growth: dict[date, dict[str, float | str | None]]
+    revenue_growth_contribution: dict[date, dict[str, float | str | None]]
+    consolidated_revenue_growth: dict[date, float | str | None]
+    revenue_growth_contribution_residual: dict[date, float | str | None]
     reported_operating_margin: dict[date, dict[str, float | str]]
     calculated_segment_revenue_total: dict[date, float | str]
     calculated_segment_operating_profit_total: dict[date, float | str]
@@ -142,11 +148,75 @@ def _growth(
     }
 
 
+def _percentage_points(numerator: float, denominator: float) -> float | str:
+    ratio = ratio_or_na(numerator, denominator)
+    if isinstance(ratio, str):
+        return ratio
+    return 100.0 * ratio
+
+
+def _opening_contributions() -> dict[str, None]:
+    return {name: None for name in SEGMENTS}
+
+
+def _unavailable_contributions() -> dict[str, str]:
+    return {name: SOURCE_UNAVAILABLE for name in SEGMENTS}
+
+
+def _growth_contributions(
+    current: dict[str, float],
+    prior: dict[str, float] | None,
+    prior_consolidated: float | None,
+    *,
+    opening: bool,
+) -> dict[str, float | str | None]:
+    if opening:
+        return _opening_contributions()
+    if prior is None or prior_consolidated is None:
+        return _unavailable_contributions()
+    return {
+        name: _percentage_points(current[name] - prior[name], prior_consolidated)
+        for name in SEGMENTS
+    }
+
+
+def _consolidated_growth(
+    current_consolidated: float,
+    prior_consolidated: float | None,
+    *,
+    opening: bool,
+) -> float | str | None:
+    if opening:
+        return None
+    if prior_consolidated is None:
+        return SOURCE_UNAVAILABLE
+    return ratio_or_na(current_consolidated - prior_consolidated, prior_consolidated)
+
+
+def _contribution_residual(
+    consolidated_growth: float | str | None,
+    contributions: dict[str, float | str | None],
+) -> float | str | None:
+    if consolidated_growth is None:
+        return None
+    if is_source_unavailable(consolidated_growth) or any(
+        is_source_unavailable(value) for value in contributions.values()
+    ):
+        return SOURCE_UNAVAILABLE
+    if consolidated_growth == UNDEFINED_RATIO or any(
+        value == UNDEFINED_RATIO for value in contributions.values()
+    ):
+        return UNDEFINED_RATIO
+    return 100.0 * float(consolidated_growth) - sum(
+        float(contributions[name]) for name in SEGMENTS
+    )
+
+
 def compute_geographic_segment_series(
     financials: StandardizedFinancials,
     periods: list[date] | None = None,
 ) -> GeographicSegmentSeries:
-    """Compute mix, growth, reported operating margins, and consolidated bridges."""
+    """Compute mix, growth, reported operating margins, growth contributions, and consolidated bridges."""
     if not geographic_segment_applicable(financials):
         raise MissingLineError("geographic segment sources not available")
 
@@ -161,6 +231,9 @@ def compute_geographic_segment_series(
     income_from_operations: dict[date, dict[str, float | str]] = {}
     revenue_share: dict[date, dict[str, float | str]] = {}
     revenue_growth: dict[date, dict[str, float | str | None]] = {}
+    revenue_growth_contribution: dict[date, dict[str, float | str | None]] = {}
+    consolidated_revenue_growth: dict[date, float | str | None] = {}
+    revenue_growth_contribution_residual: dict[date, float | str | None] = {}
     reported_operating_margin: dict[date, dict[str, float | str]] = {}
     calculated_segment_revenue_total: dict[date, float | str] = {}
     calculated_segment_operating_profit_total: dict[date, float | str] = {}
@@ -174,6 +247,7 @@ def compute_geographic_segment_series(
     consolidated_operating_profit_difference: dict[date, float | str] = {}
 
     prior_revenue: dict[str, float] | None = None
+    prior_consolidated: float | None = None
     for index, period in enumerate(axis):
         snapshot = snapshots.get(period)
         opening = index == 0
@@ -185,6 +259,15 @@ def compute_geographic_segment_series(
             revenue_growth[period] = (
                 _opening_growth() if opening else _unavailable_growth()
             )
+            revenue_growth_contribution[period] = (
+                _opening_contributions() if opening else _unavailable_contributions()
+            )
+            consolidated_revenue_growth[period] = (
+                None if opening else SOURCE_UNAVAILABLE
+            )
+            revenue_growth_contribution_residual[period] = (
+                None if opening else SOURCE_UNAVAILABLE
+            )
             reported_operating_margin[period] = dict(_UNAVAILABLE_SEGMENTS)
             calculated_segment_revenue_total[period] = SOURCE_UNAVAILABLE
             calculated_segment_operating_profit_total[period] = SOURCE_UNAVAILABLE
@@ -195,6 +278,7 @@ def compute_geographic_segment_series(
             consolidated_revenue_difference[period] = SOURCE_UNAVAILABLE
             consolidated_operating_profit_difference[period] = SOURCE_UNAVAILABLE
             prior_revenue = None
+            prior_consolidated = None
             continue
 
         revenue = _segment_amounts(snapshot, REVENUE_SEGMENTS)
@@ -205,6 +289,17 @@ def compute_geographic_segment_series(
         operating_total = sum(operating_profit[name] for name in SEGMENTS)
         contributions = _signed_contributions(snapshot)
         reconstructed = operating_total + sum(amount for _, amount in contributions)
+        growth_contributions = _growth_contributions(
+            revenue,
+            prior_revenue,
+            prior_consolidated,
+            opening=opening,
+        )
+        cons_growth = _consolidated_growth(
+            consolidated_revenue,
+            prior_consolidated,
+            opening=opening,
+        )
 
         presentation_family[period] = snapshot.presentation_family
         net_revenue[period] = dict(revenue)
@@ -213,6 +308,12 @@ def compute_geographic_segment_series(
             name: ratio_or_na(revenue[name], consolidated_revenue) for name in SEGMENTS
         }
         revenue_growth[period] = _growth(revenue, prior_revenue, opening=opening)
+        revenue_growth_contribution[period] = growth_contributions
+        consolidated_revenue_growth[period] = cons_growth
+        revenue_growth_contribution_residual[period] = _contribution_residual(
+            cons_growth,
+            growth_contributions,
+        )
         reported_operating_margin[period] = {
             name: ratio_or_na(operating_profit[name], revenue[name]) for name in SEGMENTS
         }
@@ -227,6 +328,7 @@ def compute_geographic_segment_series(
             reconstructed - consolidated_operating_profit
         )
         prior_revenue = revenue
+        prior_consolidated = consolidated_revenue
 
     return GeographicSegmentSeries(
         periods=tuple(axis),
@@ -236,6 +338,9 @@ def compute_geographic_segment_series(
         income_from_operations=income_from_operations,
         revenue_share=revenue_share,
         revenue_growth=revenue_growth,
+        revenue_growth_contribution=revenue_growth_contribution,
+        consolidated_revenue_growth=consolidated_revenue_growth,
+        revenue_growth_contribution_residual=revenue_growth_contribution_residual,
         reported_operating_margin=reported_operating_margin,
         calculated_segment_revenue_total=calculated_segment_revenue_total,
         calculated_segment_operating_profit_total=calculated_segment_operating_profit_total,
