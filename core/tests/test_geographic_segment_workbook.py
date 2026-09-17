@@ -42,7 +42,9 @@ from core.engine.component_catalog import (
     resolve_geographic_operating_margin_mix_effect_formula,
     resolve_geographic_operating_margin_mix_within_residual_formula,
     resolve_geographic_operating_margin_within_segment_effect_formula,
+    resolve_geographic_operating_profit_amount_change_residual_formula,
     resolve_geographic_reconciling_operating_margin_contribution_formula,
+    resolve_geographic_reconciling_operating_profit_amount_change_formula,
     resolve_geographic_revenue_growth_contribution_formula,
     resolve_geographic_revenue_growth_contribution_residual_formula,
     semantic_formula_cell,
@@ -106,11 +108,13 @@ GEOGRAPHIC_LULULEMON_SPECS_BASELINE = 74
 GEOGRAPHIC_CONTRIBUTION_SPECS = 20
 GEOGRAPHIC_MARGIN_BRIDGE_SPECS = 54
 GEOGRAPHIC_MIX_WITHIN_SPECS = 28
+GEOGRAPHIC_AMOUNT_CHANGE_SPECS = 24
 GEOGRAPHIC_LULULEMON_SPECS = (
     GEOGRAPHIC_LULULEMON_SPECS_BASELINE
     + GEOGRAPHIC_CONTRIBUTION_SPECS
     + GEOGRAPHIC_MARGIN_BRIDGE_SPECS
     + GEOGRAPHIC_MIX_WITHIN_SPECS
+    + GEOGRAPHIC_AMOUNT_CHANGE_SPECS
 )
 LULULEMON_UNAVAILABLE_DISPLAYS = 101
 GEOGRAPHIC_A2 = (
@@ -118,21 +122,25 @@ GEOGRAPHIC_A2 = (
     "reported operating margins, consolidated bridges, percentage-point "
     "contributions to consolidated revenue growth, an arithmetic "
     "decomposition of consolidated reported operating margin and its "
-    "change, and a separate mix and within-segment decomposition of "
-    "that adjacent change. Reported operating margin is distinct from "
+    "change, a separate mix and within-segment decomposition of "
+    "that adjacent change, and an adjacent operating-profit amount-"
+    "change bridge. Reported operating margin is distinct from "
     "BAV NOPAT margin. Revenue-growth contributions are an arithmetic "
     "decomposition of reported geographic revenue changes, not "
     "organic, constant-currency, or causal growth. Operating-margin "
     "contributions are a direct contribution bridge, distinct from the "
-    "mix and within-segment decomposition, normalization, or a causal "
-    "explanation. Mix and within-segment effects use a symmetric "
-    "midpoint convention and remain arithmetic only."
+    "mix and within-segment decomposition, the monetary amount-change "
+    "bridge, normalization, or a causal explanation. Mix and within-"
+    "segment effects use a symmetric midpoint convention and remain "
+    "arithmetic only. Operating-profit amount changes are monetary "
+    "differences, distinct from the percentage-point margin bridges."
 )
 GEOGRAPHIC_A4 = (
     "Calculated segment totals are distinct from any reported segment_total. "
     "Sparse unavailable amounts remain unavailable; opening growth, "
     "opening revenue-growth contributions, opening operating-margin "
-    "contribution changes, and opening mix and within-segment effects "
+    "contribution changes, opening mix and within-segment effects, "
+    "and opening operating-profit amount changes "
     "are not practiced. Signed residuals are not forced to zero."
 )
 
@@ -363,7 +371,7 @@ def _assert_visible_parity(
 def test_catalog_orders_and_expand_identities():
     assert GEOGRAPHIC_SHEET == GEOGRAPHIC_SHEET_NAME
     assert [family.order for family in GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG] == list(
-        range(152, 175)
+        range(152, 179)
     )
     assert [family.id for family in GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG] == [
         "geographic_revenue_share",
@@ -389,6 +397,10 @@ def test_catalog_orders_and_expand_identities():
         "geographic_operating_margin_mix_effect",
         "geographic_operating_margin_within_segment_effect",
         "geographic_operating_margin_mix_within_residual",
+        "geographic_operating_profit_amount_change",
+        "geographic_reconciling_operating_profit_amount_change",
+        "geographic_consolidated_operating_profit_amount_change",
+        "geographic_operating_profit_amount_change_residual",
     ]
     specs = expand_geographic_segment_specs(
         [P1, P2],
@@ -436,10 +448,18 @@ def test_catalog_orders_and_expand_identities():
         "geographic_operating_margin_mix_effect", P2, "americas"
     ) in {s.id for s in specs}
     assert geographic_component_id(
+        "geographic_operating_profit_amount_change", P2, "americas"
+    ) in {s.id for s in specs}
+    assert geographic_component_id(
         "geographic_operating_margin_within_segment_effect", P2, "americas"
     ) in {s.id for s in specs}
     assert not any(
         s.family_id == "geographic_operating_margin_mix_effect"
+        and s.period_end == P1.isoformat()
+        for s in specs
+    )
+    assert not any(
+        s.family_id == "geographic_operating_profit_amount_change"
         and s.period_end == P1.isoformat()
         for s in specs
     )
@@ -449,6 +469,18 @@ def test_catalog_orders_and_expand_identities():
         if s.family_id == "geographic_operating_margin_mix_within_residual"
     )
     assert mix_residual.period_end == P2.isoformat()
+    amount_residual = next(
+        s
+        for s in specs
+        if s.family_id == "geographic_operating_profit_amount_change_residual"
+    )
+    assert amount_residual.period_end == P2.isoformat()
+    assert geographic_component_id(
+        "geographic_consolidated_operating_profit_amount_change", P2
+    ) in amount_residual.depends_on
+    assert geographic_component_id(
+        "geographic_reconciling_operating_profit_amount_change", P2
+    ) in amount_residual.depends_on
     assert geographic_component_id(
         "geographic_consolidated_operating_margin_change", P2
     ) in mix_residual.depends_on
@@ -594,6 +626,16 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
         c.family_id == "geographic_operating_margin_mix_effect" and c.period_index == 1
         for c in geo_comps
     )
+    assert not any(
+        c.family_id == "geographic_operating_profit_amount_change"
+        and c.period_index == 0
+        for c in geo_comps
+    )
+    assert any(
+        c.family_id == "geographic_operating_profit_amount_change"
+        and c.period_index == 1
+        for c in geo_comps
+    )
 
     awb = load_workbook(answer, data_only=False)
     twb = load_workbook(trainer, data_only=False)
@@ -680,6 +722,18 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
         "(percentage points)",
     )
     assert aws.cell(mix_res_row, 2).value == "N/A"
+    dp_row = _row_by_label(aws, "Americas operating-profit amount change")
+    assert aws.cell(dp_row, 2).value == "N/A"
+    assert tws.cell(dp_row, 2).value == "N/A"
+    assert str(aws.cell(dp_row, 3).value).startswith("=")
+    assert "100*" not in str(aws.cell(dp_row, 3).value).replace(" ", "")
+    dbr_row = _row_by_label(aws, "Aggregate reconciling operating-profit amount change")
+    assert aws.cell(dbr_row, 2).value == "N/A"
+    assert str(aws.cell(dbr_row, 3).value).startswith("=")
+    dpc_row = _row_by_label(aws, "Consolidated operating-profit amount change")
+    assert aws.cell(dpc_row, 2).value == "N/A"
+    dpr_row = _row_by_label(aws, "Operating-profit amount-change residual")
+    assert aws.cell(dpr_row, 2).value == "N/A"
     mix_note = (
         (aws.cell(mix_row, 3).comment.text or "")
         if aws.cell(mix_row, 3).comment
@@ -708,6 +762,27 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
     )
     assert "residual" in mix_res_note.lower()
     assert "contribution" in mix_res_note.lower()
+    dp_note = (
+        (aws.cell(dp_row, 3).comment.text or "")
+        if aws.cell(dp_row, 3).comment
+        else ""
+    )
+    lowered_dp = dp_note.lower()
+    assert "amount" in lowered_dp
+    assert "monetary" in lowered_dp or "current minus" in lowered_dp
+    assert "percentage-point" in lowered_dp or "margin" in lowered_dp
+    assert "mix" in lowered_dp
+    assert "nopat" in lowered_dp
+    assert "organic" in lowered_dp
+    assert "causal" in lowered_dp or "causality" in lowered_dp
+    assert "normalization" in lowered_dp
+    dpr_note = (
+        (aws.cell(dpr_row, 3).comment.text or "")
+        if aws.cell(dpr_row, 3).comment
+        else ""
+    )
+    assert "residual" in dpr_note.lower()
+    assert "amount" in dpr_note.lower()
     cs_note = (
         (aws.cell(cs_row, 2).comment.text or "")
         if aws.cell(cs_row, 2).comment
@@ -835,6 +910,9 @@ def test_sparse_undefined_negative_reorder_and_source_edit(tmp_path):
     assert series.operating_margin_mix_effect[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.operating_margin_within_segment_effect[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.operating_margin_mix_within_residual[P1] == SOURCE_UNAVAILABLE
+    assert series.operating_profit_amount_change[P0]["americas"] is None
+    assert series.operating_profit_amount_change[P1]["americas"] == SOURCE_UNAVAILABLE
+    assert series.operating_profit_amount_change_residual[P1] == SOURCE_UNAVAILABLE
     assert series.revenue_growth[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.revenue_growth_contribution[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.reported_operating_margin[P1]["americas"] == UNDEFINED_RATIO
@@ -863,6 +941,11 @@ def test_sparse_undefined_negative_reorder_and_source_edit(tmp_path):
     )
     assert not any(
         s.family_id == "geographic_operating_margin_mix_effect"
+        and s.period_end == P1.isoformat()
+        for s in builder.geographic_specs
+    )
+    assert not any(
+        s.family_id == "geographic_operating_profit_amount_change"
         and s.period_end == P1.isoformat()
         for s in builder.geographic_specs
     )
@@ -1445,6 +1528,101 @@ def test_margin_bridge_formulas_follow_relocated_sources(tmp_path, monkeypatch):
             from_tab=GEOGRAPHIC_SHEET,
         ).replace(" ", "")
     )
+    dp = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_operating_profit_amount_change"
+        and geographic_spec_identity(c) == "americas"
+        and c.period_index == 1
+    )
+    assert dp.formula.replace(" ", "") == (
+        resolve_geographic_adjacent_change_formula(
+            _ref(MOVED_GEO_IFOP_SOURCE_PLACEMENT[("americas", 1)], "ifop_curr"),
+            _ref(MOVED_GEO_IFOP_SOURCE_PLACEMENT[("americas", 0)], "ifop_prior"),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    default_ifop_row = default_ifop
+    adjacent_ifop = f"{get_column_letter(parse_cell_ref(dp.cell)[1])}{default_ifop_row}"
+    assert adjacent_ifop not in dp.formula.replace(" ", "")
+    dpc = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_consolidated_operating_profit_amount_change"
+        and c.period_index == 1
+    )
+    assert dpc.formula.replace(" ", "") == (
+        resolve_geographic_adjacent_change_formula(
+            _ref(MOVED_GEO_IFOP_SOURCE_PLACEMENT[("consolidated", 1)], "cons_curr"),
+            _ref(MOVED_GEO_IFOP_SOURCE_PLACEMENT[("consolidated", 0)], "cons_prior"),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    prior_signed = [
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_signed_reconciling_contribution"
+        and c.period_index == 0
+    ]
+    current_signed = [
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_signed_reconciling_contribution"
+        and c.period_index == 1
+    ]
+    dbr = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_reconciling_operating_profit_amount_change"
+        and c.period_index == 1
+    )
+    assert dbr.formula.replace(" ", "") == (
+        resolve_geographic_reconciling_operating_profit_amount_change_formula(
+            tuple(
+                SemanticCellRef(
+                    item.id, item.semantic_key, item.period_end, item.cell, item.tab
+                )
+                for item in current_signed
+            ),
+            tuple(
+                SemanticCellRef(
+                    item.id, item.semantic_key, item.period_end, item.cell, item.tab
+                )
+                for item in prior_signed
+            ),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    assert "100*" not in dbr.formula.replace(" ", "")
+    dpr = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_operating_profit_amount_change_residual"
+        and c.period_index == 1
+    )
+    dp_refs = [
+        next(
+            c
+            for c in smap.all_ordered()
+            if c.family_id == "geographic_operating_profit_amount_change"
+            and geographic_spec_identity(c) == identity
+            and c.period_index == 1
+        )
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES
+    ]
+    assert dpr.formula.replace(" ", "") == (
+        resolve_geographic_operating_profit_amount_change_residual_formula(
+            SemanticCellRef(dpc.id, dpc.semantic_key, dpc.period_end, dpc.cell, dpc.tab),
+            tuple(
+                SemanticCellRef(
+                    item.id, item.semantic_key, item.period_end, item.cell, item.tab
+                )
+                for item in dp_refs
+            ),
+            SemanticCellRef(dbr.id, dbr.semantic_key, dbr.period_end, dbr.cell, dbr.tab),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
     awb = load_workbook(answer, data_only=False)
     row, col = MOVED_GEO_IFOP_SOURCE_PLACEMENT[("americas", 0)][:2]
     assert awb[GEOGRAPHIC_SHEET].cell(row, col).value not in (None, "")
@@ -1714,6 +1892,18 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
         }
     ]
     assert len(mix_within_n) == GEOGRAPHIC_MIX_WITHIN_SPECS
+    amount_change_n = [
+        c
+        for c in geo_comps
+        if c.family_id
+        in {
+            "geographic_operating_profit_amount_change",
+            "geographic_reconciling_operating_profit_amount_change",
+            "geographic_consolidated_operating_profit_amount_change",
+            "geographic_operating_profit_amount_change_residual",
+        }
+    ]
+    assert len(amount_change_n) == GEOGRAPHIC_AMOUNT_CHANGE_SPECS
     fy2026_cs = next(
         c
         for c in geo_comps
@@ -1818,6 +2008,10 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
             "geographic_operating_margin_mix_effect",
             "geographic_operating_margin_within_segment_effect",
             "geographic_operating_margin_mix_within_residual",
+            "geographic_operating_profit_amount_change",
+            "geographic_reconciling_operating_profit_amount_change",
+            "geographic_consolidated_operating_profit_amount_change",
+            "geographic_operating_profit_amount_change_residual",
         }
         and c.period_end == opening.isoformat()
         for c in geo_comps
@@ -2029,6 +2223,155 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
             from_tab=GEOGRAPHIC_SHEET,
         ).replace(" ", "")
     )
+    fy2026_dp = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_operating_profit_amount_change"
+        and c.period_end == FY2026.isoformat()
+        and geographic_spec_identity(c) == "americas"
+    )
+    fy2026_dpc = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_consolidated_operating_profit_amount_change"
+        and c.period_end == FY2026.isoformat()
+    )
+    fy2026_dbr = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_reconciling_operating_profit_amount_change"
+        and c.period_end == FY2026.isoformat()
+    )
+    fy2026_dpr = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_operating_profit_amount_change_residual"
+        and c.period_end == FY2026.isoformat()
+    )
+    independent_dp = (
+        float(snapshots[FY2026].values["income_from_operations.americas"])
+        - float(prior_fy2026_snap.values["income_from_operations.americas"])
+    )
+    independent_dpc = (
+        float(snapshots[FY2026].values["income_from_operations.consolidated"])
+        - float(prior_fy2026_snap.values["income_from_operations.consolidated"])
+    )
+    curr_recon = sum(
+        amount
+        for _, amount in series.signed_reconciling_contributions[FY2026]
+    )
+    prior_recon = sum(
+        amount
+        for _, amount in series.signed_reconciling_contributions[prior_fy2026]
+    )
+    independent_dbr = curr_recon - prior_recon
+    assert fy2026_dp.expected_value == pytest.approx(independent_dp)
+    assert fy2026_dpc.expected_value == pytest.approx(independent_dpc)
+    assert fy2026_dbr.expected_value == pytest.approx(independent_dbr)
+    dp_comps = [
+        next(
+            c
+            for c in geo_comps
+            if c.family_id == "geographic_operating_profit_amount_change"
+            and c.period_end == FY2026.isoformat()
+            and geographic_spec_identity(c) == identity
+        )
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES
+    ]
+    independent_dpr = (
+        float(fy2026_dpc.expected_value)
+        - sum(float(item.expected_value) for item in dp_comps)
+        - float(fy2026_dbr.expected_value)
+    )
+    assert fy2026_dpr.expected_value == pytest.approx(independent_dpr)
+    cons_ifop_row = _row_by_label(aws, "Reported consolidated operating profit")
+    fy2026_col_letter = get_column_letter(fy2026_col)
+    prior_col_letter = get_column_letter(prior_col)
+    assert fy2026_dp.formula.replace(" ", "") == (
+        resolve_geographic_adjacent_change_formula(
+            SemanticCellRef(
+                "ifop", "k", FY2026.isoformat(),
+                f"{fy2026_col_letter}{americas_ifop}",
+                GEOGRAPHIC_SHEET,
+            ),
+            SemanticCellRef(
+                "ifop_p", "k", prior_fy2026.isoformat(),
+                f"{prior_col_letter}{americas_ifop}",
+                GEOGRAPHIC_SHEET,
+            ),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    assert fy2026_dpc.formula.replace(" ", "") == (
+        resolve_geographic_adjacent_change_formula(
+            SemanticCellRef(
+                "cons", "k", FY2026.isoformat(),
+                f"{fy2026_col_letter}{cons_ifop_row}",
+                GEOGRAPHIC_SHEET,
+            ),
+            SemanticCellRef(
+                "cons_p", "k", prior_fy2026.isoformat(),
+                f"{prior_col_letter}{cons_ifop_row}",
+                GEOGRAPHIC_SHEET,
+            ),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    curr_signed_comps = [
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_signed_reconciling_contribution"
+        and c.period_end == FY2026.isoformat()
+    ]
+    prior_signed_comps = [
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_signed_reconciling_contribution"
+        and c.period_end == prior_fy2026.isoformat()
+    ]
+    assert fy2026_dbr.formula.replace(" ", "") == (
+        resolve_geographic_reconciling_operating_profit_amount_change_formula(
+            tuple(
+                SemanticCellRef(
+                    item.id, item.semantic_key, item.period_end, item.cell, item.tab
+                )
+                for item in curr_signed_comps
+            ),
+            tuple(
+                SemanticCellRef(
+                    item.id, item.semantic_key, item.period_end, item.cell, item.tab
+                )
+                for item in prior_signed_comps
+            ),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    assert "100*" not in fy2026_dbr.formula.replace(" ", "")
+    assert fy2026_dpr.formula.replace(" ", "") == (
+        resolve_geographic_operating_profit_amount_change_residual_formula(
+            SemanticCellRef(
+                fy2026_dpc.id,
+                fy2026_dpc.semantic_key,
+                fy2026_dpc.period_end,
+                fy2026_dpc.cell,
+                fy2026_dpc.tab,
+            ),
+            tuple(
+                SemanticCellRef(
+                    item.id, item.semantic_key, item.period_end, item.cell, item.tab
+                )
+                for item in dp_comps
+            ),
+            SemanticCellRef(
+                fy2026_dbr.id,
+                fy2026_dbr.semantic_key,
+                fy2026_dbr.period_end,
+                fy2026_dbr.cell,
+                fy2026_dbr.tab,
+            ),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
     cons_growth_comp = next(
         c
         for c in geo_comps
@@ -2176,6 +2519,10 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
             "geographic_operating_margin_mix_effect",
             "geographic_operating_margin_within_segment_effect",
             "geographic_operating_margin_mix_within_residual",
+            "geographic_operating_profit_amount_change",
+            "geographic_reconciling_operating_profit_amount_change",
+            "geographic_consolidated_operating_profit_amount_change",
+            "geographic_operating_profit_amount_change_residual",
         }:
             assert trainer_cell.comment is None
             assert answer_cell.comment is not None

@@ -4971,6 +4971,123 @@ GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         ),
         tolerance=1e-12,
     ),
+    ComponentFamily(
+        id="geographic_operating_profit_amount_change",
+        order=175,
+        title="Geographic operating-profit amount change",
+        short_hint=(
+            "Adjacent operating-profit amount change = current reported "
+            "segment income from operations − immediately preceding reported "
+            "segment income from operations. Monetary difference only; no "
+            "revenue denominator. Opening change is absent. A missing adjacent "
+            "snapshot is unavailable. Zero current or prior revenue does not "
+            "suppress an available profit change. Preserve zeros, losses, and "
+            "negative changes. Distinct from the percentage-point operating-"
+            "margin contribution-change bridge and the mix/within-segment "
+            "midpoint decomposition. Not organic growth, causality, "
+            "normalization, or BAV NOPAT."
+        ),
+        semantic_key="geographic.operating_profit_amount_change",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        hints=(
+            "Amount change uses current minus immediately prior reported segment operating profit.",
+            "Opening change is absent; a gap is unavailable, not compressed.",
+            "Monetary only; not the margin-change bridge, mix/within decomposition, or BAV NOPAT.",
+        ),
+        tolerance=0.0,
+    ),
+    ComponentFamily(
+        id="geographic_reconciling_operating_profit_amount_change",
+        order=176,
+        title="Aggregate reconciling operating-profit amount change",
+        short_hint=(
+            "Adjacent aggregate reconciling amount change = current sum of "
+            "accepted signed reconciling contributions − immediately preceding "
+            "sum. Preserve ADD/SUBTRACT signs. Compare aggregates only; do not "
+            "match unlike reconciling items across presentation families. "
+            "Monetary difference only; never reverse-engineer amounts from "
+            "rounded margins. Opening change is absent. A missing adjacent "
+            "snapshot is unavailable. Zero revenue does not suppress an "
+            "available change. Distinct from the percentage-point reconciling "
+            "margin-change bridge. Not organic growth, causality, "
+            "normalization, or BAV NOPAT."
+        ),
+        semantic_key="geographic.reconciling_operating_profit_amount_change",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=("geographic_signed_reconciling_contribution",),
+        depends_on_previous=("geographic_signed_reconciling_contribution",),
+        hints=(
+            "Change the sum of signed reconciling amounts, not item-level identities.",
+            "Opening change is absent; a gap is unavailable, not compressed.",
+            "Use the signed monetary bridge; do not reverse-engineer rounded margins.",
+        ),
+        tolerance=0.0,
+    ),
+    ComponentFamily(
+        id="geographic_consolidated_operating_profit_amount_change",
+        order=177,
+        title="Consolidated operating-profit amount change",
+        short_hint=(
+            "Adjacent consolidated operating-profit amount change = current "
+            "reported consolidated income from operations − immediately "
+            "preceding reported consolidated income from operations. Monetary "
+            "difference only; no revenue denominator. Opening change is "
+            "absent. A missing adjacent snapshot is unavailable. Zero current "
+            "or prior revenue does not suppress an available profit change. "
+            "Distinct from the percentage-point consolidated operating-margin "
+            "change. Not organic growth, causality, normalization, or BAV "
+            "NOPAT."
+        ),
+        semantic_key="geographic.consolidated_operating_profit_amount_change",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        hints=(
+            "Amount change uses current minus immediately prior reported consolidated operating profit.",
+            "Opening change is absent; a gap is unavailable, not compressed.",
+            "Monetary only; not the margin-change bridge or BAV NOPAT.",
+        ),
+        tolerance=0.0,
+    ),
+    ComponentFamily(
+        id="geographic_operating_profit_amount_change_residual",
+        order=178,
+        title="Operating-profit amount-change residual",
+        short_hint=(
+            "Amount-change residual = consolidated operating-profit amount "
+            "change − sum of Americas, China Mainland, and Rest of World "
+            "operating-profit amount changes − aggregate reconciling "
+            "operating-profit amount change. Preserve the signed residual; do "
+            "not force it to zero. Equals the adjacent change in reported "
+            "minus reconstructed consolidated operating profit, equivalently "
+            "the negation of the adjacent change in the accepted consolidated "
+            "operating-profit difference. Opening residual is absent. A "
+            "missing adjacent snapshot is unavailable. Zero revenue does not "
+            "suppress an available residual. Distinct from the percentage-"
+            "point margin contribution-change residual and the mix/within "
+            "decomposition residual. Not organic growth, causality, "
+            "normalization, or BAV NOPAT."
+        ),
+        semantic_key="geographic.operating_profit_amount_change_residual",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(
+            "geographic_consolidated_operating_profit_amount_change",
+            "geographic_operating_profit_amount_change",
+            "geographic_reconciling_operating_profit_amount_change",
+        ),
+        hints=(
+            "Residual = Δ consolidated operating profit − Σ Δ segment operating profit − Δ reconciling amount.",
+            "Keep the signed residual; do not force reconciliation to zero.",
+            "Monetary attribution only; not the margin-change or mix/within residual, or BAV NOPAT.",
+        ),
+        tolerance=0.0,
+    ),
 )
 
 
@@ -5069,6 +5186,16 @@ def expand_geographic_segment_specs(
     mix_effect = families["geographic_operating_margin_mix_effect"]
     within_effect = families["geographic_operating_margin_within_segment_effect"]
     mix_within_residual = families["geographic_operating_margin_mix_within_residual"]
+    profit_amount_change = families["geographic_operating_profit_amount_change"]
+    reconciling_amount_change = families[
+        "geographic_reconciling_operating_profit_amount_change"
+    ]
+    cons_profit_amount_change = families[
+        "geographic_consolidated_operating_profit_amount_change"
+    ]
+    profit_amount_change_residual = families[
+        "geographic_operating_profit_amount_change_residual"
+    ]
     contribution_ids = contribution_identities or {}
     cons_growth_periods = set(consolidated_growth_periods or ())
     margin_change_set = set(margin_change_periods or ())
@@ -5325,6 +5452,50 @@ def expand_geographic_segment_specs(
                 "Operating-margin mix and within-segment decomposition residual "
                 "(percentage points)"
             ),
+        )
+        amount_change_deps: list[str] = []
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            label = geographic_identity_label(identity)
+            amount_id = geographic_component_id(
+                profit_amount_change.id, period, identity
+            )
+            amount_change_deps.append(amount_id)
+            _append(
+                profit_amount_change,
+                period,
+                identity=identity,
+                title=f"{label} operating-profit amount change",
+            )
+        prior_bridges = bridge_identities.get(prior, ())
+        _append(
+            reconciling_amount_change,
+            period,
+            depends_on=(
+                *(
+                    geographic_component_id(signed.id, period, identity)
+                    for identity in period_bridges
+                ),
+                *(
+                    geographic_component_id(signed.id, prior, identity)
+                    for identity in prior_bridges
+                ),
+            ),
+            title="Aggregate reconciling operating-profit amount change",
+        )
+        _append(
+            cons_profit_amount_change,
+            period,
+            title="Consolidated operating-profit amount change",
+        )
+        _append(
+            profit_amount_change_residual,
+            period,
+            depends_on=(
+                geographic_component_id(cons_profit_amount_change.id, period),
+                *amount_change_deps,
+                geographic_component_id(reconciling_amount_change.id, period),
+            ),
+            title="Operating-profit amount-change residual",
         )
     return tuple(specs)
 
@@ -5887,6 +6058,41 @@ def resolve_geographic_operating_margin_mix_within_residual_formula(
         + "".join(f"-{cell}" for cell in mix_cells)
         + "".join(f"-{cell}" for cell in within_cells)
         + f"-{reconciling_cell}"
+    )
+
+
+def resolve_geographic_reconciling_operating_profit_amount_change_formula(
+    current_signed: tuple[SemanticCellRef, ...],
+    prior_signed: tuple[SemanticCellRef, ...],
+    *,
+    from_tab: str,
+) -> str:
+    """Adjacent change in the sum of mapped signed reconciling amounts."""
+
+    def _sum_expr(items: tuple[SemanticCellRef, ...]) -> str:
+        if not items:
+            return "0"
+        cells = [semantic_formula_cell(item, from_tab=from_tab) for item in items]
+        if len(cells) == 1:
+            return cells[0]
+        return "(" + "+".join(cells) + ")"
+
+    return f"={_sum_expr(current_signed)}-{_sum_expr(prior_signed)}"
+
+
+def resolve_geographic_operating_profit_amount_change_residual_formula(
+    consolidated_change: SemanticCellRef,
+    segment_changes: tuple[SemanticCellRef, ...],
+    reconciling_change: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Signed monetary residual from mapped consolidated, segment, and reconciling changes."""
+    return resolve_geographic_operating_margin_contribution_residual_formula(
+        consolidated_change,
+        segment_changes,
+        reconciling_change,
+        from_tab=from_tab,
     )
 
 

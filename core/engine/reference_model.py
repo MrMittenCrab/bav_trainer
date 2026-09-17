@@ -206,7 +206,9 @@ from .component_catalog import (
     resolve_geographic_operating_margin_mix_effect_formula,
     resolve_geographic_operating_margin_mix_within_residual_formula,
     resolve_geographic_operating_margin_within_segment_effect_formula,
+    resolve_geographic_operating_profit_amount_change_residual_formula,
     resolve_geographic_reconciling_operating_margin_contribution_formula,
+    resolve_geographic_reconciling_operating_profit_amount_change_formula,
     resolve_geographic_revenue_growth_contribution_formula,
     resolve_geographic_revenue_growth_contribution_residual_formula,
     semantic_formula_cell,
@@ -7040,22 +7042,26 @@ class ReferenceModelBuilder:
             "reported operating margins, consolidated bridges, percentage-point "
             "contributions to consolidated revenue growth, an arithmetic "
             "decomposition of consolidated reported operating margin and its "
-            "change, and a separate mix and within-segment decomposition of "
-            "that adjacent change. Reported operating margin is distinct from "
+            "change, a separate mix and within-segment decomposition of "
+            "that adjacent change, and an adjacent operating-profit amount-"
+            "change bridge. Reported operating margin is distinct from "
             "BAV NOPAT margin. Revenue-growth contributions are an arithmetic "
             "decomposition of reported geographic revenue changes, not "
             "organic, constant-currency, or causal growth. Operating-margin "
             "contributions are a direct contribution bridge, distinct from the "
-            "mix and within-segment decomposition, normalization, or a causal "
-            "explanation. Mix and within-segment effects use a symmetric "
-            "midpoint convention and remain arithmetic only."
+            "mix and within-segment decomposition, the monetary amount-change "
+            "bridge, normalization, or a causal explanation. Mix and within-"
+            "segment effects use a symmetric midpoint convention and remain "
+            "arithmetic only. Operating-profit amount changes are monetary "
+            "differences, distinct from the percentage-point margin bridges."
         )
         ws["A3"] = f"Units: {self.fin.units}"
         ws["A4"] = (
             "Calculated segment totals are distinct from any reported segment_total. "
             "Sparse unavailable amounts remain unavailable; opening growth, "
             "opening revenue-growth contributions, opening operating-margin "
-            "contribution changes, and opening mix and within-segment effects "
+            "contribution changes, opening mix and within-segment effects, "
+            "and opening operating-profit amount changes "
             "are not practiced. Signed residuals are not forced to zero."
         )
         ws.column_dimensions["A"].width = 56
@@ -7202,6 +7208,7 @@ class ReferenceModelBuilder:
 
         revenue_source_refs: dict[tuple[str, int], SemanticCellRef] = {}
         ifop_source_refs: dict[tuple[str, int], SemanticCellRef] = {}
+        signed_practice_by_period: dict[int, tuple[SemanticCellRef, ...]] = {}
 
         cursor = 8
         _section(cursor, "NET REVENUE")
@@ -7425,6 +7432,26 @@ class ReferenceModelBuilder:
             "(percentage points)",
         )
 
+        cursor += 2
+        _section(cursor, "OPERATING-PROFIT AMOUNT-CHANGE BRIDGE")
+        profit_amount_change_rows = {}
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            cursor += 1
+            profit_amount_change_rows[identity] = cursor
+            _label(
+                cursor,
+                f"{geographic_identity_label(identity)} operating-profit amount change",
+            )
+        cursor += 1
+        reconciling_amount_change_row = cursor
+        _label(cursor, "Aggregate reconciling operating-profit amount change")
+        cursor += 1
+        cons_profit_amount_change_row = cursor
+        _label(cursor, "Consolidated operating-profit amount change")
+        cursor += 1
+        profit_amount_change_residual_row = cursor
+        _label(cursor, "Operating-profit amount-change residual")
+
         self.rowmap["geographic_header_row"] = header_row
         self.rowmap["geographic_revenue_rows"] = dict(rev_rows)
         self.rowmap["geographic_ifop_rows"] = dict(ifop_rows)
@@ -7448,6 +7475,10 @@ class ReferenceModelBuilder:
                 opening_practice_rows.update(mix_effect_rows.values())
                 opening_practice_rows.update(within_effect_rows.values())
                 opening_practice_rows.add(mix_within_residual_row)
+                opening_practice_rows.update(profit_amount_change_rows.values())
+                opening_practice_rows.add(reconciling_amount_change_row)
+                opening_practice_rows.add(cons_profit_amount_change_row)
+                opening_practice_rows.add(profit_amount_change_residual_row)
                 for row in (
                     family_row,
                     *rev_rows.values(),
@@ -7480,6 +7511,10 @@ class ReferenceModelBuilder:
                     *mix_effect_rows.values(),
                     *within_effect_rows.values(),
                     mix_within_residual_row,
+                    *profit_amount_change_rows.values(),
+                    reconciling_amount_change_row,
+                    cons_profit_amount_change_row,
+                    profit_amount_change_residual_row,
                 ):
                     if j == 0 and row in opening_practice_rows:
                         ws.cell(row=row, column=col_idx, value="N/A")
@@ -7809,6 +7844,7 @@ class ReferenceModelBuilder:
                         identity=identity,
                     )
                 )
+            signed_practice_by_period[j] = tuple(signed_practice_refs)
 
             recon_f = f"={col}{ifop_total_row}"
             if signed_refs:
@@ -8233,6 +8269,122 @@ class ReferenceModelBuilder:
                     col_idx,
                     mix_residual_f,
                     mix_residual_value,
+                )
+
+            amount_change_practice_refs: list[SemanticCellRef] = []
+            for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+                dp_value = series.operating_profit_amount_change[period][identity]
+                dp_row = profit_amount_change_rows[identity]
+                if j == 0 or dp_value is None:
+                    ws.cell(row=dp_row, column=col_idx, value="N/A")
+                    continue
+                if is_source_unavailable(dp_value):
+                    self._stamp_unavailable(ws, dp_row, col_idx, SOURCE_UNAVAILABLE)
+                    continue
+                dp_f = resolve_geographic_adjacent_change_formula(
+                    ifop_source_refs[(identity, j)],
+                    ifop_source_refs[(identity, j - 1)],
+                    from_tab=GEOGRAPHIC_SHEET,
+                )
+                _put_formula(dp_row, col_idx, dp_f)
+                _register(
+                    "geographic_operating_profit_amount_change",
+                    j,
+                    identity,
+                    dp_row,
+                    col_idx,
+                    dp_f,
+                    dp_value,
+                )
+                amount_change_practice_refs.append(
+                    _practice_ref(
+                        "geographic_operating_profit_amount_change",
+                        period,
+                        dp_row,
+                        col_idx,
+                        identity=identity,
+                    )
+                )
+
+            dbr_value = series.reconciling_operating_profit_amount_change[period]
+            dpc_value = series.consolidated_operating_profit_amount_change[period]
+            dpr_value = series.operating_profit_amount_change_residual[period]
+            if j == 0 or dbr_value is None:
+                ws.cell(row=reconciling_amount_change_row, column=col_idx, value="N/A")
+                ws.cell(row=cons_profit_amount_change_row, column=col_idx, value="N/A")
+                ws.cell(
+                    row=profit_amount_change_residual_row, column=col_idx, value="N/A"
+                )
+            elif is_source_unavailable(dbr_value):
+                self._stamp_unavailable(
+                    ws, reconciling_amount_change_row, col_idx, SOURCE_UNAVAILABLE
+                )
+                self._stamp_unavailable(
+                    ws, cons_profit_amount_change_row, col_idx, SOURCE_UNAVAILABLE
+                )
+                self._stamp_unavailable(
+                    ws, profit_amount_change_residual_row, col_idx, SOURCE_UNAVAILABLE
+                )
+            else:
+                dbr_f = (
+                    resolve_geographic_reconciling_operating_profit_amount_change_formula(
+                        signed_practice_by_period[j],
+                        signed_practice_by_period[j - 1],
+                        from_tab=GEOGRAPHIC_SHEET,
+                    )
+                )
+                _put_formula(reconciling_amount_change_row, col_idx, dbr_f)
+                _register(
+                    "geographic_reconciling_operating_profit_amount_change",
+                    j,
+                    "",
+                    reconciling_amount_change_row,
+                    col_idx,
+                    dbr_f,
+                    dbr_value,
+                )
+                dpc_f = resolve_geographic_adjacent_change_formula(
+                    ifop_source_refs[("consolidated", j)],
+                    ifop_source_refs[("consolidated", j - 1)],
+                    from_tab=GEOGRAPHIC_SHEET,
+                )
+                _put_formula(cons_profit_amount_change_row, col_idx, dpc_f)
+                _register(
+                    "geographic_consolidated_operating_profit_amount_change",
+                    j,
+                    "",
+                    cons_profit_amount_change_row,
+                    col_idx,
+                    dpc_f,
+                    dpc_value,
+                )
+                dpr_f = (
+                    resolve_geographic_operating_profit_amount_change_residual_formula(
+                        _practice_ref(
+                            "geographic_consolidated_operating_profit_amount_change",
+                            period,
+                            cons_profit_amount_change_row,
+                            col_idx,
+                        ),
+                        tuple(amount_change_practice_refs),
+                        _practice_ref(
+                            "geographic_reconciling_operating_profit_amount_change",
+                            period,
+                            reconciling_amount_change_row,
+                            col_idx,
+                        ),
+                        from_tab=GEOGRAPHIC_SHEET,
+                    )
+                )
+                _put_formula(profit_amount_change_residual_row, col_idx, dpr_f)
+                _register(
+                    "geographic_operating_profit_amount_change_residual",
+                    j,
+                    "",
+                    profit_amount_change_residual_row,
+                    col_idx,
+                    dpr_f,
+                    dpr_value,
                 )
 
     def _geographic_revenue_source_placement(

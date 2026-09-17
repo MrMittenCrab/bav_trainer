@@ -10,14 +10,17 @@ Computes each Americas / China Mainland / Rest of World segment's revenue share
 of consolidated revenue, adjacent-period revenue growth, reported operating
 margin ``income_from_operations / net_revenue``, percentage-point
 contributions to consolidated revenue growth, an arithmetic decomposition
-of consolidated reported operating margin, and a separate midpoint mix and
-within-segment decomposition of the adjacent change in that margin. Reported
-operating margin is not BAV NOPAT margin. Revenue-growth contributions are an
-arithmetic decomposition of reported geographic revenue changes, not organic,
+of consolidated reported operating margin, a separate midpoint mix and
+within-segment decomposition of the adjacent change in that margin, and an
+adjacent operating-profit amount-change bridge. Reported operating margin is
+not BAV NOPAT margin. Revenue-growth contributions are an arithmetic
+decomposition of reported geographic revenue changes, not organic,
 constant-currency, or causal growth. Operating-margin contributions use
 consolidated revenue as the denominator and remain a direct contribution
-bridge, distinct from the mix/within-segment decomposition, normalization,
-or causal attribution.
+bridge, distinct from the mix/within-segment decomposition, the monetary
+amount-change bridge, normalization, or causal attribution. Amount changes
+are current minus immediately prior reported operating profit, with no
+revenue denominator; zero revenue does not suppress available profit changes.
 
 Calculated segment revenue and operating-profit totals are identified separately
 from any reported ``segment_total``. Explicit bridge operations are applied in
@@ -80,6 +83,10 @@ class GeographicSegmentSeries:
     operating_margin_mix_effect: dict[date, dict[str, float | str | None]]
     operating_margin_within_segment_effect: dict[date, dict[str, float | str | None]]
     operating_margin_mix_within_residual: dict[date, float | str | None]
+    operating_profit_amount_change: dict[date, dict[str, float | str | None]]
+    reconciling_operating_profit_amount_change: dict[date, float | str | None]
+    consolidated_operating_profit_amount_change: dict[date, float | str | None]
+    operating_profit_amount_change_residual: dict[date, float | str | None]
     calculated_segment_revenue_total: dict[date, float | str]
     calculated_segment_operating_profit_total: dict[date, float | str]
     signed_reconciling_contributions: dict[
@@ -442,11 +449,19 @@ def _margin_change_residual(
     )
 
 
+def _reconciling_sum(
+    contributions: tuple[tuple[str, float], ...] | str,
+) -> float | str:
+    if isinstance(contributions, str):
+        return contributions
+    return sum(amount for _, amount in contributions)
+
+
 def compute_geographic_segment_series(
     financials: StandardizedFinancials,
     periods: list[date] | None = None,
 ) -> GeographicSegmentSeries:
-    """Compute mix, growth, margins, contributions, and mix/within decompositions."""
+    """Compute mix, growth, margins, contributions, mix/within, and amount bridges."""
     if not geographic_segment_applicable(financials):
         raise MissingLineError("geographic segment sources not available")
 
@@ -476,6 +491,10 @@ def compute_geographic_segment_series(
     operating_margin_mix_effect: dict[date, dict[str, float | str | None]] = {}
     operating_margin_within_segment_effect: dict[date, dict[str, float | str | None]] = {}
     operating_margin_mix_within_residual: dict[date, float | str | None] = {}
+    operating_profit_amount_change: dict[date, dict[str, float | str | None]] = {}
+    reconciling_operating_profit_amount_change: dict[date, float | str | None] = {}
+    consolidated_operating_profit_amount_change: dict[date, float | str | None] = {}
+    operating_profit_amount_change_residual: dict[date, float | str | None] = {}
     calculated_segment_revenue_total: dict[date, float | str] = {}
     calculated_segment_operating_profit_total: dict[date, float | str] = {}
     signed_reconciling_contributions: dict[
@@ -489,6 +508,9 @@ def compute_geographic_segment_series(
 
     prior_revenue: dict[str, float] | None = None
     prior_consolidated: float | None = None
+    prior_operating_profit: dict[str, float] | None = None
+    prior_consolidated_ifop: float | None = None
+    prior_reconciling_sum: float | None = None
     prior_margin_contrib: dict[str, float | str] | None = None
     prior_reconciling_contrib: float | str | None = None
     prior_consolidated_margin: float | str | None = None
@@ -540,6 +562,18 @@ def compute_geographic_segment_series(
             operating_margin_mix_within_residual[period] = (
                 None if opening else SOURCE_UNAVAILABLE
             )
+            operating_profit_amount_change[period] = (
+                _opening_contributions() if opening else _unavailable_contributions()
+            )
+            reconciling_operating_profit_amount_change[period] = (
+                None if opening else SOURCE_UNAVAILABLE
+            )
+            consolidated_operating_profit_amount_change[period] = (
+                None if opening else SOURCE_UNAVAILABLE
+            )
+            operating_profit_amount_change_residual[period] = (
+                None if opening else SOURCE_UNAVAILABLE
+            )
             calculated_segment_revenue_total[period] = SOURCE_UNAVAILABLE
             calculated_segment_operating_profit_total[period] = SOURCE_UNAVAILABLE
             signed_reconciling_contributions[period] = SOURCE_UNAVAILABLE
@@ -550,6 +584,9 @@ def compute_geographic_segment_series(
             consolidated_operating_profit_difference[period] = SOURCE_UNAVAILABLE
             prior_revenue = None
             prior_consolidated = None
+            prior_operating_profit = None
+            prior_consolidated_ifop = None
+            prior_reconciling_sum = None
             prior_margin_contrib = None
             prior_reconciling_contrib = None
             prior_consolidated_margin = None
@@ -641,6 +678,27 @@ def compute_geographic_segment_series(
             within_effects,
             reconciling_change,
         )
+        recon_sum = _reconciling_sum(contributions)
+        profit_amount_change = _adjacent_delta_map(
+            operating_profit,
+            prior_operating_profit,
+            opening=opening,
+        )
+        reconciling_amount_change = _adjacent_delta(
+            recon_sum,
+            prior_reconciling_sum,
+            opening=opening,
+        )
+        cons_profit_amount_change = _adjacent_delta(
+            consolidated_operating_profit,
+            prior_consolidated_ifop,
+            opening=opening,
+        )
+        profit_amount_change_residual = _margin_change_residual(
+            cons_profit_amount_change,
+            profit_amount_change,
+            reconciling_amount_change,
+        )
 
         presentation_family[period] = snapshot.presentation_family
         net_revenue[period] = dict(revenue)
@@ -665,6 +723,10 @@ def compute_geographic_segment_series(
         operating_margin_mix_effect[period] = mix_effects
         operating_margin_within_segment_effect[period] = within_effects
         operating_margin_mix_within_residual[period] = mix_within_residual
+        operating_profit_amount_change[period] = profit_amount_change
+        reconciling_operating_profit_amount_change[period] = reconciling_amount_change
+        consolidated_operating_profit_amount_change[period] = cons_profit_amount_change
+        operating_profit_amount_change_residual[period] = profit_amount_change_residual
         calculated_segment_revenue_total[period] = revenue_total
         calculated_segment_operating_profit_total[period] = operating_total
         signed_reconciling_contributions[period] = contributions
@@ -677,6 +739,9 @@ def compute_geographic_segment_series(
         )
         prior_revenue = revenue
         prior_consolidated = consolidated_revenue
+        prior_operating_profit = operating_profit
+        prior_consolidated_ifop = consolidated_operating_profit
+        prior_reconciling_sum = float(recon_sum)
         prior_margin_contrib = margin_contrib
         prior_reconciling_contrib = reconciling_contrib
         prior_consolidated_margin = cons_margin
@@ -710,6 +775,14 @@ def compute_geographic_segment_series(
         operating_margin_mix_effect=operating_margin_mix_effect,
         operating_margin_within_segment_effect=operating_margin_within_segment_effect,
         operating_margin_mix_within_residual=operating_margin_mix_within_residual,
+        operating_profit_amount_change=operating_profit_amount_change,
+        reconciling_operating_profit_amount_change=(
+            reconciling_operating_profit_amount_change
+        ),
+        consolidated_operating_profit_amount_change=(
+            consolidated_operating_profit_amount_change
+        ),
+        operating_profit_amount_change_residual=operating_profit_amount_change_residual,
         calculated_segment_revenue_total=calculated_segment_revenue_total,
         calculated_segment_operating_profit_total=calculated_segment_operating_profit_total,
         signed_reconciling_contributions=signed_reconciling_contributions,
