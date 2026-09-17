@@ -19,6 +19,7 @@ from ..engine.component_catalog import (
     CASH_ROLLFORWARD_COMPONENT_CATALOG,
     GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG,
     STORE_COUNT_COMPONENT_CATALOG,
+    is_store_count_source_identity,
     INVENTORY_ANALYSIS_COMPONENT_CATALOG,
     REPORTED_MARGIN_COMPONENT_CATALOG,
     SHARE_REPURCHASE_COMPONENT_CATALOG,
@@ -183,7 +184,9 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
         )
 
     smap = load_semantic_map(answer_key_path)
-    comps = smap.all_ordered()
+    comps = [
+        comp for comp in smap.all_ordered() if not is_store_count_source_identity(comp)
+    ]
     context = load_check_context(answer_key_path)
 
     wb = load_workbook(trainer_path, data_only=False)

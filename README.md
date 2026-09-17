@@ -20,7 +20,7 @@ Historical BAV Excel practice for Hong Kong-listed **non-financial** companies: 
 
 Forecasting, valuation, and investment conclusions are not active yet.
 
-## Manual build
+## Quick start
 
 Use `build/input/` for complete canonical BAV / `StandardizedFinancials` JSON
 and `build/output/` for generated workbooks. The entire `build/` directory is

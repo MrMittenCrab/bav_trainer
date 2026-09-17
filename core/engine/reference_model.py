@@ -164,6 +164,7 @@ from .component_catalog import (
     expand_reported_margin_specs,
     expand_inventory_analysis_specs,
     expand_geographic_segment_specs,
+    expand_store_count_source_specs,
     expand_store_count_specs,
     expand_capex_specs,
     geographic_component_id,
@@ -171,6 +172,12 @@ from .component_catalog import (
     geographic_spec_identity,
     STORE_COUNT_POPULATION_LABEL,
     STORE_COUNT_SHEET_NAME,
+    STORE_COUNT_SOURCE_FAMILY_ID,
+    StoreCountSourceRef,
+    resolve_store_count_growth_formula,
+    resolve_store_count_net_change_formula,
+    store_count_source_component_id,
+    store_count_source_map_formula,
     expand_fixed_asset_specs,
     expand_goodwill_intangibles_specs,
     expand_historical_specs,
@@ -279,17 +286,23 @@ def _geographic_expand_inputs(series) -> tuple[
     return tuple(available), growth_identities, bridge_identities
 
 
-def _store_count_expand_inputs(series) -> tuple[tuple[date, ...], tuple[date, ...]]:
+def _store_count_expand_inputs(
+    series,
+) -> tuple[tuple[date, ...], tuple[date, ...], tuple[date, ...]]:
+    source_periods: list[date] = []
     change_periods: list[date] = []
     growth_periods: list[date] = []
     for period in series.periods:
+        count = series.period_end_count[period]
+        if count is not None and not is_source_unavailable(count):
+            source_periods.append(period)
         change = series.net_count_change[period]
         if change is not None and not is_source_unavailable(change):
             change_periods.append(period)
         growth = series.growth[period]
         if growth is not None and not is_source_unavailable(growth):
             growth_periods.append(period)
-    return tuple(change_periods), tuple(growth_periods)
+    return tuple(source_periods), tuple(change_periods), tuple(growth_periods)
 
 
 class ReferenceModelBuilder:
@@ -815,15 +828,27 @@ class ReferenceModelBuilder:
                 self.fin,
                 self.periods,
             )
-            change_periods, growth_periods = _store_count_expand_inputs(
+            source_periods, change_periods, growth_periods = _store_count_expand_inputs(
                 self.operating_kpi_series
             )
-            self.operating_kpi_specs = expand_store_count_specs(
+            units = {
+                period: str(self.operating_kpi_series.unit[period])
+                for period in source_periods
+                if not is_source_unavailable(self.operating_kpi_series.unit[period])
+            }
+            source_specs = expand_store_count_source_specs(
                 self.periods,
                 start_order=start_order,
+                source_periods=source_periods,
+                units=units,
+            )
+            practice_specs = expand_store_count_specs(
+                self.periods,
+                start_order=start_order + len(source_specs),
                 change_periods=change_periods,
                 growth_periods=growth_periods,
             )
+            self.operating_kpi_specs = source_specs + practice_specs
         else:
             self.operating_kpi_series = None
             self.operating_kpi_specs = ()
@@ -7026,9 +7051,6 @@ class ReferenceModelBuilder:
             cell.number_format = PCT_FMT if pct else NUM_FMT
             return cell
 
-        def _growth_formula(curr_ref: str, prev_ref: str) -> str:
-            return f"=IF({prev_ref}=0,NA(),({curr_ref}-{prev_ref})/{prev_ref})"
-
         def _register(
             family_id: str,
             period_index: int,
@@ -7045,6 +7067,19 @@ class ReferenceModelBuilder:
                 col_idx,
                 formula,
                 _store_expected(expected),
+            )
+
+        def _source_ref(period: date) -> StoreCountSourceRef:
+            source_id = store_count_source_component_id(period)
+            mapped = self.semantic_map.get(source_id)
+            unit = series.unit[period]
+            return StoreCountSourceRef(
+                id=mapped.id,
+                semantic_key=mapped.semantic_key,
+                period_end=mapped.period_end,
+                cell=mapped.cell,
+                unit="" if is_source_unavailable(unit) else str(unit),
+                population=STORE_COUNT_POPULATION_LABEL,
             )
 
         cursor = 8
@@ -7078,11 +7113,8 @@ class ReferenceModelBuilder:
 
         for j, period in enumerate(self.periods):
             col_idx = 2 + j
-            col = self._col(col_idx)
             count = series.period_end_count[period]
             unit = series.unit[period]
-            change = series.net_count_change[period]
-            growth = series.growth[period]
             ws.cell(
                 row=population_row,
                 column=col_idx,
@@ -7092,18 +7124,31 @@ class ReferenceModelBuilder:
                 self._stamp_unavailable(ws, count_row, col_idx, SOURCE_UNAVAILABLE)
             else:
                 _put_number(count_row, col_idx, float(count))
+                _register(
+                    STORE_COUNT_SOURCE_FAMILY_ID,
+                    j,
+                    count_row,
+                    col_idx,
+                    store_count_source_map_formula(float(count)),
+                    float(count),
+                )
             if is_source_unavailable(unit):
                 self._stamp_unavailable(ws, unit_row, col_idx, SOURCE_UNAVAILABLE)
             else:
                 ws.cell(row=unit_row, column=col_idx, value=unit)
 
+        for j, period in enumerate(self.periods):
+            col_idx = 2 + j
+            change = series.net_count_change[period]
+            growth = series.growth[period]
             if j == 0 or change is None:
                 ws.cell(row=change_row, column=col_idx, value="N/A")
             elif is_source_unavailable(change):
                 self._stamp_unavailable(ws, change_row, col_idx, SOURCE_UNAVAILABLE)
             else:
-                prev_col = self._col(col_idx - 1)
-                change_f = f"={col}{count_row}-{prev_col}{count_row}"
+                current = _source_ref(period)
+                prior = _source_ref(self.periods[j - 1])
+                change_f = resolve_store_count_net_change_formula(current, prior)
                 _put_formula(change_row, col_idx, change_f)
                 _register(
                     "store_count_net_change",
@@ -7119,8 +7164,9 @@ class ReferenceModelBuilder:
             elif is_source_unavailable(growth):
                 self._stamp_unavailable(ws, growth_row, col_idx, SOURCE_UNAVAILABLE)
             else:
-                prev_col = self._col(col_idx - 1)
-                growth_f = _growth_formula(f"{col}{count_row}", f"{prev_col}{count_row}")
+                current = _source_ref(period)
+                prior = _source_ref(self.periods[j - 1])
+                growth_f = resolve_store_count_growth_formula(current, prior)
                 _put_formula(growth_row, col_idx, growth_f, pct=True)
                 _register(
                     "store_count_growth",

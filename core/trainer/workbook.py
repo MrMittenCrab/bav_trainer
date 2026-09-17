@@ -15,6 +15,8 @@ from ..engine.component_catalog import (
     DEFERRED_TAX_COMPONENT_CATALOG,
     FIXED_ASSET_COMPONENT_CATALOG,
     GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG,
+    STORE_COUNT_COMPONENT_CATALOG,
+    is_store_count_source_identity,
     GOODWILL_INTANGIBLES_COMPONENT_CATALOG,
     LEASE_LIABILITY_COMPONENT_CATALOG,
     LEASE_REPAYMENT_COMPONENT_CATALOG,
@@ -163,6 +165,8 @@ class TrainingWorkbookGenerator:
 
     def _decorate_answer_key_practice_cells(self, wb) -> None:
         for comp in self.semantic_map.all_ordered():
+            if is_store_count_source_identity(comp):
+                continue
             if comp.tab not in wb.sheetnames:
                 continue
             ws = wb[comp.tab]
@@ -179,6 +183,8 @@ class TrainingWorkbookGenerator:
 
     def _blank_trainer_practice_cells(self, wb) -> None:
         for comp in self.semantic_map.all_ordered():
+            if is_store_count_source_identity(comp):
+                continue
             if comp.tab not in wb.sheetnames:
                 continue
             ws = wb[comp.tab]
@@ -293,8 +299,12 @@ def group_components_by_family(smap: SemanticMap) -> list[dict]:
     family_meta.update({f.id: f for f in CAPEX_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in LEASE_REPAYMENT_COMPONENT_CATALOG})
     family_meta.update({f.id: f for f in GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG})
+    family_meta.update({f.id: f for f in STORE_COUNT_COMPONENT_CATALOG})
     groups: list[dict] = []
     for family_id, comps in by_family.items():
+        comps = [c for c in comps if not is_store_count_source_identity(c)]
+        if not comps:
+            continue
         comps = sorted(comps, key=lambda c: (c.period_index is None, c.period_index or 0, c.order))
         first = comps[0]
         family = family_meta.get(family_id)

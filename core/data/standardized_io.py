@@ -491,6 +491,8 @@ def _validate_canonical_value(value: object, expected: object, path: str) -> Non
     modules on the same path. Source/audit metadata is deliberately outside
     the model-only serialization contract.
     """
+    if expected is Any:
+        return
     origin, args = get_origin(expected), get_args(expected)
     if origin is UnionType:
         if value is None and type(None) in args:
@@ -503,12 +505,27 @@ def _validate_canonical_value(value: object, expected: object, path: str) -> Non
         excluded = {"metadata", "provenance", "source_doc", "source_page"}
         model_fields = {f.name: f for f in fields(expected) if f.name not in excluded}
         unknown = value.keys() - model_fields.keys()
+        if expected is StandardizedFinancials:
+            # Top-level metadata is a supported identity-bearing model field.
+            # Nested source/audit metadata on other objects remains excluded.
+            unknown -= {"metadata"}
+            raw_metadata = value.get("metadata")
+            if raw_metadata is not None and not isinstance(raw_metadata, dict):
+                raise ValueError(f"{path}.metadata must be an object")
+        else:
+            raw_metadata = None
         if unknown:
             raise ValueError(f"{path}: unsupported field(s): {', '.join(sorted(unknown))}")
         required = {name for name, f in model_fields.items()
                     if f.default is MISSING and f.default_factory is MISSING}
         if expected is StandardizedFinancials:
             required.update(("periods", "income_statement", "balance_sheet", "cash_flow"))
+            if (
+                "jurisdiction" not in value
+                and isinstance(raw_metadata, dict)
+                and raw_metadata.get("jurisdiction")
+            ):
+                required.discard("jurisdiction")
         missing = required - value.keys()
         if missing:
             raise ValueError(f"{path}: missing field(s): {', '.join(sorted(missing))}")
@@ -568,13 +585,19 @@ def standardized_from_payload(payload: dict, *, strict: bool = False) -> Standar
         )
         for entry in payload.get("periods") or []
     ]
+    raw_metadata = payload.get("metadata")
+    metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
+    jurisdiction = str(payload.get("jurisdiction") or "")
+    if not jurisdiction:
+        jurisdiction = str(metadata.get("jurisdiction") or "")
     fin = StandardizedFinancials(
         ticker=str(payload.get("ticker") or ""),
         company_name=str(payload.get("company_name") or ""),
         currency=str(payload.get("currency") or ""),
         units=str(payload.get("units") or ""),
-        jurisdiction=str(payload.get("jurisdiction") or ""),
+        jurisdiction=jurisdiction,
         stock_code=str(payload.get("stock_code") or ""),
+        metadata=dict(metadata),
         periods=periods,
         income_statement=[
             _deserialize_line(item) for item in payload.get("income_statement") or []

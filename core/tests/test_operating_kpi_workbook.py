@@ -11,7 +11,6 @@ from pathlib import Path
 
 import pytest
 from openpyxl import load_workbook
-from openpyxl.utils import get_column_letter
 
 from core.data.interface import (
     DocumentManifest,
@@ -24,8 +23,19 @@ from core.engine.component_catalog import (
     STORE_COUNT_COMPONENT_CATALOG,
     STORE_COUNT_POPULATION_LABEL,
     STORE_COUNT_SHEET_NAME,
+    STORE_COUNT_SOURCE_CATEGORY,
+    STORE_COUNT_SOURCE_FAMILY_ID,
+    StoreCountSourceRef,
+    expand_store_count_source_specs,
     expand_store_count_specs,
+    is_store_count_practice_identity,
+    is_store_count_source_identity,
+    resolve_store_count_growth_formula,
+    resolve_store_count_net_change_formula,
+    store_count_adjacent_source_ids,
     store_count_component_id,
+    store_count_source_component_id,
+    store_count_source_semantic_key,
 )
 from core.engine.reference_model import (
     JUDGMENT_SHEET,
@@ -110,6 +120,7 @@ LEASE_DT_LULULEMON_SPECS = 486
 FAST_RETAILING_SPECS = 577
 GEOGRAPHIC_LULULEMON_SPECS = 74
 STORE_COUNT_LULULEMON_SPECS = 8
+STORE_COUNT_LULULEMON_SOURCES = 5
 LULULEMON_UNAVAILABLE_DISPLAYS = 101
 STORE_A2 = (
     "Source-supported company-operated period-end store counts with "
@@ -127,6 +138,22 @@ _DISCLOSED_STORE_ARITHMETIC = (
     "gross openings",
     "gross closures",
 )
+
+
+def _practice_components(smap):
+    return [c for c in smap.all_ordered() if is_store_count_practice_identity(c)]
+
+
+def _source_components(smap):
+    return [c for c in smap.all_ordered() if is_store_count_source_identity(c)]
+
+
+def _practice_specs(specs):
+    return [s for s in specs if is_store_count_practice_identity(s)]
+
+
+def _source_specs(specs):
+    return [s for s in specs if is_store_count_source_identity(s)]
 
 
 def _fill_rgb(cell) -> str:
@@ -274,6 +301,23 @@ def test_catalog_orders_and_expand_identities():
         "store_count_net_change",
         "store_count_growth",
     ]
+    sources = expand_store_count_source_specs(
+        [P1, P2],
+        start_order=1,
+        source_periods=(P1, P2),
+        units={P1: "stores", P2: "stores"},
+    )
+    assert [s.id for s in sources] == [
+        store_count_source_component_id(P1),
+        store_count_source_component_id(P2),
+    ]
+    assert [s.semantic_key for s in sources] == [
+        store_count_source_semantic_key(P1),
+        store_count_source_semantic_key(P2),
+    ]
+    assert all(s.category == STORE_COUNT_SOURCE_CATEGORY for s in sources)
+    assert all(s.depends_on == () for s in sources)
+    assert all(s.family_id == STORE_COUNT_SOURCE_FAMILY_ID for s in sources)
     specs = expand_store_count_specs(
         [P1, P2],
         start_order=10,
@@ -284,6 +328,12 @@ def test_catalog_orders_and_expand_identities():
         store_count_component_id("store_count_net_change", P2),
         store_count_component_id("store_count_growth", P2),
     ]
+    expected_deps = store_count_adjacent_source_ids([P1, P2], P2)
+    assert expected_deps == (
+        store_count_source_component_id(P2),
+        store_count_source_component_id(P1),
+    )
+    assert all(s.depends_on == expected_deps for s in specs)
     assert not any(s.period_end == P1.isoformat() for s in specs)
     with pytest.raises(ValueError, match="duplicate fiscal periods"):
         expand_store_count_specs(
@@ -298,6 +348,52 @@ def test_catalog_orders_and_expand_identities():
             start_order=1,
             change_periods=(P2,),
             growth_periods=(P2,),
+        )
+    with pytest.raises(ValueError, match="duplicate fiscal periods"):
+        expand_store_count_source_specs(
+            [P1, P1],
+            start_order=1,
+            source_periods=(P1,),
+        )
+    with pytest.raises(ValueError, match="outside the canonical axis"):
+        expand_store_count_source_specs(
+            [P1, P2],
+            start_order=1,
+            source_periods=(P0,),
+        )
+    with pytest.raises(ValueError, match="opening store-count period"):
+        store_count_adjacent_source_ids([P1, P2], P1)
+
+
+def test_formula_resolution_follows_mapped_source_identities():
+    current = StoreCountSourceRef(
+        id=store_count_source_component_id(P2),
+        semantic_key=store_count_source_semantic_key(P2),
+        period_end=P2.isoformat(),
+        cell="E20",
+        unit="stores",
+    )
+    prior = StoreCountSourceRef(
+        id=store_count_source_component_id(P1),
+        semantic_key=store_count_source_semantic_key(P1),
+        period_end=P1.isoformat(),
+        cell="B8",
+        unit="stores",
+    )
+    assert current.cell != prior.cell
+    assert current.cell[0] != chr(ord(prior.cell[0]) + 1)
+    change = resolve_store_count_net_change_formula(current, prior)
+    growth = resolve_store_count_growth_formula(current, prior)
+    assert change == "=E20-B8"
+    assert growth == "=IF(B8=0,NA(),(E20-B8)/B8)"
+    reversed_change = resolve_store_count_net_change_formula(prior, current)
+    assert reversed_change != change
+    assert change.startswith("=")
+    assert current.cell in change and prior.cell in change
+    with pytest.raises(ValueError, match="current and prior source cells"):
+        resolve_store_count_net_change_formula(
+            StoreCountSourceRef("a", "a", P2.isoformat(), ""),
+            prior,
         )
 
 
@@ -369,17 +465,34 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
     fin = _store_tiny(_kpi_model_observation(P1, 711), _kpi_model_observation(P2, 767))
     builder = ReferenceModelBuilder(fin)
     assert builder.operating_kpi_series is not None
-    store_ids = {s.family_id for s in builder.operating_kpi_specs}
+    practice_specs = _practice_specs(builder.operating_kpi_specs)
+    source_specs = _source_specs(builder.operating_kpi_specs)
+    store_ids = {s.family_id for s in practice_specs}
     assert store_ids == {f.id for f in STORE_COUNT_COMPONENT_CATALOG}
+    assert {s.family_id for s in source_specs} == {STORE_COUNT_SOURCE_FAMILY_ID}
+    assert [s.id for s in source_specs] == [
+        store_count_source_component_id(P1),
+        store_count_source_component_id(P2),
+    ]
     existing = [
-        s.id for s in builder.expected_specs if s.category != "store_count"
+        s.id
+        for s in builder.expected_specs
+        if s.category not in {"store_count", STORE_COUNT_SOURCE_CATEGORY}
     ]
     assert existing
     trainer, answer = build_training_workbook(fin, tmp_path / "STORE_BASE.xlsx")
     smap = load_semantic_map(answer)
-    store_comps = [c for c in smap.all_ordered() if c.category == "store_count"]
-    assert {c.id for c in store_comps} == {s.id for s in builder.operating_kpi_specs}
+    store_comps = _practice_components(smap)
+    source_comps = _source_components(smap)
+    assert {c.id for c in store_comps} == {s.id for s in practice_specs}
+    assert {c.id for c in source_comps} == {s.id for s in source_specs}
     assert not any(c.period_index == 0 for c in store_comps)
+    for spec in practice_specs:
+        resolved = smap.get(spec.id)
+        assert tuple(resolved.depends_on) == spec.depends_on
+        assert spec.depends_on == store_count_adjacent_source_ids(
+            list(builder.periods), date.fromisoformat(spec.period_end)
+        )
 
     awb = load_workbook(answer, data_only=False)
     twb = load_workbook(trainer, data_only=False)
@@ -410,10 +523,29 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
     assert aws.cell(change_row, 2).value == "N/A"
     assert tws.cell(change_row, 2).value == "N/A"
     assert aws.cell(growth_row, 2).value == "N/A"
+    source_by_period = {c.period_end: c for c in source_comps}
+    current_src = source_by_period[P2.isoformat()]
+    prior_src = source_by_period[P1.isoformat()]
+    current_ref = StoreCountSourceRef(
+        id=current_src.id,
+        semantic_key=current_src.semantic_key,
+        period_end=current_src.period_end,
+        cell=current_src.cell,
+    )
+    prior_ref = StoreCountSourceRef(
+        id=prior_src.id,
+        semantic_key=prior_src.semantic_key,
+        period_end=prior_src.period_end,
+        cell=prior_src.cell,
+    )
     assert str(aws.cell(change_row, 3).value).replace(" ", "") == (
-        f"={get_column_letter(3)}{count_row}-{get_column_letter(2)}{count_row}"
-    ).replace(" ", "")
-    assert "NA()" in str(aws.cell(growth_row, 3).value)
+        resolve_store_count_net_change_formula(current_ref, prior_ref).replace(" ", "")
+    )
+    assert str(aws.cell(growth_row, 3).value).replace(" ", "") == (
+        resolve_store_count_growth_formula(current_ref, prior_ref).replace(" ", "")
+    )
+    assert tws.cell(count_row, 2).value == 711
+    assert tws.cell(count_row, 3).value == 767
     assert tws.cell(change_row, 3).value in (None, "")
     assert tws.cell(growth_row, 3).comment is None
     change_note = (
@@ -444,6 +576,8 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
 
     wb = load_workbook(trainer, data_only=False)
     for comp in smap.all_ordered():
+        if is_store_count_source_identity(comp):
+            continue
         row, col = parse_cell_ref(comp.cell)
         wb[comp.tab].cell(row=row, column=col).value = comp.formula
     wb.save(trainer)
@@ -485,8 +619,12 @@ def test_sparse_undefined_decline_units_and_source_edit(tmp_path):
     assert series.net_count_change[P1] == SOURCE_UNAVAILABLE
     assert series.net_count_change[P2] == SOURCE_UNAVAILABLE
     assert series.growth[P1] == SOURCE_UNAVAILABLE
-    assert not any(s.period_end == P0.isoformat() for s in builder.operating_kpi_specs)
-    assert builder.operating_kpi_specs == ()
+    assert not any(s.period_end == P0.isoformat() for s in _practice_specs(builder.operating_kpi_specs))
+    assert _practice_specs(builder.operating_kpi_specs) == []
+    assert [s.period_end for s in _source_specs(builder.operating_kpi_specs)] == [
+        P0.isoformat(),
+        P2.isoformat(),
+    ]
 
     decline = _store_tiny(
         _kpi_model_observation(P1, 711),
@@ -578,10 +716,15 @@ def test_singleton_history_has_counts_without_practice(tmp_path):
     assert builder.operating_kpi_series is not None
     assert builder.operating_kpi_series.period_end_count[P2] == 811
     assert builder.operating_kpi_series.net_count_change[P2] is None
-    assert builder.operating_kpi_specs == ()
+    assert _practice_specs(builder.operating_kpi_specs) == []
+    source_specs = _source_specs(builder.operating_kpi_specs)
+    assert [s.id for s in source_specs] == [store_count_source_component_id(P2)]
     trainer, answer = build_training_workbook(fin, tmp_path / "STORE_SINGLE.xlsx")
     smap = load_semantic_map(answer)
-    assert not any(c.category == "store_count" for c in smap.all_ordered())
+    assert _practice_components(smap) == []
+    sources = _source_components(smap)
+    assert [c.id for c in sources] == [store_count_source_component_id(P2)]
+    assert sources[0].expected_value == 811
     awb = load_workbook(answer, data_only=False)
     twb = load_workbook(trainer, data_only=False)
     assert STORE_COUNT_SHEET in awb.sheetnames
@@ -645,9 +788,19 @@ def test_source_grounded_reload_workbook_and_check(tmp_path):
     assert len(reconciled.selected_geographic_facts) == 56
 
     builder = ReferenceModelBuilder(restored)
-    store_n = len(builder.operating_kpi_specs)
+    practice_specs = _practice_specs(builder.operating_kpi_specs)
+    source_specs = _source_specs(builder.operating_kpi_specs)
+    store_n = len(practice_specs)
     assert store_n == STORE_COUNT_LULULEMON_SPECS
-    preserved = [s for s in builder.expected_specs if s.category != "store_count"]
+    assert len(source_specs) == STORE_COUNT_LULULEMON_SOURCES
+    assert [s.period_end for s in source_specs] == [
+        period.isoformat() for period in series.periods
+    ]
+    preserved = [
+        s
+        for s in builder.expected_specs
+        if s.category not in {"store_count", STORE_COUNT_SOURCE_CATEGORY}
+    ]
     committed = ReferenceModelBuilder(
         standardized_from_payload(json.loads(LULU_JSON.read_text(encoding="utf-8")))
     ).expected_specs
@@ -663,15 +816,22 @@ def test_source_grounded_reload_workbook_and_check(tmp_path):
     )
     trainer, answer = _copy_pair(trainer, answer, tmp_path / "reopened")
     smap = load_semantic_map(answer)
-    all_comps = list(smap.all_ordered())
-    store_comps = [c for c in all_comps if c.category == "store_count"]
+    all_comps = [
+        c for c in smap.all_ordered() if not is_store_count_source_identity(c)
+    ]
+    store_comps = _practice_components(smap)
+    source_comps = _source_components(smap)
     assert len(store_comps) == STORE_COUNT_LULULEMON_SPECS
+    assert len(source_comps) == STORE_COUNT_LULULEMON_SOURCES
+    assert {c.id for c in source_comps} == {s.id for s in source_specs}
     assert len(all_comps) == (
         LEASE_DT_LULULEMON_SPECS
         + GEOGRAPHIC_LULULEMON_SPECS
         + STORE_COUNT_LULULEMON_SPECS
     )
     practice = {(c.tab, c.cell) for c in all_comps}
+    source_cells = {(c.tab, c.cell) for c in source_comps}
+    assert source_cells.isdisjoint(practice)
 
     awb = load_workbook(answer, data_only=False)
     twb = load_workbook(trainer, data_only=False)
@@ -690,15 +850,14 @@ def test_source_grounded_reload_workbook_and_check(tmp_path):
     growth_row = _row_by_label(aws, "Store-count growth")
     assert aws.cell(change_row, period_cols[P2022]).value == "N/A"
     assert tws.cell(growth_row, period_cols[P2022]).value == "N/A"
+    source_by_period = {c.period_end: c for c in source_comps}
+    axis = list(builder.periods)
     for period, change in (
         (P2023, 81),
         (P2024, 56),
         (P2025, 56),
         (P2026, 44),
     ):
-        col_idx = period_cols[period]
-        col = get_column_letter(col_idx)
-        prev = get_column_letter(col_idx - 1)
         change_comp = next(
             c
             for c in store_comps
@@ -711,19 +870,50 @@ def test_source_grounded_reload_workbook_and_check(tmp_path):
             if c.family_id == "store_count_growth"
             and c.period_end == period.isoformat()
         )
+        prior = axis[axis.index(period) - 1]
+        current_src = source_by_period[period.isoformat()]
+        prior_src = source_by_period[prior.isoformat()]
+        assert tuple(change_comp.depends_on) == (
+            current_src.id,
+            prior_src.id,
+        )
+        assert tuple(growth_comp.depends_on) == tuple(change_comp.depends_on)
+        current_ref = StoreCountSourceRef(
+            id=current_src.id,
+            semantic_key=current_src.semantic_key,
+            period_end=current_src.period_end,
+            cell=current_src.cell,
+        )
+        prior_ref = StoreCountSourceRef(
+            id=prior_src.id,
+            semantic_key=prior_src.semantic_key,
+            period_end=prior_src.period_end,
+            cell=prior_src.cell,
+        )
         assert change_comp.expected_value == change
         assert growth_comp.expected_value == pytest.approx(
             series.growth[period], abs=OPERATING_KPI_RATIO_TOLERANCE
         )
         assert change_comp.formula.replace(" ", "") == (
-            f"={col}{count_row}-{prev}{count_row}"
+            resolve_store_count_net_change_formula(current_ref, prior_ref).replace(
+                " ", ""
+            )
         )
         assert growth_comp.formula.replace(" ", "") == (
-            f"=IF({prev}{count_row}=0,NA(),({col}{count_row}-{prev}{count_row})/"
-            f"{prev}{count_row})"
+            resolve_store_count_growth_formula(current_ref, prior_ref).replace(
+                " ", ""
+            )
         )
+        assert current_src.cell in change_comp.formula
+        assert prior_src.cell in change_comp.formula
         t_change = twb[change_comp.tab].cell(*parse_cell_ref(change_comp.cell))
         a_change = awb[change_comp.tab].cell(*parse_cell_ref(change_comp.cell))
+        t_source = twb[current_src.tab].cell(*parse_cell_ref(current_src.cell))
+        a_source = awb[current_src.tab].cell(*parse_cell_ref(current_src.cell))
+        assert t_source.value == a_source.value == INDEPENDENT_STORE_TOTALS[period]
+        assert t_source.comment is None
+        assert a_source.comment is None
+        assert _fill_rgb(t_source) in WHITE_RGBS
         assert t_change.value is None
         assert t_change.comment is None
         assert _fill_rgb(t_change) == "FFFF00"

@@ -4728,10 +4728,97 @@ def expand_geographic_segment_specs(
 
 STORE_COUNT_SHEET_NAME = "Store Count Analysis"
 STORE_COUNT_POPULATION_LABEL = "company-operated"
+STORE_COUNT_SOURCE_FAMILY_ID = "store_count_source"
+STORE_COUNT_SOURCE_CATEGORY = "store_count_source"
+STORE_COUNT_PRACTICE_CATEGORY = "store_count"
 
 
 def store_count_component_id(family_id: str, period: date) -> str:
     return f"{family_id}__{period.strftime('%Y%m%d')}"
+
+
+def store_count_source_component_id(period: date) -> str:
+    return store_count_component_id(STORE_COUNT_SOURCE_FAMILY_ID, period)
+
+
+def store_count_source_semantic_key(period: date) -> str:
+    return f"operating_kpi.store_count.source.{period.isoformat()}"
+
+
+def is_store_count_source_identity(component: object) -> bool:
+    return getattr(component, "category", None) == STORE_COUNT_SOURCE_CATEGORY
+
+
+def is_store_count_practice_identity(component: object) -> bool:
+    return getattr(component, "category", None) == STORE_COUNT_PRACTICE_CATEGORY
+
+
+@dataclass(frozen=True)
+class StoreCountSourceRef:
+    """Mapped coordinate for one validated period-end store-count source."""
+
+    id: str
+    semantic_key: str
+    period_end: str
+    cell: str
+    unit: str = ""
+    population: str = STORE_COUNT_POPULATION_LABEL
+
+
+def store_count_source_map_formula(value: float) -> str:
+    """Semantic-map formula for a populated source; the worksheet keeps the number."""
+    number = float(value)
+    if number.is_integer():
+        return f"={int(number)}"
+    return f"={number}"
+
+
+def resolve_store_count_net_change_formula(
+    current: StoreCountSourceRef,
+    prior: StoreCountSourceRef,
+) -> str:
+    """Net change from mapped current/prior source cells, not column adjacency."""
+    if not current.cell or not prior.cell:
+        raise ValueError(
+            "store-count net change requires current and prior source cells"
+        )
+    return f"={current.cell}-{prior.cell}"
+
+
+def resolve_store_count_growth_formula(
+    current: StoreCountSourceRef,
+    prior: StoreCountSourceRef,
+) -> str:
+    """Adjacent growth from mapped current/prior source cells; zero prior is #N/A."""
+    if not current.cell or not prior.cell:
+        raise ValueError(
+            "store-count growth requires current and prior source cells"
+        )
+    return (
+        f"=IF({prior.cell}=0,NA(),({current.cell}-{prior.cell})/{prior.cell})"
+    )
+
+
+STORE_COUNT_SOURCE_FAMILY = ComponentFamily(
+    id=STORE_COUNT_SOURCE_FAMILY_ID,
+    order=160,
+    title="Company-operated period-end store count",
+    short_hint=(
+        "Populated company-operated period-end store count. This is a "
+        "reported source, not a practice cell. Count units are independent "
+        "of monetary scale."
+    ),
+    semantic_key="operating_kpi.store_count.source",
+    category=STORE_COUNT_SOURCE_CATEGORY,
+    tab_template=STORE_COUNT_SHEET_NAME,
+    period_scope="all",
+    hints=(
+        f"Population is {STORE_COUNT_POPULATION_LABEL}.",
+        "Count units stay independent of monetary scale.",
+        "This source is populated and is not practiced or Checked.",
+    ),
+    tolerance=0.0,
+)
 
 
 STORE_COUNT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
@@ -4748,9 +4835,11 @@ STORE_COUNT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
             "causality."
         ),
         semantic_key="operating_kpi.store_count.net_change",
-        category="store_count",
+        category=STORE_COUNT_PRACTICE_CATEGORY,
         tab_template=STORE_COUNT_SHEET_NAME,
         period_scope="comparable",
+        depends_on_current=(STORE_COUNT_SOURCE_FAMILY_ID,),
+        depends_on_previous=(STORE_COUNT_SOURCE_FAMILY_ID,),
         hints=(
             "Net count change uses the immediately preceding model period.",
             "This is a net change, not gross openings or closures.",
@@ -4770,9 +4859,11 @@ STORE_COUNT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
             "geographic allocation, or causality."
         ),
         semantic_key="operating_kpi.store_count.growth",
-        category="store_count",
+        category=STORE_COUNT_PRACTICE_CATEGORY,
         tab_template=STORE_COUNT_SHEET_NAME,
         period_scope="comparable",
+        depends_on_current=(STORE_COUNT_SOURCE_FAMILY_ID,),
+        depends_on_previous=(STORE_COUNT_SOURCE_FAMILY_ID,),
         hints=(
             "Adjacent-period growth uses the immediately preceding model period.",
             "Opening growth is absent; a gap is unavailable, not compressed.",
@@ -4783,6 +4874,93 @@ STORE_COUNT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
 )
 
 
+def _require_store_count_period_axis(periods: list[date], *, caller: str) -> None:
+    if len(periods) != len(set(periods)):
+        raise ValueError(f"duplicate fiscal periods are not allowed in {caller}")
+    for previous, current in zip(periods, periods[1:]):
+        if not (current > previous):
+            raise ValueError(
+                f"{caller} requires strictly chronological (increasing) period dates"
+            )
+
+
+def expand_store_count_source_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    source_periods: tuple[date, ...],
+    units: dict[date, str] | None = None,
+) -> tuple[ComponentSpec, ...]:
+    """Register populated period-end count sources; never practice identities."""
+    _require_store_count_period_axis(periods, caller="expand_store_count_source_specs")
+    period_index = {period: index for index, period in enumerate(periods)}
+    unknown = [period for period in source_periods if period not in period_index]
+    if unknown:
+        raise ValueError(
+            "expand_store_count_source_specs received periods outside the "
+            f"canonical axis: {unknown}"
+        )
+    if len(source_periods) != len(set(source_periods)):
+        raise ValueError(
+            "duplicate source periods are not allowed in expand_store_count_source_specs"
+        )
+    family = STORE_COUNT_SOURCE_FAMILY
+    specs: list[ComponentSpec] = []
+    order = start_order
+    unit_map = units or {}
+    for period in periods:
+        if period not in source_periods:
+            continue
+        period_end = period.isoformat()
+        unit = unit_map.get(period, "")
+        hints = family.hints
+        if unit:
+            hints = family.hints + (f"Count unit: {unit}.",)
+        specs.append(
+            ComponentSpec(
+                id=store_count_source_component_id(period),
+                family_id=family.id,
+                order=order,
+                family_order=family.order,
+                title=family.title,
+                short_hint=family.short_hint,
+                semantic_key=store_count_source_semantic_key(period),
+                category=family.category,
+                tab_template=family.tab_template,
+                period_index=period_index[period],
+                period_end=period_end,
+                depends_on=(),
+                hints=hints,
+                tolerance=family.tolerance,
+            )
+        )
+        order += 1
+    return tuple(specs)
+
+
+def store_count_adjacent_source_ids(
+    periods: list[date],
+    period: date,
+) -> tuple[str, str]:
+    """Current then immediately preceding canonical-period count source identities."""
+    period_index = {item: index for index, item in enumerate(periods)}
+    if period not in period_index:
+        raise ValueError(
+            f"store-count practice period {period.isoformat()} is outside the "
+            "canonical axis"
+        )
+    index = period_index[period]
+    if index == 0:
+        raise ValueError(
+            "opening store-count period has no immediately preceding source"
+        )
+    prior = periods[index - 1]
+    return (
+        store_count_source_component_id(period),
+        store_count_source_component_id(prior),
+    )
+
+
 def expand_store_count_specs(
     periods: list[date],
     *,
@@ -4791,16 +4969,7 @@ def expand_store_count_specs(
     growth_periods: tuple[date, ...],
 ) -> tuple[ComponentSpec, ...]:
     """Expand store-count practice families for available adjacent periods."""
-    if len(periods) != len(set(periods)):
-        raise ValueError(
-            "duplicate fiscal periods are not allowed in expand_store_count_specs"
-        )
-    for previous, current in zip(periods, periods[1:]):
-        if not (current > previous):
-            raise ValueError(
-                "expand_store_count_specs requires strictly chronological "
-                "(increasing) period dates"
-            )
+    _require_store_count_period_axis(periods, caller="expand_store_count_specs")
 
     families = {family.id: family for family in STORE_COUNT_COMPONENT_CATALOG}
     specs: list[ComponentSpec] = []
@@ -4825,7 +4994,7 @@ def expand_store_count_specs(
                 tab_template=family.tab_template,
                 period_index=period_index[period],
                 period_end=period_end,
-                depends_on=(),
+                depends_on=store_count_adjacent_source_ids(periods, period),
                 hints=family.hints,
                 tolerance=family.tolerance,
             )
