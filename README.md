@@ -22,52 +22,67 @@ Forecasting, valuation, and investment conclusions are not active yet.
 
 ## Quick start
 
-Use `build/input/` for complete canonical BAV / `StandardizedFinancials` JSON
-and `build/output/` for generated workbooks. The entire `build/` directory is
-local and ignored by Git. From the repository root:
+From the repository root:
 
 ```bash
 pip install -r requirements-trainer.txt
-mkdir -p build/input build/output
-
-# Place your complete canonical model at build/input/LULU.json, then:
-python -m core build build/input/LULU.json -o build/output/Lululemon
-
-python -m core list --workbook build/output/Lululemon_Trainer.xlsx
-python -m core check --workbook build/output/Lululemon_Trainer.xlsx
+python -m bav build Lululemon
+python -m bav check Lululemon
+python -m bav list Lululemon
 ```
 
-The output argument is a **filename stem**, not a directory. This produces:
+Company names are case-insensitive; `LULU` resolves to Lululemon. `FastRetailing`,
+`Fast Retailing`, and `9983` resolve to the other benchmark company. Unknown or
+ambiguous names fail with candidates. Check and List require an existing current
+build and never guess a release workbook.
 
-- `build/output/Lululemon_Trainer.xlsx`
-- `build/output/Lululemon_Answer_Key.xlsx`
-- `build/output/Lululemon_Answer_Key.component_map.json`
-- `build/output/Lululemon_Answer_Key.assumptions.json`
-- `build/output/rowmap.json`
+The canonical current pair is:
 
-Use separate output subdirectories for builds whose `rowmap.json` files must
-coexist. The existing `_Trainer.xlsx` output spelling and optional
-`-a path/to/assumptions.json` remain supported, as does Excel input.
+- `build/output/Lululemon/Lululemon_Trainer.xlsx`
+- `build/output/Lululemon/Lululemon_Answer_Key.xlsx`
 
-JSON input uses `core.data.standardized_io.standardized_from_payload`, with
-strict validation. Supply the model-only canonical format produced by
-`standardized_to_payload` / `reconcile`: company fields (including jurisdiction),
-periods, and all three statements, plus any supported historical modules.
-Historical shares, leases, geographic segments, and operating KPIs pass intact
-to the current workbook engine and its embedded Check context. The engine
-determines which schedules it currently supports; the CLI does not add modules
-or derive missing facts. Absent optional modules remain absent.
+The same directory holds the Answer Key component map and assumptions,
+`rowmap.json`, `build_status.json`, and source/reconciliation provenance under
+`supporting/`. Keep the pair and sidecars together. `build/` is ignored by Git.
 
-Malformed JSON, duplicate keys, unknown fields (including nested fields),
-invalid types/dates, and unsupported model values fail with a nonzero exit and
-an error on stderr. Source-extraction JSON, provenance/audit wrappers, and the
-legacy partial HK JSON format are not canonical build inputs. Numeric strings
-and booleans are not accepted as financial amounts.
+Each company build validates the current extracted filings against source PDFs
+and reconciles them afresh. Project settings retain established comparative-period
+admission and supported note-fact handoffs (including the vetted store-count
+handoff); they do not change accounting or evidence rules. Committed benchmark
+and release artifacts are read only. Invalid source binding aborts the build;
+there is no fallback to a stale standardized model.
 
-Manual builds read their inputs and write the workbook pair and sidecars only
-at the requested output location. They do not reconcile filings, update plans,
-or run benchmark/release workflows. Destinations in `benchmark/` or `release/`
-are rejected; those workflows remain separate.
+A build is a **development snapshot**, not parent-module completion or release
+acceptance. Independently integrated, admitted families appear immediately.
+Missing comparable-sales or SPSF admission does not hide valid store-count or
+geographic work. The **Build Status** sheet shows active families, unavailable
+sources/admission, and families not implemented. Partial availability can cover
+only some periods; the analytical schedules show individual gaps. The existing
+revenue/store growth comparison is not a revenue-per-store productivity ratio.
+
+A rebuild generates and validates the pair in staging, including semantic maps,
+required sidecars, learner formatting, and workbook-wide Check. Only then does a
+single atomic directory exchange replace the current generation. A failed build
+returns nonzero and preserves the previous pair. Replacement supports macOS and
+Linux directory exchange; unsupported platforms fail closed. Successful builds
+retire recognized old flat `Live`, `KPI`, `Preview`, and dated pairs for that company.
+`release/` remains a separate publication/archive workflow.
+
+Advanced explicit-path compatibility remains available:
+
+```bash
+python -m bav build build/input/company.json -o build/output/custom/Company
+python -m bav check --workbook build/output/custom/Company_Trainer.xlsx
+python -m bav list --workbook build/output/custom/Company_Answer_Key.xlsx
+```
+
+Explicit input accepts strict canonical StandardizedFinancials JSON or Excel;
+`-o` is a filename stem, and `-a assumptions.json` remains supported. This legacy
+path mode writes at the requested paths; the atomic current-directory contract
+applies to company builds. Source-extraction JSON and legacy partial HK JSON are
+not canonical build inputs. `python -m core` remains an internal compatibility
+entry point; `bav` is the public interface. Existing internal `core` imports remain
+supported.
 
 ## How to practice
 
@@ -90,7 +105,7 @@ PDF/filing → extracted JSON per filing → validate-source → reconcile → b
 ```
 
 - `validate-source` / `reconcile` consume one extracted JSON per filing and write
-  `standardized.json` + audit artifacts; `build` still takes standardized JSON
+  `standardized.json` + audit artifacts; company `build` runs this pipeline automatically
 - Manual standardized JSON or Excel / Bloomberg / Wind-style exports remain supported
 - Automatic PDF/AI extraction is not part of the CLI yet
 - Actual historical share data is required for per-share modules

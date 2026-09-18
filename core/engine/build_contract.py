@@ -54,9 +54,10 @@ class BuildModule:
     required_inputs: tuple[RequiredInput, ...] = ()
     applicable: Callable[[ReferenceModelBuilder], bool] | None = None
     spec_key: Callable[[ComponentSpec], tuple] = _spec_key
+    current_ready: bool = False
 
 
-def complete_build_modules(financials: StandardizedFinancials) -> tuple[BuildModule, ...]:
+def complete_build_modules(financials: StandardizedFinancials, *, current_snapshot: bool = False) -> tuple[BuildModule, ...]:
     """Snapshot and validate the registry; never select by available input alone."""
     selected = []
     seen = set()
@@ -67,7 +68,10 @@ def complete_build_modules(financials: StandardizedFinancials) -> tuple[BuildMod
         seen.add(module.id)
         if module.status not in {"complete", "incomplete", "deferred"}:
             raise ValueError(f"Unknown Build completion status: {module.id}: {module.status}")
-        if not (module.status == "complete" and module.workbook_capable and module.complete_analysis):
+        if not (module.workbook_capable and (
+            (module.status == "complete" and module.complete_analysis)
+            or (current_snapshot and module.current_ready and module.status != "deferred")
+        )):
             continue
         if not callable(module.prepare) or not module.writers:
             raise ValueError(f"Build module {module.id}: missing workbook/spec integration")
@@ -178,7 +182,7 @@ def _integrated(id: str, writers: tuple[WorkbookWriter, ...], *,
     def prepare(builder, start_order):
         return getattr(builder, f"_prepare_{id}")(start_order)
     return BuildModule(id, "complete", True, True, prepare, writers, depends_on,
-                       spec_key=spec_key)
+                       spec_key=spec_key, current_ready=True)
 
 
 # This tuple is the canonical completion/integration declaration. Keep it in

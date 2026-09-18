@@ -1,18 +1,25 @@
-# Complete Build contract
+# Current Build and release contracts
 
-`python -m core build` and both company release builders use
+`python -m bav build Company` and both company release builders use
 `build_training_workbook → ReferenceModelBuilder → BUILD_MODULES` in
 `core/engine/build_contract.py`. There is no discovery of Python files.
 
-An entry participates only when `status="complete"`, `workbook_capable=True`,
-and `complete_analysis=True`. Eligible entries must have a preparation hook
+Release/explicit-input builds retain the `status="complete"`,
+`workbook_capable=True`, `complete_analysis=True` selection gate. Company current
+builds additionally select workbook-capable entries explicitly marked
+`current_ready=True`, even if parent completion is incomplete. Deferred entries
+remain excluded. `current_ready` declares that preparation emits independently
+valid families; it does not admit source data or assert parent acceptance.
+
+Eligible entries must have a preparation hook
 returning concrete `ComponentSpec` objects and workbook writers that register
 those objects in the semantic map. Missing integration is a build error.
 
 The current registry includes all existing integrated workbook modules.
-Operating KPI computation has no workbook/spec integration yet, so its entry
-is explicitly non-workbook. Forecast is deferred. Neither becomes part of
-complete Build merely because analytical Python code exists.
+Geographic and Operating KPI adapters prepare families independently, using
+existing metric-level admission and availability. Missing comparable-sales/SPSF
+admission does not suppress valid store-count families. Forecast remains deferred.
+Python code alone does not establish workbook readiness.
 
 ## Adding a completed module
 
@@ -68,8 +75,13 @@ missing, or stale component set. Release blank/filled Check totals come from
 the same expected specs. Historical benchmark assertions may still describe
 fixed fixtures, but production completeness checks have no fixed total.
 
-AutoCycle code, state, recovery history, and control documents are outside this
-contract change. Build does not start AutoCycle.
+Company routing and staged reconciliation live in `core/current_build.py`.
+The public `bav` package delegates to the compatible internal `core` CLI.
+Company builds verify the pair and sidecars before atomically exchanging the
+canonical `build/output/<Company>/` directory. Build Status uses emitted semantic
+identities; visibility is not release acceptance. Build never writes AutoCycle
+state, control documents, benchmark artifacts, or release artifacts, and never
+starts AutoCycle.
 
 Run focused checks with `python -m pytest core/tests/test_build_contract.py -q`
 and regressions with `python -m pytest core/tests -q` in the project environment.

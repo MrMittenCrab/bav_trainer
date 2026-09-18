@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """BAV Excel Trainer CLI for Hong Kong-listed companies.
 
-Usage: python -m core <command> ...
+Usage: python -m bav <command> ...
 """
 
 from __future__ import annotations
@@ -132,7 +132,7 @@ def _validate_build_output(output: Path, inputs: list[Path]) -> None:
     if trainer.suffix.lower() != ".xlsx":
         raise ValueError("build output must be a company stem or .xlsx path")
     roots = {Path.cwd().resolve(), Path(__file__).resolve().parents[1]}
-    protected = [root / name for root in roots for name in ("benchmark", "release")]
+    protected = [root / name for root in roots for name in ("benchmark", "release", ".git", ".codex", ".agents")]
     protected_files = {p.resolve() for p in inputs}
     protected_files.update((root / name).resolve() for root in roots
                            for name in ("TARGET.md", "IMPLEMENTATION.md", "RESULT.md"))
@@ -149,7 +149,34 @@ def _validate_build_output(output: Path, inputs: list[Path]) -> None:
 
 
 def cmd_build(args: argparse.Namespace) -> int:
-    path, out = Path(args.input), Path(args.output)
+    from .current_build import resolve_company, build_company
+    path = Path(args.input)
+    if path.suffix.lower() not in {".json", ".xlsx", ".xls", ".xlsm"} and not path.is_file():
+        try:
+            company = resolve_company(args.input)
+            if args.output:
+                raise ValueError('Company builds use their canonical directory; use explicit JSON input with -o for advanced output')
+            assumptions = _load_build_json(Path(args.assumptions)) if args.assumptions else None
+            if assumptions is not None and not isinstance(assumptions, dict):
+                raise ValueError('assumptions must be a JSON object')
+            rows = build_company(company, assumptions)
+        except (OSError, ValueError, RuntimeError) as exc:
+            print(f'error: build failed: {exc}', file=sys.stderr)
+            return 1
+        print(f'Built {company.name}\nOutput: {company.output}/\n')
+        print(f'Trainer: {company.trainer.name}\nAnswer Key: {company.answer.name}')
+        print('\nActive:')
+        for group in dict.fromkeys(c.tab for c in load_semantic_map(company.answer).all_ordered()):
+            print(f'  {group}')
+        print('\nUnavailable / not yet active:')
+        for row in rows:
+            if not row['cells']:
+                print(f"  {row['family']} — {row['status']}")
+        return 0
+    if not args.output:
+        print('error: explicit input requires -o; normal usage: python -m bav build <Company>', file=sys.stderr)
+        return 1
+    out = Path(args.output)
     try:
         inputs = [path] + ([Path(args.assumptions)] if args.assumptions else [])
         _validate_build_output(out, inputs)
@@ -177,7 +204,11 @@ def cmd_build(args: argparse.Namespace) -> int:
 
 
 def cmd_check(args: argparse.Namespace) -> int:
-    summary = check_workbook(Path(args.workbook))
+    from .current_build import current_workbook
+    if bool(args.company) == bool(args.workbook):
+        raise ValueError('Specify a company or --workbook')
+    workbook = current_workbook(args.company) if args.company else Path(args.workbook)
+    summary = check_workbook(workbook)
     print(
         f"Checked {summary.total} practice cells: "
         f"{summary.correct} correct, {summary.incorrect} incorrect, {summary.blank} blank."
@@ -312,7 +343,12 @@ def cmd_reconcile(args: argparse.Namespace) -> int:
 def cmd_list(args: argparse.Namespace) -> int:
     from .trainer.workbook import group_components_by_family
 
-    wb = Path(args.workbook) if args.workbook else None
+    from .current_build import current_workbook
+    if args.company and args.workbook:
+        raise ValueError('Specify a company or --workbook, not both')
+    wb = current_workbook(args.company, answer=True) if args.company else (Path(args.workbook) if args.workbook else None)
+    if wb and not wb.is_file():
+        raise ValueError(f'Workbook not found: {wb}')
     if wb and wb.exists():
         try:
             smap = load_semantic_map(wb)
@@ -400,13 +436,12 @@ def main(argv: list[str] | None = None) -> int:
 
     p_build = sub.add_parser(
         "build",
-        help="Build matched Trainer + Answer Key workbooks from a complete BAV model",
+        help="Build the current company Trainer + Answer Key snapshot",
     )
-    p_build.add_argument("input", help="Complete canonical StandardizedFinancials JSON or Excel workbook")
+    p_build.add_argument("input", help="Company name/ticker, or explicit standardized JSON/Excel")
     p_build.add_argument(
         "-o",
         "--output",
-        required=True,
         help=(
             "Output path (stem ending in _Trainer, or a company stem to which "
             "_Trainer/_Answer_Key are appended)"
@@ -423,10 +458,12 @@ def main(argv: list[str] | None = None) -> int:
         "check",
         help="Validate every practice cell in a Trainer workbook (yellow/green/red)",
     )
-    p_check.add_argument("--workbook", required=True)
+    p_check.add_argument("company", nargs="?")
+    p_check.add_argument("--workbook")
     p_check.set_defaults(func=cmd_check)
 
     p_list = sub.add_parser("list", help="List trainer components")
+    p_list.add_argument("company", nargs="?")
     p_list.add_argument(
         "--workbook",
         help="Show resolved coordinates from a built Answer Key (or matching Trainer)",
@@ -434,7 +471,11 @@ def main(argv: list[str] | None = None) -> int:
     p_list.set_defaults(func=cmd_list)
 
     args = parser.parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except (OSError, ValueError, RuntimeError) as exc:
+        print(f'error: {exc}', file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

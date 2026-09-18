@@ -59,26 +59,21 @@ Open the matching Answer Key for formula Notes and for judgment reference respon
 ```bash
 cd bav_trainer
 pip install -r requirements-trainer.txt
-
-# Build matched Trainer + Answer Key pair from illustrative HK data
-# (with optional Step 8B2 normalization assumptions)
-python -m core build example/DEMO_HK_Standardized.json \
-  -a example/DEMO_HK_Assumptions.json \
-  -o example/DEMO_HK_Trainer.xlsx
-# → example/DEMO_HK_Trainer.xlsx
-# → example/DEMO_HK_Answer_Key.xlsx
-# with DEMO_HK_Assumptions.json: 66 families / 279 practice cells
-# without assumptions:           62 families / 259 practice cells
-# (illustrative demo has no share history → no Per Share Analysis)
-
-# List conceptual schedule families
-python -m core list --workbook example/DEMO_HK_Trainer.xlsx
-
-# After entering formulas in Excel and saving, validate the whole workbook:
-python -m core check --workbook example/DEMO_HK_Trainer.xlsx
+python -m bav build Lululemon
+python -m bav list Lululemon
+python -m bav check Lululemon
 ```
 
-Open the matching Answer Key for the formula and hover the yellow cell's Note for the hint.
+The current learning pair lives in `build/output/Lululemon/`. A successful
+company rebuild atomically replaces that directory after staged validation;
+a failed build preserves the previous pair. Build Status shows independently
+available analytical families and source/admission gaps. Development visibility
+does not establish parent or release completion.
+
+Open the matching Answer Key for formulas and Notes. Trainer cells remain blank
+and yellow, without answer hints. See [README.md](README.md) for current company
+aliases, source reconciliation, and advanced explicit-path compatibility.
+The historical illustrative HK JSON is not a canonical CLI build input.
 
 ## What it does
 
@@ -127,6 +122,6 @@ v1 does **not** scrape HKEX automatically. Supply documents manually:
 | Excel export | Tabs: Income Statement, Balance Sheet, Cash Flow |
 | Bloomberg / Wind | Export to Excel; pass file to `ingest` |
 
-JSON schema matches `example/DEMO_HK_Standardized.json`. Sign conventions: revenue positive, expenses negative. When exporting via `python -m core ingest ... -o ...`, each statement row includes `concept` (empty string when absent) so concept-aware identity survives reload.
+JSON schema matches `example/DEMO_HK_Standardized.json`. Sign conventions: revenue positive, expenses negative. When exporting via `python -m bav ingest ... -o ...`, each statement row includes `concept` (empty string when absent) so concept-aware identity survives reload.
 
 Optional historical configuration (e.g. `classificationOverrides`) can be passed with `-a/--assumptions`.

@@ -120,6 +120,8 @@ class TrainingWorkbookGenerator:
         """Finalize Answer Key in place, then derive a sanitized Trainer from it."""
         wb = load_workbook(self.answer_key_path)
         self._add_trainer_ui(wb)
+        from ..build_status import add_build_status
+        add_build_status(wb, self.semantic_map)
         self._apply_minimal_style(wb)
         self._decorate_answer_key_practice_cells(wb)
         self._decorate_answer_key_judgment_cells(wb)
@@ -392,6 +394,8 @@ def build_training_workbook(
     financials,
     output_path: Path,
     assumptions: dict | None = None,
+    *,
+    current_snapshot: bool = False,
 ) -> tuple[Path, Path]:
     """End-to-end: standardized data → Answer Key + Trainer workbook pair.
 
@@ -411,7 +415,7 @@ def build_training_workbook(
 
     trainer_path, answer_key_path = resolve_pair_paths(output_path)
     remove_trainer_sidecars(trainer_path)
-    builder = ReferenceModelBuilder(financials, assumptions)
+    builder = ReferenceModelBuilder(financials, assumptions, current_snapshot=current_snapshot)
     semantic_map = builder.build(answer_key_path)
     TrainingWorkbookGenerator(
         answer_key_path,

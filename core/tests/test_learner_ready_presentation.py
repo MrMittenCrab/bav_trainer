@@ -426,8 +426,8 @@ def test_root_readme_is_practical_trainer_guide():
         # Allow "Hint" only if somehow in Answer Key prose — plan forbids Hint/Reveal commands.
         assert term not in lowered, f"forbidden term present: {term!r}"
 
-    assert "python -m core build" in text
-    assert "python -m core list" in text
-    assert "python -m core check" in text
+    assert "python -m bav build" in text
+    assert "python -m bav list" in text
+    assert "python -m bav check" in text
     assert re.search(r"\bhint\b", lowered) is None
     assert re.search(r"\breveal\b", lowered) is None

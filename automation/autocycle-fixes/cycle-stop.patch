@@ -1,0 +1,67 @@
+--- autocycle
++++ autocycle
+@@ -30,7 +30,7 @@
+     echo "  autocycle --review-only"
+     echo "  autocycle --plan-only"
+     echo "  autocycle --implement-only"
+-    echo "  autocycle --stop    # pause after the current stage"
++    echo "  autocycle --stop    # pause after the current cycle checkpoint"
+     echo '  autocycle --instruct "text"'
+     echo "  autocycle --instructions"
+     echo "  autocycle --cancel-instruction <id>"
+@@ -353,11 +353,16 @@
+ if [[ "$MODE" == "--stop" ]]; then
+     # mkdir is an atomic, idempotent request; no network or signals required.
+     mkdir -p "$STOP_REQUEST"
+-    echo "Stop requested. Autocycle will pause after its current stage saves state."
++    echo "Stop requested. Autocycle will pause after its current cycle checkpoint and bookkeeping finish."
+     exit 0
+ fi
+ 
+ pause_if_requested() {
++    # A normal cycle must reach its checkpoint before consuming a stop request.
++    # Manual single-stage commands retain their explicit single-stage boundary.
++    if [[ "${MODE:-run}" != --review-only && "${MODE:-run}" != --plan-only && "${MODE:-run}" != --implement-only && "${STAGE:-}" != checkpoint_done ]]; then
++        return 0
++    fi
+     if [[ -d "$STOP_REQUEST" ]]; then
+         rmdir "$STOP_REQUEST" || fail "could not consume stop request."
+         echo
+@@ -752,7 +757,6 @@
+ 
+ while (( RUN_CYCLE <= RUN_MAX )); do
+ 
+-    pause_if_requested
+     [[ -z "${STATE_BRANCH:-}" || "$(branch)" == "$STATE_BRANCH" ]] || fail "resume branch changed; state preserved."
+ 
+     export AUTOCYCLE_REVIEW_CYCLE="$RUN_CYCLE"
+@@ -765,6 +769,7 @@
+     fi
+     if [[ "$STAGE" == checkpoint_done ]]; then
+         progress checkpoint "${BOUNDARY_KIND:-checkpoint}" "${INPUT_CYCLE_ID:-}" || fail "cannot persist checkpoint attempt; evidence preserved."
++        pause_if_requested
+         if (( RUN_CYCLE >= RUN_MAX )); then
+             if [[ "${BOUNDARY_KIND:-checkpoint}" == checkpoint ]]; then
+                 echo "Run limit reached; checkpoint saved; review pending."
+@@ -1161,6 +1166,21 @@
+             [[ -n "${PLAN_SHA:-}" ]] || fail "missing plan baseline; cannot verify ownership."
+             BEFORE=$(head_sha)
+ 
++            # A user may have checkpointed a stage-paused implementation. Do not
++            # run add/commit again or attribute later manual edits to the provider.
++            # Route clean descendant commits to the existing read-only Review;
++            # normal publication, ancestry and document guards still gate Plan.
++            if [[ "$BEFORE" != "${IMPLEMENT_BASE_SHA:-$PLAN_SHA}" ]]; then
++                dirty && fail "manual checkpoint has uncommitted work; checkpoint it before resuming."
++                git merge-base --is-ancestor "${IMPLEMENT_BASE_SHA:-$PLAN_SHA}" HEAD \
++                    || fail "manual checkpoint is not descended from the implementation baseline."
++                STAGE=checkpoint_done
++                CHECKPOINT_UNSAFE=1
++                save_state
++                echo "Checkpoint  – existing commit preserved; opening Review required"
++                continue
++            fi
++
+             if ! (assert_owned_docs "${IMPLEMENT_BASE_SHA:-$PLAN_SHA}") || ! adjudication checkpoint-safe; then
+                 printf 'BLOCKER: checkpoint ownership is uncertain; pre-existing work must be separated by its owner.\n' > "$AC_DIR/checkpoint-ownership.log"
+                 adjudication candidate checkpoint "$AC_DIR/checkpoint-ownership.log" "${INPUT_CYCLE_ID:-}" || fail "cannot retain checkpoint evidence."

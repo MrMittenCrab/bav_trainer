@@ -548,6 +548,7 @@ class ReferenceModelBuilder:
         assumptions: dict[str, Any] | None = None,
         *,
         include_deferred_forecast: bool = False,
+        current_snapshot: bool = False,
     ):
         self.fin = financials
         self.periods = canonical_fiscal_periods(financials)
@@ -556,7 +557,7 @@ class ReferenceModelBuilder:
         self.assumptions.setdefault("classificationOverrides", {})
         self.assumptions.setdefault("normalizationCandidates", [])
         self.rowmap: dict[str, Any] = {}
-        self.build_modules = complete_build_modules(financials)
+        self.build_modules = complete_build_modules(financials, current_snapshot=current_snapshot)
         self.expected_specs = prepare_complete_build(self)
         self.semantic_map = SemanticMap(expected_specs=self.expected_specs)
         self._deferred_spec_index = {c.id: c for c in DEFERRED_COMPONENT_SPECS}
