@@ -155,3 +155,75 @@ Canonical Lululemon five-period history; **486** identities/expectations; **101*
 Accepted two-occurrence selection remains: unique evidenced compatible uncontradicted documentary direction, nonmissing occurrence-specifically audited reviser, retained superseded evidence, complete-group membership and ambiguous incoming-candidate blocking. Singletons/larger groups, unknown assurance and unresolved assertions remain deferred; infer no chronology or transitive precedence.
 
 A2-ED/B7-MID documentary UNVERIFIED; A5/B8/E10 pending Plan closure; E11 NonReq UNVERIFIED. G6 missing 2021-01-31 BS; G7 remainder (lease maturity); G8 deferral; G9 standalone interest completeness; TARGET Step 9 exit gates. No blanket DONE.
+
+---
+
+# Current assessment — authorized REVISED_APPROACH (plan `81af8967a78c45748b92c7f57314ef4c`)
+
+**Status:** COMPLETE (this work child; parents remain UNRESOLVED)  
+**Work:** `06c5cb92775a41e1a9b7515d0268b9e4` (retained)  
+**Step:** 9M.2.4.1.1.1.58  
+**Input:** `20260918-115651-000000007`  
+Working-tree HEAD `548e9b3f6fe4d31c431e58367a4d07cba04937a2`. No commit / push / sync / checkpoint / branch change. No code edits this child. A partial RESULT append was present from interruption; it was inspected, preserved in structure, and completed only after fresh verification. Spreadsheet-engine recalculation was **not** performed; Check used formula-string match and injected cached-value probes. This child does **not** declare parent, Geographic Analysis product, or Step 9 acceptance. Input incorporation is not itself acceptance.
+
+`TARGET.md` SHA-256 `ab70dd8859ba352a2387b95c55477cbc31944288c60478023d5937cf0662e91c` (23864), unchanged. Current `IMPLEMENTATION.md` SHA-256 `101349067fcda9df04eb90ec608d6a61c59b8147e1daa0d665090317d1bb9753` (11872). Both treated as read-only.
+
+## Authorized correction (supersedes obsolete blocker only)
+
+Review-authorized `REVISED_APPROACH` supersedes **only** the machine-generated admitted-nonzero reconstructed-versus-reported coverage that the residual-sign repair recorded as its blocker. That earlier **Blocker** paragraph is obsolete for this child and is **not** a remaining acceptance requirement.
+
+Replacement obligations, all measured this child:
+
+1. Exact-reconciliation admitted controls: source validation, supplied-filing reconciliation, standardization, export/reload, and ordinary Trainer/Answer-Key/Check builds assert actual `D_t = 0.0` and amount-change residuals `0.0` (opening `None`), not nominal nonzero claims.
+2. Production rejects positive (`+11.0`, corporate: `50.0 != 61.0`) and negative (`−7.0`, itemized: `55.0 != 48.0`) inconsistent reconstructed-versus-reported differences; inputs unchanged after the raise; `SEGMENT_BRIDGE_TOLERANCE` remains `0.0`; validation was not patched.
+3. Independently calculated synthetic residuals at `_operating_profit_amount_bridge`: `+11.0` (`D_t=-6.0`, `D_prior=5.0`) and `−7.0` (`D_t=7.0`, `D_prior=0.0`), with bridge equation and `R = −ΔD`; exact equality; rejects zeroed/negated residuals. Synthetic arithmetic coverage only, never admitted historical evidence.
+
+Every other retained acceptance requirement is unchanged, including `D_t` = reconstructed − reported, `R_t = −(D_t − D_previous)`, current-minus-immediately-prior monetary changes, aggregate ADD/SUBTRACT across both families, opening `None`, uncompressed gaps, dependent-only `SOURCE_UNAVAILABLE`, and zero revenue not suppressing available amount changes.
+
+## Required plan change
+
+No required plan change. The authorized correction is already in `IMPLEMENTATION.md`. Historical observations, executions, and the prior BLOCKED status above are preserved as written.
+
+## Code this child
+
+No remaining defects versus the corrected criteria. Implementation hashes match the residual-sign repair (authenticated, not edited):
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `core/model/geographic_segment.py` | `c769dc2f0f7a78f6897aa0f2fe0d526ff4dcd560fc7936977a0982364cc49a5c` | 34093 |
+| `core/engine/component_catalog.py` | `a15f14696283bc36e6edf347662d643e12c2ad161f4abec9912c7c6ca375d7b6` | 288049 |
+| `core/engine/reference_model.py` | `be1f434c85085c065ceb06c86f491cce4fd98dcc04a4e870c2dd1f9af32842c1` | 413366 |
+| `core/model/historical_expected.py` | `429ec3f8b63ba60c0fc0f3a0df1f0feba0faeb4ecac0d913c0701f9ace1326ee` | 68447 |
+| `core/trainer/checker.py` | `aec15dfb7ce6ee356a5e6b718ffdeda9fd63dcabe11740b87ab6a7797a27938d` | 22993 |
+| `core/tests/test_geographic_segment_analysis.py` | `f413ac8b61e731d7d542289f908150fefc7739db71c125d495f88603140bb615` | 58177 |
+| `core/tests/test_geographic_segment_workbook.py` | `a3d606a1812282da7a3281ef38998c94b3f7a8766cb96e5bdd2cba0cbad4db55` | 104818 |
+| `core/tests/test_operating_kpi_workbook.py` | `a97ea7738c68bf6c11bcc152038cbc2cd950f8bffb59209b1aef83eef162d15b` | 159571 |
+
+Edited this child: `RESULT.md` only (this append).
+
+## Fresh measured verification (this child)
+
+Interpreter: `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. Mixed reconciliations used `TemporaryDirectory` copies only. Committed extracted JSON, PDFs, reconciled artifacts, releases, and examples were not rewritten.
+
+Independent recomputation of all **24** supplied-fixture amount-change additions (3 segment + aggregate reconciling + consolidated + residual, four adjacent pairs) from admitted Lululemon snapshots: maximum bridge error **0.0**, maximum `R + ΔD` identity error **0.0**. Admitted `D_t` all five periods **0.0**. Opening FY2022 amount changes / residual `None`. Geographic sources **56**. Practice **200** (`74+20+54+28+24`). Ordinary components **686** (`486+200`). Other fixture totals measured separately: store Check **702** (`486+200+8+8`); mixed selected 2/4 Check **704** (`702+2`); selected-document compsales Check **696**; Fast Retailing **577**; unavailable **101**; segment-margin formulas **15**.
+
+| Command | Exit | Result |
+|---|---:|---|
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_geographic_segment_analysis.py core/tests/test_geographic_segment_workbook.py -q --tb=short` | 0 | **23 passed** in **5.89s** |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_geographic_segment_analysis.py core/tests/test_geographic_segment_workbook.py core/tests/test_geographic_segment_facts.py core/tests/test_historical_segment.py core/tests/test_operating_kpi_workbook.py core/tests/test_operating_kpi_relationships.py core/tests/test_build_contract.py core/tests/test_build_cli.py core/tests/test_operating_kpi_analysis.py core/tests/test_operating_kpi_facts.py core/tests/test_operating_kpi_management_history.py core/tests/test_management_kpi_analysis.py core/tests/test_management_kpi_history.py core/tests/test_management_kpi_admission.py core/tests/test_learner_ready_presentation.py::test_root_readme_is_practical_trainer_guide core/tests/test_trainer.py::test_cli_build_reports_both_paths core/tests/test_trainer.py::test_check_scans_all_practice_cells_and_colors_three_states core/tests/test_trainer.py::test_cli_check_output_does_not_disclose_answers core/tests/test_reference_integrity.py::test_cli_assumptions_propagate core/tests/test_reference_integrity.py::test_historical_expected_covers_catalog_and_matches_reference_components -q --tb=line` | 0 | **1502 passed** in **47.51s** |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests -q --tb=line` | 0 | **3237 passed**, **0 failed** in **278.50s** |
+| Protected artifacts vs checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` | 0 | **50/50 MATCH** (working-tree git blob SHA-1 via `hash-object` vs `rev-parse <commit>:<path>`; example/release/benchmark `xlsx`/`json`/`pdf` plus release `README.md` present at those checkpoints) |
+| Eight extracted JSON vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` blob SHA-1 | 0 | eight files **UNCHANGED** (4 annual + 4 management-KPI) |
+
+## Fresh vs retained vs synthetic (this child)
+
+| Kind | This child |
+|---|---|
+| Fresh | Authorized supersession of admitted-nonzero coverage; exact-reconciliation admitted `D`/`R` actually `0.0`; independent 24-addition recomputation identity error **0.0**; geographic **23 passed**; focused required suite **1502 passed**; complete `core/tests` **3237 passed / 0 failed**; checkpoints **50/50 MATCH**; eight extractions unchanged vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151`; implementation hashes authenticated unchanged |
+| Retained executions, re-authenticated by the fresh suite above | Residual-sign contract `D` reconstructed-minus-reported and `R = −ΔD`; production IFOP-mismatch rejection with immutable inputs; synthetic helper residuals `+11.0` / `−7.0`; zero current/prior revenue does not suppress amount changes; relocated formulas follow mapped ifop sources and signed contributions; tamper still authenticated without disclosure; store **702**; mixed **704**; compsales **696**; Fast Retailing **577**; geo **56/200**; preserved **486**; unavailable **101** |
+| Arithmetic-only, not admitted | Synthetic nonzero residuals `+11.0` / `-7.0` at `_operating_profit_amount_bridge` |
+| Not claimed | Excel engine recalculation; admitted nonzero `D` or residual; parent or Step 9 completion; G6–G9 remainder |
+
+## Genuine remaining blockers
+
+None for this bounded child after the authorized correction. Unfinished commitments listed above (parents `9M.2.4.1.1.1` / `9M.2.4.1.1` / `9M.2.4.1` / `9M.2.4`, requests `20260914-193338-000000004` and `20260915-042248-000000005`, A2-ED/B7-MID, A5/B8/E10/E11, G6–G9, Normalization Judgment + Earnings Normalization, analytical focus remainder, TARGET Step 9 exit) remain unresolved and are outside this correction. No prospective IDs reserved. Continue normal stages.
