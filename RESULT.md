@@ -1523,3 +1523,134 @@ Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Complet
 
 Working-tree HEAD is `601698100d57ce29053478a3018c8860474728df`. `.git/autocycle/latest-implementation` was not rewritten.
 
+---
+
+# RESULT.md — Step 9M.2.4.1.1.1.67 Real-company normalization: bounded candidate-admission contract
+
+**Status:** COMPLETE (this work child; parents remain UNRESOLVED)  
+**Step:** 9M.2.4.1.1.1.67 — Real-company normalization: bounded candidate-admission contract  
+**Work:** `d0a2655be7ea4eda91ec1e807a440265`  
+**Plan:** `73e8e14b79ca4ee6b3375730e334b95b`  
+**Finding:** `real-company-normalization-source-to-selector-gap`  
+**Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
+Accepted source qualification `9a9bf001dea84a868ef326d8ef5126ea` / Step `9M.2.4.1.1.1.66` is not reopened. Accepted illustrative normalization Excel work `e2b825657b944d36beafca6c36cf91ff` is not reopened. Geographic/KPI Excel verification is not reopened.  
+Instruction `20260916-075534-000000006` is retained extraction/source-binding evidence (eight extracted JSON blob SHA-1 values unchanged vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151`). Recovery was not re-executed. Instruction `20260918-115651-000000007` remains retained. Frozen requests `20260914-193338-000000004` and `20260915-042248-000000005` remain unfinished beyond this increment.  
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start). TARGET SHA-256 `ab70dd8859ba352a2387b95c55477cbc31944288c60478023d5937cf0662e91c` (23864). IMPLEMENTATION SHA-256 `7576af968d341d70387f98fb958a91e1b8fc62152eff8e8d3dd1f1e5c250fdf2` (9959).  
+No commit / push / sync / checkpoint / branch change. No production-code repair, live candidate activation, extraction rerun, source amendment, live artifact replacement, publication, forecasting, or valuation. Edited this child: `RESULT.md` only. Diagnostic scripts and intermediates live only under `/tmp/bav_norm_admit_9M2411167/`. Retained qualification evidence under `/tmp/bav_norm_qualify_9M2411166/` was authenticated and not overwritten.  
+Generating SHA `7c0906c68189f183fbe8352ede6cb924a9abb2d5`. Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. `SEGMENT_BRIDGE_TOLERANCE = 0.0`.  
+This child does **not** declare parent, Geographic Analysis product, Operating KPIs product, Normalization product, real-company workbook, or Step 9 acceptance.
+
+No prior `/tmp/bav_norm_admit_9M2411167/` work existed. Interrupted qualification artifacts were inspected and preserved.
+
+## Required plan change
+
+No required plan change. Production admission, documentary-identity merge, `normalizationCandidates` activation, implemented source-sign conversion, and tax-effect treatment still need Plan. This child does not revise `IMPLEMENTATION.md`.
+
+## Task 1 — Explicit admission contract
+
+Inspected, not modified: `core/ingestion/filing_validator.py` (`source_row_identity` = `statement|section|label|concept`, SHA-256 `9c2051171592cb7e230f8ee62c1b645fc014ce28b029747d839c186439e59a00`), `core/ingestion/filing_reconciler.py` (documentary grouping, SHA-256 `deb6d89750bc763868800a6923179d59d4a2d0bf18cd218f778d3b73e9fdc85d`), `core/ingestion/filing_standardizer.py` (`_line_values_for_axis` omits incomplete non-BS axes, SHA-256 `4209f4f3d7ae6bc34d2828f9d204a86342893e370158862a38d177b2d33ec97a`), `core/model/normalization.py` (unique IS selectors + `pretax_adj += -float(reported)`, SHA-256 `5b6e99870716ede72416e774c646355890e4911cf681b143538db25933bd252f`), `core/data/standardized_io.py` (`LineItem.concept` survives export/reload, SHA-256 `546857707bc424809f89d256b4e7924d80a923fb7e9856377bbcd630109686cf`).
+
+**Smallest proposed integration boundary (not created):** a new opt-in layer `core/ingestion/normalization_candidate_admission.py` after documentary standardization. It would consume qualified IS observations and a **copy** of `StandardizedFinancials`, emit a separate analytical `LineItem`, and leave `_line_values_for_axis` / `source_row_identity` unchanged. `normalizationCandidates` activation remains a separate company-assumption contract.
+
+Documentary IS members (closed set; not merged by concept):
+
+- `income_statement||impairment of goodwill and other assets|impairment_and_restructuring`
+- `income_statement||impairment of goodwill and other assets, restructuring costs|impairment_and_restructuring`
+- `income_statement||impairment of assets and restructuring costs|impairment_and_restructuring`
+
+CF add-backs and `segment.geo.q4_2023.ifop_reconciling.impairment_and_restructuring` are audit evidence only. Studio COGS / components are excluded. `2021-01-31` remains outside the five-period axis (2 retained comparative observations; not invented).
+
+Analytical identity (distinct from documentary identities):
+
+- label `Impairment and restructuring costs (provisional analytical aggregate)`
+- concept `analytical_is_impairment_restructuring_aggregate`
+- unique selector `concept:analytical_is_impairment_restructuring_aggregate`
+- line identity after reload `concept=analytical_is_impairment_restructuring_aggregate|label=impairment and restructuring costs (provisional analytical aggregate)`
+
+Sign conversion is once-only: `analytical_amount = -reported_face_expense`. Face amounts remain `0/407913/74501/0/0`.
+
+**Mapping status: provisional.** Matching `suggested_concept` and agreeing overlapping values are recorded as source-supported scope rationale, not authorization. Equivalence of the three IS labels is **UNRESOLVED**. The grouping is **not** an accepted source fact. Production activation is **blocked**.
+
+Gates: complete-axis; USD/thousands; bound source SHA-256; unique overlapping IS value; closed authorized membership; no CF/geo membership; no Studio COGS; no aggregate+component double count; no duplicate observation use; missing remains missing; sign conversion applied exactly once. No inferred chronology, transitive precedence, or zero filling.
+
+Factual eligibility is separate from `normalizationCandidates` activation, which still requires explicit treatment, rationale, consequence note, and supported scope.
+
+## Task 2 — Isolated prototype
+
+Prototype constructed the five-period series from qualified `extracted_observations.json`, not a hand-entered line, then inserted one analytical `LineItem` into a copy of ordinary `--admit-period 2022-01-30` standardized data (16 → 17 IS lines). Ordinary live/default/admit files were not written.
+
+| Period | Face | Analytical | IS obs | Explicit nil | Physical pages | Printed pages from retained lookup |
+|---|---:|---:|---:|---|---|---|
+| `2022-01-30` | `0` | `0` | 2 | yes | 50, 56 | 46, 50 |
+| `2023-01-29` | `407913` | `-407913` | 3 | no | 50, 51, 56 | 46, 50; FY2024 p51 unresolved |
+| `2024-01-28` | `74501` | `-74501` | 3 | no | 51, 56 | 50; FY2024/FY2025 p51 unresolved |
+| `2025-02-02` | `0` | `0` | 2 | yes | 51 | FY2024/FY2025 p51 unresolved |
+| `2026-02-01` | `0` | `0` | 1 | yes | 51 | FY2025 p51 unresolved |
+
+FY2024/FY2025 Identity-H printed-page auto-resolver remains unresolved in retained `pdf_page_checks`; this child did not invent printed `45`. Physical page 51 and bound PDF hashes remain inspectable.
+
+Export/reload of isolated financials resolved **exactly one** IS candidate via `concept:analytical_is_impairment_restructuring_aggregate`. Documentary selectors `concept:impairment_and_restructuring`, `concept:restructuring_expense`, and the three exact labels still match no isolated line.
+
+Existing `normalization_cases` / `compute_normalization_series` were exercised separately with **hypothetical** Recurring and Non-recurring assumptions (labeled not adopted). Pretax: Recurring `0/0/0/0/0`; Non-recurring `0/+407913/+74501/0/0`. After-tax used `UNDEFINED_RATIO` (`#N/A`) on nonzero pretax periods; no tax rate was invented; note effects `(28171)` / `(26085)` were not attributed to this aggregate. Empty `normalizationCandidates` still yields **0** cases on live, ordinary admit, and isolated copies. Company assumptions remain `[]`.
+
+Negative probes **11/11** rejected as specified:
+
+| Probe | Reason |
+|---|---|
+| missing period evidence | `missing_period_evidence` (`2022-01-30`) |
+| altered source binding | `altered_or_unbound_source_hash` |
+| conflicting overlaps | `conflicting_overlapping_observations` (`407913` vs `999999`) |
+| unauthorized identity | `unauthorized_identity_membership` |
+| CF substitution | `cash_flow_substitution_forbidden` |
+| Studio COGS | `studio_cogs_excluded` |
+| aggregate+component | `aggregate_and_component_double_count` |
+| absent sign conversion | `absent_sign_conversion` |
+| repeated sign conversion | `repeated_sign_conversion` |
+| duplicate observation use | `observation_used_more_than_once` |
+| ambiguous selector | existing selector `ValueError` matched 2 lines |
+
+## Task 3 — Reviewable evidence and implementation boundary
+
+| Artifact | SHA-256 | Bytes | Role |
+|---|---|---:|---|
+| `/tmp/bav_norm_qualify_9M2411166/evidence.json` | `fb9a13378756600a0087e6a6785ed38ad06a587b8d76182cf6c41d1c129f6960` | 162968 | retained ordinary-path ledger; **authenticated match** |
+| `/tmp/bav_norm_qualify_9M2411166/qualify_source_to_selector.py` | `3d7a02f7027db5a18da4dd7701fada9d6dd4c66592b5f0b54aefa6bf9c41f8d2` | 41666 | retained reproducer; **authenticated match** |
+| `/tmp/bav_norm_qualify_9M2411166/signed_arithmetic_check.py` | `cab57b5d973477ebe8d069096cc1fd314fa9faf74b2b938b74af1961bd5eaa43` | 22103 | retained signed proposal; **authenticated match** |
+| `/tmp/bav_norm_qualify_9M2411166/signed_arithmetic_check.json` | `a870a856e1959e370dca979d11e85c665f9ce76dc03d1420de5407daac608699` | 33492 | retained arithmetic; **authenticated match** |
+| `/tmp/bav_norm_qualify_9M2411166/extracted_observations.json` | `d74a6f1588a0b1397eaa79dd24c02e3454c46643e7e3b18105a46adbc9129880` | 22010 | qualified observations used for construction |
+| `/tmp/bav_norm_admit_9M2411167/admit_candidate_contract.py` | `db884002cc088bb631944e2804f693509b7e0019f53befccf82b34e15d775621` | 57367 | isolated prototype |
+| `/tmp/bav_norm_admit_9M2411167/admit_candidate_contract.json` | `1c1a897cf96abf411a9d42f0aef91fd491262ada9e4c6d6f6593a8bef870b1ff` | 59654 | measured contract + probes |
+| `/tmp/bav_norm_admit_9M2411167/isolated_standardized.json` | `8f9e4adaf0dfba00fdead7e05b7860ce96dd990e65a67dd2136da578ae4159bd` | 29925 | isolated export/reload payload |
+
+Ordinary live standardized SHA-256 `6c9aad59b04a5995742c68e08f1a704953796fc9fad97a036b08aeeab59051e5` **byte-identical** to retained admit-run. Live provenance SHA-256 `5067c1d04aa93c18062fe7eb90558a86394283b7d9fe45899761f71cfb615951` byte-identical to admit-run. Conflicts SHA-256 `d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0`. Default four-period standardized SHA-256 `b9d8354cbeb04edad2aba1df332ef46d49a61c2c8d9eea35cf209d4491bf1cfa`. Ordinary outputs still have **0** IS impairment lines; all five documentary selectors still `ValueError`.
+
+Three IS and three CF identities remain `omitted_incomplete_axis`. Handoff was not repaired.
+
+Unresolved adoption decisions (technical feasibility ≠ authorization): label equivalence of the three IS identities; recurring vs non-recurring; aggregate vs components; related COGS; deductibility; operating-ETR suitability; later-audited documentary precedence; production `normalizationCandidates` activation; omitted-incomplete-axis handoff repair.
+
+## Measured verification
+
+| Command | Exit | Result |
+|---|---:|---|
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python /tmp/bav_norm_admit_9M2411167/admit_candidate_contract.py` | 0 | face `0/407913/74501/0/0`; analytical `0/-407913/-74501/0/0`; unique selector 1 match after export/reload; hypothetical Non-recurring pretax `0/+407913/+74501/0/0`; Recurring pretax all `0`; after-tax `#N/A` on nonzero pretax; negatives **11/11**; ordinary selectors fail-closed; production activation **blocked**; elapsed **1.241s** |
+| Protected artifacts vs `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` | 0 | **50/50 MATCH** |
+| Eight extracted JSON vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` path blobs | 0 | **8/8 UNCHANGED** |
+
+## Fresh vs retained evidence
+
+| Kind | This child |
+|---|---|
+| Fresh | Explicit admission contract; isolated evidence-bound construction; unique analytical selector after export/reload; hypothetical Recurring/Non-recurring pretax via existing normalization code; 11 fail-closed negative probes; ordinary live/default/admit hashes and selector rejection unchanged; checkpoints **50/50**; extracts **8/8** |
+| Retained, re-authenticated | Five-period IS/CF/geo ledger vs PDFs+JSON; overlapping values agree and labels do not; ordinary validate/reconcile/standardize into temp; live standardized/provenance byte-match admit run; 6 `omitted_incomplete_axis` identities; empty company `normalizationCandidates`; note composition and disclosed tax effects; Identity-H CID decode; statement PDF checks **24/24**; conditional signed arithmetic hashes |
+| Unresolved by design | label equivalence / grouping authorization; production candidate activation; implemented source-sign conversion; recurring/non-recurring treatment; aggregate vs components; related COGS; deductibility; whether ETR matches note tax effects; later-filing geographic `note_facts` not extracted; broader physical-page mapping; FY2024/FY2025 printed-page auto-resolver |
+| Retained, not re-measured independently | Store/mixed/compsales totals `766/768/760`; Fast Retailing **577**; stores `574/655/711/767/811`, changes `None/81/56/56/44`; five revenue sources / eight revenue-store practices; geo **56/264**; preserved **486**; ordinary-fixture unavailable **101**; segment-margin formulas **15**; complete `core/tests` **3240** from `.61`; Excel verifications from `.62`–`.65`; management 135 observations (`29/36/37/33`), nine definitions, 107 market observations, three excluded targets, assessments `0/22/6/107`, 24 incompatible pairs, six singletons, zero selections/revision links; 110 accepted additions; G1/G2/G3/G5 aliases; twelve pretax/ETR cases; opening-only CoD `0.374`; selected Americas `7928156`; audit-only `7928256`; capex `638657/651865/689232/680802`; repurchase residuals `-116195/1085647/-207544/-256674`; NCIT `28555/15864/0/None`; Common stock `611/606/581/557` |
+| Not claimed | Real-company normalization workbook; production candidate admission; implementation repair; accepted source-fact grouping; treatment-conditioned Excel; normalized per-share; parent or Step 9 completion |
+
+## Remaining scope
+
+The bounded candidate-admission contract and isolated proof are complete for this child. Production handoff repair, candidate activation, treatment-dependent Excel verification, normalized per-share acceptance, and real-company workbook acceptance remain open. Both workflow commitments remain unfinished.
+
+Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Completed admission, `.37` through `.66`, and the prior source-to-selector diagnosis are not reopened. G6–G9, segment assets/capex/significant expenses/D&A, benchmark publication, independent M&A Net Debt, Complete NOPAT/RNOA, forecasting and valuation remain deferred. Retain A2-ED/B7-MID documentary UNVERIFIED, A5/B8/E10 pending Plan closure and E11 NonReq UNVERIFIED. Parent temporary-build acceptance remains: success or exactly `MissingLineError: Required concept 'interest_expense' not found in statement lines`. No prospective IDs reserved.
+
+Working-tree HEAD is `7c0906c68189f183fbe8352ede6cb924a9abb2d5`. `.git/autocycle/latest-implementation` was not rewritten.
+
