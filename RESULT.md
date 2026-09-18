@@ -1654,3 +1654,110 @@ Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Complet
 
 Working-tree HEAD is `7c0906c68189f183fbe8352ede6cb924a9abb2d5`. `.git/autocycle/latest-implementation` was not rewritten.
 
+---
+
+# RESULT.md — Step 9M.2.4.1.1.1.68 Real-company normalization: gated production handoff
+
+**Status:** COMPLETE (this work child; parents remain UNRESOLVED)  
+**Step:** 9M.2.4.1.1.1.68 — Real-company normalization: gated production handoff  
+**Work:** `233a81eaa44949d284ac84ae6c4d8b0f`  
+**Plan:** `051548b9dffd497c9f982b57e5127ad1`  
+**Finding:** `real-company-normalization-source-to-selector-gap`  
+**Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
+Accepted qualification `9a9bf001dea84a868ef326d8ef5126ea` / Step `9M.2.4.1.1.1.66` and bounded contract `d0a2655be7ea4eda91ec1e807a440265` / Step `9M.2.4.1.1.1.67` are not reopened. Accepted illustrative normalization Excel work `e2b825657b944d36beafca6c36cf91ff` is not reopened. Geographic/KPI Excel verification is not reopened.  
+Instruction `20260916-075534-000000006` is retained extraction/source-binding evidence (eight extracted JSON blob SHA-1 values unchanged vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151`). Recovery was not re-executed. Instruction `20260918-115651-000000007` remains retained. Frozen requests `20260914-193338-000000004` and `20260915-042248-000000005` remain unfinished beyond this increment.  
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start). TARGET SHA-256 `ab70dd8859ba352a2387b95c55477cbc31944288c60478023d5937cf0662e91c` (23864). IMPLEMENTATION SHA-256 `cf4ee5f7a0107b8b1c6d68dee229b0df7681ba80d9d486d5c4248fd612ca38b1` (10059).  
+No commit / push / sync / checkpoint / branch change. No default-pipeline wiring, live candidate activation, company-assumption edits, source amendments, extraction reruns, live artifact replacement, publication, forecasting, or valuation. Edited this child: `core/ingestion/normalization_candidate_admission.py`, `core/tests/test_normalization_candidate_admission.py`, `RESULT.md`. Diagnostic evidence under `/tmp/bav_norm_qualify_9M2411166/` and `/tmp/bav_norm_admit_9M2411167/` was authenticated and not overwritten.  
+Generating SHA `467954057e36fe9f26dd0e557e1d4811dc494a74`. Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. `SEGMENT_BRIDGE_TOLERANCE = 0.0`.  
+This child does **not** declare parent, Geographic Analysis product, Operating KPIs product, Normalization product, real-company workbook, or Step 9 acceptance. Synthetic authorization is not real-company acceptance.
+
+No interrupted working-tree edits were present. The Step `9M.2.4.1.1.1.67` opt-in layer did not yet exist; this child created it from the accepted isolated contract.
+
+## Required plan change
+
+No required plan change. Default production integration, real candidate activation, treatment-dependent Excel verification, normalized per-share, and real-company workbook acceptance still need Plan. This child does not revise `IMPLEMENTATION.md`.
+
+## Task 1 — Separate construction and adoption gates
+
+Explicitly invoked handoff `run_normalization_candidate_handoff` consumes qualified observations and a **copy** of ordinary `StandardizedFinancials`. Construction never substitutes a hand-entered five-value line. Ordinary live/default/admit files were not written.
+
+Documentary IS members (closed set; not merged by concept):
+
+- `income_statement||impairment of goodwill and other assets|impairment_and_restructuring`
+- `income_statement||impairment of goodwill and other assets, restructuring costs|impairment_and_restructuring`
+- `income_statement||impairment of assets and restructuring costs|impairment_and_restructuring`
+
+All **11** axis IS observations were used. Labels, sections, roles, face amounts, units, source hashes, physical pages, available printed pages and overlapping evidence are preserved on the construction result. `2021-01-31` remains outside the axis. CF/geo observations remain audit-only. Studio COGS and aggregate/component double counting remain excluded.
+
+Analytical identity remains distinct:
+
+- label `Impairment and restructuring costs (provisional analytical aggregate)`
+- concept `analytical_is_impairment_restructuring_aggregate`
+- selector `concept:analytical_is_impairment_restructuring_aggregate`
+
+Sign conversion is once-only: `analytical_amount = -reported_face_expense`. Face `0/407913/74501/0/0`; analytical `0/-407913/-74501/0/0` for `2022-01-30/2023-01-29/2024-01-28/2025-02-02/2026-02-01`, USD thousands.
+
+Without an adoption record, construction succeeds provisionally and **production admission is blocked** (`absent_adoption`). Boolean approval, matching concept, and agreeing amounts cannot establish equivalence (`contradictory_adoption`). Provisional status blocks (`provisional_adoption`). Altered company/axis/identities/concept bindings block (`mismatched_adoption`). Non-matching fingerprints block (`stale_adoption`). Human grouping remains a supplied decision, not a technical fact. `grouping_is_accepted_source_fact` remains **False**.
+
+## Task 2 — Treatment activation and measured behavior
+
+A separate treatment record is required before a candidate configuration is emitted. Missing treatment/rationale/consequence, conflicting scope, unresolved aggregate/COGS scope, and unresolved Recurring/Non-recurring all block activation. Unresolved deductibility/ETR remains explicit; `after_tax_available` is **False**; note effects `(28171)` / `(26085)` are not attributed.
+
+Real Lululemon path (ordinary live financials, no adoption/treatment): constructed provisionally, production admission blocked, company `normalizationCandidates` remain `[]`.
+
+Synthetic adoption/treatment records in tests only: isolated production admission succeeds, `real_company_acceptance` remains **False**, `authorization_kind=synthetic`. Export/reload of the isolated copy resolves **exactly one** IS line via `concept:analytical_is_impairment_restructuring_aggregate`. Hypothetical pretax via existing `compute_normalization_series`: Recurring `0/0/0/0/0`; Non-recurring `0/+407913/+74501/0/0`. After-tax `#N/A` on nonzero pretax periods (dummy ETR undefined; no rate invented). Repeated admission of an already-inserted copy is rejected and leaves that copy unchanged.
+
+Retained construction probes **11/11** plus new decision-gate probes. Rejection leaves observations and ordinary financials unchanged.
+
+## Task 3 — Measured verification
+
+Retained qualification/prototype artifacts authenticated, not regenerated:
+
+| Artifact | SHA-256 | Bytes | Role |
+|---|---|---:|---|
+| `/tmp/bav_norm_qualify_9M2411166/evidence.json` | `fb9a13378756600a0087e6a6785ed38ad06a587b8d76182cf6c41d1c129f6960` | 162968 | retained ordinary-path ledger; **authenticated match** |
+| `/tmp/bav_norm_qualify_9M2411166/qualify_source_to_selector.py` | `3d7a02f7027db5a18da4dd7701fada9d6dd4c66592b5f0b54aefa6bf9c41f8d2` | 41666 | retained reproducer; **authenticated match** |
+| `/tmp/bav_norm_qualify_9M2411166/signed_arithmetic_check.py` | `cab57b5d973477ebe8d069096cc1fd314fa9faf74b2b938b74af1961bd5eaa43` | 22103 | retained signed proposal; **authenticated match** |
+| `/tmp/bav_norm_qualify_9M2411166/signed_arithmetic_check.json` | `a870a856e1959e370dca979d11e85c665f9ce76dc03d1420de5407daac608699` | 33492 | retained arithmetic; **authenticated match** |
+| `/tmp/bav_norm_qualify_9M2411166/extracted_observations.json` | `d74a6f1588a0b1397eaa79dd24c02e3454c46643e7e3b18105a46adbc9129880` | 22010 | qualified observations used for construction |
+| `/tmp/bav_norm_admit_9M2411167/admit_candidate_contract.py` | `db884002cc088bb631944e2804f693509b7e0019f53befccf82b34e15d775621` | 57367 | retained isolated prototype |
+| `/tmp/bav_norm_admit_9M2411167/admit_candidate_contract.json` | `1c1a897cf96abf411a9d42f0aef91fd491262ada9e4c6d6f6593a8bef870b1ff` | 59654 | retained measured contract |
+| `/tmp/bav_norm_admit_9M2411167/isolated_standardized.json` | `8f9e4adaf0dfba00fdead7e05b7860ce96dd990e65a67dd2136da578ae4159bd` | 29925 | retained isolated export payload |
+
+Ordinary live standardized SHA-256 `6c9aad59b04a5995742c68e08f1a704953796fc9fad97a036b08aeeab59051e5` **byte-identical** to retained admit-run. Live provenance SHA-256 `5067c1d04aa93c18062fe7eb90558a86394283b7d9fe45899761f71cfb615951`. Conflicts SHA-256 `d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0`. Default four-period standardized SHA-256 `b9d8354cbeb04edad2aba1df332ef46d49a61c2c8d9eea35cf209d4491bf1cfa`. Ordinary outputs still have **0** IS impairment lines and **0** analytical lines; documentary selectors still `ValueError`. Company assumptions `normalizationCandidates: []`.
+
+Unaffected production hashes (not edited): `filing_validator.py` `9c2051171592cb7e230f8ee62c1b645fc014ce28b029747d839c186439e59a00`; `filing_reconciler.py` `deb6d89750bc763868800a6923179d59d4a2d0bf18cd218f778d3b73e9fdc85d`; `filing_standardizer.py` `4209f4f3d7ae6bc34d2828f9d204a86342893e370158862a38d177b2d33ec97a`; `normalization.py` `5b6e99870716ede72416e774c646355890e4911cf681b143538db25933bd252f`; `standardized_io.py` `546857707bc424809f89d256b4e7924d80a923fb7e9856377bbcd630109686cf`.
+
+| Command | Exit | Result |
+|---|---:|---|
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_normalization_candidate_admission.py -q --tb=short` | 0 | **22 passed** in **1.38s** (construction, 11 retained probes, adoption/treatment gates, synthetic export/reload, pretax, ordinary isolation, 50/8 artifact hashes) |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_normalization.py core/tests/test_normalization_candidate_admission.py core/tests/test_reference_integrity.py::test_demo_standardized_payload_round_trip_preserves_identity_and_values core/tests/test_filing_json.py -q --tb=line` | 0 | **151 passed** in **9.15s** (36 normalization + 22 admission + 1 export/reload + 92 filing-json) |
+| Protected artifacts vs `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` | 0 | **50/50 MATCH** |
+| Eight extracted JSON vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` path blobs | 0 | **8/8 UNCHANGED** |
+
+## Fresh vs retained evidence
+
+| Kind | This child |
+|---|---|
+| Fresh | Opt-in gated handoff module; construction vs adoption vs treatment separation; real Lululemon production block without adoption; synthetic isolated admission with unique selector after export/reload; Recurring zeros and Non-recurring pretax `0/+407913/+74501/0/0`; after-tax unavailable; 11 retained probes plus absent/provisional/mismatched/stale adoption, missing treatment/rationale/consequence, conflicting scope, repeated admission; ordinary hashes and empty company candidates unchanged; focused suite **151 passed**; checkpoints **50/50**; extracts **8/8** |
+| Retained, re-authenticated | Five-period IS/CF/geo ledger; 11 IS observations; three documentary identities; ordinary live/admit/default standardized hashes; six `omitted_incomplete_axis` identities remain on the ordinary path; empty `normalizationCandidates`; note composition and disclosed tax effects; Identity-H CID decode; statement PDF checks **24/24**; isolated prototype hashes |
+| Unresolved by design | real Lululemon grouping authorization; production candidate activation / default-pipeline wiring; implemented source-sign conversion on ordinary output; recurring/non-recurring treatment; aggregate vs components; related COGS; deductibility; whether ETR matches note tax effects; later-filing geographic `note_facts` not extracted; broader physical-page mapping; FY2024/FY2025 printed-page auto-resolver |
+| Retained, not re-measured independently | Store/mixed/compsales totals `766/768/760`; Fast Retailing **577**; stores `574/655/711/767/811`, changes `None/81/56/56/44`; five revenue sources / eight revenue-store practices; geo **56/264**; preserved **486**; ordinary-fixture unavailable **101**; segment-margin formulas **15**; complete `core/tests` **3240** from `.61`; Excel verifications from `.62`–`.65`; management 135 observations (`29/36/37/33`), nine definitions, 107 market observations, three excluded targets, assessments `0/22/6/107`, 24 incompatible pairs, six singletons, zero selections/revision links; 110 accepted additions; G1/G2/G3/G5 aliases; twelve pretax/ETR cases; opening-only CoD `0.374`; selected Americas `7928156`; audit-only `7928256`; capex `638657/651865/689232/680802`; repurchase residuals `-116195/1085647/-207544/-256674`; NCIT `28555/15864/0/None`; Common stock `611/606/581/557` |
+| Not claimed | Real-company normalization workbook; live candidate activation; accepted source-fact grouping; treatment-conditioned Excel; normalized per-share; parent or Step 9 completion |
+
+Edited files this child:
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `core/ingestion/normalization_candidate_admission.py` | `a695654517034b878052163de76d236f037bde01d0ec81c13814f516347a7921` | 28001 |
+| `core/tests/test_normalization_candidate_admission.py` | `c85856c2f77f054e22ddafb2723425f49f385207b208502f62ad778183737353` | 35570 |
+| `RESULT.md` | (this file) | |
+
+## Remaining scope
+
+The gated opt-in handoff is complete for this child. Default production integration, real candidate activation, treatment-dependent Excel verification, normalized per-share acceptance, and real-company workbook acceptance remain open. Both workflow commitments remain unfinished.
+
+Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Completed admission, `.37` through `.67`, and the prior source-to-selector diagnosis are not reopened. G6–G9, segment assets/capex/significant expenses/D&A, benchmark publication, independent M&A Net Debt, Complete NOPAT/RNOA, forecasting and valuation remain deferred. Retain A2-ED/B7-MID documentary UNVERIFIED, A5/B8/E10 pending Plan closure and E11 NonReq UNVERIFIED. Parent temporary-build acceptance remains: success or exactly `MissingLineError: Required concept 'interest_expense' not found in statement lines`. No prospective IDs reserved.
+
+Working-tree HEAD is `467954057e36fe9f26dd0e557e1d4811dc494a74`. `.git/autocycle/latest-implementation` was not rewritten.
+
