@@ -617,3 +617,107 @@ Accepted two-occurrence selection remains: unique evidenced compatible uncontrad
 
 Exact admitted reconciliation, production rejection of inconsistent reconstructed-versus-reported differences, and separately labelled synthetic signed residual coverage from `20260918-115651-000000007` remain in force. `SEGMENT_BRIDGE_TOLERANCE = 0.0`. A2-ED/B7-MID documentary UNVERIFIED; A5/B8/E10 pending Plan closure; E11 NonReq UNVERIFIED. G6 missing 2021-01-31 BS; G7 remainder (lease maturity); G8 deferral; G9 standalone interest completeness; TARGET Step 9 exit gates. No blanket DONE.
 
+---
+
+# RESULT.md — Step 9M.2.4.1.1.1.62 Geographic Analysis: spreadsheet-engine verification
+
+**Status:** COMPLETE (this work child; parents remain UNRESOLVED)  
+**Step:** 9M.2.4.1.1.1.62 — Geographic Analysis — Spreadsheet-engine verification  
+**Work:** `473bb39bc59a48cc973fd616064d012a`  
+**Plan:** `4cd09ded7301403e8e34bb12d01812db`  
+**Finding:** `geographic-spreadsheet-recalculation-acceptance`  
+**Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
+Accepted growth-contribution work `963f02c4fa8d499d9609bb963ce98d99` remains complete and is not reopened.  
+Instruction `20260916-075534-000000006` is retained extraction/source-binding evidence (eight extracted JSON blob SHA-1 values unchanged vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151`). Recovery was not re-executed.  
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start). TARGET SHA-256 `ab70dd8859ba352a2387b95c55477cbc31944288c60478023d5937cf0662e91c` (23864). IMPLEMENTATION SHA-256 `77344eca10c4aca76241a41f9475e85665c32d1360a2bb5b89d59fee14f2f0aa` (9656).  
+No commit / push / sync / checkpoint / branch change. No production-code repair, release rewrite, forecasting, or valuation.  
+This child does **not** declare parent, Geographic Analysis product, or Step 9 acceptance.
+
+No interrupted production-tree edits were present. Temporary verification artifacts live only under `/tmp/bav_geo_excel_verify_9M2411162/`. Edited this child: `RESULT.md` only.
+
+## Required plan change
+
+No required plan change.
+
+## Task 1 — Ordinary pair and Excel engine
+
+Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. Mixed reconciliations used in-memory copies only. Committed extracted JSON, PDFs, reconciled artifacts, releases, and examples were not rewritten.
+
+Supplied-filing path: validate four Lululemon annual extracts → `reconcile_filings(..., admit_periods=(2022-01-30,))` → `standardize_reconciled` → JSON export/reload → ordinary `build_training_workbook`. Geographic sources **56**. Geographic practices **264**. Ordinary components **750** (`486 + 264`). Unavailable displays **101**. Segment-margin formulas **15**. `SEGMENT_BRIDGE_TOLERANCE = 0.0`.
+
+Exactly one matching pair was generated in temporary storage:
+
+| Copy | Path | SHA-256 | Bytes |
+|---|---|---|---:|
+| Pristine / inspect Trainer | `/tmp/bav_geo_excel_verify_9M2411162/{pristine,inspect}/LULU_GEO_Trainer.xlsx` | `6b6803dda0a50fc5fa33ffb80a1e293f37a2e445e8ae2541376a8c64028ec9c4` | 40987 |
+| Pristine / inspect Answer Key | `/tmp/bav_geo_excel_verify_9M2411162/{pristine,inspect}/LULU_GEO_Answer_Key.xlsx` | `9d51808ba9afe1990448974fe368f9c3668b54db8f8a3d2fca313d49db937be1` | 184644 |
+
+Inspect copies were never opened by Excel; inspect Answer Key SHA-256 remained unchanged after recalculation of the internal copy.
+
+Microsoft Excel **16.113** (`/Applications/Microsoft Excel.app/Contents/MacOS/Microsoft Excel`). Working command: `osascript` `tell application "Microsoft Excel"` → `open POSIX file` → `calculate` → `calculate full` → `save workbook 1` → `close workbook 1 saving no`. Excel workbook count was **0** before and after each session. An HFS `open workbook workbook file name` probe failed with AppleScript parameter error (−50) and is **not** the accepted engine path.
+
+Internal Answer Key recalculation (exit **0**, `calculate full=ok`, 5.55s):
+
+| | SHA-256 |
+|---|---|
+| Before | `9d51808ba9afe1990448974fe368f9c3668b54db8f8a3d2fca313d49db937be1` |
+| After | `29dcdfe658ce3186140a53b9ccade19d4d81dbb7ff24cf2c5dae597929fee152` |
+
+`data_only=True` reopen of the recalculated Answer Key yielded numeric caches. Formula-bearing originals still retain all **264** geographic formulas and the sampled Americas FY2026 source `7847044`. Recalculated Answer Key also retains those **264** formulas after save.
+
+## Task 2 — Arithmetic, presentation, Check
+
+Independent expectations from accepted unrounded snapshot facts (`_independent_from_snapshots`) compared with Excel caches for all **264** geographic practices. Compared **264**, none-caches **0**, mismatches **0**. Maximum absolute error **8.881784197001252e-15** (family `geographic_operating_margin_contribution_change_residual`). Growth-contribution family max error **3.552713678800501e-15** (24 numeric practices). Signed identities: `D = reconstructed − reported` is **0.0** in all five periods; amount-change residual `R = −ΔD` is opening `None` then **0.0**; computed growth residual `100×g−Σc_s−b` equals `100×R/P_p` within the same floating-point residuals recorded in `.61` (not hard-coded zero).
+
+Workbook-wide Check on internal Trainer copies after Excel recalculation:
+
+| State | total / blank / correct / incorrect |
+|---|---|
+| Blank | **750 / 750 / 0 / 0** |
+| Formulas from semantic map, Excel-recalculated | **750 / 0 / 750 / 0** |
+| One geographic formula set to `=999`, Excel-recalculated (cache **999**) | **750 / 0 / 749 / 1** |
+
+Check `repr` did not contain `=999` or `NOPAT`. Source tamper of `Geographic Segment Analysis!F10` raised `Trusted workbook cell was modified` (authentication rejection). A legitimate learner formula edit `=1+1` (Excel cache **2**) yielded **749/1** without that authentication error.
+
+Presentation on inspect copies: Trainer **264** geographic practice cells blank bright yellow without answers/Notes; Answer Key **264** formulas with concise Notes and no yellow; visible structure/style contract held (Aptos Narrow 11, non-bold black, ordinary white, no decorative borders/fills). Sources remain populated.
+
+Synthetic (labelled separately):
+
+- Relocated chain: Americas revenue-growth contribution `=IF(H31=0,NA(),100*('Income Statement'!L28-H28)/H31)` (cross-sheet + nonadjacent `H28`; default adjacent ref absent). Excel cache **30.0** matches independent **30.0**. Filled relocated Check **153/153**.
+- Zero prior consolidated profit: series and Excel caches `gpc`/`gcs`/`gpr` all `#N/A`; formula `=IF(B41=0,NA(),C84/B41)`; workbook XML contains `#N/A`.
+
+## Task 3 — Coverage, artifacts, remaining acceptance
+
+| Command | Exit | Result |
+|---|---:|---|
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_geographic_segment_analysis.py core/tests/test_geographic_segment_workbook.py core/tests/test_geographic_segment_facts.py -q --tb=line` | 0 | **52 passed** in **5.96s** |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_geographic_segment_analysis.py core/tests/test_geographic_segment_workbook.py core/tests/test_geographic_segment_facts.py core/tests/test_historical_segment.py core/tests/test_operating_kpi_workbook.py core/tests/test_operating_kpi_relationships.py core/tests/test_build_contract.py core/tests/test_build_cli.py core/tests/test_operating_kpi_analysis.py core/tests/test_operating_kpi_facts.py core/tests/test_operating_kpi_management_history.py core/tests/test_management_kpi_analysis.py core/tests/test_management_kpi_history.py core/tests/test_management_kpi_admission.py core/tests/test_learner_ready_presentation.py::test_root_readme_is_practical_trainer_guide core/tests/test_trainer.py::test_cli_build_reports_both_paths core/tests/test_trainer.py::test_check_scans_all_practice_cells_and_colors_three_states core/tests/test_trainer.py::test_cli_check_output_does_not_disclose_answers core/tests/test_reference_integrity.py::test_cli_assumptions_propagate core/tests/test_reference_integrity.py::test_historical_expected_covers_catalog_and_matches_reference_components -q --tb=line` | 0 | **1505 passed** in **47.06s** |
+| Protected artifacts vs checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` | 0 | **50/50 MATCH** |
+| Eight extracted JSON vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` path blobs | 0 | eight files **UNCHANGED** (4 annual + 4 management-KPI) |
+
+Complete `core/tests` **3240 passed / 0 failed** remains **historical** from `.61` and was not rerun this child.
+
+Inspectable engine evidence: `/tmp/bav_geo_excel_verify_9M2411162/evidence.json` plus workbook copies under `pristine/`, `inspect/`, `verify/`, and `synthetic/`. No prospective IDs reserved.
+
+---
+
+## Fresh vs retained evidence
+
+| Kind | This child |
+|---|---|
+| Fresh | Actual Excel 16.113 open/calculate/save/close on temporary ordinary pair; 264 geographic Excel caches vs independent facts, max abs error **8.881784197001252e-15**; Check 750 blank / 750 correct / 749+1 incorrect after Excel; source-authentication vs learner-formula distinction; formula retention on inspect and recalculated Answer Key; geo analysis+workbook+facts **52 passed**; focused required suite **1505 passed**; checkpoints **50/50 MATCH**; eight extractions unchanged vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` |
+| Synthetic, labelled separately | Relocated cross-sheet/nonadjacent contribution cache **30.0**; zero-prior-profit Excel `#N/A` |
+| Retained via required suite, not independently re-counted | Store/mixed/compsales totals `766/768/760`; Fast Retailing **577**; stores `574/655/711/767/811`; geo **56/264**; preserved **486**; unavailable **101**; segment-margin formulas **15** |
+| Historical, not rerun | Complete `core/tests` **3240 passed** from `.61` |
+| Not claimed | Parent or Step 9 completion; G6–G9 remainder; admitted nonzero `D` or amount-change residual |
+
+---
+
+## Remaining scope
+
+This child verifies geographic schedules through actual spreadsheet recalculation on a temporary ordinary source-bound pair. Broader parent acceptance remains unresolved. Other supported revenue relationships and geography/margin/inventory/working-capital/capex relationships remain unfinished product scope.
+
+Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Completed admission, `.37` through `.61` are not reopened. Frozen requests `20260914-193338-000000004` and `20260915-042248-000000005` remain unfinished beyond this increment. No prospective IDs reserved.
+
+Working-tree HEAD is `5ed036ae95e3abf4bb7844d33dbc3ee4cb23e61c`. `.git/autocycle/latest-implementation` was not rewritten.
+
