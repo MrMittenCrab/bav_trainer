@@ -1253,3 +1253,151 @@ Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Complet
 
 Working-tree HEAD is `95753da3e5e59d4800c71a96846b754449496bd4`. `.git/autocycle/latest-implementation` was not rewritten.
 
+---
+
+# RESULT.md — Step 9M.2.4.1.1.1.66 Real-company normalization: source-to-selector qualification
+
+**Status:** COMPLETE (this work child; parents remain UNRESOLVED)  
+**Step:** 9M.2.4.1.1.1.66 — Real-company normalization: source-to-selector qualification  
+**Work:** `9a9bf001dea84a868ef326d8ef5126ea`  
+**Plan:** `512736ff019643588afc95abb61cab90`  
+**Finding:** `real-company-normalization-source-to-selector-gap`  
+**Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
+Accepted illustrative normalization Excel work `e2b825657b944d36beafca6c36cf91ff` remains complete and is not reopened.  
+Instruction `20260916-075534-000000006` is retained extraction/source-binding evidence (eight extracted JSON blob SHA-1 values unchanged vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151`). Recovery was not re-executed. Instruction `20260918-115651-000000007` remains retained. Frozen requests `20260914-193338-000000004` and `20260915-042248-000000005` remain unfinished.  
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start). TARGET SHA-256 `ab70dd8859ba352a2387b95c55477cbc31944288c60478023d5937cf0662e91c` (23864). IMPLEMENTATION SHA-256 `b4eee40d6cdae0715b988038238347b8faa4aa60685dbdf597f86d17fd3f0d3b` (8800).  
+No commit / push / sync / checkpoint / branch change. No production-code repair, extraction rerun, source amendment, live artifact replacement, publication, forecasting, or valuation. Edited this child: `RESULT.md` only. Diagnostic scripts and intermediates live only under `/tmp/bav_norm_qualify_9M2411166/`.  
+Generating SHA `2396e03329c119ff3091a9b41b97d8c4312a8638`. Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. `SEGMENT_BRIDGE_TOLERANCE = 0.0`.  
+This child does **not** declare parent, Geographic Analysis product, Operating KPIs product, Normalization product, real-company workbook, or Step 9 acceptance.
+
+Interrupted `/tmp/bav_norm_qualify_9M2411166/` work and this RESULT section were inspected and preserved, then re-executed. Prior `/tmp/lulu_pdf_extract` text was not reused as evidence. FY2022/FY2023 statement pages are plain PyMuPDF text. FY2024/FY2025 statement/note pages are Calibri Identity-H; the temp reproducer now decodes 2-byte CIDs from content-stream hex strings (FY2024) and PDF literal octal strings (FY2025). Empirical CID map: digits `0x0E–0x17` → `0–9`; `0x0A` → comma; `0x36–0x4F` → `A–Z`; nil glyphs `0x52` (FY2025) and `0x53` (FY2024) → `—`. Plain-text pages are not CID-decoded.
+
+## Required plan change
+
+Any later admission, identity alignment, sparse-IS policy change, candidate insertion, signed-value convention, or tax-effect treatment needs Plan. This qualification does not revise `IMPLEMENTATION.md`.
+
+## Task 1 — Five-period qualification ledger
+
+Currency **USD**, unit scale **thousands**, as bound on all four filings. Statement amounts below are income-statement face amounts. Cash-flow operating add-backs equal the IS amounts on every overlapping period. Geographic reconciling items are a third presentation of the same charge, not a second P&L hit. Labels were **not** combined solely because they share `suggested_concept = impairment_and_restructuring`.
+
+| Period | Document / SHA-256 | Physical PDF page (JSON `source.page`) | Printed page | Statement / section | Exact IS label | Reported amount (USD thousands) | Role | Zero vs missing |
+|---|---|---:|---:|---|---|---:|---|---|
+| `2022-01-30` | `LULU_FY2022_Annual_Report.pdf` `b344d1e7a710259fa06f88773dee0b3827334820ce2b881fe6b95ca2ae275e4e` | 50 | 46 | Consolidated Statements of Operations / blank section | Impairment of goodwill and other assets | `0` (face `—`) | comparative | explicit nil |
+| `2022-01-30` | `LULU_FY2023_Annual_Report.pdf` `cd47ea251d608d06a3e58b5d782f2d41d5a231a994d2f7993267a430cb13c0f1` | 56 | 50 | same statement | Impairment of goodwill and other assets, restructuring costs | `0` (face `—`) | comparative | explicit nil |
+| `2023-01-29` | FY2022 p50 / printed 46 | 50 | 46 | same statement | Impairment of goodwill and other assets | `407913` | current_period | nonzero |
+| `2023-01-29` | FY2023 p56 / printed 50 | 56 | 50 | same statement | Impairment of goodwill and other assets, restructuring costs | `407913` | comparative | nonzero |
+| `2023-01-29` | FY2024 p51 / printed 45 (decoded Identity-H) | 51 | 45 | same statement | Impairment of goodwill and other assets, restructuring costs | `407913` | comparative | nonzero |
+| `2024-01-28` | FY2023 p56 / printed 50 | 56 | 50 | same statement | Impairment of goodwill and other assets, restructuring costs | `74501` | current_period | nonzero |
+| `2024-01-28` | FY2024 p51 / printed 45 | 51 | 45 | same statement | Impairment of goodwill and other assets, restructuring costs | `74501` | comparative | nonzero |
+| `2024-01-28` | FY2025 p51 / printed 45 (decoded Identity-H) | 51 | 45 | same statement | Impairment of assets and restructuring costs | `74501` | comparative | nonzero |
+| `2025-02-02` | FY2024 p51 / printed 45 | 51 | 45 | same statement | Impairment of goodwill and other assets, restructuring costs | `0` (face `—`) | current_period | explicit nil |
+| `2025-02-02` | FY2025 p51 / printed 45 | 51 | 45 | same statement | Impairment of assets and restructuring costs | `0` (face `—`) | comparative | explicit nil |
+| `2026-02-01` | `LULU_FY2025_Annual_Report.pdf` `82e00f900cc912a7d79596409594156b7779c3a193783ea8fecf87bc013c71cc` | 51 | 45 | same statement | Impairment of assets and restructuring costs | `0` (face `—`) | current_period | explicit nil |
+
+Overlapping-period IS values **agree** across filings; labels do **not**. Cash-flow add-backs (FY2022 p53/printed 49; FY2023 p59/printed 53; FY2024 p54/printed 48; FY2025 p53/printed 47) match IS amounts and use the same three labels. No impairment numeric conflict appears in `conflicts.json` (`overlap_conflict_count` remains **3**, all unrelated WC restatements).
+
+Geographic / note reconciling (distinct from IS/CF):
+
+- FY2023 JSON `note_facts` only: `segment.geo.q4_2023.ifop_reconciling.impairment_and_restructuring` = `407913` @ `2023-01-29` (restated_comparative) and `74501` @ `2024-01-28` (current_period), Note 23 Segmented Information, physical page 84 / printed 78.
+- Later PDFs still print a corporate reconciling line (FY2024 physical 79–80; FY2025 physical 81), but those observations are **not** in FY2024/FY2025 extracted `note_facts`. Not treated as IS candidates.
+
+`2021-01-31` appears as FY2022 comparative IS/CF explicit nil (`—` / JSON `0`) and remains outside the five-period axis (`excluded_comparative_periods`: `2021-01-31`). It was not invented and is not a ledger amount.
+
+### Notes: composition and recurrence (facts only; no treatment inferred)
+
+FY2022 Note (physical 65 / printed 61) and FY2023 Note 8 (physical 71–72 / printed 65–66), restated in FY2024 Note 9 (physical 66 / printed 60) and FY2025 recap (physical 67 / printed 61):
+
+| Fiscal label in notes | IS aggregate | Composition inside the IS line | Related charges **not** in the IS line |
+|---|---:|---|---|
+| 2022 (period `2023-01-29`) | `407913` | goodwill `362492` + intangibles `40585` + PP&E `4836` | Studio COGS obsolescence `62928`; total pre-tax `470841`; disclosed tax effect `(28171)` |
+| 2023 (period `2024-01-28`) | `74501` | asset impairments `44186` (intangibles `16951` + cloud implementation `16074` + PP&E `11161`; goodwill `0`) + restructuring `30315` | Studio COGS obsolescence `23709`; total pre-tax `98210`; disclosed tax effect `(26085)` |
+| 2024 (period `2025-02-02`) | `0` / face `—` | note table current column `—` | not a missing row |
+| 2025 (period `2026-02-01`) | `0` / face `—` | IS/CF dashes; no new current-year composition table | not a missing row |
+
+Recurrence, deductibility, and documentary precedence are **UNRESOLVED**. Notes disclose discrete tax effects of the charges and MD&A non-GAAP exclusions; those are not a BAV treatment.
+
+### Proposed signed analytical amount
+
+**UNRESOLVED.** Extracted IS values are face-positive expenses (or explicit `0` for dashes). DEMO `operating_pretax_effective_tax` math is `pretax_adj += -reported` and therefore expects an expense-as-negative source. Using `+407913` / `+74501` as-is would reverse the add-back. Negating them is a convention choice, not evidenced by the filings. This child does not choose.
+
+## Task 2 — Source-to-selector gap (ordinary path)
+
+Validate-source on `build/input/lululemon/extracted` with `--source-root build/input/lululemon/source`: **4 filings, 0 errors, 0 warnings**; bound PDF SHA-256 match BASELINE. Input PDFs/JSON are byte-identical to `benchmark/lululemon/source` and `benchmark/lululemon/extracted`.
+
+Ordinary `python -m core reconcile` (no input mutation) into `/tmp/bav_norm_qualify_9M2411166/`:
+
+| Run | Periods | `standardized.json` SHA-256 | Impairment IS/CF lines emitted |
+|---|---|---|---|
+| Default filing year-ends | `2023-01-29` … `2026-02-01` | `b9d8354cbeb04edad2aba1df332ef46d49a61c2c8d9eea35cf209d4491bf1cfa` | **none** |
+| `--admit-period 2022-01-30` | five ledger periods | `6c9aad59b04a5995742c68e08f1a704953796fc9fad97a036b08aeeab59051e5` | **none** |
+| `build/input/lululemon-live/standardized.json` | same five | **byte-identical** to admit run | **none** |
+
+Live `provenance.json` SHA-256 `5067c1d04aa93c18062fe7eb90558a86394283b7d9fe45899761f71cfb615951` (786300) is byte-identical to the admit run. Live extra `management_kpi_admission.json` is outside this statement handoff. Conflicts SHA-256 `d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0` unchanged.
+
+**Rule, not data loss.** `source_row_identity` = `statement|section|label|concept`. Three IS identities and three CF identities, all `suggested_concept=impairment_and_restructuring`, none covering the full model axis. `filing_standardizer._line_values_for_axis` keeps incomplete axes only for `balance_sheet`. Non-BS incomplete rows are **deliberately omitted** as `omitted_incomplete_axis` while selected observations remain in provenance. Admit-run omitted identities:
+
+- `income_statement||impairment of goodwill and other assets|impairment_and_restructuring` — `2022-01-30`, `2023-01-29`
+- `income_statement||impairment of goodwill and other assets, restructuring costs|impairment_and_restructuring` — `2022-01-30` … `2025-02-02`
+- `income_statement||impairment of assets and restructuring costs|impairment_and_restructuring` — `2024-01-28` … `2026-02-01`
+- matching three cash-flow identities
+
+Default (four-period) omission is the same split (FY2022-only identity then covers only `2023-01-29` on that axis). Combining labels by concept was not performed.
+
+Current company assumptions: `release/lululemon/Lululemon_Answer_Key.assumptions.json` SHA-256 `73fbb33f222a978828042ebde1fbbc3cd285c40efda6be5217c2cfbae1fda21a` has `normalizationCandidates: []`. `core/project_companies.json` has no candidates. `current_build.build_company(assumptions=None)` setdefaults that list to `[]`.
+
+Selector resolution against **unmodified** ordinary admit output and live `StandardizedFinancials` (no candidate inserted, no derived-input patch):
+
+| Selector | Result |
+|---|---|
+| `concept:impairment_and_restructuring` | `ValueError`: matched no income-statement line |
+| `concept:restructuring_expense` | same |
+| `label:` each of the three exact IS labels | same |
+| `normalization_cases(..., {"normalizationCandidates": []})` | **0** cases |
+| explicit probe candidate with those concept selectors | same `ValueError` (fail-closed before history/nonzero checks) |
+
+Complete-history requirement: even if a line were present, `required_period_series` needs a value on every modeled period. The omitted identities are incomplete by construction.
+
+### `operating_pretax_effective_tax` vs this aggregate
+
+**Source facts (not a treatment):** the IS line is one operating-expense aggregate; CF add-back and (where extracted) geographic corporate reconciling reprint the same amounts; Studio COGS obsolescence is a **separate** line. Using the IS aggregate alone would not double-count CF or geo.
+
+**Proposed analyst reference treatment:** UNRESOLVED (recurring vs non-recurring; whether to keep the mixed impairment+restructuring aggregate vs split it; whether related COGS charges belong).
+
+**Effective-tax convention:** the supported scope applies reported operating ETR to a pretax add-back. Notes disclose **different** item-specific tax effects (`(28171)` / `(26085)`). Whether ETR can represent this aggregate without mismatching those disclosed tax effects is **UNRESOLVED**. Deductibility is not inferred.
+
+## Task 3 — Smallest evidenced next decision
+
+**Boundary:** standardization identity completeness (`source_row_identity` + `_line_values_for_axis` omitting non-BS incomplete axes).  
+**Expected behavior if Plan later admits a candidate:** one complete-history **income-statement** line with statement-specific identity, explicit signed convention, and an explicit `normalizationCandidates` entry. Observations must remain auditable; changing labels must not be silently merged by concept.  
+**This diagnosis does not repair the handoff.**
+
+Inspectable evidence: `/tmp/bav_norm_qualify_9M2411166/evidence.json` SHA-256 `fb9a13378756600a0087e6a6785ed38ad06a587b8d76182cf6c41d1c129f6960` (162968); `extracted_observations.json`; `ordinary_reconcile/` and `ordinary_reconcile_admit_2022/`; `pdf_pages/` plus Identity-H decoded FY2024/FY2025 statement pages. Reproducer: `/tmp/bav_norm_qualify_9M2411166/qualify_source_to_selector.py` SHA-256 `3d7a02f7027db5a18da4dd7701fada9d6dd4c66592b5f0b54aefa6bf9c41f8d2`. Statement-row PDF checks **24/24** label and amount (including Identity-H `74,501` / `407,913` / `—`). Identity-H printed-page auto-resolver remains unresolved when another 1–3 digit token exists; the decoded footer last line is still **45** (FY2024/FY2025 IS p51) and **48** / **47** (FY2024 CF p54 / FY2025 CF p53).
+
+## Measured verification
+
+| Command | Exit | Result |
+|---|---:|---|
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m core validate-source build/input/lululemon/extracted --source-root build/input/lululemon/source` | 0 | **4 filings, 0 error(s), 0 warning(s)**; PDF SHA-256 bound |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m core reconcile build/input/lululemon/extracted --source-root build/input/lululemon/source -o /tmp/bav_norm_qualify_9M2411166/ordinary_reconcile` | 0 | `overlap_conflicts=3`; no IS/CF impairment line; standardized SHA-256 `b9d8354cbeb04edad2aba1df332ef46d49a61c2c8d9eea35cf209d4491bf1cfa` |
+| same + `--admit-period 2022-01-30` → `ordinary_reconcile_admit_2022` | 0 | `overlap_conflicts=3`; standardized SHA-256 `6c9aad59b04a5995742c68e08f1a704953796fc9fad97a036b08aeeab59051e5` **byte-identical** to live; provenance SHA-256 `5067c1d04aa93c18062fe7eb90558a86394283b7d9fe45899761f71cfb615951`; 6 impairment identities `omitted_incomplete_axis` |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python /tmp/bav_norm_qualify_9M2411166/qualify_source_to_selector.py` | 0 | ledger + Identity-H CID decode + selector fail-closed; statement PDF checks **24/24**; elapsed **2.859s** |
+| Protected artifacts vs `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` | 0 | **50/50 MATCH** |
+| Eight extracted JSON vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` path blobs | 0 | **8/8 UNCHANGED** |
+
+## Fresh vs retained evidence
+
+| Kind | This child |
+|---|---|
+| Fresh | Five-period IS/CF/geo ledger vs PDFs+JSON; overlapping values agree and labels do not; ordinary validate/reconcile/standardize into temp; live standardized/provenance byte-match admit run; 6 `omitted_incomplete_axis` identities; selector probes fail-closed on unmodified output; empty company `normalizationCandidates`; note composition and disclosed tax effects; Identity-H CID decode of FY2024/FY2025 face amounts `74,501` / `407,913` / `—` (CID `0x53`/`0x52`); statement PDF checks **24/24**; checkpoints **50/50**; extracts **8/8** |
+| Unresolved by design | signed analytical convention; recurring/non-recurring treatment; deductibility; whether ETR matches note tax effects; later-filing geographic note_facts not extracted; broader physical-page mapping beyond cited pages |
+| Retained, not re-measured independently | Store/mixed/compsales totals `766/768/760`; Fast Retailing **577**; stores `574/655/711/767/811`; geo **56/264**; preserved **486**; ordinary-fixture unavailable **101**; segment-margin formulas **15**; complete `core/tests` **3240** from `.61`; Excel verifications from `.62`–`.65` |
+| Not claimed | Real-company normalization workbook; candidate admission; implementation repair; treatment-conditioned Excel; normalized per-share; parent or Step 9 completion |
+
+## Remaining scope
+
+Source qualification of the Lululemon impairment/restructuring history and the ordinary-path omission is complete for this child. Candidate admission, any handoff repair, treatment-dependent Excel verification, and normalized per-share acceptance remain open.
+
+Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Completed admission, `.37` through `.65` are not reopened. G6–G9, segment remainder, benchmark publication, independent M&A Net Debt, Complete NOPAT/RNOA, forecasting and valuation remain deferred. No prospective IDs reserved.
+
+Working-tree HEAD is `2396e03329c119ff3091a9b41b97d8c4312a8638`. `.git/autocycle/latest-implementation` was not rewritten.
+
