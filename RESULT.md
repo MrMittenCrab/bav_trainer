@@ -1142,3 +1142,114 @@ Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Complet
 
 Working-tree HEAD is `7329dafa1f82f424242db49348a0217eaa54cb51`. `.git/autocycle/latest-implementation` was not rewritten.
 
+---
+
+# RESULT.md — Step 9M.2.4.1.1.1.65 Normalization Judgment and Earnings Normalization: Excel treatment verification
+
+**Status:** COMPLETE (this work child; parents remain UNRESOLVED)  
+**Step:** 9M.2.4.1.1.1.65 — Normalization Judgment and Earnings Normalization — Excel treatment verification  
+**Work:** `e2b825657b944d36beafca6c36cf91ff`  
+**Plan:** `ec73aa03a1a64313aa7ac918768c7c72`  
+**Finding:** `normalization-treatment-conditioned-spreadsheet-verification`  
+**Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
+Accepted comparable-sales/SPSF spreadsheet work `8710acb0f36d43d5a04a14c1d26d8630` remains complete and is not reopened.  
+Instruction `20260916-075534-000000006` is retained extraction/source-binding evidence (eight extracted JSON blob SHA-1 values unchanged vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151`). Recovery was not re-executed.  
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start). TARGET SHA-256 `ab70dd8859ba352a2387b95c55477cbc31944288c60478023d5937cf0662e91c` (23864). IMPLEMENTATION SHA-256 `2136e7d9342a377afe579ae12863e675f127b301adc21ccc3714a3c1d8dd26eb` (9594).  
+No commit / push / sync / checkpoint / branch change. No production-code repair, release rewrite, forecasting, or valuation.  
+This child does **not** declare parent, Geographic Analysis product, Operating KPIs product, Normalization product, or Step 9 acceptance.
+
+No interrupted production-tree edits were present. Fresh artifacts live only under `/tmp/bav_norm_excel_verify_9M2411165/`. Edited this child: `RESULT.md` only. Generating SHA `95753da3e5e59d4800c71a96846b754449496bd4`. Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. `SEGMENT_BRIDGE_TOLERANCE = 0.0`.
+
+## Required plan change
+
+No required plan change.
+
+## Task 1 — Generate and authenticate the illustrative normalization pair
+
+Ordinary `_build_norm_pair` on `example/DEMO_HK_Standardized.json` + `example/DEMO_HK_Assumptions.json` (0.17s). DEMO facts and the restructuring judgment are **illustrative**. Explicit candidate `concept:restructuring_expense`; scope `operating_pretax_effective_tax`; reference `Non-recurring`; signed source values `0 / 0 / -200 / 0 / 0`. Reference rationale distinguishes the supplied illustrative event from analyst treatment. 332-component / 78-family contract held (20 normalization practices; no extra mapped dependents on this pair — no share history).
+
+| Copy | Path | SHA-256 | Bytes |
+|---|---|---|---:|
+| Fresh pristine / inspect Trainer | `/tmp/bav_norm_excel_verify_9M2411165/{pristine,inspect}/DEMO_HK_Trainer.xlsx` | `c1dc88093ed5dd1051dc1be1cb0c62ea4770fad189fb461effb0dee72e8c3db4` | 28496 |
+| Fresh pristine / inspect Answer Key | `/tmp/bav_norm_excel_verify_9M2411165/{pristine,inspect}/DEMO_HK_Answer_Key.xlsx` | `debe244e05fb40192559f6d631a12825df915cb21954d5ff133a195d77eb468e` | 85799 |
+
+Inspect copies were never opened by Excel; inspect hashes unchanged after every recalculation of internal copies.
+
+Independent oracle from signed candidate values and reported IS inputs (not model `expected_value`). Pretax add-back = `−signed`; ETR = `−tax / pretax`; after-tax = pretax × `(1 − ETR)` when pretax ≠ 0, else 0; NOPAT = NI + net interest × `(1 − ETR)` with net interest = `−(finance costs + finance income)`; normalized NOPAT/NI = reported + after-tax. FY2023 Non-recurring pretax add-back **200**; Recurring adjustment **0**. Tax convention is the illustrative reported effective-tax assumption, not evidence of actual deductibility.
+
+| Period | Signed | ETR | NR pretax | NR after-tax | NR NOPAT | NR NI | Recurring pretax / after / NOPAT / NI |
+|---|---:|---:|---:|---:|---:|---:|---|
+| FY2021 | `0` | `565/3325` | `0` | `0` | `2822.2556390977443` | `2760` | same unadjusted |
+| FY2022 | `0` | `612/3600` | `0` | `0` | `3054.4` | `2988` | same unadjusted |
+| FY2023 | `-200` | `672/3955` | `200` | `166.01769911504425` | `3519.575221238938` | `3449.0176991150443` | `0 / 0 / 3353.5575221238937 / 3283` |
+| FY2024 | `0` | `746/4390` | `0` | `0` | `3718.7061503416858` | `3644` | same unadjusted |
+| FY2025 | `0` | `833/4905` | `0` | `0` | `4150.866462793068` | `4072` | same unadjusted |
+
+Declared cache tolerances: each component's catalog `tolerance` (default `0.01`); measured max abs error **0.0**.
+
+## Task 2 — Excel treatment changes and learner behavior
+
+Microsoft Excel **16.113** (`/Applications/Microsoft Excel.app/Contents/MacOS/Microsoft Excel`). Working command: `osascript` `tell application "Microsoft Excel"` → `open POSIX file` → `calculate` → `calculate full` → `save` named temp workbook → `close` named temp workbook `saving no`. An already-open unrelated workbook named `Lululemon_Answer_Key.xlsx` remained open; it was not targeted. Release sentinel `/Users/lizhiguo/Documents/Developer/bav_trainer/release/lululemon/Lululemon_Answer_Key.xlsx` SHA-256 `ecb1a4120e8a50ca132ab62bca0cc214968bd2770b0e94560c75740d5662570f` (119554) was unchanged before and after every session. All **10** temp recalculations exit **0**, `calculate full=ok`, hash_changed **True**, unrelated-workbook set unchanged.
+
+Internal Answer Key recalculation (6.65s):
+
+| | SHA-256 |
+|---|---|
+| Before | `debe244e05fb40192559f6d631a12825df915cb21954d5ff133a195d77eb468e` |
+| After | `d84ee3557dfb4439462298f4339e16ba0b54120e750ae91836b58060f993283a` |
+
+`data_only=True` reopen: **20/20** mapped normalization caches match independent Non-recurring expectations, max abs error **0.0**. Blank-F and explicit `Non-recurring` Trainer variants reproduce the same 20 caches after Excel. `Recurring` removes the FY2023 adjustment (Excel pretax cache **0**) and restores unadjusted NOPAT `3353.5575221238937` / NI `3283`.
+
+Workbook-wide Check after Excel recalculation:
+
+| State | total / blank / correct / incorrect |
+|---|---|
+| Blank, Excel-recalculated | **332 / 332 / 0 / 0** |
+| Formulas filled, F blank (reference), Excel-recalculated | **332 / 0 / 332 / 0** |
+| Explicit `Non-recurring`, Excel-recalculated | **332 / 0 / 332 / 0** |
+| `Recurring`, Excel-recalculated | **332 / 0 / 332 / 0** |
+| Recurring + FY2023 pretax `=200` (former Non-recurring answer) at `Earnings Normalization!E9`, Excel cache **200** | **332 / 0 / 331 / 1** |
+
+CLI Check on the stale workbook: `Checked 332 practice cells: 331 correct, 1 incorrect, 0 blank.` Exit **1** (incorrect > 0). Output contained no formulas, Notes, or rationale/consequence text. Legitimate learner formula `=1+1` (Excel cache **2**) yielded **331/1** without authentication error. Invalid treatment `Not A Treatment` raised `Invalid treatment`. Income Statement source tamper raised `Trusted workbook cell was modified: Income Statement!B7`. Trusted Earnings Normalization ETR formula tamper raised `Trusted workbook cell was modified: Earnings Normalization!C10`.
+
+Presentation on inspect copies: every visible sheet checked. Trainer **332** practice cells blank bright yellow without Notes; guided response cells F5/G5/H5 on Accounting Judgment and Normalization Judgment blank yellow without Notes; matching Answer-Key formulas with concise Notes and no yellow anywhere; Aptos Narrow 11, non-bold black, ordinary white, no decorative borders/fills. Candidate label `Restructuring expense`; supplied reference `Non-recurring`; scope `operating_pretax_effective_tax`. Notes use the ETR convention and contain no deductibility claim.
+
+Build Status is sheet index **1**, adds **0** practice components, absent from the semantic map tabs. Trainer `Trainer!G1` = `Current Progress` → `#'Build Status'!A1`. Header: availability does not establish parent or release acceptance. No real-source or parent-acceptance claim.
+
+Synthetic undefined-ETR fixture reproduced under `/tmp/bav_norm_excel_verify_9M2411165/etr/` (PBT=0, tax=0, FY2025 signed candidate `-100`). Excel after-tax and normalized NI caches **`#N/A`**, not zero; pretax caches `0` / `100`; formula contains `ISNA(`. Filled Check **79/0/79/0**. Replacing the undefined after-tax practice with `=0` (Excel cache **0**) yielded **79/0/78/1**. Absent candidates omit both normalization sheets and keep **312** components. Label-only automatic normalization did not fire. Ambiguous `label:Special charge` and missing candidate history fail closed.
+
+## Task 3 — Reproducible acceptance evidence
+
+| Command | Exit | Result |
+|---|---:|---|
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python /tmp/bav_norm_excel_verify_9M2411165/verify_normalization_excel.py` | 0 | Excel 16.113 on temporary illustrative DEMO pair; 20/20 normalization caches match independent expectations, max abs error **0.0**; Check 332 blank / 332 correct / 331+1 incorrect; undefined-ETR Excel `#N/A`; protected **50/50**; extracts **8/8** |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_normalization.py core/tests/test_normalized_per_share.py core/tests/test_reference_integrity.py core/tests/test_learner_ready_presentation.py core/tests/test_build_contract.py core/tests/test_build_cli.py core/tests/test_trainer.py::test_check_scans_all_practice_cells_and_colors_three_states core/tests/test_trainer.py::test_cli_check_output_does_not_disclose_answers -q --tb=line` | 0 | **172 passed** in **30.28s** |
+| Protected artifacts vs checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` | 0 | **50/50 MATCH** |
+| Eight extracted JSON vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` path blobs | 0 | eight files **UNCHANGED** |
+
+Complete `core/tests` **3240 passed / 0 failed** remains **historical** from `.61` and was not rerun this child. Geographic Excel **264/750** remains **historical** from `.62`. Store/revenue Excel **16/766** remains **historical** from `.63`. Compsales/SPSF Excel **760** remains **historical** from `.64`.
+
+Inspectable engine evidence: `/tmp/bav_norm_excel_verify_9M2411165/evidence.json` plus workbook copies under `pristine/`, `inspect/`, `verify/`, and `etr/`. No prospective IDs reserved. Real-company normalization acceptance remains unresolved.
+
+---
+
+## Fresh vs retained evidence
+
+| Kind | This child |
+|---|---|
+| Fresh | Current-generation illustrative DEMO pair plus Excel 16.113 treatment-conditioned recalculation; independent signed-source bridge including FY2023 NR pretax **200** / Recurring **0**; 20/20 Excel caches vs independent expectations, max abs error **0.0**; Check 332 blank / 332 correct / 331+1 incorrect after Excel; undefined-ETR Excel `#N/A` not zero; invalid/tamper fail-closed; absent-candidate omission **312**; required normalization + per-share + reference-integrity + presentation + Check/build suite **172 passed**; checkpoints **50/50 MATCH**; eight extractions unchanged vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` |
+| Synthetic / illustrative, labelled separately | DEMO restructuring candidate; undefined-ETR two-period fixture; ambiguous-selector and missing-history fail-closed probes |
+| Retained via required suite, not independently re-counted | Store/mixed/compsales totals `766/768/760`; Fast Retailing **577**; stores `574/655/711/767/811`; geo **56/264**; preserved **486**; ordinary-fixture unavailable **101**; segment-margin formulas **15** |
+| Historical, not rerun | Complete `core/tests` **3240 passed** from `.61`; geographic Excel from `.62`; store/revenue Excel from `.63`; compsales/SPSF Excel from `.64` |
+| Not claimed | Parent or Step 9 completion; real-company normalization acceptance; G6–G9 remainder; admitted nonzero geographic `D` or amount-change residual |
+
+---
+
+## Remaining scope
+
+This child verifies treatment-conditioned earnings normalization in Excel on one illustrative DEMO pair, plus a synthetic undefined-ETR fixture. Real-company normalization evidence and unresolved parent acceptance remain open.
+
+Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Completed admission, `.37` through `.64` are not reopened. Frozen requests `20260914-193338-000000004` and `20260915-042248-000000005` remain unfinished beyond this increment. No prospective IDs reserved.
+
+Working-tree HEAD is `95753da3e5e59d4800c71a96846b754449496bd4`. `.git/autocycle/latest-implementation` was not rewritten.
+
