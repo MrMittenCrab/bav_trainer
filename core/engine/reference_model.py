@@ -207,6 +207,8 @@ from .component_catalog import (
     resolve_geographic_operating_margin_mix_within_residual_formula,
     resolve_geographic_operating_margin_within_segment_effect_formula,
     resolve_geographic_operating_profit_amount_change_residual_formula,
+    resolve_geographic_operating_profit_margin_effect_formula,
+    resolve_geographic_operating_profit_revenue_effect_formula,
     resolve_geographic_reconciling_operating_margin_contribution_formula,
     resolve_geographic_reconciling_operating_profit_amount_change_formula,
     resolve_geographic_revenue_growth_contribution_formula,
@@ -7050,10 +7052,13 @@ class ReferenceModelBuilder:
             "organic, constant-currency, or causal growth. Operating-margin "
             "contributions are a direct contribution bridge, distinct from the "
             "mix and within-segment decomposition, the monetary amount-change "
-            "bridge, normalization, or a causal explanation. Mix and within-"
+            "bridge, midpoint revenue and margin effects on operating-profit "
+            "change, normalization, or a causal explanation. Mix and within-"
             "segment effects use a symmetric midpoint convention and remain "
             "arithmetic only. Operating-profit amount changes are monetary "
-            "differences, distinct from the percentage-point margin bridges."
+            "differences, distinct from the percentage-point margin bridges. "
+            "Revenue and margin effects allocate each eligible segment "
+            "operating-profit amount change by a monetary midpoint convention."
         )
         ws["A3"] = f"Units: {self.fin.units}"
         ws["A4"] = (
@@ -7061,7 +7066,8 @@ class ReferenceModelBuilder:
             "Sparse unavailable amounts remain unavailable; opening growth, "
             "opening revenue-growth contributions, opening operating-margin "
             "contribution changes, opening mix and within-segment effects, "
-            "and opening operating-profit amount changes "
+            "opening operating-profit amount changes, and opening revenue "
+            "and margin effects on operating-profit change "
             "are not practiced. Signed residuals are not forced to zero."
         )
         ws.column_dimensions["A"].width = 56
@@ -7452,6 +7458,27 @@ class ReferenceModelBuilder:
         profit_amount_change_residual_row = cursor
         _label(cursor, "Operating-profit amount-change residual")
 
+        cursor += 2
+        _section(cursor, "OPERATING-PROFIT REVENUE AND MARGIN EFFECTS")
+        profit_revenue_effect_rows = {}
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            cursor += 1
+            profit_revenue_effect_rows[identity] = cursor
+            _label(
+                cursor,
+                f"{geographic_identity_label(identity)} revenue effect on "
+                "operating-profit change",
+            )
+        profit_margin_effect_rows = {}
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            cursor += 1
+            profit_margin_effect_rows[identity] = cursor
+            _label(
+                cursor,
+                f"{geographic_identity_label(identity)} margin effect on "
+                "operating-profit change",
+            )
+
         self.rowmap["geographic_header_row"] = header_row
         self.rowmap["geographic_revenue_rows"] = dict(rev_rows)
         self.rowmap["geographic_ifop_rows"] = dict(ifop_rows)
@@ -7479,6 +7506,8 @@ class ReferenceModelBuilder:
                 opening_practice_rows.add(reconciling_amount_change_row)
                 opening_practice_rows.add(cons_profit_amount_change_row)
                 opening_practice_rows.add(profit_amount_change_residual_row)
+                opening_practice_rows.update(profit_revenue_effect_rows.values())
+                opening_practice_rows.update(profit_margin_effect_rows.values())
                 for row in (
                     family_row,
                     *rev_rows.values(),
@@ -7515,6 +7544,8 @@ class ReferenceModelBuilder:
                     reconciling_amount_change_row,
                     cons_profit_amount_change_row,
                     profit_amount_change_residual_row,
+                    *profit_revenue_effect_rows.values(),
+                    *profit_margin_effect_rows.values(),
                 ):
                     if j == 0 and row in opening_practice_rows:
                         ws.cell(row=row, column=col_idx, value="N/A")
@@ -8385,6 +8416,78 @@ class ReferenceModelBuilder:
                     col_idx,
                     dpr_f,
                     dpr_value,
+                )
+
+            for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+                rev_eff_value = series.operating_profit_revenue_effect[period][identity]
+                mgn_eff_value = series.operating_profit_margin_effect[period][identity]
+                rev_eff_row = profit_revenue_effect_rows[identity]
+                mgn_eff_row = profit_margin_effect_rows[identity]
+                if j == 0 or rev_eff_value is None:
+                    ws.cell(row=rev_eff_row, column=col_idx, value="N/A")
+                    ws.cell(row=mgn_eff_row, column=col_idx, value="N/A")
+                    continue
+                if is_source_unavailable(rev_eff_value):
+                    self._stamp_unavailable(ws, rev_eff_row, col_idx, SOURCE_UNAVAILABLE)
+                    self._stamp_unavailable(ws, mgn_eff_row, col_idx, SOURCE_UNAVAILABLE)
+                    continue
+                rev_eff_f = resolve_geographic_operating_profit_revenue_effect_formula(
+                    revenue_source_refs[(identity, j)],
+                    revenue_source_refs[(identity, j - 1)],
+                    _practice_ref(
+                        "geographic_reported_operating_margin",
+                        period,
+                        margin_rows[identity],
+                        col_idx,
+                        identity=identity,
+                    ),
+                    _practice_ref(
+                        "geographic_reported_operating_margin",
+                        self.periods[j - 1],
+                        margin_rows[identity],
+                        col_idx - 1,
+                        identity=identity,
+                    ),
+                    from_tab=GEOGRAPHIC_SHEET,
+                )
+                _put_formula(rev_eff_row, col_idx, rev_eff_f)
+                _register(
+                    "geographic_operating_profit_revenue_effect",
+                    j,
+                    identity,
+                    rev_eff_row,
+                    col_idx,
+                    rev_eff_f,
+                    rev_eff_value,
+                )
+                mgn_eff_f = resolve_geographic_operating_profit_margin_effect_formula(
+                    revenue_source_refs[(identity, j)],
+                    revenue_source_refs[(identity, j - 1)],
+                    _practice_ref(
+                        "geographic_reported_operating_margin",
+                        period,
+                        margin_rows[identity],
+                        col_idx,
+                        identity=identity,
+                    ),
+                    _practice_ref(
+                        "geographic_reported_operating_margin",
+                        self.periods[j - 1],
+                        margin_rows[identity],
+                        col_idx - 1,
+                        identity=identity,
+                    ),
+                    from_tab=GEOGRAPHIC_SHEET,
+                )
+                _put_formula(mgn_eff_row, col_idx, mgn_eff_f)
+                _register(
+                    "geographic_operating_profit_margin_effect",
+                    j,
+                    identity,
+                    mgn_eff_row,
+                    col_idx,
+                    mgn_eff_f,
+                    mgn_eff_value,
                 )
 
     def _geographic_revenue_source_placement(

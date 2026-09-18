@@ -147,6 +147,16 @@ def _independent_from_snapshots(axis: list[date], snapshots: dict):
                 "dbr": None if opening else SOURCE_UNAVAILABLE,
                 "dpc": None if opening else SOURCE_UNAVAILABLE,
                 "dpr": None if opening else SOURCE_UNAVAILABLE,
+                "rev_eff": (
+                    {name: None for name in SEGMENTS}
+                    if opening
+                    else {name: SOURCE_UNAVAILABLE for name in SEGMENTS}
+                ),
+                "mgn_eff": (
+                    {name: None for name in SEGMENTS}
+                    if opening
+                    else {name: SOURCE_UNAVAILABLE for name in SEGMENTS}
+                ),
                 "rev_total": SOURCE_UNAVAILABLE,
                 "ifop_total": SOURCE_UNAVAILABLE,
                 "signed": SOURCE_UNAVAILABLE,
@@ -340,6 +350,38 @@ def _independent_from_snapshots(axis: list[date], snapshots: dict):
                 dpr = UNDEFINED_RATIO
             else:
                 dpr = float(dpc) - sum(float(dp[name]) for name in SEGMENTS) - float(dbr)
+        if opening:
+            rev_eff = {name: None for name in SEGMENTS}
+            mgn_eff = {name: None for name in SEGMENTS}
+        elif prior is None or prior_seg_m is None:
+            rev_eff = {name: SOURCE_UNAVAILABLE for name in SEGMENTS}
+            mgn_eff = {name: SOURCE_UNAVAILABLE for name in SEGMENTS}
+        else:
+            rev_eff = {}
+            mgn_eff = {}
+            for name in SEGMENTS:
+                inputs = (revenue[name], prior[name], seg_m[name], prior_seg_m[name])
+                if any(value == SOURCE_UNAVAILABLE for value in inputs):
+                    rev_eff[name] = SOURCE_UNAVAILABLE
+                    mgn_eff[name] = SOURCE_UNAVAILABLE
+                elif (
+                    float(revenue[name]) == 0.0
+                    or float(prior[name]) == 0.0
+                    or any(value == UNDEFINED_RATIO for value in inputs)
+                ):
+                    rev_eff[name] = UNDEFINED_RATIO
+                    mgn_eff[name] = UNDEFINED_RATIO
+                else:
+                    rev_eff[name] = (
+                        (float(revenue[name]) - float(prior[name]))
+                        * (float(seg_m[name]) + float(prior_seg_m[name]))
+                        / 2.0
+                    )
+                    mgn_eff[name] = (
+                        (float(seg_m[name]) - float(prior_seg_m[name]))
+                        * (float(revenue[name]) + float(prior[name]))
+                        / 2.0
+                    )
         expected[period] = {
             "family": snapshot.presentation_family,
             "revenue": revenue,
@@ -365,6 +407,8 @@ def _independent_from_snapshots(axis: list[date], snapshots: dict):
             "dbr": dbr,
             "dpc": dpc,
             "dpr": dpr,
+            "rev_eff": rev_eff,
+            "mgn_eff": mgn_eff,
             "rev_total": rev_total,
             "ifop_total": ifop_total,
             "signed": tuple(signed),
@@ -416,6 +460,8 @@ def _assert_series_matches(series, expected) -> None:
         assert series.reconciling_operating_profit_amount_change[period] == row["dbr"]
         assert series.consolidated_operating_profit_amount_change[period] == row["dpc"]
         assert series.operating_profit_amount_change_residual[period] == row["dpr"]
+        assert series.operating_profit_revenue_effect[period] == row["rev_eff"]
+        assert series.operating_profit_margin_effect[period] == row["mgn_eff"]
         assert series.calculated_segment_revenue_total[period] == row["rev_total"]
         assert series.calculated_segment_operating_profit_total[period] == row["ifop_total"]
         assert series.signed_reconciling_contributions[period] == row["signed"]
@@ -501,6 +547,36 @@ def _assert_series_matches(series, expected) -> None:
             assert dpr == 0.0
             if isinstance(prior_ifop_diff, float) and isinstance(row["ifop_diff"], float):
                 assert dpr == -(row["ifop_diff"] - prior_ifop_diff)
+        rev_eff = row["rev_eff"]
+        mgn_eff = row["mgn_eff"]
+        for name in SEGMENTS:
+            if (
+                isinstance(rev_eff[name], float)
+                and isinstance(mgn_eff[name], float)
+                and isinstance(dp[name], float)
+            ):
+                reconstructed_dp = float(rev_eff[name]) + float(mgn_eff[name])
+                scale = max(1.0, abs(float(dp[name])))
+                assert abs(reconstructed_dp - float(dp[name])) <= max(
+                    GEOGRAPHIC_RATIO_TOLERANCE, scale * 1e-12
+                )
+        if (
+            isinstance(dpc, float)
+            and isinstance(dbr, float)
+            and isinstance(dpr, float)
+            and all(isinstance(value, float) for value in rev_eff.values())
+            and all(isinstance(value, float) for value in mgn_eff.values())
+        ):
+            reconstructed_cons = (
+                sum(float(rev_eff[name]) for name in SEGMENTS)
+                + sum(float(mgn_eff[name]) for name in SEGMENTS)
+                + float(dbr)
+                + float(dpr)
+            )
+            scale = max(1.0, abs(float(dpc)))
+            assert abs(reconstructed_cons - float(dpc)) <= max(
+                GEOGRAPHIC_RATIO_TOLERANCE, scale * 1e-12
+            )
         prior_ifop_diff = row["ifop_diff"]
 
 
@@ -561,6 +637,8 @@ def test_both_presentation_families_and_reordered_inputs():
     assert series.operating_profit_amount_change[P1]["americas"] is None
     assert series.consolidated_operating_profit_amount_change[P1] is None
     assert series.operating_profit_amount_change_residual[P1] is None
+    assert series.operating_profit_revenue_effect[P1]["americas"] is None
+    assert series.operating_profit_margin_effect[P1]["americas"] is None
     assert series.revenue_growth_contribution[P2]["americas"] == pytest.approx(30.0)
     assert series.revenue_growth_contribution[P2]["china_mainland"] == pytest.approx(-5.0)
     assert series.revenue_growth_contribution[P2]["rest_of_world"] == pytest.approx(-5.0)
@@ -621,6 +699,10 @@ def test_sparse_snapshots_do_not_compress_or_substitute_periods():
     assert series.operating_profit_amount_change[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.operating_profit_amount_change[P2]["americas"] == SOURCE_UNAVAILABLE
     assert series.operating_profit_amount_change_residual[P2] == SOURCE_UNAVAILABLE
+    assert series.operating_profit_revenue_effect[P0]["americas"] is None
+    assert series.operating_profit_revenue_effect[P1]["americas"] == SOURCE_UNAVAILABLE
+    assert series.operating_profit_revenue_effect[P2]["americas"] == SOURCE_UNAVAILABLE
+    assert series.operating_profit_margin_effect[P2]["china_mainland"] == SOURCE_UNAVAILABLE
     assert series.operating_margin_contribution[P2]["americas"] == pytest.approx(
         100.0 * 40.0 / 140.0
     )
@@ -678,6 +760,12 @@ def test_zero_denominators_zero_numerators_and_negative_profits():
     assert series.operating_profit_amount_change[P2]["americas"] == pytest.approx(-2.0)
     assert series.operating_profit_amount_change[P2]["china_mainland"] == pytest.approx(-2.0)
     assert series.operating_profit_amount_change[P2]["rest_of_world"] == pytest.approx(5.0)
+    assert series.operating_profit_revenue_effect[P2]["americas"] == UNDEFINED_RATIO
+    assert series.operating_profit_margin_effect[P2]["americas"] == UNDEFINED_RATIO
+    assert series.operating_profit_revenue_effect[P2]["china_mainland"] == UNDEFINED_RATIO
+    assert series.operating_profit_margin_effect[P2]["china_mainland"] == UNDEFINED_RATIO
+    assert series.operating_profit_revenue_effect[P2]["rest_of_world"] == pytest.approx(0.0)
+    assert series.operating_profit_margin_effect[P2]["rest_of_world"] == pytest.approx(5.0)
     assert series.reconciling_operating_profit_amount_change[P2] == pytest.approx(-1.0)
     assert series.consolidated_operating_profit_amount_change[P2] == pytest.approx(0.0)
     assert series.operating_profit_amount_change_residual[P2] == pytest.approx(0.0)
@@ -727,6 +815,9 @@ def test_growth_contributions_zero_consolidated_offsetting_and_singleton():
     assert zero_series.operating_profit_amount_change[P1]["americas"] == pytest.approx(4.0)
     assert zero_series.operating_profit_amount_change[P1]["china_mainland"] == pytest.approx(5.0)
     assert zero_series.operating_profit_amount_change[P1]["rest_of_world"] == pytest.approx(6.0)
+    assert zero_series.operating_profit_revenue_effect[P1]["americas"] == UNDEFINED_RATIO
+    assert zero_series.operating_profit_margin_effect[P1]["china_mainland"] == UNDEFINED_RATIO
+    assert zero_series.operating_profit_revenue_effect[P1]["rest_of_world"] == UNDEFINED_RATIO
     assert zero_series.reconciling_operating_profit_amount_change[P1] == pytest.approx(-3.0)
     assert zero_series.consolidated_operating_profit_amount_change[P1] == pytest.approx(12.0)
     assert zero_series.operating_profit_amount_change_residual[P1] == pytest.approx(0.0)
@@ -764,6 +855,8 @@ def test_growth_contributions_zero_consolidated_offsetting_and_singleton():
     assert single_series.reconciling_operating_profit_amount_change[P2] is None
     assert single_series.consolidated_operating_profit_amount_change[P2] is None
     assert single_series.operating_profit_amount_change_residual[P2] is None
+    assert single_series.operating_profit_revenue_effect[P2]["americas"] is None
+    assert single_series.operating_profit_margin_effect[P2]["rest_of_world"] is None
     assert single_series.operating_margin_contribution[P2]["americas"] == pytest.approx(
         100.0 * 50.0 / 120.0
     )
@@ -915,6 +1008,121 @@ def test_mix_within_unchanged_shares_margins_offsetting_and_nonzero_residual():
     assert transition_series.operating_margin_mix_within_residual[P2] == pytest.approx(
         transition_series.operating_margin_contribution_change_residual[P2]
     )
+
+
+def test_operating_profit_revenue_and_margin_effects_cases():
+    before = None
+    pure_revenue = _fin_with_segment(
+        _snapshot(
+            P1,
+            values=_corp_values(rev=(50.0, 30.0, 20.0), ifop=(10.0, 6.0, 4.0), corporate=-5.0),
+        ),
+        _snapshot(
+            P2,
+            values=_corp_values(rev=(60.0, 24.0, 16.0), ifop=(12.0, 4.8, 3.2), corporate=-5.0),
+        ),
+    )
+    before = copy.deepcopy(pure_revenue.historical_segment)
+    revenue_series = compute_geographic_segment_series(pure_revenue)
+    _assert_series_matches(
+        revenue_series,
+        _independent_from_snapshots(
+            [P1, P2],
+            {snap.period: snap for snap in pure_revenue.historical_segment.periods},
+        ),
+    )
+    assert revenue_series.operating_profit_revenue_effect[P2]["americas"] == pytest.approx(2.0)
+    assert revenue_series.operating_profit_margin_effect[P2]["americas"] == pytest.approx(0.0)
+    assert revenue_series.operating_profit_amount_change[P2]["americas"] == pytest.approx(2.0)
+    assert pure_revenue.historical_segment == before
+
+    pure_margin = _fin_with_segment(
+        _snapshot(
+            P1,
+            values=_corp_values(rev=(50.0, 30.0, 20.0), ifop=(10.0, 6.0, 4.0), corporate=-5.0),
+        ),
+        _snapshot(
+            P2,
+            values=_corp_values(rev=(50.0, 30.0, 20.0), ifop=(15.0, 6.0, 4.0), corporate=-5.0),
+        ),
+    )
+    margin_series = compute_geographic_segment_series(pure_margin)
+    _assert_series_matches(
+        margin_series,
+        _independent_from_snapshots(
+            [P1, P2],
+            {snap.period: snap for snap in pure_margin.historical_segment.periods},
+        ),
+    )
+    assert margin_series.operating_profit_revenue_effect[P2]["americas"] == pytest.approx(0.0)
+    assert margin_series.operating_profit_margin_effect[P2]["americas"] == pytest.approx(5.0)
+    assert margin_series.operating_profit_amount_change[P2]["americas"] == pytest.approx(5.0)
+
+    simultaneous = _fin_with_segment(
+        _snapshot(
+            P1,
+            values=_corp_values(rev=(50.0, 30.0, 20.0), ifop=(10.0, 6.0, 4.0), corporate=-5.0),
+        ),
+        _snapshot(
+            P2,
+            values=_corp_values(rev=(60.0, 30.0, 20.0), ifop=(18.0, 6.0, 4.0), corporate=-5.0),
+        ),
+    )
+    sim_series = compute_geographic_segment_series(simultaneous)
+    _assert_series_matches(
+        sim_series,
+        _independent_from_snapshots(
+            [P1, P2],
+            {snap.period: snap for snap in simultaneous.historical_segment.periods},
+        ),
+    )
+    assert sim_series.operating_profit_revenue_effect[P2]["americas"] == pytest.approx(2.5)
+    assert sim_series.operating_profit_margin_effect[P2]["americas"] == pytest.approx(5.5)
+    assert sim_series.operating_profit_amount_change[P2]["americas"] == pytest.approx(8.0)
+
+    offsetting = _fin_with_segment(
+        _snapshot(
+            P1,
+            values=_corp_values(rev=(50.0, 30.0, 20.0), ifop=(10.0, 6.0, 4.0), corporate=-5.0),
+        ),
+        _snapshot(
+            P2,
+            values=_corp_values(rev=(40.0, 30.0, 20.0), ifop=(10.0, 6.0, 4.0), corporate=-5.0),
+        ),
+    )
+    offset_series = compute_geographic_segment_series(offsetting)
+    _assert_series_matches(
+        offset_series,
+        _independent_from_snapshots(
+            [P1, P2],
+            {snap.period: snap for snap in offsetting.historical_segment.periods},
+        ),
+    )
+    assert offset_series.operating_profit_revenue_effect[P2]["americas"] == pytest.approx(-2.25)
+    assert offset_series.operating_profit_margin_effect[P2]["americas"] == pytest.approx(2.25)
+    assert offset_series.operating_profit_amount_change[P2]["americas"] == pytest.approx(0.0)
+
+    unchanged = _fin_with_segment(
+        _snapshot(
+            P1,
+            values=_corp_values(rev=(50.0, 30.0, 20.0), ifop=(10.0, 6.0, 4.0), corporate=-5.0),
+        ),
+        _snapshot(
+            P2,
+            values=_corp_values(rev=(50.0, 30.0, 20.0), ifop=(10.0, 6.0, 4.0), corporate=-5.0),
+        ),
+    )
+    unchanged_series = compute_geographic_segment_series(unchanged)
+    _assert_series_matches(
+        unchanged_series,
+        _independent_from_snapshots(
+            [P1, P2],
+            {snap.period: snap for snap in unchanged.historical_segment.periods},
+        ),
+    )
+    assert unchanged_series.operating_profit_revenue_effect[P2]["americas"] == pytest.approx(0.0)
+    assert unchanged_series.operating_profit_margin_effect[P2]["americas"] == pytest.approx(0.0)
+    assert unchanged_series.operating_profit_amount_change[P2]["americas"] == pytest.approx(0.0)
 
 
 def test_invalid_contracts_fail_closed_without_mutation():
@@ -1143,6 +1351,8 @@ def test_lululemon_five_period_json_reload_matches_independent_calculation():
     assert series.reconciling_operating_profit_amount_change[ADMIT_2022] is None
     assert series.consolidated_operating_profit_amount_change[ADMIT_2022] is None
     assert series.operating_profit_amount_change_residual[ADMIT_2022] is None
+    assert series.operating_profit_revenue_effect[ADMIT_2022]["americas"] is None
+    assert series.operating_profit_margin_effect[ADMIT_2022]["americas"] is None
     fy2024 = date(2024, 1, 28)
     fy2025 = date(2025, 2, 2)
     for current, prior in ((fy2024, date(2023, 1, 29)), (FY2026, fy2025)):

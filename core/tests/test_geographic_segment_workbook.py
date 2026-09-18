@@ -43,6 +43,8 @@ from core.engine.component_catalog import (
     resolve_geographic_operating_margin_mix_within_residual_formula,
     resolve_geographic_operating_margin_within_segment_effect_formula,
     resolve_geographic_operating_profit_amount_change_residual_formula,
+    resolve_geographic_operating_profit_margin_effect_formula,
+    resolve_geographic_operating_profit_revenue_effect_formula,
     resolve_geographic_reconciling_operating_margin_contribution_formula,
     resolve_geographic_reconciling_operating_profit_amount_change_formula,
     resolve_geographic_revenue_growth_contribution_formula,
@@ -109,12 +111,14 @@ GEOGRAPHIC_CONTRIBUTION_SPECS = 20
 GEOGRAPHIC_MARGIN_BRIDGE_SPECS = 54
 GEOGRAPHIC_MIX_WITHIN_SPECS = 28
 GEOGRAPHIC_AMOUNT_CHANGE_SPECS = 24
+GEOGRAPHIC_PROFIT_EFFECT_SPECS = 24
 GEOGRAPHIC_LULULEMON_SPECS = (
     GEOGRAPHIC_LULULEMON_SPECS_BASELINE
     + GEOGRAPHIC_CONTRIBUTION_SPECS
     + GEOGRAPHIC_MARGIN_BRIDGE_SPECS
     + GEOGRAPHIC_MIX_WITHIN_SPECS
     + GEOGRAPHIC_AMOUNT_CHANGE_SPECS
+    + GEOGRAPHIC_PROFIT_EFFECT_SPECS
 )
 LULULEMON_UNAVAILABLE_DISPLAYS = 101
 GEOGRAPHIC_A2 = (
@@ -130,17 +134,21 @@ GEOGRAPHIC_A2 = (
     "organic, constant-currency, or causal growth. Operating-margin "
     "contributions are a direct contribution bridge, distinct from the "
     "mix and within-segment decomposition, the monetary amount-change "
-    "bridge, normalization, or a causal explanation. Mix and within-"
+    "bridge, midpoint revenue and margin effects on operating-profit "
+    "change, normalization, or a causal explanation. Mix and within-"
     "segment effects use a symmetric midpoint convention and remain "
     "arithmetic only. Operating-profit amount changes are monetary "
-    "differences, distinct from the percentage-point margin bridges."
+    "differences, distinct from the percentage-point margin bridges. "
+    "Revenue and margin effects allocate each eligible segment "
+    "operating-profit amount change by a monetary midpoint convention."
 )
 GEOGRAPHIC_A4 = (
     "Calculated segment totals are distinct from any reported segment_total. "
     "Sparse unavailable amounts remain unavailable; opening growth, "
     "opening revenue-growth contributions, opening operating-margin "
     "contribution changes, opening mix and within-segment effects, "
-    "and opening operating-profit amount changes "
+    "opening operating-profit amount changes, and opening revenue "
+    "and margin effects on operating-profit change "
     "are not practiced. Signed residuals are not forced to zero."
 )
 
@@ -371,7 +379,7 @@ def _assert_visible_parity(
 def test_catalog_orders_and_expand_identities():
     assert GEOGRAPHIC_SHEET == GEOGRAPHIC_SHEET_NAME
     assert [family.order for family in GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG] == list(
-        range(152, 179)
+        range(152, 181)
     )
     assert [family.id for family in GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG] == [
         "geographic_revenue_share",
@@ -401,6 +409,8 @@ def test_catalog_orders_and_expand_identities():
         "geographic_reconciling_operating_profit_amount_change",
         "geographic_consolidated_operating_profit_amount_change",
         "geographic_operating_profit_amount_change_residual",
+        "geographic_operating_profit_revenue_effect",
+        "geographic_operating_profit_margin_effect",
     ]
     specs = expand_geographic_segment_specs(
         [P1, P2],
@@ -451,6 +461,12 @@ def test_catalog_orders_and_expand_identities():
         "geographic_operating_profit_amount_change", P2, "americas"
     ) in {s.id for s in specs}
     assert geographic_component_id(
+        "geographic_operating_profit_revenue_effect", P2, "americas"
+    ) in {s.id for s in specs}
+    assert geographic_component_id(
+        "geographic_operating_profit_margin_effect", P2, "americas"
+    ) in {s.id for s in specs}
+    assert geographic_component_id(
         "geographic_operating_margin_within_segment_effect", P2, "americas"
     ) in {s.id for s in specs}
     assert not any(
@@ -460,6 +476,11 @@ def test_catalog_orders_and_expand_identities():
     )
     assert not any(
         s.family_id == "geographic_operating_profit_amount_change"
+        and s.period_end == P1.isoformat()
+        for s in specs
+    )
+    assert not any(
+        s.family_id == "geographic_operating_profit_revenue_effect"
         and s.period_end == P1.isoformat()
         for s in specs
     )
@@ -636,6 +657,21 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
         and c.period_index == 1
         for c in geo_comps
     )
+    assert not any(
+        c.family_id == "geographic_operating_profit_revenue_effect"
+        and c.period_index == 0
+        for c in geo_comps
+    )
+    assert any(
+        c.family_id == "geographic_operating_profit_revenue_effect"
+        and c.period_index == 1
+        for c in geo_comps
+    )
+    assert any(
+        c.family_id == "geographic_operating_profit_margin_effect"
+        and c.period_index == 1
+        for c in geo_comps
+    )
 
     awb = load_workbook(answer, data_only=False)
     twb = load_workbook(trainer, data_only=False)
@@ -734,6 +770,15 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
     assert aws.cell(dpc_row, 2).value == "N/A"
     dpr_row = _row_by_label(aws, "Operating-profit amount-change residual")
     assert aws.cell(dpr_row, 2).value == "N/A"
+    rev_eff_row = _row_by_label(aws, "Americas revenue effect on operating-profit change")
+    assert aws.cell(rev_eff_row, 2).value == "N/A"
+    assert tws.cell(rev_eff_row, 2).value == "N/A"
+    assert str(aws.cell(rev_eff_row, 3).value).startswith("=")
+    assert "100*" not in str(aws.cell(rev_eff_row, 3).value).replace(" ", "")
+    mgn_eff_row = _row_by_label(aws, "Americas margin effect on operating-profit change")
+    assert aws.cell(mgn_eff_row, 2).value == "N/A"
+    assert str(aws.cell(mgn_eff_row, 3).value).startswith("=")
+    assert "100*" not in str(aws.cell(mgn_eff_row, 3).value).replace(" ", "")
     mix_note = (
         (aws.cell(mix_row, 3).comment.text or "")
         if aws.cell(mix_row, 3).comment
@@ -792,6 +837,33 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
     assert "normalization" in lowered_dpr
     assert "organic" in lowered_dpr
     assert "causal" in lowered_dpr or "causality" in lowered_dpr
+    rev_eff_note = (
+        (aws.cell(rev_eff_row, 3).comment.text or "")
+        if aws.cell(rev_eff_row, 3).comment
+        else ""
+    )
+    lowered_rev_eff = rev_eff_note.lower()
+    assert "midpoint" in lowered_rev_eff
+    assert "monetary" in lowered_rev_eff
+    assert "amount change" in lowered_rev_eff
+    assert "nopat" in lowered_rev_eff
+    assert "volume" in lowered_rev_eff
+    assert "price" in lowered_rev_eff
+    assert "organic" in lowered_rev_eff
+    assert "causal" in lowered_rev_eff or "causality" in lowered_rev_eff
+    assert "normalization" in lowered_rev_eff
+    mgn_eff_note = (
+        (aws.cell(mgn_eff_row, 3).comment.text or "")
+        if aws.cell(mgn_eff_row, 3).comment
+        else ""
+    )
+    lowered_mgn_eff = mgn_eff_note.lower()
+    assert "midpoint" in lowered_mgn_eff
+    assert "monetary" in lowered_mgn_eff
+    assert "amount change" in lowered_mgn_eff
+    assert "nopat" in lowered_mgn_eff
+    assert "volume" in lowered_mgn_eff
+    assert "organic" in lowered_mgn_eff
     cs_note = (
         (aws.cell(cs_row, 2).comment.text or "")
         if aws.cell(cs_row, 2).comment
@@ -922,6 +994,9 @@ def test_sparse_undefined_negative_reorder_and_source_edit(tmp_path):
     assert series.operating_profit_amount_change[P0]["americas"] is None
     assert series.operating_profit_amount_change[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.operating_profit_amount_change_residual[P1] == SOURCE_UNAVAILABLE
+    assert series.operating_profit_revenue_effect[P0]["americas"] is None
+    assert series.operating_profit_revenue_effect[P1]["americas"] == SOURCE_UNAVAILABLE
+    assert series.operating_profit_margin_effect[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.revenue_growth[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.revenue_growth_contribution[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.reported_operating_margin[P1]["americas"] == UNDEFINED_RATIO
@@ -955,6 +1030,11 @@ def test_sparse_undefined_negative_reorder_and_source_edit(tmp_path):
     )
     assert not any(
         s.family_id == "geographic_operating_profit_amount_change"
+        and s.period_end == P1.isoformat()
+        for s in builder.geographic_specs
+    )
+    assert not any(
+        s.family_id == "geographic_operating_profit_revenue_effect"
         and s.period_end == P1.isoformat()
         for s in builder.geographic_specs
     )
@@ -1632,6 +1712,83 @@ def test_margin_bridge_formulas_follow_relocated_sources(tmp_path, monkeypatch):
             from_tab=GEOGRAPHIC_SHEET,
         ).replace(" ", "")
     )
+    rev_eff = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_operating_profit_revenue_effect"
+        and geographic_spec_identity(c) == "americas"
+        and c.period_index == 1
+    )
+    current_margin = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_reported_operating_margin"
+        and geographic_spec_identity(c) == "americas"
+        and c.period_index == 1
+    )
+    prior_margin = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_reported_operating_margin"
+        and geographic_spec_identity(c) == "americas"
+        and c.period_index == 0
+    )
+    assert rev_eff.formula.replace(" ", "") == (
+        resolve_geographic_operating_profit_revenue_effect_formula(
+            _ref(MOVED_GEO_REVENUE_SOURCE_PLACEMENT[("americas", 1)], "rev_curr"),
+            _ref(MOVED_GEO_REVENUE_SOURCE_PLACEMENT[("americas", 0)], "rev_prior"),
+            SemanticCellRef(
+                current_margin.id,
+                current_margin.semantic_key,
+                current_margin.period_end,
+                current_margin.cell,
+                current_margin.tab,
+            ),
+            SemanticCellRef(
+                prior_margin.id,
+                prior_margin.semantic_key,
+                prior_margin.period_end,
+                prior_margin.cell,
+                prior_margin.tab,
+            ),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    default_rev_row = _row_by_label(aws, "Americas net revenue")
+    adjacent_rev = (
+        f"{get_column_letter(parse_cell_ref(rev_eff.cell)[1])}{default_rev_row}"
+    )
+    assert adjacent_rev not in rev_eff.formula.replace(" ", "")
+    mgn_eff = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_operating_profit_margin_effect"
+        and geographic_spec_identity(c) == "americas"
+        and c.period_index == 1
+    )
+    assert mgn_eff.formula.replace(" ", "") == (
+        resolve_geographic_operating_profit_margin_effect_formula(
+            _ref(MOVED_GEO_REVENUE_SOURCE_PLACEMENT[("americas", 1)], "rev_curr"),
+            _ref(MOVED_GEO_REVENUE_SOURCE_PLACEMENT[("americas", 0)], "rev_prior"),
+            SemanticCellRef(
+                current_margin.id,
+                current_margin.semantic_key,
+                current_margin.period_end,
+                current_margin.cell,
+                current_margin.tab,
+            ),
+            SemanticCellRef(
+                prior_margin.id,
+                prior_margin.semantic_key,
+                prior_margin.period_end,
+                prior_margin.cell,
+                prior_margin.tab,
+            ),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    assert "100*" not in rev_eff.formula.replace(" ", "")
+    assert "100*" not in mgn_eff.formula.replace(" ", "")
     awb = load_workbook(answer, data_only=False)
     row, col = MOVED_GEO_IFOP_SOURCE_PLACEMENT[("americas", 0)][:2]
     assert awb[GEOGRAPHIC_SHEET].cell(row, col).value not in (None, "")
@@ -1913,6 +2070,16 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
         }
     ]
     assert len(amount_change_n) == GEOGRAPHIC_AMOUNT_CHANGE_SPECS
+    profit_effect_n = [
+        c
+        for c in geo_comps
+        if c.family_id
+        in {
+            "geographic_operating_profit_revenue_effect",
+            "geographic_operating_profit_margin_effect",
+        }
+    ]
+    assert len(profit_effect_n) == GEOGRAPHIC_PROFIT_EFFECT_SPECS
     fy2026_cs = next(
         c
         for c in geo_comps
@@ -2021,6 +2188,8 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
             "geographic_reconciling_operating_profit_amount_change",
             "geographic_consolidated_operating_profit_amount_change",
             "geographic_operating_profit_amount_change_residual",
+            "geographic_operating_profit_revenue_effect",
+            "geographic_operating_profit_margin_effect",
         }
         and c.period_end == opening.isoformat()
         for c in geo_comps
@@ -2381,6 +2550,130 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
             from_tab=GEOGRAPHIC_SHEET,
         ).replace(" ", "")
     )
+    fy2026_rev_eff = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_operating_profit_revenue_effect"
+        and c.period_end == FY2026.isoformat()
+        and geographic_spec_identity(c) == "americas"
+    )
+    fy2026_mgn_eff = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_operating_profit_margin_effect"
+        and c.period_end == FY2026.isoformat()
+        and geographic_spec_identity(c) == "americas"
+    )
+    fy2026_v = float(snapshots[FY2026].values["net_revenue.americas"])
+    prior_v = float(prior_fy2026_snap.values["net_revenue.americas"])
+    fy2026_p = float(snapshots[FY2026].values["income_from_operations.americas"])
+    prior_p = float(prior_fy2026_snap.values["income_from_operations.americas"])
+    fy2026_m_amer = fy2026_p / fy2026_v
+    prior_m_amer = prior_p / prior_v
+    independent_rev_eff = (fy2026_v - prior_v) * (fy2026_m_amer + prior_m_amer) / 2.0
+    independent_mgn_eff = (fy2026_m_amer - prior_m_amer) * (fy2026_v + prior_v) / 2.0
+    assert fy2026_rev_eff.expected_value == pytest.approx(independent_rev_eff)
+    assert fy2026_mgn_eff.expected_value == pytest.approx(independent_mgn_eff)
+    assert float(fy2026_rev_eff.expected_value) + float(
+        fy2026_mgn_eff.expected_value
+    ) == pytest.approx(float(fy2026_dp.expected_value))
+    americas_rev = _row_by_label(aws, "Americas net revenue")
+    americas_margin = _row_by_label(aws, "Americas reported operating margin")
+    assert fy2026_rev_eff.formula.replace(" ", "") == (
+        resolve_geographic_operating_profit_revenue_effect_formula(
+            SemanticCellRef(
+                "rev", "k", FY2026.isoformat(),
+                f"{fy2026_col_letter}{americas_rev}",
+                GEOGRAPHIC_SHEET,
+            ),
+            SemanticCellRef(
+                "rev_p", "k", prior_fy2026.isoformat(),
+                f"{prior_col_letter}{americas_rev}",
+                GEOGRAPHIC_SHEET,
+            ),
+            SemanticCellRef(
+                "m", "k", FY2026.isoformat(),
+                f"{fy2026_col_letter}{americas_margin}",
+                GEOGRAPHIC_SHEET,
+            ),
+            SemanticCellRef(
+                "m_p", "k", prior_fy2026.isoformat(),
+                f"{prior_col_letter}{americas_margin}",
+                GEOGRAPHIC_SHEET,
+            ),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    assert fy2026_mgn_eff.formula.replace(" ", "") == (
+        resolve_geographic_operating_profit_margin_effect_formula(
+            SemanticCellRef(
+                "rev", "k", FY2026.isoformat(),
+                f"{fy2026_col_letter}{americas_rev}",
+                GEOGRAPHIC_SHEET,
+            ),
+            SemanticCellRef(
+                "rev_p", "k", prior_fy2026.isoformat(),
+                f"{prior_col_letter}{americas_rev}",
+                GEOGRAPHIC_SHEET,
+            ),
+            SemanticCellRef(
+                "m", "k", FY2026.isoformat(),
+                f"{fy2026_col_letter}{americas_margin}",
+                GEOGRAPHIC_SHEET,
+            ),
+            SemanticCellRef(
+                "m_p", "k", prior_fy2026.isoformat(),
+                f"{prior_col_letter}{americas_margin}",
+                GEOGRAPHIC_SHEET,
+            ),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    assert "100*" not in fy2026_rev_eff.formula.replace(" ", "")
+    max_effect_error = 0.0
+    for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+        for current, prior in (
+            (date(2023, 1, 29), date(2022, 1, 30)),
+            (date(2024, 1, 28), date(2023, 1, 29)),
+            (date(2025, 2, 2), date(2024, 1, 28)),
+            (FY2026, prior_fy2026),
+        ):
+            curr_snap = snapshots[current]
+            prior_snap = snapshots[prior]
+            v_t = float(curr_snap.values[f"net_revenue.{identity}"])
+            v_p = float(prior_snap.values[f"net_revenue.{identity}"])
+            p_t = float(curr_snap.values[f"income_from_operations.{identity}"])
+            p_p = float(prior_snap.values[f"income_from_operations.{identity}"])
+            m_t = p_t / v_t
+            m_p = p_p / v_p
+            expected_rev = (v_t - v_p) * (m_t + m_p) / 2.0
+            expected_mgn = (m_t - m_p) * (v_t + v_p) / 2.0
+            expected_dp = p_t - p_p
+            rev_comp = next(
+                c
+                for c in geo_comps
+                if c.family_id == "geographic_operating_profit_revenue_effect"
+                and c.period_end == current.isoformat()
+                and geographic_spec_identity(c) == identity
+            )
+            mgn_comp = next(
+                c
+                for c in geo_comps
+                if c.family_id == "geographic_operating_profit_margin_effect"
+                and c.period_end == current.isoformat()
+                and geographic_spec_identity(c) == identity
+            )
+            max_effect_error = max(
+                max_effect_error,
+                abs(float(rev_comp.expected_value) - expected_rev),
+                abs(float(mgn_comp.expected_value) - expected_mgn),
+                abs(
+                    float(rev_comp.expected_value)
+                    + float(mgn_comp.expected_value)
+                    - expected_dp
+                ),
+            )
+    assert max_effect_error <= max(GEOGRAPHIC_RATIO_TOLERANCE, 1e-6)
     cons_growth_comp = next(
         c
         for c in geo_comps
@@ -2532,6 +2825,8 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
             "geographic_reconciling_operating_profit_amount_change",
             "geographic_consolidated_operating_profit_amount_change",
             "geographic_operating_profit_amount_change_residual",
+            "geographic_operating_profit_revenue_effect",
+            "geographic_operating_profit_margin_effect",
         }:
             assert trainer_cell.comment is None
             assert answer_cell.comment is not None

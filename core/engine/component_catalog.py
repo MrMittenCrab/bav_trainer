@@ -5089,6 +5089,72 @@ GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         ),
         tolerance=0.0,
     ),
+    ComponentFamily(
+        id="geographic_operating_profit_revenue_effect",
+        order=179,
+        title="Geographic revenue effect on operating-profit change",
+        short_hint=(
+            "Revenue effect in monetary units = (current segment net revenue − "
+            "prior revenue) × (current reported operating margin + prior "
+            "margin) / 2, using decimal margins with no percentage-point "
+            "multiplier. Symmetric midpoint allocation of the adjacent "
+            "operating-profit amount change. Revenue effect plus margin "
+            "effect equals the existing segment operating-profit amount "
+            "change when both ratios are defined. Opening effect is absent. "
+            "A missing adjacent snapshot is unavailable. Zero current or "
+            "prior segment revenue is undefined (#N/A) for that segment’s "
+            "effects; existing amount changes remain available. Not volume, "
+            "price, organic growth, causality, normalization, or BAV NOPAT."
+        ),
+        semantic_key="geographic.operating_profit_revenue_effect",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(
+            "geographic_reported_operating_margin",
+            "geographic_operating_profit_amount_change",
+        ),
+        depends_on_previous=("geographic_reported_operating_margin",),
+        hints=(
+            "Revenue effect uses the midpoint of current and prior decimal reported operating margins.",
+            "Revenue effect plus margin effect equals the segment operating-profit amount change.",
+            "Not volume, price, organic growth, causality, normalization, or BAV NOPAT.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_operating_profit_margin_effect",
+        order=180,
+        title="Geographic margin effect on operating-profit change",
+        short_hint=(
+            "Margin effect in monetary units = (current reported operating "
+            "margin − prior margin) × (current segment net revenue + prior "
+            "revenue) / 2, using decimal margins with no percentage-point "
+            "multiplier. Symmetric midpoint allocation of the adjacent "
+            "operating-profit amount change. Revenue effect plus margin "
+            "effect equals the existing segment operating-profit amount "
+            "change when both ratios are defined. Opening effect is absent. "
+            "A missing adjacent snapshot is unavailable. Zero current or "
+            "prior segment revenue is undefined (#N/A) for that segment’s "
+            "effects; existing amount changes remain available. Not volume, "
+            "price, organic growth, causality, normalization, or BAV NOPAT."
+        ),
+        semantic_key="geographic.operating_profit_margin_effect",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(
+            "geographic_reported_operating_margin",
+            "geographic_operating_profit_amount_change",
+        ),
+        depends_on_previous=("geographic_reported_operating_margin",),
+        hints=(
+            "Margin effect uses the midpoint of current and prior segment net revenue.",
+            "Revenue effect plus margin effect equals the segment operating-profit amount change.",
+            "Not volume, price, organic growth, causality, normalization, or BAV NOPAT.",
+        ),
+        tolerance=1e-12,
+    ),
 )
 
 
@@ -5197,6 +5263,8 @@ def expand_geographic_segment_specs(
     profit_amount_change_residual = families[
         "geographic_operating_profit_amount_change_residual"
     ]
+    profit_revenue_effect = families["geographic_operating_profit_revenue_effect"]
+    profit_margin_effect = families["geographic_operating_profit_margin_effect"]
     contribution_ids = contribution_identities or {}
     cons_growth_periods = set(consolidated_growth_periods or ())
     margin_change_set = set(margin_change_periods or ())
@@ -5498,6 +5566,27 @@ def expand_geographic_segment_specs(
             ),
             title="Operating-profit amount-change residual",
         )
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            label = geographic_identity_label(identity)
+            effect_deps = (
+                geographic_component_id(margin.id, period, identity),
+                geographic_component_id(margin.id, prior, identity),
+                geographic_component_id(profit_amount_change.id, period, identity),
+            )
+            _append(
+                profit_revenue_effect,
+                period,
+                identity=identity,
+                depends_on=effect_deps,
+                title=f"{label} revenue effect on operating-profit change",
+            )
+            _append(
+                profit_margin_effect,
+                period,
+                identity=identity,
+                depends_on=effect_deps,
+                title=f"{label} margin effect on operating-profit change",
+            )
     return tuple(specs)
 
 
@@ -6060,6 +6149,38 @@ def resolve_geographic_operating_margin_mix_within_residual_formula(
         + "".join(f"-{cell}" for cell in within_cells)
         + f"-{reconciling_cell}"
     )
+
+
+def resolve_geographic_operating_profit_revenue_effect_formula(
+    current_revenue: SemanticCellRef,
+    prior_revenue: SemanticCellRef,
+    current_margin: SemanticCellRef,
+    prior_margin: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Monetary revenue effect from mapped current/prior revenue and margin."""
+    v_current = semantic_formula_cell(current_revenue, from_tab=from_tab)
+    v_prior = semantic_formula_cell(prior_revenue, from_tab=from_tab)
+    m_current = semantic_formula_cell(current_margin, from_tab=from_tab)
+    m_prior = semantic_formula_cell(prior_margin, from_tab=from_tab)
+    return f"=({v_current}-{v_prior})*({m_current}+{m_prior})/2"
+
+
+def resolve_geographic_operating_profit_margin_effect_formula(
+    current_revenue: SemanticCellRef,
+    prior_revenue: SemanticCellRef,
+    current_margin: SemanticCellRef,
+    prior_margin: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Monetary margin effect from mapped current/prior revenue and margin."""
+    v_current = semantic_formula_cell(current_revenue, from_tab=from_tab)
+    v_prior = semantic_formula_cell(prior_revenue, from_tab=from_tab)
+    m_current = semantic_formula_cell(current_margin, from_tab=from_tab)
+    m_prior = semantic_formula_cell(prior_margin, from_tab=from_tab)
+    return f"=({m_current}-{m_prior})*({v_current}+{v_prior})/2"
 
 
 def resolve_geographic_reconciling_operating_profit_amount_change_formula(

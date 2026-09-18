@@ -290,6 +290,8 @@ _GEOGRAPHIC_FAMILY_SERIES = (
     "geographic_reconciling_operating_profit_amount_change",
     "geographic_consolidated_operating_profit_amount_change",
     "geographic_operating_profit_amount_change_residual",
+    "geographic_operating_profit_revenue_effect",
+    "geographic_operating_profit_margin_effect",
 )
 _OPERATING_KPI_FAMILY_SERIES = (
     "store_count_net_change",
@@ -1122,6 +1124,10 @@ def geographic_expected_value_for_component(
         return geographic.consolidated_operating_profit_amount_change[period]
     if family_id == "geographic_operating_profit_amount_change_residual":
         return geographic.operating_profit_amount_change_residual[period]
+    if family_id == "geographic_operating_profit_revenue_effect":
+        return geographic.operating_profit_revenue_effect[period][identity]
+    if family_id == "geographic_operating_profit_margin_effect":
+        return geographic.operating_profit_margin_effect[period][identity]
     raise ValueError(f"Unknown geographic family {family_id!r}")
 
 
