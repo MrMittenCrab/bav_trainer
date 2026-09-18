@@ -857,3 +857,140 @@ Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Complet
 
 Working-tree HEAD is `7fc46f315e6ce05c57557ba18ed29b601643f738`. `.git/autocycle/latest-implementation` was not rewritten.
 
+---
+
+# RESULT.md — Step 9M.2.4.1.1.1.64 Operating KPIs: comparable-sales and SPSF spreadsheet verification
+
+**Status:** COMPLETE (this work child; parents remain UNRESOLVED)  
+**Step:** 9M.2.4.1.1.1.64 — Operating KPIs — Comparable-sales and SPSF spreadsheet verification  
+**Work:** `8710acb0f36d43d5a04a14c1d26d8630`  
+**Plan:** `d49f97d0f4724b93a0f808c1d8349392`  
+**Finding:** `operating-kpi-comparable-sales-spsf-spreadsheet-verification`  
+**Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
+Accepted store/revenue spreadsheet work `15b9c21afd82464d81fd33d8ae418764` remains complete and is not reopened.  
+Instruction `20260916-075534-000000006` is retained extraction/source-binding evidence (eight extracted JSON blob SHA-1 values unchanged vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151`). Recovery was not re-executed.  
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start). TARGET SHA-256 `ab70dd8859ba352a2387b95c55477cbc31944288c60478023d5937cf0662e91c` (23864). IMPLEMENTATION SHA-256 `4060320b82692644d4748743b63360e9bda553c1aeec1d5287c832d56b90b00d` (9760).  
+No commit / push / sync / checkpoint / branch change. No production-code repair, release rewrite, forecasting, or valuation.  
+This child does **not** declare parent, Geographic Analysis product, Operating KPIs product, or Step 9 acceptance.
+
+No interrupted production-tree edits were present. Temporary verification artifacts live only under `/tmp/bav_kpi_excel_verify_9M2411164/`. Edited this child: `RESULT.md` only.
+
+## Required plan change
+
+No required plan change.
+
+## Task 1 — Evidence boundaries and one test-augmented pair
+
+Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. Mixed reconciliations used temporary copies only. Committed extracted JSON, PDFs, reconciled artifacts, releases, and examples were not rewritten. `SEGMENT_BRIDGE_TOLERANCE = 0.0`.
+
+Unaugmented mixed vs annual-only path (reproduce `test_supplied_deferred_documents_do_not_activate_schedule`): both `historical_operating_kpis` are `None`; mixed/annual standardized, statement-provenance, and conflict payloads match; extracted bytes unchanged. Management admission remains closed:
+
+| Quantity | Measured |
+|---|---|
+| Reported observations | **135** (`29/36/37/33`) |
+| Definitions | **9** |
+| Market-table observations | **107** |
+| Excluded targets | **3** |
+| Comparability `comparable/not_comparable/unresolved/outside_scope` | **0/22/6/107** |
+| Pairs / incompatible / singletons | **24 / 24 / 6** |
+| Selections | **0** |
+| Revision links | **[]** |
+
+Missing real-source comparable-sales/SPSF evidence: unaugmented supplied management documents admit zero selections, so those schedules stay closed. Deferred observations were not promoted.
+
+Explicit temporary test augmentation of copies of the four management extracts (`_write_selected_global_compsales` / `_write_selected_spsf`) is **synthetic**. Selected right-hand values `2/7` (compsales, FY2023/FY2024) and `1410/1430` (SPSF) with definition/week/reporting-basis and attached revision/audited-evidence relationships are test-helper inputs, not supplied filing evidence. Temporary leaf diffs vs unaugmented copies: FY2022 **23**, FY2023 **14**, FY2024 **10**, FY2025 **14**. Committed extracts unchanged.
+
+Validate → `reconcile_filings(..., admit_periods=(2022-01-30,))` → `standardize_reconciled` → JSON export/reload → ordinary `build_training_workbook` on that synthetic pair. Store-count schedule remains inactive (`operating_kpi_applicable` is False). Geographic sources **56**. Check components **760** (`486 + 264 + 4 + 2 + 1 + 3`). Ten practices above the 750-component baseline: four revenue-growth, two revenue/comparable-sales differences, one comparable-sales change, three SPSF. Sources: two comparable-sales, two SPSF, five populated revenues.
+
+Exactly one matching pair was generated in temporary storage. Inspect copies were never opened by Excel; inspect hashes remained unchanged after recalculation of internal copies.
+
+| Copy | Path | SHA-256 | Bytes |
+|---|---|---|---:|
+| Pristine / inspect Trainer | `/tmp/bav_kpi_excel_verify_9M2411164/{pristine,inspect}/COMP_SELECTED_Trainer.xlsx` | `33d26746ea4d44bb72f89c7ac633c604adba14d922ee26abc80818999b39b34c` | 45422 |
+| Pristine / inspect Answer Key | `/tmp/bav_kpi_excel_verify_9M2411164/{pristine,inspect}/COMP_SELECTED_Answer_Key.xlsx` | `a3d12e7c8d1753c02b2dab47b04c04c6e18b4d64fa8ae223e9ab7619721c101e` | 196820 |
+
+Microsoft Excel **16.113** (`/Applications/Microsoft Excel.app/Contents/MacOS/Microsoft Excel`). Working command: `osascript` `tell application "Microsoft Excel"` → `open POSIX file` → `calculate` → `calculate full` → `save` named temp workbook → `close` named temp workbook `saving no`. No Excel workbooks were open at start or end. Disk SHA-256 of `build/output/Lululemon_Live_Answer_Key.xlsx` remained `58ac9054d87ff8f71f70e6cda8be759fef6a6a4373d28edf5aa964f56263b89a` (214508) before and after every session. Temp workbooks were addressed by filename.
+
+Internal Answer Key recalculation (exit **0**, `calculate full=ok`, 5.56s):
+
+| | SHA-256 |
+|---|---|
+| Before | `a3d12e7c8d1753c02b2dab47b04c04c6e18b4d64fa8ae223e9ab7619721c101e` |
+| After | `9d061e91867e49d9eaa763547629996bacc74e3dcca7bce8854b84ffdd7ebc71` |
+
+`data_only=True` reopen of the recalculated Answer Key yielded numeric caches. Inspect and recalculated Answer Key still retain all **10** new-family formulas and populated sources `7` / `1430`. Management-history nondisclosure held after Trainer reserialize.
+
+## Task 2 — Arithmetic, presentation, Check
+
+Independent expectations from augmented input records `compsales 2/7`, `SPSF 1410/1430`, and accepted unrounded revenues `6256617 / 8110518 / 9619278 / 10588126 / 11102600`. Not from model `expected_value` or workbook formulas. Opening FY2022 growth remains unavailable. Percent-versus-fraction scaling: comparable-sales inputs are percent (`2` means 2%); revenue and SPSF growth are fractions. Compared **10**, none-caches **0**, mismatches **0**. Maximum absolute error **0.0** in every family. Differences are analyst-derived percentage-point gaps, not store productivity or causal attribution.
+
+| Family / period | Independent | Excel cache | Abs error |
+|---|---:|---:|---:|
+| Revenue growth FY2023 | `0.29631045020016406` | same | `0.0` |
+| Revenue growth FY2024 | `0.18602510961691965` | same | `0.0` |
+| Revenue growth FY2025 | `0.10071940950245954` | same | `0.0` |
+| Revenue growth FY2026 | `0.04858971266492295` | same | `0.0` |
+| Compsales inputs FY2023/FY2024 | `2 / 7` | populated sources | — |
+| Compsales change FY2024 | `5` (`7−2`) | same | `0.0` |
+| Difference FY2023 `100×g−2` | `27.631045020016405` | same | `0.0` |
+| Difference FY2024 `100×g−7` | `11.602510961691966` | same | `0.0` |
+| SPSF inputs FY2023/FY2024 | `1410 / 1430` | populated sources | — |
+| SPSF change FY2024 | `20` | same | `0.0` |
+| SPSF growth FY2024 | `0.014184397163120567` (`20/1410`) | same | `0.0` |
+| SPSF difference FY2024 `100×(g−spsf growth)` | `17.184071245379908` | same | `0.0` |
+| Opening FY2022 growth/difference | `None` | not practiced | — |
+
+Workbook-wide Check on internal Trainer copies after Excel recalculation:
+
+| State | total / blank / correct / incorrect |
+|---|---|
+| Blank, Excel-recalculated | **760 / 760 / 0 / 0** |
+| Formulas from semantic map, Excel-recalculated | **760 / 0 / 760 / 0** |
+| One new-family SPSF-growth formula set to `=999`, Excel-recalculated (cache **999**) | **760 / 0 / 759 / 1** |
+
+Check `repr` did not contain `=999`, `NOPAT`, or `=100*`. Source tamper of `Comparable Sales Analysis!D28` raised `Trusted workbook cell was modified` (authentication rejection). A legitimate learner formula edit `=1+1` (Excel cache **2**) yielded **759/1** without that authentication error.
+
+Presentation on inspect copies: Trainer **10** new-family practice cells blank bright yellow without answers/Notes; Answer Key **10** formulas with concise Notes and no yellow; visible structure/style contract held (Aptos Narrow 11, non-bold black, ordinary white, no decorative borders/fills). Nine populated sources remain populated. Scope notes retain distinct population/definition/calendar comparability and noncausal wording. Geographic baseline **750** is preserved inside the **760**-component Check surface. This pair's unavailable displays measured **199**; retained ordinary store-fixture **101** is not this pair's count.
+
+Synthetic (labelled separately):
+
+- Relocated chain: compsales change `='Income Statement'!G52-'Income Statement'!D44`; SPSF change `='Income Statement'!G54-'Income Statement'!D46`; SPSF growth `=IF('Income Statement'!D46=0,NA(),('Income Statement'!G54-'Income Statement'!D46)/'Income Statement'!D46)` (cross-sheet + nonadjacent; default adjacent ref absent). Excel caches **5 / 20 / 0.014184397163120567** match independent **5 / 20 / 20/1410**. Filled relocated Check **77/77**.
+- Zero prior SPSF and revenue: series and Excel caches SPSF-growth / revenue-growth `#N/A`; formulas `=IF(B28=0,NA(),(C28-B28)/B28)` and `=IF(B9=0,NA(),(C9-B9)/B9)`; workbook XML contains `#N/A`.
+- Sparse/incompatible gates retained without Excel: missing adjacent compsales remains `SOURCE_UNAVAILABLE` without compression; definition mismatch blocks adjacent change.
+
+## Task 3 — Coverage, artifacts, remaining acceptance
+
+| Command | Exit | Result |
+|---|---:|---|
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python /tmp/bav_kpi_excel_verify_9M2411164/verify_compsales_excel.py` | 0 through Excel Check; sparse-gate assertion later corrected | Excel 16.113 open/calculate/save/close on temporary pair; 10/10 new-family caches match; Check 760 blank / 760 correct / 759+1 incorrect; live workbook undisturbed |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python /tmp/bav_kpi_excel_verify_9M2411164/finish_remaining.py` | 0 | Relocated caches reused from existing Excel artifacts; sparse/incompatible gates; protected/extract hashes; required tests |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_operating_kpi_workbook.py core/tests/test_operating_kpi_relationships.py core/tests/test_operating_kpi_analysis.py core/tests/test_operating_kpi_facts.py core/tests/test_operating_kpi_management_history.py core/tests/test_management_kpi_analysis.py core/tests/test_management_kpi_history.py core/tests/test_management_kpi_admission.py core/tests/test_build_contract.py core/tests/test_build_cli.py core/tests/test_trainer.py::test_check_scans_all_practice_cells_and_colors_three_states core/tests/test_trainer.py::test_cli_check_output_does_not_disclose_answers core/tests/test_reference_integrity.py::test_historical_expected_covers_catalog_and_matches_reference_components core/tests/test_learner_ready_presentation.py::test_root_readme_is_practical_trainer_guide -q --tb=line` | 0 | **1419 passed** in **40.21s** |
+| Protected artifacts vs checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` | 0 | **50/50 MATCH** |
+| Eight extracted JSON vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` path blobs | 0 | eight files **UNCHANGED** (4 annual + 4 management-KPI) |
+
+Complete `core/tests` **3240 passed / 0 failed** remains **historical** from `.61` and was not rerun this child. Geographic Excel **264/750** remains **historical** from `.62`. Store/revenue Excel **16/766** remains **historical** from `.63`.
+
+Inspectable engine evidence: `/tmp/bav_kpi_excel_verify_9M2411164/evidence.json` plus workbook copies under `pristine/`, `inspect/`, `verify/`, and `synthetic/`. No prospective IDs reserved. Real-source comparable-sales/SPSF acceptance remains unresolved.
+
+---
+
+## Fresh vs retained evidence
+
+| Kind | This child |
+|---|---|
+| Fresh | Actual Excel 16.113 open/calculate/save/close on one temporary explicitly test-augmented compsales/SPSF pair; 10 new-family Excel caches vs independent augmented inputs and unrounded revenues, max abs error **0.0**; Check 760 blank / 760 correct / 759+1 incorrect after Excel; source-authentication vs learner-formula distinction; formula retention on inspect and recalculated Answer Key; unaugmented admission **0** selections; operating-KPI + management admission/history + affected Check/build suite **1419 passed**; checkpoints **50/50 MATCH**; eight extractions unchanged vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` |
+| Synthetic, labelled separately | Test-augmented selected compsales `2/7` and SPSF `1410/1430` with helper revision/evidence attachments; relocated cross-sheet/nonadjacent caches **5 / 20 / 20/1410**; zero-prior Excel `#N/A`; filled relocated Check **77/77** |
+| Retained via required suite, not independently re-counted | Store/mixed/compsales totals `766/768/760`; Fast Retailing **577**; stores `574/655/711/767/811`; geo **56/264**; preserved **486**; ordinary-fixture unavailable **101**; segment-margin formulas **15** |
+| Historical, not rerun | Complete `core/tests` **3240 passed** from `.61`; geographic Excel 264-practice verification from `.62`; store/revenue Excel 16-practice verification from `.63` |
+| Not claimed | Parent or Step 9 completion; real-source compsales/SPSF acceptance; G6–G9 remainder; admitted nonzero geographic `D` or amount-change residual |
+
+---
+
+## Remaining scope
+
+This child verifies comparable-sales and SPSF spreadsheet behavior on one explicitly test-augmented temporary pair. Unaugmented source admission remains closed. Broader parent acceptance remains unresolved.
+
+Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Completed admission, `.37` through `.63` are not reopened. Frozen requests `20260914-193338-000000004` and `20260915-042248-000000005` remain unfinished beyond this increment. No prospective IDs reserved.
+
+Working-tree HEAD is `122c025fb3d49d65471803eb66e39ec922f3013b`. `.git/autocycle/latest-implementation` was not rewritten.
+
