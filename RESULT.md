@@ -721,3 +721,139 @@ Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Complet
 
 Working-tree HEAD is `5ed036ae95e3abf4bb7844d33dbc3ee4cb23e61c`. `.git/autocycle/latest-implementation` was not rewritten.
 
+---
+
+# RESULT.md — Step 9M.2.4.1.1.1.63 Operating KPIs: store-count and revenue spreadsheet verification
+
+**Status:** COMPLETE (this work child; parents remain UNRESOLVED)  
+**Step:** 9M.2.4.1.1.1.63 — Operating KPIs — Store-count and revenue spreadsheet verification  
+**Work:** `15b9c21afd82464d81fd33d8ae418764`  
+**Plan:** `f52ea10ef3c94f59b38d31090dfb6bb8`  
+**Finding:** `operating-kpi-store-revenue-spreadsheet-acceptance`  
+**Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
+Accepted geographic spreadsheet work `473bb39bc59a48cc973fd616064d012a` remains complete and is not reopened.  
+Instruction `20260916-075534-000000006` is retained extraction/source-binding evidence (eight extracted JSON blob SHA-1 values unchanged vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151`). Recovery was not re-executed.  
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start). TARGET SHA-256 `ab70dd8859ba352a2387b95c55477cbc31944288c60478023d5937cf0662e91c` (23864). IMPLEMENTATION SHA-256 `6493db74a45b46f16a441ee7ccd1c14f3d41849f957802bbdf77ed49b1dbb4c9` (9868).  
+No commit / push / sync / checkpoint / branch change. No production-code repair, release rewrite, forecasting, or valuation.  
+This child does **not** declare parent, Geographic Analysis product, Operating KPIs product, or Step 9 acceptance.
+
+No interrupted production-tree edits were present. Temporary verification artifacts live only under `/tmp/bav_kpi_excel_verify_9M2411163/`. Edited this child: `RESULT.md` only.
+
+## Required plan change
+
+No required plan change.
+
+## Task 1 — Ordinary pair and Excel engine
+
+Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. Mixed reconciliations used temporary copies only. Committed extracted JSON, PDFs, reconciled artifacts, releases, and examples were not rewritten.
+
+Fixture augmentation was explicit and temporary: `scripts/prepare_lululemon_operating_kpi_filings.py` copied the four annual extracts into `/tmp/bav_kpi_excel_verify_9M2411163/prep/augmented/` and appended committed `core/tests/fixtures/operating_kpis/lululemon_company_operated_stores.json`. No observations were manufactured. Deferred management evidence was not promoted.
+
+Supplied-filing path: validate four augmented Lululemon annual extracts → `reconcile_filings(..., admit_periods=(2022-01-30,))` → `standardize_reconciled` → JSON export/reload → ordinary `build_training_workbook`. Store sources **5**. Store practices **8**. Revenue sources **5**. Revenue/store practices **8**. Geographic sources **56**. Geographic practices **264**. Check components **766** (`486 + 264 + 8 + 8`). Unavailable displays **101**. `SEGMENT_BRIDGE_TOLERANCE = 0.0`. Expected-spec count including non-Check KPI sources **776**.
+
+Five accepted store counts traced to selected extraction evidence:
+
+| Period | Count | Filing year | Role | Reason | Page | Note |
+|---|---:|---:|---|---|---:|---|
+| 2022-01-30 | `574` | 2022 | comparative | sole_source_observation | 7 | Company-Operated Stores |
+| 2023-01-29 | `655` | 2023 | comparative | later_audited_presentation | 11 | Number of company-operated stores by market |
+| 2024-01-28 | `711` | 2024 | comparative | later_audited_presentation | 11 | Number of company-operated stores by market |
+| 2025-02-02 | `767` | 2025 | comparative | later_audited_presentation | 11 | Number of company-operated stores by market |
+| 2026-02-01 | `811` | 2025 | current_period | sole_source_observation | 11 | Number of company-operated stores by market |
+
+Five accepted revenues traced to standardized `income_statement` `concept=revenue` after the same reconcile/standardize/export-reload path: `6256617 / 8110518 / 9619278 / 10588126 / 11102600`.
+
+Exactly one matching pair was generated in temporary storage:
+
+| Copy | Path | SHA-256 | Bytes |
+|---|---|---|---:|
+| Pristine / inspect Trainer | `/tmp/bav_kpi_excel_verify_9M2411163/{pristine,inspect}/LULU_KPI_Trainer.xlsx` | `cbd782db348faa24c74e746eb79712b134ac613592ec7572917f0fa6c9f41613` | 42665 |
+| Pristine / inspect Answer Key | `/tmp/bav_kpi_excel_verify_9M2411163/{pristine,inspect}/LULU_KPI_Answer_Key.xlsx` | `c377e56e77d22c40488086c4b704a146d49811c371c1d9baa32a9a5888042652` | 192176 |
+
+Inspect copies were never opened by Excel; inspect hashes remained unchanged after recalculation of internal copies.
+
+Microsoft Excel **16.113** (`/Applications/Microsoft Excel.app/Contents/MacOS/Microsoft Excel`). Working command: `osascript` `tell application "Microsoft Excel"` → `open POSIX file` → `calculate` → `calculate full` → `save` named temp workbook → `close` named temp workbook `saving no`. One unrelated workbook, `build/output/Lululemon_Live_Answer_Key.xlsx` (`Lululemon_Live_Answer_Key.xlsx`), was already open. It was not saved or closed. Disk SHA-256 remained `5651119d2e6fb3a153b4fc4ff11106580592f9f16dbc03d6d843429e4e99f280` (184642) before and after every session. Temp workbooks were addressed by filename so workbook 1 was never assumed.
+
+Internal Answer Key recalculation (exit **0**, `calculate full=ok`, 5.64s):
+
+| | SHA-256 |
+|---|---|
+| Before | `c377e56e77d22c40488086c4b704a146d49811c371c1d9baa32a9a5888042652` |
+| After | `1642ba2a8bac157aee4d084991bf95740124c87008a3978e022099827ea3170b` |
+
+`data_only=True` reopen of the recalculated Answer Key yielded numeric caches. Inspect and recalculated Answer Key still retain all **16** operating-KPI formulas and populated sources `811` / `11102600`.
+
+## Task 2 — Arithmetic, presentation, Check
+
+Independent expectations from accepted unrounded counts `574/655/711/767/811` and revenues `6256617/8110518/9619278/10588126/11102600`. Changes `None/81/56/56/44`. Growth `(current−prior)/prior`. Difference `100×(revenue growth−store-count growth)`. Opening growth remains unavailable. Compared **16**, none-caches **0**, mismatches **0**. Maximum absolute error **0.0** in every family. The difference is an analyst-derived percentage-point gap, not store productivity or causal revenue attribution.
+
+| Family / period | Independent | Excel cache | Abs error |
+|---|---:|---:|---:|
+| Store change FY2023–FY2026 | `81 / 56 / 56 / 44` | same | `0.0` |
+| Store growth FY2023 | `0.14111498257839722` (`81/574`) | same | `0.0` |
+| Store growth FY2024 | `0.08549618320610687` (`56/655`) | same | `0.0` |
+| Store growth FY2025 | `0.07876230661040788` (`56/711`) | same | `0.0` |
+| Store growth FY2026 | `0.05736636245110821` (`44/767`) | same | `0.0` |
+| Revenue growth FY2023 | `0.29631045020016406` | same | `0.0` |
+| Revenue growth FY2024 | `0.18602510961691965` | same | `0.0` |
+| Revenue growth FY2025 | `0.10071940950245954` | same | `0.0` |
+| Revenue growth FY2026 | `0.04858971266492295` | same | `0.0` |
+| Difference FY2023 | `15.519546762176684` | same | `0.0` |
+| Difference FY2024 | `10.052892641081277` | same | `0.0` |
+| Difference FY2025 | `2.195710289205166` | same | `0.0` |
+| Difference FY2026 | `-0.877664978618526` | same | `0.0` |
+| Opening FY2022 change/growth/difference | `None` | not practiced | — |
+
+Workbook-wide Check on internal Trainer copies after Excel recalculation:
+
+| State | total / blank / correct / incorrect |
+|---|---|
+| Blank, Excel-recalculated | **766 / 766 / 0 / 0** |
+| Formulas from semantic map, Excel-recalculated | **766 / 0 / 766 / 0** |
+| One operating-KPI formula set to `=999`, Excel-recalculated (cache **999**) | **766 / 0 / 765 / 1** |
+
+Check `repr` did not contain `=999` or `NOPAT`. Source tamper of `Store Count Analysis!F10` raised `Trusted workbook cell was modified` (authentication rejection). A legitimate learner formula edit `=1+1` (Excel cache **2**) yielded **765/1** without that authentication error.
+
+Presentation on inspect copies: Trainer **16** store/revenue practice cells blank bright yellow without answers/Notes; Answer Key **16** formulas with concise Notes and no yellow; visible structure/style contract held (Aptos Narrow 11, non-bold black, ordinary white, no decorative borders/fills). Ten populated sources remain populated. Geographic baseline **750** is preserved inside the **766**-component Check surface.
+
+Synthetic (labelled separately):
+
+- Relocated chain: revenue growth `=IF('Income Statement'!C28=0,NA(),('Income Statement'!F36-'Income Statement'!C28)/'Income Statement'!C28)` (cross-sheet + nonadjacent). Excel cache **0.1** matches independent **0.1**. Store growth `=IF(B32=0,NA(),(E40-B32)/B32)` from nonadjacent `E40`/`B32`; Excel cache **0.07876230661040788**. Filled relocated Check **75/75**.
+- Zero prior store count and revenue: series and Excel caches store-growth / revenue-growth / difference all `#N/A`; formulas `=IF(B10=0,NA(),(C10-B10)/B10)` and `=IF(B20=0,NA(),(C20-B20)/B20)`; workbook XML contains `#N/A`.
+- Sparse/missing gates retained without Excel: gap current/prior missing snapshots remain `SOURCE_UNAVAILABLE` without compression.
+
+## Task 3 — Coverage, artifacts, remaining acceptance
+
+| Command | Exit | Result |
+|---|---:|---|
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python /tmp/bav_kpi_excel_verify_9M2411163/verify_kpi_excel.py` | 0 | Excel 16.113 open/calculate/save/close on temporary pair; 16/16 KPI caches match; Check 766 blank / 766 correct / 765+1 incorrect; live workbook undisturbed |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_operating_kpi_workbook.py core/tests/test_operating_kpi_relationships.py core/tests/test_operating_kpi_analysis.py core/tests/test_operating_kpi_facts.py core/tests/test_operating_kpi_management_history.py core/tests/test_build_contract.py core/tests/test_build_cli.py core/tests/test_trainer.py::test_check_scans_all_practice_cells_and_colors_three_states core/tests/test_trainer.py::test_cli_check_output_does_not_disclose_answers core/tests/test_reference_integrity.py::test_historical_expected_covers_catalog_and_matches_reference_components core/tests/test_learner_ready_presentation.py::test_root_readme_is_practical_trainer_guide -q --tb=line` | 0 | **1263 passed** in **36.90s** |
+| Protected artifacts vs checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` | 0 | **50/50 MATCH** |
+| Eight extracted JSON vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` path blobs | 0 | eight files **UNCHANGED** (4 annual + 4 management-KPI) |
+
+Complete `core/tests` **3240 passed / 0 failed** remains **historical** from `.61` and was not rerun this child. Geographic Excel **264/750** remains **historical** from `.62`.
+
+Inspectable engine evidence: `/tmp/bav_kpi_excel_verify_9M2411163/evidence.json` plus workbook copies under `pristine/`, `inspect/`, `verify/`, and `synthetic/`. No prospective IDs reserved.
+
+---
+
+## Fresh vs retained evidence
+
+| Kind | This child |
+|---|---|
+| Fresh | Actual Excel 16.113 open/calculate/save/close on one temporary ordinary store/revenue pair; 16 operating-KPI Excel caches vs independent accepted-source facts, max abs error **0.0**; Check 766 blank / 766 correct / 765+1 incorrect after Excel; source-authentication vs learner-formula distinction; formula retention on inspect and recalculated Answer Key; operating-KPI + affected Check/build suite **1263 passed**; checkpoints **50/50 MATCH**; eight extractions unchanged vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` |
+| Synthetic, labelled separately | Relocated cross-sheet/nonadjacent revenue-growth cache **0.1** and store-growth **0.07876230661040788**; zero-prior Excel `#N/A`; filled relocated Check **75/75** |
+| Retained via required suite, not independently re-counted | Store/mixed/compsales totals `766/768/760`; Fast Retailing **577**; geo **56/264**; preserved **486**; unavailable **101**; segment-margin formulas **15** |
+| Historical, not rerun | Complete `core/tests` **3240 passed** from `.61`; geographic Excel 264-practice verification from `.62` |
+| Not claimed | Parent or Step 9 completion; other operating-KPI families; G6–G9 remainder; admitted nonzero geographic `D` or amount-change residual |
+
+---
+
+## Remaining scope
+
+This child verifies source-bound store-count and revenue/store practices through actual spreadsheet recalculation on a temporary ordinary pair. Other operating-KPI families and broader parent acceptance remain unresolved.
+
+Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Completed admission, `.37` through `.62` are not reopened. Frozen requests `20260914-193338-000000004` and `20260915-042248-000000005` remain unfinished beyond this increment. No prospective IDs reserved.
+
+Working-tree HEAD is `7fc46f315e6ce05c57557ba18ed29b601643f738`. `.git/autocycle/latest-implementation` was not rewritten.
+
