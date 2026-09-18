@@ -199,6 +199,7 @@ from .component_catalog import (
     geographic_spec_identity,
     resolve_geographic_adjacent_change_formula,
     resolve_geographic_consolidated_operating_margin_formula,
+    resolve_geographic_consolidated_operating_profit_growth_formula,
     resolve_geographic_consolidated_revenue_growth_formula,
     resolve_geographic_operating_margin_contribution_change_residual_formula,
     resolve_geographic_operating_margin_contribution_formula,
@@ -207,6 +208,8 @@ from .component_catalog import (
     resolve_geographic_operating_margin_mix_within_residual_formula,
     resolve_geographic_operating_margin_within_segment_effect_formula,
     resolve_geographic_operating_profit_amount_change_residual_formula,
+    resolve_geographic_operating_profit_growth_contribution_formula,
+    resolve_geographic_operating_profit_growth_contribution_residual_formula,
     resolve_geographic_operating_profit_incremental_margin_formula,
     resolve_geographic_operating_profit_margin_effect_formula,
     resolve_geographic_operating_profit_revenue_effect_formula,
@@ -7047,7 +7050,9 @@ class ReferenceModelBuilder:
             "decomposition of consolidated reported operating margin and its "
             "change, a separate mix and within-segment decomposition of "
             "that adjacent change, an adjacent operating-profit amount-"
-            "change bridge, and incremental reported operating margins. "
+            "change bridge, incremental reported operating margins, and "
+            "percentage-point contributions to reported consolidated "
+            "operating-profit growth. "
             "Reported operating margin is distinct from BAV NOPAT margin. "
             "Revenue-growth contributions are an arithmetic decomposition of "
             "reported geographic revenue changes, not organic, "
@@ -7055,8 +7060,9 @@ class ReferenceModelBuilder:
             "contributions are a direct contribution bridge, distinct from the "
             "mix and within-segment decomposition, the monetary amount-change "
             "bridge, midpoint revenue and margin effects on operating-profit "
-            "change, incremental reported operating margins, normalization, "
-            "or a causal explanation. Mix and within-segment effects use a "
+            "change, incremental reported operating margins, operating-profit "
+            "growth contributions, normalization, or a causal explanation. Mix "
+            "and within-segment effects use a "
             "symmetric midpoint convention and remain arithmetic only. "
             "Operating-profit amount changes are monetary differences, "
             "distinct from the percentage-point margin bridges. Revenue and "
@@ -7066,7 +7072,9 @@ class ReferenceModelBuilder:
             "amount changes by adjacent revenue changes for each segment and "
             "for reported consolidated totals, including signed reconciling "
             "items in consolidated profit, and are distinct from reported "
-            "operating margin."
+            "operating margin. Operating-profit growth contributions use prior "
+            "reported consolidated operating profit as the common denominator "
+            "and are not each segment's own growth rate."
         )
         ws["A3"] = f"Units: {self.fin.units}"
         ws["A4"] = (
@@ -7075,8 +7083,9 @@ class ReferenceModelBuilder:
             "opening revenue-growth contributions, opening operating-margin "
             "contribution changes, opening mix and within-segment effects, "
             "opening operating-profit amount changes, opening revenue "
-            "and margin effects on operating-profit change, and opening "
-            "incremental reported operating margins "
+            "and margin effects on operating-profit change, opening "
+            "incremental reported operating margins, and opening "
+            "operating-profit growth contributions "
             "are not practiced. Signed residuals are not forced to zero."
         )
         ws.column_dimensions["A"].width = 56
@@ -7503,6 +7512,36 @@ class ReferenceModelBuilder:
         cons_incremental_margin_row = cursor
         _label(cursor, "Consolidated incremental reported operating margin")
 
+        cursor += 2
+        _section(cursor, "OPERATING-PROFIT GROWTH CONTRIBUTIONS")
+        profit_growth_contrib_rows = {}
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            cursor += 1
+            profit_growth_contrib_rows[identity] = cursor
+            _label(
+                cursor,
+                (
+                    f"{geographic_identity_label(identity)} contribution to "
+                    "consolidated operating-profit growth (percentage points)"
+                ),
+            )
+        cursor += 1
+        reconciling_growth_contrib_row = cursor
+        _label(
+            cursor,
+            "Aggregate reconciling contribution to consolidated "
+            "operating-profit growth (percentage points)",
+        )
+        cursor += 1
+        cons_profit_growth_row = cursor
+        _label(cursor, "Consolidated operating-profit growth")
+        cursor += 1
+        profit_growth_residual_row = cursor
+        _label(
+            cursor,
+            "Operating-profit growth contribution residual (percentage points)",
+        )
+
         self.rowmap["geographic_header_row"] = header_row
         self.rowmap["geographic_revenue_rows"] = dict(rev_rows)
         self.rowmap["geographic_ifop_rows"] = dict(ifop_rows)
@@ -7534,6 +7573,10 @@ class ReferenceModelBuilder:
                 opening_practice_rows.update(profit_margin_effect_rows.values())
                 opening_practice_rows.update(incremental_margin_rows.values())
                 opening_practice_rows.add(cons_incremental_margin_row)
+                opening_practice_rows.update(profit_growth_contrib_rows.values())
+                opening_practice_rows.add(reconciling_growth_contrib_row)
+                opening_practice_rows.add(cons_profit_growth_row)
+                opening_practice_rows.add(profit_growth_residual_row)
                 for row in (
                     family_row,
                     *rev_rows.values(),
@@ -7574,6 +7617,10 @@ class ReferenceModelBuilder:
                     *profit_margin_effect_rows.values(),
                     *incremental_margin_rows.values(),
                     cons_incremental_margin_row,
+                    *profit_growth_contrib_rows.values(),
+                    reconciling_growth_contrib_row,
+                    cons_profit_growth_row,
+                    profit_growth_residual_row,
                 ):
                     if j == 0 and row in opening_practice_rows:
                         ws.cell(row=row, column=col_idx, value="N/A")
@@ -8584,6 +8631,154 @@ class ReferenceModelBuilder:
                     col_idx,
                     cons_inc_f,
                     cons_inc_value,
+                )
+
+            for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+                gcs_value = series.operating_profit_growth_contribution[period][
+                    identity
+                ]
+                gcs_row = profit_growth_contrib_rows[identity]
+                if j == 0 or gcs_value is None:
+                    ws.cell(row=gcs_row, column=col_idx, value="N/A")
+                    continue
+                if is_source_unavailable(gcs_value):
+                    self._stamp_unavailable(ws, gcs_row, col_idx, SOURCE_UNAVAILABLE)
+                    continue
+                gcs_f = (
+                    resolve_geographic_operating_profit_growth_contribution_formula(
+                        _practice_ref(
+                            "geographic_operating_profit_amount_change",
+                            period,
+                            profit_amount_change_rows[identity],
+                            col_idx,
+                            identity=identity,
+                        ),
+                        ifop_source_refs[("consolidated", j - 1)],
+                        from_tab=GEOGRAPHIC_SHEET,
+                    )
+                )
+                _put_formula(gcs_row, col_idx, gcs_f, points=True)
+                _register(
+                    "geographic_operating_profit_growth_contribution",
+                    j,
+                    identity,
+                    gcs_row,
+                    col_idx,
+                    gcs_f,
+                    gcs_value,
+                )
+
+            gbr_value = series.reconciling_operating_profit_growth_contribution[
+                period
+            ]
+            gpc_value = series.consolidated_operating_profit_growth[period]
+            gpr_value = series.operating_profit_growth_contribution_residual[period]
+            if j == 0 or gpc_value is None:
+                ws.cell(row=reconciling_growth_contrib_row, column=col_idx, value="N/A")
+                ws.cell(row=cons_profit_growth_row, column=col_idx, value="N/A")
+                ws.cell(row=profit_growth_residual_row, column=col_idx, value="N/A")
+            elif is_source_unavailable(gpc_value):
+                self._stamp_unavailable(
+                    ws, reconciling_growth_contrib_row, col_idx, SOURCE_UNAVAILABLE
+                )
+                self._stamp_unavailable(
+                    ws, cons_profit_growth_row, col_idx, SOURCE_UNAVAILABLE
+                )
+                self._stamp_unavailable(
+                    ws, profit_growth_residual_row, col_idx, SOURCE_UNAVAILABLE
+                )
+            else:
+                gbr_f = (
+                    resolve_geographic_operating_profit_growth_contribution_formula(
+                        _practice_ref(
+                            "geographic_reconciling_operating_profit_amount_change",
+                            period,
+                            reconciling_amount_change_row,
+                            col_idx,
+                        ),
+                        ifop_source_refs[("consolidated", j - 1)],
+                        from_tab=GEOGRAPHIC_SHEET,
+                    )
+                )
+                _put_formula(
+                    reconciling_growth_contrib_row, col_idx, gbr_f, points=True
+                )
+                _register(
+                    "geographic_reconciling_operating_profit_growth_contribution",
+                    j,
+                    "",
+                    reconciling_growth_contrib_row,
+                    col_idx,
+                    gbr_f,
+                    gbr_value,
+                )
+                gpc_f = resolve_geographic_consolidated_operating_profit_growth_formula(
+                    _practice_ref(
+                        "geographic_consolidated_operating_profit_amount_change",
+                        period,
+                        cons_profit_amount_change_row,
+                        col_idx,
+                    ),
+                    ifop_source_refs[("consolidated", j - 1)],
+                    from_tab=GEOGRAPHIC_SHEET,
+                )
+                _put_formula(cons_profit_growth_row, col_idx, gpc_f, pct=True)
+                _register(
+                    "geographic_consolidated_operating_profit_growth",
+                    j,
+                    "",
+                    cons_profit_growth_row,
+                    col_idx,
+                    gpc_f,
+                    gpc_value,
+                )
+                gpr_f = (
+                    resolve_geographic_operating_profit_growth_contribution_residual_formula(
+                        _practice_ref(
+                            "geographic_consolidated_operating_profit_growth",
+                            period,
+                            cons_profit_growth_row,
+                            col_idx,
+                        ),
+                        tuple(
+                            _practice_ref(
+                                "geographic_operating_profit_growth_contribution",
+                                period,
+                                profit_growth_contrib_rows[identity],
+                                col_idx,
+                                identity=identity,
+                            )
+                            for identity in GEOGRAPHIC_SEGMENT_IDENTITIES
+                            if series.operating_profit_growth_contribution[period][
+                                identity
+                            ]
+                            is not None
+                            and not is_source_unavailable(
+                                series.operating_profit_growth_contribution[period][
+                                    identity
+                                ]
+                            )
+                        ),
+                        _practice_ref(
+                            "geographic_reconciling_operating_profit_growth_contribution",
+                            period,
+                            reconciling_growth_contrib_row,
+                            col_idx,
+                        ),
+                        from_tab=GEOGRAPHIC_SHEET,
+                    )
+                )
+                _put_formula(
+                    profit_growth_residual_row, col_idx, gpr_f, points=True
+                )
+                _register(
+                    "geographic_operating_profit_growth_contribution_residual",
+                    j,
+                    "",
+                    profit_growth_residual_row,
+                    col_idx,
+                    gpr_f,
+                    gpr_value,
                 )
 
     def _geographic_revenue_source_placement(

@@ -5217,6 +5217,128 @@ GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         ),
         tolerance=1e-12,
     ),
+    ComponentFamily(
+        id="geographic_operating_profit_growth_contribution",
+        order=183,
+        title="Geographic contribution to consolidated operating-profit growth",
+        short_hint=(
+            "Contribution in percentage points = 100 × segment operating-profit "
+            "amount change / prior reported consolidated operating profit. "
+            "Uses the same prior consolidated-profit denominator for every "
+            "segment; it is not that segment's own growth rate. Preserve a "
+            "signed negative prior base; do not take the absolute value. "
+            "Opening contribution is absent. A missing adjacent snapshot is "
+            "unavailable. Zero prior consolidated profit is undefined (#N/A), "
+            "including unchanged profit. Zero segment profit or revenue does "
+            "not suppress an available contribution when the prior "
+            "consolidated profit is nonzero. Distinct from revenue-growth "
+            "contributions, margin change, incremental margin, organic "
+            "growth, causal attribution, normalized earnings, and BAV NOPAT."
+        ),
+        semantic_key="geographic.operating_profit_growth_contribution",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=("geographic_operating_profit_amount_change",),
+        hints=(
+            "Contribution uses prior consolidated operating profit, not the segment's own prior profit.",
+            "Percentage-point arithmetic only; not the segment's own growth rate.",
+            "Zero prior consolidated profit is #N/A; signed negative bases are preserved.",
+            "Not revenue growth, margin change, incremental margin, organic growth, causality, normalization, or BAV NOPAT.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_reconciling_operating_profit_growth_contribution",
+        order=184,
+        title="Aggregate reconciling contribution to operating-profit growth",
+        short_hint=(
+            "Reconciling contribution in percentage points = 100 × aggregate "
+            "signed reconciling operating-profit amount change / prior "
+            "reported consolidated operating profit. Compare aggregate signed "
+            "sums across presentation families; do not match unlike item "
+            "identities. Opening contribution is absent. A missing adjacent "
+            "snapshot is unavailable. Zero prior consolidated profit is "
+            "undefined (#N/A). Distinct from revenue-growth contributions, "
+            "margin change, incremental margin, organic growth, causal "
+            "attribution, normalized earnings, and BAV NOPAT."
+        ),
+        semantic_key="geographic.reconciling_operating_profit_growth_contribution",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(
+            "geographic_reconciling_operating_profit_amount_change",
+        ),
+        hints=(
+            "Use the aggregate signed reconciling amount change and prior consolidated profit.",
+            "Compare aggregates only; do not match unlike reconciling item identities.",
+            "Not revenue growth, margin change, incremental margin, organic growth, causality, normalization, or BAV NOPAT.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_consolidated_operating_profit_growth",
+        order=185,
+        title="Consolidated operating-profit growth",
+        short_hint=(
+            "Consolidated operating-profit growth = consolidated "
+            "operating-profit amount change / prior reported consolidated "
+            "operating profit, stored as a decimal. Preserve a signed "
+            "negative prior base; do not take the absolute value. Opening "
+            "growth is absent. A missing adjacent snapshot is unavailable. "
+            "Zero prior consolidated profit is undefined (#N/A), including "
+            "unchanged profit. Distinct from revenue growth, margin change, "
+            "incremental margin, organic growth, causal attribution, "
+            "normalized earnings, and BAV NOPAT."
+        ),
+        semantic_key="geographic.consolidated_operating_profit_growth",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(
+            "geographic_consolidated_operating_profit_amount_change",
+        ),
+        hints=(
+            "Growth uses prior reported consolidated operating profit as the denominator.",
+            "Zero prior consolidated profit is #N/A; signed negative bases are preserved.",
+            "Not revenue growth, margin change, incremental margin, organic growth, causality, normalization, or BAV NOPAT.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_operating_profit_growth_contribution_residual",
+        order=186,
+        title="Operating-profit growth contribution residual",
+        short_hint=(
+            "Residual in percentage points = 100 × consolidated "
+            "operating-profit growth − sum of Americas, China Mainland, and "
+            "Rest of World contributions − aggregate reconciling contribution. "
+            "Equals 100 × amount-change residual / prior consolidated profit "
+            "and −100 × ΔD / prior consolidated profit when defined, where D "
+            "is reconstructed minus reported. Compute the signed residual; do "
+            "not force it to zero. Opening residual is absent. A missing "
+            "adjacent snapshot is unavailable. Zero prior consolidated profit "
+            "is undefined (#N/A). Distinct from revenue-growth contributions, "
+            "margin change, incremental margin, organic growth, causal "
+            "attribution, normalized earnings, and BAV NOPAT."
+        ),
+        semantic_key="geographic.operating_profit_growth_contribution_residual",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(
+            "geographic_consolidated_operating_profit_growth",
+            "geographic_operating_profit_growth_contribution",
+            "geographic_reconciling_operating_profit_growth_contribution",
+        ),
+        hints=(
+            "Residual = 100 × consolidated operating-profit growth − Σ segment contributions − reconciling contribution.",
+            "Keep the signed residual; it equals 100 × R / prior profit = −100 × ΔD / prior profit when defined.",
+            "Not revenue growth, margin change, incremental margin, organic growth, causality, normalization, or BAV NOPAT.",
+        ),
+        tolerance=1e-12,
+    ),
 )
 
 
@@ -5330,6 +5452,16 @@ def expand_geographic_segment_specs(
     incremental_margin = families["geographic_operating_profit_incremental_margin"]
     cons_incremental_margin = families[
         "geographic_consolidated_operating_profit_incremental_margin"
+    ]
+    profit_growth_contrib = families[
+        "geographic_operating_profit_growth_contribution"
+    ]
+    reconciling_growth_contrib = families[
+        "geographic_reconciling_operating_profit_growth_contribution"
+    ]
+    cons_profit_growth = families["geographic_consolidated_operating_profit_growth"]
+    profit_growth_residual = families[
+        "geographic_operating_profit_growth_contribution_residual"
     ]
     contribution_ids = contribution_identities or {}
     cons_growth_periods = set(consolidated_growth_periods or ())
@@ -5673,6 +5805,59 @@ def expand_geographic_segment_specs(
                 geographic_component_id(cons_profit_amount_change.id, period),
             ),
             title="Consolidated incremental reported operating margin",
+        )
+        profit_growth_deps: list[str] = []
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            label = geographic_identity_label(identity)
+            contrib_id = geographic_component_id(
+                profit_growth_contrib.id, period, identity
+            )
+            profit_growth_deps.append(contrib_id)
+            _append(
+                profit_growth_contrib,
+                period,
+                identity=identity,
+                depends_on=(
+                    geographic_component_id(
+                        profit_amount_change.id, period, identity
+                    ),
+                ),
+                title=(
+                    f"{label} contribution to consolidated operating-profit "
+                    "growth (percentage points)"
+                ),
+            )
+        _append(
+            reconciling_growth_contrib,
+            period,
+            depends_on=(
+                geographic_component_id(reconciling_amount_change.id, period),
+            ),
+            title=(
+                "Aggregate reconciling contribution to consolidated "
+                "operating-profit growth (percentage points)"
+            ),
+        )
+        _append(
+            cons_profit_growth,
+            period,
+            depends_on=(
+                geographic_component_id(cons_profit_amount_change.id, period),
+            ),
+            title="Consolidated operating-profit growth",
+        )
+        _append(
+            profit_growth_residual,
+            period,
+            depends_on=(
+                geographic_component_id(cons_profit_growth.id, period),
+                *profit_growth_deps,
+                geographic_component_id(reconciling_growth_contrib.id, period),
+            ),
+            title=(
+                "Operating-profit growth contribution residual "
+                "(percentage points)"
+            ),
         )
     return tuple(specs)
 
@@ -6282,6 +6467,56 @@ def resolve_geographic_operating_profit_incremental_margin_formula(
     v_current = semantic_formula_cell(current_revenue, from_tab=from_tab)
     v_prior = semantic_formula_cell(prior_revenue, from_tab=from_tab)
     return f"=IF(({v_current}-{v_prior})=0,NA(),{dp}/({v_current}-{v_prior}))"
+
+
+def resolve_geographic_operating_profit_growth_contribution_formula(
+    amount_change: SemanticCellRef,
+    prior_consolidated: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Percentage-point operating-profit growth contribution from mapped ΔP and prior profit."""
+    dp = semantic_formula_cell(amount_change, from_tab=from_tab)
+    prior_cell = semantic_formula_cell(prior_consolidated, from_tab=from_tab)
+    return f"=IF({prior_cell}=0,NA(),100*{dp}/{prior_cell})"
+
+
+def resolve_geographic_consolidated_operating_profit_growth_formula(
+    amount_change: SemanticCellRef,
+    prior_consolidated: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Adjacent consolidated operating-profit growth from mapped ΔP and prior profit."""
+    dp = semantic_formula_cell(amount_change, from_tab=from_tab)
+    prior_cell = semantic_formula_cell(prior_consolidated, from_tab=from_tab)
+    return f"=IF({prior_cell}=0,NA(),{dp}/{prior_cell})"
+
+
+def resolve_geographic_operating_profit_growth_contribution_residual_formula(
+    consolidated_growth: SemanticCellRef,
+    contributions: tuple[SemanticCellRef, ...],
+    reconciling: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Signed residual from mapped growth, segment contributions, and reconciling."""
+    if not contributions:
+        raise ValueError(
+            "operating-profit growth contribution residual requires mapped "
+            "segment contributions"
+        )
+    growth_cell = semantic_formula_cell(consolidated_growth, from_tab=from_tab)
+    contrib_cells = [
+        semantic_formula_cell(item, from_tab=from_tab) for item in contributions
+    ]
+    reconciling_cell = semantic_formula_cell(reconciling, from_tab=from_tab)
+    return (
+        "=100*"
+        + growth_cell
+        + "".join(f"-{cell}" for cell in contrib_cells)
+        + f"-{reconciling_cell}"
+    )
 
 
 def resolve_geographic_reconciling_operating_profit_amount_change_formula(

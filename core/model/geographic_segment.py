@@ -15,17 +15,32 @@ within-segment decomposition of the adjacent change in that margin, an adjacent 
 amount-change bridge, midpoint revenue and margin effects that
 reconcile to each eligible segment operating-profit amount change, and
 incremental reported operating margins ``(P_t−P_p)/(V_t−V_p)`` from
-immediately adjacent operating-profit and revenue changes.
+immediately adjacent operating-profit and revenue changes, and
+percentage-point contributions to reported consolidated operating-profit
+growth that reuse those amount changes.
 Reported operating margin is not BAV NOPAT margin. Revenue-growth
 contributions are an arithmetic decomposition of reported geographic
 revenue changes, not organic, constant-currency, or causal growth.
 Operating-margin contributions use consolidated revenue as the denominator
 and remain a direct contribution bridge, distinct from the mix/within-segment
 decomposition, the monetary amount-change bridge, the revenue/margin
-effects, incremental reported operating margins, normalization, or causal
-attribution. Amount changes are current minus immediately prior reported
-operating profit, with no revenue denominator; zero revenue does not
-suppress available profit changes.
+effects, incremental reported operating margins, operating-profit growth
+contributions, normalization, or causal attribution. Amount changes are
+current minus immediately prior reported operating profit, with no revenue
+denominator; zero revenue does not suppress available profit changes.
+Operating-profit growth contributions use prior reported consolidated
+operating profit as the common denominator: consolidated growth
+``g = ΔP / P_p`` as a decimal, segment contributions
+``c_s = 100 × ΔP_s / P_p``, reconciling contribution
+``b = 100 × ΔB / P_p``, and residual ``r = 100×g − Σc_s − b``
+in percentage points. Contributions are not each segment's own growth
+rate. Exactly zero prior consolidated profit is ``UNDEFINED_RATIO``,
+including unchanged profit. Zero segment profit or revenue does not
+suppress a bridge with available inputs and nonzero ``P_p``. Signed
+negative prior profits, losses, zero current profit, and declines are
+preserved without absolute denominators. The residual equals
+``100 × R / P_p = −100 × ΔD / P_p`` when defined; compute it, never
+hard-code zero.
 Revenue and margin effects use decimal reported margin ``m = P / V`` with
 no percentage-point multiplier: revenue effect
 ``(V_t − V_p) × (m_t + m_p) / 2`` and margin effect
@@ -113,6 +128,10 @@ class GeographicSegmentSeries:
     operating_profit_margin_effect: dict[date, dict[str, float | str | None]]
     operating_profit_incremental_margin: dict[date, dict[str, float | str | None]]
     consolidated_operating_profit_incremental_margin: dict[date, float | str | None]
+    operating_profit_growth_contribution: dict[date, dict[str, float | str | None]]
+    reconciling_operating_profit_growth_contribution: dict[date, float | str | None]
+    consolidated_operating_profit_growth: dict[date, float | str | None]
+    operating_profit_growth_contribution_residual: dict[date, float | str | None]
     calculated_segment_revenue_total: dict[date, float | str]
     calculated_segment_operating_profit_total: dict[date, float | str]
     signed_reconciling_contributions: dict[
@@ -598,6 +617,62 @@ def _incremental_from_changes(
     return ratio_or_na(profit_change, revenue_change)
 
 
+def _scaled_from_amount_change(
+    amount_change: float | str | None,
+    prior_base: float | None,
+    *,
+    percentage_points: bool,
+) -> float | str | None:
+    """Scale an accepted amount change by prior consolidated profit.
+
+    Percentage-point contributions use ``100 × Δ / P_p``. Consolidated growth
+    stores the decimal ``Δ / P_p``. Zero ``P_p`` is ``UNDEFINED_RATIO``.
+    """
+    if amount_change is None:
+        return None
+    if prior_base is None or is_source_unavailable(amount_change):
+        return SOURCE_UNAVAILABLE
+    if amount_change == UNDEFINED_RATIO:
+        return UNDEFINED_RATIO
+    if percentage_points:
+        return _percentage_points(float(amount_change), float(prior_base))
+    return ratio_or_na(float(amount_change), float(prior_base))
+
+
+def _growth_contribution_map(
+    amount_changes: dict[str, float | str | None],
+    prior_base: float | None,
+) -> dict[str, float | str | None]:
+    return {
+        name: _scaled_from_amount_change(
+            amount_changes[name],
+            prior_base,
+            percentage_points=True,
+        )
+        for name in SEGMENTS
+    }
+
+
+def _profit_growth_contribution_residual(
+    consolidated_growth: float | str | None,
+    contributions: dict[str, float | str | None],
+    reconciling: float | str | None,
+) -> float | str | None:
+    """Residual ``r = 100×g − Σc_s − b``; never hard-code zero."""
+    if consolidated_growth is None:
+        return None
+    values = (consolidated_growth, reconciling, *contributions.values())
+    if any(value is None or is_source_unavailable(value) for value in values):
+        return SOURCE_UNAVAILABLE
+    if any(value == UNDEFINED_RATIO for value in values):
+        return UNDEFINED_RATIO
+    return (
+        100.0 * float(consolidated_growth)
+        - sum(float(contributions[name]) for name in SEGMENTS)
+        - float(reconciling)
+    )
+
+
 def _incremental_margin_map(
     profit_changes: dict[str, float | str | None],
     revenue_changes: dict[str, float | str | None],
@@ -672,7 +747,7 @@ def compute_geographic_segment_series(
     financials: StandardizedFinancials,
     periods: list[date] | None = None,
 ) -> GeographicSegmentSeries:
-    """Compute mix, growth, margins, contributions, mix/within, amount, effect, and incremental bridges."""
+    """Compute mix, growth, margins, contributions, mix/within, amount, effect, incremental, and profit-growth bridges."""
     if not geographic_segment_applicable(financials):
         raise MissingLineError("geographic segment sources not available")
 
@@ -710,6 +785,10 @@ def compute_geographic_segment_series(
     operating_profit_margin_effect: dict[date, dict[str, float | str | None]] = {}
     operating_profit_incremental_margin: dict[date, dict[str, float | str | None]] = {}
     consolidated_operating_profit_incremental_margin: dict[date, float | str | None] = {}
+    operating_profit_growth_contribution: dict[date, dict[str, float | str | None]] = {}
+    reconciling_operating_profit_growth_contribution: dict[date, float | str | None] = {}
+    consolidated_operating_profit_growth: dict[date, float | str | None] = {}
+    operating_profit_growth_contribution_residual: dict[date, float | str | None] = {}
     calculated_segment_revenue_total: dict[date, float | str] = {}
     calculated_segment_operating_profit_total: dict[date, float | str] = {}
     signed_reconciling_contributions: dict[
@@ -799,6 +878,18 @@ def compute_geographic_segment_series(
                 _opening_contributions() if opening else _unavailable_contributions()
             )
             consolidated_operating_profit_incremental_margin[period] = (
+                None if opening else SOURCE_UNAVAILABLE
+            )
+            operating_profit_growth_contribution[period] = (
+                _opening_contributions() if opening else _unavailable_contributions()
+            )
+            reconciling_operating_profit_growth_contribution[period] = (
+                None if opening else SOURCE_UNAVAILABLE
+            )
+            consolidated_operating_profit_growth[period] = (
+                None if opening else SOURCE_UNAVAILABLE
+            )
+            operating_profit_growth_contribution_residual[period] = (
                 None if opening else SOURCE_UNAVAILABLE
             )
             calculated_segment_revenue_total[period] = SOURCE_UNAVAILABLE
@@ -955,6 +1046,25 @@ def compute_geographic_segment_series(
             cons_profit_amount_change,
             cons_revenue_amount_change,
         )
+        profit_growth_contrib = _growth_contribution_map(
+            profit_amount_change,
+            prior_consolidated_ifop,
+        )
+        reconciling_growth_contrib = _scaled_from_amount_change(
+            reconciling_amount_change,
+            prior_consolidated_ifop,
+            percentage_points=True,
+        )
+        cons_profit_growth = _scaled_from_amount_change(
+            cons_profit_amount_change,
+            prior_consolidated_ifop,
+            percentage_points=False,
+        )
+        profit_growth_residual = _profit_growth_contribution_residual(
+            cons_profit_growth,
+            profit_growth_contrib,
+            reconciling_growth_contrib,
+        )
 
         presentation_family[period] = snapshot.presentation_family
         net_revenue[period] = dict(revenue)
@@ -989,6 +1099,12 @@ def compute_geographic_segment_series(
         consolidated_operating_profit_incremental_margin[period] = (
             cons_incremental_margin
         )
+        operating_profit_growth_contribution[period] = profit_growth_contrib
+        reconciling_operating_profit_growth_contribution[period] = (
+            reconciling_growth_contrib
+        )
+        consolidated_operating_profit_growth[period] = cons_profit_growth
+        operating_profit_growth_contribution_residual[period] = profit_growth_residual
         calculated_segment_revenue_total[period] = revenue_total
         calculated_segment_operating_profit_total[period] = operating_total
         signed_reconciling_contributions[period] = contributions
@@ -1048,6 +1164,14 @@ def compute_geographic_segment_series(
         operating_profit_incremental_margin=operating_profit_incremental_margin,
         consolidated_operating_profit_incremental_margin=(
             consolidated_operating_profit_incremental_margin
+        ),
+        operating_profit_growth_contribution=operating_profit_growth_contribution,
+        reconciling_operating_profit_growth_contribution=(
+            reconciling_operating_profit_growth_contribution
+        ),
+        consolidated_operating_profit_growth=consolidated_operating_profit_growth,
+        operating_profit_growth_contribution_residual=(
+            operating_profit_growth_contribution_residual
         ),
         calculated_segment_revenue_total=calculated_segment_revenue_total,
         calculated_segment_operating_profit_total=calculated_segment_operating_profit_total,

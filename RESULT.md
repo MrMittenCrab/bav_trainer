@@ -486,3 +486,134 @@ Accepted two-occurrence selection remains: unique evidenced compatible uncontrad
 
 Exact admitted reconciliation, production rejection of inconsistent reconstructed-versus-reported differences, and separately labelled synthetic signed residual coverage from `20260918-115651-000000007` remain in force. `SEGMENT_BRIDGE_TOLERANCE = 0.0`. A2-ED/B7-MID documentary UNVERIFIED; A5/B8/E10 pending Plan closure; E11 NonReq UNVERIFIED. G6 missing 2021-01-31 BS; G7 remainder (lease maturity); G8 deferral; G9 standalone interest completeness; TARGET Step 9 exit gates. No blanket DONE.
 
+---
+
+# RESULT.md — Step 9M.2.4.1.1.1.61 Geographic Analysis: reported operating-profit growth contributions
+
+**Status:** COMPLETE (this work child; parents remain UNRESOLVED)  
+**Step:** 9M.2.4.1.1.1.61 — Geographic Analysis — Reported operating-profit growth contributions  
+**Work:** `963f02c4fa8d499d9609bb963ce98d99`  
+**Plan:** `6f4622e2cd6d4609bea300cfd584e297`  
+**Finding:** `geographic-reported-operating-profit-growth-contributions`  
+**Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
+Accepted incremental-margin work `ca3865b066c045a5b2a85ef3e0a4947a` and the authorized residual-sign correction remain complete and are not reopened.  
+Instruction `20260916-075534-000000006` is retained extraction/source-binding evidence (eight extracted JSON blob SHA-1 values unchanged vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151`). Recovery was not re-executed.  
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start). TARGET SHA-256 `ab70dd8859ba352a2387b95c55477cbc31944288c60478023d5937cf0662e91c` (23864). IMPLEMENTATION SHA-256 `778dccc6babed0a419473296a997a92cdc24ff3a0c50b4c1c266e7cbd7fff58d` (10565).  
+No commit / push / sync / checkpoint / branch change. No release rewrite, forecasting, or valuation. Spreadsheet recalculation was **not** performed; Check used formula-string match and injected cached-value probes.  
+This child does **not** declare parent, Geographic Analysis product, or Step 9 acceptance.
+
+No interrupted working-tree edits were present at start. `core/trainer/checker.py` required no edits.
+
+## Required plan change
+
+No required plan change.
+
+## Task 1 — Reported operating-profit growth bridge
+
+On immediately adjacent canonical periods, reuse accepted segment profit changes `ΔP_s`, aggregate signed reconciling change `ΔB`, consolidated profit change `ΔP`, and prior reported consolidated profit `P_p`. Consolidated growth `g = ΔP/P_p` is a decimal. Segment contributions `c_s = 100×ΔP_s/P_p`, reconciling contribution `b = 100×ΔB/P_p`, and residual `r = 100×g−Σc_s−b` are percentage points. The residual is computed, never hard-coded zero, and equals `100×R/P_p = −100×ΔD/P_p` when defined, with `D` reconstructed-minus-reported and `R` the accepted amount-change residual. Opening results are `None`. Missing required adjacent inputs yield dependent-only `SOURCE_UNAVAILABLE` without compressing gaps. Exactly zero prior consolidated profit is `UNDEFINED_RATIO`, including unchanged profit. Signed negative prior profits, losses, zero current profit, and declines are preserved without absolute denominators. Zero segment profit or revenue does not suppress a bridge with available inputs and nonzero `P_p`. Aggregate signed reconcilers are compared across presentation transitions; unlike item identities are not matched.
+
+## Task 2 — Ordinary learning surface
+
+Four semantic families: `geographic_operating_profit_growth_contribution` (segment, identity+period), `geographic_reconciling_operating_profit_growth_contribution` (period), `geographic_consolidated_operating_profit_growth` (period), and `geographic_operating_profit_growth_contribution_residual` (period). Formulas reuse mapped amount-change practices and prior consolidated operating-profit sources: `IF(P_p=0,NA(),100*ΔP_s/P_p)`, `IF(P_p=0,NA(),ΔP/P_p)`, and `100×g−Σc_s−b`. Consolidated growth displays as a percentage; contributions and residual display as percentage points. Answer-Key Notes explain the common prior consolidated-profit denominator, signed-base interpretation, and reconciliation, and state that contributions are not each segment's own growth rate. Notes distinguish reported operating-profit growth from revenue growth, margin change, incremental margin, organic growth, causal attribution, normalized earnings, and BAV NOPAT. Trainer practices are blank bright yellow without answers/formulas/Notes; Answer Key linked formulas with concise Notes and no yellow anywhere. Unavailable results remain non-practice displays.
+
+## Task 3 — Measured verification
+
+Interpreter: `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. Mixed reconciliations used `TemporaryDirectory` copies only (via required tests). Committed extracted JSON, PDFs, reconciled artifacts, releases, and examples were not rewritten.
+
+Supplied-filing reconciliation → standardization → export/reload → ordinary geographic workbook fixture remains five canonical periods with **56** selected geographic sources. All 24 supplied-fixture denominators are nonzero, so the 24 additions are numeric practices (0 undefined displays). Geographic practice total **264** (`74 + 20 + 54 + 28 + 24 + 24 + 16 + 24`). Ordinary components **750** (`486 + 264`). Independent recomputation of three segment contributions, one reconciling contribution, consolidated growth, and residual on each of four adjacent pairs, verifying `r = 100×g − Σc_s − b` and `r = 100×R/P_p` wherever defined, at maximum absolute error **7.105427357601002e-15**:
+
+| Quantity | Value |
+|---|---|
+| Prior consolidated operating profit FY2022 (`P_p` for FY2023) | `1333355.0` |
+| Americas / China Mainland / Rest of World contribution FY2023 | `47.753524005234915` / `2.21598899017891` / `2.664706698516149` |
+| Reconciling contribution FY2023 | `-53.0052386648717` |
+| Consolidated operating-profit growth FY2023 | `-0.003710189709417222` (`-4947 / 1333355`) |
+| Growth residual FY2023 | `7.105427357601002e-15` (`100×g − Σc − b`; `100×R/P_p = 0.0`) |
+| Prior consolidated operating profit FY2023 (`P_p` for FY2024) | `1328408.0` |
+| Americas / China Mainland / Rest of World contribution FY2024 | `32.62883090134959` / `10.572881223238644` / `7.424526199781995` |
+| Reconciling contribution FY2024 | `9.917510282985347` |
+| Consolidated operating-profit growth FY2024 | `0.6054374860735557` (`804268 / 1328408`) |
+| Growth residual FY2024 | `0.0` |
+| Prior consolidated operating profit FY2024 (`P_p` for FY2025) | `2132676.0` |
+| Americas / China Mainland / Rest of World contribution FY2025 | `3.6748666932998733` / `8.0904459936718` / `5.303852999705534` |
+| Reconciling contribution FY2025 | `0.42158302526966124` |
+| Consolidated operating-profit growth FY2025 | `0.17490748711946869` (`373021 / 2132676`) |
+| Growth residual FY2025 | `-2.831068712794149e-15` (`100×R/P_p = 0.0`) |
+| Prior consolidated operating profit FY2025 (`P_p` for FY2026) | `2505697.0` |
+| Americas / China Mainland / Rest of World contribution FY2026 | `-18.154589321853358` / `7.6331655423620655` / `1.235384805106124` |
+| Reconciling contribution FY2026 | `-2.490404865392743` |
+| Consolidated operating-profit growth FY2026 | `-0.11776443839777914` (`-295082 / 2505697`) |
+| Growth residual FY2026 | `-2.6645352591003757e-15` (`100×R/P_p = 0.0`) |
+| Numeric additions / undefined displays | **24** / **0** |
+| Accepted `D_t` (reconstructed − reported), all five periods | `0.0` |
+| Admitted amount-change residual `R` | opening `None`; four adjacent pairs `0.0` |
+| Maximum contribution-sum / scaled-residual identity error | `7.105427357601002e-15` |
+| Opening FY2022 growth contributions / residual | `None` |
+
+Admitted residuals remaining `0.0` is the actual measured amount-change result, not a nominal nonzero claim. Growth residuals are computed, not forced to zero; the tiny nonzero values are floating-point reconstruction of `100×g − Σc − b` against exact `R = 0.0`. `D = reconstructed − reported` and existing residual `R = −ΔD` are preserved. Contributions are not each segment's own growth rate. Synthetic arithmetic is not historical evidence.
+
+Workbook Check on the admitted Lululemon geographic pair is **750** (`486 + 264`). Blank then formula-filled correct; authenticated source/formula tamper still rejects without disclosure. Store fixture **766** (`486 + 264 + 8 + 8`). Mixed selected 2/4 Check **768**. Selected-document compsales Check **760**. Fast Retailing **577**. Geo sources/practice **56/264**. Preserved **486**. Unavailable **101**. Segment-margin formulas **15**.
+
+Relocated cross-sheet/nonadjacent geographic operating-profit sources produce growth-contribution formulas from mapped amount-change practices and mapped prior consolidated operating-profit cells, including the zero-denominator `NA()` guard, rather than adjacent columns or each segment's own growth rate. Notes explain the common prior consolidated-profit denominator and signed-base interpretation; they make no revenue-growth, margin-change, incremental-margin, organic-growth, causal, normalization, or BAV NOPAT claims.
+
+---
+
+## Fresh vs retained evidence
+
+| Kind | This child |
+|---|---|
+| Fresh | Reported operating-profit growth contributions; all 24 additions independently recomputed, max identity error **7.105427357601002e-15**; geo **56/264**; ordinary **750**; store **766**; mixed **768**; compsales **760**; Fast Retailing **577**; geographic analysis+workbook **26 passed**; focused required suite **1505 passed**; complete `core/tests` **3240 passed / 0 failed**; checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` **50/50 MATCH**; eight extracted JSON blob SHA-1 values unchanged vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` |
+| Fresh via required suite this child | Opening growth contributions `None`; sparse missing snapshots `SOURCE_UNAVAILABLE` without gap compression; zero prior consolidated profit `UNDEFINED_RATIO` including unchanged profit; signed negative prior profits and loss-to-profit; offsetting segment changes; zero segment profit/revenue does not suppress a nonzero-`P_p` bridge; family-transition aggregate signed reconcilers; relocated formulas follow mapped amount-change practices and prior consolidated profit sources with `NA()` guards; tamper still authenticated; preserved **486**; unavailable **101**; segment-margin formulas **15** |
+| Retained, not re-measured independently | Superseded `7928256` only in audit evidence; 15 segment-margin formulas; signed item-level bridges; revenue-growth contributions; operating-margin contribution bridge; mix/within midpoint decomposition; amount-change residual-sign contract; revenue/margin effects; incremental reported operating margins |
+| Arithmetic-only, not admitted | Synthetic helper coverage at `_operating_profit_amount_bridge` (`+11.0` / `-7.0`) retained from a prior child; not used as historical evidence here |
+| Not claimed | Excel engine recalculation; admitted nonzero `D` or amount-change residual; parent or Step 9 completion; G6–G9 remainder |
+
+---
+
+## Commands
+
+| Command | Exit | Result |
+|---|---:|---|
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_geographic_segment_analysis.py core/tests/test_geographic_segment_workbook.py -q --tb=short` | 0 | **26 passed** in **5.70s** |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests/test_geographic_segment_analysis.py core/tests/test_geographic_segment_workbook.py core/tests/test_geographic_segment_facts.py core/tests/test_historical_segment.py core/tests/test_operating_kpi_workbook.py core/tests/test_operating_kpi_relationships.py core/tests/test_build_contract.py core/tests/test_build_cli.py core/tests/test_operating_kpi_analysis.py core/tests/test_operating_kpi_facts.py core/tests/test_operating_kpi_management_history.py core/tests/test_management_kpi_analysis.py core/tests/test_management_kpi_history.py core/tests/test_management_kpi_admission.py core/tests/test_learner_ready_presentation.py::test_root_readme_is_practical_trainer_guide core/tests/test_trainer.py::test_cli_build_reports_both_paths core/tests/test_trainer.py::test_check_scans_all_practice_cells_and_colors_three_states core/tests/test_trainer.py::test_cli_check_output_does_not_disclose_answers core/tests/test_reference_integrity.py::test_cli_assumptions_propagate core/tests/test_reference_integrity.py::test_historical_expected_covers_catalog_and_matches_reference_components -q --tb=line` | 0 | **1505 passed** in **45.30s** |
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python -m pytest core/tests -q --tb=line` | 0 | **3240 passed**, **0 failed** in **275.74s** |
+| Protected artifacts vs checkpoints `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` | 0 | **50/50 MATCH** (working-tree git blob SHA-1 via `hash-object` vs `rev-parse <commit>:<path>`; example/release/benchmark `xlsx`/`json`/`pdf` plus release `README.md` present at those checkpoints) |
+| Eight extracted JSON vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` blob SHA-1 | 0 | eight files **UNCHANGED** (4 annual + 4 management-KPI) |
+
+Edited files this child:
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `core/model/geographic_segment.py` | `a4f797861800bec89c8caea74dff4c7b1ad856f1380d9ee0cf3861e023a61da7` | 47439 |
+| `core/engine/component_catalog.py` | `d7013e80c8b7f5a4ac8e057cd1fcb5ac6bd4f3f38d7734dc39c636b100def957` | 310115 |
+| `core/engine/reference_model.py` | `b6baa84f83834a4050d82005ebc03211bf7ce373983b46e944fb152ee323b5d5` | 431289 |
+| `core/model/historical_expected.py` | `34bf15a402b9251ff812ff4cddcb3094cabc0e6d03df2a9f4012e12a5e8ff1c8` | 70126 |
+| `core/tests/test_geographic_segment_analysis.py` | `0c46196f7de0b23140870f45b970dd1b19ca6700459e187ffdc50083e5b98a6a` | 91593 |
+| `core/tests/test_geographic_segment_workbook.py` | `7080cf4db3db9bbb87266e694cf792e5cacb38833360eb2cb5a7b2b7693e0e6a` | 146760 |
+| `core/tests/test_operating_kpi_workbook.py` | `4e12ceb3e74c6611366ad45b178c5495dd3baabaa5ec26c52e82ca0da02116ed` | 159800 |
+| `RESULT.md` | (this file) | |
+
+Unchanged this child: `core/trainer/checker.py` SHA-256 `aec15dfb7ce6ee356a5e6b718ffdeda9fd63dcabe11740b87ab6a7797a27938d` (22993).
+
+Working-tree HEAD is `04b70bf4ddd97290be510e390405014931b500d6`. `.git/autocycle/latest-implementation` was not rewritten.
+
+---
+
+## Remaining scope
+
+This child adds geographic reported operating-profit growth contributions on the accepted Geographic Analysis Trainer/Answer-Key/Check path. Other supported revenue relationships and geography/margin/inventory/working-capital/capex relationships remain unfinished product scope. Preserve missing values and semantic discontinuities; distinguish reported, statement-derived and analyst-derived measures; infer no causality.
+
+Beyond those remain additional supported identities, evidenced later-audited precedence, and larger-group selection; unavailable assurance/presentation/revision evidence in supplied documents remains unresolved. Normalization Judgment + Earnings Normalization; G6 missing opening BS; G7 lease maturity/remaining notes; G8 deferral; G9 standalone interest completeness; segment assets/capex/significant expenses/D&A; benchmark publication; TARGET Step 9 exit gates. Analytical focus gate retained. Independent M&A Net Debt, Complete NOPAT/RNOA, and forecasting remain deferred.
+
+Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Completed admission, `.37` through `.60` are not reopened. This child does not certify parent acceptance, publication, or Step 9 completion. Frozen requests `20260914-193338-000000004` and `20260915-042248-000000005` remain unfinished beyond this increment. No prospective IDs reserved.
+
+---
+
+## Retained acceptance (not reopened)
+
+Canonical Lululemon five-period history; **486** identities/expectations; **101** unavailable displays; accepted **110** additions; geographic baseline **74**, prior **20** revenue-growth contribution identities, prior **54** margin-bridge identities, prior **28** mix/within identities, prior **24** amount-change identities, prior **24** revenue/margin-effect identities, prior **16** incremental-margin identities, and this increment’s **24** operating-profit growth-contribution identities reported separately (**264** combined); Fast Retailing **577** / **0** unavailable. Prior increments added **8** store-count practice identities, **5** non-practice count sources, **8** revenue/store practice identities and **5** non-practice revenue sources on source-bound store fixtures only. Comparable-sales and revenue/SPSF relationship identities remain when eligible. Management-history adjacent-change and SPSF practice remain when eligible selections exist, reported separately from the previous **742**-cell store fixture, which is now **766** with this increment’s geographic operating-profit growth-contribution identities. G1/G2/G3, G5 aliases, accepted historical modules, explicit-concept precedence, ambiguity rejection, strict values, deterministic mapping, original-row provenance. Independent asset/liability/signed-equity gates, sparse omissions, contradiction rejection, empty-detail and subtotal/override controls, contra-equity, historical causal evidence, twelve pretax/ETR cases, mutation controls, failure immutability. Partial-period interest closure, opening-only CoD `0.374`, undefined ratios, pretax resolution, distinct tax expense; no invented interest, inferred zeros, cash-interest substitution, unavailable-history 4% substitute, lease repayment inference, or deferred-tax expense/recoverability claims. Capex `638657 / 651865 / 689232 / 680802`; repurchase residuals `-116195 / 1085647 / -207544 / -256674`; NCIT `28555 / 15864 / reported 0 / None`; Common stock `611 / 606 / 581 / 557`. Selected Americas revenue `7928156` remains stable under prior-presentation mutation; superseded `7928256` remains exclusively in audit evidence. Store counts `574/655/711/767/811`, changes `None/81/56/56/44`. The accepted revenue/store, revenue/comparable-sales, revenue/SPSF, and management-KPI series APIs remain unchanged. Parent temporary-build acceptance: success or exactly `MissingLineError: Required concept 'interest_expense' not found in statement lines`. This child's tests do not close parent acceptance.
+
+Accepted two-occurrence selection remains: unique evidenced compatible uncontradicted documentary direction, nonmissing occurrence-specifically audited reviser, retained superseded evidence, complete-group membership and ambiguous incoming-candidate blocking. Singletons/larger groups, unknown assurance and unresolved assertions remain deferred; infer no chronology or transitive precedence.
+
+Exact admitted reconciliation, production rejection of inconsistent reconstructed-versus-reported differences, and separately labelled synthetic signed residual coverage from `20260918-115651-000000007` remain in force. `SEGMENT_BRIDGE_TOLERANCE = 0.0`. A2-ED/B7-MID documentary UNVERIFIED; A5/B8/E10 pending Plan closure; E11 NonReq UNVERIFIED. G6 missing 2021-01-31 BS; G7 remainder (lease maturity); G8 deferral; G9 standalone interest completeness; TARGET Step 9 exit gates. No blanket DONE.
+
