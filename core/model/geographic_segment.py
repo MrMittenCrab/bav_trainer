@@ -12,23 +12,35 @@ margin ``income_from_operations / net_revenue``, percentage-point
 contributions to consolidated revenue growth, an arithmetic decomposition
 of consolidated reported operating margin, a separate midpoint mix and
 within-segment decomposition of the adjacent change in that margin, an adjacent operating-profit
-amount-change bridge, and midpoint revenue and margin effects that
-reconcile to each eligible segment operating-profit amount change.
+amount-change bridge, midpoint revenue and margin effects that
+reconcile to each eligible segment operating-profit amount change, and
+incremental reported operating margins ``(P_t−P_p)/(V_t−V_p)`` from
+immediately adjacent operating-profit and revenue changes.
 Reported operating margin is not BAV NOPAT margin. Revenue-growth
 contributions are an arithmetic decomposition of reported geographic
 revenue changes, not organic, constant-currency, or causal growth.
 Operating-margin contributions use consolidated revenue as the denominator
 and remain a direct contribution bridge, distinct from the mix/within-segment
 decomposition, the monetary amount-change bridge, the revenue/margin
-effects, normalization, or causal attribution. Amount changes are current
-minus immediately prior reported operating profit, with no revenue
-denominator; zero revenue does not suppress available profit changes.
+effects, incremental reported operating margins, normalization, or causal
+attribution. Amount changes are current minus immediately prior reported
+operating profit, with no revenue denominator; zero revenue does not
+suppress available profit changes.
 Revenue and margin effects use decimal reported margin ``m = P / V`` with
 no percentage-point multiplier: revenue effect
 ``(V_t − V_p) × (m_t + m_p) / 2`` and margin effect
 ``(m_t − m_p) × (V_t + V_p) / 2``. Zero segment revenue at either endpoint
 makes that segment's effects ``UNDEFINED_RATIO`` while amount changes remain
-available. The accepted difference is ``D_t = reconstructed_t − reported_t``.
+available. Incremental reported operating margin is the change in reported
+operating profit per unit of revenue change, stored as a decimal; it is
+distinct from reported operating margin. Exactly zero revenue change is
+``UNDEFINED_RATIO``, including unchanged profit; do not substitute zero or
+an ordinary operating margin. Signed declines, losses, zero profits, and
+zero endpoint revenue are preserved when the revenue change is nonzero.
+Ratios are not clamped. Consolidated incremental margins use reported
+consolidated profit and revenue, including existing signed reconcilers, and
+are not the sum or average of segment incremental margins.
+The accepted difference is ``D_t = reconstructed_t − reported_t``.
 The amount-change residual is ``R_t = Δreported − ΣΔsegment − Δaggregate
 signed reconcilers``, which equals ``−(D_t − D_previous)``, not ``+ΔD``.
 
@@ -99,6 +111,8 @@ class GeographicSegmentSeries:
     operating_profit_amount_change_residual: dict[date, float | str | None]
     operating_profit_revenue_effect: dict[date, dict[str, float | str | None]]
     operating_profit_margin_effect: dict[date, dict[str, float | str | None]]
+    operating_profit_incremental_margin: dict[date, dict[str, float | str | None]]
+    consolidated_operating_profit_incremental_margin: dict[date, float | str | None]
     calculated_segment_revenue_total: dict[date, float | str]
     calculated_segment_operating_profit_total: dict[date, float | str]
     signed_reconciling_contributions: dict[
@@ -574,6 +588,26 @@ def _revenue_margin_effect_map(
     }
 
 
+def _incremental_from_changes(
+    profit_change: float | str | None,
+    revenue_change: float | str | None,
+) -> float | str | None:
+    """Incremental reported operating margin ``ΔP / ΔV``; zero ``ΔV`` is undefined."""
+    if profit_change is None or revenue_change is None:
+        return None
+    return ratio_or_na(profit_change, revenue_change)
+
+
+def _incremental_margin_map(
+    profit_changes: dict[str, float | str | None],
+    revenue_changes: dict[str, float | str | None],
+) -> dict[str, float | str | None]:
+    return {
+        name: _incremental_from_changes(profit_changes[name], revenue_changes[name])
+        for name in SEGMENTS
+    }
+
+
 def _operating_profit_difference(reconstructed: float, reported: float) -> float:
     """D_t = reconstructed operating profit_t − reported consolidated operating profit_t."""
     return float(reconstructed) - float(reported)
@@ -638,7 +672,7 @@ def compute_geographic_segment_series(
     financials: StandardizedFinancials,
     periods: list[date] | None = None,
 ) -> GeographicSegmentSeries:
-    """Compute mix, growth, margins, contributions, mix/within, amount, and effect bridges."""
+    """Compute mix, growth, margins, contributions, mix/within, amount, effect, and incremental bridges."""
     if not geographic_segment_applicable(financials):
         raise MissingLineError("geographic segment sources not available")
 
@@ -674,6 +708,8 @@ def compute_geographic_segment_series(
     operating_profit_amount_change_residual: dict[date, float | str | None] = {}
     operating_profit_revenue_effect: dict[date, dict[str, float | str | None]] = {}
     operating_profit_margin_effect: dict[date, dict[str, float | str | None]] = {}
+    operating_profit_incremental_margin: dict[date, dict[str, float | str | None]] = {}
+    consolidated_operating_profit_incremental_margin: dict[date, float | str | None] = {}
     calculated_segment_revenue_total: dict[date, float | str] = {}
     calculated_segment_operating_profit_total: dict[date, float | str] = {}
     signed_reconciling_contributions: dict[
@@ -758,6 +794,12 @@ def compute_geographic_segment_series(
             )
             operating_profit_margin_effect[period] = (
                 _opening_contributions() if opening else _unavailable_contributions()
+            )
+            operating_profit_incremental_margin[period] = (
+                _opening_contributions() if opening else _unavailable_contributions()
+            )
+            consolidated_operating_profit_incremental_margin[period] = (
+                None if opening else SOURCE_UNAVAILABLE
             )
             calculated_segment_revenue_total[period] = SOURCE_UNAVAILABLE
             calculated_segment_operating_profit_total[period] = SOURCE_UNAVAILABLE
@@ -895,6 +937,24 @@ def compute_geographic_segment_series(
             opening=opening,
             kind="margin",
         )
+        revenue_amount_change = _adjacent_delta_map(
+            revenue,
+            prior_revenue,
+            opening=opening,
+        )
+        profit_incremental_margins = _incremental_margin_map(
+            profit_amount_change,
+            revenue_amount_change,
+        )
+        cons_revenue_amount_change = _adjacent_delta(
+            consolidated_revenue,
+            prior_consolidated,
+            opening=opening,
+        )
+        cons_incremental_margin = _incremental_from_changes(
+            cons_profit_amount_change,
+            cons_revenue_amount_change,
+        )
 
         presentation_family[period] = snapshot.presentation_family
         net_revenue[period] = dict(revenue)
@@ -925,6 +985,10 @@ def compute_geographic_segment_series(
         operating_profit_amount_change_residual[period] = profit_amount_change_residual
         operating_profit_revenue_effect[period] = profit_revenue_effects
         operating_profit_margin_effect[period] = profit_margin_effects
+        operating_profit_incremental_margin[period] = profit_incremental_margins
+        consolidated_operating_profit_incremental_margin[period] = (
+            cons_incremental_margin
+        )
         calculated_segment_revenue_total[period] = revenue_total
         calculated_segment_operating_profit_total[period] = operating_total
         signed_reconciling_contributions[period] = contributions
@@ -981,6 +1045,10 @@ def compute_geographic_segment_series(
         operating_profit_amount_change_residual=operating_profit_amount_change_residual,
         operating_profit_revenue_effect=operating_profit_revenue_effect,
         operating_profit_margin_effect=operating_profit_margin_effect,
+        operating_profit_incremental_margin=operating_profit_incremental_margin,
+        consolidated_operating_profit_incremental_margin=(
+            consolidated_operating_profit_incremental_margin
+        ),
         calculated_segment_revenue_total=calculated_segment_revenue_total,
         calculated_segment_operating_profit_total=calculated_segment_operating_profit_total,
         signed_reconciling_contributions=signed_reconciling_contributions,

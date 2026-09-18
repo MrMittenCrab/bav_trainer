@@ -5155,6 +5155,68 @@ GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         ),
         tolerance=1e-12,
     ),
+    ComponentFamily(
+        id="geographic_operating_profit_incremental_margin",
+        order=181,
+        title="Geographic incremental reported operating margin",
+        short_hint=(
+            "Incremental reported operating margin is the change in reported "
+            "operating profit per unit of adjacent revenue change, stored as a "
+            "decimal. Distinct from reported operating margin, which uses the "
+            "same period's profit and revenue levels rather than changes. "
+            "Preserve signed declines, losses, and ratios below zero or above "
+            "100%. A zero revenue change is undefined (#N/A), including when "
+            "profit is unchanged; do not substitute zero or the ordinary "
+            "operating margin. Small revenue changes make the ratio sensitive. "
+            "Opening is absent. A missing adjacent snapshot is unavailable. "
+            "Does not establish marginal cost, operating leverage, organic "
+            "growth, normalization, or BAV NOPAT."
+        ),
+        semantic_key="geographic.operating_profit_incremental_margin",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=("geographic_operating_profit_amount_change",),
+        hints=(
+            "Incremental margin = operating-profit amount change ÷ revenue change.",
+            "Zero revenue change is #N/A; do not substitute reported operating margin.",
+            "Signed declines are preserved; small revenue changes make the ratio sensitive.",
+            "Not marginal cost, operating leverage, organic growth, normalization, or BAV NOPAT.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id="geographic_consolidated_operating_profit_incremental_margin",
+        order=182,
+        title="Consolidated incremental reported operating margin",
+        short_hint=(
+            "Consolidated incremental reported operating margin uses reported "
+            "consolidated operating-profit and revenue changes, including "
+            "existing signed reconciling items in reported consolidated profit. "
+            "Do not sum or average segment incremental margins or require "
+            "equality to the consolidated ratio. Distinct from reported "
+            "operating margin. A zero consolidated revenue change is undefined "
+            "(#N/A), including unchanged profit. Preserve signed declines. "
+            "Small revenue changes make the ratio sensitive. Opening is "
+            "absent. A missing adjacent snapshot is unavailable. Does not "
+            "establish marginal cost, operating leverage, organic growth, "
+            "normalization, or BAV NOPAT."
+        ),
+        semantic_key="geographic.consolidated_operating_profit_incremental_margin",
+        category="geographic_segment",
+        tab_template=GEOGRAPHIC_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(
+            "geographic_consolidated_operating_profit_amount_change",
+        ),
+        hints=(
+            "Use reported consolidated profit and revenue changes, including reconciling items.",
+            "Do not sum or average segment incremental margins.",
+            "Zero revenue change is #N/A; distinct from reported operating margin.",
+            "Not marginal cost, operating leverage, organic growth, normalization, or BAV NOPAT.",
+        ),
+        tolerance=1e-12,
+    ),
 )
 
 
@@ -5265,6 +5327,10 @@ def expand_geographic_segment_specs(
     ]
     profit_revenue_effect = families["geographic_operating_profit_revenue_effect"]
     profit_margin_effect = families["geographic_operating_profit_margin_effect"]
+    incremental_margin = families["geographic_operating_profit_incremental_margin"]
+    cons_incremental_margin = families[
+        "geographic_consolidated_operating_profit_incremental_margin"
+    ]
     contribution_ids = contribution_identities or {}
     cons_growth_periods = set(consolidated_growth_periods or ())
     margin_change_set = set(margin_change_periods or ())
@@ -5587,6 +5653,27 @@ def expand_geographic_segment_specs(
                 depends_on=effect_deps,
                 title=f"{label} margin effect on operating-profit change",
             )
+        for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
+            label = geographic_identity_label(identity)
+            _append(
+                incremental_margin,
+                period,
+                identity=identity,
+                depends_on=(
+                    geographic_component_id(
+                        profit_amount_change.id, period, identity
+                    ),
+                ),
+                title=f"{label} incremental reported operating margin",
+            )
+        _append(
+            cons_incremental_margin,
+            period,
+            depends_on=(
+                geographic_component_id(cons_profit_amount_change.id, period),
+            ),
+            title="Consolidated incremental reported operating margin",
+        )
     return tuple(specs)
 
 
@@ -6181,6 +6268,20 @@ def resolve_geographic_operating_profit_margin_effect_formula(
     m_current = semantic_formula_cell(current_margin, from_tab=from_tab)
     m_prior = semantic_formula_cell(prior_margin, from_tab=from_tab)
     return f"=({m_current}-{m_prior})*({v_current}+{v_prior})/2"
+
+
+def resolve_geographic_operating_profit_incremental_margin_formula(
+    amount_change: SemanticCellRef,
+    current_revenue: SemanticCellRef,
+    prior_revenue: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Incremental reported operating margin from mapped ΔP and current/prior revenue."""
+    dp = semantic_formula_cell(amount_change, from_tab=from_tab)
+    v_current = semantic_formula_cell(current_revenue, from_tab=from_tab)
+    v_prior = semantic_formula_cell(prior_revenue, from_tab=from_tab)
+    return f"=IF(({v_current}-{v_prior})=0,NA(),{dp}/({v_current}-{v_prior}))"
 
 
 def resolve_geographic_reconciling_operating_profit_amount_change_formula(

@@ -43,6 +43,7 @@ from core.engine.component_catalog import (
     resolve_geographic_operating_margin_mix_within_residual_formula,
     resolve_geographic_operating_margin_within_segment_effect_formula,
     resolve_geographic_operating_profit_amount_change_residual_formula,
+    resolve_geographic_operating_profit_incremental_margin_formula,
     resolve_geographic_operating_profit_margin_effect_formula,
     resolve_geographic_operating_profit_revenue_effect_formula,
     resolve_geographic_reconciling_operating_margin_contribution_formula,
@@ -112,6 +113,7 @@ GEOGRAPHIC_MARGIN_BRIDGE_SPECS = 54
 GEOGRAPHIC_MIX_WITHIN_SPECS = 28
 GEOGRAPHIC_AMOUNT_CHANGE_SPECS = 24
 GEOGRAPHIC_PROFIT_EFFECT_SPECS = 24
+GEOGRAPHIC_INCREMENTAL_MARGIN_SPECS = 16
 GEOGRAPHIC_LULULEMON_SPECS = (
     GEOGRAPHIC_LULULEMON_SPECS_BASELINE
     + GEOGRAPHIC_CONTRIBUTION_SPECS
@@ -119,6 +121,7 @@ GEOGRAPHIC_LULULEMON_SPECS = (
     + GEOGRAPHIC_MIX_WITHIN_SPECS
     + GEOGRAPHIC_AMOUNT_CHANGE_SPECS
     + GEOGRAPHIC_PROFIT_EFFECT_SPECS
+    + GEOGRAPHIC_INCREMENTAL_MARGIN_SPECS
 )
 LULULEMON_UNAVAILABLE_DISPLAYS = 101
 GEOGRAPHIC_A2 = (
@@ -127,28 +130,36 @@ GEOGRAPHIC_A2 = (
     "contributions to consolidated revenue growth, an arithmetic "
     "decomposition of consolidated reported operating margin and its "
     "change, a separate mix and within-segment decomposition of "
-    "that adjacent change, and an adjacent operating-profit amount-"
-    "change bridge. Reported operating margin is distinct from "
-    "BAV NOPAT margin. Revenue-growth contributions are an arithmetic "
-    "decomposition of reported geographic revenue changes, not "
-    "organic, constant-currency, or causal growth. Operating-margin "
+    "that adjacent change, an adjacent operating-profit amount-"
+    "change bridge, and incremental reported operating margins. "
+    "Reported operating margin is distinct from BAV NOPAT margin. "
+    "Revenue-growth contributions are an arithmetic decomposition of "
+    "reported geographic revenue changes, not organic, "
+    "constant-currency, or causal growth. Operating-margin "
     "contributions are a direct contribution bridge, distinct from the "
     "mix and within-segment decomposition, the monetary amount-change "
     "bridge, midpoint revenue and margin effects on operating-profit "
-    "change, normalization, or a causal explanation. Mix and within-"
-    "segment effects use a symmetric midpoint convention and remain "
-    "arithmetic only. Operating-profit amount changes are monetary "
-    "differences, distinct from the percentage-point margin bridges. "
-    "Revenue and margin effects allocate each eligible segment "
-    "operating-profit amount change by a monetary midpoint convention."
+    "change, incremental reported operating margins, normalization, "
+    "or a causal explanation. Mix and within-segment effects use a "
+    "symmetric midpoint convention and remain arithmetic only. "
+    "Operating-profit amount changes are monetary differences, "
+    "distinct from the percentage-point margin bridges. Revenue and "
+    "margin effects allocate each eligible segment operating-profit "
+    "amount change by a monetary midpoint convention. Incremental "
+    "reported operating margins divide adjacent operating-profit "
+    "amount changes by adjacent revenue changes for each segment and "
+    "for reported consolidated totals, including signed reconciling "
+    "items in consolidated profit, and are distinct from reported "
+    "operating margin."
 )
 GEOGRAPHIC_A4 = (
     "Calculated segment totals are distinct from any reported segment_total. "
     "Sparse unavailable amounts remain unavailable; opening growth, "
     "opening revenue-growth contributions, opening operating-margin "
     "contribution changes, opening mix and within-segment effects, "
-    "opening operating-profit amount changes, and opening revenue "
-    "and margin effects on operating-profit change "
+    "opening operating-profit amount changes, opening revenue "
+    "and margin effects on operating-profit change, and opening "
+    "incremental reported operating margins "
     "are not practiced. Signed residuals are not forced to zero."
 )
 
@@ -379,7 +390,7 @@ def _assert_visible_parity(
 def test_catalog_orders_and_expand_identities():
     assert GEOGRAPHIC_SHEET == GEOGRAPHIC_SHEET_NAME
     assert [family.order for family in GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG] == list(
-        range(152, 181)
+        range(152, 183)
     )
     assert [family.id for family in GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG] == [
         "geographic_revenue_share",
@@ -411,6 +422,8 @@ def test_catalog_orders_and_expand_identities():
         "geographic_operating_profit_amount_change_residual",
         "geographic_operating_profit_revenue_effect",
         "geographic_operating_profit_margin_effect",
+        "geographic_operating_profit_incremental_margin",
+        "geographic_consolidated_operating_profit_incremental_margin",
     ]
     specs = expand_geographic_segment_specs(
         [P1, P2],
@@ -467,6 +480,12 @@ def test_catalog_orders_and_expand_identities():
         "geographic_operating_profit_margin_effect", P2, "americas"
     ) in {s.id for s in specs}
     assert geographic_component_id(
+        "geographic_operating_profit_incremental_margin", P2, "americas"
+    ) in {s.id for s in specs}
+    assert geographic_component_id(
+        "geographic_consolidated_operating_profit_incremental_margin", P2
+    ) in {s.id for s in specs}
+    assert geographic_component_id(
         "geographic_operating_margin_within_segment_effect", P2, "americas"
     ) in {s.id for s in specs}
     assert not any(
@@ -481,6 +500,16 @@ def test_catalog_orders_and_expand_identities():
     )
     assert not any(
         s.family_id == "geographic_operating_profit_revenue_effect"
+        and s.period_end == P1.isoformat()
+        for s in specs
+    )
+    assert not any(
+        s.family_id == "geographic_operating_profit_incremental_margin"
+        and s.period_end == P1.isoformat()
+        for s in specs
+    )
+    assert not any(
+        s.family_id == "geographic_consolidated_operating_profit_incremental_margin"
         and s.period_end == P1.isoformat()
         for s in specs
     )
@@ -672,6 +701,21 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
         and c.period_index == 1
         for c in geo_comps
     )
+    assert not any(
+        c.family_id == "geographic_operating_profit_incremental_margin"
+        and c.period_index == 0
+        for c in geo_comps
+    )
+    assert any(
+        c.family_id == "geographic_operating_profit_incremental_margin"
+        and c.period_index == 1
+        for c in geo_comps
+    )
+    assert any(
+        c.family_id == "geographic_consolidated_operating_profit_incremental_margin"
+        and c.period_index == 1
+        for c in geo_comps
+    )
 
     awb = load_workbook(answer, data_only=False)
     twb = load_workbook(trainer, data_only=False)
@@ -779,6 +823,16 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
     assert aws.cell(mgn_eff_row, 2).value == "N/A"
     assert str(aws.cell(mgn_eff_row, 3).value).startswith("=")
     assert "100*" not in str(aws.cell(mgn_eff_row, 3).value).replace(" ", "")
+    inc_row = _row_by_label(aws, "Americas incremental reported operating margin")
+    assert aws.cell(inc_row, 2).value == "N/A"
+    assert tws.cell(inc_row, 2).value == "N/A"
+    assert str(aws.cell(inc_row, 3).value).startswith("=")
+    assert "NA()" in str(aws.cell(inc_row, 3).value)
+    assert "100*" not in str(aws.cell(inc_row, 3).value).replace(" ", "")
+    cons_inc_row = _row_by_label(aws, "Consolidated incremental reported operating margin")
+    assert aws.cell(cons_inc_row, 2).value == "N/A"
+    assert str(aws.cell(cons_inc_row, 3).value).startswith("=")
+    assert "NA()" in str(aws.cell(cons_inc_row, 3).value)
     mix_note = (
         (aws.cell(mix_row, 3).comment.text or "")
         if aws.cell(mix_row, 3).comment
@@ -864,6 +918,32 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
     assert "nopat" in lowered_mgn_eff
     assert "volume" in lowered_mgn_eff
     assert "organic" in lowered_mgn_eff
+    inc_note = (
+        (aws.cell(inc_row, 3).comment.text or "")
+        if aws.cell(inc_row, 3).comment
+        else ""
+    )
+    lowered_inc = inc_note.lower()
+    assert "change in reported operating profit" in lowered_inc
+    assert "revenue change" in lowered_inc
+    assert "reported operating margin" in lowered_inc
+    assert "small" in lowered_inc
+    assert "signed" in lowered_inc or "decline" in lowered_inc
+    assert "nopat" in lowered_inc
+    assert "organic" in lowered_inc
+    assert "marginal cost" in lowered_inc
+    assert "operating leverage" in lowered_inc
+    assert "normalization" in lowered_inc
+    cons_inc_note = (
+        (aws.cell(cons_inc_row, 3).comment.text or "")
+        if aws.cell(cons_inc_row, 3).comment
+        else ""
+    )
+    lowered_cons_inc = cons_inc_note.lower()
+    assert "reconcil" in lowered_cons_inc
+    assert "segment" in lowered_cons_inc
+    assert "nopat" in lowered_cons_inc
+    assert "reported operating margin" in lowered_cons_inc
     cs_note = (
         (aws.cell(cs_row, 2).comment.text or "")
         if aws.cell(cs_row, 2).comment
@@ -997,6 +1077,9 @@ def test_sparse_undefined_negative_reorder_and_source_edit(tmp_path):
     assert series.operating_profit_revenue_effect[P0]["americas"] is None
     assert series.operating_profit_revenue_effect[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.operating_profit_margin_effect[P1]["americas"] == SOURCE_UNAVAILABLE
+    assert series.operating_profit_incremental_margin[P0]["americas"] is None
+    assert series.operating_profit_incremental_margin[P1]["americas"] == SOURCE_UNAVAILABLE
+    assert series.consolidated_operating_profit_incremental_margin[P1] == SOURCE_UNAVAILABLE
     assert series.revenue_growth[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.revenue_growth_contribution[P1]["americas"] == SOURCE_UNAVAILABLE
     assert series.reported_operating_margin[P1]["americas"] == UNDEFINED_RATIO
@@ -1035,6 +1118,11 @@ def test_sparse_undefined_negative_reorder_and_source_edit(tmp_path):
     )
     assert not any(
         s.family_id == "geographic_operating_profit_revenue_effect"
+        and s.period_end == P1.isoformat()
+        for s in builder.geographic_specs
+    )
+    assert not any(
+        s.family_id == "geographic_operating_profit_incremental_margin"
         and s.period_end == P1.isoformat()
         for s in builder.geographic_specs
     )
@@ -1098,6 +1186,12 @@ def test_sparse_undefined_negative_reorder_and_source_edit(tmp_path):
     )
     assert aws.cell(mix_row, 2).value == "N/A"
     assert aws.cell(mix_row, 3).value == SOURCE_UNAVAILABLE
+    inc_row = _row_by_label(aws, "Americas incremental reported operating margin")
+    assert aws.cell(inc_row, 2).value == "N/A"
+    assert aws.cell(inc_row, 3).value == SOURCE_UNAVAILABLE
+    cons_inc_row = _row_by_label(aws, "Consolidated incremental reported operating margin")
+    assert aws.cell(cons_inc_row, 2).value == "N/A"
+    assert aws.cell(cons_inc_row, 3).value == SOURCE_UNAVAILABLE
     margin_row = _row_by_label(aws, "Americas reported operating margin")
     assert "NA()" in str(aws.cell(margin_row, 3).value)
     awb.close()
@@ -1789,6 +1883,37 @@ def test_margin_bridge_formulas_follow_relocated_sources(tmp_path, monkeypatch):
     )
     assert "100*" not in rev_eff.formula.replace(" ", "")
     assert "100*" not in mgn_eff.formula.replace(" ", "")
+    inc_mgn = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_operating_profit_incremental_margin"
+        and geographic_spec_identity(c) == "americas"
+        and c.period_index == 1
+    )
+    assert inc_mgn.formula.replace(" ", "") == (
+        resolve_geographic_operating_profit_incremental_margin_formula(
+            SemanticCellRef(dp.id, dp.semantic_key, dp.period_end, dp.cell, dp.tab),
+            _ref(MOVED_GEO_REVENUE_SOURCE_PLACEMENT[("americas", 1)], "rev_curr"),
+            _ref(MOVED_GEO_REVENUE_SOURCE_PLACEMENT[("americas", 0)], "rev_prior"),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    assert adjacent_rev not in inc_mgn.formula.replace(" ", "")
+    assert "NA()" in inc_mgn.formula.replace(" ", "")
+    cons_inc_mgn = next(
+        c
+        for c in smap.all_ordered()
+        if c.family_id == "geographic_consolidated_operating_profit_incremental_margin"
+        and c.period_index == 1
+    )
+    assert cons_inc_mgn.formula.replace(" ", "") == (
+        resolve_geographic_operating_profit_incremental_margin_formula(
+            SemanticCellRef(dpc.id, dpc.semantic_key, dpc.period_end, dpc.cell, dpc.tab),
+            _ref(MOVED_GEO_REVENUE_SOURCE_PLACEMENT[("consolidated", 1)], "cons_curr"),
+            _ref(MOVED_GEO_REVENUE_SOURCE_PLACEMENT[("consolidated", 0)], "cons_prior"),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
     awb = load_workbook(answer, data_only=False)
     row, col = MOVED_GEO_IFOP_SOURCE_PLACEMENT[("americas", 0)][:2]
     assert awb[GEOGRAPHIC_SHEET].cell(row, col).value not in (None, "")
@@ -2080,6 +2205,16 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
         }
     ]
     assert len(profit_effect_n) == GEOGRAPHIC_PROFIT_EFFECT_SPECS
+    incremental_n = [
+        c
+        for c in geo_comps
+        if c.family_id
+        in {
+            "geographic_operating_profit_incremental_margin",
+            "geographic_consolidated_operating_profit_incremental_margin",
+        }
+    ]
+    assert len(incremental_n) == GEOGRAPHIC_INCREMENTAL_MARGIN_SPECS
     fy2026_cs = next(
         c
         for c in geo_comps
@@ -2190,6 +2325,8 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
             "geographic_operating_profit_amount_change_residual",
             "geographic_operating_profit_revenue_effect",
             "geographic_operating_profit_margin_effect",
+            "geographic_operating_profit_incremental_margin",
+            "geographic_consolidated_operating_profit_incremental_margin",
         }
         and c.period_end == opening.isoformat()
         for c in geo_comps
@@ -2630,7 +2767,80 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
         ).replace(" ", "")
     )
     assert "100*" not in fy2026_rev_eff.formula.replace(" ", "")
+    fy2026_inc = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_operating_profit_incremental_margin"
+        and c.period_end == FY2026.isoformat()
+        and geographic_spec_identity(c) == "americas"
+    )
+    fy2026_cons_inc = next(
+        c
+        for c in geo_comps
+        if c.family_id == "geographic_consolidated_operating_profit_incremental_margin"
+        and c.period_end == FY2026.isoformat()
+    )
+    independent_inc = (fy2026_p - prior_p) / (fy2026_v - prior_v)
+    assert fy2026_inc.expected_value == pytest.approx(independent_inc)
+    assert float(fy2026_inc.expected_value) * (fy2026_v - prior_v) == pytest.approx(
+        float(fy2026_dp.expected_value)
+    )
+    fy2026_cons_v = float(snapshots[FY2026].values["net_revenue.consolidated"])
+    prior_cons_v = float(prior_fy2026_snap.values["net_revenue.consolidated"])
+    fy2026_cons_p = float(snapshots[FY2026].values["income_from_operations.consolidated"])
+    prior_cons_p = float(prior_fy2026_snap.values["income_from_operations.consolidated"])
+    independent_cons_inc = (fy2026_cons_p - prior_cons_p) / (fy2026_cons_v - prior_cons_v)
+    assert fy2026_cons_inc.expected_value == pytest.approx(independent_cons_inc)
+    assert fy2026_inc.formula.replace(" ", "") == (
+        resolve_geographic_operating_profit_incremental_margin_formula(
+            SemanticCellRef(
+                fy2026_dp.id,
+                fy2026_dp.semantic_key,
+                fy2026_dp.period_end,
+                fy2026_dp.cell,
+                fy2026_dp.tab,
+            ),
+            SemanticCellRef(
+                "rev", "k", FY2026.isoformat(),
+                f"{fy2026_col_letter}{americas_rev}",
+                GEOGRAPHIC_SHEET,
+            ),
+            SemanticCellRef(
+                "rev_p", "k", prior_fy2026.isoformat(),
+                f"{prior_col_letter}{americas_rev}",
+                GEOGRAPHIC_SHEET,
+            ),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    cons_rev_row = cons_rev
+    assert fy2026_cons_inc.formula.replace(" ", "") == (
+        resolve_geographic_operating_profit_incremental_margin_formula(
+            SemanticCellRef(
+                fy2026_dpc.id,
+                fy2026_dpc.semantic_key,
+                fy2026_dpc.period_end,
+                fy2026_dpc.cell,
+                fy2026_dpc.tab,
+            ),
+            SemanticCellRef(
+                "rev", "k", FY2026.isoformat(),
+                f"{fy2026_col_letter}{cons_rev_row}",
+                GEOGRAPHIC_SHEET,
+            ),
+            SemanticCellRef(
+                "rev_p", "k", prior_fy2026.isoformat(),
+                f"{prior_col_letter}{cons_rev_row}",
+                GEOGRAPHIC_SHEET,
+            ),
+            from_tab=GEOGRAPHIC_SHEET,
+        ).replace(" ", "")
+    )
+    assert "NA()" in fy2026_inc.formula.replace(" ", "")
     max_effect_error = 0.0
+    max_incremental_error = 0.0
+    incremental_numeric = 0
+    incremental_undefined = 0
     for identity in GEOGRAPHIC_SEGMENT_IDENTITIES:
         for current, prior in (
             (date(2023, 1, 29), date(2022, 1, 30)),
@@ -2673,7 +2883,62 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
                     - expected_dp
                 ),
             )
+            inc_comp = next(
+                c
+                for c in geo_comps
+                if c.family_id == "geographic_operating_profit_incremental_margin"
+                and c.period_end == current.isoformat()
+                and geographic_spec_identity(c) == identity
+            )
+            dv = v_t - v_p
+            if dv == 0.0:
+                assert inc_comp.expected_value == UNDEFINED_RATIO
+                incremental_undefined += 1
+            else:
+                expected_inc = expected_dp / dv
+                max_incremental_error = max(
+                    max_incremental_error,
+                    abs(float(inc_comp.expected_value) - expected_inc),
+                    abs(float(inc_comp.expected_value) * dv - expected_dp),
+                )
+                incremental_numeric += 1
     assert max_effect_error <= max(GEOGRAPHIC_RATIO_TOLERANCE, 1e-6)
+    for current, prior in (
+        (date(2023, 1, 29), date(2022, 1, 30)),
+        (date(2024, 1, 28), date(2023, 1, 29)),
+        (date(2025, 2, 2), date(2024, 1, 28)),
+        (FY2026, prior_fy2026),
+    ):
+        curr_snap = snapshots[current]
+        prior_snap = snapshots[prior]
+        v_t = float(curr_snap.values["net_revenue.consolidated"])
+        v_p = float(prior_snap.values["net_revenue.consolidated"])
+        p_t = float(curr_snap.values["income_from_operations.consolidated"])
+        p_p = float(prior_snap.values["income_from_operations.consolidated"])
+        cons_inc_comp = next(
+            c
+            for c in geo_comps
+            if c.family_id
+            == "geographic_consolidated_operating_profit_incremental_margin"
+            and c.period_end == current.isoformat()
+        )
+        dv = v_t - v_p
+        dp_cons = p_t - p_p
+        if dv == 0.0:
+            assert cons_inc_comp.expected_value == UNDEFINED_RATIO
+            incremental_undefined += 1
+        else:
+            expected_inc = dp_cons / dv
+            max_incremental_error = max(
+                max_incremental_error,
+                abs(float(cons_inc_comp.expected_value) - expected_inc),
+                abs(float(cons_inc_comp.expected_value) * dv - dp_cons),
+            )
+            incremental_numeric += 1
+    assert incremental_numeric + incremental_undefined == GEOGRAPHIC_INCREMENTAL_MARGIN_SPECS
+    assert incremental_numeric == GEOGRAPHIC_INCREMENTAL_MARGIN_SPECS
+    assert incremental_undefined == 0
+    assert max_incremental_error <= max(GEOGRAPHIC_RATIO_TOLERANCE, 1e-6)
     cons_growth_comp = next(
         c
         for c in geo_comps
@@ -2827,6 +3092,8 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
             "geographic_operating_profit_amount_change_residual",
             "geographic_operating_profit_revenue_effect",
             "geographic_operating_profit_margin_effect",
+            "geographic_operating_profit_incremental_margin",
+            "geographic_consolidated_operating_profit_incremental_margin",
         }:
             assert trainer_cell.comment is None
             assert answer_cell.comment is not None
