@@ -1401,3 +1401,125 @@ Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Complet
 
 Working-tree HEAD is `2396e03329c119ff3091a9b41b97d8c4312a8638`. `.git/autocycle/latest-implementation` was not rewritten.
 
+---
+
+# RESULT.md — Step 9M.2.4.1.1.1.66 Real-company normalization: conditional signed source-qualification proposal
+
+**Status:** COMPLETE (this work child; parents remain UNRESOLVED)  
+**Step:** 9M.2.4.1.1.1.66 — Real-company normalization: source-to-selector qualification  
+**Work:** `9a9bf001dea84a868ef326d8ef5126ea` (continued; missing signed proposal repaired)  
+**Plan:** `18db9dda6e634091bde2f4d2adb0e798`  
+**Finding:** `real-company-normalization-source-to-selector-gap`  
+**Parents:** Steps 9M.2.4.1.1.1, 9M.2.4.1.1, 9M.2.4.1, and 9M.2.4 — remain **UNRESOLVED**  
+Accepted illustrative normalization Excel work `e2b825657b944d36beafca6c36cf91ff` remains complete and is not reopened. Geographic/KPI Excel verification is not reopened.  
+Instruction `20260916-075534-000000006` is retained extraction/source-binding evidence (eight extracted JSON blob SHA-1 values unchanged vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151`). Recovery was not re-executed. Instruction `20260918-115651-000000007` remains retained. Frozen requests `20260914-193338-000000004` and `20260915-042248-000000005` remain unfinished beyond this increment.  
+`TARGET.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start). TARGET SHA-256 `ab70dd8859ba352a2387b95c55477cbc31944288c60478023d5937cf0662e91c` (23864). IMPLEMENTATION SHA-256 `58e4bdc0981f350f68b7b3af6eb39275aeee0202dd03fe33d3e1fc9fad98e7bd` (9476).  
+No commit / push / sync / checkpoint / branch change. No production-code repair, candidate admission, extraction rerun, source amendment, live artifact replacement, publication, forecasting, or valuation. Edited this child: `RESULT.md` only. Diagnostic scripts and intermediates live only under `/tmp/bav_norm_qualify_9M2411166/`.  
+Generating SHA `601698100d57ce29053478a3018c8860474728df`. Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. `SEGMENT_BRIDGE_TOLERANCE = 0.0`.  
+This child does **not** declare parent, Geographic Analysis product, Operating KPIs product, Normalization product, real-company workbook, or Step 9 acceptance.
+
+Prior RESULT under plan `512736ff019643588afc95abb61cab90` remains as written for the ordinary-path diagnosis. Its blanket “signed analytical convention UNRESOLVED” and any implication that the signed proposal was complete are **superseded only for that missing proposal**. Interrupted `/tmp/bav_norm_qualify_9M2411166/` evidence was inspected and preserved; `evidence.json` and `qualify_source_to_selector.py` were not overwritten.
+
+## Required plan change
+
+No required plan change. Later admission, identity alignment, sparse-IS policy, candidate insertion, implemented source-sign conversion, or tax-effect treatment still need Plan. This child does not revise `IMPLEMENTATION.md`.
+
+## Correction of prior signed-convention statement
+
+The prior child correctly recorded face-positive extracted amounts and the ordinary omission/rejection trace. It left engine representation unsigned. This child records an explicit **conditional engine-representation proposal**, not a filing claim and not an implemented conversion:
+
+- face amounts remain `0 / 407913 / 74501 / 0 / 0`;
+- proposed signed analytical amounts equal **negative reported face expense**;
+- adoption, identity merge, documentary precedence, and accounting treatment remain unresolved.
+
+## Task 1 — Conditional signed qualification ledger
+
+Currency **USD**, unit scale **thousands**. Face amounts are the existing source-checked IS observations. Proposed signed amounts use the engine’s expense-negative convention: `proposed_signed = -face_reported`. Labels were **not** combined by `suggested_concept`. This history does not establish documentary precedence or supply missing observations.
+
+| Period | Face (USD thousands) | Proposed signed analytical (USD thousands) | Linked existing IS evidence | Zero vs missing |
+|---|---:|---:|---|---|
+| `2022-01-30` | `0` | `0` | FY2022 p50/printed 46 label `Impairment of goodwill and other assets` (comparative explicit nil); FY2023 p56/printed 50 label `Impairment of goodwill and other assets, restructuring costs` (comparative explicit nil) | explicit nil |
+| `2023-01-29` | `407913` | `-407913` | FY2022 current; FY2023 comparative; FY2024 comparative (decoded Identity-H); values agree, labels do not | nonzero |
+| `2024-01-28` | `74501` | `-74501` | FY2023 current; FY2024 comparative; FY2025 comparative (decoded Identity-H); values agree, labels do not | nonzero |
+| `2025-02-02` | `0` | `0` | FY2024 current explicit nil; FY2025 comparative explicit nil | explicit nil |
+| `2026-02-01` | `0` | `0` | FY2025 current explicit nil | explicit nil |
+
+Document hashes, printed/physical pages, exact labels, statement identities, presentation roles, overlapping observations, and explicit-zero evidence remain those already recorded in the prior ledger and authenticated `evidence.json`. Cash-flow add-backs continue to equal the IS face amounts on every overlapping period and are **not** a second P&L hit. Geographic reconciling reprints (where extracted) are a third presentation. `2021-01-31` remains outside the five-period axis.
+
+## Task 2 — Sign arithmetic separated from accounting judgments
+
+Cited `core/model/normalization.py` `compute_normalization_series` (SHA-256 `5b6e99870716ede72416e774c646355890e4911cf681b143538db25933bd252f`, 11826 bytes): `pretax_adj += -float(reported)`. Recurring treatment skips the candidate (`continue`). Scope remains `operating_pretax_effective_tax`.
+
+Using the **conditional signed series** as hypothetical `reported` (not admitted; ordinary standardized still has no IS candidate):
+
+| Treatment | Pretax adjustment series |
+|---|---|
+| Hypothetical Non-recurring | `0 / +407913 / +74501 / 0 / 0` |
+| Hypothetical Recurring | `0 / 0 / 0 / 0 / 0` |
+
+Independent check: if face-positive amounts were fed to the same `pretax_adj += -reported` line, Non-recurring pretax would reverse to `0 / -407913 / -74501 / 0 / 0`. That reversal is why the signed proposal exists; it is not a filing claim.
+
+`operating_pretax_effective_tax` applies reported operating ETR only when pretax adjustment is nonzero and ETR is numeric: after-tax = `pretax_adj * (1.0 - ETR)`. If pretax adjustment is `0.0`, after-tax is `0.0` without an ETR. If ETR is `UNDEFINED_RATIO` (`#N/A`), after-tax is `UNDEFINED_RATIO`. This child **did not invent tax rates and did not calculate after-tax amounts** for the nonzero periods. Disclosed note tax effects `(28171)` and `(26085)` cover broader charge totals (including Studio COGS) and do **not** establish tax effects for this IS aggregate alone.
+
+Unresolved (not prerequisites for documenting the conditional proposal):
+
+- recurring vs non-recurring treatment;
+- aggregate vs components;
+- related COGS inclusion;
+- deductibility;
+- suitability of operating ETR for this IS aggregate.
+
+Count the IS aggregate **once**: CF add-backs and geographic reconciling observations are alternate presentations; Studio COGS charges remain excluded from this proposal.
+
+Diagnosed boundary **preserved, not repaired**: three IS and three CF identities remain `omitted_incomplete_axis`; ordinary live/admit standardized still emit **no** IS impairment line; selectors still fail closed. The conditional proposal does not admit a candidate or convert source signs.
+
+Omitted identities (admit-run provenance, unchanged):
+
+- `income_statement||impairment of goodwill and other assets|impairment_and_restructuring`
+- `income_statement||impairment of goodwill and other assets, restructuring costs|impairment_and_restructuring`
+- `income_statement||impairment of assets and restructuring costs|impairment_and_restructuring`
+- matching three cash-flow identities
+
+## Task 3 — Reviewable verification
+
+Retained ordinary-path evidence authenticated, not regenerated. Missing signed-arithmetic evidence written only under `/tmp/bav_norm_qualify_9M2411166/`. Hypothetical arithmetic kept separate from actual selector results.
+
+| Artifact | SHA-256 | Bytes | Role |
+|---|---|---:|---|
+| `/tmp/bav_norm_qualify_9M2411166/evidence.json` | `fb9a13378756600a0087e6a6785ed38ad06a587b8d76182cf6c41d1c129f6960` | 162968 | retained ordinary-path ledger; **authenticated match** |
+| `/tmp/bav_norm_qualify_9M2411166/qualify_source_to_selector.py` | `3d7a02f7027db5a18da4dd7701fada9d6dd4c66592b5f0b54aefa6bf9c41f8d2` | 41666 | retained reproducer; **authenticated match** |
+| `/tmp/bav_norm_qualify_9M2411166/signed_arithmetic_check.py` | `cab57b5d973477ebe8d069096cc1fd314fa9faf74b2b938b74af1961bd5eaa43` | 22103 | new read-only arithmetic checker |
+| `/tmp/bav_norm_qualify_9M2411166/signed_arithmetic_check.json` | `a870a856e1959e370dca979d11e85c665f9ce76dc03d1420de5407daac608699` | 33492 | new measured arithmetic + hash evidence |
+
+Live `build/input/lululemon-live/standardized.json` SHA-256 `6c9aad59b04a5995742c68e08f1a704953796fc9fad97a036b08aeeab59051e5` **byte-identical** to retained admit-run standardized. Live provenance SHA-256 `5067c1d04aa93c18062fe7eb90558a86394283b7d9fe45899761f71cfb615951` byte-identical to admit-run. Conflicts SHA-256 `d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0`. Default four-period standardized SHA-256 `b9d8354cbeb04edad2aba1df332ef46d49a61c2c8d9eea35cf209d4491bf1cfa`. Ordinary output still has **0** IS impairment lines.
+
+Fresh selector probes against unmodified live and admit `StandardizedFinancials` (no candidate inserted): all five selectors `ValueError` matched no income-statement line; empty `normalizationCandidates` → **0** cases; explicit probe candidates fail closed before history/nonzero checks.
+
+## Measured verification
+
+| Command | Exit | Result |
+|---|---:|---|
+| `/Users/lizhiguo/Documents/Developer/.venv/bin/python /tmp/bav_norm_qualify_9M2411166/signed_arithmetic_check.py` | 0 | face `0/407913/74501/0/0`; signed `0/-407913/-74501/0/0`; Non-recurring pretax `0/+407913/+74501/0/0`; Recurring pretax all `0`; retained evidence/reproducer hashes match; live=admit standardized; selectors fail-closed; elapsed **1.486s** |
+| Protected artifacts vs `3f6f5dde023847e3347a4c830d822614a28c81a9` and `20d93331bd3c1b3cccd72a3bf5c805453789e189` | 0 | **50/50 MATCH** (fresh this child) |
+| Eight extracted JSON vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151` path blobs | 0 | **8/8 UNCHANGED** (fresh this child) |
+
+Prior child commands (retained, not re-executed): validate-source 4/0/0; ordinary reconcile default and `--admit-period 2022-01-30`; `qualify_source_to_selector.py` statement PDF checks **24/24**. Those outputs remain byte-identical to the hashes above.
+
+## Fresh vs retained evidence
+
+| Kind | This child |
+|---|---|
+| Fresh | Conditional signed series `0 / -407913 / -74501 / 0 / 0`; transformation `proposed_signed = -face`; hypothetical Non-recurring pretax `0 / +407913 / +74501 / 0 / 0` and Recurring zeros via `pretax_adj += -reported`; no after-tax amounts calculated; correction of prior blanket signed-convention UNRESOLVED; authenticated retained evidence/reproducer hashes; fresh selector fail-closed on live/admit; checkpoints **50/50**; extracts **8/8** |
+| Retained, re-authenticated | Five-period IS/CF/geo ledger vs PDFs+JSON; overlapping values agree and labels do not; ordinary validate/reconcile/standardize into temp; live standardized/provenance byte-match admit run; 6 `omitted_incomplete_axis` identities; empty company `normalizationCandidates`; note composition and disclosed tax effects; Identity-H CID decode; statement PDF checks **24/24** |
+| Unresolved by design | adoption of the signed convention into source conversion; recurring/non-recurring treatment; aggregate vs components; related COGS; deductibility; whether ETR matches note tax effects; later-filing geographic `note_facts` not extracted; broader physical-page mapping beyond cited pages |
+| Retained, not re-measured independently | Store/mixed/compsales totals `766/768/760`; Fast Retailing **577**; stores `574/655/711/767/811`, changes `None/81/56/56/44`; five revenue sources / eight revenue-store practices; geo **56/264**; preserved **486**; ordinary-fixture unavailable **101**; segment-margin formulas **15**; complete `core/tests` **3240** from `.61`; Excel verifications from `.62`–`.65`; management 135 observations (`29/36/37/33`), nine definitions, 107 market observations, three excluded targets, assessments `0/22/6/107`, 24 incompatible pairs, six singletons, zero selections/revision links; 110 accepted additions; G1/G2/G3/G5 aliases; twelve pretax/ETR cases; opening-only CoD `0.374`; selected Americas `7928156`; audit-only `7928256`; capex `638657/651865/689232/680802`; repurchase residuals `-116195/1085647/-207544/-256674`; NCIT `28555/15864/0/None`; Common stock `611/606/581/557` |
+| Not claimed | Real-company normalization workbook; candidate admission; implementation repair; treatment-conditioned Excel; normalized per-share; parent or Step 9 completion |
+
+## Remaining scope
+
+The conditional signed qualification proposal is complete for this child. Candidate admission, any handoff repair, treatment-dependent Excel verification, normalized per-share acceptance, and real-company workbook acceptance remain open. Both workflow commitments remain unfinished.
+
+Parents 9M.2.4.1.1.1 / 9M.2.4.1.1 / 9M.2.4.1 / 9M.2.4 remain UNRESOLVED. Completed admission, `.37` through `.65`, and the prior source-to-selector diagnosis are not reopened. G6 opening BS, G7 lease maturity/notes, G8 deferral, G9 standalone interest completeness, segment assets/capex/significant expenses/D&A, benchmark publication, independent M&A Net Debt, Complete NOPAT/RNOA, forecasting and valuation remain deferred. Retain A2-ED/B7-MID documentary UNVERIFIED, A5/B8/E10 pending Plan closure and E11 NonReq UNVERIFIED. Parent temporary-build acceptance remains: success or exactly `MissingLineError: Required concept 'interest_expense' not found in statement lines`. No prospective IDs reserved.
+
+Working-tree HEAD is `601698100d57ce29053478a3018c8860474728df`. `.git/autocycle/latest-implementation` was not rewritten.
+
