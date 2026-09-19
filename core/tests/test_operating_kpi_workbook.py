@@ -148,6 +148,7 @@ from core.tests.test_learner_ready_presentation import (
     _assert_answer_key_no_yellow,
     _assert_fresh_visible_style,
     _judgment_response_keys,
+    assert_bav_has_no_exercise_framing,
 )
 from core.tests.test_management_kpi_admission import (
     ANNUAL_NAMES,
@@ -271,9 +272,9 @@ STORE_A2 = (
     "count changes, not openings or closures."
 )
 STORE_A4 = (
-    "Opening change and growth are not practiced. A missing adjacent "
-    "snapshot remains unavailable. Count units stay independent of "
-    "monetary scale."
+    "Opening change and growth remain unavailable without a prior "
+    "period. A missing adjacent snapshot remains unavailable. Count "
+    "units stay independent of monetary scale."
 )
 _DISCLOSED_STORE_ARITHMETIC = (
     "(current − prior) / prior",
@@ -949,6 +950,7 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
     assert tws["A2"].value == STORE_A2
     assert aws["A4"].value == STORE_A4
     assert tws["A4"].value == STORE_A4
+    assert_bav_has_no_exercise_framing(answer)
     _assert_no_disclosed_store_arithmetic(twb)
     blob = "\n".join(text for _sheet, _coord, text in _visible_cell_texts(twb))
     for guidance in _store_answer_guidance():
@@ -2842,6 +2844,7 @@ def test_comparable_sales_only_and_mixed_reuse_revenue_growth(tmp_path):
     _assert_answer_key_no_yellow(answer)
     awb.close()
     twb.close()
+    assert_bav_has_no_exercise_framing(answer)
 
     mixed = _compsales_tiny(
         _compsales(period=P1, value=2.0),
@@ -2952,6 +2955,7 @@ def test_spsf_only_workbook_supplies_shared_revenue(tmp_path):
     twb = load_workbook(trainer, data_only=False)
     aws = awb[SALES_PER_SQUARE_FOOT_SHEET]
     assert SALES_PER_SQUARE_FOOT_REVENUE_SCOPE_NOTE in str(aws["A4"].value)
+    assert "without a prior period" in str(aws["A4"].value)
     _assert_spsf_a5_non_disclosing(aws["A5"].value)
     _assert_trainer_management_history_undisclosed(twb)
     _assert_answer_key_management_history_undisclosed(awb)
@@ -2965,6 +2969,7 @@ def test_spsf_only_workbook_supplies_shared_revenue(tmp_path):
     _assert_answer_key_no_yellow(answer)
     awb.close()
     twb.close()
+    assert_bav_has_no_exercise_framing(answer)
     assert COMPARABLE_SALES_SHEET not in load_workbook(answer).sheetnames
     assert STORE_COUNT_SHEET not in load_workbook(answer).sheetnames
 

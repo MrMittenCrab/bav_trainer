@@ -3866,8 +3866,9 @@ INVENTORY_ANALYSIS_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
         title="Change in inventory",
         short_hint=(
             "Change in inventory = current inventory − prior inventory "
-            "(signed). Opening-period change is not practiced. This is not "
-            "proof of cash movement, markdowns, or management causes."
+            "(signed). Opening-period change is unavailable without a prior "
+            "period. This is not proof of cash movement, markdowns, or "
+            "management causes."
         ),
         semantic_key="inventory_analysis.inventory_change",
         category="inventory_analysis",
@@ -3960,7 +3961,8 @@ INVENTORY_ANALYSIS_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
             "Balance-implied inventory CF adjustment = −(current inventory − "
             "prior inventory), the negative of the inventory balance movement. "
             "This is not the reported operating cash-flow reconciliation "
-            "adjustment. Opening-period comparison is not practiced."
+            "adjustment. Opening-period comparison is unavailable without a "
+            "prior period."
         ),
         semantic_key="inventory_analysis.inventory_balance_implied_cf_adjustment",
         category="inventory_analysis",
@@ -5941,7 +5943,7 @@ STORE_COUNT_SOURCE_FAMILY = ComponentFamily(
     title="Company-operated period-end store count",
     short_hint=(
         "Populated company-operated period-end store count. This is a "
-        "reported source, not a practice cell. Count units are independent "
+        "reported source fact. Count units are independent "
         "of monetary scale."
     ),
     semantic_key="operating_kpi.store_count.source",
@@ -5951,7 +5953,7 @@ STORE_COUNT_SOURCE_FAMILY = ComponentFamily(
     hints=(
         f"Population is {STORE_COUNT_POPULATION_LABEL}.",
         "Count units stay independent of monetary scale.",
-        "This source is populated and is not practiced or Checked.",
+        "This source remains populated from the filing.",
     ),
     tolerance=0.0,
 )
@@ -6586,7 +6588,7 @@ REVENUE_STORE_SOURCE_FAMILY = ComponentFamily(
     title="Consolidated revenue",
     short_hint=(
         "Populated consolidated revenue from the income-statement source. "
-        "This is a reported source, not a practice cell. Distinct from "
+        "This is a reported source fact. Distinct from "
         "company-operated period-end store counts."
     ),
     semantic_key="operating_kpi.revenue_store.source",
@@ -6594,9 +6596,9 @@ REVENUE_STORE_SOURCE_FAMILY = ComponentFamily(
     tab_template=STORE_COUNT_SHEET_NAME,
     period_scope="all",
     hints=(
-        "Consolidated revenue is a reported source, not a practice cell.",
+        "Consolidated revenue is a reported source fact.",
         "Company-operated store counts remain a distinct input.",
-        "This source is populated and is not practiced or Checked.",
+        "This source remains populated from the filing.",
     ),
     tolerance=0.0,
 )
@@ -6923,7 +6925,7 @@ COMPARABLE_SALES_SOURCE_FAMILY = ComponentFamily(
     title="Reported comparable-sales growth",
     short_hint=(
         "Populated reported global comparable-sales growth in percent units. "
-        "This is a reported source, not a practice cell. Distinct from "
+        "This is a reported source fact. Distinct from "
         "statement-derived consolidated revenue growth. A value of 2 means 2%."
     ),
     semantic_key="operating_kpi.comparable_sales.source",
@@ -6931,10 +6933,10 @@ COMPARABLE_SALES_SOURCE_FAMILY = ComponentFamily(
     tab_template=COMPARABLE_SALES_SHEET_NAME,
     period_scope="all",
     hints=(
-        "Reported comparable-sales growth is a reported source, not a practice cell.",
+        "Reported comparable-sales growth is a reported source fact.",
         "The API unit is percent: 2 means 2%, not a 2.00 ratio.",
         "Identities stay isolated; they are not merged, averaged, or selected.",
-        "This source is populated and is not practiced or Checked.",
+        "This source remains populated from the filing.",
     ),
     tolerance=0.0,
 )
@@ -6993,7 +6995,7 @@ COMPARABLE_SALES_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
             "reported comparable-sales source cells.",
             "The result is in percentage points: 7 minus 2 is 5, not 2.5.",
             "Opening change is absent; a canonical gap or semantic discontinuity "
-            "is unavailable and is not practiced.",
+            "is unavailable.",
             "Reported values remain populated across discontinuities.",
         ),
         tolerance=1e-12,
@@ -7298,7 +7300,7 @@ SALES_PER_SQUARE_FOOT_SOURCE_FAMILY = ComponentFamily(
     title="Reported sales per square foot",
     short_hint=(
         "Populated reported sales per square foot in USD_per_square_foot. "
-        "This is a reported source, not a practice cell. Financial-statement "
+        "This is a reported source fact. Financial-statement "
         "monetary scaling is not applied."
     ),
     semantic_key="operating_kpi.sales_per_square_foot.source",
@@ -7306,10 +7308,10 @@ SALES_PER_SQUARE_FOOT_SOURCE_FAMILY = ComponentFamily(
     tab_template=SALES_PER_SQUARE_FOOT_SHEET_NAME,
     period_scope="all",
     hints=(
-        "Reported sales per square foot is a reported source, not a practice cell.",
+        "Reported sales per square foot is a reported source fact.",
         "The API unit is USD_per_square_foot and is not scaled to statement units.",
         "Identities stay isolated; they are not merged, averaged, or selected.",
-        "This source is populated and is not practiced or Checked.",
+        "This source remains populated from the filing.",
     ),
     tolerance=0.0,
 )
@@ -7338,7 +7340,7 @@ SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
             "The unit remains USD_per_square_foot; statement monetary scaling "
             "is not applied.",
             "Opening change is absent; a canonical gap or semantic discontinuity "
-            "is unavailable and is not practiced.",
+            "is unavailable.",
         ),
         tolerance=1e-12,
     ),
@@ -7391,8 +7393,8 @@ SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
             "The difference uses the same-period revenue-growth and "
             "sales-per-square-foot-growth cells.",
             "Opening difference is absent; a missing or semantically "
-            "unavailable input is not practiced.",
-            "A zero prior remains undefined and stays practiced.",
+            "unavailable input remains unavailable.",
+            "A zero prior remains undefined.",
             "The inputs have distinct scopes and do not imply causality.",
         ),
         tolerance=1e-12,

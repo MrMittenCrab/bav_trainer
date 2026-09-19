@@ -44,6 +44,18 @@ FORBIDDEN_README_TERMS = (
     "hint",
     "reveal",
 )
+_BAV_EXERCISE_PATTERNS = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"\btrainer\b",
+        r"answer key",
+        r"\bexercise\b",
+        r"\bpractice",
+        r"formula check",
+        r"\bungraded\b",
+        r"\blearner\b",
+    )
+)
 
 
 def _normalize_rgb(color) -> str:
@@ -251,6 +263,41 @@ def _practice_cell_keys(answer: Path) -> set[tuple[str, str]]:
     return {(comp.tab, comp.cell) for comp in smap.all_ordered()}
 
 
+def _visible_bav_text_hits(path: Path) -> list[tuple[str, str, str]]:
+    wb = load_workbook(path, data_only=False)
+    hits: list[tuple[str, str, str]] = []
+    try:
+        for ws in wb.worksheets:
+            if ws.title.startswith("_") or ws.sheet_state != "visible":
+                continue
+            max_row = ws.max_row or 1
+            max_col = ws.max_column or 1
+            for row in ws.iter_rows(min_row=1, max_row=max_row, min_col=1, max_col=max_col):
+                for cell in row:
+                    texts = []
+                    if isinstance(cell.value, str) and cell.value.strip():
+                        texts.append(cell.value)
+                    comment = cell.comment.text if cell.comment is not None else ""
+                    if comment.strip():
+                        texts.append(comment)
+                    for text in texts:
+                        for pattern in _BAV_EXERCISE_PATTERNS:
+                            if pattern.search(text):
+                                hits.append((ws.title, cell.coordinate, text))
+                                break
+    finally:
+        wb.close()
+    return hits
+
+
+def assert_bav_has_no_exercise_framing(path: Path) -> None:
+    hits = _visible_bav_text_hits(path)
+    assert hits == [], (
+        "BAV still has Trainer/exercise/practice wording: "
+        + "; ".join(f"{sheet}!{coord}" for sheet, coord, _text in hits[:8])
+    )
+
+
 def test_fresh_visible_workbook_uses_minimal_white_yellow_style(tmp_path):
     trainer, answer = _build_canonical(tmp_path)
     practice = _practice_cell_keys(answer)
@@ -410,6 +457,56 @@ def test_saved_reopened_pair_answer_key_white_with_both_judgment_modules(tmp_pat
                 assert _fill_rgb(trainer_cell) == "FFFF00"
     trainer_wb.close()
     answer_wb.close()
+
+
+def test_catalog_notes_have_no_exercise_framing():
+    from core.engine import component_catalog as catalog_mod
+    from core.engine.component_catalog import ComponentFamily
+
+    families: list[ComponentFamily] = []
+    for name in dir(catalog_mod):
+        obj = getattr(catalog_mod, name)
+        if isinstance(obj, ComponentFamily):
+            families.append(obj)
+        elif (
+            isinstance(obj, tuple)
+            and obj
+            and all(isinstance(item, ComponentFamily) for item in obj)
+        ):
+            families.extend(obj)
+    assert families
+    hits = []
+    for family in families:
+        for text in (family.short_hint, *(family.hints or ())):
+            if not text:
+                continue
+            for pattern in _BAV_EXERCISE_PATTERNS:
+                if pattern.search(text):
+                    hits.append(f"{family.id}: {text}")
+                    break
+    assert hits == [], "catalog Notes still have exercise framing: " + "; ".join(hits[:8])
+
+
+def test_canonical_bav_schedules_have_professional_wording(tmp_path):
+    from core.tests.test_per_share import _share_enabled_demo
+
+    _, answer = _build_canonical(tmp_path)
+    assert_bav_has_no_exercise_framing(answer)
+
+    _trainer, share_bav = build_training_workbook(
+        _share_enabled_demo(),
+        tmp_path / "SHARE_BAV.xlsx",
+    )
+    assert_bav_has_no_exercise_framing(share_bav)
+    wb = load_workbook(share_bav, data_only=False)
+    try:
+        assert "Per Share Analysis" in wb.sheetnames
+        a2 = str(wb["Per Share Analysis"]["A2"].value)
+        assert "diluted" in a2.lower()
+        assert "share counts are supplied source inputs" in a2.lower()
+        assert "Trainer" not in wb.sheetnames
+    finally:
+        wb.close()
 
 
 def test_root_readme_is_practical_trainer_guide():

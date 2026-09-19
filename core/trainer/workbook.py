@@ -60,9 +60,16 @@ _TRAINER_SIDECAR_SUFFIXES = (
 )
 
 
+def _is_primary_bav_path(path: Path) -> bool:
+    stem = Path(path).stem
+    return stem.endswith("_BAV") and not stem.endswith("_BAV_Trainer")
+
+
 def remove_trainer_sidecars(trainer_path: Path) -> None:
     """Delete stale Trainer-only answer-bearing sidecars (idempotent)."""
     trainer_path = Path(trainer_path)
+    if _is_primary_bav_path(trainer_path):
+        return
     for suffix in _TRAINER_SIDECAR_SUFFIXES:
         trainer_path.with_suffix(suffix).unlink(missing_ok=True)
 
@@ -534,14 +541,19 @@ def build_training_workbook(
         assumptions,
         current_snapshot=current_snapshot,
     )
-    trainer_path, _ = resolve_pair_paths(output_path)
+    trainer_path, resolved_bav = resolve_pair_paths(output_path)
     output_path = Path(output_path)
     company = company_stem_from_output(output_path.stem)
+    suffix = output_path.suffix or ".xlsx"
+    protected = {bav_path.resolve(), resolved_bav.resolve()}
     for stale in (
         trainer_path,
         output_path,
-        output_path.with_name(f"{company}_Trainer{output_path.suffix or '.xlsx'}"),
+        output_path.with_name(f"{company}_Trainer{suffix}"),
+        output_path.with_name(f"{company}_BAV_Trainer{suffix}"),
     ):
+        if stale.resolve() in protected:
+            continue
         remove_trainer_sidecars(stale)
     derive_trainer_workbook(bav_path, trainer_path)
     return trainer_path, bav_path

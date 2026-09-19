@@ -324,11 +324,8 @@ JUDGMENT_STEP_NOTE = (
     "Choose a treatment in column F only. That choice drives the matching Condensed "
     "Financials classification and downstream historical schedules; leaving F blank "
     "uses the supplied reference treatment. Columns D:E are display context and must "
-    "not be edited. Enter your rationale and economic consequence in G:H. Formula Check "
-    "grades formula cells against the treatment currently selected in F and validates "
-    "that the generated classification links remain intact; it does not grade the "
-    "judgment response itself. Do not edit the linked Condensed Financials "
-    "classification cell directly."
+    "not be edited. Enter your rationale and economic consequence in G:H. Do not edit "
+    "the linked Condensed Financials classification cell directly."
 )
 NORMALIZATION_JUDGMENT_INSTRUCTION = (
     "The supplied treatment is the model's reference convention, not a universal "
@@ -337,8 +334,8 @@ NORMALIZATION_JUDGMENT_INSTRUCTION = (
 )
 NORMALIZATION_JUDGMENT_STEP_NOTE = (
     "Choose the treatment in column F. Blank F uses the supplied reference treatment. "
-    "G:H are ungraded reasoning. Do not edit the generated Earnings Normalization "
-    "treatment link directly."
+    "G:H record rationale and economic consequence. Do not edit the generated "
+    "Earnings Normalization treatment link directly."
 )
 
 
@@ -6554,8 +6551,7 @@ class ReferenceModelBuilder:
         ws["A1"].font = BOLD
         ws["A2"] = (
             "Historical per-share diagnostics using supplied diluted "
-            "weighted-average shares. Share counts are source inputs, not "
-            "practice cells."
+            "weighted-average shares. Share counts are supplied source inputs."
         )
         ws.column_dimensions["A"].width = 48
 
@@ -7087,7 +7083,8 @@ class ReferenceModelBuilder:
             "and margin effects on operating-profit change, opening "
             "incremental reported operating margins, and opening "
             "operating-profit growth contributions "
-            "are not practiced. Signed residuals are not forced to zero."
+            "remain unavailable without a prior period. Signed residuals "
+            "are not forced to zero."
         )
         ws.column_dimensions["A"].width = 56
 
@@ -8919,9 +8916,9 @@ class ReferenceModelBuilder:
             f"Count units are independent of monetary scale ({self.fin.units})."
         )
         ws["A4"] = (
-            "Opening change and growth are not practiced. A missing adjacent "
-            "snapshot remains unavailable. Count units stay independent of "
-            "monetary scale."
+            "Opening change and growth remain unavailable without a prior "
+            "period. A missing adjacent snapshot remains unavailable. Count "
+            "units stay independent of monetary scale."
         )
         ws["A5"] = relationship.scope_note
         ws.column_dimensions["A"].width = 56
@@ -9262,10 +9259,11 @@ class ReferenceModelBuilder:
                 "Adjacent change is in percentage points, not growth of growth."
             )
         ws["A4"] = (
-            "Opening adjacent change and difference are not practiced. A missing "
-            "current comparable-sales or revenue input remains unavailable. A "
-            "missing prior comparable-sales observation does not suppress a "
-            "current revenue comparison, but it does suppress adjacent change."
+            "Opening adjacent change and difference remain unavailable without a "
+            "prior period. A missing current comparable-sales or revenue input "
+            "remains unavailable. A missing prior comparable-sales observation "
+            "does not suppress a current revenue comparison, but it does suppress "
+            "adjacent change."
         )
         if relationship is not None:
             ws["A5"] = relationship.scope_note
@@ -9768,16 +9766,16 @@ class ReferenceModelBuilder:
         )
         if relationship is not None:
             ws["A4"] = (
-                "Opening change, growth, and revenue comparison are not practiced. "
-                "A missing or semantically incompatible adjacent observation remains "
-                "unavailable. A zero prior is undefined. "
+                "Opening change, growth, and revenue comparison remain unavailable "
+                "without a prior period. A missing or semantically incompatible "
+                "adjacent observation remains unavailable. A zero prior is undefined. "
                 + relationship.scope_note
             )
         else:
             ws["A4"] = (
-                "Opening change and growth are not practiced. A missing or semantically "
-                "incompatible adjacent observation remains unavailable. A zero prior "
-                "is undefined."
+                "Opening change and growth remain unavailable without a prior period. "
+                "A missing or semantically incompatible adjacent observation remains "
+                "unavailable. A zero prior is undefined."
             )
         ws["A5"] = SALES_PER_SQUARE_FOOT_SCOPE_NOTE
         ws.column_dimensions["A"].width = 64

@@ -1020,6 +1020,20 @@ def test_expand_historical_specs_rejects_non_chronological_periods():
     assert len(expand_historical_specs([fy2023, fy2024, fy2025])) == 68
 
 
+def test_remove_trainer_sidecars_never_deletes_primary_bav_metadata(tmp_path):
+    from core.trainer.workbook import remove_trainer_sidecars
+
+    bav = tmp_path / "Acme_BAV.xlsx"
+    bav.write_bytes(b"workbook")
+    map_path = bav.with_suffix(".component_map.json")
+    assumptions_path = bav.with_suffix(".assumptions.json")
+    map_path.write_text("keep-map", encoding="utf-8")
+    assumptions_path.write_text("keep-assumptions", encoding="utf-8")
+    remove_trainer_sidecars(bav)
+    assert map_path.read_text(encoding="utf-8") == "keep-map"
+    assert assumptions_path.read_text(encoding="utf-8") == "keep-assumptions"
+
+
 def test_stale_trainer_sidecars_removed_on_rebuild(tmp_path, capsys):
     from core.__main__ import main
 
@@ -1048,6 +1062,71 @@ def test_stale_trainer_sidecars_removed_on_rebuild(tmp_path, capsys):
     assert "SECRET_OLD_HINT" not in out
 
 
+@pytest.mark.parametrize(
+    "requested_name",
+    (
+        "Acme_BAV.xlsx",
+        "Acme_BAV_Trainer.xlsx",
+        "Acme_Trainer.xlsx",
+        "Acme.xlsx",
+    ),
+)
+def test_paired_build_preserves_primary_bav_sidecars(tmp_path, requested_name):
+    import json
+    from core.engine.semantic_map import SemanticMap
+    from core.trainer.checker import check_workbook
+    from core.trainer.semantic_io import component_map_path_for
+
+    data = _ingest_demo()
+    requested = tmp_path / requested_name
+    secret = "SECRET_TRAINER_SIDECAR"
+    for name in (
+        requested_name,
+        "Acme_BAV_Trainer.xlsx",
+        "Acme_Trainer.xlsx",
+    ):
+        stale = tmp_path / name
+        if stale.stem.endswith("_BAV") and not stale.stem.endswith("_BAV_Trainer"):
+            continue
+        for suffix in (".component_map.json", ".trainer.json", ".assumptions.json"):
+            stale.with_suffix(suffix).write_text(secret, encoding="utf-8")
+
+    trainer_path, bav_path = build_training_workbook(data, requested)
+    assert trainer_path.name == "Acme_BAV_Trainer.xlsx"
+    assert bav_path.name == "Acme_BAV.xlsx"
+
+    map_path = component_map_path_for(bav_path)
+    assumptions_path = bav_path.with_suffix(".assumptions.json")
+    assert map_path.is_file()
+    assert assumptions_path.is_file()
+    assert secret not in map_path.read_text(encoding="utf-8")
+    assert secret not in assumptions_path.read_text(encoding="utf-8")
+    for suffix in (".component_map.json", ".trainer.json", ".assumptions.json"):
+        assert not trainer_path.with_suffix(suffix).exists()
+        requested_side = requested.with_suffix(suffix)
+        if requested.resolve() != bav_path.resolve():
+            assert not requested_side.exists()
+
+    sidecar_map = SemanticMap.load_json(map_path)
+    hidden = map_path.with_name(map_path.name + ".hidden")
+    map_path.rename(hidden)
+    try:
+        embedded = SemanticMap.from_workbook(bav_path)
+    finally:
+        hidden.rename(map_path)
+    assert [c.id for c in sidecar_map.all_ordered()] == [c.id for c in embedded.all_ordered()]
+    assert [c.formula for c in sidecar_map.all_ordered()] == [
+        c.formula for c in embedded.all_ordered()
+    ]
+    reloaded = load_semantic_map(bav_path)
+    assert [c.id for c in reloaded.all_ordered()] == [c.id for c in sidecar_map.all_ordered()]
+    assumptions = json.loads(assumptions_path.read_text(encoding="utf-8"))
+    assert isinstance(assumptions, dict)
+    summary = check_workbook(trainer_path)
+    assert summary.total == len(sidecar_map.all_ordered())
+    assert (summary.correct, summary.incorrect, summary.blank) == (0, 0, summary.total)
+
+
 def test_accounting_judgment_sheet_answer_key_and_trainer_contract(tmp_path):
     from core.engine.reference_model import (
         JUDGMENT_INSTRUCTION,
@@ -1074,7 +1153,8 @@ def test_accounting_judgment_sheet_answer_key_and_trainer_contract(tmp_path):
     assert JUDGMENT_INSTRUCTION in str(ws_a["A2"].value)
     assert JUDGMENT_STEP_NOTE in str(ws_a["A3"].value)
     assert "Condensed Financials" in str(ws_a["A3"].value)
-    assert "does not grade the judgment response" in str(ws_a["A3"].value).lower()
+    assert "does not grade the judgment response" not in str(ws_a["A3"].value).lower()
+    assert "formula check" not in str(ws_a["A3"].value).lower()
     assert "drives the matching Condensed Financials" in str(ws_a["A3"].value)
     headers = [ws_a.cell(4, c).value for c in range(1, 9)]
     assert headers == [

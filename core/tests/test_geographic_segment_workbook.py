@@ -92,6 +92,7 @@ from core.tests.test_learner_ready_presentation import (
     _assert_answer_key_no_yellow,
     _assert_fresh_visible_style,
     _judgment_response_keys,
+    assert_bav_has_no_exercise_framing,
 )
 from core.tests.test_normalization import _inject_formula_and_cached_value
 from core.trainer.checker import (
@@ -171,7 +172,8 @@ GEOGRAPHIC_A4 = (
     "and margin effects on operating-profit change, opening "
     "incremental reported operating margins, and opening "
     "operating-profit growth contributions "
-    "are not practiced. Signed residuals are not forced to zero."
+    "remain unavailable without a prior period. Signed residuals "
+    "are not forced to zero."
 )
 
 
@@ -2243,6 +2245,7 @@ def test_lululemon_five_period_temporary_pair_matches_selected_facts(tmp_path):
     assert "income from operations / net revenue" not in GEOGRAPHIC_A2.lower()
     assert "add" not in GEOGRAPHIC_A4.lower()
     assert "subtract" not in GEOGRAPHIC_A4.lower()
+    assert_bav_has_no_exercise_framing(answer)
     sheets, cells_scanned, text_n = _assert_trainer_complete_text_undisclosed(twb)
     assert sheets
     assert cells_scanned > 0
