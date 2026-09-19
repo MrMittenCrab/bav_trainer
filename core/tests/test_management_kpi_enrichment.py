@@ -15,8 +15,10 @@ from core.ingestion.filing_reconciler import reconcile_filings
 from core.ingestion.filing_standardizer import reconciliation_management_admission_payload
 from core.ingestion.management_kpi_enrichment import (
     FISCAL_CALENDAR_BASIS,
+    SourceInspection,
     decode_filing_text,
     enrich_management_working_copies,
+    field_supporting_passages,
     inspect_source_pdf,
     printed_pages_from_reference,
     resolve_physical_pages,
@@ -1206,3 +1208,147 @@ def test_calendar_text_does_not_satisfy_exclusion_evidence():
     assert _metric_excludes_53rd_week(
         "sales_per_square_foot", calendar, [calendar.passage]
     ) is None
+
+
+_FY2022_FOCUS = (
+    ("comparable_store_sales_growth", "reported", "comparable store sales"),
+    (
+        "comparable_store_sales_growth_constant_dollar",
+        "constant_dollar",
+        "comparable store sales",
+    ),
+    ("total_comparable_sales_growth", "reported", "total comparable sales"),
+    (
+        "total_comparable_sales_growth_constant_dollar",
+        "constant_dollar",
+        "total comparable sales",
+    ),
+)
+
+
+def _fy2022_fields(sidecar: dict) -> list[dict]:
+    document = next(
+        item
+        for item in sidecar["documents"]
+        if item["extraction_document"] == "LULU_FY2022_management_kpis.json"
+    )
+    return [
+        item
+        for item in document["fields"]
+        if item["metric_id"] in {row[0] for row in _FY2022_FOCUS}
+    ]
+
+
+def test_fy2022_management_use_and_current_period_table_are_identity_bound(
+    tmp_path: Path,
+):
+    dest = _copy_extracted(tmp_path / "fy22-pres")
+    sidecar = enrich_management_working_copies(dest, SOURCE)
+    working = json.loads((dest / "LULU_FY2022_management_kpis.json").read_text())
+    by_metric = {item["metric_id"]: item for item in _fy2022_fields(sidecar)}
+    assert set(by_metric) == {row[0] for row in _FY2022_FOCUS}
+    for metric_id, basis, phrase in _FY2022_FOCUS:
+        field = by_metric[metric_id]
+        passages = field["supporting_passages"]
+        bindings = field["passage_bindings"]
+        presentation = passages["presentation"]
+        management_use = passages["management_use"]
+        assert phrase in presentation.lower()
+        assert "below changes" in presentation.lower()
+        assert "e-commerce" not in presentation.lower()
+        assert "e-commerce" not in management_use.lower()
+        assert bindings["presentation"]["source_file"] == "LULU_FY2022_Annual_Report.pdf"
+        assert 37 in bindings["presentation"]["physical_pages"]
+        assert 33 in bindings["presentation"]["printed_pages"]
+        assert bindings["management_use"]["source_file"] == "LULU_FY2022_Annual_Report.pdf"
+        if basis == "constant_dollar":
+            assert "management uses" in management_use.lower()
+            assert "constant currency" in management_use.lower()
+            assert 36 in bindings["management_use"]["physical_pages"]
+            assert 32 in bindings["management_use"]["printed_pages"]
+        elif metric_id == "total_comparable_sales_growth":
+            assert (
+                "we use total comparable sales" in management_use.lower()
+                or "just one way of assessing" in management_use.lower()
+            )
+            assert set(bindings["management_use"]["physical_pages"]) <= {35, 36}
+        else:
+            assert "we use comparable store sales" in management_use.lower()
+            assert "we use total comparable sales" not in management_use.lower()
+            assert 35 in bindings["management_use"]["physical_pages"]
+            assert 31 in bindings["management_use"]["printed_pages"]
+        reported = next(
+            item
+            for item in working["reported_kpis"]
+            if item["metric_id"] == metric_id
+        )
+        assert reported["presentation"]["role"] == "current"
+        assert "assurance" not in reported
+        assert "revision" not in reported
+        definition = passages.get("definition", "")
+        if "store_sales" in metric_id:
+            assert "direct to consumer" not in definition.lower()
+            assert "e-commerce" not in definition.lower()
+        else:
+            assert "direct to consumer" in definition.lower()
+            assert "e-commerce" not in definition.lower()
+
+
+def test_fy2022_presentation_absence_claims_are_removed_from_admission(
+    tmp_path: Path,
+):
+    payload = _enriched_admission(tmp_path)
+    focus = [
+        item
+        for item in payload["observations"]
+        if item["kind"] == "reported_kpi"
+        and item["extraction_document"] == "LULU_FY2022_management_kpis.json"
+        and item["metric_id"] in {row[0] for row in _FY2022_FOCUS}
+    ]
+    assert len(focus) == 4
+    for item in focus:
+        assert item["presentation_role"] == "current"
+        assert "presentation_role" not in item["unresolved"]
+        assert item["assurance"] == "unknown"
+        assert "assurance" in item["unresolved"]
+        assert "revision" in item["unresolved"]
+    locators = {item["locator"] for item in focus}
+    for decision in payload["group_decisions"]:
+        for failure in decision["remaining_failures"]:
+            if failure.get("locator") not in locators:
+                continue
+            if failure["requirement"] != "presentation":
+                continue
+            assert failure["cause"] != "genuine_source_absence"
+            raise AssertionError(
+                f"unexpected presentation failure after FY2022 repair: {failure}"
+            )
+
+
+def test_unrelated_strategy_language_cannot_satisfy_presentation_assurance_or_revision():
+    strategy = (
+        "Opening new stores and expanding existing stores is an important part "
+        "of our growth strategy."
+    )
+    inspection = SourceInspection(
+        source_file="LULU_FY2022_Annual_Report.pdf",
+        physical_to_printed={36: 32},
+        printed_to_physical={32: 36},
+        fifty_three_week_years=(),
+        fifty_two_week_years=(2022,),
+        fiscal_calendar_evidenced=True,
+        page_texts={36: strategy},
+    )
+    for metric_id, basis, _phrase in _FY2022_FOCUS:
+        item = {"metric_id": metric_id, "value": 16.0, "basis": basis}
+        passages = field_supporting_passages(
+            inspection=inspection,
+            physical_pages=(36,),
+            item=item,
+            comparison_window=None,
+            calendar=None,
+        )
+        assert "presentation" not in passages
+        assert "management_use" not in passages
+        assert "assurance" not in passages
+        assert "revision" not in passages

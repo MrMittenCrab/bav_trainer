@@ -105,8 +105,12 @@ _REFER_FISCAL_YEAR_RE = re.compile(
 _READABLE_HEADER_RE = re.compile(r"[A-Za-z][A-Za-z /-]{0,48}$")
 _PRESENTATION_PHRASES = (
     "we use sales per square foot",
+    "we use comparable store sales",
+    "we use total comparable sales",
     "we use comparable sales",
 )
+_MANAGEMENT_USE_STRATEGY = "just one way of assessing"
+_TABLE_INTRO_NEEDLE = "below changes"
 _VALUE_REJECT = (
     "product costs",
     "other cost of sales",
@@ -896,6 +900,56 @@ def _date_passage(
     return ""
 
 
+def _identity_comparable_phrase(metric_id: str) -> str:
+    if "store_sales" in metric_id:
+        return "comparable store sales"
+    if "total_comparable" in metric_id:
+        return "total comparable sales"
+    return "comparable sales"
+
+
+def _is_constant_dollar_item(item: MappingLike) -> bool:
+    metric = str(item.get("metric_id") or "")
+    basis = str(item.get("basis") or "")
+    return "constant" in basis or "constant" in metric
+
+
+def _presentation_needles(metric_id: str) -> tuple[str, ...]:
+    if "sales_per_square_foot" in metric_id:
+        return ("we use sales per square foot",)
+    return (f"we use {_identity_comparable_phrase(metric_id)}",)
+
+
+def _management_use_passage(texts: Iterable[str], item: MappingLike) -> str:
+    """Identity-specific management-use or strategy-assessment sentence."""
+    metric = str(item.get("metric_id") or "")
+    if "sales_per_square_foot" in metric:
+        return ""
+    phrase = _identity_comparable_phrase(metric)
+    we_use = _passage_matching(texts, (f"we use {phrase}",))
+    strategy = ""
+    if "total_comparable" in metric:
+        strategy = _passage_matching(
+            texts, (phrase, _MANAGEMENT_USE_STRATEGY)
+        )
+    if _is_constant_dollar_item(item):
+        listing = _passage_matching(texts, ("constant dollar changes", phrase))
+        uses = _passage_matching(texts, ("management uses", "constant currency"))
+        if listing and uses:
+            return uses
+        return we_use
+    return we_use or strategy
+
+
+def _current_period_table_passage(texts: Iterable[str], item: MappingLike) -> str:
+    """Current-period comparison-table intro that names this identity."""
+    metric = str(item.get("metric_id") or "")
+    if "sales_per_square_foot" in metric:
+        return ""
+    phrase = _identity_comparable_phrase(metric)
+    return _passage_matching(texts, (phrase, _TABLE_INTRO_NEEDLE))
+
+
 def field_supporting_passages(
     *,
     inspection: SourceInspection,
@@ -916,11 +970,7 @@ def field_supporting_passages(
         definition_needles = ("comparable store sales reflects",)
     else:
         definition_needles = ("comparable sales includes",)
-    presentation_needles = (
-        ("we use sales per square foot",)
-        if spsf
-        else ("we use comparable sales",)
-    )
+    presentation_needles = _presentation_needles(metric)
     date_passage = _date_passage(
         inspection=inspection,
         texts=texts,
@@ -955,19 +1005,31 @@ def field_supporting_passages(
             if "total_comparable" in metric
             else ""
         )
-    presentation_passage = _passage_matching(texts, presentation_needles)
-    if not presentation_passage:
-        presentation_passage = _passage_matching(all_texts, presentation_needles)
-    if presentation_passage:
-        presentation_passage = _trim_to_establishing_phrase(
-            presentation_passage, _PRESENTATION_PHRASES
+    we_use_passage = _passage_matching(texts, presentation_needles)
+    if not we_use_passage:
+        we_use_passage = _passage_matching(all_texts, presentation_needles)
+    if we_use_passage:
+        we_use_passage = _trim_to_establishing_phrase(
+            we_use_passage, _PRESENTATION_PHRASES
         )
+    management_use = _management_use_passage(texts, item)
+    if not management_use:
+        management_use = _management_use_passage(all_texts, item)
+    table_passage = _current_period_table_passage(texts, item)
+    if not table_passage:
+        table_passage = _current_period_table_passage(all_texts, item)
+    store_or_total = "store_sales" in metric or "total_comparable" in metric
+    if store_or_total:
+        presentation_passage = table_passage or we_use_passage
+    else:
+        presentation_passage = we_use_passage or table_passage
     passages = {
         "value": _value_passage(texts, item),
         "dates": date_passage,
         "definition": definition_passage,
         "calendar": calendar_passage,
         "presentation": presentation_passage,
+        "management_use": "" if spsf else management_use,
         "comparison_window": window_passage,
         "assurance": "",
         "revision": "",
@@ -1748,6 +1810,10 @@ def _document_pages(supporting: Mapping[str, Any]) -> list[int]:
     pages.extend(int(page) for page in window.get("physical_pages") or [])
     exclusion = supporting.get("metric_exclusion") or {}
     pages.extend(int(page) for page in exclusion.get("physical_pages") or [])
+    bindings = supporting.get("passage_bindings") or {}
+    for field_name in ("presentation", "management_use"):
+        binding = bindings.get(field_name) or {}
+        pages.extend(int(page) for page in binding.get("physical_pages") or [])
     return pages
 
 
