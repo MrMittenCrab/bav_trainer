@@ -608,8 +608,11 @@ def _assert_visible_parity(
     skip |= _judgment_response_keys(awb)
     t_visible = [ws.title for ws in twb.worksheets if ws.sheet_state == "visible"]
     a_visible = [ws.title for ws in awb.worksheets if ws.sheet_state == "visible"]
-    assert t_visible == a_visible
-    for name in t_visible:
+    assert "Overview" in a_visible
+    assert "Trainer" not in a_visible
+    assert "Trainer" in t_visible
+    assert [title for title in t_visible if title != "Trainer"] == a_visible
+    for name in a_visible:
         tws = twb[name]
         aws = awb[name]
         max_row = max(tws.max_row or 1, aws.max_row or 1)
@@ -2902,8 +2905,8 @@ def test_spsf_only_workbook_supplies_shared_revenue(tmp_path):
     assert builder.operating_kpi_compsales_relationship is None
     trainer, answer = build_training_workbook(only, tmp_path / "SPSF_ONLY.xlsx")
     assert {path.name for path in tmp_path.glob("*.xlsx")} == {
-        "SPSF_ONLY_Trainer.xlsx",
-        "SPSF_ONLY_Answer_Key.xlsx",
+        "SPSF_ONLY_BAV_Trainer.xlsx",
+        "SPSF_ONLY_BAV.xlsx",
     }
     smap = load_semantic_map(answer)
     growth = [c for c in smap.all_ordered() if c.family_id == REVENUE_STORE_GROWTH_FAMILY_ID]
@@ -3199,8 +3202,8 @@ def test_selected_document_compsales_workbook_uses_test_augmentation(tmp_path):
     assert abs(spsf_hist.growth[P2024] - (20 / 1410)) <= 1e-12
     trainer, answer = build_training_workbook(restored, tmp_path / "COMP_SELECTED.xlsx")
     assert {path.name for path in tmp_path.glob("*.xlsx")} == {
-        "COMP_SELECTED_Trainer.xlsx",
-        "COMP_SELECTED_Answer_Key.xlsx",
+        "COMP_SELECTED_BAV_Trainer.xlsx",
+        "COMP_SELECTED_BAV.xlsx",
     }
     twb_before = load_workbook(trainer, data_only=False)
     _assert_trainer_management_history_undisclosed(twb_before)

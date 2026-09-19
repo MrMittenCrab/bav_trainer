@@ -1,6 +1,6 @@
-# BAV Excel Trainer — Hong Kong Edition
+# BAV — Hong Kong Edition
 
-Historical BAV Excel practice for Hong Kong-listed **non-financial** companies: the system supplies source facts and classifications; you reconstruct the analytical formulas in a matched Trainer / Answer Key pair.
+Professional historical Business Analysis and Valuation for Hong Kong-listed **non-financial** companies. The ordinary company build produces a source-grounded `<Company>_BAV.xlsx`. A matching `<Company>_BAV_Trainer.xlsx` can still be derived from that completed model.
 
 ## What works now
 
@@ -15,8 +15,8 @@ Historical BAV Excel practice for Hong Kong-listed **non-financial** companies: 
 - Optional normalized diluted EPS when both shares and normalization are supplied
 - PP&E / D&A fixed-asset intensity diagnostics when both source lines are supplied
 - Optional lease-liability intensity and trend diagnostics when one aggregate historical lease-liability line is supplied
-- One workbook-wide Check
-- Matched Trainer + Answer Key
+- Professional BAV as the default company build product
+- Optional derivative Trainer and one workbook-wide Check
 
 Forecasting, valuation, and investment conclusions are not active yet.
 
@@ -27,23 +27,25 @@ From the repository root:
 ```bash
 pip install -r requirements-trainer.txt
 python -m bav build Lululemon
-python -m bav check Lululemon
 python -m bav list Lululemon
 ```
 
 Company names are case-insensitive; `LULU` resolves to Lululemon. `FastRetailing`,
 `Fast Retailing`, and `9983` resolve to the other benchmark company. Unknown or
-ambiguous names fail with candidates. Check and List require an existing current
-build and never guess a release workbook.
+ambiguous names fail with candidates. List reads the current BAV. Check reads a
+derived Trainer and never guesses a release workbook.
 
-The canonical current pair is:
+The canonical current product is:
 
-- `build/output/Lululemon/Lululemon_Trainer.xlsx`
-- `build/output/Lululemon/Lululemon_Answer_Key.xlsx`
+- `build/output/Lululemon/Lululemon_BAV.xlsx`
 
-The same directory holds the Answer Key component map and assumptions,
+The same directory holds the BAV component map and assumptions,
 `rowmap.json`, `build_status.json`, and source/reconciliation provenance under
-`supporting/`. Keep the pair and sidecars together. `build/` is ignored by Git.
+`supporting/`. Keep the BAV and sidecars together. `build/` is ignored by Git.
+
+Ordinary `python -m bav build Lululemon` does not generate a Trainer. The same
+completed model can still produce `Lululemon_BAV_Trainer.xlsx`. Check then
+resolves that Trainer against the matching BAV.
 
 Each company build validates the current extracted filings against source PDFs
 and reconciles them afresh. Project settings retain established comparative-period
@@ -60,20 +62,21 @@ sources/admission, and families not implemented. Partial availability can cover
 only some periods; the analytical schedules show individual gaps. The existing
 revenue/store growth comparison is not a revenue-per-store productivity ratio.
 
-A rebuild generates and validates the pair in staging, including semantic maps,
-required sidecars, learner formatting, and workbook-wide Check. Only then does a
+A rebuild generates and validates the BAV in staging, including semantic maps,
+required sidecars, formulas, Notes, and professional opening. Only then does a
 single atomic directory exchange replace the current generation. A failed build
-returns nonzero and preserves the previous pair. Replacement supports macOS and
+returns nonzero and preserves the previous BAV. Replacement supports macOS and
 Linux directory exchange; unsupported platforms fail closed. Successful builds
-retire recognized old flat `Live`, `KPI`, `Preview`, and dated pairs for that company.
-`release/` remains a separate publication/archive workflow.
+retire recognized old flat `Live`, `KPI`, `Preview`, dated, Trainer, and Answer Key
+artifacts for that company. `release/` remains a separate publication/archive workflow.
 
-Advanced explicit-path compatibility remains available:
+Advanced explicit-path compatibility remains available and still derives a Trainer
+from the completed BAV:
 
 ```bash
 python -m bav build build/input/company.json -o build/output/custom/Company
-python -m bav check --workbook build/output/custom/Company_Trainer.xlsx
-python -m bav list --workbook build/output/custom/Company_Answer_Key.xlsx
+python -m bav check --workbook build/output/custom/Company_BAV_Trainer.xlsx
+python -m bav list --workbook build/output/custom/Company_BAV.xlsx
 ```
 
 Explicit input accepts strict canonical StandardizedFinancials JSON or Excel;
@@ -86,12 +89,13 @@ supported.
 
 ## How to practice
 
-1. Open the Trainer.
-2. Fill the yellow formula cells; supplied historical facts stay populated.
-3. Run Check.
-4. Yellow = blank, green = correct, red = incorrect.
-5. If stuck, open the matching Answer Key for the working formula and its Note.
-6. Repeat left-to-right in the Trainer index dependency order.
+1. Derive the Trainer from the completed BAV when you want a practice surface.
+2. Open the Trainer.
+3. Fill the yellow formula cells; supplied historical facts stay populated.
+4. Run Check.
+5. Yellow = blank, green = correct, red = incorrect.
+6. If stuck, open the matching BAV for the working formula and its Note.
+7. Repeat left-to-right in the Trainer index dependency order.
 
 Accounting Judgment / Normalization Judgment treatment choices can change downstream expected formulas where those sheets are present.
 

@@ -1,11 +1,11 @@
 ---
 name: bav-trainer
-description: Build matched BAV Excel Trainer / Answer Key workbooks for Hong Kong-listed non-financial companies from manually supplied filings or Excel/Bloomberg/Wind exports. Historical-v1 model-construction foundation (release-gated by Step 9H.1): reformulation/DuPont, classification and normalization judgment, earnings-quality and working-capital diagnostics, profitability/ROE attribution, optional per-share and normalized-EPS bridge, plus a synthetic cross-company robustness matrix. Forecasting and valuation remain deferred.
+description: Build a professional company BAV workbook, with an optional derivative Trainer, for Hong Kong-listed non-financial companies from manually supplied filings or Excel/Bloomberg/Wind exports. Historical-v1 model-construction foundation (release-gated by Step 9H.1): reformulation/DuPont, classification and normalization judgment, earnings-quality and working-capital diagnostics, profitability/ROE attribution, optional per-share and normalized-EPS bridge, plus a synthetic cross-company robustness matrix. Forecasting and valuation remain deferred.
 ---
 
-# BAV Excel Trainer — Hong Kong Edition
+# BAV — Hong Kong Edition
 
-Build a **matched Trainer / Answer Key pair** where the learner reconstructs multi-period historical BAV schedules, practices classification and earnings-normalization judgment, and computes mechanical research diagnostics through the historical-v1 surface.
+Build a **professional BAV workbook** as the primary product, with an optional derivative Trainer, where the completed model contains formulas and Notes and the Trainer lets a learner reconstruct historical BAV schedules.
 
 ## Product loop
 
@@ -51,9 +51,9 @@ still deferred:
 normal build:
 does not execute forecast/scenario engine
 
-Trainer = blank yellow formula cells + blank yellow judgment-response cells; no answers/hints.
+BAV = completed historical model with formulas, Notes, and professional opening; no yellow practice cells.
+Trainer = optional derivative: blank yellow formula cells + blank yellow judgment-response cells; no answers/hints.
 Check = scans formula practice cells against current Accounting Judgment and Normalization Judgment treatments; blank yellow, correct green, incorrect red; no answers disclosed.
-Answer Key = formula + Note on formula cells; model treatment/rationale/consequence on judgment responses; hidden Check context for dynamic expecteds.
 ```
 
 ## When to use
@@ -71,9 +71,11 @@ Source filings (PDF/docs)
         ↓  python -m core reconcile        → standardized.json + provenance/conflicts
         ↓  build consumes StandardizedFinancials only
         ↓  reformulation integrity (blocking)
-ReferenceModelBuilder → multi-period historical Answer Key
-        ↓  TrainingWorkbookGenerator (sanitize Trainer)
-*_Trainer.xlsx (blank yellow historical formulas; no answer metadata)
+ReferenceModelBuilder → multi-period historical BAV
+        ↓  TrainingWorkbookGenerator.finalize_bav (opening, formulas, Notes)
+*_BAV.xlsx (professional completed model)
+        ↓  optional derive_trainer (sanitize Trainer)
+*_BAV_Trainer.xlsx (blank yellow historical formulas; no answer metadata)
         ↓  python -m core check --workbook ...
 Workbook-wide yellow / green / red validation (no answers disclosed)
 ```
@@ -103,17 +105,18 @@ python -m core reconcile path/to/extracted --source-root path/to/source -o path/
 python -m core ingest example/DEMO_HK_Standardized.json -o /tmp/demo_std.json
 ```
 
-### 2. Build Trainer + Answer Key
+### 2. Build the BAV, optionally with a Trainer
 
 ```bash
 python -m core build example/DEMO_HK_Standardized.json \
   -a example/DEMO_HK_Assumptions.json \
-  -o training/DEMO_HK_Trainer.xlsx
+  -o training/DEMO_HK_BAV.xlsx
 ```
 
 Outputs:
-- `DEMO_HK_Trainer.xlsx` — source/classifications filled; yellow schedule cells blank
-- `DEMO_HK_Answer_Key.xlsx` — working formulas + legacy Notes on the same cells
+- `DEMO_HK_BAV.xlsx` — working formulas + Notes on the completed model
+- `DEMO_HK_BAV_Trainer.xlsx` — source/classifications filled; yellow schedule cells blank
+  (explicit-path builds still derive this pair; ordinary company builds produce the BAV only)
 - With demo assumptions: 78 families / 332 cells (includes Earnings Normalization + Earnings Quality + fixed-asset + lease-liability intensity)
 - Without `-a`: 74 families / 312 cells (includes Earnings Quality + fixed-asset + lease-liability intensity; no normalization sheets)
 
@@ -128,7 +131,7 @@ There is **no** user-facing `*_reference.xlsx` and no Trainer `.trainer.json`.
 python -m core check --workbook training/DEMO_HK_Trainer.xlsx
 ```
 
-3. Open the Answer Key for the formula and Note hint.
+3. Open the matching BAV for the formula and Note.
 
 Active historical schedules: Revenue/NI links → tax/interest/NOPAT → OWCA/OWCL/NOWC → OLTA/OLTL/NOLA → NOA → FA/FL/Net Debt → Equity → Sales Growth / NOPAT Margin → RNOA / After-tax CoD / Spread / FLEV / ROE → (optional) Earnings Normalization → Earnings Quality levels and cash-conversion/accrual trends → Working Capital Analysis (when OWCA/OWCL present) → RNOA margin/turnover drivers and change attribution → ROE financing contribution and operating/financing change attribution → PP&E / D&A fixed-asset intensity context on ALT DuPont when both PP&E and D&A resolve → aggregate lease-liability intensity/trend context on ALT DuPont when one lease liability resolves → (optional) Per Share Analysis when diluted weighted-average share history is supplied, including diluted-EPS earnings vs share-count attribution and (when normalization is also active) the normalized diluted-EPS bridge. These are arithmetic diagnostics, not automatic quality, leverage, dilution, financing-policy, capital-intensity, or lease-intensity judgments.
 

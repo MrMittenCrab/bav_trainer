@@ -373,7 +373,10 @@ def test_saved_reopened_pair_answer_key_white_with_both_judgment_modules(tmp_pat
     answer_wb = load_workbook(answer_r, data_only=False)
     visible_t = [ws.title for ws in trainer_wb.worksheets if ws.sheet_state == "visible"]
     visible_a = [ws.title for ws in answer_wb.worksheets if ws.sheet_state == "visible"]
-    assert visible_t == visible_a
+    assert "Overview" in visible_a
+    assert "Trainer" not in visible_a
+    assert "Trainer" in visible_t
+    assert [title for title in visible_t if title != "Trainer"] == visible_a
     for comp in smap.all_ordered():
         row, col = parse_cell_ref(comp.cell)
         trainer_cell = trainer_wb[comp.tab].cell(row=row, column=col)
@@ -412,7 +415,7 @@ def test_saved_reopened_pair_answer_key_white_with_both_judgment_modules(tmp_pat
 def test_root_readme_is_practical_trainer_guide():
     text = (ROOT / "README.md").read_text(encoding="utf-8")
     for heading in (
-        "# BAV Excel Trainer — Hong Kong Edition",
+        "# BAV — Hong Kong Edition",
         "## What works now",
         "## Quick start",
         "## How to practice",

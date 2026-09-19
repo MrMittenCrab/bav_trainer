@@ -65,12 +65,12 @@ def test_module_command_preserves_all_modules_and_only_writes_outputs(tmp_path, 
         assert p.read_bytes() == data
     output = tmp_path / "build/output"
     assert {p.name for p in output.iterdir()} == {
-        "Acme_Trainer.xlsx", "Acme_Answer_Key.xlsx", "rowmap.json",
-        "Acme_Answer_Key.component_map.json", "Acme_Answer_Key.assumptions.json",
+        "Acme_BAV_Trainer.xlsx", "Acme_BAV.xlsx", "rowmap.json",
+        "Acme_BAV.component_map.json", "Acme_BAV.assumptions.json",
     }
     assert all(p in before or p.is_relative_to(output)
                for p in tmp_path.rglob("*") if p.is_file())
-    answer = output / "Acme_Answer_Key.xlsx"
+    answer = output / "Acme_BAV.xlsx"
     assert load_check_context(answer).source_payload == payload
     wb = load_workbook(answer)
     assert "Geographic Segment Analysis" in wb.sheetnames
@@ -137,10 +137,10 @@ def test_optional_modules_may_be_absent_and_assumptions_still_work(tmp_path, pay
     source = _write_input(tmp_path, payload)
     assumptions = source.with_name("assumptions.json")
     assumptions.write_text('{"includeDeferredForecast": false}')
-    output = tmp_path / "build/output/Acme_Trainer.xlsx"
+    output = tmp_path / "build/output/Acme_BAV_Trainer.xlsx"
     assert main(["build", str(source), "-a", str(assumptions), "-o", str(output)]) == 0
     assert output.exists()
-    answer = output.with_name("Acme_Answer_Key.xlsx")
+    answer = output.with_name("Acme_BAV.xlsx")
     context = load_check_context(answer)
     assert context.source_payload["historical_shares"] is None
     assert "historical_operating_kpis" not in context.source_payload
@@ -159,7 +159,7 @@ def test_output_symlink_cannot_overwrite_input(tmp_path, payload, capsys):
     assert main(["build", str(source), "-o", str(output / "Acme")]) != 0
     assert "error:" in capsys.readouterr().err
     assert source.read_bytes() == before
-    assert not (output / "Acme_Answer_Key.xlsx").exists()
+    assert not (output / "Acme_BAV.xlsx").exists()
 
 
 def test_excel_input_still_builds(tmp_path, payload):
@@ -178,7 +178,7 @@ def test_excel_input_still_builds(tmp_path, payload):
                        item["values"].get("2024-12-31"), item["values"].get("2025-12-31")])
     wb.save(source)
     assert main(["build", str(source), "-o", str(tmp_path / "build/output/Acme")]) == 0
-    assert (tmp_path / "build/output/Acme_Trainer.xlsx").exists()
+    assert (tmp_path / "build/output/Acme_BAV_Trainer.xlsx").exists()
 
 
 def test_missing_input_fails_clearly(tmp_path, capsys):
@@ -224,10 +224,10 @@ def test_metadata_jurisdiction_string_fallback_builds(tmp_path, payload):
     jurisdiction = good.pop("jurisdiction")
     good["metadata"] = {"jurisdiction": jurisdiction}
     source = _write_input(tmp_path, good)
-    output = tmp_path / "build/output/Acme_Trainer.xlsx"
+    output = tmp_path / "build/output/Acme_BAV_Trainer.xlsx"
     assert main(["build", str(source), "-o", str(output)]) == 0
     assert output.exists()
-    assert (tmp_path / "build/output/Acme_Answer_Key.xlsx").exists()
+    assert (tmp_path / "build/output/Acme_BAV.xlsx").exists()
     from core.data.standardized_io import standardized_from_payload
     restored = standardized_from_payload(
         json.loads(source.read_text(encoding="utf-8")), strict=True

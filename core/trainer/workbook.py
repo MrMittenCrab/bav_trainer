@@ -45,12 +45,13 @@ from ..engine.semantic_map import ResolvedComponent, SemanticMap
 from ..data.line_identity import validate_financials_identities
 from ..ingestion.reconciler import reconcile_financials
 from .check_context import CHECK_CONTEXT_SHEET
-from .semantic_io import load_semantic_map, resolve_pair_paths
+from .semantic_io import company_stem_from_output, load_semantic_map, resolve_pair_paths
 
 COMPONENT_MAP_SHEET = "_ComponentMap"
-NOTE_AUTHOR = "BAV Trainer"
+NOTE_AUTHOR = "BAV"
 JUDGMENT_FIRST_DATA_ROW = 5
 JUDGMENT_RESPONSE_COLS = (6, 7, 8)
+BAV_OPENING_SHEET = "Overview"
 
 _TRAINER_SIDECAR_SUFFIXES = (
     ".component_map.json",
@@ -92,7 +93,7 @@ TRAINER_INDEX_INSTRUCTION = (
     "(blank uses the supplied reference); Earnings Normalization formulas are checked "
     "against that choice. Also complete Accounting Judgment and Normalization Judgment "
     "rationale/consequence when cases are present; those responses are not graded by "
-    "Check. Compare them with the matching Answer Key."
+    "Check. Compare them with the matching BAV."
 )
 
 
@@ -106,42 +107,56 @@ def _judgment_case_rows(ws):
 
 
 class TrainingWorkbookGenerator:
-    """Generate a matched Trainer / Answer Key pair from a completed model."""
+    """Finalize a professional BAV and optionally derive a sanitized Trainer."""
 
     def __init__(
         self,
         answer_key_path: Path,
         semantic_map: SemanticMap | None = None,
+        financials=None,
     ):
-        self.answer_key_path = answer_key_path
-        self.semantic_map = semantic_map or load_semantic_map(answer_key_path)
+        self.answer_key_path = Path(answer_key_path)
+        self.bav_path = self.answer_key_path
+        self.semantic_map = semantic_map or load_semantic_map(self.bav_path)
+        self.financials = financials
 
-    def generate(self, trainer_path: Path) -> tuple[Path, Path]:
-        """Finalize Answer Key in place, then derive a sanitized Trainer from it."""
-        wb = load_workbook(self.answer_key_path)
-        self._add_trainer_ui(wb)
+    def finalize_bav(self) -> Path:
+        """Write formulas, Notes, opening and metadata into the BAV only."""
+        if self.financials is None:
+            self.financials = self._financials_for_opening()
+        wb = load_workbook(self.bav_path)
+        self._add_bav_opening(wb)
         from ..build_status import add_build_status
         add_build_status(wb, self.semantic_map)
         self._apply_minimal_style(wb)
         self._decorate_answer_key_practice_cells(wb)
         self._decorate_answer_key_judgment_cells(wb)
         self._decorate_answer_key_normalization_judgment_cells(wb)
-        wb.save(self.answer_key_path)
+        wb.save(self.bav_path)
         wb.close()
+        return self.bav_path
 
-        shutil.copy2(self.answer_key_path, trainer_path)
-
+    def derive_trainer(self, trainer_path: Path) -> Path:
+        """Copy the finalized BAV and sanitize a Trainer without mutating the BAV."""
+        trainer_path = Path(trainer_path)
+        shutil.copy2(self.bav_path, trainer_path)
         wb = load_workbook(trainer_path)
+        self._add_trainer_ui(wb)
+        self._apply_minimal_style(wb)
         self._blank_trainer_practice_cells(wb)
         self._blank_trainer_judgment_cells(wb)
         self._blank_trainer_normalization_judgment_cells(wb)
         self._sanitize_trainer_answer_stores(wb)
         wb.save(trainer_path)
         wb.close()
-
-        # Prefer no Trainer semantic sidecar; Check reads the matching Answer Key.
         remove_trainer_sidecars(trainer_path)
-        return trainer_path, self.answer_key_path
+        return trainer_path
+
+    def generate(self, trainer_path: Path) -> tuple[Path, Path]:
+        """Finalize the BAV, then derive a sanitized Trainer from that completed model."""
+        self.finalize_bav()
+        self.derive_trainer(trainer_path)
+        return trainer_path, self.bav_path
 
     def _visible_sheets(self, wb):
         return [
@@ -252,6 +267,75 @@ class TrainingWorkbookGenerator:
             if name in wb.sheetnames:
                 del wb[name]
 
+    def _financials_for_opening(self):
+        if self.financials is not None:
+            return self.financials
+        from .check_context import load_check_context
+        from ..data.standardized_io import standardized_from_payload
+
+        return standardized_from_payload(load_check_context(self.bav_path).source_payload)
+
+    def _add_bav_opening(self, wb) -> None:
+        """Professional cover: company, coverage, units, structure, source, limits."""
+        for name in (BAV_OPENING_SHEET, "Trainer"):
+            if name in wb.sheetnames:
+                del wb[name]
+        fin = self._financials_for_opening()
+        periods = list(fin.periods or [])
+        labels = []
+        for period in periods:
+            label = (getattr(period, "label", None) or "").strip()
+            end = getattr(period, "end_date", None)
+            if label:
+                labels.append(label)
+            elif end is not None:
+                labels.append(end.isoformat() if hasattr(end, "isoformat") else str(end))
+        if labels:
+            coverage = (
+                labels[0]
+                if len(labels) == 1
+                else f"{labels[0]} – {labels[-1]} ({len(labels)} periods)"
+            )
+        else:
+            coverage = "No admitted historical periods"
+        company = (fin.company_name or fin.ticker or "Company").strip()
+        ticker = (fin.ticker or "").strip()
+        identity = f"{company} ({ticker})" if ticker and ticker.casefold() != company.casefold() else company
+        currency = (fin.currency or "").strip() or "unspecified currency"
+        units = (fin.units or "").strip() or "unspecified units"
+        structure = [
+            title
+            for title in wb.sheetnames
+            if not title.startswith(_HIDDEN_PREFIX)
+            and title != "Build Status"
+            and wb[title].sheet_state == "visible"
+        ]
+        ws = wb.create_sheet(BAV_OPENING_SHEET, 0)
+        ws.sheet_view.showGridLines = False
+        ws["A1"] = "Business Analysis and Valuation"
+        ws["A2"] = identity
+        ws["A3"] = f"Historical coverage: {coverage}"
+        ws["A4"] = f"Units: {currency}; {units}"
+        ws["A5"] = (
+            "Analytical structure: source statements, condensed reformulation, "
+            "profitability and quality diagnostics, and admitted operating schedules."
+        )
+        if structure:
+            ws["A6"] = "Schedules: " + "; ".join(structure)
+            source_row, limit_row = "A7", "A8"
+        else:
+            source_row, limit_row = "A6", "A7"
+        ws[source_row] = (
+            "Source basis: source-grounded filings reconciled into StandardizedFinancials. "
+            "Conflicts and superseded observations remain in supporting audit artifacts."
+        )
+        ws[limit_row] = (
+            "Availability limitations: optional modules appear only when required "
+            "historical facts are supplied. See Build Status for unavailable or "
+            "inactive families. Missing facts are not invented."
+        )
+        ws.column_dimensions["A"].width = 110
+
     def _add_trainer_ui(self, wb) -> None:
         if "Trainer" in wb.sheetnames:
             del wb["Trainer"]
@@ -259,6 +343,9 @@ class TrainingWorkbookGenerator:
         ws.sheet_view.showGridLines = False
         ws["A1"] = "BAV Excel Trainer"
         ws["A2"] = TRAINER_INDEX_INSTRUCTION
+        if "Build Status" in wb.sheetnames:
+            ws["G1"] = "Current Progress"
+            ws["G1"].hyperlink = "#'Build Status'!A1"
         headers = ["Order", "Schedule", "Period scope", "Tab", "Practice cells", "Depends on"]
         for j, h in enumerate(headers, start=1):
             ws.cell(row=4, column=j, value=h)
@@ -390,17 +477,14 @@ def _cell_to_rc(cell_ref: str) -> tuple[int, int]:
     return row, column_index_from_string(col)
 
 
-def build_training_workbook(
+def build_bav_workbook(
     financials,
     output_path: Path,
     assumptions: dict | None = None,
     *,
     current_snapshot: bool = False,
-) -> tuple[Path, Path]:
-    """End-to-end: standardized data → Answer Key + Trainer workbook pair.
-
-    Returns ``(trainer_path, answer_key_path)``.
-    """
+) -> Path:
+    """End-to-end: standardized data → professional BAV. Does not derive a Trainer."""
     validate_financials_identities(financials)
 
     report = reconcile_financials(financials)
@@ -410,16 +494,54 @@ def build_training_workbook(
         warnings = "; ".join(report.warnings) if report.warnings else details
         raise ValueError(
             f"Source statement checksum failed ({details}). "
-            f"Refuse Trainer / Answer Key build. {warnings}"
+            f"Refuse BAV build. {warnings}"
         )
 
-    trainer_path, answer_key_path = resolve_pair_paths(output_path)
-    remove_trainer_sidecars(trainer_path)
+    _, bav_path = resolve_pair_paths(output_path)
     builder = ReferenceModelBuilder(financials, assumptions, current_snapshot=current_snapshot)
-    semantic_map = builder.build(answer_key_path)
+    semantic_map = builder.build(bav_path)
     TrainingWorkbookGenerator(
-        answer_key_path,
+        bav_path,
         semantic_map,
-    ).generate(trainer_path)
-    remove_trainer_sidecars(trainer_path)
-    return trainer_path, answer_key_path
+        financials=financials,
+    ).finalize_bav()
+    return bav_path
+
+
+def derive_trainer_workbook(bav_path: Path, trainer_path: Path | None = None) -> Path:
+    """Derive a Trainer from a completed BAV without mutating the BAV."""
+    bav_path = Path(bav_path)
+    if trainer_path is None:
+        trainer_path, _ = resolve_pair_paths(bav_path)
+    generator = TrainingWorkbookGenerator(bav_path)
+    return generator.derive_trainer(trainer_path)
+
+
+def build_training_workbook(
+    financials,
+    output_path: Path,
+    assumptions: dict | None = None,
+    *,
+    current_snapshot: bool = False,
+) -> tuple[Path, Path]:
+    """Existing interface: professional BAV plus optional Trainer derivation.
+
+    Returns ``(trainer_path, bav_path)``.
+    """
+    bav_path = build_bav_workbook(
+        financials,
+        output_path,
+        assumptions,
+        current_snapshot=current_snapshot,
+    )
+    trainer_path, _ = resolve_pair_paths(output_path)
+    output_path = Path(output_path)
+    company = company_stem_from_output(output_path.stem)
+    for stale in (
+        trainer_path,
+        output_path,
+        output_path.with_name(f"{company}_Trainer{output_path.suffix or '.xlsx'}"),
+    ):
+        remove_trainer_sidecars(stale)
+    derive_trainer_workbook(bav_path, trainer_path)
+    return trainer_path, bav_path

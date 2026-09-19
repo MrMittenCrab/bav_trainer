@@ -1,4 +1,4 @@
-"""Workbook-wide practice-cell validation using the matching Answer Key map."""
+"""Workbook-wide practice-cell validation using the matching BAV map."""
 
 from __future__ import annotations
 
@@ -114,7 +114,7 @@ from .check_context import (
     normalization_treatments_for_check,
     validate_live_model_structure,
 )
-from .semantic_io import answer_key_path_for, load_semantic_map, parse_cell_ref
+from .semantic_io import bav_path_for, load_semantic_map, parse_cell_ref
 from .xlsx_fill_patch import CellFillUpdate, apply_fill_updates
 
 
@@ -186,15 +186,15 @@ def _values_match(user_val, expected, tolerance: float) -> bool:
 def check_workbook(trainer_path: Path) -> CheckSummary:
     """Scan every practice cell in the Trainer; recolor yellow/green/red only.
 
-    Reference semantics come from the matching Answer Key. Never writes answers,
+    Reference semantics come from the matching BAV. Never writes answers,
     formulas, expected values, or hints into the Trainer. Fill updates are applied
     via OOXML so formula cached results survive repeated Checks.
     """
     trainer_path = Path(trainer_path)
-    answer_key_path = answer_key_path_for(trainer_path)
+    answer_key_path = bav_path_for(trainer_path)
     if not answer_key_path.exists():
         raise FileNotFoundError(
-            f"Answer Key not found for Trainer {trainer_path.name}: "
+            f"BAV not found for Trainer {trainer_path.name}: "
             f"expected {answer_key_path}"
         )
 

@@ -25,7 +25,7 @@ from .ingestion.filing_standardizer import (
 )
 from .ingestion.manual_hk import HKManualDocumentAdapter
 from .trainer.checker import check_workbook
-from .trainer.semantic_io import answer_key_path_for, load_semantic_map, resolve_pair_paths
+from .trainer.semantic_io import bav_path_for, load_semantic_map, resolve_pair_paths
 from .trainer.workbook import build_training_workbook
 
 
@@ -164,9 +164,9 @@ def cmd_build(args: argparse.Namespace) -> int:
             print(f'error: build failed: {exc}', file=sys.stderr)
             return 1
         print(f'Built {company.name}\nOutput: {company.output}/\n')
-        print(f'Trainer: {company.trainer.name}\nAnswer Key: {company.answer.name}')
+        print(f'BAV: {company.bav.name}')
         print('\nActive:')
-        for group in dict.fromkeys(c.tab for c in load_semantic_map(company.answer).all_ordered()):
+        for group in dict.fromkeys(c.tab for c in load_semantic_map(company.bav).all_ordered()):
             print(f'  {group}')
         print('\nUnavailable / not yet active:')
         for row in rows:
@@ -192,13 +192,13 @@ def cmd_build(args: argparse.Namespace) -> int:
             if not isinstance(assumptions, dict):
                 raise ValueError("assumptions must be a JSON object")
 
-        trainer_path, answer_key_path = build_training_workbook(data, out, assumptions)
+        trainer_path, bav_path = build_training_workbook(data, out, assumptions)
     except (OSError, ValueError) as exc:
         print(f"error: build failed: {exc}", file=sys.stderr)
         return 1
-    smap = load_semantic_map(answer_key_path)
+    smap = load_semantic_map(bav_path)
     print(f"Trainer workbook: {trainer_path}")
-    print(f"Answer Key workbook: {answer_key_path}")
+    print(f"BAV workbook: {bav_path}")
     print(f"Components resolved: {len(smap.all_ordered())}")
     return 0
 
@@ -353,10 +353,10 @@ def cmd_list(args: argparse.Namespace) -> int:
         try:
             smap = load_semantic_map(wb)
         except FileNotFoundError:
-            ak = answer_key_path_for(wb)
-            if not ak.exists():
+            matched = bav_path_for(wb)
+            if not matched.exists():
                 raise
-            smap = load_semantic_map(ak)
+            smap = load_semantic_map(matched)
         for group in group_components_by_family(smap):
             print(
                 f"{group['family_order']:2d}. [{group['family_id']}] {group['title']} — "
@@ -436,15 +436,15 @@ def main(argv: list[str] | None = None) -> int:
 
     p_build = sub.add_parser(
         "build",
-        help="Build the current company Trainer + Answer Key snapshot",
+        help="Build the current company professional BAV workbook",
     )
     p_build.add_argument("input", help="Company name/ticker, or explicit standardized JSON/Excel")
     p_build.add_argument(
         "-o",
         "--output",
         help=(
-            "Output path (stem ending in _Trainer, or a company stem to which "
-            "_Trainer/_Answer_Key are appended)"
+            "Output path (stem ending in _BAV or _BAV_Trainer, or a company stem "
+            "to which _BAV/_BAV_Trainer are appended)"
         ),
     )
     p_build.add_argument(
@@ -466,7 +466,7 @@ def main(argv: list[str] | None = None) -> int:
     p_list.add_argument("company", nargs="?")
     p_list.add_argument(
         "--workbook",
-        help="Show resolved coordinates from a built Answer Key (or matching Trainer)",
+        help="Show resolved coordinates from a built BAV (or matching Trainer)",
     )
     p_list.set_defaults(func=cmd_list)
 

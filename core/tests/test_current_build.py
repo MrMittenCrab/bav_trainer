@@ -25,8 +25,9 @@ def test_aliases_and_missing_company(tmp_path):
     assert identities[0] == identities[1] == identities[2]
     company = identities[0]
     assert company.output == ROOT / 'build/output/Lululemon'
-    assert company.trainer.name == 'Lululemon_Trainer.xlsx'
-    assert company.answer.name == 'Lululemon_Answer_Key.xlsx'
+    assert company.bav.name == 'Lululemon_BAV.xlsx'
+    assert company.trainer.name == 'Lululemon_BAV_Trainer.xlsx'
+    assert company.answer.name == 'Lululemon_BAV.xlsx'
     assert company.benchmark == ROOT / 'benchmark/lululemon'
     with pytest.raises(ValueError, match='Unknown company.*Lululemon'):
         resolve_company('missing-company')
@@ -41,41 +42,59 @@ def test_company_build_rebuild_failure_and_workbook_contract(tmp_path, monkeypat
     from core import current_build
     from core.__main__ import main
     from core.trainer.semantic_io import load_semantic_map
+    from core.trainer.workbook import derive_trainer_workbook
     from core.engine.component_catalog import is_operating_kpi_source_identity
     monkeypatch.setattr(current_build, 'OUTPUT_ROOT', tmp_path)
     assert main(['build', 'Lululemon']) == 0
     company = current_build.resolve_company('LULU')
     assert company.output == tmp_path / 'Lululemon'
-    smap = load_semantic_map(company.answer)
+    smap = load_semantic_map(company.bav)
     families = {c.family_id for c in smap.all_ordered()}
     assert 'geographic_operating_profit_growth_contribution' in families
     assert 'store_count_source' in families
     assert 'store_count_growth' in families
     assert not any('comparable_sales' in f or 'square_foot' in f for f in families)
-    before = snapshot(company.output)
     assert (company.output / 'supporting/provenance.json').is_file()
-    for path in (company.trainer, company.answer):
-        wb = load_workbook(path)
-        assert 'Build Status' in wb.sheetnames
-        rows = list(wb['Build Status'].values)
-        assert any('Comparable Sales' in str(row) and 'Source unavailable / not admitted' in str(row) for row in rows)
-        for comp in smap.all_ordered():
-            cell = wb[comp.tab][comp.cell]
-            if is_operating_kpi_source_identity(comp):
-                assert cell.value is not None
-            elif path == company.trainer:
-                assert cell.value is None and cell.comment is None
-                assert cell.fill.fgColor.rgb in ('00FFFF00', 'FFFFFF00')
-            else:
-                assert cell.value == comp.formula and cell.comment is not None
-        if path == company.answer:
-            assert not any(c.fill.fgColor.type == 'rgb' and c.fill.fgColor.rgb in ('FFFFFF00','00FFFF00') for ws in wb for row in ws for c in row)
-        wb.close()
-    assert main(['check', 'lulu']) == 0
+    assert company.bav.is_file()
+    assert not company.trainer.is_file()
+    wb = load_workbook(company.bav)
+    assert 'Build Status' in wb.sheetnames
+    assert 'Overview' in wb.sheetnames
+    assert 'Trainer' not in wb.sheetnames
+    rows = list(wb['Build Status'].values)
+    assert any('Comparable Sales' in str(row) and 'Source unavailable / not admitted' in str(row) for row in rows)
+    opening = ' '.join(
+        str(cell.value or '')
+        for row in wb['Overview'].iter_rows(max_row=12, max_col=4)
+        for cell in row
+    )
+    for term in ('Trainer', 'Answer Key', 'exercise', 'practice', 'Check'):
+        assert term not in opening
+    for comp in smap.all_ordered():
+        cell = wb[comp.tab][comp.cell]
+        if is_operating_kpi_source_identity(comp):
+            assert cell.value is not None
+        else:
+            assert cell.value == comp.formula and cell.comment is not None
+    assert not any(c.fill.fgColor.type == 'rgb' and c.fill.fgColor.rgb in ('FFFFFF00','00FFFF00') for ws in wb for row in ws for c in row)
+    wb.close()
     assert main(['list', 'lululemon']) == 0
+    before_bav = company.bav.read_bytes()
+    derive_trainer_workbook(company.bav, company.trainer)
+    assert company.bav.read_bytes() == before_bav
+    wb = load_workbook(company.trainer)
+    for comp in smap.all_ordered():
+        cell = wb[comp.tab][comp.cell]
+        if is_operating_kpi_source_identity(comp):
+            assert cell.value is not None
+        else:
+            assert cell.value is None and cell.comment is None
+            assert cell.fill.fgColor.rgb in ('00FFFF00', 'FFFFFF00')
+    wb.close()
+    assert main(['check', 'lulu']) == 0
     assert main(['build', 'LULU']) == 0
     assert sorted(p.name for p in tmp_path.iterdir()) == ['Lululemon']
-    assert sorted(p.name for p in company.output.glob('*.xlsx')) == ['Lululemon_Answer_Key.xlsx','Lululemon_Trainer.xlsx']
+    assert sorted(p.name for p in company.output.glob('*.xlsx')) == ['Lululemon_BAV.xlsx']
     before = snapshot(company.output)
     def fail(*args, **kwargs):
         raise ValueError('deliberate staged validation failure')

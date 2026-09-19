@@ -35,9 +35,9 @@ specs. The writer receives `(builder, workbook)`, reads the final specs from
 expected values in `builder.semantic_map`. Use the final specs, whose order is
 assigned centrally after applicability filtering. Shared `WorkbookWriter`
 objects execute once, in stable writer order, after all preparation completes.
-New analytical families must also have their normal deterministic Trainer
-Check integration before being declared complete; this contract does not
-replace the analytical evaluator.
+New analytical families must also have their normal deterministic BAV
+formulas/Notes and optional Trainer Check integration before being declared
+complete; this contract does not replace the analytical evaluator.
 
 Declare module dependencies in `depends_on` and register prerequisites first.
 Missing, excluded, or later prerequisites are errors. Semantic component
@@ -77,11 +77,12 @@ fixed fixtures, but production completeness checks have no fixed total.
 
 Company routing and staged reconciliation live in `core/current_build.py`.
 The public `bav` package delegates to the compatible internal `core` CLI.
-Company builds verify the pair and sidecars before atomically exchanging the
-canonical `build/output/<Company>/` directory. Build Status uses emitted semantic
-identities; visibility is not release acceptance. Build never writes AutoCycle
-state, control documents, benchmark artifacts, or release artifacts, and never
-starts AutoCycle.
+Company builds verify the professional `<Company>_BAV.xlsx` and sidecars before
+atomically exchanging the canonical `build/output/<Company>/` directory. Trainer
+generation is unused on the ordinary company path. Build Status uses emitted
+semantic identities; visibility is not release acceptance. Build never writes
+AutoCycle state, control documents, benchmark artifacts, or release artifacts,
+and never starts AutoCycle.
 
 Run focused checks with `python -m pytest core/tests/test_build_contract.py -q`
 and regressions with `python -m pytest core/tests -q` in the project environment.

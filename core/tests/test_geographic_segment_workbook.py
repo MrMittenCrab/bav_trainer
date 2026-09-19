@@ -378,8 +378,11 @@ def _assert_visible_parity(
     skip |= _judgment_response_keys(awb)
     t_visible = [ws.title for ws in twb.worksheets if ws.sheet_state == "visible"]
     a_visible = [ws.title for ws in awb.worksheets if ws.sheet_state == "visible"]
-    assert t_visible == a_visible
-    for name in t_visible:
+    assert "Overview" in a_visible
+    assert "Trainer" not in a_visible
+    assert "Trainer" in t_visible
+    assert [title for title in t_visible if title != "Trainer"] == a_visible
+    for name in a_visible:
         tws = twb[name]
         aws = awb[name]
         max_row = max(tws.max_row or 1, aws.max_row or 1)

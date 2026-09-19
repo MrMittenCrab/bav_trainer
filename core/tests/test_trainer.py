@@ -1,4 +1,4 @@
-"""Tests for BAV Excel Trainer — Trainer / Answer Key separation + workbook-wide Check."""
+"""Tests for BAV Excel Trainer — BAV / Trainer separation + workbook-wide Check."""
 
 import importlib.util
 from pathlib import Path
@@ -117,13 +117,17 @@ def test_ingest_demo_json():
 
 
 def test_resolve_pair_paths_appends_and_preserves_trainer_stem(tmp_path):
-    trainer, answer = resolve_pair_paths(tmp_path / "DEMO_HK_Trainer.xlsx")
-    assert trainer.name == "DEMO_HK_Trainer.xlsx"
-    assert answer.name == "DEMO_HK_Answer_Key.xlsx"
+    trainer, answer = resolve_pair_paths(tmp_path / "DEMO_HK_BAV_Trainer.xlsx")
+    assert trainer.name == "DEMO_HK_BAV_Trainer.xlsx"
+    assert answer.name == "DEMO_HK_BAV.xlsx"
 
     trainer2, answer2 = resolve_pair_paths(tmp_path / "Acme.xlsx")
-    assert trainer2.name == "Acme_Trainer.xlsx"
-    assert answer2.name == "Acme_Answer_Key.xlsx"
+    assert trainer2.name == "Acme_BAV_Trainer.xlsx"
+    assert answer2.name == "Acme_BAV.xlsx"
+
+    trainer3, answer3 = resolve_pair_paths(tmp_path / "Acme_BAV.xlsx")
+    assert trainer3.name == "Acme_BAV_Trainer.xlsx"
+    assert answer3.name == "Acme_BAV.xlsx"
 
 
 def test_build_paired_trainer_and_answer_key(tmp_path):
@@ -131,8 +135,8 @@ def test_build_paired_trainer_and_answer_key(tmp_path):
 
     assert trainer_path.exists()
     assert answer_key_path.exists()
-    assert trainer_path.name == "DEMO_HK_Trainer.xlsx"
-    assert answer_key_path.name == "DEMO_HK_Answer_Key.xlsx"
+    assert trainer_path.name == "DEMO_HK_BAV_Trainer.xlsx"
+    assert answer_key_path.name == "DEMO_HK_BAV.xlsx"
     assert not (tmp_path / "DEMO_HK_Trainer_reference.xlsx").exists()
     assert not list(tmp_path.glob("*_reference.xlsx"))
 
@@ -341,7 +345,7 @@ def test_answer_key_practice_cells_formula_white_legacy_notes(tmp_path):
             comp.hints[0] if comp.hints else comp.title
         )
         assert cell.comment.text == expected_hint
-        assert cell.comment.author == "BAV Trainer"
+        assert cell.comment.author == "BAV"
     wb.close()
 
 
@@ -353,9 +357,12 @@ def test_pair_style_and_structure_parity(tmp_path):
 
     visible_t = [s for s in wb_t.sheetnames if not s.startswith("_")]
     visible_a = [s for s in wb_a.sheetnames if not s.startswith("_")]
-    assert visible_t == visible_a
+    assert "Overview" in visible_a
+    assert "Trainer" not in visible_a
+    assert "Trainer" in visible_t
+    assert [s for s in visible_t if s != "Trainer"] == visible_a
 
-    for name in visible_t:
+    for name in visible_a:
         ws_t, ws_a = wb_t[name], wb_a[name]
         assert ws_t.freeze_panes == ws_a.freeze_panes
         assert bool(ws_t.sheet_view.showGridLines) == bool(ws_a.sheet_view.showGridLines)
@@ -528,7 +535,7 @@ def test_check_requires_matching_answer_key(tmp_path):
     trainer_path, answer_key_path = _build_pair(tmp_path)
     answer_key_path.unlink()
     answer_key_path.with_suffix(".component_map.json").unlink(missing_ok=True)
-    with pytest.raises(FileNotFoundError, match="Answer Key"):
+    with pytest.raises(FileNotFoundError, match="BAV"):
         check_workbook(trainer_path)
 
 
@@ -608,9 +615,9 @@ def test_cli_build_reports_both_paths(tmp_path, capsys):
     captured = capsys.readouterr()
     assert rc == 0
     assert "Trainer workbook:" in captured.out
-    assert "Answer Key workbook:" in captured.out
-    assert (tmp_path / "DEMO_HK_Trainer.xlsx").exists()
-    assert (tmp_path / "DEMO_HK_Answer_Key.xlsx").exists()
+    assert "BAV workbook:" in captured.out
+    assert (tmp_path / "DEMO_HK_BAV_Trainer.xlsx").exists()
+    assert (tmp_path / "DEMO_HK_BAV.xlsx").exists()
 
 
 def test_source_data_classifications_and_assumptions_remain_populated(tmp_path):
@@ -1016,17 +1023,17 @@ def test_expand_historical_specs_rejects_non_chronological_periods():
 def test_stale_trainer_sidecars_removed_on_rebuild(tmp_path, capsys):
     from core.__main__ import main
 
-    trainer_path = tmp_path / "DEMO_HK_Trainer.xlsx"
-    answer_key_path = tmp_path / "DEMO_HK_Answer_Key.xlsx"
+    requested = tmp_path / "DEMO_HK_Trainer.xlsx"
     secret = "SECRET_OLD_FORMULA\nSECRET_OLD_HINT"
     for suffix in (".component_map.json", ".trainer.json", ".assumptions.json"):
-        trainer_path.with_suffix(suffix).write_text(secret, encoding="utf-8")
-        assert trainer_path.with_suffix(suffix).exists()
+        requested.with_suffix(suffix).write_text(secret, encoding="utf-8")
+        assert requested.with_suffix(suffix).exists()
 
     data = _ingest_demo()
-    build_training_workbook(data, trainer_path)
+    trainer_path, answer_key_path = build_training_workbook(data, requested)
 
     for suffix in (".component_map.json", ".trainer.json", ".assumptions.json"):
+        assert not requested.with_suffix(suffix).exists()
         assert not trainer_path.with_suffix(suffix).exists()
     assert answer_key_path.with_suffix(".component_map.json").exists()
     assert answer_key_path.with_suffix(".assumptions.json").exists()

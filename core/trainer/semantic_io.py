@@ -6,40 +6,66 @@ from pathlib import Path
 
 from ..engine.semantic_map import ResolvedComponent, SemanticMap
 
+_BAV_TRAINER_SUFFIX = "_BAV_Trainer"
+_ANSWER_KEY_SUFFIX = "_Answer_Key"
+_BAV_SUFFIX = "_BAV"
+_TRAINER_SUFFIX = "_Trainer"
+
 
 def component_map_path_for(workbook_path: Path) -> Path:
     """Sidecar path: foo.xlsx -> foo.component_map.json"""
     return workbook_path.with_suffix(".component_map.json")
 
 
-def resolve_pair_paths(output_path: Path) -> tuple[Path, Path]:
-    """Resolve Trainer and Answer Key paths from a requested build output.
+def company_stem_from_output(stem: str) -> str:
+    """Strip product suffixes from a requested build stem."""
+    for suffix in (
+        _BAV_TRAINER_SUFFIX,
+        _ANSWER_KEY_SUFFIX,
+        _BAV_SUFFIX,
+        _TRAINER_SUFFIX,
+    ):
+        if stem.endswith(suffix):
+            return stem[: -len(suffix)]
+    return stem
 
-    If the stem already ends with ``_Trainer``, keep it and derive ``_Answer_Key``.
-    Otherwise append ``_Trainer`` / ``_Answer_Key`` to the stem.
+
+def resolve_pair_paths(output_path: Path) -> tuple[Path, Path]:
+    """Resolve Trainer and BAV paths from a requested build output.
+
+    Returns ``(trainer_path, bav_path)``. Ordinary and explicit builds use
+    ``<Company>_BAV.xlsx`` and ``<Company>_BAV_Trainer.xlsx``.
     """
     output_path = Path(output_path)
     suffix = output_path.suffix or ".xlsx"
-    stem = output_path.stem
+    company = company_stem_from_output(output_path.stem)
     parent = output_path.parent
-    if stem.endswith("_Trainer"):
-        company = stem[: -len("_Trainer")]
-    else:
-        company = stem
-    trainer_path = parent / f"{company}_Trainer{suffix}"
-    answer_key_path = parent / f"{company}_Answer_Key{suffix}"
-    return trainer_path, answer_key_path
+    trainer_path = parent / f"{company}{_BAV_TRAINER_SUFFIX}{suffix}"
+    bav_path = parent / f"{company}{_BAV_SUFFIX}{suffix}"
+    return trainer_path, bav_path
+
+
+def bav_path_for(training_path: Path) -> Path:
+    """Infer matching BAV, falling back to a committed legacy Answer Key."""
+    training_path = Path(training_path)
+    _, bav_path = resolve_pair_paths(training_path)
+    if bav_path.exists():
+        return bav_path
+    company = company_stem_from_output(training_path.stem)
+    legacy = training_path.parent / f"{company}{_ANSWER_KEY_SUFFIX}{training_path.suffix or '.xlsx'}"
+    if legacy.exists():
+        return legacy
+    return bav_path
 
 
 def answer_key_path_for(training_path: Path) -> Path:
-    """Infer matching Answer Key path from a Trainer workbook name."""
-    _, answer_key_path = resolve_pair_paths(training_path)
-    return answer_key_path
+    """Backward-compatible alias — the BAV replaces the former Answer Key."""
+    return bav_path_for(training_path)
 
 
 def reference_workbook_path(training_path: Path) -> Path:
-    """Backward-compatible alias — Answer Key replaces the old reference workbook."""
-    return answer_key_path_for(training_path)
+    """Backward-compatible alias for the matching professional BAV."""
+    return bav_path_for(training_path)
 
 
 def load_semantic_map(workbook_path: Path) -> SemanticMap:

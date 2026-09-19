@@ -63,7 +63,7 @@ def test_new_completed_module_reaches_cli_without_dispatch_changes(monkeypatch, 
     register(monkeypatch, extension())
     source = ROOT / "benchmark/lululemon/reconciled/standardized.json"
     assert main(["build", str(source), "-o", str(tmp_path / "Example")]) == 0
-    answer = tmp_path / "Example_Answer_Key.xlsx"
+    answer = tmp_path / "Example_BAV.xlsx"
     assert load_semantic_map(answer).all_ordered()[-1].semantic_key == "test.complete"
     wb = load_workbook(answer)
     assert wb["Test Complete"]["A1"].value.startswith("='Condensed Financials'!")

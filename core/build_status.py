@@ -67,6 +67,7 @@ def add_build_status(wb, smap):
         for cell in row:
             cell.font = Font(name='Aptos Narrow', size=11)
             cell.alignment = Alignment(vertical='top')
-    if 'Trainer' in wb:
-        wb['Trainer']['G1'] = 'Current Progress'
-        wb['Trainer']['G1'].hyperlink = "#'Build Status'!A1"
+    for sheet in ('Overview', 'Trainer'):
+        if sheet in wb:
+            wb[sheet]['G1'] = 'Current Progress'
+            wb[sheet]['G1'].hyperlink = "#'Build Status'!A1"

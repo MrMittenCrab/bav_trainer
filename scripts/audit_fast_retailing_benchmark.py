@@ -1037,8 +1037,12 @@ def _verify_workbook_source_fidelity(wb, fin, *, workbook: str) -> None:
 
 
 def _comparable_sheet_names(wb) -> list[str]:
-    """Non-metadata sheets in workbook order (includes deferred placeholders)."""
-    return [name for name in wb.sheetnames if not name.startswith("_")]
+    """Shared analytical sheets; Trainer opening may differ from the BAV."""
+    return [
+        name
+        for name in wb.sheetnames
+        if not name.startswith("_") and name != "Trainer"
+    ]
 
 
 def _requires_visible(name: str) -> bool:

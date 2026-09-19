@@ -1,4 +1,4 @@
-# BAV Excel Trainer — Hong Kong Edition
+# BAV — Hong Kong Edition
 
 Progressive training that takes an **accounting novice** toward junior accounting-based equity-research competence, with particular strength in Business Analysis and Valuation (BAV).
 
@@ -47,12 +47,12 @@ still deferred:
 normal build:
 does not execute forecast/scenario engine
 
-Trainer = blank yellow formula cells + blank yellow judgment-response cells; no answers/hints.
+BAV = completed historical model with formulas, Notes, and professional opening; no yellow practice cells.
+Trainer = optional derivative: blank yellow formula cells + blank yellow judgment-response cells; no answers/hints.
 Check = scans formula practice cells against current Accounting Judgment and Normalization Judgment treatments; blank yellow, correct green, incorrect red; no answers disclosed.
-Answer Key = formula + Note on formula cells; model treatment/rationale/consequence on judgment responses; hidden Check context for dynamic expecteds.
 ```
 
-Open the matching Answer Key for formula Notes and for judgment reference responses. Formula Check does not grade Accounting Judgment or Normalization Judgment rationale/consequence cells.
+Ordinary `python -m bav build Lululemon` produces the BAV only. Derive the Trainer from that completed model when a practice surface is needed. Open the matching BAV for formula Notes and for judgment reference responses. Formula Check does not grade Accounting Judgment or Normalization Judgment rationale/consequence cells.
 
 ## Quick start
 
@@ -64,13 +64,13 @@ python -m bav list Lululemon
 python -m bav check Lululemon
 ```
 
-The current learning pair lives in `build/output/Lululemon/`. A successful
+The current professional BAV lives in `build/output/Lululemon/`. A successful
 company rebuild atomically replaces that directory after staged validation;
-a failed build preserves the previous pair. Build Status shows independently
+a failed build preserves the previous BAV. Build Status shows independently
 available analytical families and source/admission gaps. Development visibility
 does not establish parent or release completion.
 
-Open the matching Answer Key for formulas and Notes. Trainer cells remain blank
+Open the matching BAV for formulas and Notes. Trainer cells remain blank
 and yellow, without answer hints. See [README.md](README.md) for current company
 aliases, source reconciliation, and advanced explicit-path compatibility.
 The historical illustrative HK JSON is not a canonical CLI build input.
@@ -79,8 +79,8 @@ The historical illustrative HK JSON is not a canonical CLI build input.
 
 1. **Ingests** HK annual reports, interim reports, results materials, or Excel/Bloomberg/Wind exports via `HKManualDocumentAdapter`
 2. **Reconciles** into standardized Income Statement / Balance Sheet / Cash Flow structure (`StandardizedFinancials`)
-3. **Builds** a complete multi-period historical BAV reformulation / DuPont model as the **Answer Key** (`*_Answer_Key.xlsx`)
-4. **Derives** the matching **Trainer** — source data and classifications stay populated; yellow cells are blank historical schedule formulas only
+3. **Builds** a complete multi-period historical BAV reformulation / DuPont model as the professional **BAV** (`*_BAV.xlsx`)
+4. **Optionally derives** the matching **Trainer** — source data and classifications stay populated; yellow cells are blank historical schedule formulas only
 5. **Checks** the entire Trainer in one pass: blank stays yellow, correct turns green, incorrect turns red — without disclosing answers
 
 Banks, insurers, brokers, and other financial institutions are outside the initial competency scope.
@@ -105,7 +105,7 @@ Banks, insurers, brokers, and other financial institutions are outside the initi
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  TrainingWorkbookGenerator                                   │
-│  Answer Key (formulas + Notes) + sanitized Trainer           │
+│  Professional BAV (formulas + Notes) + optional Trainer      │
 │  Family-level Trainer index; cell-level Check                │
 └─────────────────────────────────────────────────────────────┘
 ```

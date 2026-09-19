@@ -212,7 +212,7 @@ def test_cli_assumptions_propagate(tmp_path):
     assumptions_path.write_text(json.dumps(assumptions), encoding="utf-8")
     assert main(["build", str(DEMO_JSON), "-o", str(out), "-a", str(assumptions_path)]) == 0
 
-    answer = tmp_path / "Assumed_Answer_Key.xlsx"
+    answer = tmp_path / "Assumed_BAV.xlsx"
     wb = load_workbook(answer, data_only=False)
     ws = wb["Condensed Financials"]
     smap = load_semantic_map(answer)

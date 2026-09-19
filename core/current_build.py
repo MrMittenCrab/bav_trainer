@@ -45,12 +45,17 @@ class Company:
     output: Path
 
     @property
+    def bav(self):
+        return self.output / f'{self.name}_BAV.xlsx'
+
+    @property
     def trainer(self):
-        return self.output / f'{self.name}_Trainer.xlsx'
+        return self.output / f'{self.name}_BAV_Trainer.xlsx'
 
     @property
     def answer(self):
-        return self.output / f'{self.name}_Answer_Key.xlsx'
+        """Backward-compatible alias — the BAV replaces the former Answer Key."""
+        return self.bav
 
 
 def resolve_company(query: str) -> Company:
@@ -66,9 +71,16 @@ def resolve_company(query: str) -> Company:
 
 def current_workbook(query: str, *, answer: bool = False) -> Path:
     company = resolve_company(query)
-    path = company.answer if answer else company.trainer
+    path = company.bav if answer else company.trainer
     if not path.is_file():
-        raise ValueError(f'No current build for {company.name}; run python -m bav build {company.name}')
+        if answer:
+            raise ValueError(
+                f'No current build for {company.name}; run python -m bav build {company.name}'
+            )
+        raise ValueError(
+            f'No current Trainer for {company.name}; derive {company.trainer.name} '
+            f'from {company.bav.name} or run python -m bav build {company.name}'
+        )
     return path
 
 
@@ -109,8 +121,8 @@ def prepare_company_input(company: Company, staged: Path):
     return fin
 
 
-def verify_staged(fin, trainer: Path, answer: Path, assumptions=None):
-    """Verify model identities, both learning surfaces, sidecars, and blank Check."""
+def verify_staged(fin, bav: Path, assumptions=None, trainer: Path | None = None):
+    """Verify the BAV independently of Trainer existence; optionally verify a Trainer."""
     from openpyxl import load_workbook
     from .engine.reference_model import ReferenceModelBuilder
     from .engine.build_contract import verify_complete_build
@@ -118,21 +130,36 @@ def verify_staged(fin, trainer: Path, answer: Path, assumptions=None):
     from .engine.semantic_map import SemanticMap
     from .trainer.semantic_io import load_semantic_map
     from .trainer.checker import check_workbook
-    for path in (answer.with_suffix('.component_map.json'), answer.with_suffix('.assumptions.json'), answer.parent / 'rowmap.json'):
+    for path in (bav.with_suffix('.component_map.json'), bav.with_suffix('.assumptions.json'), bav.parent / 'rowmap.json'):
         if not path.is_file():
             raise ValueError(f'Missing required sidecar: {path.name}')
         json.loads(path.read_text())
-    smap = load_semantic_map(answer)
+    smap = load_semantic_map(bav)
     builder = ReferenceModelBuilder(fin, assumptions, current_snapshot=True)
     verify_complete_build(builder.expected_specs, smap)
-    embedded = SemanticMap.from_workbook(answer)
+    embedded = SemanticMap.from_workbook(bav)
     if [c.to_dict() for c in embedded.all_ordered()] != [c.to_dict() for c in smap.all_ordered()]:
         raise ValueError('Embedded and sidecar semantic maps differ')
-    for path in (trainer, answer):
+    paths = [bav] if trainer is None else [bav, trainer]
+    for path in paths:
         wb = load_workbook(path)
         try:
             if 'Build Status' not in wb:
                 raise ValueError('Missing Build Status')
+            if path == bav:
+                if 'Overview' not in wb:
+                    raise ValueError('Missing professional BAV opening')
+                if 'Trainer' in wb:
+                    raise ValueError('BAV must not contain a Trainer sheet')
+                opening = ' '.join(
+                    str(cell.value)
+                    for row in wb['Overview'].iter_rows(max_row=12, max_col=4)
+                    for cell in row
+                    if cell.value is not None
+                ).casefold()
+                for term in ('trainer', 'answer key', 'exercise', 'practice', 'check'):
+                    if term in opening:
+                        raise ValueError(f'BAV opening contains exercise framing: {term}')
             for comp in smap.all_ordered():
                 cell = wb[comp.tab][comp.cell]
                 if is_operating_kpi_source_identity(comp):
@@ -142,14 +169,15 @@ def verify_staged(fin, trainer: Path, answer: Path, assumptions=None):
                     if cell.value is not None or cell.comment is not None or cell.fill.fgColor.rgb not in ('00FFFF00', 'FFFFFF00'):
                         raise ValueError('Trainer practice invariant failed')
                 elif cell.value != comp.formula or cell.comment is None:
-                    raise ValueError('Answer Key formula/Note invariant failed')
-            if path == answer and any(c.fill.fgColor.type == 'rgb' and c.fill.fgColor.rgb in ('FFFFFF00', '00FFFF00') for ws in wb for row in ws for c in row):
-                raise ValueError('Answer Key has yellow fill')
+                    raise ValueError('BAV formula/Note invariant failed')
+            if path == bav and any(c.fill.fgColor.type == 'rgb' and c.fill.fgColor.rgb in ('FFFFFF00', '00FFFF00') for ws in wb for row in ws for c in row):
+                raise ValueError('BAV has yellow fill')
         finally:
             wb.close()
-    result = check_workbook(trainer)
-    if result.correct or result.incorrect or result.blank != result.total:
-        raise ValueError('Pristine Trainer Check failed')
+    if trainer is not None:
+        result = check_workbook(trainer)
+        if result.correct or result.incorrect or result.blank != result.total:
+            raise ValueError('Pristine Trainer Check failed')
 
 
 def _exchange_directories(staged: Path, current: Path):
@@ -175,22 +203,21 @@ def _exchange_directories(staged: Path, current: Path):
 
 
 def build_company(company: Company, assumptions=None):
-    from .engine.reference_model import ReferenceModelBuilder
-    from .trainer.workbook import build_training_workbook
+    from .trainer.workbook import build_bav_workbook
     from .build_status import status_rows
     from .trainer.semantic_io import load_semantic_map
     current = company.output
     from .__main__ import _validate_build_output
-    _validate_build_output(company.trainer, [])
+    _validate_build_output(company.bav, [])
     if current.is_symlink():
         raise ValueError('Current build directory must not be a symlink')
     current.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=f'.{company.name}-staging-', dir=current.parent) as raw:
         staged = Path(raw)
         fin = prepare_company_input(company, staged)
-        trainer, answer = build_training_workbook(fin, staged / company.trainer.name, assumptions, current_snapshot=True)
-        verify_staged(fin, trainer, answer, assumptions)
-        rows = status_rows(load_semantic_map(answer))
+        bav = build_bav_workbook(fin, staged / company.bav.name, assumptions, current_snapshot=True)
+        verify_staged(fin, bav, assumptions)
+        rows = status_rows(load_semantic_map(bav))
         _write_json(staged / 'build_status.json', rows)
         if current.exists():
             _exchange_directories(staged, current)
@@ -198,7 +225,10 @@ def build_company(company: Company, assumptions=None):
             os.rename(staged, current)
     # Retire only recognizable legacy workbook artifacts for this company.
     # Canonical-directory contents were replaced as a single generation above.
-    pattern = re.compile(re.escape(company.name) + r'(?:_(?:Live|KPI|Preview|[0-9][0-9_-]*))?_(?:Trainer|Answer_Key)\.(?:xlsx|component_map\.json|assumptions\.json|trainer\.json)$')
+    pattern = re.compile(
+        re.escape(company.name)
+        + r'(?:_(?:Live|KPI|Preview|[0-9][0-9_-]*))?(?:_BAV_Trainer|_BAV|_Trainer|_Answer_Key)\.(?:xlsx|component_map\.json|assumptions\.json|trainer\.json)$'
+    )
     for legacy in current.parent.iterdir():
         if pattern.fullmatch(legacy.name) and legacy.is_file():
             try:
