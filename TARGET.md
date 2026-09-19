@@ -2,20 +2,30 @@
 
 ## Product target
 
-Build **BAV Excel Trainer — Hong Kong Edition** as a progressive training system that can take an **accounting novice** toward competence as a junior accounting-based equity-research analyst, with particular strength in Business Analysis and Valuation (BAV).
+Build a complete **Business Analysis and Valuation research system** whose primary product is a professional company BAV workbook suitable as proof of work.
 
-The end-state learner should be able to receive the historical financial materials of an unfamiliar non-financial company and progressively learn to:
+The intended product relationship is:
+
+source-grounded company evidence → complete BAV analytical model → professional `<Company>_BAV.xlsx` → derivative `<Company>_BAV_Trainer.xlsx`
+
+The BAV workbook is the authoritative analytical model. It replaces the former Answer Key concept and must not present itself as an answer key, exercise or Trainer.
+
+The secondary Trainer supports progression from accounting novice toward competence as a junior accounting-based equity-research analyst. Training-specific framing, blank yellow practice cells, Check instructions and exercise-oriented presentation belong in the Trainer.
+
+The complete research system should enable an analyst to:
 
 1. trace reported information into a research model;
 2. understand three-statement relationships and accounting sign conventions;
-3. make and defend material accounting, classification, and normalization judgments;
+3. make and defend material accounting, classification and normalization judgments;
 4. construct and audit historical analytical schedules;
-5. explain changes in profitability, capital intensity, financing, cash conversion, and per-share economics;
+5. explain changes in profitability, capital intensity, financing, cash conversion and per-share economics;
 6. convert historical analysis into explicit forecasts and valuation assumptions;
 7. value the equity using BAV-consistent methods and appropriate cross-checks; and
 8. communicate a concise, evidence-based investment conclusion.
 
-Formula correctness is necessary but not sufficient. The trainer should optimize for analyst competence: model construction, accounting judgment, economic interpretation, auditability, forecasting discipline, valuation, and research communication.
+Formula correctness is necessary but not sufficient. The product must support accounting judgment, economic interpretation, auditability, forecasting discipline, valuation and research communication.
+
+Historical accounting analysis, normalization and reformulation, NOA, NOPAT, forecasting, valuation and investment interpretation remain long-term goals. A bounded Session need not complete every later stage.
 
 ## Scope boundary
 
@@ -23,7 +33,7 @@ The initial curriculum is for **non-financial operating companies**. Banks, insu
 
 Hong Kong company input may remain manual. Automatic HKEX scraping is not required when annual reports, interim reports, results materials, Excel exports, Bloomberg exports, or Wind exports are supplied.
 
-Exercises should follow materiality and the information actually supplied. Missing historical facts must not be invented.
+Analysis and exercises should follow materiality and the information actually supplied. Missing historical facts must not be invented.
 
 ## Source-data architecture
 
@@ -35,15 +45,7 @@ LLM-assisted extraction is permitted upstream, but extraction must remain separa
 
 The standard filing workflow is:
 
-```text
-source documents
-    → one extracted JSON per filing
-    → deterministic validation
-    → deterministic cross-filing reconciliation
-    → StandardizedFinancials
-    → BAV reference model
-    → Answer Key + Trainer
-```
+source documents → one extracted JSON per filing → deterministic validation → deterministic cross-filing reconciliation → `StandardizedFinancials` → complete BAV reference model → professional BAV workbook → optional derivative Trainer
 
 Cross-filing differences, restatements, and source conflicts must be recorded rather than silently overwritten. Later audited presentations may take deterministic precedence, but the superseded observations remain in provenance.
 
@@ -69,23 +71,15 @@ The learner receives company filings/source extracts and must build the historic
 
 The intended progression is:
 
-```text
-supplied judgment
-    -> guided judgment
-    -> independent accounting analysis
-    -> historical research diagnostics
-    -> driver-based forecasting
-    -> valuation
-    -> investment interpretation
-```
+supplied judgment → guided judgment → independent accounting analysis → historical research diagnostics → driver-based forecasting → valuation → investment interpretation
 
 Ambiguous accounting treatments should be taught as alternatives with consequences rather than as one universally correct answer.
 
 ## Historical Step 9 — current product stage
 
-The historical-v1 model-construction foundation is release-gated and usable for learning now. Step 9 continues after that baseline: the next work should deepen the historical learning product before forecasting begins.
+The historical-v1 model-construction foundation is release-gated and usable for learning now. Step 9 continues after that baseline toward a professional historical BAV product and its secondary training derivative.
 
-Current historical capabilities include:
+Preserve existing historical capabilities:
 
 - multi-period source links and reformulated statements;
 - NOPAT, NOWC, NOLA, NOA, Net Debt, and reformulated Equity;
@@ -99,7 +93,7 @@ Current historical capabilities include:
 - historical diluted per-share analysis when actual diluted weighted-average share history is supplied;
 - normalized diluted EPS when both share history and normalization cases are supplied;
 - workbook-wide Check;
-- matched Trainer and Answer Key;
+- completed reference-model formulas and Notes with a matched Trainer;
 - cross-company synthetic robustness tests.
 
 Forecasting, valuation, scenario analysis, and investment conclusions remain deferred while Step 9 historical convergence continues.
@@ -112,7 +106,7 @@ Use it to study:
 
 - how source statements, reformulation, DuPont, earnings-quality analysis, and downstream analytical schedules fit together;
 - how an integrated analyst workbook organizes historical information without fragmenting the model;
-- which historically useful analytical sections are still missing from the Trainer;
+- which historically useful analytical sections are still missing from the BAV;
 - how information density and dependency flow can be improved.
 
 It is **not** a literal template.
@@ -120,14 +114,14 @@ It is **not** a literal template.
 Do not automatically copy:
 
 - its decorative styling;
-- its pre-filled answers instead of training cells;
+- its populated calculations into Trainer practice cells;
 - pipeline/automation features;
 - quarterly, forecasting, scenario, valuation, or market-monitoring features merely because they exist there;
-- any source facts not explicitly supplied for the Trainer company.
+- any source facts not explicitly supplied for the company.
 
-A feature from the GOOGL workbook should enter the Trainer only when it is historically relevant, pedagogically useful, supported by explicit source facts, and consistent with the Trainer/Answer-Key/Check workflow.
+A feature from the GOOGL workbook should enter the BAV only when it is historically relevant, analytically useful and supported by explicit source facts. Trainer derivation should preserve the relevant semantic mapping and Check behavior.
 
-The Trainer should therefore converge toward the GOOGL workbook’s **integration and analytical depth**, while preserving the Trainer’s learning mechanics.
+The BAV should converge toward the reference workbook’s integration and analytical depth. The Trainer retains its learning mechanics as a derivative.
 
 ## Historical accounting competence to cover
 
@@ -152,13 +146,19 @@ Step 9 should continue toward coverage of these topics where material and suppor
 - operating/financing reformulation under the BAV framework;
 - RNOA, after-tax cost of debt, Spread, FLEV, ROE decomposition, and related profitability diagnostics.
 
-The trainer should not require every topic for every company. Optional modules should be gated by materiality and source availability.
+The product should not require every topic for every company. Optional modules should be gated by materiality and source availability.
 
 ## Interpretation is part of the product
 
-For major schedules, the learner should eventually answer not only how a number is calculated but what changed economically and why it matters.
+Major schedules should explain what changed economically and why it matters, as well as how a number is calculated.
 
-Examples include:
+Historical revenue-driver analysis should begin with management-stated strategy and source-grounded operating evidence. Use those disclosures to propose plausible economic drivers, connect them to historical financial outcomes, and test simple meaningful relationships where history supports them.
+
+Clearly distinguish management-stated strategy, reported source facts, accounting identities, observed historical relationships and analyst inference. An accounting identity or correlation alone does not establish a causal driver. Reconsider unsupported explanations or state that evidence is insufficient.
+
+Use the evidence to form concise hypotheses about historical growth and its relationship to disclosed strategy. Methods should generalize across companies; benchmark issuers do not justify issuer-specific analytical rules.
+
+Other interpretation questions include:
 
 - Was a decline in RNOA caused by lower operating margins or greater NOA intensity?
 - Did earnings growth come from operating improvement, leverage, acquisitions, tax effects, or dilution?
@@ -172,16 +172,14 @@ The workbook need not grade free-form essays yet. Structured diagnostics and con
 
 1. Supply historical company source documents or already-extracted filing JSON.
 2. Convert each filing into source-grounded structured facts, then validate and reconcile those facts into model-facing historical input.
-3. Build the historical reference analysis from accepted facts and setup judgments.
-4. Generate a matched `*_Trainer.xlsx` / `*_Answer_Key.xlsx` pair.
-5. In the Trainer, source data and supplied facts remain populated. The learner fills selected yellow historical formula cells and guided judgment-response cells.
-6. Run **Check** when desired:
-   - blank -> yellow;
-   - correct -> green;
-   - incorrect -> red.
-7. Open the matching Answer Key when the learner wants the formula or the concise Note hint. Answer-Key cells remain ordinary white/no-fill; the Answer Key must contain no yellow fill or yellow highlighting anywhere.
+3. Build the complete historical BAV analysis from accepted facts and setup judgments.
+4. Produce `<Company>_BAV.xlsx` as the default professional deliverable.
+5. Optionally derive `<Company>_BAV_Trainer.xlsx` from the same completed model.
+6. In the Trainer, source data and supplied facts remain populated. The learner fills selected yellow historical formula cells and guided judgment-response cells.
+7. Run **Check** when desired: blank cells remain yellow, correct cells become green and incorrect cells become red.
+8. Consult the matching BAV for correct formulas and concise analytical Notes. The BAV uses ordinary white/no-fill cells and contains no yellow fill or yellow highlighting.
 
-The Answer Key is the sole answer-and-hint surface. Check validates only; it does not reveal answers.
+The BAV is the authoritative formula-and-Note reference. Check validates only; it does not reveal answers. The BAV must remain professionally presented rather than adopting learning instructions.
 
 ## What stays populated
 
@@ -197,19 +195,20 @@ The default test is: **does reconstructing this cell teach historical model logi
 
 ## Hard requirements for the historical product
 
-- **Historical reference-model first.** Trainer formulas come from a complete working historical model.
-- **No invented historical inputs.** Historical ratios and per-share metrics use supplied historical facts only.
+- **Historical reference-model first.** The professional BAV contains the complete working historical model; Trainer formulas derive from it.
+- **No invented historical inputs.** Historical ratios, KPIs and per-share metrics use supplied historical facts only. Synthetic fixtures are not production evidence.
 - **Source-grounded structured handoff.** Filing-based LLM extraction produces one auditable JSON artifact per source filing before BAV standardization; source conflicts/restatements are preserved in audit artifacts.
+- **Professional default deliverable.** Ordinary company builds produce `<Company>_BAV.xlsx`. Successful builds and intermediate Session progress do not require Trainer generation.
+- **Secondary Trainer.** Preserve optional derivation of `<Company>_BAV_Trainer.xlsx` from the completed model. Do not add unnecessary CLI commands solely for this distinction.
 - **Formula-construction focus.** Practice should teach model logic, not transcription.
-- **Exactly two user-facing workbooks.** One Trainer and one matching Answer Key.
 - **Trainer contains no active answers or hints.** Active formula-practice cells start blank yellow with no Note/comment.
-- **Answer Key contains formula + Note and no yellow.** Matching practice cells contain the correct formula and a concise non-empty Note, but use ordinary white/no-fill formatting. No visible Answer-Key cell may use yellow fill or yellow highlighting.
+- **BAV contains formulas and analytical Notes, with no yellow.** Cells corresponding to Trainer practice contain correct formulas and concise non-empty Notes, using ordinary white/no-fill formatting.
 - **Workbook-wide Check.** One Check validates every active historical practice cell.
 - **Check is non-disclosing.** Aggregate counts are allowed; answers/formulas/hints are not printed or inserted.
-- **Visual parity.** Trainer and Answer Key share the same visible historical structure and typography except practice contents, Answer-Key Notes, and the intentional fill difference: Trainer practice cells are yellow while Answer-Key counterparts are ordinary white/no-fill.
-- **Minimal learner aesthetic.** Fresh visible cells use Aptos Narrow 11, non-bold, black text; ordinary cells are white; only learner-editable/practice cells in the Trainer are bright yellow; the Answer Key contains no yellow fill/highlight. Green/red are reserved for functional Check feedback after validation. No decorative borders or decorative fill colors.
+- **Shared analytical structure.** BAV and Trainer retain corresponding analytical identities and schedules. Opening presentation and learning instructions may differ according to product purpose.
+- **Restrained presentation.** Preserve Aptos Narrow 11, black text and ordinary white cells for the existing analytical surface. Bright yellow denotes only Trainer practice; green/red denote functional Check feedback. Avoid decorative borders and fills. Professional opening and analytical presentation should materially improve understanding.
 - **Semantic component mapping.** Practice formulas resolve by semantic identity rather than fragile static coordinates.
-- **Professional workbook preserved.** Training mode removes only selected learning cells; source facts and non-practice calculations remain populated.
+- **Professional workbook preserved.** Trainer derivation removes only selected learning cells and adds training presentation; it must not mutate the BAV. Source facts and non-practice calculations remain populated.
 - **Standardized identity survives round trips.** Identity-bearing fields such as `LineItem.concept` survive supported standardized-data export/reload.
 - **Historical accounting logic is authoritative.** Reformulation and DuPont math remain aligned with BAV methodology.
 - **Non-financial-company scope.** Do not imply the same reformulation is universal for financial institutions.
@@ -217,41 +216,39 @@ The default test is: **does reconstructing this cell teach historical model logi
 
 ## Step 9 roadmap before forecasting
 
-Step 9 should proceed in this order:
+The historical roadmap retains:
 
 1. historical reformulation and DuPont foundation;
 2. multi-period completion;
 3. accounting judgment and normalization;
 4. earnings-quality, cash-conversion, working-capital, profitability, financing, and per-share diagnostics;
 5. cross-company robustness;
-6. learner-ready presentation and practical documentation;
-7. **GOOGL historical reference audit:** compare the current Trainer with `GOOGL_Demo_Integrated_Financials.xlsx` and classify historical gaps;
+6. professional BAV presentation, derivative Trainer and practical documentation;
+7. **GOOGL historical reference audit:** compare the historical model with `GOOGL_Demo_Integrated_Financials.xlsx` and classify historical gaps;
 8. **historical convergence:** implement the highest-value missing historical analytical modules supported by explicit data, including where appropriate capex/depreciation/asset intensity, leases, SBC/dilution, goodwill/acquisitions, deferred tax, NCI, segment economics, and consistency checks;
-9. **unseen-company / real-company historical validation:** validate the complete source-document → filing-JSON → reconciliation → `StandardizedFinancials` handoff and prove the learning product works beyond synthetic fixtures and the illustrative demo;
-10. only after the historical Step 9 curriculum is coherent and usable, reintroduce driver-based forecasting;
+9. **unseen-company / real-company historical validation:** validate the complete source-document → filing-JSON → reconciliation → `StandardizedFinancials` handoff and prove the professional model and derivative Trainer work beyond synthetic fixtures and the illustrative demo;
+10. only after historical Step 9 is coherent and usable, reintroduce driver-based forecasting;
 11. only after forecasting is separately verified, add valuation, scenarios, and investment conclusions.
+
+SESSION.md specifies the current Endpoint and Priority within this destination. Full normalization, NOA and NOPAT completion need not precede historical driver-and-strategy analysis unless directly necessary for it.
 
 Do not jump from the release-gated historical-v1 baseline directly into forecasting merely because the baseline is technically complete.
 
 ## Autonomous progression policy
 
-Step 9 remains the highest priority. Autonomous planning should continue historical work while there is a material, source-supported gap in the Step 9 roadmap. Do not advance merely because a convenient implementation milestone has been reached.
+Step 9 remains the current historical stage. Autonomous planning should continue material, source-supported work within the Session Endpoint and Priority. Do not advance merely because a convenient implementation milestone has been reached.
 
-However, Step 9 is not open-ended. Do not create low-value historical work merely to remain in Step 9.
+Step 9 is not open-ended. Do not create low-value historical work merely to remain in Step 9.
 
 ### Current analytical focus gate
 
-Until the following three analytical areas are acceptance-complete, autonomous planning should treat them as the **all-things-considered hard priority gate** for future work:
+The former three-area hard priority gate is superseded by the explicit BAV-first Session direction. Endpoint and Priority belong in SESSION.md.
 
-1. **Geographic Analysis** — including the currently in-flight geographic workbook schedules, learner surface, and Check integration;
-2. **Operating KPIs**;
-3. **Normalization Judgment + Earnings Normalization**.
+Preserve accepted Geographic Analysis, Operating KPIs and Normalization Judgment / Earnings Normalization work. Unfinished normalization and broader accounting work remain open long-term obligations; do not represent deferral as completion.
 
-Apply this gate without fighting the natural dependency order of the codebase. AutoCycle may choose among the three based on prerequisites, implementation dependencies, source availability, risk, and the highest-value next increment. It may also perform bounded work outside the three when that work is necessary to unblock, validate, repair, or preserve one of them or an already-accepted dependency. Such work is part of satisfying the gate, not a detour from it.
+Preserve already accepted accounting, ingestion, geographic, KPI, normalization, provenance, workbook and regression work unless a demonstrated defect prevents the Session Endpoint.
 
-While this gate is open, do not start an independent lower-priority analytical module merely because it is convenient. In particular, defer standalone work on **M&A Net Debt / Debt-Like Items Bridge**, **Complete NOPAT / RNOA**, and **Bear / Base / Bull Standalone Forecast** until the three focus areas above are acceptance-complete, except where a bounded dependency is strictly required to support or validate a focus area. Existing stage boundaries still apply, so forecasting/scenario work remains deferred until the historical and forecasting gates elsewhere in this target permit it.
-
-The current geographic workbook-schedule work already advances Priority 1 and should continue naturally rather than being restarted or displaced by this policy.
+Standalone M&A Net Debt / Debt-Like Items Bridge, Complete NOPAT / RNOA and forecasting remain deferred unless a bounded historical dependency is directly necessary for the current Endpoint.
 
 ### Step 9 exit gate
 
@@ -259,18 +256,18 @@ Step 9 is complete when all of the following are true:
 
 - the GOOGL historical reference audit has no unresolved high-value historical gap;
 - historically material modules supported by available source facts are implemented, tested, or explicitly deferred with a documented reason;
-- the source-document → filing JSON → reconciliation → `StandardizedFinancials` → reference-model → Trainer/Answer-Key path has been demonstrated on real-company data;
+- the source-document → filing JSON → reconciliation → `StandardizedFinancials` → reference-model → professional BAV → derivative Trainer path has been demonstrated on real-company data;
 - optional historical modules fail closed when required evidence is missing or contradictory;
 - historical analytical schedules, learner practice surfaces, Check behavior, provenance, and workbook generation pass their required regression and benchmark tests;
-- no known historical defect or missing module materially limits the learner's ability to analyze an unfamiliar non-financial company.
+- no known historical defect or missing module materially limits analysis of an unfamiliar non-financial company.
 
-Once this gate is satisfied, the next plan must advance to Step 10 rather than inventing additional historical polish.
+Once this gate is satisfied, subsequent authorized planning should advance toward Step 10 rather than inventing additional historical polish. It must still respect an explicit Session boundary; completing a Session does not automatically start another.
 
 A completed roadmap item should not be reopened unless a later regression, benchmark, or new source-supported requirement exposes a concrete defect.
 
 ### Step 10 — Driver-based forecasting
 
-Build forecasting only after Step 9 passes its exit gate.
+Build forecasting only after Step 9 passes its exit gate and the active Session permits forecasting.
 
 The forecasting system should:
 
@@ -303,7 +300,7 @@ Step 11 is complete when valuation is internally reconciled, scenario difference
 
 Only after historical analysis, forecasting, and valuation are verified, build the final research interpretation layer.
 
-The learner should be able to:
+The analyst, and subsequently the learner, should be able to:
 
 - identify the principal historical and forecast value drivers;
 - distinguish operating improvement from financing, accounting, tax, acquisition, and dilution effects;
@@ -316,54 +313,48 @@ Prefer structured analytical prompts and verifiable outputs before introducing u
 
 ### Autonomous planning rule
 
-For unattended development, always work on the lowest-numbered incomplete stage:
+Use the existing AutoCycle Completion and Review control loop.
 
-Step 9 → Step 10 → Step 11 → Step 12.
+Within the active Session, choose the smallest direct work that materially advances its Endpoint, governed by its Priority. Prefer meaningful end-to-end product capability and reuse of adequate working subsystems.
 
-Within Step 9, apply the **Current analytical focus gate** before the generic highest-value rule. Within any permitted scope, choose the highest-value unresolved dependency or defect, not cosmetic polish.
+Defer infrastructure refinement, hypothetical edge-case hardening, cosmetic work and abstractions that are unnecessary for the Endpoint.
 
-Advance to the next stage only when the current stage's exit conditions are supported by repository evidence and tests.
+The long-term stage order remains Step 9 → Step 10 → Step 11 → Step 12. Advance only when stage exit conditions are supported by evidence and the active Session permits that scope.
 
-If the broader end-state is reached before the requested autocycle count is exhausted, return `DONE` and stop rather than manufacturing additional work.
+`DONE` requires the Session Endpoint and current plan acceptance, not merely publication or consumption of instructions. Never start a new Session automatically.
 
 ## Forecast / valuation boundary
 
 Forecasting, residual-income valuation, DCF/cross-check valuation, terminal value, Bear/Base/Bull scenarios, and forward valuation multiples remain deferred during the current Step 9 stage.
 
-This deferral ends automatically when the Step 9 exit gate above is satisfied; no separate product-direction decision is required to begin Step 10.
+Historical relationships must not become forward assumptions in a historical-only Session. Later forecasting requires both the Step 9 exit gate and a Session permitting that work.
 
 The repository may retain dormant forecast/valuation scaffolding, but normal historical builds must not execute it or depend on forecast outputs.
 
-Deferred tabs may remain hidden placeholders:
-
-```text
-Model_Bear
-Model_Base
-Model_Bull
-Scenario_Summary
-```
+Deferred tabs may remain hidden placeholders: `Model_Bear`, `Model_Base`, `Model_Bull`, `Scenario_Summary`.
 
 They must remain excluded from the active semantic practice surface and Check until a future forecasting stage explicitly activates them.
 
 ## Definition of done for the current historical baseline
 
-The current historical baseline is complete when supported historical data for a non-financial company produces a matched Trainer/Answer-Key pair in which:
+The BAV-first historical baseline is complete when supported historical data for a non-financial company produces a professional BAV and permits derivation of a matching Trainer in which:
 
 - the historical model is internally coherent;
 - source facts remain populated;
+- the default deliverable is the professional BAV without required Trainer generation;
 - active Trainer formula cells are blank yellow;
-- matching Answer-Key cells contain correct formulas and Notes and are ordinary white/no-fill;
-- the Answer Key contains no yellow fill/highlight anywhere;
-- Check validates the full active surface without disclosing answers;
+- matching BAV cells contain correct formulas and analytical Notes and are ordinary white/no-fill;
+- the BAV contains no yellow fill/highlight or exercise framing;
+- Check validates the full active Trainer surface without disclosing answers;
 - optional modules appear only when their required historical facts are supplied;
 - normal generation does not run forecasting/valuation code;
-- the workbook is usable as a learning product.
+- the BAV is usable as professional historical analysis and the derivative Trainer is usable for learning.
 
-This baseline being complete does **not** freeze Step 9. Historical depth, reference-workbook convergence, accounting-analysis breadth, and real-company validation can continue before forecasting begins.
+This baseline being complete does **not** freeze Step 9. Historical depth, reference-workbook convergence, accounting-analysis breadth, and real-company validation can continue within authorized Sessions before forecasting begins.
 
 ## End-state definition of done
 
-The broader BAV Trainer succeeds only when an accounting novice can progress to solving an unseen non-financial-company research case with materially less scaffolding and can demonstrate all of the following:
+The broader BAV research system succeeds when an unfamiliar supported non-financial company can be analyzed through a professional, auditable research workbook that enables the analyst to:
 
 - construct and audit the historical accounting model;
 - make defensible material accounting/reformulation judgments;
@@ -374,6 +365,10 @@ The broader BAV Trainer succeeds only when an accounting novice can progress to 
 - explain key sensitivities, risks, and variant assumptions; and
 - communicate a concise, evidence-based investment conclusion.
 
+The secondary Trainer should enable an accounting novice to progress toward solving such an unseen-company research case with materially less scaffolding.
+
 ## Planning ownership
 
-This file records stable product intent. **ChatGPT owns planning changes to TARGET.md. Cursor should treat it as read-only unless ChatGPT explicitly instructs otherwise.** Implementation details belong in `IMPLEMENTATION.md` and the codebase.
+This file records stable product intent. Target changes require explicit human instruction. ChatGPT owns planning publication; Cursor must never modify `TARGET.md`, `SESSION.md` or `IMPLEMENTATION.md`.
+
+SESSION.md holds the current Endpoint and Priority. IMPLEMENTATION.md holds current bounded execution guidance. RESULT.md records implementation completion and measured verification.
