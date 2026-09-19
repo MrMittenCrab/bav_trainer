@@ -511,7 +511,7 @@ def test_spsf_level_admission_is_separate_from_comparison(tmp_path: Path):
     assert decisions
     assert all(item["status"] == SELECTION_DEFERRED for item in decisions)
     assert any(
-        failure["cause"] == "genuine_source_absence"
+        failure["requirement"] in {"calendar", "definition", "historical_comparison"}
         for item in decisions
         for failure in item["remaining_failures"]
     )
@@ -688,3 +688,251 @@ def test_historical_comparison_ineligible_when_window_conflicts(tmp_path: Path):
         )
         assert item["historical_comparison"] == "ineligible"
         assert item["level_admission"] == "admitted"
+
+
+def _spsf_fields(sidecar: dict) -> list[dict]:
+    fields: list[dict] = []
+    for document in sidecar["documents"]:
+        for field in document["fields"]:
+            if field["metric_id"] != "sales_per_square_foot":
+                continue
+            item = dict(field)
+            item["extraction_document"] = document["extraction_document"]
+            fields.append(item)
+    return fields
+
+
+def test_prior_occurrence_calendars_keep_52_and_53_weeks(tmp_path: Path):
+    dest = _copy_extracted(tmp_path / "occ-cal")
+    sidecar = enrich_management_working_copies(dest, SOURCE)
+    fields = _spsf_fields(sidecar)
+    assert len(fields) == 7
+    by_key = {
+        (item["extraction_document"], item["period"]): item for item in fields
+    }
+    fy2023_in_fy2024 = by_key[
+        ("LULU_FY2024_management_kpis.json", "2024-01-28")
+    ]
+    assert fy2023_in_fy2024["fiscal_year_length_weeks"] == 52
+    assert fy2023_in_fy2024["calendar_week_excluded"] is False
+    assert fy2023_in_fy2024["calendar_provenance"]["fifty_three_week"] is False
+    fy2024_in_fy2025 = by_key[
+        ("LULU_FY2025_management_kpis.json", "2025-02-02")
+    ]
+    assert fy2024_in_fy2025["fiscal_year_length_weeks"] == 53
+    assert fy2024_in_fy2025["calendar_week_excluded"] is True
+    assert fy2024_in_fy2025["calendar_provenance"]["fifty_three_week"] is True
+    expected = {
+        ("LULU_FY2022_management_kpis.json", "2023-01-29"): (52, False),
+        ("LULU_FY2023_management_kpis.json", "2023-01-29"): (52, False),
+        ("LULU_FY2023_management_kpis.json", "2024-01-28"): (52, False),
+        ("LULU_FY2024_management_kpis.json", "2024-01-28"): (52, False),
+        ("LULU_FY2024_management_kpis.json", "2025-02-02"): (53, True),
+        ("LULU_FY2025_management_kpis.json", "2025-02-02"): (53, True),
+        ("LULU_FY2025_management_kpis.json", "2026-02-01"): (52, False),
+    }
+    assert {
+        (item["extraction_document"], item["period"]): (
+            item["fiscal_year_length_weeks"],
+            item["calendar_week_excluded"],
+        )
+        for item in fields
+    } == expected
+
+
+def test_metric_exclusion_is_not_inferred_from_53_week_year_alone():
+    from core.ingestion.management_kpi_enrichment import (
+        CalendarYearEvidence,
+        _metric_excludes_53rd_week,
+    )
+
+    calendar = CalendarYearEvidence(
+        fiscal_year=2024,
+        fifty_three_week=True,
+        source_file="LULU_FY2024_Annual_Report.pdf",
+        physical_page=32,
+        passage="Fiscal 2024 was a 53-week year.",
+        cross_filing=False,
+    )
+    assert _metric_excludes_53rd_week(
+        "sales_per_square_foot", calendar, [calendar.passage]
+    ) is None
+    assert _metric_excludes_53rd_week(
+        "comparable_sales_growth", calendar, [calendar.passage]
+    ) is None
+    assert (
+        _metric_excludes_53rd_week(
+            "sales_per_square_foot",
+            calendar,
+            [
+                "In fiscal years with 53 weeks the 53rd week of net revenue is "
+                "excluded from the calculation of sales per square foot."
+            ],
+        )
+        is True
+    )
+    fifty_two = CalendarYearEvidence(
+        fiscal_year=2023,
+        fifty_three_week=False,
+        source_file="LULU_FY2023_Annual_Report.pdf",
+        physical_page=33,
+        passage="Fiscal 2023, 2022, and 2021 were each 52-week years.",
+        cross_filing=False,
+    )
+    assert _metric_excludes_53rd_week(
+        "sales_per_square_foot",
+        fifty_two,
+        [
+            "In fiscal years with 53 weeks, the 53rd week of net revenue is "
+            "excluded from the calculation of sales per square foot."
+        ],
+    ) is False
+
+
+def test_comparison_window_is_not_copied_onto_priors_or_spsf(tmp_path: Path):
+    dest = _copy_extracted(tmp_path / "win")
+    sidecar = enrich_management_working_copies(dest, SOURCE)
+    fields = _spsf_fields(sidecar)
+    assert all(item.get("comparison_window") in (None, {}) for item in fields)
+    by_doc = {item["extraction_document"]: item for item in sidecar["documents"]}
+    fy2024_comp = next(
+        item
+        for item in by_doc["LULU_FY2024_management_kpis.json"]["fields"]
+        if item["metric_id"] == "comparable_sales_growth"
+        and item["period"] == "2025-02-02"
+    )
+    fy2025_comp = next(
+        item
+        for item in by_doc["LULU_FY2025_management_kpis.json"]["fields"]
+        if item["metric_id"] == "comparable_sales_growth"
+        and item["period"] == "2026-02-01"
+    )
+    fy2024_prior_spsf = next(
+        item
+        for item in by_doc["LULU_FY2025_management_kpis.json"]["fields"]
+        if item["metric_id"] == "sales_per_square_foot"
+        and item["period"] == "2025-02-02"
+    )
+    assert fy2024_comp["comparison_window"] in (None, {})
+    assert fy2025_comp["comparison_window"]
+    assert "February 1" in fy2025_comp["comparison_window"]["label"]
+    assert fy2024_prior_spsf["comparison_window"] in (None, {})
+    assert fy2024_prior_spsf["comparison_window"] != fy2025_comp["comparison_window"]
+    window_pages = fy2025_comp["comparison_window"]["physical_pages"]
+    assert window_pages
+    assert len(window_pages) <= 2
+    assert 33 in window_pages or 41 in window_pages
+
+
+def test_complete_multiline_passages_and_individual_bindings(tmp_path: Path):
+    dest = _copy_extracted(tmp_path / "pass")
+    sidecar = enrich_management_working_copies(dest, SOURCE)
+    for field in _spsf_fields(sidecar):
+        presentation = (field.get("supporting_passages") or {}).get("presentation", "")
+        if presentation:
+            assert presentation.endswith("footage.") or "footage" in presentation.lower()
+            assert not presentation.endswith("their square")
+            assert presentation.lower().startswith("we use") or presentation.lower().startswith(
+                "sales per square foot we use"
+            )
+        definition = (field.get("supporting_passages") or {}).get("definition", "")
+        if definition:
+            assert not definition.endswith("for each")
+            assert "square footage" in definition.lower()
+            assert "significantly" not in definition.lower() or definition.lower().endswith(
+                ("expanded.", "year.", "footage.")
+            )
+        dates = (field.get("supporting_passages") or {}).get("dates", "")
+        if dates:
+            lowered = dates.lower()
+            assert (
+                lowered.startswith("for the fiscal year ended")
+                or lowered.startswith("we refer to the fiscal year ended")
+                or lowered.startswith("the fiscal year ended")
+                or "weeks ended" in lowered
+            )
+            assert "united kingdom" not in lowered
+            assert "number of company-operated stores by market" not in lowered
+            assert "these core values attract" not in lowered
+            assert "together with its subsidiaries" not in lowered
+        bindings = field.get("passage_bindings") or {}
+        for name, passage in (field.get("supporting_passages") or {}).items():
+            binding = bindings[name]
+            assert binding["source_file"]
+            assert binding["physical_pages"]
+            assert isinstance(binding["physical_pages"], list)
+            if name in {"dates", "comparison_window", "calendar", "presentation"}:
+                assert len(binding["physical_pages"]) <= 2
+    fy2022 = next(
+        item
+        for item in sidecar["documents"]
+        if item["extraction_document"] == "LULU_FY2022_management_kpis.json"
+    )
+    store = next(
+        item
+        for item in fy2022["fields"]
+        if item["metric_id"] == "comparable_store_sales_growth"
+    )
+    calendar_binding = store["passage_bindings"]["calendar"]
+    assert calendar_binding["source_file"] == "LULU_FY2023_Annual_Report.pdf"
+    assert calendar_binding["physical_pages"] == [33]
+    assert calendar_binding.get("cross_filing") is True
+
+
+def test_repaired_occurrence_evidence_reaches_assessment(tmp_path: Path):
+    payload = _enriched_admission(tmp_path)
+    spsf = [
+        item
+        for item in payload["assessments"]["items"]
+        if item["family"] == FAMILY_SALES_PER_SQUARE_FOOT and item["status"] == "supported"
+    ]
+    assert len(spsf) == 7
+    by_key = {
+        (item["evidence"]["extraction_document"], item["evidence"]["period"]): item
+        for item in spsf
+    }
+    fy2023_in_fy2024 = by_key[
+        ("LULU_FY2024_management_kpis.json", "2024-01-28")
+    ]
+    assert fy2023_in_fy2024["evidence"]["fiscal_year_length_weeks"] == "52"
+    assert fy2023_in_fy2024["evidence"]["calendar_week_adjustment"] == "included"
+    assert fy2023_in_fy2024["level_admission"] == "admitted"
+    assert fy2023_in_fy2024["historical_comparison"] == "ineligible"
+    fy2024_in_fy2025 = by_key[
+        ("LULU_FY2025_management_kpis.json", "2025-02-02")
+    ]
+    assert fy2024_in_fy2025["evidence"]["fiscal_year_length_weeks"] == "53"
+    assert fy2024_in_fy2025["evidence"]["calendar_week_adjustment"] == "excluded"
+    assert fy2024_in_fy2025["level_admission"] == "admitted"
+    assert fy2024_in_fy2025["historical_comparison"] == "ineligible"
+    decisions = [
+        item
+        for item in payload["group_decisions"]
+        if item["family"] == FAMILY_SALES_PER_SQUARE_FOOT
+    ]
+    assert decisions
+    for item in decisions:
+        requirements = {failure["requirement"] for failure in item["remaining_failures"]}
+        assert "canonical_selection" in requirements
+        causes = {failure["cause"] for failure in item["remaining_failures"]}
+        assert "selection_limitation" in causes
+        assert item["level_eligibility"] == "admitted"
+        assert item["comparison_eligibility"] == "ineligible"
+        alignment = {
+            failure["requirement"]
+            for failure in item["remaining_failures"]
+            if failure["requirement"] in {"calendar", "definition", "comparison_window"}
+        }
+        hist = [
+            failure
+            for failure in item["remaining_failures"]
+            if failure["requirement"] == "historical_comparison"
+        ]
+        assert hist
+        if alignment:
+            assert all(failure["cause"] == "documentary_ambiguity" for failure in hist)
+            assert all(
+                failure["detail"] == "same_identity_levels_not_aligned" for failure in hist
+            )
+        else:
+            assert all(failure["cause"] == "genuine_source_absence" for failure in hist)
