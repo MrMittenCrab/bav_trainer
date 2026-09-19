@@ -1,39 +1,41 @@
-# Step 3.2 — Complete real-source Lululemon KPI production acceptance
-AUTOCYCLE_PLAN: {"finding_key": "Complete real-source Lululemon KPI production acceptance", "kind": "work", "objective": "Complete real-source Lululemon KPI production acceptance", "plan_id": "ad722ab097464605aea2eb97d0d0f911", "step_id": "3.2", "work_id": "6743e8167c864555b33c54efb3c41328"}
+# Step 3.2.1 — Complete real-source Lululemon KPI production acceptance
+
+AUTOCYCLE_PLAN: {"finding_key": "Complete real-source Lululemon KPI production acceptance", "kind": "work", "minor": 1, "objective": "Complete real-source Lululemon KPI production acceptance", "plan_id": "1f37a5b846a647c38b92fa35667ecc50", "step_id": "3.2.1", "work_id": "6743e8167c864555b33c54efb3c41328"}
 
 ## Completion
 
 The ordinary source-bound Lululemon build delivers verified historical Revenue per Store for supported periods and resolves Comparable Sales/SPSF admission from supplied evidence, activating supported analysis and documenting precise source gaps otherwise, with matching BAV formulas/Notes, Trainer practices, Check and required Excel verification.
 
-## Implementation
+## Bounded continuation — Resolve documentary admission evidence
 
-- Inspect supplied Lululemon filings, management documents and admission evidence for Comparable Sales and SPSF. Trace each candidate through extraction, validation, reconciliation and model admission; distinguish missing evidence from an implementation defect.
-- Admit supported observations through the existing source-bound pipeline, preserving page-level provenance, fiscal periods, units, population, geography, reported/constant-currency basis, definitions and comparability. Repair only demonstrated extraction or admission defects; do not bypass documentary requirements or promote unreconciled observations automatically.
-- Where supplied materials cannot support admission, record the documents/pages searched, exact unmet requirements and additional evidence required. Keep explicit unavailable states for affected identities and periods; continue supported Revenue per Store work.
-- Implement generic historical Revenue per Store calculations using admitted revenue and company-operated store history. Specify fiscal-period alignment, monetary scaling and denominator basis. Label period-end or average-store denominators explicitly; require the necessary admitted observations and never silently substitute between them.
-- Explain that total-company revenue divided by company-operated stores includes revenue outside those stores and is not store-only productivity, SPSF or comparable sales. Preserve unavailable and undefined results for missing, incompatible or zero-denominator inputs.
-- Integrate Revenue per Store through reference calculations, semantic families/components, formula dependencies, workbook schedules, useful analytical Notes, Trainer derivation, historical expected values and workbook-wide Check. Reuse established KPI mechanisms.
-- Replace the hardcoded inactive Revenue per Store entry in `core/build_status.py` with evidence-based availability. Build Status, CLI and emitted schedules must agree; Comparable Sales Analysis, Sales per Square Foot Analysis and Revenue per Store Analysis must be Active wherever supplied evidence supports them, with partial coverage and limitations visible.
-- Keep source extraction separate from analytical judgment. Use permitted working copies and generated outputs; do not overwrite protected source extracts or benchmark artifacts.
+- Inspect the supplied FY2022–FY2025 filing pages supporting Comparable Sales and SPSF values, definitions, fiscal dates and comparisons. Start with FY2024 physical page 40, printed page 34, and its extract’s `fiscal_year_end` of `2025-02-02`; inspect corresponding disclosures in the other supplied reports.
+- Resolve printed references to physical PDF pages and record source identity, page location and supporting text for each enriched field. Missing normalized metadata alone does not establish missing documentary evidence.
+- Enrich permitted working-copy admission evidence with supported fiscal period-end dates, calendar-week treatment, metric definitions, population, geography, units, currency basis and comparison linkage. Preserve original observations and provenance; do not overwrite protected PDFs, source extracts or benchmark artifacts.
+- Establish presentation, assurance and revision evidence from the relevant disclosures. Do not infer that management KPIs are audited merely because they appear in an annual report.
+- Assess definition equivalence and calendar comparability from disclosure substance. Distinguish comparable-store sales from total comparable sales and regional measures; retain reported and constant-currency identities. Apply disclosed 53rd-week exclusion and subsequent comparison shifts only where supported.
+- Resolve SPSF level admission and historical comparison eligibility separately under existing requirements. Preserve the disclosed company-operated revenue and average ending square-footage definition; do not manufacture comparison observations or substitute Revenue per Store.
+- Trace enriched candidates through deterministic validation, reconciliation, canonical selection and `StandardizedFinancials`. Repair only demonstrated defects directly preventing supported admission, preserving fail-closed behavior and audit records for conflicts, superseded observations and deferred groups.
+- Make the evidence enrichment reproducible through the ordinary supplied-source build using permitted working copies and existing mechanisms. Production acceptance must not depend on manual edits to generated output.
+- Activate supported Comparable Sales/SPSF analysis through existing reference calculations, semantic components, dependencies, schedules, BAV formulas/Notes, Trainer practices and Check. Build Status and CLI must agree with emitted coverage and disclose partial availability.
+- For unresolved identities or periods, document the actual PDF pages searched, evidence found, exact remaining admission requirement and additional documentary evidence or decision needed. Distinguish source gaps from implementation defects and unavailable access.
+- Preserve verified Revenue per Store calculations and integration, including five supported period-end observations, distinct average-store denominators, period alignment, monetary scaling, missing/zero-input behavior and the total-company-revenue scope limitation.
 
 ## Verification
 
-- Run `python -m bav build Lululemon` through the ordinary supplied-source pipeline. Verify the professional BAV builds independently, reloads successfully and exposes the supported KPI schedules and accurate availability.
-- Independently reconcile admitted KPI facts to source evidence and compare new calculations with reference results, including fiscal alignment, monetary scaling and denominator scope.
-- Verify standardized export/reload, embedded and sidecar semantic maps, populated source facts, correct BAV formulas and non-empty Notes, with no yellow cells or exercise framing.
-- Explicitly derive the matching Trainer. Confirm the BAV and primary sidecars remain unchanged, new active practices are blank yellow without comments or answer leakage, and source facts remain populated.
+- Run `python -m bav build Lululemon` through the ordinary source-bound pipeline. Independently reconcile newly admitted observations and eligible comparisons to inspected filing pages and reference calculations.
+- Verify accurate availability, standardized export/reload, populated source facts, embedded and sidecar semantic maps, formula dependencies and non-empty analytical Notes. The professional BAV must build independently and contain no yellow cells or exercise framing.
+- Explicitly derive the matching Trainer; verify unchanged BAV and primary sidecars, populated source facts and blank-yellow active practices without comments or answer leakage.
 - Exercise workbook-wide Check on blank, correctly completed and deliberately incorrect KPI practices without disclosing answers.
-- Perform actual Excel recalculation for the new analytical formulas and affected dependencies; inspect recalculated values and errors against reference results. Record unavailable access as an unresolved verification blocker, not a pass.
-- Add focused regressions for admission outcomes, supported Revenue per Store periods, missing/incompatible inputs and production integration. Run affected KPI, ingestion, workbook, semantic-map, Check and build regressions, plus Lululemon and Fast Retailing checks.
-- Verify the 50 protected artifacts and eight source extracts against existing authenticated baselines; do not replace baselines with current outputs.
-- Record measured results, commands, generated paths, source-admission decisions, Build Status and outstanding evidence/access gaps in `RESULT.md`.
+- Perform actual Excel recalculation for newly activated or changed formulas and affected dependencies; compare values with independent references and inspect errors. Record unavailable access as unresolved verification.
+- Add focused regressions for documentary enrichment, admission and rejection outcomes, calendar/definition comparability and ordinary-build integration. Run affected ingestion, KPI, workbook, semantic-map, Check and build regressions, plus Lululemon and Fast Retailing checks; confirm Revenue per Store remains correct.
+- Verify the 50 protected artifacts and eight source extracts against existing authenticated baselines without replacing those baselines.
+- Append measured commands, evidence locations, admission decisions, generated paths, hashes, verification results and remaining gaps to `RESULT.md`; preserve historical records.
 
-## Boundaries and retained commitments
+## Retained boundaries
 
-- Preserve accepted accounting, ingestion, geographic, store-count, KPI, normalization, provenance and workbook behavior, including fail-closed admission, `SEGMENT_BRIDGE_TOLERANCE = 0.0` and inactive provisional normalization judgments.
+- Preserve accepted accounting, ingestion, geographic, store-count, KPI, normalization, provenance and workbook behavior, including `SEGMENT_BRIDGE_TOLERANCE = 0.0` and inactive provisional normalization judgments.
 - Preserve independent BAV generation, supported paired-output contracts, primary metadata, Trainer sanitization, non-disclosing Check, atomic publication, protected-path checks and invalid-source rejection.
-- Synthetic fixtures may verify generic behavior but cannot establish real-company production acceptance.
-- Disclosure-led historical driver testing and evidence-backed strategy interpretation remain subsequent Session work; distinguish disclosures, source facts, accounting identities, observed relationships and inference.
-- Earlier normalization, broader source-workflow, normalized-per-share and real-company acceptance commitments remain deferred with their ledger evidence and unresolved decisions preserved.
+- Synthetic fixtures establish generic behavior only; real-company acceptance requires supplied documentary evidence.
+- Disclosure-led historical driver testing and evidence-backed strategy interpretation remain subsequent Session work. Earlier normalization, broader source-workflow, normalized-per-share and real-company acceptance commitments remain deferred with their evidence and unresolved decisions preserved.
 - No forecasting, valuation, scenarios, forward assumptions, investment conclusions or unrelated infrastructure and cosmetic expansion.
 - Cursor must not modify `TARGET.md`, `SESSION.md` or `IMPLEMENTATION.md`.
