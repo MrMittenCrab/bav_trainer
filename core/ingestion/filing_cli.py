@@ -71,7 +71,9 @@ def load_and_validate_extracted_dir(
     if not filings:
         raise ValueError(f"no extracted filing JSON files in {extracted}")
     bound = (
-        bind_management_documents(management_docs, filings)
+        bind_management_documents(
+            management_docs, filings, source_root=source_root
+        )
         if management_docs
         else ()
     )

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import math
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from pathlib import Path
 from typing import Any, Iterable, Mapping
@@ -197,6 +197,7 @@ class OccurrenceRevisionEvidence:
         }
 
 
+_PDF_INSPECTION_CACHE: dict[tuple[str, str, str], Any] = {}
 _UNKNOWN_PRESENTATION = OccurrenceDimensionEvidence(value=_PRESENTATION_UNKNOWN)
 _UNKNOWN_ASSURANCE = OccurrenceDimensionEvidence(value=_ASSURANCE_UNKNOWN)
 _UNKNOWN_REVISION = OccurrenceRevisionEvidence()
@@ -253,6 +254,7 @@ class ManagementObservation:
     presentation_record: OccurrenceDimensionEvidence = _UNKNOWN_PRESENTATION
     assurance_record: OccurrenceDimensionEvidence = _UNKNOWN_ASSURANCE
     revision_record: OccurrenceRevisionEvidence = _UNKNOWN_REVISION
+    supporting_evidence: tuple[tuple[str, Any], ...] = ()
 
     def to_payload(self) -> dict[str, Any]:
         out: dict[str, Any] = {
@@ -285,6 +287,9 @@ class ManagementObservation:
             "bound_source_sha256": self.bound_source_sha256,
             "filing_year": self.filing_year,
             "physical_page_mapping": self.source.physical_page_mapping,
+            "supporting_evidence": {
+                key: json.loads(value) for key, value in self.supporting_evidence
+            },
             "unresolved": list(self.unresolved),
         }
         if self.value is not None:
@@ -324,6 +329,7 @@ class BoundManagementDocument:
     bound_source_file: str
     bound_source_sha256: str
     issues: tuple[FilingValidationIssue, ...] = ()
+    source_root: str = ""
 
     @property
     def ok(self) -> bool:
@@ -370,6 +376,7 @@ class ManagementAdmission:
     reconciliation: tuple[Any, ...] = ()
     revision_links: tuple[Any, ...] = ()
     group_selections: tuple[Any, ...] = ()
+    group_decisions: tuple[Any, ...] = ()
     unresolved: tuple[str, ...] = _REMAINING_UNRESOLVED
 
 
@@ -543,6 +550,80 @@ def parse_management_kpi_document(
         targets=tuple(targets),
         extraction_document=_document_label(path),
     )
+
+
+def _supporting_pairs(payload: object) -> tuple[tuple[str, str], ...]:
+    if not isinstance(payload, dict):
+        return ()
+    pairs: list[tuple[str, str]] = []
+    for key, value in sorted(payload.items()):
+        if not isinstance(key, str) or not key:
+            continue
+        pairs.append((key, json.dumps(value, sort_keys=True, default=str)))
+    return tuple(pairs)
+
+
+def _bind_dimension_pages(
+    record: OccurrenceDimensionEvidence, page_mapping: str
+) -> OccurrenceDimensionEvidence:
+    if not page_mapping or record.source is None:
+        return record
+    return replace(
+        record,
+        source=PrintedSourceRef(
+            section=record.source.section,
+            page_reference=record.source.page_reference,
+            physical_page_mapping=page_mapping,
+        ),
+    )
+
+
+def _inspection_for(bound: BoundManagementDocument) -> Any | None:
+    if not bound.source_root or not bound.bound_source_file:
+        return None
+    pdf = Path(bound.source_root) / bound.bound_source_file
+    if not pdf.is_file():
+        return None
+    cache_key = (bound.source_root, bound.bound_source_file, bound.bound_source_sha256)
+    cached = _PDF_INSPECTION_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    from .management_kpi_enrichment import inspect_source_pdf
+
+    inspection = inspect_source_pdf(pdf)
+    _PDF_INSPECTION_CACHE[cache_key] = inspection
+    return inspection
+
+
+def _supporting_evidence_binding(
+    payload: object,
+    *,
+    printed_source: PrintedSourceRef,
+    bound: BoundManagementDocument,
+) -> tuple[tuple[tuple[str, str], ...], str]:
+    pairs = _supporting_pairs(payload)
+    if not pairs:
+        return (), ""
+    supporting = {key: json.loads(value) for key, value in pairs}
+    claimed = supporting.get("physical_pages") or []
+    printed = supporting.get("printed_pages") or []
+    if not printed:
+        from .management_kpi_enrichment import printed_pages_from_reference
+
+        printed = list(printed_pages_from_reference(printed_source.page_reference))
+    inspection = _inspection_for(bound)
+    if inspection is None:
+        return pairs, ""
+    from .management_kpi_enrichment import (
+        format_physical_page_mapping,
+        validate_physical_page_binding,
+    )
+
+    resolved = validate_physical_page_binding(inspection, printed, claimed)
+    if not resolved:
+        return pairs, ""
+    mapping = format_physical_page_mapping(printed, resolved)
+    return pairs, mapping
 
 
 def _parse_printed_source(payload: object, *, context: str) -> PrintedSourceRef:
@@ -1007,8 +1088,11 @@ def _unresolved_fields(
     assurance_unknown: bool = True,
     presentation_unknown: bool = True,
     revision_unknown: bool = True,
+    page_resolved: bool = False,
 ) -> tuple[str, ...]:
-    unresolved = ["physical_page_mapping"]
+    unresolved: list[str] = []
+    if not page_resolved:
+        unresolved.append("physical_page_mapping")
     if assurance_unknown:
         unresolved.append("assurance")
     if presentation_unknown:
@@ -1060,6 +1144,17 @@ def _observation_from_reported(
         f"{metric_id}:{period}"
     )
     printed_source = _parse_printed_source(item.get("source"), context=context)
+    supporting_pairs, page_mapping = _supporting_evidence_binding(
+        item.get("supporting_evidence"),
+        printed_source=printed_source,
+        bound=bound,
+    )
+    if page_mapping:
+        printed_source = PrintedSourceRef(
+            section=printed_source.section,
+            page_reference=printed_source.page_reference,
+            physical_page_mapping=page_mapping,
+        )
     presentation_record, presentation_unresolved, assurance_record, assurance_unresolved = (
         _parse_reported_occurrence_evidence(
             item,
@@ -1119,10 +1214,12 @@ def _observation_from_reported(
             assurance_unknown=assurance_unresolved is not None,
             presentation_unknown=presentation_unresolved is not None,
             revision_unknown=revision_unresolved is not None,
+            page_resolved=bool(page_mapping),
         ),
-        presentation_record=presentation_record,
-        assurance_record=assurance_record,
+        presentation_record=_bind_dimension_pages(presentation_record, page_mapping),
+        assurance_record=_bind_dimension_pages(assurance_record, page_mapping),
         revision_record=revision_record,
+        supporting_evidence=supporting_pairs,
     )
 
 
@@ -1367,6 +1464,8 @@ def _observation_from_target(
 def bind_management_documents(
     documents: Iterable[ManagementKpiDocument],
     filings: list[tuple[ExtractedFiling, FilingValidationReport]],
+    *,
+    source_root: Path | str | None = None,
 ) -> tuple[BoundManagementDocument, ...]:
     """Bind management documents to unique validated filings; fail closed."""
     bound: list[BoundManagementDocument] = []
@@ -1425,6 +1524,7 @@ def bind_management_documents(
                 bound_source_file=filing.filing.source_file,
                 bound_source_sha256=report.computed_source_sha256 or "",
                 issues=tuple(issues),
+                source_root="" if source_root is None else str(Path(source_root)),
             )
         )
     return tuple(
@@ -1681,6 +1781,7 @@ def admit_management_documents(
         )
     )
     diagnostics.extend(_revision_target_diagnostics(ordered))
+    from .management_kpi_enrichment import build_group_decisions
     from .management_kpi_identity import assess_reported_observations
     from .management_kpi_reconciliation import (
         SELECTION_DEFERRED,
@@ -1743,6 +1844,9 @@ def admit_management_documents(
         reconciliation=reconcile_reported_observations(ordered, assessments),
         revision_links=revision_links,
         group_selections=group_selections,
+        group_decisions=build_group_decisions(
+            group_selections, assessments, ordered
+        ),
     )
 
 
@@ -1763,6 +1867,7 @@ def management_admission_payload(admission: ManagementAdmission | None) -> dict[
             "diagnostics": [],
             "assessments": assessments_payload(()),
             "reconciliation": reconciliation_payload(()),
+            "group_decisions": [],
             "unresolved": list(_REMAINING_UNRESOLVED),
         }
     reported = [
@@ -1811,4 +1916,5 @@ def management_admission_payload(admission: ManagementAdmission | None) -> dict[
                 revision_links=admission.revision_links,
                 group_selections=admission.group_selections,
             ),
+            "group_decisions": list(admission.group_decisions),
     }

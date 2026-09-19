@@ -32,6 +32,11 @@ REASON_PERIOD_DATE = "period_date"
 REASON_CALENDAR_WEEK = "calendar_week_adjustment"
 REASON_CALENDAR_REPORTING = "calendar_reporting_basis"
 REASON_PERIOD_MISMATCH = "period_mismatch"
+REASON_LEVEL_ADMISSION = "level_admission"
+HISTORICAL_COMPARISON_ELIGIBLE = "eligible"
+HISTORICAL_COMPARISON_INELIGIBLE = "ineligible"
+LEVEL_ADMITTED = "admitted"
+LEVEL_DEFERRED = "deferred"
 REQUIRED_COMPARISON_REASONS = (
     REASON_MISSING_DEFINITION,
     REASON_UNBOUND_DEFINITION,
@@ -56,6 +61,7 @@ _EVIDENCED_FIELDS = (
     ("calendar_week_adjustment", "calendar_mismatch"),
     ("calendar_reporting_basis", "calendar_reporting_mismatch"),
     ("qualifiers_other", "qualifier_mismatch"),
+    ("comparison_window", "comparison_window_mismatch"),
 )
 
 POP_STORES_AND_ECOMMERCE = "company_operated_stores_and_ecommerce"
@@ -246,6 +252,9 @@ class ManagementIdentityAssessment:
     evidence: tuple[tuple[str, str], ...]
     unresolved_reasons: tuple[str, ...]
     peer_locators: tuple[str, ...]
+    level_admission: str = ""
+    historical_comparison: str = ""
+    definition_equivalence: str = ""
 
     def to_payload(self) -> dict[str, Any]:
         return {
@@ -265,6 +274,9 @@ class ManagementIdentityAssessment:
             "evidence": dict(self.evidence),
             "unresolved_reasons": list(self.unresolved_reasons),
             "peer_locators": list(self.peer_locators),
+            "level_admission": self.level_admission,
+            "historical_comparison": self.historical_comparison,
+            "definition_equivalence": self.definition_equivalence,
         }
 
 
@@ -383,13 +395,61 @@ def required_comparison_reasons(evidence: Mapping[str, str]) -> tuple[str, ...]:
     return tuple(reasons)
 
 
+def required_level_reasons(evidence: Mapping[str, str]) -> tuple[str, ...]:
+    """SPSF level admission omits historical-comparison requirements."""
+    return tuple(
+        reason
+        for reason in required_comparison_reasons(evidence)
+        if reason != REASON_MISSING_COMPARISON
+    )
+
+
+def _supporting_map(observation: Any) -> dict[str, Any]:
+    raw = getattr(observation, "supporting_evidence", ())
+    if not raw:
+        return {}
+    out: dict[str, Any] = {}
+    for key, value in raw:
+        try:
+            out[key] = json.loads(value)
+        except (TypeError, json.JSONDecodeError):
+            out[key] = value
+    return out
+
+
+def _comparison_window_label(observation: Any) -> str:
+    supporting = _supporting_map(observation)
+    window = supporting.get("comparison_window")
+    if isinstance(window, dict):
+        return str(window.get("label") or "")
+    return ""
+
+
 def evidenced_conflicts(
     self_ev: Mapping[str, str], peer_ev: Mapping[str, str]
 ) -> tuple[str, ...]:
+    from .management_kpi_enrichment import (
+        DEFINITION_EQUIVALENT,
+        assess_definition_equivalence,
+    )
+
     reasons: list[str] = []
     for key, reason in _EVIDENCED_FIELDS:
         left = self_ev.get(key, "")
         right = peer_ev.get(key, "")
+        if key == "definition_text":
+            if text_present(left) and text_present(right):
+                status = assess_definition_equivalence(left, right)
+                if status == DEFINITION_EQUIVALENT:
+                    continue
+                if left != right:
+                    reasons.append(reason)
+            continue
+        if key == "comparison_window":
+            if text_present(left) or text_present(right):
+                if left != right:
+                    reasons.append(reason)
+            continue
         if text_present(left) and text_present(right) and left != right:
             reasons.append(reason)
     return tuple(reasons)
@@ -470,6 +530,12 @@ def assess_reported_observations(
         qualifiers = _qualifier_map(observation)
         week_adjustment = _week_adjustment(qualifiers)
         identity = encode_metric_identity(fields) if fields else ""
+        supporting = _supporting_map(observation)
+        comparison_window = _comparison_window_label(observation)
+        page_mapping = ""
+        source = getattr(observation, "source", None)
+        if source is not None:
+            page_mapping = str(getattr(source, "physical_page_mapping", "") or "")
         evidence = {
             "entity_ticker": ticker,
             "entity_company": company,
@@ -489,9 +555,25 @@ def assess_reported_observations(
             "definition_id": observation.definition_id,
             "extraction_document": observation.extraction_document,
             "bound_source_file": observation.bound_source_file,
+            "comparison_window": comparison_window,
+            "physical_page_mapping": page_mapping,
+            "fiscal_year_length_weeks": str(
+                supporting.get("fiscal_year_length_weeks") or ""
+            ),
         }
         if status == STATUS_SUPPORTED:
             unresolved.extend(_required_comparison_reasons(evidence))
+        level_reasons = required_level_reasons(evidence) if status == STATUS_SUPPORTED else tuple(unresolved)
+        level_admission = (
+            LEVEL_ADMITTED
+            if status == STATUS_SUPPORTED and not level_reasons
+            else LEVEL_DEFERRED
+        )
+        historical_comparison = (
+            HISTORICAL_COMPARISON_ELIGIBLE
+            if status == STATUS_SUPPORTED and not required_comparison_reasons(evidence)
+            else HISTORICAL_COMPARISON_INELIGIBLE
+        )
         classified.append(
             {
                 "observation": observation,
@@ -505,6 +587,8 @@ def assess_reported_observations(
                 "definition_document": definition_document,
                 "evidence": evidence,
                 "filing_year": observation.filing_year,
+                "level_admission": level_admission,
+                "historical_comparison": historical_comparison,
             }
         )
 
@@ -573,6 +657,28 @@ def assess_reported_observations(
                 comparability = COMPARABILITY_UNRESOLVED
             else:
                 comparability = COMPARABILITY_COMPARABLE
+        from .management_kpi_enrichment import assess_definition_equivalence
+
+        equivalence_statuses = []
+        if status == STATUS_SUPPORTED:
+            for peer in classified:
+                if peer is item or peer["status"] != STATUS_SUPPORTED:
+                    continue
+                if peer["identity"] != item["identity"]:
+                    continue
+                equivalence_statuses.append(
+                    assess_definition_equivalence(
+                        item["definition_text"], peer["definition_text"]
+                    )
+                )
+        definition_equivalence = ""
+        if equivalence_statuses:
+            if all(item_status == "equivalent" for item_status in equivalence_statuses):
+                definition_equivalence = "equivalent"
+            elif any(item_status == "different" for item_status in equivalence_statuses):
+                definition_equivalence = "different"
+            else:
+                definition_equivalence = "unresolved"
         ordered_assessments.append(
             (
                 item["filing_year"],
@@ -593,6 +699,9 @@ def assess_reported_observations(
                     evidence=tuple(sorted(item["evidence"].items())),
                     unresolved_reasons=tuple(unresolved),
                     peer_locators=peer_locators,
+                    level_admission=item.get("level_admission", ""),
+                    historical_comparison=item.get("historical_comparison", ""),
+                    definition_equivalence=definition_equivalence,
                 ),
             )
         )

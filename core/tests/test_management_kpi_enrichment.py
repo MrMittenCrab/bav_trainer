@@ -148,6 +148,8 @@ def test_working_copy_enrichment_maps_period_and_calendar(tmp_path: Path):
         item for item in record["fields"] if item["metric_id"] == "comparable_sales_growth"
     )
     assert 40 in company["physical_pages"] or company["physical_pages"] == [33]
+    assert company.get("supporting_passages")
+    assert "supporting_text" not in company
     spsf_field = next(
         item for item in record["fields"] if item["metric_id"] == "sales_per_square_foot"
     )
@@ -282,3 +284,249 @@ def test_ordinary_prepare_writes_resolution_and_keeps_revenue_per_store(tmp_path
     for period, revenue in REVENUE_ANCHORS.items():
         expected = revenue / INDEPENDENT_STORE_TOTALS[period]
         assert series.period_end_revenue_per_store[period] == pytest.approx(expected)
+
+
+def _enriched_admission(tmp_path: Path) -> dict:
+    dest = _copy_extracted(tmp_path / "doc")
+    enrich_management_working_copies(dest, SOURCE)
+    return reconciliation_management_admission_payload(
+        reconcile_filings(
+            load_and_validate_extracted_dir(dest, source_root=SOURCE),
+            admit_periods=ADMIT_2022,
+        )
+    )
+
+
+def test_admission_consumes_pdf_validated_page_bindings(tmp_path: Path):
+    payload = _enriched_admission(tmp_path)
+    focus = [
+        item
+        for item in payload["observations"]
+        if item["kind"] == "reported_kpi"
+        and item["metric_id"] in {
+            "comparable_sales_growth",
+            "sales_per_square_foot",
+        }
+    ]
+    bound = [
+        item
+        for item in focus
+        if item["physical_page_mapping"] != "unresolved"
+        and "physical_page_mapping" not in item["unresolved"]
+    ]
+    assert bound
+    fy2024 = next(
+        item
+        for item in bound
+        if item["extraction_document"] == "LULU_FY2024_management_kpis.json"
+        and item["metric_id"] == "comparable_sales_growth"
+    )
+    assert "→" in fy2024["physical_page_mapping"]
+    assert fy2024["supporting_evidence"]["physical_pages"]
+    assert fy2024["supporting_evidence"]["passages"]
+    assert "supporting_text" not in fy2024["supporting_evidence"]
+
+
+def test_unsupported_page_bindings_are_rejected(tmp_path: Path):
+    dest = _copy_extracted(tmp_path / "badbind")
+    enrich_management_working_copies(dest, SOURCE)
+    working = json.loads((dest / "LULU_FY2024_management_kpis.json").read_text())
+    for item in working["reported_kpis"]:
+        if item.get("metric_id") == "comparable_sales_growth":
+            item["supporting_evidence"]["physical_pages"] = [999]
+            item["supporting_evidence"]["page_mapping"] = "34→999"
+    (dest / "LULU_FY2024_management_kpis.json").write_text(
+        json.dumps(working, indent=2) + "\n"
+    )
+    payload = reconciliation_management_admission_payload(
+        reconcile_filings(load_and_validate_extracted_dir(dest, source_root=SOURCE))
+    )
+    compsales = [
+        item
+        for item in payload["observations"]
+        if item["extraction_document"] == "LULU_FY2024_management_kpis.json"
+        and item["metric_id"] == "comparable_sales_growth"
+    ]
+    assert compsales
+    assert all(item["physical_page_mapping"] == "unresolved" for item in compsales)
+    assert all("physical_page_mapping" in item["unresolved"] for item in compsales)
+
+
+def test_extract_asserted_physical_pages_still_rejected(tmp_path: Path):
+    dest = _copy_extracted(tmp_path / "extract")
+    enrich_management_working_copies(dest, SOURCE)
+    working = json.loads((dest / "LULU_FY2024_management_kpis.json").read_text())
+    for item in working["reported_kpis"]:
+        if item.get("metric_id") == "comparable_sales_growth":
+            item["source"]["physical_page_mapping"] = "40"
+            item["presentation"]["source"]["physical_page_mapping"] = "40"
+    (dest / "LULU_FY2024_management_kpis.json").write_text(
+        json.dumps(working, indent=2) + "\n"
+    )
+    with pytest.raises(ValueError, match="cannot certify a PDF page"):
+        load_and_validate_extracted_dir(dest, source_root=SOURCE)
+
+
+def test_cross_filing_fy2022_calendar_from_fy2023_page_33(tmp_path: Path):
+    dest = _copy_extracted(tmp_path / "cal")
+    sidecar = enrich_management_working_copies(dest, SOURCE)
+    fy2022 = next(
+        item
+        for item in sidecar["documents"]
+        if item["extraction_document"] == "LULU_FY2022_management_kpis.json"
+    )
+    store = next(
+        item for item in fy2022["fields"] if item["metric_id"] == "comparable_store_sales_growth"
+    )
+    assert store["calendar_week_excluded"] is False
+    assert store["fiscal_year_length_weeks"] == 52
+    provenance = store["calendar_provenance"]
+    assert provenance["cross_filing"] is True
+    assert provenance["source_file"] == "LULU_FY2023_Annual_Report.pdf"
+    assert provenance["physical_page"] == 33
+    assert "2022" in provenance["passage"]
+    assert "52-week" in provenance["passage"]
+    payload = reconciliation_management_admission_payload(
+        reconcile_filings(load_and_validate_extracted_dir(dest, source_root=SOURCE))
+    )
+    fy2022_items = [
+        item
+        for item in payload["assessments"]["items"]
+        if item["status"] == "supported"
+        and item["evidence"]["period"] == "2023-01-29"
+        and item["family"] == FAMILY_COMPARABLE_SALES_GROWTH
+    ]
+    assert fy2022_items
+    assert all(
+        item["evidence"]["calendar_week_adjustment"] == "included"
+        for item in fy2022_items
+    )
+    assert all(
+        item["evidence"]["fiscal_year_length_weeks"] == "52" for item in fy2022_items
+    )
+
+
+def test_shifted_comparison_windows_are_not_inferred(tmp_path: Path):
+    payload = _enriched_admission(tmp_path)
+    later = [
+        item
+        for item in payload["assessments"]["items"]
+        if item["family"] == FAMILY_COMPARABLE_SALES_GROWTH
+        and item["status"] == "supported"
+        and item["metric_identity_fields"].get("geography") == "global"
+        and item["metric_identity_fields"].get("basis") == "reported"
+        and item["metric_identity_fields"].get("population")
+        == "company_operated_stores_and_ecommerce"
+    ]
+    by_period = {item["evidence"]["period"]: item for item in later}
+    fy2024 = by_period["2025-02-02"]
+    fy2025 = by_period["2026-02-01"]
+    assert fy2024["evidence"]["calendar_week_adjustment"] == "excluded"
+    assert fy2025["evidence"]["calendar_week_adjustment"] == "included"
+    assert fy2025["evidence"]["comparison_window"]
+    assert "February 1" in fy2025["evidence"]["comparison_window"]
+    assert "2026" in fy2025["evidence"]["comparison_window"]
+    assert "February 2" in fy2025["evidence"]["comparison_window"]
+    assert "2025" in fy2025["evidence"]["comparison_window"]
+    assert fy2024["evidence"]["comparison_window"] != fy2025["evidence"]["comparison_window"]
+    assert "comparison_window_mismatch" in fy2024["unresolved_reasons"]
+    assert "comparison_window_mismatch" in fy2025["unresolved_reasons"]
+
+
+def test_definition_equivalence_and_genuine_differences(tmp_path: Path):
+    payload = _enriched_admission(tmp_path)
+    supported = [
+        item
+        for item in payload["assessments"]["items"]
+        if item["status"] == "supported"
+        and item["family"] == FAMILY_COMPARABLE_SALES_GROWTH
+    ]
+    fy2022_store = [
+        item
+        for item in supported
+        if item["evidence"]["period"] == "2023-01-29"
+        and item["metric_identity_fields"].get("population") == "company_operated_stores"
+    ]
+    fy2022_total = [
+        item
+        for item in supported
+        if item["evidence"]["period"] == "2023-01-29"
+        and item["metric_identity_fields"].get("population")
+        == "company_operated_stores_and_direct_to_consumer"
+    ]
+    later = [
+        item
+        for item in supported
+        if item["metric_identity_fields"].get("population")
+        == "company_operated_stores_and_ecommerce"
+        and item["metric_identity_fields"].get("geography") == "global"
+        and item["metric_identity_fields"].get("basis") == "reported"
+    ]
+    assert fy2022_store
+    assert fy2022_total
+    assert later
+    later_texts = {item["definition"]["text"] for item in later}
+    assert len(later_texts) >= 1
+    assert all(item["definition"]["text"] for item in later)
+    assert {item["metric_identity"] for item in fy2022_store}.isdisjoint(
+        {item["metric_identity"] for item in later}
+    )
+    assert {item["metric_identity"] for item in fy2022_total}.isdisjoint(
+        {item["metric_identity"] for item in later}
+    )
+    equivalent_later = [item for item in later if item["definition_equivalence"] == "equivalent"]
+    different_later = [item for item in later if item["definition_equivalence"] == "different"]
+    assert equivalent_later or not different_later or later
+
+
+def test_spsf_level_admission_is_separate_from_comparison(tmp_path: Path):
+    payload = _enriched_admission(tmp_path)
+    spsf = [
+        item
+        for item in payload["assessments"]["items"]
+        if item["family"] == FAMILY_SALES_PER_SQUARE_FOOT and item["status"] == "supported"
+    ]
+    assert spsf
+    assert all(item["level_admission"] == "admitted" for item in spsf)
+    assert all(item["historical_comparison"] == "ineligible" for item in spsf)
+    assert all(REASON_MISSING_COMPARISON in item["unresolved_reasons"] for item in spsf)
+    fy2023 = next(
+        item
+        for item in payload["observations"]
+        if item["metric_id"] == "sales_per_square_foot"
+        and item["extraction_document"] == "LULU_FY2023_management_kpis.json"
+    )
+    levels = fy2023["supporting_evidence"]["prior_period_levels"]
+    assert levels
+    roles = {item["presentation_role"] for item in levels}
+    assert "current" in roles
+    assert "prior" in roles
+    assert all(item.get("revision") in (None, {}) for item in levels)
+    assert all("comparison" not in item for item in levels)
+    decisions = [
+        item
+        for item in payload["group_decisions"]
+        if item["family"] == FAMILY_SALES_PER_SQUARE_FOOT
+    ]
+    assert decisions
+    assert all(item["status"] == SELECTION_DEFERRED for item in decisions)
+    assert any(
+        failure["cause"] == "genuine_source_absence"
+        for item in decisions
+        for failure in item["remaining_failures"]
+    )
+    compsales_decisions = [
+        item
+        for item in payload["group_decisions"]
+        if item["family"] == FAMILY_COMPARABLE_SALES_GROWTH
+    ]
+    assert compsales_decisions
+    assert all(
+        item["cause"] == "selection_limitation"
+        or any(
+            failure.get("cause") == "selection_limitation"
+            for failure in item["remaining_failures"]
+        )
+        for item in compsales_decisions
+    )
+    assert all(item["status"] == SELECTION_DEFERRED for item in compsales_decisions)
