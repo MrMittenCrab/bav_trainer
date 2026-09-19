@@ -1,6 +1,6 @@
-# Step 3.2.4 — Repair occurrence-specific KPI evidence and reassess admission
+# Step 3.2.5 — Repair pair-specific KPI assessments and exclusion evidence
 
-AUTOCYCLE_PLAN: {"finding_key": "Complete real-source Lululemon KPI production acceptance", "kind": "work", "minor": 4, "objective": "Repair occurrence-specific KPI evidence and reassess admission", "plan_id": "d0a5584c530a4b4fb91c4ab2d13d9550", "step_id": "3.2.4", "work_id": "6743e8167c864555b33c54efb3c41328"}
+AUTOCYCLE_PLAN: {"finding_key": "Complete real-source Lululemon KPI production acceptance", "kind": "work", "minor": 5, "objective": "Repair pair-specific KPI assessments and exclusion evidence", "plan_id": "c44b3a842ed0428ca79c4799e21063b2", "step_id": "3.2.5", "work_id": "6743e8167c864555b33c54efb3c41328"}
 
 ## Completion
 
@@ -8,35 +8,37 @@ The ordinary source-bound Lululemon build delivers verified historical Revenue p
 
 ## Bounded continuation
 
-- Repair occurrence-specific calendar, comparison-window and complete passage bindings in the existing enrichment and admission flow for supplied FY2022–FY2025 filings.
-- Resolve fiscal-year metadata from each occurrence’s actual period, independently of its presenting filing. FY2023 SPSF repeated in FY2024 must retain 52 weeks; FY2024 SPSF repeated in FY2025 must retain 53 weeks. Verify all seven current and traced prior SPSF occurrences.
-- Keep fiscal-year length, metric-specific 53rd-week treatment and comparison windows distinct. Require documentary support for exclusion; a 53-week fiscal year alone does not establish a metric exclusion.
-- Bind comparison evidence to the metric and actual current/prior periods it describes. Do not copy the presenting filing’s window onto prior occurrences or treat a subsequent-year shift rule as an observed comparison window. Leave unsupported windows unresolved.
-- Preserve validated FY2022 calendar evidence from FY2023 physical page 33. Recheck FY2024 page 40 and FY2025 pages 33 and 40–41 against occurrence-specific periods and metric scope.
-- Replace shortest-line and clipping behavior with complete field-supporting sentences or table rows and necessary headers. Recover presentation text ending at “their square” and truncated date passages. Reject unrelated numeric matches and introductory text that does not establish the field.
-- Bind every value, date, definition, calendar, presentation and comparison passage individually to its source document and validated physical page or pages. Preserve printed references and cross-filing provenance; a pooled page list is insufficient. Retain complete cross-page passages with explicit bindings.
-- Carry repaired evidence consistently through working extracts, page resolution, validation, reconciliation, assessment and admission. Preserve the three traced prior SPSF occurrences, presentation roles, original observations and provenance without adding duplicate model facts.
-- Reassess definition support, including unresolved CompSales identities and FY2022 pages 36–37 versus FY2023 page 45. Preserve population, geography, currency and denominator differences unless documentary equivalence supports alignment.
-- Reassess SPSF level eligibility separately from historical comparison eligibility using the repaired traced occurrences. Determine whether supported same-identity levels permit comparison under existing rules before classifying comparison evidence as absent.
-- Recompute all 28 groups and their occurrence/pair assessments. Independently report calendar, window, definition, presentation, assurance, revision and selection failures; reconcile satisfied requirements, eligibility, canonical selection and model handoff.
-- Resolve selection limitations only through existing generic mechanisms authorized by supplied evidence and current policy. Preserve fail-closed audited-reviser requirements; repetition establishes neither revision nor assurance, and annual-report placement does not establish audited KPI assurance.
-- For each remaining failure, record the affected occurrence or pair, document-qualified passages/pages, cause and exact missing requirement. Distinguish implementation defects, ambiguity, genuine source absence, selection limitations and unavailable access. Selection-route rejection alone does not resolve admission or satisfy Completion.
-- Run the repaired ordinary supplied-source build. Activate supported Comparable Sales/SPSF analysis through existing calculations, semantic components, dependencies, schedules, BAV formulas/Notes, Trainer practices and Check; align Build Status and CLI with actual coverage and unavailable reasons.
-- Leave any evidence or policy decision requiring human action explicitly unresolved for Review without weakening admission requirements.
+- Repair pair-specific assessment reporting and metric-exclusion passage bindings in the existing enrichment/admission flow, then reassess supported comparisons and canonical admission.
+- Replace `build_group_decisions` attribution of aggregated failures to `peers[0]` with assessments identifying the actual occurrence pair responsible for each failure. Keep occurrence-only and canonical-selection failures separately scoped.
+- Evaluate every relevant same-identity candidate pair under existing rules. Preserve successful pair assessments alongside failures; one incompatible peer must not establish that every possible comparison is unsupported. Derive occurrence/group eligibility consistently from those assessments.
+- Recheck the reported FY2022-current/FY2023-current SPSF calendar mismatch: both have 52-week included evidence. Report any actual definition or other conflict independently, against its correct pair.
+- Bind every metric-exclusion flag to a complete supporting sentence, metric, affected period, source document and validated physical page or pages, retaining printed references. Fiscal-year length alone is insufficient.
+- Recover FY2024 SPSF exclusion evidence from the supplied filing, including physical page 40. Bind it individually to FY2024 current SPSF and the FY2025 traced FY2024 occurrence through explicit cross-filing provenance. If support is absent or ambiguous, leave exclusion unresolved.
+- Carry corrected evidence and pair results through working extracts, page resolution, validation, reconciliation, assessment and admission reports. Ensure reported satisfied requirements, failures, eligibility, canonical selection and model handoff agree.
+- Preserve all seven corrected SPSF occurrence calendars, including FY2022 evidence from FY2023 physical page 33, the three traced prior occurrences and their presentation roles. Keep fiscal-year length, metric exclusion and comparison windows distinct.
+- Preserve complete value, date, definition, calendar and presentation passages with individual document/page bindings, including cross-page text. Retain comparison-window protections: no presenting-filing window leakage onto prior occurrences and no shift rule treated as an observed window.
+- Reassess remaining CompSales definition/presentation support using supplied FY2022–FY2025 materials, including FY2022 pages 36–37 and FY2023 page 45. Preserve population, geography, currency and denominator differences unless documentary equivalence supports alignment.
+- Recompute all 28 groups. Assess SPSF level eligibility separately from historical comparisons, including comparisons supported by same-identity levels under existing rules.
+- Preserve fail-closed audited-reviser and documentary revision requirements. Repetition establishes neither revision nor assurance; annual-report placement does not establish audited KPI assurance. Use only existing generic selection mechanisms authorized by evidence and current policy.
+- For every remaining failure, identify its occurrence or pair, supporting passages/pages, cause and exact unmet requirement. Distinguish implementation defects, ambiguity, genuine source absence, selection limitations and unavailable access. Do not adjudicate source absence from aggregated conflicts or selection-route rejection alone.
+- Run the ordinary supplied-source build and activate any supported Comparable Sales/SPSF analysis through existing calculations, semantic components, dependencies, schedules, BAV formulas/Notes, Trainer practices and Check. Align Build Status and CLI with actual coverage and unavailable reasons.
+- Leave unsupported evidence, unavailable access and decisions requiring human action explicitly unresolved for Review; do not relax assurance requirements.
 
 ## Verification and records
 
-- Add focused regressions for prior-occurrence 52/53-week calendars, metric-specific exclusions, window leakage, complete multiline/cross-page passages and individual document/page bindings. Verify corrected evidence reaches assessment and reporting, including contradictory eligibility and independent failures.
-- Run `python -m bav build Lululemon`; independently reconcile all seven SPSF occurrences and all group outcomes to supplied passages. Verify standardized export/reload, source facts, semantic maps, formula dependencies and analytical Notes.
-- Verify independent professional BAV generation without yellow cells or exercise framing, then explicitly derive the matching Trainer. Verify unchanged primary artifacts, populated facts, blank-yellow practices without comments or answer leakage, and workbook-wide Check with blank, correct and incorrect KPI practices.
-- Perform actual Excel recalculation for newly activated or changed formulas and affected dependencies against independent references, with error inspection. Retain measured evidence for unchanged behavior and record unavailable verification explicitly.
+- Add focused regressions for failure attribution with multiple peers, peer-order independence, supported and unsupported pairs coexisting, and the two 52-week occurrences receiving no false calendar mismatch.
+- Verify FY2024 current and traced-prior exclusion flags each have individually bound metric-exclusion passages; unrelated calendar text must not satisfy exclusion evidence.
+- Retain occurrence-calendar, window-leakage, complete-passage, cross-page binding and independent-failure regressions. Verify corrected evidence reaches assessment and generated reports.
+- Run `python -m bav build Lululemon`; independently reconcile all seven SPSF occurrences, relevant pair outcomes and all 28 group decisions to supplied evidence. Verify standardized export/reload, source facts, semantic maps, formula dependencies and analytical Notes.
+- Verify professional BAV generation without yellow cells or exercise framing, then explicitly derive the matching Trainer. Verify unchanged primary artifacts, populated facts, blank-yellow practices without comments or answer leakage, and workbook-wide Check with blank, correct and incorrect KPI practices.
+- Obtain actual Excel recalculation and cached-value verification for newly activated or changed formulas and affected dependencies against independent references, including error inspection. Carry the previous attempt’s unavailable cached-value verification as unresolved; command success alone is insufficient. Retain measured evidence for unchanged behavior.
 - Run affected ingestion, KPI, workbook, semantic-map, Check and build regressions, including Lululemon and Fast Retailing. Preserve Revenue per Store’s five supported observations, distinct denominators, alignment, scaling, missing/zero-input behavior and total-company-revenue scope limitation.
 - Verify all 50 protected artifacts and eight source extracts against existing authenticated baselines without replacing them.
-- Append measured commands, corrected documentary evidence, complete group outcomes, output paths/hashes and unresolved requirements to `RESULT.md`. Correct prior claims through appended findings; preserve historical records and distinguish bounded repair completion from major Completion.
+- Append measured commands, documentary bindings, pair/group outcomes, output paths/hashes and unresolved requirements to `RESULT.md`. Correct prior claims through appended findings; preserve historical records and distinguish bounded repair completion from major Completion.
 
 ## Retained boundaries
 
-- Modify permitted working copies and regenerate outputs through the ordinary pipeline. Preserve protected PDFs, extracts, benchmarks, original observations, conflicts, superseded occurrences and deferred groups.
+- Modify permitted working copies and regenerate outputs through the ordinary pipeline. Preserve protected PDFs, extracts, benchmarks, original observations, conflicts, superseded occurrences and deferred groups; do not add duplicate model facts.
 - Preserve accepted accounting, ingestion, geographic, store-count, normalization and provenance behavior; `SEGMENT_BRIDGE_TOLERANCE = 0.0`; inactive provisional normalization judgments; paired-output contracts, primary metadata, Trainer sanitization, non-disclosing Check, atomic publication, protected-path checks and invalid-source rejection.
 - Synthetic fixtures remain regression evidence only; production acceptance requires supplied documentary evidence.
 - Disclosure-led driver testing and strategy interpretation remain subsequent Session work. Earlier normalization, broader source-workflow, normalized-per-share and other deferred commitments retain their evidence and unresolved decisions.
