@@ -1,37 +1,39 @@
-# Step 3.1.1 — Make the professional BAV workbook the default build product
-
-AUTOCYCLE_PLAN: {"finding_key": "Make the professional BAV workbook the default build product", "kind": "work", "minor": 1, "objective": "Make the professional BAV workbook the default build product", "plan_id": "edcdd462269247a9a8d852e33a9086d0", "step_id": "3.1.1", "work_id": "381ee7bd9415433291c296292be312a6"}
+# Step 3.2 — Complete real-source Lululemon KPI production acceptance
+AUTOCYCLE_PLAN: {"finding_key": "Complete real-source Lululemon KPI production acceptance", "kind": "work", "objective": "Complete real-source Lululemon KPI production acceptance", "plan_id": "ad722ab097464605aea2eb97d0d0f911", "step_id": "3.2", "work_id": "6743e8167c864555b33c54efb3c41328"}
 
 ## Completion
 
-The ordinary source-bound command `python -m bav build Lululemon` produces and verifies a professionally presented `Lululemon_BAV.xlsx` without generating or requiring a Trainer, while the same completed model can still produce a working `Lululemon_BAV_Trainer.xlsx`.
+The ordinary source-bound Lululemon build delivers verified historical Revenue per Store for supported periods and resolves Comparable Sales/SPSF admission from supplied evidence, activating supported analysis and documenting precise source gaps otherwise, with matching BAV formulas/Notes, Trainer practices, Check and required Excel verification.
 
-## Bounded continuation — Remove practice framing and preserve primary metadata
+## Implementation
 
-- Remove remaining exercise-oriented wording from BAV schedules and analytical Notes, including `Per Share Analysis!A2` and other “not practiced” instructions. Preserve substantive explanations of source facts, unavailable comparisons, period alignment and analytical limitations.
-- Inspect the entire visible BAV presentation, including optional schedules exercised by relevant fixtures. Keep Trainer, Answer Key, exercise, practice and learner-Check instructions confined to the Trainer; preserve legitimate analytical reconciliation language.
-- Repair cleanup in `core/trainer/workbook.py` so `build_training_workbook(..., Company_BAV.xlsx)` preserves the generated BAV component-map and assumptions sidecars. Cleanup must target only secondary Trainer artifacts and never the resolved primary BAV.
-- Preserve supported output naming and the existing paired interface, including its `(trainer_path, bav_path)` return contract. Retain removal of stale answer-bearing Trainer sidecars.
-- Preserve independent BAV finalization, ordinary BAV-only routing and optional Trainer derivation. Deriving a Trainer must leave the BAV workbook and its primary sidecars unchanged.
-- Apply generic repairs in directly affected code and documentation; do not redesign working build or analytical subsystems.
+- Inspect supplied Lululemon filings, management documents and admission evidence for Comparable Sales and SPSF. Trace each candidate through extraction, validation, reconciliation and model admission; distinguish missing evidence from an implementation defect.
+- Admit supported observations through the existing source-bound pipeline, preserving page-level provenance, fiscal periods, units, population, geography, reported/constant-currency basis, definitions and comparability. Repair only demonstrated extraction or admission defects; do not bypass documentary requirements or promote unreconciled observations automatically.
+- Where supplied materials cannot support admission, record the documents/pages searched, exact unmet requirements and additional evidence required. Keep explicit unavailable states for affected identities and periods; continue supported Revenue per Store work.
+- Implement generic historical Revenue per Store calculations using admitted revenue and company-operated store history. Specify fiscal-period alignment, monetary scaling and denominator basis. Label period-end or average-store denominators explicitly; require the necessary admitted observations and never silently substitute between them.
+- Explain that total-company revenue divided by company-operated stores includes revenue outside those stores and is not store-only productivity, SPSF or comparable sales. Preserve unavailable and undefined results for missing, incompatible or zero-denominator inputs.
+- Integrate Revenue per Store through reference calculations, semantic families/components, formula dependencies, workbook schedules, useful analytical Notes, Trainer derivation, historical expected values and workbook-wide Check. Reuse established KPI mechanisms.
+- Replace the hardcoded inactive Revenue per Store entry in `core/build_status.py` with evidence-based availability. Build Status, CLI and emitted schedules must agree; Comparable Sales Analysis, Sales per Square Foot Analysis and Revenue per Store Analysis must be Active wherever supplied evidence supports them, with partial coverage and limitations visible.
+- Keep source extraction separate from analytical judgment. Use permitted working copies and generated outputs; do not overwrite protected source extracts or benchmark artifacts.
 
 ## Verification
 
-- Add regressions for professional wording across visible BAV schedules and Notes, including Per Share Analysis and affected optional schedules.
-- Exercise paired builds with the documented `_BAV.xlsx` output and existing supported Trainer/default output forms. Reload both products and confirm primary component-map and assumptions sidecars survive, match the BAV, and remain usable; Trainer-only answer-bearing sidecars must be absent.
-- Run `python -m bav build Lululemon` through the normal supplied-source pipeline. Verify it succeeds without invoking Trainer generation and publishes a reloadable professional BAV with intact formulas, Notes, semantic identities, source facts, provenance and no yellow fills.
-- Explicitly derive the matching Trainer from that BAV. Verify primary workbook and sidecar hashes remain unchanged, active practices are blank yellow without comments or answer leakage, source facts remain populated, and workbook-wide Check resolves the matching BAV.
-- Run focused workbook, presentation, build, current-snapshot, semantic-map and Check regressions, plus affected geographic/KPI and Fast Retailing checks.
-- Preserve atomic publication, protected-path checks and invalid-source rejection. Verify the 50 protected artifacts and eight source extracts against their existing authenticated baselines; do not replace protected benchmarks with current outputs.
-- Apply existing Excel recalculation acceptance practice where affected formulas, references or workbook behavior require it. Record actual recalculation separately from formula inspection or retained evidence.
-- Record commands, measured results, generated paths, Build Status and any unavailable verification in `RESULT.md`. Do not infer acceptance from prior counts or certify the Session Endpoint.
+- Run `python -m bav build Lululemon` through the ordinary supplied-source pipeline. Verify the professional BAV builds independently, reloads successfully and exposes the supported KPI schedules and accurate availability.
+- Independently reconcile admitted KPI facts to source evidence and compare new calculations with reference results, including fiscal alignment, monetary scaling and denominator scope.
+- Verify standardized export/reload, embedded and sidecar semantic maps, populated source facts, correct BAV formulas and non-empty Notes, with no yellow cells or exercise framing.
+- Explicitly derive the matching Trainer. Confirm the BAV and primary sidecars remain unchanged, new active practices are blank yellow without comments or answer leakage, and source facts remain populated.
+- Exercise workbook-wide Check on blank, correctly completed and deliberately incorrect KPI practices without disclosing answers.
+- Perform actual Excel recalculation for the new analytical formulas and affected dependencies; inspect recalculated values and errors against reference results. Record unavailable access as an unresolved verification blocker, not a pass.
+- Add focused regressions for admission outcomes, supported Revenue per Store periods, missing/incompatible inputs and production integration. Run affected KPI, ingestion, workbook, semantic-map, Check and build regressions, plus Lululemon and Fast Retailing checks.
+- Verify the 50 protected artifacts and eight source extracts against existing authenticated baselines; do not replace baselines with current outputs.
+- Record measured results, commands, generated paths, source-admission decisions, Build Status and outstanding evidence/access gaps in `RESULT.md`.
 
-## Retained commitments and boundaries
+## Boundaries and retained commitments
 
-- Preserve accepted accounting, ingestion, geographic, store-count, KPI, normalization, provenance and workbook behavior, including fail-closed admission, `SEGMENT_BRIDGE_TOLERANCE = 0.0`, and inactive provisional normalization judgments.
-- Preserve the professional opening, complete analytical model, useful Notes, source-evidence limitations, Trainer sanitization and non-disclosing Check.
-- TARGET and SESSION publication is already complete. Cursor must not modify `TARGET.md`, `SESSION.md` or `IMPLEMENTATION.md`.
-- Real-source Comparable Sales/SPSF admission and historical Revenue per Store production acceptance remain the next priority before further normalization expansion. Retain their source-evidence, formula/Notes, Trainer, Check, export/reload and required Excel verification obligations.
-- Disclosure-led historical driver testing and evidence-backed strategy interpretation remain subsequent Session work, with explicit distinctions between disclosures, facts, identities, relationships and inference.
-- Earlier unfinished normalization, source-workflow, normalized-per-share and real-company acceptance commitments remain deferred, with evidence and unresolved decisions preserved in the historical ledger.
+- Preserve accepted accounting, ingestion, geographic, store-count, KPI, normalization, provenance and workbook behavior, including fail-closed admission, `SEGMENT_BRIDGE_TOLERANCE = 0.0` and inactive provisional normalization judgments.
+- Preserve independent BAV generation, supported paired-output contracts, primary metadata, Trainer sanitization, non-disclosing Check, atomic publication, protected-path checks and invalid-source rejection.
+- Synthetic fixtures may verify generic behavior but cannot establish real-company production acceptance.
+- Disclosure-led historical driver testing and evidence-backed strategy interpretation remain subsequent Session work; distinguish disclosures, source facts, accounting identities, observed relationships and inference.
+- Earlier normalization, broader source-workflow, normalized-per-share and real-company acceptance commitments remain deferred with their ledger evidence and unresolved decisions preserved.
 - No forecasting, valuation, scenarios, forward assumptions, investment conclusions or unrelated infrastructure and cosmetic expansion.
+- Cursor must not modify `TARGET.md`, `SESSION.md` or `IMPLEMENTATION.md`.
