@@ -1,3 +1,182 @@
+# RESULT.md — Step 3.2.1 Complete real-source Lululemon KPI production acceptance
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 3.2.1 — Complete real-source Lululemon KPI production acceptance  
+**Work:** `6743e8167c864555b33c54efb3c41328`  
+**Plan:** `1f37a5b846a647c38b92fa35667ecc50`  
+**Finding:** Complete real-source Lululemon KPI production acceptance  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `28089b961e72b3058d043efb9008e42c7b144d15cc3e3e2837174acb2f5eaf70` (26043).  
+SESSION SHA-256 `b37e5b0348b8d6f2210a51f8307511842fcc862ede5059c7ca76687bb4bad4aa` (4944).  
+IMPLEMENTATION SHA-256 `016f4c9a7ca311d9974b90be5baa048fb7df76f73eb45dc52a821e17f07b7af8` (6533).  
+No commit / push / sync / checkpoint / branch change.
+
+## Required plan change
+
+No required plan change. Activation of Comparable Sales / SPSF analysis still requires a later-audited two-occurrence revision group. The supplied MD&A pages do not provide that. That is a documentary / selection-gate gap, not an implementation defect to bypass.
+
+## Documentary inspection (supplied PDFs)
+
+Printed Form 10-K page numbers were resolved from each PDF footer, not assumed. FY2024 physical page 40 is printed page 34; its extract `fiscal_year_end` is `2025-02-02`.
+
+| Filing | Physical pages searched | Evidence found |
+|---|---|---|
+| FY2024 `LULU_FY2024_Annual_Report.pdf` | 7–11, 32–35, 40–41, 48 | PHYS 32 / printed 26: fiscal year ends Sunday closest to 31 January; FY2024 is 53 weeks; CompSales exclude the 53rd week. PHYS 33 / printed 27: CompSales +4% excluding the 53rd week. PHYS 40 / printed 34: stores+e-commerce CompSales definition; 53rd-week exclusion; following-year one-week shift; SPSF = company-operated revenue / average ending square footage; 53rd week excluded from SPSF. PHYS 10 / printed 4: SPSF $1,574 (2024) and $1,609 (2023). PHYS 48: auditor report is on the financial statements, not MD&A KPIs. |
+| FY2025 | 10, 33, 40–41 | PHYS 33: FY2025 is 52 weeks, FY2024 was 53; CompSales compared on a one-week shift (52 weeks ended 1 Feb 2026 vs 2 Feb 2025, not 26 Jan 2025). PHYS 40–41: same stores+e-commerce definition; total CompSales 2%; regional reported / constant-dollar table. PHYS 10: SPSF 1426. |
+| FY2023 | 10, 33, 45 | PHYS 33: FY2023, 2022 and 2021 were each 52 weeks; FY2024 will be 53. PHYS 45: stores+e-commerce CompSales and SPSF average-ending-square-footage definitions; 53rd-week rule. PHYS 10: SPSF $1,609 / $1,580 / $1,443 for 2023 / 2022 / 2021. |
+| FY2022 | 8, 31, 36–37 | PHYS 31 / printed 27: total comparable sales 25% / 28% constant-dollar. PHYS 37 / printed 33: comparable **store** sales 16% / 19%; total comparable = store + DTC. PHYS 36: 53rd-week exclusion / following-year shift language. This is not the later stores+e-commerce CompSales identity. |
+
+Missing extract metadata (FY labels, empty calendar-week, unresolved physical pages) is not a missing-source finding. The dates, 52/53-week treatment, definitions and values are on the pages above.
+
+## Working-copy enrichment (ordinary build)
+
+`prepare_company_input` now enriches permitted working copies only (`supporting/extracted/`) via `core/ingestion/management_kpi_enrichment.py`. Protected PDFs, `benchmark/lululemon/extracted/` and benchmark artifacts are not written.
+
+For supported CompSales/SPSF observations the working copy receives, when evidenced:
+
+- `period` FY202n → document `fiscal_year_end` (original label preserved as `original_period_label`)
+- `report.reporting_basis` → disclosed fiscal-calendar sentence (original preserved as `original_reporting_basis`)
+- `qualifiers.excludes_53rd_week` when that year’s PDF states 52- or 53-week status
+- `presentation.role=current` with bound page evidence
+- page-resolution sidecar `supporting/management_kpi_page_resolution.json`
+
+Not invented: audited assurance, revision links, SPSF comparison observations, FY2022 52-week qualifier (that year’s PDF does not name FY2022 as 52-week), physical_page_mapping inside extract JSON (extracts still cannot certify a PDF page).
+
+FY2024 printed 34 → physical 40 and FY2024 `fiscal_year_end` `2025-02-02` are in the sidecar. Observation `physical_page_mapping` remains `unresolved` on the admission payload by existing fail-closed parse rules; the sidecar is the PDF-resolved audit record.
+
+## Admission decisions after enrichment
+
+Ordinary build admission (`admit_periods=(2022-01-30,)`):
+
+| Measurement | Result |
+|---|---|
+| Status | `admitted_unreconciled` |
+| Canonical selection | `deferred` |
+| Documents / reported observations | 4 / 135 |
+| Focus supported CompSales + SPSF | **28** |
+| Period kind on focus items | **date** (`2023-01-29`, `2024-01-28`, `2025-02-02`, `2026-02-01`) |
+| Company CompSales calendar week | FY2023 empty on own PDF; FY2023 included; FY2024 excluded; FY2025 included |
+| Group selection | selected **0**, deferred **28** |
+| StandardizedFinancials management histories | **0** |
+| History handoff | `0 evidenced selected occurrence(s)`; 28 deferred groups remain audit-only |
+
+Identities kept distinct: FY2022 comparable-store and total-comparable (DTC) are not collapsed into later stores+e-commerce CompSales. Reported vs constant-dollar and regional series remain separate. SPSF stays a company-operated / average-ending-square-footage **level**; no comparison observation was manufactured (`missing_comparison` remains on SPSF historical comparison).
+
+Exact remaining admission requirement for model handoff: a complete two-occurrence same-period group with a documentary revision link and an **audited** reviser. The supplied MD&A pages do not state that management CompSales/SPSF are audited, and they do not restate a prior-period KPI with revision evidence. Inferring audit from appearance in an annual report is disallowed. This is a source / selection-policy gap, not an extraction-code defect.
+
+Comparable Sales Analysis and Sales per Square Foot Analysis therefore remain unavailable (no sheets; Build Status / CLI `Source unavailable / not admitted`). Partial availability is disclosed.
+
+## Revenue per Store (preserved)
+
+Five period-end observations, distinct average-store denominators, period alignment, USD thousands, missing/zero-input behavior and total-company-revenue scope limitation are unchanged.
+
+| Period | Period-end RPS | Average-store RPS | Adjacent change | Adjacent growth |
+|---|---:|---:|---:|---:|
+| 2022-01-30 | 10900.029616724738 | unavailable | unavailable | unavailable |
+| 2023-01-29 | 12382.470229007633 | 13198.564686737185 | 1482.440612282895 | 0.1360033563586171 |
+| 2024-01-28 | 13529.223628691983 | 14083.862371888727 | 1146.7533996843504 | 0.09261103628562929 |
+| 2025-02-02 | 13804.597131681878 | 14327.6400541272 | 275.3735029898944 | 0.020353976735656764 |
+| 2026-02-01 | 13690.012330456228 | 14071.736375158429 | −114.58480122565015 | −0.008300481363753479 |
+
+Excel-recalculated cells match these anchors. No Excel errors.
+
+## Ordinary source-bound Lululemon build
+
+Interpreter: `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**.
+
+```bash
+python -m bav build Lululemon
+```
+
+| Measurement | Result |
+|---|---|
+| Exit | **0** |
+| Output directory | `build/output/Lululemon/` |
+| Primary workbook | `Lululemon_BAV.xlsx` (192535 bytes) |
+| Trainer generated by ordinary build | **No** |
+| New supporting audit | `supporting/management_kpi_page_resolution.json` (30410; SHA-256 `b9e27a058afbf005e929c314a763148849a07dac61b41235887ca0f267dcbbf9`) |
+| CLI Active | Condensed Financials, ALT DuPont, Earnings Quality, Working Capital Analysis, Per Share Analysis, Geographic Segment Analysis, Store Count Analysis, **Revenue per Store Analysis** |
+| CLI Unavailable | Comparable Sales Analysis — Source unavailable / not admitted; Sales per Square Foot Analysis — Source unavailable / not admitted |
+
+Build Status Operating KPIs: Store-count 5/4/4; Revenue/store growth comparison 4; CompSales unavailable 0; SPSF unavailable 0; Revenue per Store Analysis **Active / available 17**.
+
+## BAV-only verification
+
+- Sheets include `Overview`, `Build Status`, `Revenue per Store Analysis`; no Trainer / CompSales / SPSF sheets.
+- Visible cells/Notes contain none of: Trainer, Answer Key, exercise, practice, Formula Check, ungraded, learner.
+- Semantic components **793**; sidecar **793**; embedded `_ComponentMap` **793**.
+- Non-source identities **783/783** formulas match the map and have non-empty Notes.
+- KPI source facts **10/10** populated.
+- Yellow fill: **0**.
+
+BAV SHA-256: `7872e99c6a172a6e8911eab9afe6901be00c478b43dc963f480d6b04a9ed31c0` (192535).  
+Component-map SHA-256: `3384ff9ec9944f7c209dc1f3541ef91e8a6293db24e5a30f9ada8f0121acfc63` (1094906).  
+Assumptions SHA-256: `73fbb33f222a978828042ebde1fbbc3cd285c40efda6be5217c2cfbae1fda21a` (69).
+
+## Explicit Trainer derivation
+
+`derive_trainer_workbook` on the published BAV:
+
+| Measurement | Result |
+|---|---|
+| Derived path | `build/output/Lululemon/Lululemon_BAV_Trainer.xlsx` (47636) |
+| BAV / component-map / assumptions SHA-256 after derivation | unchanged |
+| Trainer-only sidecars | none |
+| Active practice cells | **783** blank, **783** bright yellow, **0** comments/hints |
+| KPI sources on Trainer | **10** still populated |
+| Check blank | 783 / 0 / 0 / 783 |
+| Check correctly completed | 783 / 783 / 0 / 0 |
+| Check one incorrect RPS practice | 783 / 782 / 1 / 0 |
+
+Check summaries did not disclose formulas. Official BAV hash unchanged after Check.
+
+## Excel recalculation
+
+Microsoft Excel.app was available. A copy was opened, calculated twice, saved and closed. Official BAV hash not replaced.
+
+| Measurement | Result |
+|---|---|
+| Command | `osascript` → Excel `open` / `calculate` / `save` / `close` on `/var/folders/.../lulu-kpi-excel.atvf9ib3/Lululemon_BAV_recalc.xlsx` |
+| Exit | **0** |
+| Recalc file | 224952 bytes; SHA-256 `c9ac2c335007da2efc0431b3f3e72530e35e531a7ef39902ccc40a5b925c9940` |
+| Formula strings vs published BAV | **984** unchanged, **0** diffs |
+| Period-end / average / change / growth vs independent anchors | **all match** |
+| Excel error values on RPS cells | **none** |
+| Official BAV hash after Excel | unchanged `7872e99c6a172a6e8911eab9afe6901be00c478b43dc963f480d6b04a9ed31c0` |
+
+## Regressions
+
+Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**.
+
+| Suite | Result |
+|---|---|
+| `core/tests/test_management_kpi_enrichment.py` | **7 passed** (protected-path refusal; FY2024 p.34→40; period/calendar enrichment; fail-closed unaudited/no-revision; store vs total vs later CompSales identities; ordinary `prepare_company_input` + RPS anchors) |
+| `test_management_kpi_admission.py` `test_management_kpi_identity.py` `test_revenue_per_store.py` `test_current_build.py` `test_protected_artifacts_and_eight_extracts_unchanged` | **191 passed** (includes **50/50** protected artifacts and **8/8** extracts) |
+| `test_management_kpi_reconciliation.py` `test_management_kpi_history.py` `test_management_kpi_analysis.py` `test_operating_kpi_management_history.py` plus operating-KPI workbook/analysis/relationships/facts and source availability | **1486 passed** |
+| `test_lululemon_benchmark.py` `test_fast_retailing_benchmark.py` `test_trainer.py` `test_build_cli.py` `test_build_contract.py` | **441 passed** plus `test_no_lulu_specific_production_branch` **passed** after removing issuer tokens from production code |
+
+Fast Retailing practice count remains **577**. Protected extracts and authenticated baselines were not replaced.
+
+## Remaining gaps toward Completion
+
+- Comparable Sales Analysis and Sales per Square Foot Analysis remain unavailable on the ordinary build. Values, definitions, fiscal dates and 52/53-week treatment are on the inspected pages and now on working copies; canonical selection still requires an audited reviser + documentary revision pair that the supplied MD&A does not provide.
+- FY2022 own PDF does not state FY2022 as a 52-week year, so that year’s calendar-week qualifier stays empty.
+- Year-specific definition texts were not overwritten; peer `definition_mismatch` can remain even after period/basis enrichment.
+- SPSF historical comparison stays ineligible without a disclosed comparison observation.
+- Disclosure-led driver testing and strategy interpretation remain subsequent Session work.
+- Earlier deferred normalization / workflow commitments remain deferred.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+
+---
+
+# Historical record — Step 3.2
+
+The following is the prior Step 3.2 implementation record, preserved.
+
 # RESULT.md — Step 3.2 Complete real-source Lululemon KPI production acceptance
 
 **Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  

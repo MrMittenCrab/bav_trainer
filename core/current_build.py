@@ -102,6 +102,12 @@ def prepare_company_input(company: Company, staged: Path):
         facts = ROOT / company.supplemental_facts
         augment_extracted_filings(extracted, copied, facts)
         shutil.copy2(facts, supporting / 'supplemental_facts.json')
+        from .ingestion.management_kpi_enrichment import enrich_management_working_copies
+        enrich_management_working_copies(
+            copied,
+            company.benchmark / 'source',
+            resolution_path=supporting / 'management_kpi_page_resolution.json',
+        )
         extracted = copied
     validated = load_and_validate_extracted_dir(extracted, source_root=company.benchmark / 'source')
     errors = [f'{filing.filing.source_file}: {issue.code}: {issue.message}'
