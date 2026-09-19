@@ -10,8 +10,9 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping, Sequence
 
 from .management_kpi import KIND_MANAGEMENT_KPI, classify_extracted_payload
 from .management_kpi_identity import (
@@ -58,7 +59,37 @@ _SPSF_LEVEL_SERIES_RE = re.compile(
     r"\s+for\s+(\d{4}),\s+(\d{4}),\s+and\s+(\d{4})",
     re.IGNORECASE,
 )
+_SPSF_TWO_LEVEL_RE = re.compile(
+    r"sales per square foot (?:was|were)\s+\$([0-9,]+)\s+and\s+\$([0-9,]+)"
+    r"\s+for\s+(\d{4})\s+and\s+(\d{4})",
+    re.IGNORECASE,
+)
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+_ENCODED_DOLLAR_RE = re.compile(r"[\x03$]\s*(\d{1,3})\s+(\d{3})(?!\d)")
+_ENCODED_PERCENT_RE = re.compile(r"(\d)\s*\x04")
+_MONTH_DAY_YEAR_RE = re.compile(
+    r"(January|February|March|April|May|June|July|August|September|October|"
+    r"November|December)\s+\d{1,2},?\s+\d{4}",
+    re.IGNORECASE,
+)
+_INTRO_DATE_MARKERS = (
+    "sunday closest to january 31",
+    "typically resulting in a 52-week year",
+    "components of management",
+    "components of this md",
+    "social impact",
+    "we have contributed",
+)
+_DATE_SUPPORT_PHRASES = (
+    "fiscal year ended",
+    "weeks ended",
+    "number of company-operated stores",
+)
+_COMPARISON_PHRASES = (
+    "comparable sales",
+    "comparable store sales",
+    "total comparable sales",
+)
 CAUSE_SOURCE_ABSENCE = "genuine_source_absence"
 CAUSE_AMBIGUITY = "documentary_ambiguity"
 CAUSE_SELECTION = "selection_limitation"
@@ -133,18 +164,30 @@ def _decode_identity_h(text: str) -> str:
     return "".join(out)
 
 
+def normalize_filing_amounts(text: str) -> str:
+    """Recover `$1,574` and `4%` from leftover Identity-H marks."""
+    return _ENCODED_PERCENT_RE.sub(r"\1%", _ENCODED_DOLLAR_RE.sub(r"$\1,\2", text))
+
+
 def decode_filing_text(text: str) -> str:
     """Return readable filing text; Identity-H pages are decoded when needed."""
     if not text:
         return ""
     lowered = text.lower()
-    if "comparable" in lowered or "fiscal year" in lowered or "square foot" in lowered:
-        return text
-    decoded = _decode_identity_h(text)
-    decoded_low = decoded.lower()
-    if "comparable" in decoded_low or "fiscal" in decoded_low or "square foot" in decoded_low:
-        return decoded
-    return text
+    readable = (
+        "comparable" in lowered or "fiscal year" in lowered or "square foot" in lowered
+    )
+    candidate = text
+    if not readable:
+        decoded = _decode_identity_h(text)
+        decoded_low = decoded.lower()
+        if (
+            "comparable" in decoded_low
+            or "fiscal" in decoded_low
+            or "square foot" in decoded_low
+        ):
+            candidate = decoded
+    return normalize_filing_amounts(candidate)
 
 
 def _printed_page_from_lines(text: str) -> int | None:
@@ -233,26 +276,39 @@ def _sentences(text: str) -> list[str]:
     return [part.strip() for part in _SENTENCE_SPLIT_RE.split(_collapsed(text)) if part.strip()]
 
 
+def _line_candidates(text: str) -> list[str]:
+    lines = [" ".join(line.split()) for line in text.splitlines() if line.strip()]
+    return [line for line in lines if line]
+
+
 def _passage_matching(
     texts: Iterable[str],
     needles: Iterable[str],
     *,
     max_len: int = 420,
+    reject: Iterable[str] = (),
 ) -> str:
+    """Return a complete sentence or table row that contains every required needle."""
     required = [needle.lower() for needle in needles if needle]
     if not required:
         return ""
+    blocked = [marker.lower() for marker in reject if marker]
+    matches: list[str] = []
     for text in texts:
-        for sentence in _sentences(text):
-            lowered = sentence.lower()
+        candidates = _sentences(text) + _line_candidates(text)
+        for candidate in candidates:
+            lowered = candidate.lower()
+            if blocked and any(marker in lowered for marker in blocked):
+                continue
             if all(needle in lowered for needle in required):
-                return sentence[:max_len]
-    for text in texts:
-        for sentence in _sentences(text):
-            lowered = sentence.lower()
-            if any(needle in lowered for needle in required):
-                return sentence[:max_len]
-    return ""
+                clipped = candidate[:max_len]
+                if all(needle in clipped.lower() for needle in required):
+                    matches.append(clipped)
+                elif len(candidate) <= 800:
+                    matches.append(candidate)
+    if not matches:
+        return ""
+    return min(matches, key=len)
 
 
 def _page_texts(
@@ -341,26 +397,26 @@ def assess_definition_equivalence(left: str, right: str) -> str:
 
 
 def _year_length_passage(text: str, year: int, *, fifty_three: bool) -> str:
-    collapsed = _collapsed(text)
-    year_text = str(year)
-    if fifty_three:
-        match = _FIFTY_THREE_YEAR_RE.search(collapsed)
-        if match and match.group(1) == year_text:
-            return collapsed[max(0, match.start() - 20): match.end() + 20].strip()
-    else:
-        listed = _FIFTY_TWO_LIST_RE.search(collapsed)
-        if listed and year_text in listed.group(1):
-            return collapsed[max(0, listed.start()): listed.end() + 10].strip()
-        single = _FIFTY_TWO_YEAR_RE.search(collapsed)
-        if single and single.group(1) == year_text:
-            return collapsed[max(0, single.start()): single.end() + 10].strip()
     week = "53-week" if fifty_three else "52-week"
-    idx = collapsed.lower().find(week)
-    year_at = collapsed.find(year_text)
-    if idx >= 0 and year_at >= 0:
-        start = min(year_at, idx)
-        return collapsed[max(0, start - 10): start + 80].strip()
-    return ""
+    listed = _passage_matching(
+        [text],
+        ("were each 52-week", str(year)),
+        reject=_INTRO_DATE_MARKERS,
+    )
+    if listed:
+        return listed
+    passage = _passage_matching(
+        [text],
+        (f"fiscal {year}", week),
+        reject=_INTRO_DATE_MARKERS,
+    )
+    if passage:
+        return passage
+    return _passage_matching(
+        [text],
+        (str(year), week),
+        reject=_INTRO_DATE_MARKERS,
+    )
 
 
 def _year_length_page(inspection: SourceInspection, year: int) -> int | None:
@@ -463,8 +519,6 @@ def extract_comparison_window(
         label = f"{current_weeks} vs {prior_weeks}"
         if not_compared_to:
             label = f"{label} (not {not_compared_to})"
-    elif shift_pages:
-        label = "subsequent_year_one_week_shift_rule"
     return ComparisonWindowEvidence(
         label=label,
         current_weeks=current_weeks,
@@ -482,13 +536,25 @@ def extract_spsf_prior_period_levels(
 ) -> list[dict[str, Any]]:
     """Record repeated SPSF levels as documentary occurrences, not revisions."""
     occurrences: list[dict[str, Any]] = []
+    seen: set[tuple[int, int, int, str]] = set()
     for physical, text in inspection.page_texts.items():
-        match = _SPSF_LEVEL_SERIES_RE.search(_collapsed(text))
+        collapsed = _collapsed(text)
+        triples = _SPSF_LEVEL_SERIES_RE.search(collapsed)
+        pairs = _SPSF_TWO_LEVEL_RE.search(collapsed)
+        match = triples or pairs
         if match is None:
             continue
-        values = [int(part.replace(",", "")) for part in match.group(1, 2, 3)]
-        years = [int(part) for part in match.group(4, 5, 6)]
+        if triples is not None:
+            values = [int(part.replace(",", "")) for part in match.group(1, 2, 3)]
+            years = [int(part) for part in match.group(4, 5, 6)]
+        else:
+            values = [int(part.replace(",", "")) for part in match.group(1, 2)]
+            years = [int(part) for part in match.group(3, 4)]
         for index, (year, value) in enumerate(zip(years, values)):
+            key = (year, value, physical, "current" if index == 0 else "prior")
+            if key in seen:
+                continue
+            seen.add(key)
             occurrences.append(
                 {
                     "period_label": str(year),
@@ -511,12 +577,91 @@ def _value_needles(value: object) -> list[str]:
         amount = float(value)
         if amount.is_integer():
             whole = int(amount)
-            needles = [str(whole), f"{whole:,}"]
             if abs(whole) < 100:
-                needles.append(f"{whole}%")
-            return needles
+                if whole < 0:
+                    return [f"{whole}%", f"decreased {abs(whole)}%"]
+                return [f"{whole}%", f"increased {whole}%"]
+            return [f"{whole:,}", str(whole), f"${whole:,}"]
         return [str(value)]
     return [str(value)]
+
+
+def _metric_value_phrases(metric_id: str) -> tuple[str, ...]:
+    if "sales_per_square_foot" in metric_id:
+        return ("sales per square foot",)
+    if "store_sales" in metric_id:
+        return ("comparable store sales",)
+    if "total_comparable" in metric_id:
+        return ("total comparable sales",)
+    return _COMPARISON_PHRASES
+
+
+def _value_passage(texts: Iterable[str], item: MappingLike) -> str:
+    metric = str(item.get("metric_id") or "")
+    phrases = _metric_value_phrases(metric)
+    amounts = _value_needles(item.get("value"))
+    if not phrases or not amounts:
+        return ""
+    for phrase in phrases:
+        for amount in amounts:
+            found = _passage_matching(texts, (phrase, amount))
+            if found:
+                return found
+    return ""
+
+
+def _format_iso_date(value: str) -> tuple[str, ...]:
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError:
+        return ()
+    month = parsed.strftime("%B")
+    return (
+        f"{month} {parsed.day}, {parsed.year}",
+        f"{month} {parsed.day} {parsed.year}",
+    )
+
+
+def _date_passage(
+    *,
+    inspection: SourceInspection,
+    texts: Iterable[str],
+    fiscal_year_end: str,
+    comparison_window: ComparisonWindowEvidence | None,
+) -> str:
+    if comparison_window is not None and comparison_window.current_weeks:
+        window_texts = [comparison_window.passage] if comparison_window.passage else []
+        found = _passage_matching(
+            window_texts or texts,
+            ("weeks ended",),
+            reject=_INTRO_DATE_MARKERS,
+        )
+        if found and _MONTH_DAY_YEAR_RE.search(found):
+            return found
+    formatted = _format_iso_date(fiscal_year_end)
+    search_texts = list(texts) + [
+        inspection.page_texts[page] for page in sorted(inspection.page_texts)
+    ]
+    for form in formatted:
+        for phrase in _DATE_SUPPORT_PHRASES:
+            found = _passage_matching(
+                search_texts,
+                (phrase, form),
+                reject=_INTRO_DATE_MARKERS,
+            )
+            if found and _MONTH_DAY_YEAR_RE.search(found):
+                return found
+    for text in search_texts:
+        for candidate in _sentences(text) + _line_candidates(text):
+            lowered = candidate.lower()
+            if any(marker in lowered for marker in _INTRO_DATE_MARKERS):
+                continue
+            if not any(phrase in lowered for phrase in _DATE_SUPPORT_PHRASES):
+                continue
+            dates = _MONTH_DAY_YEAR_RE.findall(candidate)
+            if len(dates) >= 2:
+                return candidate[:420]
+    return ""
 
 
 def field_supporting_passages(
@@ -527,29 +672,52 @@ def field_supporting_passages(
     item: MappingLike,
     comparison_window: ComparisonWindowEvidence | None,
     calendar: CalendarYearEvidence | None,
+    fiscal_year_end: str = "",
 ) -> dict[str, str]:
     texts = _page_texts(inspection, physical_pages)
     texts.extend(extra_texts)
     metric = str(item.get("metric_id") or "")
-    value_needles = _value_needles(item.get("value"))
+    spsf = "sales_per_square_foot" in metric
     definition_needles = (
         ("sales per square foot is calculated", "average ending square footage")
-        if "sales_per_square_foot" in metric
-        else ("comparable sales includes", "comparable store sales")
+        if spsf
+        else ("comparable sales includes",)
     )
+    if not spsf and "store_sales" in metric:
+        definition_needles = ("comparable store sales reflects",)
+    presentation_needles = (
+        ("we use sales per square foot",)
+        if spsf
+        else ("we use comparable sales",)
+    )
+    date_passage = _date_passage(
+        inspection=inspection,
+        texts=texts,
+        fiscal_year_end=fiscal_year_end or str(item.get("period") or ""),
+        comparison_window=comparison_window,
+    )
+    calendar_passage = ""
+    if calendar is not None and calendar.passage:
+        calendar_passage = calendar.passage
+    else:
+        calendar_passage = _passage_matching(texts, ("52-week", "fiscal")) or _passage_matching(
+            texts, ("53-week", "fiscal")
+        )
+    window_passage = ""
+    if comparison_window is not None and comparison_window.current_weeks:
+        window_passage = comparison_window.passage
     passages = {
-        "value": _passage_matching(texts, value_needles or ("comparable sales", "sales per square foot")),
-        "dates": _passage_matching(texts, ("weeks ended", "fiscal year ends", "sunday closest")),
-        "definition": _passage_matching(texts, definition_needles),
-        "calendar": calendar.passage if calendar is not None else _passage_matching(
-            texts, ("52-week", "53-week", "sunday closest to january 31")
+        "value": _value_passage(texts, item),
+        "dates": date_passage,
+        "definition": _passage_matching(texts, definition_needles)
+        or (
+            _passage_matching(texts, ("comparable store sales", "direct to consumer"))
+            if "total_comparable" in metric
+            else ""
         ),
-        "presentation": _passage_matching(
-            texts, ("we use comparable sales", "we use sales per square foot", "item 7")
-        ),
-        "comparison_window": (
-            comparison_window.passage if comparison_window is not None else ""
-        ),
+        "calendar": calendar_passage,
+        "presentation": _passage_matching(texts, presentation_needles),
+        "comparison_window": window_passage,
         "assurance": "",
         "revision": "",
     }
@@ -627,12 +795,96 @@ def _definition_pages_and_text(
     return tuple(dict.fromkeys(pages)), text
 
 
+def _existing_spsf_periods(items: Iterable[MappingLike]) -> set[str]:
+    keys: set[str] = set()
+    for item in items:
+        if item.get("metric_id") != "sales_per_square_foot":
+            continue
+        keys.add(str(item.get("period") or ""))
+        label = str(item.get("original_period_label") or "")
+        if label:
+            keys.add(label)
+        period = str(item.get("period") or "")
+        if period.startswith("FY"):
+            keys.add(period)
+    return keys
+
+
+def _append_traced_spsf_occurrences(
+    payload: dict[str, Any],
+    levels: Sequence[dict[str, Any]],
+    *,
+    fiscal_year: int,
+    year_end_map: Mapping[int, str],
+    calendar_corpus: dict[int, CalendarYearEvidence],
+    inspection: SourceInspection,
+) -> list[dict[str, Any]]:
+    """Add prior-period SPSF levels as documentary occurrences; do not invent revisions."""
+    from copy import deepcopy
+
+    items = payload.setdefault("reported_kpis", [])
+    template = next(
+        (
+            item
+            for item in items
+            if isinstance(item, dict) and item.get("metric_id") == "sales_per_square_foot"
+        ),
+        None,
+    )
+    if template is None:
+        return []
+    existing = _existing_spsf_periods(items)
+    added: list[dict[str, Any]] = []
+    for level in levels:
+        year = int(level["period_label"])
+        if year == fiscal_year:
+            continue
+        period = year_end_map.get(year, "")
+        fy_label = f"FY{year}"
+        if not period:
+            continue
+        if period in existing or fy_label in existing or str(year) in existing:
+            continue
+        item = deepcopy(template)
+        item["period"] = period
+        item["original_period_label"] = fy_label
+        item["value"] = level["value"]
+        item.pop("comparison", None)
+        item.pop("revision", None)
+        item.pop("revises", None)
+        item.pop("supporting_evidence", None)
+        source = dict(item.get("source") or {})
+        source["source_file"] = inspection.source_file
+        item["source"] = source
+        calendar = calendar_corpus.get(year)
+        qualifiers = dict(item.get("qualifiers") or {})
+        if calendar is not None:
+            qualifiers["excludes_53rd_week"] = calendar.fifty_three_week
+        item["qualifiers"] = qualifiers
+        item["presentation"] = {
+            "role": level["presentation_role"],
+            "evidence": level["passage"],
+            "source": {
+                "section": source.get("section", ""),
+                "page_reference": source.get("page_reference", ""),
+                "source_file": inspection.source_file,
+            },
+        }
+        item["traced_prior_period"] = True
+        items.append(item)
+        existing.add(period)
+        existing.add(fy_label)
+        added.append(item)
+    return added
+
+
 def enrich_management_payload(
     payload: dict[str, Any],
     inspection: SourceInspection,
     *,
     extraction_document: str,
     calendar_corpus: dict[int, CalendarYearEvidence] | None = None,
+    year_end_map: Mapping[int, str] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Return an enriched working copy and the page-resolution record."""
     if classify_extracted_payload(payload, path=extraction_document) != KIND_MANAGEMENT_KPI:
@@ -652,6 +904,14 @@ def enrich_management_payload(
     week_excluded = None if calendar is None else calendar.fifty_three_week
     comparison_window = extract_comparison_window(inspection)
     spsf_levels = extract_spsf_prior_period_levels(inspection)
+    _append_traced_spsf_occurrences(
+        enriched,
+        spsf_levels,
+        fiscal_year=fiscal_year,
+        year_end_map=year_end_map or {},
+        calendar_corpus=corpus,
+        inspection=inspection,
+    )
     fields: list[dict[str, Any]] = []
     for item in enriched["reported_kpis"]:
         if not _focus_item(item):
@@ -688,6 +948,7 @@ def enrich_management_payload(
             item=item,
             comparison_window=comparison_window,
             calendar=calendar,
+            fiscal_year_end=str(item.get("period") or fiscal_year_end),
         )
         mapping = format_physical_page_mapping(printed, physical_pages)
         supporting = {
@@ -738,13 +999,20 @@ def enrich_management_payload(
             ),
         }
         item["supporting_evidence"] = supporting
-        if "presentation" not in item:
-            presentation_passage = passages.get("presentation") or (
-                "Item 7 / Item 1 of this annual report presents the metric as a "
-                "current-period management operating KPI for the fiscal year discussed."
+        presentation_passage = passages.get("presentation") or ""
+        if item.get("traced_prior_period") and not presentation_passage:
+            presentation_passage = next(
+                (
+                    str(level["passage"])
+                    for level in spsf_levels
+                    if level["value"] == item.get("value")
+                    and level["presentation_role"] == "prior"
+                ),
+                "",
             )
+        if presentation_passage and "presentation" not in item:
             item["presentation"] = {
-                "role": "current",
+                "role": "prior" if item.get("traced_prior_period") else "current",
                 "evidence": presentation_passage,
                 "source": {
                     "section": source.get("section", ""),
@@ -817,6 +1085,16 @@ def enrich_management_working_copies(
         if source_file not in inspections:
             inspections[source_file] = inspect_source_pdf(pdf)
     calendar_corpus = collect_calendar_corpus(inspections)
+    year_end_map: dict[int, str] = {}
+    for path in sorted(extracted.glob("*.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if classify_extracted_payload(payload, path=path) != KIND_MANAGEMENT_KPI:
+            continue
+        report = payload.get("report") or {}
+        try:
+            year_end_map[int(report["fiscal_year"])] = str(report["fiscal_year_end"])
+        except (KeyError, TypeError, ValueError):
+            continue
     for path in sorted(extracted.glob("*.json")):
         payload = json.loads(path.read_text(encoding="utf-8"))
         if classify_extracted_payload(payload, path=path) != KIND_MANAGEMENT_KPI:
@@ -827,6 +1105,7 @@ def enrich_management_working_copies(
             inspections[source_file],
             extraction_document=path.name,
             calendar_corpus=calendar_corpus,
+            year_end_map=year_end_map,
         )
         path.write_text(json.dumps(enriched, indent=2) + "\n", encoding="utf-8")
         written.append(path.name)
@@ -843,6 +1122,131 @@ def enrich_management_working_copies(
     return sidecar
 
 
+_FAILURE_REMAINING = {
+    "calendar_mismatch": (
+        "calendar",
+        CAUSE_AMBIGUITY,
+        "aligned fiscal-year length and metric-specific 53rd-week treatment across the comparison pair",
+    ),
+    "comparison_window_mismatch": (
+        "comparison_window",
+        CAUSE_AMBIGUITY,
+        "the same disclosed comparison window, or an explicit statement that no completed window applies",
+    ),
+    "calendar_reporting_mismatch": (
+        "calendar_reporting_basis",
+        CAUSE_AMBIGUITY,
+        "the same documentary fiscal-calendar reporting basis",
+    ),
+    "definition_mismatch": (
+        "definition",
+        CAUSE_AMBIGUITY,
+        "documentary equivalence of store-only, total-comparable, geographic, population and currency bases",
+    ),
+    "population_mismatch": (
+        "definition",
+        CAUSE_AMBIGUITY,
+        "the same disclosed population basis",
+    ),
+    "missing_comparison": (
+        "historical_comparison",
+        CAUSE_SOURCE_ABSENCE,
+        "a disclosed historical comparison observation with its actual comparison window",
+    ),
+    "peer_missing_comparison": (
+        "historical_comparison",
+        CAUSE_SOURCE_ABSENCE,
+        "a peer occurrence that itself discloses a historical comparison window",
+    ),
+    "no_distinct_peer": (
+        "historical_comparison",
+        CAUSE_AMBIGUITY,
+        "a distinct same-identity peer year with aligned calendar, window and definition evidence",
+    ),
+    "period_date": (
+        "period_date",
+        CAUSE_SOURCE_ABSENCE,
+        "a complete documentary period-end date sentence or table row",
+    ),
+    "calendar_week_adjustment": (
+        "calendar_week_adjustment",
+        CAUSE_SOURCE_ABSENCE,
+        "a disclosed 52/53-week treatment for this fiscal year",
+    ),
+    "presentation_role": (
+        "presentation",
+        CAUSE_SOURCE_ABSENCE,
+        "a documentary presentation-role passage bound to this occurrence",
+    ),
+    "assurance": (
+        "assurance",
+        CAUSE_SELECTION,
+        "documentary audited KPI assurance; annual-report placement is not sufficient",
+    ),
+    "revision": (
+        "revision",
+        CAUSE_SELECTION,
+        "a documentary revision link; repetition of a prior-period level is not a revision",
+    ),
+    "canonical_selection": (
+        "canonical_selection",
+        CAUSE_SELECTION,
+        "later-audited two-occurrence revision group with a documentary revision link",
+    ),
+}
+
+
+def _supporting_dict(observation: Any) -> dict[str, Any]:
+    supporting: dict[str, Any] = {}
+    for key, raw in getattr(observation, "supporting_evidence", ()):
+        try:
+            supporting[key] = json.loads(raw)
+        except (TypeError, json.JSONDecodeError):
+            supporting[key] = raw
+    return supporting
+
+
+def _document_pages(supporting: Mapping[str, Any]) -> list[int]:
+    pages = [int(page) for page in supporting.get("physical_pages") or []]
+    provenance = supporting.get("calendar_provenance") or {}
+    if provenance.get("physical_page"):
+        pages.append(int(provenance["physical_page"]))
+    window = supporting.get("comparison_window") or {}
+    pages.extend(int(page) for page in window.get("physical_pages") or [])
+    return pages
+
+
+def _failure_record(
+    *,
+    requirement: str,
+    cause: str,
+    remaining: str,
+    locator: str = "",
+    peer: str = "",
+    document: str = "",
+    pages: Iterable[int] = (),
+    passage: str = "",
+    detail: str = "",
+) -> dict[str, Any]:
+    record = {
+        "requirement": requirement,
+        "cause": cause,
+        "remaining_requirement": remaining,
+        "detail": detail,
+    }
+    if locator:
+        record["locator"] = locator
+    if peer:
+        record["comparison_pair"] = [locator, peer] if locator else [peer]
+    if document:
+        record["document"] = document
+    if pages:
+        record["pages"] = sorted(set(int(page) for page in pages))
+    if passage:
+        record["passage"] = passage
+    return record
+
+
 def build_group_decisions(
     group_selections: Iterable[Any],
     assessments: Iterable[Any],
@@ -850,7 +1254,10 @@ def build_group_decisions(
 ) -> tuple[dict[str, Any], ...]:
     """Reproducible per-group documentary decisions for admission review."""
     from .management_kpi_identity import (
+        COMPARISON_CONFLICT_REASONS,
         FAMILY_SALES_PER_SQUARE_FOOT,
+        HISTORICAL_COMPARISON_ELIGIBLE,
+        LEVEL_ADMITTED,
         REASON_MISSING_COMPARISON,
     )
     from .management_kpi_reconciliation import (
@@ -869,28 +1276,22 @@ def build_group_decisions(
         consumed: list[str] = []
         satisfied: list[str] = []
         pages: list[int] = []
-        passages: list[str] = []
+        failures: list[dict[str, Any]] = []
+        seen_failures: set[tuple[str, str, str]] = set()
+        level_states: list[str] = []
+        comparison_states: list[str] = []
         for locator in locators:
             observation = by_locator.get(locator)
             assessment = by_assessment.get(locator)
             if observation is None:
                 continue
             consumed.append(locator)
-            supporting = {}
-            for key, raw in getattr(observation, "supporting_evidence", ()):
-                try:
-                    supporting[key] = json.loads(raw)
-                except (TypeError, json.JSONDecodeError):
-                    supporting[key] = raw
-            pages.extend(int(page) for page in supporting.get("physical_pages") or [])
-            provenance = supporting.get("calendar_provenance") or {}
-            if provenance.get("physical_page"):
-                pages.append(int(provenance["physical_page"]))
-            window = supporting.get("comparison_window") or {}
-            pages.extend(int(page) for page in window.get("physical_pages") or [])
-            for passage in (supporting.get("passages") or {}).values():
-                if passage:
-                    passages.append(str(passage))
+            supporting = _supporting_dict(observation)
+            occurrence_pages = _document_pages(supporting)
+            pages.extend(occurrence_pages)
+            passages = supporting.get("passages") or {}
+            document = observation.extraction_document
+            unresolved_obs = set(getattr(observation, "unresolved", ()) or ())
             if assessment is not None:
                 evidence = dict(assessment.evidence)
                 if evidence.get("period_kind") == "date":
@@ -906,65 +1307,153 @@ def build_group_decisions(
                     "unresolved",
                 ):
                     satisfied.append("physical_page_mapping")
-                if assessment.level_admission == "admitted":
+                if assessment.level_admission == LEVEL_ADMITTED:
                     satisfied.append("level_admission")
+                level_states.append(assessment.level_admission)
+                comparison_states.append(assessment.historical_comparison)
+                peers = list(assessment.peer_locators)
+                for reason in assessment.unresolved_reasons:
+                    mapped = _FAILURE_REMAINING.get(reason)
+                    if mapped is None and reason in COMPARISON_CONFLICT_REASONS:
+                        mapped = (
+                            reason,
+                            CAUSE_AMBIGUITY,
+                            "aligned documentary evidence for this comparison pair",
+                        )
+                    if mapped is None:
+                        continue
+                    requirement, cause, remaining = mapped
+                    key = (locator, requirement, reason)
+                    if key in seen_failures:
+                        continue
+                    seen_failures.add(key)
+                    passage = ""
+                    if requirement == "comparison_window":
+                        passage = str(passages.get("comparison_window") or "")
+                    elif requirement == "calendar":
+                        passage = str(passages.get("calendar") or "")
+                    elif requirement == "definition":
+                        passage = str(passages.get("definition") or "")
+                    elif requirement == "period_date":
+                        passage = str(passages.get("dates") or "")
+                    elif requirement == "historical_comparison":
+                        passage = str(passages.get("value") or "")
+                    failures.append(
+                        _failure_record(
+                            requirement=requirement,
+                            cause=cause,
+                            remaining=remaining,
+                            locator=locator,
+                            peer=peers[0] if peers else "",
+                            document=document,
+                            pages=occurrence_pages,
+                            passage=passage,
+                            detail=reason,
+                        )
+                    )
+            for reason in ("presentation_role", "assurance", "revision"):
+                if reason not in unresolved_obs:
+                    continue
+                mapped = _FAILURE_REMAINING[reason]
+                key = (locator, mapped[0], reason)
+                if key in seen_failures:
+                    continue
+                seen_failures.add(key)
+                failures.append(
+                    _failure_record(
+                        requirement=mapped[0],
+                        cause=mapped[1],
+                        remaining=mapped[2],
+                        locator=locator,
+                        document=document,
+                        pages=occurrence_pages,
+                        passage=str(passages.get(mapped[0], "")),
+                        detail=reason,
+                    )
+                )
         reasons = list(group.reasons)
-        failures: list[dict[str, Any]] = []
-        primary = ""
         additional = ""
         unresolved_decision = ""
+        primary = ""
         if group.status != SELECTION_SELECTED:
-            if (
-                REASON_UNAUDITED_REVISER in reasons
-                or REASON_UNKNOWN_ASSURANCE in reasons
-                or REASON_MISSING_REVISION_LINK in reasons
-                or REASON_SINGLETON in reasons
-            ):
+            selection_hit = {
+                REASON_UNAUDITED_REVISER,
+                REASON_UNKNOWN_ASSURANCE,
+                REASON_MISSING_REVISION_LINK,
+                REASON_SINGLETON,
+            } & set(reasons)
+            if selection_hit or reasons:
                 primary = CAUSE_SELECTION
-                unresolved_decision = (
-                    "later-audited two-occurrence revision group with a "
-                    "documentary revision link"
-                )
+                unresolved_decision = _FAILURE_REMAINING["canonical_selection"][2]
                 failures.append(
-                    {
-                        "requirement": "canonical_selection",
-                        "cause": CAUSE_SELECTION,
-                        "detail": ", ".join(reasons),
-                        "unresolved_decision": unresolved_decision,
-                    }
+                    _failure_record(
+                        requirement="canonical_selection",
+                        cause=CAUSE_SELECTION,
+                        remaining=unresolved_decision,
+                        detail=", ".join(reasons),
+                        pages=pages,
+                    )
                 )
         comparison_missing = any(
-            REASON_MISSING_COMPARISON in getattr(by_assessment.get(locator), "unresolved_reasons", ())
+            REASON_MISSING_COMPARISON
+            in getattr(by_assessment.get(locator), "unresolved_reasons", ())
             for locator in locators
         )
         if comparison_missing and group.family == FAMILY_SALES_PER_SQUARE_FOOT:
-            additional = (
-                "a disclosed historical SPSF comparison observation with its "
-                "actual comparison window"
-            )
-            failures.append(
-                {
-                    "requirement": "historical_comparison",
-                    "cause": CAUSE_SOURCE_ABSENCE,
-                    "detail": REASON_MISSING_COMPARISON,
-                    "pages_searched": sorted(set(pages)),
-                    "additional_evidence_needed": additional,
-                }
-            )
+            additional = _FAILURE_REMAINING["missing_comparison"][2]
+            if not any(
+                item["requirement"] == "historical_comparison"
+                and item.get("cause") == CAUSE_SOURCE_ABSENCE
+                for item in failures
+            ):
+                failures.append(
+                    _failure_record(
+                        requirement="historical_comparison",
+                        cause=CAUSE_SOURCE_ABSENCE,
+                        remaining=additional,
+                        detail=REASON_MISSING_COMPARISON,
+                        pages=pages,
+                    )
+                )
             if not primary:
                 primary = CAUSE_SOURCE_ABSENCE
         if not primary and group.status != SELECTION_SELECTED:
             primary = CAUSE_AMBIGUITY
             unresolved_decision = "group remains deferred"
+        level_eligibility = (
+            LEVEL_ADMITTED
+            if level_states and all(state == LEVEL_ADMITTED for state in level_states)
+            else "deferred"
+        )
+        comparison_eligibility = (
+            HISTORICAL_COMPARISON_ELIGIBLE
+            if comparison_states
+            and all(state == HISTORICAL_COMPARISON_ELIGIBLE for state in comparison_states)
+            else "ineligible"
+        )
+        if comparison_eligibility == HISTORICAL_COMPARISON_ELIGIBLE:
+            conflict_failures = [
+                item
+                for item in failures
+                if item["requirement"] in {"calendar", "comparison_window", "definition"}
+            ]
+            if conflict_failures:
+                comparison_eligibility = "ineligible"
+        satisfied = sorted(set(satisfied))
+        if comparison_eligibility != HISTORICAL_COMPARISON_ELIGIBLE:
+            satisfied = [item for item in satisfied if item != "historical_comparison"]
         decisions.append(
             {
                 "family": group.family,
                 "metric_identity": group.metric_identity,
                 "period": group.period,
                 "status": group.status,
+                "canonical_selection": group.status,
+                "level_eligibility": level_eligibility,
+                "comparison_eligibility": comparison_eligibility,
                 "locators": locators,
                 "evidence_consumed": consumed,
-                "requirements_satisfied": sorted(set(satisfied)),
+                "requirements_satisfied": satisfied,
                 "remaining_failures": failures,
                 "cause": primary or CAUSE_SELECTION,
                 "pages_searched": sorted(set(pages)),

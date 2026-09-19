@@ -530,3 +530,161 @@ def test_spsf_level_admission_is_separate_from_comparison(tmp_path: Path):
         for item in compsales_decisions
     )
     assert all(item["status"] == SELECTION_DEFERRED for item in compsales_decisions)
+
+
+def test_spsf_value_passages_require_metric_and_value(tmp_path: Path):
+    dest = _copy_extracted(tmp_path / "spsfval")
+    sidecar = enrich_management_working_copies(dest, SOURCE)
+    by_doc = {item["extraction_document"]: item for item in sidecar["documents"]}
+    fy2024 = next(
+        item
+        for item in by_doc["LULU_FY2024_management_kpis.json"]["fields"]
+        if item["metric_id"] == "sales_per_square_foot" and item["period"] == "2025-02-02"
+    )
+    fy2025 = next(
+        item
+        for item in by_doc["LULU_FY2025_management_kpis.json"]["fields"]
+        if item["metric_id"] == "sales_per_square_foot" and item["period"] == "2026-02-01"
+    )
+    assert "1,574" in fy2024["supporting_passages"]["value"]
+    assert "sales per square foot" in fy2024["supporting_passages"]["value"].lower()
+    assert "2024" in fy2024["supporting_passages"]["value"]
+    assert "1,426" in fy2025["supporting_passages"]["value"]
+    assert "sales per square foot" in fy2025["supporting_passages"]["value"].lower()
+    assert "2025" in fy2025["supporting_passages"]["value"]
+
+
+def test_date_passages_reject_introductory_text(tmp_path: Path):
+    dest = _copy_extracted(tmp_path / "dates")
+    sidecar = enrich_management_working_copies(dest, SOURCE)
+    for document in sidecar["documents"]:
+        for field in document["fields"]:
+            if field["metric_id"] not in {
+                "comparable_sales_growth",
+                "sales_per_square_foot",
+                "comparable_store_sales_growth",
+                "total_comparable_sales_growth",
+            }:
+                continue
+            dates = (field.get("supporting_passages") or {}).get("dates", "")
+            if not dates:
+                continue
+            lowered = dates.lower()
+            assert "components of management" not in lowered
+            assert "components of this md" not in lowered
+            assert "social impact" not in lowered
+            assert "we have contributed" not in lowered
+            assert (
+                "fiscal year ended" in lowered
+                or "weeks ended" in lowered
+                or "number of company-operated stores" in lowered
+            )
+            assert not (
+                "sunday closest to january 31" in lowered
+                and "weeks ended" not in lowered
+                and "fiscal year ended" not in lowered
+            )
+
+
+def test_unrelated_numeric_matches_are_rejected(tmp_path: Path):
+    dest = _copy_extracted(tmp_path / "needles")
+    sidecar = enrich_management_working_copies(dest, SOURCE)
+    fy2024 = next(
+        item
+        for item in sidecar["documents"]
+        if item["extraction_document"] == "LULU_FY2024_management_kpis.json"
+    )
+    company = next(
+        item
+        for item in fy2024["fields"]
+        if item["metric_id"] == "comparable_sales_growth"
+        and item["period"] == "2025-02-02"
+    )
+    value = company["supporting_passages"]["value"]
+    assert "comparable sales" in value.lower()
+    assert "4%" in value or "increased 4" in value.lower()
+    assert "september 2024" not in value.lower()
+    assert "supply partner" not in value.lower()
+    fy2025 = next(
+        item
+        for item in sidecar["documents"]
+        if item["extraction_document"] == "LULU_FY2025_management_kpis.json"
+    )
+    company_2025 = next(
+        item
+        for item in fy2025["fields"]
+        if item["metric_id"] == "comparable_sales_growth"
+        and item["period"] == "2026-02-01"
+    )
+    value_2025 = (company_2025.get("supporting_passages") or {}).get("value", "")
+    assert "repurchase" not in value_2025.lower()
+    assert "1.2 billion" not in value_2025.lower()
+
+
+def test_prior_period_spsf_become_occurrences(tmp_path: Path):
+    payload = _enriched_admission(tmp_path)
+    fy2023_priors = [
+        item
+        for item in payload["observations"]
+        if item["metric_id"] == "sales_per_square_foot"
+        and item["extraction_document"] == "LULU_FY2023_management_kpis.json"
+        and item["presentation_role"] == "prior"
+    ]
+    assert fy2023_priors
+    assert any(item["value"] == 1580 and item["period"] == "2023-01-29" for item in fy2023_priors)
+    assert all(item.get("revision") in (None, {}) for item in fy2023_priors)
+    assert all(item["assurance"] == "unknown" for item in fy2023_priors)
+    fy2024_priors = [
+        item
+        for item in payload["observations"]
+        if item["metric_id"] == "sales_per_square_foot"
+        and item["extraction_document"] == "LULU_FY2024_management_kpis.json"
+        and item["presentation_role"] == "prior"
+    ]
+    assert any(item["value"] == 1609 and item["period"] == "2024-01-28" for item in fy2024_priors)
+
+
+def test_group_decisions_report_all_failures(tmp_path: Path):
+    payload = _enriched_admission(tmp_path)
+    decisions = payload["group_decisions"]
+    assert decisions
+    for item in decisions:
+        requirements = {failure["requirement"] for failure in item["remaining_failures"]}
+        assert "canonical_selection" in requirements
+        if item["family"] == FAMILY_SALES_PER_SQUARE_FOOT:
+            assert "historical_comparison" in requirements
+        if any(
+            reason in item["selection_reasons"]
+            for reason in ("singleton", "missing_revision_link", "unknown_assurance")
+        ):
+            assert item["canonical_selection"] == SELECTION_DEFERRED
+            assert item["status"] == SELECTION_DEFERRED
+        if item["comparison_eligibility"] == "eligible":
+            assert not any(
+                failure["requirement"] in {"calendar", "comparison_window"}
+                for failure in item["remaining_failures"]
+            )
+        if item["level_eligibility"] == "admitted":
+            assert item["canonical_selection"] == SELECTION_DEFERRED
+
+
+def test_historical_comparison_ineligible_when_window_conflicts(tmp_path: Path):
+    payload = _enriched_admission(tmp_path)
+    fy2024 = [
+        item
+        for item in payload["assessments"]["items"]
+        if item["family"] == FAMILY_COMPARABLE_SALES_GROWTH
+        and item["status"] == "supported"
+        and item["evidence"]["period"] == "2025-02-02"
+        and item["metric_identity_fields"].get("geography") == "global"
+        and item["metric_identity_fields"].get("basis") == "reported"
+        and item["metric_identity_fields"].get("population")
+        == "company_operated_stores_and_ecommerce"
+    ]
+    assert fy2024
+    for item in fy2024:
+        assert "comparison_window_mismatch" in item["unresolved_reasons"] or (
+            "calendar_mismatch" in item["unresolved_reasons"]
+        )
+        assert item["historical_comparison"] == "ineligible"
+        assert item["level_admission"] == "admitted"

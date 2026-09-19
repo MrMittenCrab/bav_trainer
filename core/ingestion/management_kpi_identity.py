@@ -63,6 +63,9 @@ _EVIDENCED_FIELDS = (
     ("qualifiers_other", "qualifier_mismatch"),
     ("comparison_window", "comparison_window_mismatch"),
 )
+COMPARISON_CONFLICT_REASONS = frozenset(
+    reason for _key, reason in _EVIDENCED_FIELDS
+)
 
 POP_STORES_AND_ECOMMERCE = "company_operated_stores_and_ecommerce"
 POP_STORES_AND_DTC = "company_operated_stores_and_direct_to_consumer"
@@ -569,11 +572,7 @@ def assess_reported_observations(
             if status == STATUS_SUPPORTED and not level_reasons
             else LEVEL_DEFERRED
         )
-        historical_comparison = (
-            HISTORICAL_COMPARISON_ELIGIBLE
-            if status == STATUS_SUPPORTED and not required_comparison_reasons(evidence)
-            else HISTORICAL_COMPARISON_INELIGIBLE
-        )
+        historical_comparison = HISTORICAL_COMPARISON_INELIGIBLE
         classified.append(
             {
                 "observation": observation,
@@ -679,6 +678,38 @@ def assess_reported_observations(
                 definition_equivalence = "different"
             else:
                 definition_equivalence = "unresolved"
+        if not definition_equivalence and status == STATUS_SUPPORTED and item["definition_text"]:
+            family_statuses = [
+                assess_definition_equivalence(
+                    item["definition_text"], peer["definition_text"]
+                )
+                for peer in classified
+                if peer is not item
+                and peer["status"] == STATUS_SUPPORTED
+                and peer["family"] == item["family"]
+                and peer["definition_text"]
+            ]
+            if family_statuses:
+                if all(item_status == "equivalent" for item_status in family_statuses):
+                    definition_equivalence = "equivalent"
+                elif any(item_status == "different" for item_status in family_statuses):
+                    definition_equivalence = "different"
+                else:
+                    definition_equivalence = "unresolved"
+        comparison_blocked = any(
+            reason in unresolved
+            for reason in (
+                *REQUIRED_COMPARISON_REASONS,
+                *PEER_COMPARISON_REASONS,
+                *COMPARISON_CONFLICT_REASONS,
+                REASON_NO_DISTINCT_PEER,
+            )
+        )
+        historical_comparison = (
+            HISTORICAL_COMPARISON_ELIGIBLE
+            if status == STATUS_SUPPORTED and not comparison_blocked
+            else HISTORICAL_COMPARISON_INELIGIBLE
+        )
         ordered_assessments.append(
             (
                 item["filing_year"],
@@ -700,7 +731,7 @@ def assess_reported_observations(
                     unresolved_reasons=tuple(unresolved),
                     peer_locators=peer_locators,
                     level_admission=item.get("level_admission", ""),
-                    historical_comparison=item.get("historical_comparison", ""),
+                    historical_comparison=historical_comparison,
                     definition_equivalence=definition_equivalence,
                 ),
             )
