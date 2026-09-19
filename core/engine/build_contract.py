@@ -174,6 +174,9 @@ COMPARABLE_SALES = _writer(
 SALES_PER_SQUARE_FOOT = _writer(
     "_build_sales_per_square_foot", 13, when="sales_per_square_foot_schedule"
 )
+REVENUE_PER_STORE = _writer(
+    "_build_revenue_per_store", 14, when="revenue_per_store_schedule"
+)
 
 
 def _integrated(id: str, writers: tuple[WorkbookWriter, ...], *,
@@ -218,7 +221,7 @@ BUILD_MODULES = (
     )),
     _integrated(
         "operating_kpi",
-        (OPERATING_KPI, COMPARABLE_SALES, SALES_PER_SQUARE_FOOT),
+        (OPERATING_KPI, COMPARABLE_SALES, SALES_PER_SQUARE_FOOT, REVENUE_PER_STORE),
         spec_key=lambda s: (
             s.family_id, s.period_index, operating_kpi_spec_identity(s),
         ),

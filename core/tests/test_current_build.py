@@ -53,6 +53,7 @@ def test_company_build_rebuild_failure_and_workbook_contract(tmp_path, monkeypat
     assert 'geographic_operating_profit_growth_contribution' in families
     assert 'store_count_source' in families
     assert 'store_count_growth' in families
+    assert 'revenue_per_store_period_end' in families
     assert not any('comparable_sales' in f or 'square_foot' in f for f in families)
     assert (company.output / 'supporting/provenance.json').is_file()
     assert company.bav.is_file()
@@ -63,6 +64,10 @@ def test_company_build_rebuild_failure_and_workbook_contract(tmp_path, monkeypat
     assert 'Trainer' not in wb.sheetnames
     rows = list(wb['Build Status'].values)
     assert any('Comparable Sales' in str(row) and 'Source unavailable / not admitted' in str(row) for row in rows)
+    rps_rows = [row for row in rows if 'Revenue per Store Analysis' in str(row)]
+    assert len(rps_rows) == 1
+    assert 'Active / available' in str(rps_rows[0]) and rps_rows[0][3] == 17
+    assert any('Sales per Square Foot' in str(row) and 'Source unavailable / not admitted' in str(row) for row in rows)
     opening = ' '.join(
         str(cell.value or '')
         for row in wb['Overview'].iter_rows(max_row=12, max_col=4)
@@ -177,7 +182,7 @@ def test_current_status_uses_emitted_families():
     assert rows['Store-count history']['status'] == ACTIVE
     assert rows['Store-count growth']['status'] == UNAVAILABLE
     assert rows['Comparable Sales Analysis']['status'] == UNAVAILABLE
-    assert rows['Revenue per store ratio']['status'] == INACTIVE
+    assert rows['Revenue per Store Analysis']['status'] == UNAVAILABLE
 
 
 def test_superseded_legacy_names_removed_only_after_success(tmp_path, monkeypatch):

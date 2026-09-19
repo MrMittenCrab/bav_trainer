@@ -19,6 +19,11 @@ from ..engine.component_catalog import (
     SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG,
     SALES_PER_SQUARE_FOOT_DIFFERENCE_FAMILY_ID,
     SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
+    REVENUE_PER_STORE_AVERAGE_FAMILY_ID,
+    REVENUE_PER_STORE_CHANGE_FAMILY_ID,
+    REVENUE_PER_STORE_COMPONENT_CATALOG,
+    REVENUE_PER_STORE_GROWTH_FAMILY_ID,
+    REVENUE_PER_STORE_PERIOD_END_FAMILY_ID,
     comparable_sales_identity_from_component,
     INVENTORY_ANALYSIS_COMPONENT_CATALOG,
     REPORTED_MARGIN_COMPONENT_CATALOG,
@@ -63,6 +68,7 @@ from .operating_kpi_relationships import (
     OperatingKpiRevenueSalesPerSquareFootRelationship,
     OperatingKpiRevenueStoreRelationship,
 )
+from .revenue_per_store import RevenuePerStoreSeries
 from .goodwill_intangibles import (
     GoodwillIntangiblesAvailability,
     GoodwillIntangiblesSeries,
@@ -309,6 +315,10 @@ _OPERATING_KPI_FAMILY_SERIES = (
     SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID,
     SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
     SALES_PER_SQUARE_FOOT_DIFFERENCE_FAMILY_ID,
+    REVENUE_PER_STORE_PERIOD_END_FAMILY_ID,
+    REVENUE_PER_STORE_AVERAGE_FAMILY_ID,
+    REVENUE_PER_STORE_CHANGE_FAMILY_ID,
+    REVENUE_PER_STORE_GROWTH_FAMILY_ID,
 )
 
 _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
@@ -1161,10 +1171,12 @@ def operating_kpi_expected_value_for_component(
         OperatingKpiRevenueSalesPerSquareFootRelationship | None
     ) = None,
     management_kpi: ManagementKpiSeries | None = None,
+    revenue_per_store: RevenuePerStoreSeries | None = None,
 ) -> float | str | None:
     """Look up one store-count, revenue/store, or management-KPI expected."""
     store_ids = {family.id for family in STORE_COUNT_COMPONENT_CATALOG}
     relationship_ids = {family.id for family in REVENUE_STORE_COMPONENT_CATALOG}
+    rps_ids = {family.id for family in REVENUE_PER_STORE_COMPONENT_CATALOG}
     compsales_ids = {family.id for family in COMPARABLE_SALES_COMPONENT_CATALOG}
     spsf_management_ids = {
         SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID,
@@ -1249,6 +1261,21 @@ def operating_kpi_expected_value_for_component(
                     "OperatingKpiRevenueStoreRelationship"
                 )
             return operating_kpi_relationship.growth_difference_pp[period]
+        raise ValueError(f"Unknown operating KPI family {component.family_id!r}")
+    if component.family_id in rps_ids:
+        if revenue_per_store is None:
+            raise ValueError(
+                f"Operating-KPI family {component.family_id!r} requires a "
+                "RevenuePerStoreSeries"
+            )
+        if component.family_id == REVENUE_PER_STORE_PERIOD_END_FAMILY_ID:
+            return revenue_per_store.period_end_revenue_per_store[period]
+        if component.family_id == REVENUE_PER_STORE_AVERAGE_FAMILY_ID:
+            return revenue_per_store.average_store_revenue_per_store[period]
+        if component.family_id == REVENUE_PER_STORE_CHANGE_FAMILY_ID:
+            return revenue_per_store.period_end_change[period]
+        if component.family_id == REVENUE_PER_STORE_GROWTH_FAMILY_ID:
+            return revenue_per_store.period_end_growth[period]
         raise ValueError(f"Unknown operating KPI family {component.family_id!r}")
     if component.family_id not in store_ids:
         raise ValueError(
@@ -1395,6 +1422,7 @@ def expected_value_for_component(
         OperatingKpiRevenueSalesPerSquareFootRelationship | None
     ) = None,
     management_kpi: ManagementKpiSeries | None = None,
+    revenue_per_store: RevenuePerStoreSeries | None = None,
 ) -> float | str | None:
     """Return the treatment-conditioned expected value for one practice component."""
     family_id = component.family_id
@@ -1523,6 +1551,7 @@ def expected_value_for_component(
     elif family_id in _OPERATING_KPI_FAMILY_SERIES:
         compsales_ids = {family.id for family in COMPARABLE_SALES_COMPONENT_CATALOG}
         relationship_ids = {family.id for family in REVENUE_STORE_COMPONENT_CATALOG}
+        rps_ids = {family.id for family in REVENUE_PER_STORE_COMPONENT_CATALOG}
         spsf_management_ids = {
             SALES_PER_SQUARE_FOOT_CHANGE_FAMILY_ID,
             SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
@@ -1589,6 +1618,17 @@ def expected_value_for_component(
                     operating_kpi_compsales_relationship
                 ),
                 operating_kpi_spsf_relationship=operating_kpi_spsf_relationship,
+            )
+        if family_id in rps_ids:
+            if revenue_per_store is None:
+                raise ValueError(
+                    f"Operating-KPI family {family_id!r} requires a "
+                    "RevenuePerStoreSeries"
+                )
+            return operating_kpi_expected_value_for_component(
+                operating_kpi,
+                component,
+                revenue_per_store=revenue_per_store,
             )
         if operating_kpi is None:
             raise ValueError(

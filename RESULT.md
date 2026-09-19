@@ -1,35 +1,83 @@
-# RESULT.md — Step 3.1.1 Make the professional BAV workbook the default build product
+# RESULT.md — Step 3.2 Complete real-source Lululemon KPI production acceptance
 
 **Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
-**Step:** 3.1.1 — Make the professional BAV workbook the default build product  
-**Work:** `381ee7bd9415433291c296292be312a6`  
-**Plan:** `edcdd462269247a9a8d852e33a9086d0`  
-**Finding:** Make the professional BAV workbook the default build product  
+**Step:** 3.2 — Complete real-source Lululemon KPI production acceptance  
+**Work:** `6743e8167c864555b33c54efb3c41328`  
+**Plan:** `ad722ab097464605aea2eb97d0d0f911`  
+**Finding:** Complete real-source Lululemon KPI production acceptance  
 
 `TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
 TARGET SHA-256 `28089b961e72b3058d043efb9008e42c7b144d15cc3e3e2837174acb2f5eaf70` (26043).  
 SESSION SHA-256 `b37e5b0348b8d6f2210a51f8307511842fcc862ede5059c7ca76687bb4bad4aa` (4944).  
-IMPLEMENTATION SHA-256 `3a869f7d3b75a48379fb38df090ee0bb4f58f8e47e7e5761473c8bcfffe40a72` (5274).  
-No commit / push / sync / checkpoint / branch change.  
-Spreadsheet recalculation was **not** performed. Visible schedule wording, Notes and Trainer-sidecar cleanup were changed; analytical formulas, references and Check identities were not. Verification used formula-string inspection, semantic-map identity, sidecar reload, wording scans and Check fill-state. That is **not** Excel recalculation.
-
-This step does **not** certify KPI production acceptance or the Session Endpoint. Comparable Sales and SPSF remain `Source unavailable / not admitted`. Revenue per store ratio remains `Implementation / family not active`.
+IMPLEMENTATION SHA-256 `3b0dec7a45f97592c8a919dba35aedc98e3af40cfae9b2a0ef55ad58c83d765d` (6020).  
+No commit / push / sync / checkpoint / branch change.
 
 ## Required plan change
 
 No required plan change.
 
-## Product repairs (generic)
+## Source-admission decisions (Comparable Sales / SPSF)
 
-- Removed remaining exercise-oriented wording from visible BAV schedules and analytical Notes, including `Per Share Analysis!A2`, Geographic / Store Count / Comparable Sales / SPSF opening-period notes, inventory Notes, KPI source Notes, and learner-Check language on Accounting / Normalization Judgment. Substantive source-fact, unavailable-comparison, period-alignment and residual-limitation language is retained.
-- `remove_trainer_sidecars` and `build_training_workbook` cleanup now skip the resolved primary `*_BAV.xlsx`. Stale Trainer-only `.component_map.json`, `.assumptions.json` and `.trainer.json` sidecars are still removed. The paired `(trainer_path, bav_path)` contract is unchanged.
-- Deriving a Trainer still copies the finalized BAV and does not rewrite primary BAV sidecars.
+Ordinary supplied extracts were inspected through extraction → validation → reconciliation → model admission. Values exist in the extracts. Fail-closed admission did **not** select them. This is missing documentary evidence, not an extraction/admission code defect. Protected extracts were not rewritten.
+
+Documents searched (working copies only; `benchmark/lululemon/extracted/` left unchanged):
+
+| Document | Source PDF | Focus observations found |
+|---|---|---|
+| `LULU_FY2022_management_kpis.json` | `LULU_FY2022_Annual_Report.pdf` | Comparable store sales 16% reported / 19% constant-dollar; total comparable sales 25% / 28%; SPSF 1580. Sections: Item 7 p.27; Item 1 p.3 |
+| `LULU_FY2023_management_kpis.json` | `LULU_FY2023_Annual_Report.pdf` | Regional comparable sales (company / Americas / China Mainland / Rest of World); SPSF 1609 on Item 1 p.4. No company-operated comparable-*store* sales metric |
+| `LULU_FY2024_management_kpis.json` | `LULU_FY2024_Annual_Report.pdf` | Regional comparable sales; SPSF 1574 on Item 1 p.4. FY2024 noted as 53 weeks |
+| `LULU_FY2025_management_kpis.json` | `LULU_FY2025_Annual_Report.pdf` | Regional comparable sales; SPSF 1426 on Item 1 p.4. FY2025 52 weeks vs FY2024 53 weeks |
+| `LULU_FY2022.json` … `LULU_FY2025.json` | matching annual reports | Statement/segment extracts; not CompSales/SPSF admission sources |
+
+Also searched page-reference strings present on those management extracts: Form 10-K pp. 2–5, 27–28, 30–34 and Annual Report pp. 2–3.
+
+Admission payload (`admit_periods=(2022-01-30,)`):
+
+| Measurement | Result |
+|---|---|
+| Status | `admitted_unreconciled` |
+| Canonical selection | `deferred` (`deferred_canonical_selection`: later-audited selection remains deferred) |
+| Documents / reported observations | 4 / 135 |
+| Group selection | selected **0**, deferred **28** |
+| Focus CompSales + SPSF assessments | **28** (24 comparable_sales_growth, 4 sales_per_square_foot) |
+| Management observations handed to StandardizedFinancials | **0** |
+| History handoff | `0 evidenced selected occurrence(s)`; 28 deferred groups remain audit-only |
+
+Exact unmet requirements on all 28 focus items:
+
+- `period_date`: period is an FY label (`FY2022`…`FY2025`), `period_kind=fiscal_year_label`, not an ISO period-end date.
+- `calendar_week_adjustment`: empty on 27/28; only FY2024 company `comparable_sales_growth` records `excluded`.
+- Presentation / assurance / revision evidence: all `None`.
+- Resolved physical page / page: all `None` (extract `page_reference` text is not admitted occurrence evidence).
+- CompSales peers: `definition_mismatch`, `calendar_reporting_mismatch`, `peer_period_date`, `peer_calendar_week_adjustment` (FY labels, year-specific definition IDs, channel vs regional reporting basis, 52/53-week mix).
+- SPSF: those peer gaps plus `missing_comparison` / `peer_missing_comparison`.
+
+Additional evidence required before admission: ISO period-end dates; calendar-week adjustment for each 52/53-week pair; presentation/assurance/revision sufficient for later-audited canonical selection; resolved physical page; definition-id and reporting-basis alignment across peer years; SPSF comparison linkage. FY labels were not invented and unreconciled observations were not auto-promoted.
+
+Comparable Sales Analysis and Sales per Square Foot Analysis remain explicit unavailable identities (no sheets emitted; Build Status / CLI `Source unavailable / not admitted`).
+
+## Revenue per Store (supported)
+
+Generic historical Revenue per Store uses admitted consolidated revenue and company-operated period-end store history. Period-end and average-store denominators are distinct and are never substituted. Opening average / change / growth stay unavailable. A missing input stays unavailable; a zero denominator is undefined. Total-company revenue divided by company-operated stores includes revenue outside those stores and is not store-only productivity, SPSF, or comparable sales.
+
+Independent reconciliation vs `REVENUE_ANCHORS` (USD thousands) and `INDEPENDENT_STORE_TOTALS` (574 / 655 / 711 / 767 / 811):
+
+| Period | Period-end RPS | Average-store RPS | Adjacent change | Adjacent growth |
+|---|---:|---:|---:|---:|
+| 2022-01-30 | 10900.029616724738 | unavailable | unavailable | unavailable |
+| 2023-01-29 | 12382.470229007633 | 13198.564686737185 | 1482.440612282895 | 0.1360033563586171 |
+| 2024-01-28 | 13529.223628691983 | 14083.862371888727 | 1146.7533996843504 | 0.09261103628562929 |
+| 2025-02-02 | 13804.597131681878 | 14327.6400541272 | 275.3735029898944 | 0.020353976735656764 |
+| 2026-02-01 | 13690.012330456228 | 14071.736375158429 | −114.58480122565015 | −0.008300481363753479 |
+
+Series, standardized reload, and Excel-recalculated cells all match these anchors (tolerance 1e-8). Monetary scale remains `USD in Thousands` (USD). Count units stay independent of monetary scale.
+
+Hardcoded inactive “Revenue per store ratio” in `core/build_status.py` is gone. Availability is evidence-based on emitted `revenue_per_store_*` families. The schedule is listed once under Operating KPIs.
 
 ## Ordinary source-bound Lululemon build
 
 Interpreter: `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**.
-
-Command:
 
 ```bash
 python -m bav build Lululemon
@@ -39,13 +87,15 @@ python -m bav build Lululemon
 |---|---|
 | Exit | **0** |
 | Output directory | `build/output/Lululemon/` |
-| Primary workbook | `Lululemon_BAV.xlsx` (186448 bytes) |
-| Trainer generated by ordinary build | **No** (`Lululemon_BAV_Trainer.xlsx` absent after the command) |
+| Primary workbook | `Lululemon_BAV.xlsx` (192536 bytes) |
+| Trainer generated by ordinary build | **No** |
 | Sidecars | `Lululemon_BAV.component_map.json`, `Lululemon_BAV.assumptions.json`, `rowmap.json`, `build_status.json` |
-| Supporting audit | `supporting/standardized.json`, `provenance.json` present |
-| CLI product line | `BAV: Lululemon_BAV.xlsx` (no Trainer / Answer Key line) |
+| Supporting audit | `supporting/standardized.json`, `provenance.json`, `management_kpi_admission.json` present |
+| CLI product line | `BAV: Lululemon_BAV.xlsx` |
+| CLI Active | Condensed Financials, ALT DuPont, Earnings Quality, Working Capital Analysis, Per Share Analysis, Geographic Segment Analysis, Store Count Analysis, **Revenue per Store Analysis** |
+| CLI Unavailable | Comparable Sales Analysis — Source unavailable / not admitted; Sales per Square Foot Analysis — Source unavailable / not admitted |
 
-Measured Build Status (from the published BAV sheet and CLI):
+Build Status (published sheet; one Revenue per Store Analysis row):
 
 | Area | Family / module | Status | Mapped cells |
 |---|---|---|---:|
@@ -54,39 +104,29 @@ Measured Build Status (from the published BAV sheet and CLI):
 | Historical analysis | Earnings Quality | Active / available | 53 |
 | Historical analysis | Working Capital Analysis | Active / available | 47 |
 | Historical analysis | Per Share Analysis | Active / available | 29 |
-| Geographic Analysis | Revenue mix | Active / available | 15 |
-| Geographic Analysis | Revenue growth contribution | Active / available | 12 |
-| Geographic Analysis | Margin bridge | Active / available | 15 |
-| Geographic Analysis | Operating-profit amount bridge | Active / available | 12 |
-| Geographic Analysis | Revenue/margin effects | Active / available | 24 |
-| Geographic Analysis | Incremental margin | Active / available | 12 |
-| Geographic Analysis | Operating-profit growth contribution | Active / available | 12 |
-| Operating KPIs | Store-count history | Active / available | 5 |
-| Operating KPIs | Store-count change | Active / available | 4 |
-| Operating KPIs | Store-count growth | Active / available | 4 |
+| Geographic Analysis | (seven families) | Active / available | 102 |
+| Operating KPIs | Store-count history / change / growth | Active / available | 5 / 4 / 4 |
 | Operating KPIs | Revenue/store growth comparison | Active / available | 4 |
 | Operating KPIs | Comparable Sales Analysis | Source unavailable / not admitted | 0 |
 | Operating KPIs | Sales per Square Foot Analysis | Source unavailable / not admitted | 0 |
-| Operating KPIs | Revenue per store ratio | Implementation / family not active | 0 |
-
-Active tabs reported by CLI: Condensed Financials, ALT DuPont, Earnings Quality, Working Capital Analysis, Per Share Analysis, Geographic Segment Analysis, Store Count Analysis.
+| Operating KPIs | Revenue per Store Analysis | Active / available | 17 |
 
 ## BAV-only verification (Trainer unused)
 
-After the ordinary build, before any Trainer derivation:
+After the ordinary build, before Trainer derivation:
 
-- Workbook sheets include `Overview` and `Build Status`; no `Trainer` sheet.
-- Overview identifies company (`lululemon athletica inc. (LULU)`), historical coverage (`FY2022 – FY2026 (5 periods)`), units (`USD; USD in Thousands`), analytical structure, source basis and availability limitations.
+- Sheets include `Overview`, `Build Status`, `Revenue per Store Analysis`; no `Trainer` sheet; no Comparable Sales / SPSF sheets.
+- Overview identifies `lululemon athletica inc. (LULU)`, FY2022–FY2026 (5 periods), `USD; USD in Thousands`.
 - Visible BAV cells and Notes contain none of: Trainer, Answer Key, exercise, practice, Formula Check, ungraded, learner.
-- `Per Share Analysis!A2` identifies supplied diluted share counts as source inputs and does not mention practice cells.
-- Semantic components **776**; sidecar reload equals `load_semantic_map`.
-- Non-source practice identities **766/766** formulas match the semantic map and have non-empty Notes.
+- Semantic components **793**; sidecar `components` **793**; embedded `_ComponentMap` rows **793**.
+- Non-source practice identities **783/783** formulas match the semantic map and have non-empty Notes.
 - Supplied KPI source facts **10/10** populated.
 - Yellow fill count on the BAV: **0**.
-- Standardized payload reloads: company `lululemon athletica inc.`, ticker `LULU`, `USD`, `USD in Thousands`, 5 periods, 16 income-statement concepts retained.
+- Standardized payload reloads: company `lululemon athletica inc.`, ticker `LULU`, `USD`, `USD in Thousands`, 5 periods. `revenue_per_store_applicable` is true.
+- Revenue per Store Notes include period-end vs average-store labels, opening-unavailable language, and the accepted scope note.
 
-BAV SHA-256 after the ordinary rebuild used for derivation: `51406dda20b2a26a8ec93dccd0c61279a5ade98cf72625380547b1971b582828` (186448).  
-Component-map SHA-256: `bc3f47517708b63864f30b39696fef30081c603080a04f67fd6cff4217194e4e` (1067680).  
+BAV SHA-256 after the ordinary rebuild used for derivation: `0020691a3edaee24d7c957fe2b8c307aa2ebdda57f9cd8b05aaba8b664701b9f` (192536).  
+Component-map SHA-256: `3384ff9ec9944f7c209dc1f3541ef91e8a6293db24e5a30f9ada8f0121acfc63` (1094906).  
 Assumptions SHA-256: `73fbb33f222a978828042ebde1fbbc3cd285c40efda6be5217c2cfbae1fda21a` (69).
 
 ## Explicit Trainer derivation from the same model
@@ -95,25 +135,33 @@ Assumptions SHA-256: `73fbb33f222a978828042ebde1fbbc3cd285c40efda6be5217c2cfbae1
 
 | Measurement | Result |
 |---|---|
-| Derived path | `build/output/Lululemon/Lululemon_BAV_Trainer.xlsx` (46167) |
-| BAV SHA-256 after derivation | unchanged `51406dda20b2a26a8ec93dccd0c61279a5ade98cf72625380547b1971b582828` |
+| Derived path | `build/output/Lululemon/Lululemon_BAV_Trainer.xlsx` (47636) |
+| BAV SHA-256 after derivation | unchanged |
 | Component-map SHA-256 | unchanged |
 | Assumptions SHA-256 | unchanged |
 | Trainer-only sidecars | none (`Lululemon_BAV_Trainer*` is only the xlsx) |
-| Active practice cells | **766** blank, **766** bright yellow, **0** comments/hints |
+| Active practice cells | **783** blank, **783** bright yellow, **0** comments/hints |
 | KPI sources on Trainer | **10** still populated |
-| Check | total **766**, correct **0**, incorrect **0**, blank **766** |
+| Check blank | total **783**, correct **0**, incorrect **0**, blank **783** |
+| Check correctly completed | total **783**, correct **783**, incorrect **0**, blank **0** |
+| Check one incorrect RPS practice | total **783**, correct **782**, incorrect **1**, blank **0** |
 
-Check resolved against the matching `Lululemon_BAV.xlsx`.
+Check summaries did not disclose formulas, component ids, or hints. Check resolved against the matching `Lululemon_BAV.xlsx`.
 
-## Paired-output sidecar contract
+## Excel recalculation
 
-`build_training_workbook` with requested names `Acme_BAV.xlsx`, `Acme_BAV_Trainer.xlsx`, `Acme_Trainer.xlsx` and `Acme.xlsx`:
+Microsoft Excel.app was available. A copy of the published BAV was opened, calculated twice, saved, and closed. The official published BAV hash was not replaced.
 
-- always published `Acme_BAV.xlsx` + `Acme_BAV_Trainer.xlsx`;
-- primary `Acme_BAV.component_map.json` and `Acme_BAV.assumptions.json` survived, reloaded, matched the embedded map after hiding the sidecar, and remained usable for Check;
-- Trainer-only answer-bearing sidecars were absent;
-- `remove_trainer_sidecars(Acme_BAV.xlsx)` left primary sidecars untouched.
+| Measurement | Result |
+|---|---|
+| Command | `osascript` → Microsoft Excel `open` / `calculate` / `save` / `close` on `/tmp/lulu-rps-excel.HOjvNI/Lululemon_BAV_recalc.xlsx` |
+| Exit | **0** |
+| Recalc file | 224953 bytes; SHA-256 `836076eaffdd468ca1f2d7b2f9e6efb1c97eefbfba9ebf6f9f6fa763d7f242ec` |
+| Formula strings vs published BAV | **984** unchanged, **0** diffs |
+| Period-end / average / change / growth vs independent anchors | **all match** |
+| Store-count and revenue source cells | 574–811 and 6256617–11102600 match anchors |
+| Excel error values on RPS cells | **none** |
+| Official BAV hash after Excel | unchanged `0020691a3edaee24d7c957fe2b8c307aa2ebdda57f9cd8b05aaba8b664701b9f` |
 
 ## Regressions
 
@@ -121,21 +169,21 @@ Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**.
 
 | Suite | Result |
 |---|---|
-| `core/tests/test_trainer.py` `test_build_cli.py` `test_build_contract.py` `test_learner_ready_presentation.py` | **120 passed** |
-| `core/tests/test_current_build.py` `test_historical_v1_exit_gate.py` `test_source_availability.py` `test_normalization.py` `test_earnings_quality.py` `test_reference_integrity.py` `test_cross_company_robustness.py` | **191 passed** |
-| `core/tests/test_geographic_segment_workbook.py` `test_geographic_segment_analysis.py` `test_operating_kpi_workbook.py` `test_fast_retailing_benchmark.py` `test_lululemon_benchmark.py` | **399 passed** |
-| `test_normalization_candidate_admission.py::test_protected_artifacts_and_eight_extracts_unchanged` plus `test_operating_kpi_analysis.py` `test_operating_kpi_relationships.py` | **47 passed** (includes **50/50** protected artifacts and **8/8** extracts vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151`) |
+| `core/tests/test_revenue_per_store.py` | **6 passed** (catalog/formulas, inapplicable payloads, missing/zero inputs, no denominator substitution, Lululemon independent anchors, Build Status once/17 cells) |
+| `core/tests/test_current_build.py` `test_normalization_candidate_admission.py::test_protected_artifacts_and_eight_extracts_unchanged` plus RPS | **20 passed** (includes **50/50** protected artifacts and **8/8** extracts vs `5e3ef5cfdbfebcf5871dd7e75fad81654d669151`) |
+| `test_operating_kpi_workbook.py` `test_operating_kpi_analysis.py` `test_operating_kpi_relationships.py` `test_operating_kpi_facts.py` | **179 passed** |
+| `test_lululemon_benchmark.py` `test_fast_retailing_benchmark.py` `test_trainer.py` `test_build_cli.py` `test_build_contract.py` | **442 passed** |
+| `test_management_kpi_admission.py` `test_management_kpi_reconciliation.py` `test_management_kpi_history.py` `test_management_kpi_identity.py` `test_management_kpi_analysis.py` `test_operating_kpi_management_history.py` | **1438 passed** |
+| `test_management_kpi_history.py` `test_source_availability.py` `test_operating_kpi_facts.py` `test_operating_kpi_workbook.py` `test_operating_kpi_analysis.py` `test_operating_kpi_relationships.py` | **247 passed** |
 
-New wording regressions cover catalog Notes, canonical/share-enabled Per Share Analysis, Geographic Segment Analysis, Store Count Analysis, Comparable Sales Analysis and Sales per Square Foot Analysis.
-
-New current-build outputs were not used to replace protected benchmarks. Release Fast Retailing / Lululemon `*_Trainer.xlsx` / `*_Answer_Key.xlsx` names remain the committed release pair.
+Fast Retailing practice count remains **577** (no store history → Revenue per Store stays inapplicable). New current-build outputs were not used to replace protected benchmarks or the eight source extracts.
 
 ## Remaining defects / unavailable verification
 
-- Comparable Sales Analysis and Sales per Square Foot Analysis remain unavailable / not admitted on the ordinary Lululemon build. Revenue per store ratio remains inactive. This step does not close those SESSION Priority items.
-- Excel recalculation was not run. No analytical formula or cross-sheet reference on existing schedules was changed; only presentation wording, Notes and Trainer-sidecar cleanup were. Recalculation remains available for later KPI acceptance work.
-- Committed `example/` and `release/` pairs still use the former Trainer / Answer Key filenames. That is retained protected baseline, not a current-build product.
+- Comparable Sales Analysis and Sales per Square Foot Analysis remain unavailable / not admitted on the ordinary Lululemon build. Required additional evidence is listed above. Revenue per Store is Active for the five supported periods.
+- Disclosure-led historical driver testing and evidence-backed strategy interpretation remain subsequent Session work.
+- Earlier normalization, broader source-workflow, normalized-per-share and other deferred real-company acceptance commitments remain deferred with their ledger evidence.
 
 ## Next priority (not started)
 
-Real Lululemon Comparable Sales, SPSF and Revenue per Store production acceptance as specified in SESSION.md.
+Not started. This bounded attempt does not begin the next implementation step.

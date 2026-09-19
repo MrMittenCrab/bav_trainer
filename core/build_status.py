@@ -21,6 +21,12 @@ GROUPS = (
     ('Operating KPIs', 'Revenue/store growth comparison', ('operating_kpi_revenue_store_growth_difference',)),
     ('Operating KPIs', 'Comparable Sales Analysis', ('operating_kpi_comparable_sales_source',)),
     ('Operating KPIs', 'Sales per Square Foot Analysis', ('operating_kpi_sales_per_square_foot_source',)),
+    ('Operating KPIs', 'Revenue per Store Analysis', (
+        'revenue_per_store_period_end',
+        'revenue_per_store_average',
+        'revenue_per_store_change',
+        'revenue_per_store_growth',
+    )),
 )
 
 
@@ -30,7 +36,7 @@ def status_rows(smap):
     components = smap.all_ordered()
     counts = Counter(c.family_id for c in components)
     rows = []
-    special_tabs = {c.tab for c in components if c.family_id.startswith(('geographic_', 'operating_kpi_', 'store_count_'))}
+    special_tabs = {c.tab for c in components if c.family_id.startswith(('geographic_', 'operating_kpi_', 'store_count_', 'revenue_per_store_'))}
     for tab in dict.fromkeys(c.tab for c in components):
         if tab not in special_tabs:
             rows.append(dict(group='Historical analysis', family=tab, status=ACTIVE,
@@ -43,9 +49,6 @@ def status_rows(smap):
                           and (module.current_ready or (module.status == 'complete' and module.complete_analysis)))
         status = ACTIVE if total else (UNAVAILABLE if integrated else INACTIVE)
         rows.append(dict(group=group, family=title, status=status, cells=total))
-    # The existing engine compares growth rates; it does not calculate revenue
-    # per store. Do not relabel that relationship as a productivity ratio.
-    rows.append(dict(group='Operating KPIs', family='Revenue per store ratio', status=INACTIVE, cells=0))
     return rows
 
 

@@ -32,6 +32,7 @@ GEOGRAPHIC_SHEET = "Geographic Segment Analysis"
 STORE_COUNT_SHEET = "Store Count Analysis"
 COMPARABLE_SALES_SHEET = "Comparable Sales Analysis"
 SALES_PER_SQUARE_FOOT_SHEET = "Sales per Square Foot Analysis"
+REVENUE_PER_STORE_SHEET = "Revenue per Store Analysis"
 
 
 @dataclass(frozen=True)
@@ -697,6 +698,26 @@ def validate_live_model_structure(
             answer_key_wb[SALES_PER_SQUARE_FOOT_SHEET],
             sheet_name=SALES_PER_SQUARE_FOOT_SHEET,
             editable_cells=spsf_practice,
+        )
+
+    rps_practice = {
+        cell for tab, cell in practice_cells if tab == REVENUE_PER_STORE_SHEET
+    }
+    rps_sheet_present = (
+        REVENUE_PER_STORE_SHEET in trainer_wb.sheetnames
+        or REVENUE_PER_STORE_SHEET in answer_key_wb.sheetnames
+    )
+    if rps_practice or rps_sheet_present:
+        for wb, label in ((trainer_wb, "Trainer"), (answer_key_wb, "Answer Key")):
+            if REVENUE_PER_STORE_SHEET not in wb.sheetnames:
+                raise ValueError(
+                    f"{label} is missing Revenue per Store Analysis sheet"
+                )
+        _validate_trusted_sheet_cells(
+            trainer_wb[REVENUE_PER_STORE_SHEET],
+            answer_key_wb[REVENUE_PER_STORE_SHEET],
+            sheet_name=REVENUE_PER_STORE_SHEET,
+            editable_cells=rps_practice,
         )
 
     _validate_trusted_sheet_cells(

@@ -7638,3 +7638,320 @@ def expand_sales_per_square_foot_difference_specs(
     return tuple(specs)
 
 
+REVENUE_PER_STORE_SHEET_NAME = "Revenue per Store Analysis"
+REVENUE_PER_STORE_PRACTICE_CATEGORY = "revenue_per_store"
+REVENUE_PER_STORE_PERIOD_END_FAMILY_ID = "revenue_per_store_period_end"
+REVENUE_PER_STORE_AVERAGE_FAMILY_ID = "revenue_per_store_average"
+REVENUE_PER_STORE_CHANGE_FAMILY_ID = "revenue_per_store_change"
+REVENUE_PER_STORE_GROWTH_FAMILY_ID = "revenue_per_store_growth"
+
+
+def revenue_per_store_component_id(family_id: str, period: date) -> str:
+    return store_count_component_id(family_id, period)
+
+
+def is_revenue_per_store_practice_identity(component: object) -> bool:
+    return getattr(component, "category", None) == REVENUE_PER_STORE_PRACTICE_CATEGORY
+
+
+def resolve_revenue_per_store_period_end_formula(
+    revenue: SemanticCellRef,
+    store_count: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Period-end Revenue per Store from mapped revenue and store-count cells."""
+    revenue_cell = semantic_formula_cell(revenue, from_tab=from_tab)
+    store_cell = semantic_formula_cell(store_count, from_tab=from_tab)
+    return f"=IF({store_cell}=0,NA(),{revenue_cell}/{store_cell})"
+
+
+def resolve_revenue_per_store_average_formula(
+    revenue: SemanticCellRef,
+    current_store_count: SemanticCellRef,
+    prior_store_count: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Average-store Revenue per Store from mapped revenue and adjacent counts."""
+    revenue_cell = semantic_formula_cell(revenue, from_tab=from_tab)
+    current_cell = semantic_formula_cell(current_store_count, from_tab=from_tab)
+    prior_cell = semantic_formula_cell(prior_store_count, from_tab=from_tab)
+    average = f"(({current_cell}+{prior_cell})/2)"
+    return f"=IF({average}=0,NA(),{revenue_cell}/{average})"
+
+
+def resolve_revenue_per_store_change_formula(
+    current: SemanticCellRef,
+    prior: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Adjacent period-end Revenue per Store change from mapped cells."""
+    current_cell = semantic_formula_cell(current, from_tab=from_tab)
+    prior_cell = semantic_formula_cell(prior, from_tab=from_tab)
+    return f"={current_cell}-{prior_cell}"
+
+
+def resolve_revenue_per_store_growth_formula(
+    current: SemanticCellRef,
+    prior: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Adjacent period-end Revenue per Store growth from mapped cells."""
+    current_cell = semantic_formula_cell(current, from_tab=from_tab)
+    prior_cell = semantic_formula_cell(prior, from_tab=from_tab)
+    return f"=IF({prior_cell}=0,NA(),({current_cell}-{prior_cell})/{prior_cell})"
+
+
+REVENUE_PER_STORE_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id=REVENUE_PER_STORE_PERIOD_END_FAMILY_ID,
+        order=173,
+        title="Period-end Revenue per Store",
+        short_hint=(
+            "Analyst-derived period-end Revenue per Store = consolidated "
+            "revenue / company-operated period-end store count. The "
+            "denominator is the period-end count, not an average. "
+            "Total-company revenue includes revenue outside those stores. "
+            "Not store-only productivity, sales per square foot, or "
+            "comparable sales. A zero store count is undefined (#N/A). A "
+            "missing revenue or store-count input is unavailable."
+        ),
+        semantic_key="operating_kpi.revenue_per_store.period_end",
+        category=REVENUE_PER_STORE_PRACTICE_CATEGORY,
+        tab_template=REVENUE_PER_STORE_SHEET_NAME,
+        period_scope="all",
+        depends_on_current=(
+            REVENUE_STORE_SOURCE_FAMILY_ID,
+            STORE_COUNT_SOURCE_FAMILY_ID,
+        ),
+        hints=(
+            "The denominator is the same-period company-operated period-end store count.",
+            "Do not substitute an average-store denominator.",
+            "Total-company revenue includes revenue outside company-operated stores.",
+            "A zero store count yields the undefined-ratio result.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id=REVENUE_PER_STORE_AVERAGE_FAMILY_ID,
+        order=174,
+        title="Average-store Revenue per Store",
+        short_hint=(
+            "Analyst-derived average-store Revenue per Store = consolidated "
+            "revenue / average of the current and immediately prior "
+            "company-operated period-end store counts. Both adjacent counts "
+            "are required. The period-end ratio is never substituted. "
+            "Opening average is absent. Total-company revenue includes "
+            "revenue outside those stores. A zero average count is undefined "
+            "(#N/A)."
+        ),
+        semantic_key="operating_kpi.revenue_per_store.average",
+        category=REVENUE_PER_STORE_PRACTICE_CATEGORY,
+        tab_template=REVENUE_PER_STORE_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(
+            REVENUE_STORE_SOURCE_FAMILY_ID,
+            STORE_COUNT_SOURCE_FAMILY_ID,
+        ),
+        depends_on_previous=(STORE_COUNT_SOURCE_FAMILY_ID,),
+        hints=(
+            "The denominator is the average of adjacent period-end company-operated counts.",
+            "Both adjacent admitted counts are required; a single snapshot is not substituted.",
+            "Opening average is absent; a missing adjacent count is unavailable.",
+            "A zero average count yields the undefined-ratio result.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id=REVENUE_PER_STORE_CHANGE_FAMILY_ID,
+        order=175,
+        title="Period-end Revenue per Store change",
+        short_hint=(
+            "Adjacent change in period-end Revenue per Store = current "
+            "period-end ratio minus the immediately prior period-end ratio. "
+            "Opening change is absent. A missing adjacent ratio is "
+            "unavailable. Not sales per square foot or comparable sales."
+        ),
+        semantic_key="operating_kpi.revenue_per_store.adjacent_change",
+        category=REVENUE_PER_STORE_PRACTICE_CATEGORY,
+        tab_template=REVENUE_PER_STORE_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(REVENUE_PER_STORE_PERIOD_END_FAMILY_ID,),
+        depends_on_previous=(REVENUE_PER_STORE_PERIOD_END_FAMILY_ID,),
+        hints=(
+            "Adjacent change uses the mapped current and immediately prior period-end ratios.",
+            "Opening change is absent; a missing adjacent ratio is unavailable, not compressed.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id=REVENUE_PER_STORE_GROWTH_FAMILY_ID,
+        order=176,
+        title="Period-end Revenue per Store growth",
+        short_hint=(
+            "Adjacent growth in period-end Revenue per Store = (current − "
+            "prior) / prior using period-end ratios. Opening growth is "
+            "absent. A missing adjacent ratio is unavailable. A zero prior "
+            "ratio is undefined (#N/A). Not sales per square foot or "
+            "comparable sales."
+        ),
+        semantic_key="operating_kpi.revenue_per_store.growth",
+        category=REVENUE_PER_STORE_PRACTICE_CATEGORY,
+        tab_template=REVENUE_PER_STORE_SHEET_NAME,
+        period_scope="comparable",
+        depends_on_current=(REVENUE_PER_STORE_PERIOD_END_FAMILY_ID,),
+        depends_on_previous=(REVENUE_PER_STORE_PERIOD_END_FAMILY_ID,),
+        hints=(
+            "Adjacent-period growth uses the mapped current and immediately prior period-end ratios.",
+            "Opening growth is absent; a missing adjacent ratio is unavailable, not compressed.",
+            "Zero prior ratio yields the undefined-ratio result.",
+        ),
+        tolerance=1e-12,
+    ),
+)
+
+
+def _require_revenue_per_store_period_axis(periods: list[date], *, caller: str) -> None:
+    _require_store_count_period_axis(periods, caller=caller)
+
+
+def revenue_per_store_period_end_dependency_ids(period: date) -> tuple[str, str]:
+    """Same-period consolidated-revenue then period-end store-count sources."""
+    return (
+        revenue_store_source_component_id(period),
+        store_count_source_component_id(period),
+    )
+
+
+def revenue_per_store_average_dependency_ids(
+    periods: list[date],
+    period: date,
+) -> tuple[str, str, str]:
+    """Current revenue, current store count, then immediately prior store count."""
+    period_index = {item: index for index, item in enumerate(periods)}
+    if period not in period_index:
+        raise ValueError(
+            f"revenue-per-store practice period {period.isoformat()} is outside "
+            "the canonical axis"
+        )
+    index = period_index[period]
+    if index == 0:
+        raise ValueError(
+            "opening revenue-per-store period has no immediately preceding store count"
+        )
+    prior = periods[index - 1]
+    return (
+        revenue_store_source_component_id(period),
+        store_count_source_component_id(period),
+        store_count_source_component_id(prior),
+    )
+
+
+def revenue_per_store_adjacent_ratio_ids(
+    periods: list[date],
+    period: date,
+) -> tuple[str, str]:
+    """Current then immediately preceding period-end Revenue per Store identities."""
+    period_index = {item: index for index, item in enumerate(periods)}
+    if period not in period_index:
+        raise ValueError(
+            f"revenue-per-store practice period {period.isoformat()} is outside "
+            "the canonical axis"
+        )
+    index = period_index[period]
+    if index == 0:
+        raise ValueError(
+            "opening revenue-per-store period has no immediately preceding ratio"
+        )
+    prior = periods[index - 1]
+    return (
+        revenue_per_store_component_id(REVENUE_PER_STORE_PERIOD_END_FAMILY_ID, period),
+        revenue_per_store_component_id(REVENUE_PER_STORE_PERIOD_END_FAMILY_ID, prior),
+    )
+
+
+def expand_revenue_per_store_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    period_end_periods: tuple[date, ...],
+    average_periods: tuple[date, ...],
+    change_periods: tuple[date, ...],
+    growth_periods: tuple[date, ...],
+) -> tuple[ComponentSpec, ...]:
+    """Expand Revenue per Store practice families for supported periods."""
+    _require_revenue_per_store_period_axis(
+        periods, caller="expand_revenue_per_store_specs"
+    )
+    families = {family.id: family for family in REVENUE_PER_STORE_COMPONENT_CATALOG}
+    specs: list[ComponentSpec] = []
+    order = start_order
+    period_index = {period: index for index, period in enumerate(periods)}
+    period_end_set = set(period_end_periods)
+    average_set = set(average_periods)
+    change_set = set(change_periods)
+    growth_set = set(growth_periods)
+
+    def _append(
+        family: ComponentFamily,
+        period: date,
+        depends_on: tuple[str, ...],
+    ) -> None:
+        nonlocal order
+        if period not in period_index:
+            raise ValueError(
+                "expand_revenue_per_store_specs received periods outside the "
+                f"canonical axis: {[period]}"
+            )
+        period_end = period.isoformat()
+        specs.append(
+            ComponentSpec(
+                id=revenue_per_store_component_id(family.id, period),
+                family_id=family.id,
+                order=order,
+                family_order=family.order,
+                title=family.title,
+                short_hint=family.short_hint,
+                semantic_key=f"{family.semantic_key}.{period_end}",
+                category=family.category,
+                tab_template=family.tab_template,
+                period_index=period_index[period],
+                period_end=period_end,
+                depends_on=depends_on,
+                hints=family.hints,
+                tolerance=family.tolerance,
+            )
+        )
+        order += 1
+
+    for period in periods:
+        if period in period_end_set:
+            _append(
+                families[REVENUE_PER_STORE_PERIOD_END_FAMILY_ID],
+                period,
+                revenue_per_store_period_end_dependency_ids(period),
+            )
+        if period in average_set:
+            _append(
+                families[REVENUE_PER_STORE_AVERAGE_FAMILY_ID],
+                period,
+                revenue_per_store_average_dependency_ids(periods, period),
+            )
+        if period in change_set:
+            _append(
+                families[REVENUE_PER_STORE_CHANGE_FAMILY_ID],
+                period,
+                revenue_per_store_adjacent_ratio_ids(periods, period),
+            )
+        if period in growth_set:
+            _append(
+                families[REVENUE_PER_STORE_GROWTH_FAMILY_ID],
+                period,
+                revenue_per_store_adjacent_ratio_ids(periods, period),
+            )
+    return tuple(specs)
+
+

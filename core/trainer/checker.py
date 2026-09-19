@@ -22,6 +22,7 @@ from ..engine.component_catalog import (
     REVENUE_STORE_COMPONENT_CATALOG,
     COMPARABLE_SALES_COMPONENT_CATALOG,
     SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG,
+    REVENUE_PER_STORE_COMPONENT_CATALOG,
     is_operating_kpi_source_identity,
     INVENTORY_ANALYSIS_COMPONENT_CATALOG,
     REPORTED_MARGIN_COMPONENT_CATALOG,
@@ -80,6 +81,10 @@ from ..model.operating_kpi_relationships import (
     operating_kpi_revenue_comparable_sales_relationship_applicable,
     operating_kpi_revenue_sales_per_square_foot_relationship_applicable,
     operating_kpi_revenue_store_relationship_applicable,
+)
+from ..model.revenue_per_store import (
+    compute_revenue_per_store_series,
+    revenue_per_store_applicable,
 )
 from ..model.capex import compute_capex_series, capex_applicable
 from ..model.lease_repayment import (
@@ -439,16 +444,21 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
             spsf_family_ids = {
                 family.id for family in SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG
             }
+            rps_family_ids = {
+                family.id for family in REVENUE_PER_STORE_COMPONENT_CATALOG
+            }
             operating_kpi = None
             operating_kpi_relationship = None
             operating_kpi_compsales_relationship = None
             operating_kpi_spsf_relationship = None
             management_kpi = None
+            revenue_per_store = None
             needed_ids = (
                 operating_kpi_family_ids
                 | relationship_family_ids
                 | compsales_family_ids
                 | spsf_family_ids
+                | rps_family_ids
             )
             if any(comp.family_id in needed_ids for comp in comps):
                 if operating_kpi_applicable(financials):
@@ -486,6 +496,11 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                         financials,
                         list(modeled_periods),
                     )
+                if revenue_per_store_applicable(financials):
+                    revenue_per_store = compute_revenue_per_store_series(
+                        financials,
+                        list(modeled_periods),
+                    )
             dynamic_expected = {
                 comp.id: expected_value_for_component(
                     anchor,
@@ -515,6 +530,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                     ),
                     operating_kpi_spsf_relationship=operating_kpi_spsf_relationship,
                     management_kpi=management_kpi,
+                    revenue_per_store=revenue_per_store,
                 )
                 for comp in comps
             }

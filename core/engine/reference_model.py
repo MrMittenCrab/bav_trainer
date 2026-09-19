@@ -59,6 +59,11 @@ from ..model.operating_kpi_relationships import (
     operating_kpi_revenue_comparable_sales_relationship_applicable,
     operating_kpi_revenue_sales_per_square_foot_relationship_applicable,
 )
+from ..model.revenue_per_store import (
+    SCOPE_NOTE as REVENUE_PER_STORE_SCOPE_NOTE,
+    compute_revenue_per_store_series,
+    revenue_per_store_applicable,
+)
 from ..model.goodwill_intangibles import (
     compute_goodwill_intangibles_series,
     goodwill_intangibles_applicable,
@@ -193,6 +198,7 @@ from .component_catalog import (
     expand_sales_per_square_foot_source_specs,
     expand_sales_per_square_foot_specs,
     expand_sales_per_square_foot_difference_specs,
+    expand_revenue_per_store_specs,
     expand_capex_specs,
     geographic_component_id,
     geographic_identity_label,
@@ -234,6 +240,11 @@ from .component_catalog import (
     SALES_PER_SQUARE_FOOT_GROWTH_FAMILY_ID,
     SALES_PER_SQUARE_FOOT_SHEET_NAME,
     SALES_PER_SQUARE_FOOT_SOURCE_FAMILY_ID,
+    REVENUE_PER_STORE_AVERAGE_FAMILY_ID,
+    REVENUE_PER_STORE_CHANGE_FAMILY_ID,
+    REVENUE_PER_STORE_GROWTH_FAMILY_ID,
+    REVENUE_PER_STORE_PERIOD_END_FAMILY_ID,
+    REVENUE_PER_STORE_SHEET_NAME,
     StoreCountSourceRef,
     SemanticCellRef,
     comparable_sales_identity_label,
@@ -245,10 +256,15 @@ from .component_catalog import (
     resolve_revenue_comparable_sales_difference_formula,
     resolve_revenue_sales_per_square_foot_difference_formula,
     sales_per_square_foot_source_component_id,
+    resolve_revenue_per_store_average_formula,
+    resolve_revenue_per_store_change_formula,
+    resolve_revenue_per_store_growth_formula,
+    resolve_revenue_per_store_period_end_formula,
     resolve_revenue_store_difference_formula,
     resolve_revenue_store_growth_formula,
     resolve_store_count_growth_formula,
     resolve_store_count_net_change_formula,
+    revenue_per_store_component_id,
     revenue_store_component_id,
     revenue_store_source_component_id,
     store_count_component_id,
@@ -311,6 +327,7 @@ GEOGRAPHIC_SHEET = GEOGRAPHIC_SHEET_NAME
 STORE_COUNT_SHEET = STORE_COUNT_SHEET_NAME
 COMPARABLE_SALES_SHEET = COMPARABLE_SALES_SHEET_NAME
 SALES_PER_SQUARE_FOOT_SHEET = SALES_PER_SQUARE_FOOT_SHEET_NAME
+REVENUE_PER_STORE_SHEET = REVENUE_PER_STORE_SHEET_NAME
 SALES_PER_SQUARE_FOOT_SCOPE_NOTE = (
     "Adjacent change and growth are analyst-derived calculations, not causal "
     "evidence, and are distinct from comparable-sales percentage-point change."
@@ -442,6 +459,34 @@ def _revenue_store_expand_inputs(
         if difference is not None and not is_source_unavailable(difference):
             difference_periods.append(period)
     return tuple(source_periods), tuple(growth_periods), tuple(difference_periods)
+
+
+def _revenue_per_store_expand_inputs(
+    series,
+) -> tuple[tuple[date, ...], tuple[date, ...], tuple[date, ...], tuple[date, ...]]:
+    period_end_periods: list[date] = []
+    average_periods: list[date] = []
+    change_periods: list[date] = []
+    growth_periods: list[date] = []
+    for period in series.periods:
+        period_end = series.period_end_revenue_per_store[period]
+        if period_end is not None and not is_source_unavailable(period_end):
+            period_end_periods.append(period)
+        average = series.average_store_revenue_per_store[period]
+        if average is not None and not is_source_unavailable(average):
+            average_periods.append(period)
+        change = series.period_end_change[period]
+        if change is not None and not is_source_unavailable(change):
+            change_periods.append(period)
+        growth = series.period_end_growth[period]
+        if growth is not None and not is_source_unavailable(growth):
+            growth_periods.append(period)
+    return (
+        tuple(period_end_periods),
+        tuple(average_periods),
+        tuple(change_periods),
+        tuple(growth_periods),
+    )
 
 
 def _shared_revenue_expand_inputs(
@@ -1065,6 +1110,8 @@ class ReferenceModelBuilder:
         self.management_kpi_series = None
         self.comparable_sales_schedule = False
         self.sales_per_square_foot_schedule = False
+        self.revenue_per_store_series = None
+        self.revenue_per_store_schedule = False
         specs: list = []
         order = start_order
         revenue_registered = False
@@ -1290,6 +1337,29 @@ class ReferenceModelBuilder:
             )
             specs.extend(difference_specs)
             self.sales_per_square_foot_schedule = True
+
+        if revenue_per_store_applicable(self.fin):
+            self.revenue_per_store_series = compute_revenue_per_store_series(
+                self.fin,
+                self.periods,
+            )
+            (
+                period_end_periods,
+                average_periods,
+                change_periods,
+                growth_periods,
+            ) = _revenue_per_store_expand_inputs(self.revenue_per_store_series)
+            if period_end_periods or average_periods or change_periods or growth_periods:
+                rps_specs = expand_revenue_per_store_specs(
+                    self.periods,
+                    start_order=order,
+                    period_end_periods=period_end_periods,
+                    average_periods=average_periods,
+                    change_periods=change_periods,
+                    growth_periods=growth_periods,
+                )
+                specs.extend(rps_specs)
+                self.revenue_per_store_schedule = True
 
         self.operating_kpi_specs = tuple(specs)
         return self.operating_kpi_specs
@@ -10245,6 +10315,236 @@ class ReferenceModelBuilder:
                         difference,
                         identity=token,
                     )
+
+    def _build_revenue_per_store(self, wb: Workbook) -> None:
+        series = self.revenue_per_store_series
+        if series is None:
+            raise RuntimeError(
+                "revenue_per_store_series required when building "
+                "Revenue per Store Analysis"
+            )
+        if series.scope_note != REVENUE_PER_STORE_SCOPE_NOTE:
+            raise RuntimeError(
+                "revenue-per-store scope note drifted from the accepted API"
+            )
+        if STORE_COUNT_SHEET not in wb.sheetnames:
+            raise RuntimeError(
+                "Store Count Analysis required when building Revenue per Store Analysis"
+            )
+        ws = wb.create_sheet(REVENUE_PER_STORE_SHEET)
+        ws["A1"] = f"{self.fin.company_name} — Revenue per Store Analysis"
+        ws["A1"].font = BOLD
+        ws["A2"] = (
+            "Historical Revenue per Store from admitted consolidated revenue "
+            "and company-operated store-count history. Period-end and "
+            "average-store denominators are labeled separately and are never "
+            "substituted."
+        )
+        ws["A3"] = (
+            f"Monetary scale remains {series.monetary_scale} "
+            f"({series.currency}). Count units stay independent of monetary scale."
+        )
+        ws["A4"] = (
+            "Opening average-store, adjacent change, and growth remain "
+            "unavailable without a prior period. A missing revenue or store "
+            "count remains unavailable. A zero denominator is undefined."
+        )
+        ws["A5"] = series.scope_note
+        ws.column_dimensions["A"].width = 64
+
+        header_row = 6
+        ws.cell(row=header_row, column=1, value="Metric").font = BOLD
+        for j, pd in enumerate(self.periods):
+            cell = ws.cell(row=header_row, column=2 + j, value=pd)
+            cell.number_format = "mmm dd, yyyy"
+            cell.font = BOLD
+            ws.column_dimensions[self._col(2 + j)].width = 16
+
+        def _section(row: int, title: str) -> None:
+            ws.cell(row=row, column=1, value=title).font = BOLD
+
+        def _label(row: int, text: str) -> None:
+            ws.cell(row=row, column=1, value=text)
+
+        def _expected(value: float | str | None) -> float | str:
+            assert value is not None
+            return value if isinstance(value, str) else float(value)
+
+        def _put_formula(
+            row: int,
+            col_idx: int,
+            formula: str,
+            *,
+            pct: bool = False,
+        ):
+            cell = ws.cell(row=row, column=col_idx, value=formula)
+            cell.number_format = PCT_FMT if pct else NUM_FMT
+            return cell
+
+        def _register(
+            family_id: str,
+            period_index: int,
+            row: int,
+            col_idx: int,
+            formula: str,
+            expected: float | str | None,
+        ) -> None:
+            self._register_operating_kpi(
+                family_id,
+                period_index,
+                REVENUE_PER_STORE_SHEET,
+                row,
+                col_idx,
+                formula,
+                _expected(expected),
+            )
+
+        def _mapped_ref(component_id: str) -> SemanticCellRef:
+            mapped = self.semantic_map.get(component_id)
+            return SemanticCellRef(
+                id=mapped.id,
+                semantic_key=mapped.semantic_key,
+                period_end=mapped.period_end,
+                cell=mapped.cell,
+                tab=mapped.tab,
+            )
+
+        cursor = 8
+        _section(cursor, "PERIOD-END REVENUE PER STORE")
+        cursor += 1
+        period_end_row = cursor
+        _label(
+            period_end_row,
+            "Revenue / period-end company-operated stores",
+        )
+        cursor += 2
+        _section(cursor, "AVERAGE-STORE REVENUE PER STORE")
+        cursor += 1
+        average_row = cursor
+        _label(
+            average_row,
+            "Revenue / average of adjacent period-end company-operated stores",
+        )
+        cursor += 2
+        _section(cursor, "PERIOD-END REVENUE PER STORE CHANGE")
+        cursor += 1
+        change_row = cursor
+        _label(change_row, "Adjacent change in period-end Revenue per Store")
+        cursor += 2
+        _section(cursor, "PERIOD-END REVENUE PER STORE GROWTH")
+        cursor += 1
+        growth_row = cursor
+        _label(growth_row, "Adjacent growth in period-end Revenue per Store")
+
+        self.rowmap["revenue_per_store_header_row"] = header_row
+        self.rowmap["revenue_per_store_period_end_row"] = period_end_row
+        self.rowmap["revenue_per_store_average_row"] = average_row
+        self.rowmap["revenue_per_store_change_row"] = change_row
+        self.rowmap["revenue_per_store_growth_row"] = growth_row
+
+        for j, period in enumerate(self.periods):
+            col_idx = 2 + j
+            period_end = series.period_end_revenue_per_store[period]
+            average = series.average_store_revenue_per_store[period]
+            change = series.period_end_change[period]
+            growth = series.period_end_growth[period]
+
+            if is_source_unavailable(period_end):
+                self._stamp_unavailable(ws, period_end_row, col_idx, SOURCE_UNAVAILABLE)
+            else:
+                formula = resolve_revenue_per_store_period_end_formula(
+                    _mapped_ref(revenue_store_source_component_id(period)),
+                    _mapped_ref(store_count_source_component_id(period)),
+                    from_tab=REVENUE_PER_STORE_SHEET,
+                )
+                _put_formula(period_end_row, col_idx, formula)
+                _register(
+                    REVENUE_PER_STORE_PERIOD_END_FAMILY_ID,
+                    j,
+                    period_end_row,
+                    col_idx,
+                    formula,
+                    period_end,
+                )
+
+            if j == 0 or average is None:
+                ws.cell(row=average_row, column=col_idx, value="N/A")
+            elif is_source_unavailable(average):
+                self._stamp_unavailable(ws, average_row, col_idx, SOURCE_UNAVAILABLE)
+            else:
+                formula = resolve_revenue_per_store_average_formula(
+                    _mapped_ref(revenue_store_source_component_id(period)),
+                    _mapped_ref(store_count_source_component_id(period)),
+                    _mapped_ref(store_count_source_component_id(self.periods[j - 1])),
+                    from_tab=REVENUE_PER_STORE_SHEET,
+                )
+                _put_formula(average_row, col_idx, formula)
+                _register(
+                    REVENUE_PER_STORE_AVERAGE_FAMILY_ID,
+                    j,
+                    average_row,
+                    col_idx,
+                    formula,
+                    average,
+                )
+
+            if j == 0 or change is None:
+                ws.cell(row=change_row, column=col_idx, value="N/A")
+            elif is_source_unavailable(change):
+                self._stamp_unavailable(ws, change_row, col_idx, SOURCE_UNAVAILABLE)
+            else:
+                formula = resolve_revenue_per_store_change_formula(
+                    _mapped_ref(
+                        revenue_per_store_component_id(
+                            REVENUE_PER_STORE_PERIOD_END_FAMILY_ID, period
+                        )
+                    ),
+                    _mapped_ref(
+                        revenue_per_store_component_id(
+                            REVENUE_PER_STORE_PERIOD_END_FAMILY_ID,
+                            self.periods[j - 1],
+                        )
+                    ),
+                    from_tab=REVENUE_PER_STORE_SHEET,
+                )
+                _put_formula(change_row, col_idx, formula)
+                _register(
+                    REVENUE_PER_STORE_CHANGE_FAMILY_ID,
+                    j,
+                    change_row,
+                    col_idx,
+                    formula,
+                    change,
+                )
+
+            if j == 0 or growth is None:
+                ws.cell(row=growth_row, column=col_idx, value="N/A")
+            elif is_source_unavailable(growth):
+                self._stamp_unavailable(ws, growth_row, col_idx, SOURCE_UNAVAILABLE)
+            else:
+                formula = resolve_revenue_per_store_growth_formula(
+                    _mapped_ref(
+                        revenue_per_store_component_id(
+                            REVENUE_PER_STORE_PERIOD_END_FAMILY_ID, period
+                        )
+                    ),
+                    _mapped_ref(
+                        revenue_per_store_component_id(
+                            REVENUE_PER_STORE_PERIOD_END_FAMILY_ID,
+                            self.periods[j - 1],
+                        )
+                    ),
+                    from_tab=REVENUE_PER_STORE_SHEET,
+                )
+                _put_formula(growth_row, col_idx, formula, pct=True)
+                _register(
+                    REVENUE_PER_STORE_GROWTH_FAMILY_ID,
+                    j,
+                    growth_row,
+                    col_idx,
+                    formula,
+                    growth,
+                )
 
     def _build_model_tab(self, wb: Workbook, scenario: str) -> None:
         ws = wb.create_sheet(f"Model_{scenario}")

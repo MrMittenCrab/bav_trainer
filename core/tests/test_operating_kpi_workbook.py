@@ -237,6 +237,7 @@ STORE_COUNT_LULULEMON_SPECS = 8
 STORE_COUNT_LULULEMON_SOURCES = 5
 REVENUE_STORE_LULULEMON_SPECS = 8
 REVENUE_STORE_LULULEMON_SOURCES = 5
+REVENUE_PER_STORE_LULULEMON_SPECS = 17
 LULULEMON_STORE_AUGMENTED_PRACTICE = (
     LEASE_DT_LULULEMON_SPECS
     + GEOGRAPHIC_LULULEMON_SPECS
@@ -923,6 +924,7 @@ def test_workbook_gating_formulas_notes_check_and_families(tmp_path):
             STORE_COUNT_SOURCE_CATEGORY,
             REVENUE_STORE_PRACTICE_CATEGORY,
             REVENUE_STORE_SOURCE_CATEGORY,
+            "revenue_per_store",
         }
     ]
     assert existing
@@ -1251,6 +1253,7 @@ def test_source_grounded_reload_workbook_and_check(tmp_path):
             STORE_COUNT_SOURCE_CATEGORY,
             REVENUE_STORE_PRACTICE_CATEGORY,
             REVENUE_STORE_SOURCE_CATEGORY,
+            "revenue_per_store",
         }
     ]
     committed = ReferenceModelBuilder(
@@ -1279,7 +1282,9 @@ def test_source_grounded_reload_workbook_and_check(tmp_path):
     assert len(revenue_sources) == REVENUE_STORE_LULULEMON_SOURCES
     assert {c.id for c in source_comps} == {s.id for s in source_specs}
     assert len(all_comps) == (
-        LULULEMON_STORE_AUGMENTED_PRACTICE + REVENUE_STORE_LULULEMON_SPECS
+        LULULEMON_STORE_AUGMENTED_PRACTICE
+        + REVENUE_STORE_LULULEMON_SPECS
+        + REVENUE_PER_STORE_LULULEMON_SPECS
     )
     practice = {(c.tab, c.cell) for c in all_comps}
     source_cells = {(c.tab, c.cell) for c in source_comps}
@@ -1514,7 +1519,11 @@ def test_source_grounded_reload_workbook_and_check(tmp_path):
 
     answer_hash = _sha256(answer)
     blank = check_workbook(trainer)
-    total = LULULEMON_STORE_AUGMENTED_PRACTICE + REVENUE_STORE_LULULEMON_SPECS
+    total = (
+        LULULEMON_STORE_AUGMENTED_PRACTICE
+        + REVENUE_STORE_LULULEMON_SPECS
+        + REVENUE_PER_STORE_LULULEMON_SPECS
+    )
     assert (blank.total, blank.blank, blank.correct, blank.incorrect) == (
         total,
         total,
@@ -1771,7 +1780,11 @@ def test_generated_workbooks_follow_moved_source_placement(tmp_path, monkeypatch
 
     answer_hash = _sha256(answer)
     blank = check_workbook(trainer)
-    total = LULULEMON_STORE_AUGMENTED_PRACTICE + REVENUE_STORE_LULULEMON_SPECS
+    total = (
+        LULULEMON_STORE_AUGMENTED_PRACTICE
+        + REVENUE_STORE_LULULEMON_SPECS
+        + REVENUE_PER_STORE_LULULEMON_SPECS
+    )
     assert (blank.total, blank.blank, blank.correct, blank.incorrect) == (
         total,
         total,
@@ -2427,7 +2440,11 @@ def test_generated_workbooks_follow_moved_revenue_and_count_sources(
 
     answer_hash = _sha256(answer)
     blank = check_workbook(trainer)
-    total = LULULEMON_STORE_AUGMENTED_PRACTICE + REVENUE_STORE_LULULEMON_SPECS
+    total = (
+        LULULEMON_STORE_AUGMENTED_PRACTICE
+        + REVENUE_STORE_LULULEMON_SPECS
+        + REVENUE_PER_STORE_LULULEMON_SPECS
+    )
     assert (blank.total, blank.blank, blank.correct, blank.incorrect) == (
         total,
         total,
@@ -3390,7 +3407,11 @@ def test_mixed_selected_sparse_2_and_4_preserves_store_fixture(tmp_path):
     assert len([
         c for c in smap.all_ordered() if c.family_id == REVENUE_STORE_GROWTH_FAMILY_ID
     ]) == 4
-    total = LULULEMON_STORE_AUGMENTED_PRACTICE + REVENUE_STORE_LULULEMON_SPECS + 2
+    total = (
+        LULULEMON_STORE_AUGMENTED_PRACTICE
+        + REVENUE_STORE_LULULEMON_SPECS
+        + REVENUE_PER_STORE_LULULEMON_SPECS
+    ) + 2
     blank = check_workbook(trainer)
     assert (blank.total, blank.blank, blank.correct, blank.incorrect) == (
         total, total, 0, 0
@@ -3425,7 +3446,9 @@ def test_store_fixture_without_compsales_keeps_576(tmp_path):
     assert _compsales_practice_components(smap) == []
     blank = check_workbook(trainer)
     assert blank.total == (
-        LULULEMON_STORE_AUGMENTED_PRACTICE + REVENUE_STORE_LULULEMON_SPECS
+        LULULEMON_STORE_AUGMENTED_PRACTICE
+        + REVENUE_STORE_LULULEMON_SPECS
+        + REVENUE_PER_STORE_LULULEMON_SPECS
     )
     assert COMPARABLE_SALES_SHEET not in load_workbook(answer).sheetnames
     assert SALES_PER_SQUARE_FOOT_SHEET not in load_workbook(answer).sheetnames
@@ -3539,7 +3562,11 @@ def test_generated_workbooks_follow_moved_revenue_and_compsales_sources(
     ).value == 2
     awb.close()
     _assert_answer_key_no_yellow(answer)
-    total = LULULEMON_STORE_AUGMENTED_PRACTICE + REVENUE_STORE_LULULEMON_SPECS + 2
+    total = (
+        LULULEMON_STORE_AUGMENTED_PRACTICE
+        + REVENUE_STORE_LULULEMON_SPECS
+        + REVENUE_PER_STORE_LULULEMON_SPECS
+    ) + 2
     blank = check_workbook(trainer)
     assert (blank.total, blank.blank) == (total, total)
     filled_trainer, filled_answer = _copy_pair(
