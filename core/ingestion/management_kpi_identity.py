@@ -239,6 +239,34 @@ def peer_gap_reason(reason: str) -> str:
     return f"{_PEER_REASON_PREFIX}{reason}"
 
 
+PAIR_SUPPORTED = "supported"
+PAIR_UNSUPPORTED = "unsupported"
+PAIR_KIND_HISTORICAL = "historical_comparison"
+PAIR_KIND_SAME_PERIOD = "same_period"
+
+
+@dataclass(frozen=True)
+class PairAssessment:
+    locators: tuple[str, str]
+    family: str
+    metric_identity: str
+    periods: tuple[str, str]
+    kind: str
+    outcome: str
+    reasons: tuple[str, ...]
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "locators": list(self.locators),
+            "family": self.family,
+            "metric_identity": self.metric_identity,
+            "periods": list(self.periods),
+            "kind": self.kind,
+            "outcome": self.outcome,
+            "reasons": list(self.reasons),
+        }
+
+
 @dataclass(frozen=True)
 class ManagementIdentityAssessment:
     locator: str
@@ -258,6 +286,7 @@ class ManagementIdentityAssessment:
     level_admission: str = ""
     historical_comparison: str = ""
     definition_equivalence: str = ""
+    pair_assessments: tuple[PairAssessment, ...] = ()
 
     def to_payload(self) -> dict[str, Any]:
         return {
@@ -280,6 +309,7 @@ class ManagementIdentityAssessment:
             "level_admission": self.level_admission,
             "historical_comparison": self.historical_comparison,
             "definition_equivalence": self.definition_equivalence,
+            "pair_assessments": [item.to_payload() for item in self.pair_assessments],
         }
 
 
@@ -500,6 +530,73 @@ def _has_required_gap(unresolved: Sequence[str]) -> bool:
     return any(reason in REQUIRED_COMPARISON_REASONS for reason in unresolved)
 
 
+def _pair_blocking_gaps(family: str, unresolved: Sequence[str]) -> tuple[str, ...]:
+    """SPSF levels omit missing_comparison; historical comparison uses the pair."""
+    blocked = [
+        reason
+        for reason in unresolved
+        if reason in REQUIRED_COMPARISON_REASONS
+    ]
+    if family == FAMILY_SALES_PER_SQUARE_FOOT:
+        blocked = [reason for reason in blocked if reason != REASON_MISSING_COMPARISON]
+    return tuple(blocked)
+
+
+def _sorted_pair_locators(left: str, right: str) -> tuple[str, str]:
+    return (left, right) if left <= right else (right, left)
+
+
+def assess_identity_pair(
+    left: Mapping[str, Any],
+    right: Mapping[str, Any],
+) -> PairAssessment:
+    """Evaluate one same-identity pair without attributing other peers' conflicts."""
+    left_obs = left["observation"]
+    right_obs = right["observation"]
+    locators = _sorted_pair_locators(left_obs.locator, right_obs.locator)
+    if locators[0] == left_obs.locator:
+        first, second = left, right
+    else:
+        first, second = right, left
+    first_ev = first["evidence"]
+    second_ev = second["evidence"]
+    family = str(first.get("family") or second.get("family") or "")
+    reasons: list[str] = []
+    for reason in evidenced_conflicts(first_ev, second_ev):
+        if reason not in reasons:
+            reasons.append(reason)
+    for reason in evidenced_period_conflict(first_ev, second_ev):
+        if reason not in reasons:
+            reasons.append(reason)
+    for reason in _pair_blocking_gaps(family, first["unresolved"]):
+        if reason not in reasons:
+            reasons.append(reason)
+    for reason in _pair_blocking_gaps(family, second["unresolved"]):
+        peer_reason = peer_gap_reason(reason)
+        if peer_reason not in reasons:
+            reasons.append(peer_reason)
+    same_period = first_ev.get("period") == second_ev.get("period")
+    kind = PAIR_KIND_SAME_PERIOD if same_period else PAIR_KIND_HISTORICAL
+    alignment_reasons = [
+        reason
+        for reason in reasons
+        if reason != REASON_PERIOD_MISMATCH
+    ]
+    outcome = PAIR_SUPPORTED if not alignment_reasons else PAIR_UNSUPPORTED
+    return PairAssessment(
+        locators=locators,
+        family=family,
+        metric_identity=str(first.get("identity") or ""),
+        periods=(
+            str(first_ev.get("period") or ""),
+            str(second_ev.get("period") or ""),
+        ),
+        kind=kind,
+        outcome=outcome,
+        reasons=tuple(reasons),
+    )
+
+
 def assess_reported_observations(
     observations: Sequence[Any],
     documents: Sequence[Any],
@@ -592,12 +689,25 @@ def assess_reported_observations(
         )
 
     peers: dict[str, list[str]] = {}
+    classified_by_locator = {
+        item["observation"].locator: item for item in classified
+    }
     for item in classified:
         if item["status"] != STATUS_SUPPORTED or not item["identity"]:
             continue
         peers.setdefault(item["identity"], []).append(item["observation"].locator)
     for locators in peers.values():
         locators.sort()
+
+    pair_by_key: dict[tuple[str, str], PairAssessment] = {}
+    for locators in peers.values():
+        for index, left_locator in enumerate(locators):
+            for right_locator in locators[index + 1 :]:
+                pair = assess_identity_pair(
+                    classified_by_locator[left_locator],
+                    classified_by_locator[right_locator],
+                )
+                pair_by_key[pair.locators] = pair
 
     ordered_assessments: list[tuple[int, str, str, ManagementIdentityAssessment]] = []
     for item in classified:
@@ -610,36 +720,36 @@ def assess_reported_observations(
             for locator in peers.get(item["identity"], ())
             if locator != own_locator
         )
+        own_pairs = tuple(
+            pair_by_key[_sorted_pair_locators(own_locator, peer)]
+            for peer in peer_locators
+            if _sorted_pair_locators(own_locator, peer) in pair_by_key
+        )
         if status == STATUS_OUTSIDE_SCOPE:
             comparability = COMPARABILITY_OUTSIDE_SCOPE
         elif status != STATUS_SUPPORTED:
             comparability = COMPARABILITY_UNRESOLVED
         else:
-            distinct_peers = [
-                peer
-                for peer in classified
-                if peer is not item
-                and peer["status"] == STATUS_SUPPORTED
-                and peer["identity"]
-                and peer["identity"] == item["identity"]
-            ]
-            distinct_peers.sort(key=lambda peer: peer["observation"].locator)
             conflict_reasons: list[str] = []
-            peer_gap_seen: set[str] = set()
-            for peer in distinct_peers:
-                for reason in _evidenced_conflicts(item["evidence"], peer["evidence"]):
-                    if reason not in conflict_reasons:
+            peer_gap_reasons: list[str] = []
+            for pair in own_pairs:
+                for reason in pair.reasons:
+                    if reason in COMPARISON_CONFLICT_REASONS and reason not in conflict_reasons:
                         conflict_reasons.append(reason)
-                peer_gap_seen.update(
-                    reason
-                    for reason in peer["unresolved"]
-                    if reason in REQUIRED_COMPARISON_REASONS
+                other_locator = (
+                    pair.locators[1]
+                    if pair.locators[0] == own_locator
+                    else pair.locators[0]
                 )
-            peer_gap_reasons = [
-                peer_gap_reason(reason)
-                for reason in REQUIRED_COMPARISON_REASONS
-                if reason in peer_gap_seen
-            ]
+                other = classified_by_locator.get(other_locator)
+                if other is None:
+                    continue
+                for reason in other["unresolved"]:
+                    if reason not in REQUIRED_COMPARISON_REASONS:
+                        continue
+                    peer_reason = peer_gap_reason(reason)
+                    if peer_reason not in peer_gap_reasons:
+                        peer_gap_reasons.append(peer_reason)
             for reason in conflict_reasons:
                 if reason not in unresolved:
                     unresolved.append(reason)
@@ -648,7 +758,7 @@ def assess_reported_observations(
                     unresolved.append(reason)
             if conflict_reasons:
                 comparability = COMPARABILITY_NOT_COMPARABLE
-            elif not distinct_peers:
+            elif not own_pairs:
                 if REASON_NO_DISTINCT_PEER not in unresolved:
                     unresolved.append(REASON_NO_DISTINCT_PEER)
                 comparability = COMPARABILITY_UNRESOLVED
@@ -696,20 +806,15 @@ def assess_reported_observations(
                     definition_equivalence = "different"
                 else:
                     definition_equivalence = "unresolved"
-        comparison_blocked = any(
-            reason in unresolved
-            for reason in (
-                *REQUIRED_COMPARISON_REASONS,
-                *PEER_COMPARISON_REASONS,
-                *COMPARISON_CONFLICT_REASONS,
-                REASON_NO_DISTINCT_PEER,
-            )
+        own_blocking = _pair_blocking_gaps(item["family"], unresolved)
+        historical_supported = any(
+            pair.kind == PAIR_KIND_HISTORICAL and pair.outcome == PAIR_SUPPORTED
+            for pair in own_pairs
         )
-        historical_comparison = (
-            HISTORICAL_COMPARISON_ELIGIBLE
-            if status == STATUS_SUPPORTED and not comparison_blocked
-            else HISTORICAL_COMPARISON_INELIGIBLE
-        )
+        if status == STATUS_SUPPORTED and not own_blocking and historical_supported:
+            historical_comparison = HISTORICAL_COMPARISON_ELIGIBLE
+        else:
+            historical_comparison = HISTORICAL_COMPARISON_INELIGIBLE
         ordered_assessments.append(
             (
                 item["filing_year"],
@@ -733,6 +838,7 @@ def assess_reported_observations(
                     level_admission=item.get("level_admission", ""),
                     historical_comparison=historical_comparison,
                     definition_equivalence=definition_equivalence,
+                    pair_assessments=own_pairs,
                 ),
             )
         )
@@ -765,5 +871,16 @@ def assessments_payload(
         "outside_scope_count": len(outside),
         "comparability_counts": comparability_counts,
         "canonical_selection": "deferred",
+        "pair_assessments": [
+            pair.to_payload()
+            for pair in sorted(
+                {
+                    pair.locators: pair
+                    for item in items
+                    for pair in item.pair_assessments
+                }.values(),
+                key=lambda pair: pair.locators,
+            )
+        ],
         "items": [item.to_payload() for item in items],
     }

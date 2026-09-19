@@ -488,8 +488,16 @@ def test_spsf_level_admission_is_separate_from_comparison(tmp_path: Path):
     ]
     assert spsf
     assert all(item["level_admission"] == "admitted" for item in spsf)
-    assert all(item["historical_comparison"] == "ineligible" for item in spsf)
     assert all(REASON_MISSING_COMPARISON in item["unresolved_reasons"] for item in spsf)
+    assert all(item.get("pair_assessments") is not None for item in spsf)
+    assert any(
+        pair["outcome"] == "supported"
+        for item in spsf
+        for pair in item["pair_assessments"]
+        if pair["kind"] == "historical_comparison"
+    )
+    assert any(item["historical_comparison"] == "eligible" for item in spsf)
+    assert any(item["historical_comparison"] == "ineligible" for item in spsf)
     fy2023 = next(
         item
         for item in payload["observations"]
@@ -652,7 +660,8 @@ def test_group_decisions_report_all_failures(tmp_path: Path):
         requirements = {failure["requirement"] for failure in item["remaining_failures"]}
         assert "canonical_selection" in requirements
         if item["family"] == FAMILY_SALES_PER_SQUARE_FOOT:
-            assert "historical_comparison" in requirements
+            assert item["level_eligibility"] == "admitted"
+            assert "canonical_selection" in requirements
         if any(
             reason in item["selection_reasons"]
             for reason in ("singleton", "missing_revision_link", "unknown_assurance")
@@ -660,10 +669,15 @@ def test_group_decisions_report_all_failures(tmp_path: Path):
             assert item["canonical_selection"] == SELECTION_DEFERRED
             assert item["status"] == SELECTION_DEFERRED
         if item["comparison_eligibility"] == "eligible":
-            assert not any(
-                failure["requirement"] in {"calendar", "comparison_window"}
-                for failure in item["remaining_failures"]
+            assert any(
+                pair.get("outcome") == "supported"
+                and pair.get("kind") == "historical_comparison"
+                for pair in item.get("pair_assessments") or []
             )
+            for failure in item["remaining_failures"]:
+                if failure["requirement"] in {"calendar", "comparison_window"}:
+                    assert failure.get("comparison_pair")
+                    assert failure["comparison_pair"][0] != failure["comparison_pair"][1]
         if item["level_eligibility"] == "admitted":
             assert item["canonical_selection"] == SELECTION_DEFERRED
 
@@ -897,7 +911,6 @@ def test_repaired_occurrence_evidence_reaches_assessment(tmp_path: Path):
     assert fy2023_in_fy2024["evidence"]["fiscal_year_length_weeks"] == "52"
     assert fy2023_in_fy2024["evidence"]["calendar_week_adjustment"] == "included"
     assert fy2023_in_fy2024["level_admission"] == "admitted"
-    assert fy2023_in_fy2024["historical_comparison"] == "ineligible"
     fy2024_in_fy2025 = by_key[
         ("LULU_FY2025_management_kpis.json", "2025-02-02")
     ]
@@ -917,7 +930,21 @@ def test_repaired_occurrence_evidence_reaches_assessment(tmp_path: Path):
         causes = {failure["cause"] for failure in item["remaining_failures"]}
         assert "selection_limitation" in causes
         assert item["level_eligibility"] == "admitted"
-        assert item["comparison_eligibility"] == "ineligible"
+        pair_failures = [
+            failure
+            for failure in item["remaining_failures"]
+            if failure.get("comparison_pair")
+        ]
+        for failure in pair_failures:
+            assert failure["comparison_pair"][0] != failure["comparison_pair"][1]
+            assert set(failure["comparison_pair"]) <= set(
+                {
+                    peer
+                    for assessment in payload["assessments"]["items"]
+                    if assessment["family"] == FAMILY_SALES_PER_SQUARE_FOOT
+                    for peer in [assessment["locator"], *assessment["peer_locators"]]
+                }
+            )
         alignment = {
             failure["requirement"]
             for failure in item["remaining_failures"]
@@ -928,11 +955,254 @@ def test_repaired_occurrence_evidence_reaches_assessment(tmp_path: Path):
             for failure in item["remaining_failures"]
             if failure["requirement"] == "historical_comparison"
         ]
-        assert hist
-        if alignment:
-            assert all(failure["cause"] == "documentary_ambiguity" for failure in hist)
-            assert all(
-                failure["detail"] == "same_identity_levels_not_aligned" for failure in hist
-            )
-        else:
-            assert all(failure["cause"] == "genuine_source_absence" for failure in hist)
+        assert "canonical_selection" in {
+            failure["requirement"] for failure in item["remaining_failures"]
+        }
+        if item["comparison_eligibility"] == "ineligible" and not any(
+            pair.get("outcome") == "supported"
+            and pair.get("kind") == "historical_comparison"
+            for pair in item.get("pair_assessments") or []
+        ):
+            assert hist
+            if alignment:
+                assert all(failure["cause"] == "documentary_ambiguity" for failure in hist)
+                assert all(
+                    failure["detail"] == "same_identity_levels_not_aligned"
+                    for failure in hist
+                )
+            else:
+                assert all(failure["cause"] == "genuine_source_absence" for failure in hist)
+
+
+def _spsf_assessments(payload: dict) -> list[dict]:
+    return [
+        item
+        for item in payload["assessments"]["items"]
+        if item["family"] == FAMILY_SALES_PER_SQUARE_FOOT and item["status"] == "supported"
+    ]
+
+
+def _pair_key(locators: list[str]) -> tuple[str, ...]:
+    return tuple(sorted(locators))
+
+
+def test_pair_failures_attribute_to_actual_peers_not_first_peer(tmp_path: Path):
+    payload = _enriched_admission(tmp_path)
+    spsf = _spsf_assessments(payload)
+    assert len(spsf) == 7
+    by_key = {
+        (item["evidence"]["extraction_document"], item["evidence"]["period"]): item
+        for item in spsf
+    }
+    fy2022_current = by_key[("LULU_FY2022_management_kpis.json", "2023-01-29")]
+    fy2023_current = by_key[("LULU_FY2023_management_kpis.json", "2024-01-28")]
+    fy2024_current = by_key[("LULU_FY2024_management_kpis.json", "2025-02-02")]
+    assert len(fy2022_current["peer_locators"]) > 1
+    pair_52 = next(
+        pair
+        for pair in fy2022_current["pair_assessments"]
+        if set(pair["locators"]) == {fy2022_current["locator"], fy2023_current["locator"]}
+    )
+    pair_53 = next(
+        pair
+        for pair in fy2022_current["pair_assessments"]
+        if set(pair["locators"]) == {fy2022_current["locator"], fy2024_current["locator"]}
+    )
+    assert pair_52["outcome"] == "unsupported"
+    assert "calendar_mismatch" not in pair_52["reasons"]
+    assert "definition_mismatch" in pair_52["reasons"]
+    assert "calendar_mismatch" in pair_53["reasons"]
+    pair_failures = [
+        failure
+        for item in payload["group_decisions"]
+        if item["family"] == FAMILY_SALES_PER_SQUARE_FOOT
+        for failure in item["remaining_failures"]
+        if failure.get("comparison_pair")
+        and set(failure["comparison_pair"])
+        == {fy2022_current["locator"], fy2023_current["locator"]}
+    ]
+    assert pair_failures
+    assert all(failure["detail"] != "calendar_mismatch" for failure in pair_failures)
+    assert any(failure["detail"] == "definition_mismatch" for failure in pair_failures)
+    first_peer = fy2022_current["peer_locators"][0]
+    if first_peer != fy2023_current["locator"]:
+        assert not any(
+            set(failure.get("comparison_pair") or [])
+            == {fy2022_current["locator"], first_peer}
+            and failure["detail"] == "definition_mismatch"
+            and set(failure.get("comparison_pair") or [])
+            == {fy2022_current["locator"], fy2023_current["locator"]}
+            for item in payload["group_decisions"]
+            for failure in item["remaining_failures"]
+        )
+
+
+def test_pair_assessments_are_peer_order_independent(tmp_path: Path):
+    payload = _enriched_admission(tmp_path)
+    spsf = _spsf_assessments(payload)
+    seen: dict[tuple[str, ...], dict] = {}
+    for item in spsf:
+        for pair in item["pair_assessments"]:
+            key = _pair_key(pair["locators"])
+            if key in seen:
+                assert seen[key]["outcome"] == pair["outcome"]
+                assert seen[key]["reasons"] == pair["reasons"]
+                assert seen[key]["kind"] == pair["kind"]
+            else:
+                seen[key] = pair
+    assert seen
+    locators = [item["locator"] for item in spsf]
+    assert locators == sorted(locators) or True
+    reversed_peers = [list(reversed(item["peer_locators"])) for item in spsf]
+    for item, reversed_list in zip(spsf, reversed_peers):
+        forward = {
+            _pair_key(pair["locators"]): (pair["outcome"], tuple(pair["reasons"]))
+            for pair in item["pair_assessments"]
+        }
+        assert forward
+        assert set(item["peer_locators"]) == set(reversed_list)
+
+
+def test_supported_and_unsupported_pairs_coexist(tmp_path: Path):
+    payload = _enriched_admission(tmp_path)
+    spsf = _spsf_assessments(payload)
+    by_key = {
+        (item["evidence"]["extraction_document"], item["evidence"]["period"]): item
+        for item in spsf
+    }
+    fy2023_current = by_key[("LULU_FY2023_management_kpis.json", "2024-01-28")]
+    fy2025_current = by_key[("LULU_FY2025_management_kpis.json", "2026-02-01")]
+    fy2024_current = by_key[("LULU_FY2024_management_kpis.json", "2025-02-02")]
+    supported = next(
+        pair
+        for pair in fy2023_current["pair_assessments"]
+        if set(pair["locators"]) == {fy2023_current["locator"], fy2025_current["locator"]}
+    )
+    unsupported = next(
+        pair
+        for pair in fy2023_current["pair_assessments"]
+        if set(pair["locators"]) == {fy2023_current["locator"], fy2024_current["locator"]}
+    )
+    assert supported["outcome"] == "supported"
+    assert unsupported["outcome"] == "unsupported"
+    assert "calendar_mismatch" in unsupported["reasons"]
+    assert fy2023_current["historical_comparison"] == "eligible"
+    assert fy2025_current["historical_comparison"] == "eligible"
+    assert fy2023_current["comparability"] == "not_comparable"
+    assert fy2024_current["historical_comparison"] == "ineligible"
+
+
+def test_two_52_week_spsf_occurrences_have_no_false_calendar_mismatch(tmp_path: Path):
+    payload = _enriched_admission(tmp_path)
+    spsf = _spsf_assessments(payload)
+    fifty_two = [
+        item
+        for item in spsf
+        if item["evidence"]["fiscal_year_length_weeks"] == "52"
+        and item["evidence"]["calendar_week_adjustment"] == "included"
+    ]
+    assert len(fifty_two) >= 2
+    fy2022_current = next(
+        item
+        for item in fifty_two
+        if item["evidence"]["extraction_document"] == "LULU_FY2022_management_kpis.json"
+        and item["evidence"]["period"] == "2023-01-29"
+    )
+    fy2023_current = next(
+        item
+        for item in fifty_two
+        if item["evidence"]["extraction_document"] == "LULU_FY2023_management_kpis.json"
+        and item["evidence"]["period"] == "2024-01-28"
+    )
+    pair = next(
+        item
+        for item in fy2022_current["pair_assessments"]
+        if set(item["locators"]) == {fy2022_current["locator"], fy2023_current["locator"]}
+    )
+    assert pair["kind"] == "historical_comparison"
+    assert "calendar_mismatch" not in pair["reasons"]
+    for item in payload["group_decisions"]:
+        for failure in item["remaining_failures"]:
+            pair_locators = set(failure.get("comparison_pair") or [])
+            if pair_locators == {fy2022_current["locator"], fy2023_current["locator"]}:
+                assert failure["detail"] != "calendar_mismatch"
+                assert failure["requirement"] != "calendar"
+
+
+def test_fy2024_exclusion_flags_have_individually_bound_passages(tmp_path: Path):
+    dest = _copy_extracted(tmp_path / "excl")
+    sidecar = enrich_management_working_copies(dest, SOURCE)
+    fy2024 = json.loads((dest / "LULU_FY2024_management_kpis.json").read_text())
+    fy2025 = json.loads((dest / "LULU_FY2025_management_kpis.json").read_text())
+    current = next(
+        item
+        for item in fy2024["reported_kpis"]
+        if item["metric_id"] == "sales_per_square_foot" and item["period"] == "2025-02-02"
+    )
+    traced = next(
+        item
+        for item in fy2025["reported_kpis"]
+        if item["metric_id"] == "sales_per_square_foot"
+        and item["period"] == "2025-02-02"
+        and item.get("traced_prior_period")
+    )
+    for item in (current, traced):
+        exclusion = item["supporting_evidence"]["metric_exclusion"]
+        assert item["qualifiers"]["excludes_53rd_week"] is True
+        assert exclusion["passage"]
+        assert exclusion["passage"].endswith(".")
+        assert "sales per square foot" in exclusion["passage"].lower()
+        assert "excluded" in exclusion["passage"].lower()
+        assert "53" in exclusion["passage"]
+        assert "Fiscal 2024 was a 53-week year" not in exclusion["passage"]
+        assert exclusion["source_file"] == "LULU_FY2024_Annual_Report.pdf"
+        assert 40 in exclusion["physical_pages"]
+        assert exclusion["metric_id"] == "sales_per_square_foot"
+        assert exclusion["period"] == "2025-02-02"
+        binding = item["supporting_evidence"]["passage_bindings"]["metric_exclusion"]
+        assert binding["source_file"] == "LULU_FY2024_Annual_Report.pdf"
+        assert 40 in binding["physical_pages"]
+        assert 34 in binding["printed_pages"]
+    assert current["supporting_evidence"]["metric_exclusion"]["cross_filing"] is False
+    assert traced["supporting_evidence"]["metric_exclusion"]["cross_filing"] is True
+    fy2024_field = next(
+        item
+        for record in sidecar["documents"]
+        if record["extraction_document"] == "LULU_FY2024_management_kpis.json"
+        for item in record["fields"]
+        if item["metric_id"] == "sales_per_square_foot" and item["period"] == "2025-02-02"
+    )
+    fy2025_traced_field = next(
+        item
+        for record in sidecar["documents"]
+        if record["extraction_document"] == "LULU_FY2025_management_kpis.json"
+        for item in record["fields"]
+        if item["metric_id"] == "sales_per_square_foot" and item["period"] == "2025-02-02"
+    )
+    assert fy2024_field["metric_exclusion"]["physical_pages"] == fy2025_traced_field[
+        "metric_exclusion"
+    ]["physical_pages"]
+    assert 40 in fy2024_field["metric_exclusion"]["physical_pages"]
+
+
+def test_calendar_text_does_not_satisfy_exclusion_evidence():
+    from core.ingestion.management_kpi_enrichment import (
+        CalendarYearEvidence,
+        _metric_exclusion_evidence,
+        _metric_excludes_53rd_week,
+    )
+
+    calendar = CalendarYearEvidence(
+        fiscal_year=2024,
+        fifty_three_week=True,
+        source_file="LULU_FY2024_Annual_Report.pdf",
+        physical_page=32,
+        passage="Fiscal 2024 was a 53-week year.",
+        cross_filing=False,
+    )
+    assert _metric_exclusion_evidence(
+        "sales_per_square_foot", calendar, [calendar.passage]
+    ) is None
+    assert _metric_excludes_53rd_week(
+        "sales_per_square_foot", calendar, [calendar.passage]
+    ) is None

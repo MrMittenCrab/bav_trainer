@@ -171,6 +171,17 @@ class ComparisonWindowEvidence:
     passage: str = ""
 
 
+@dataclass(frozen=True)
+class MetricExclusionEvidence:
+    metric_key: str
+    fiscal_year: int
+    source_file: str
+    physical_pages: tuple[int, ...]
+    printed_pages: tuple[int, ...]
+    passage: str
+    cross_filing: bool = False
+
+
 def _decode_identity_h(text: str) -> str:
     out: list[str] = []
     for ch in text:
@@ -1070,14 +1081,109 @@ def _metric_excludes_53rd_week(
     texts: Iterable[str],
 ) -> bool | None:
     """Require metric-specific documentary exclusion; year length is not enough."""
-    if calendar is None:
+    evidence = _metric_exclusion_evidence(metric_id, calendar, texts)
+    if evidence is None and calendar is None:
         return None
-    if not calendar.fifty_three_week:
+    if calendar is not None and not calendar.fifty_three_week:
         return False
+    return True if evidence is not None else None
+
+
+def _metric_key_for_exclusion(metric_id: str) -> str:
+    if "sales_per_square_foot" in metric_id:
+        return "sales_per_square_foot"
+    if "comparable" in metric_id:
+        return "comparable"
+    return ""
+
+
+def _metric_exclusion_evidence(
+    metric_id: str,
+    calendar: CalendarYearEvidence | None,
+    texts: Iterable[str],
+    *,
+    corpus: Mapping[tuple[str, int], MetricExclusionEvidence] | None = None,
+    presenting_source: str = "",
+) -> MetricExclusionEvidence | None:
+    """Bind exclusion to a complete metric-specific sentence; year length is not enough."""
+    if calendar is None or not calendar.fifty_three_week:
+        return None
+    metric_key = _metric_key_for_exclusion(metric_id)
+    if not metric_key:
+        return None
+    if corpus:
+        hit = corpus.get((metric_key, calendar.fiscal_year))
+        if hit is not None:
+            return MetricExclusionEvidence(
+                metric_key=hit.metric_key,
+                fiscal_year=hit.fiscal_year,
+                source_file=hit.source_file,
+                physical_pages=hit.physical_pages,
+                printed_pages=hit.printed_pages,
+                passage=hit.passage,
+                cross_filing=hit.source_file != presenting_source,
+            )
     needles = _metric_exclusion_needles(metric_id)
-    if needles and _passage_matching(texts, needles):
-        return True
-    return None
+    passage = _passage_matching(texts, needles) if needles else ""
+    if not passage:
+        return None
+    calendar_passage = _collapsed(calendar.passage).lower()
+    if calendar_passage and _collapsed(passage).lower() == calendar_passage:
+        return None
+    return MetricExclusionEvidence(
+        metric_key=metric_key,
+        fiscal_year=calendar.fiscal_year,
+        source_file=calendar.source_file,
+        physical_pages=(calendar.physical_page,) if calendar.physical_page else (),
+        printed_pages=(),
+        passage=passage,
+        cross_filing=calendar.cross_filing,
+    )
+
+
+def collect_exclusion_corpus(
+    inspections: Mapping[str, SourceInspection],
+    calendar_corpus: Mapping[int, CalendarYearEvidence],
+) -> dict[tuple[str, int], MetricExclusionEvidence]:
+    """Index metric-specific 53rd-week exclusion sentences by occurrence year."""
+    corpus: dict[tuple[str, int], MetricExclusionEvidence] = {}
+    specs = (
+        ("sales_per_square_foot", _SPSF_EXCLUSION_NEEDLES),
+        ("comparable", _COMPSALES_EXCLUSION_NEEDLES),
+    )
+    for year, calendar in calendar_corpus.items():
+        if not calendar.fifty_three_week:
+            continue
+        inspection = inspections.get(calendar.source_file)
+        if inspection is None:
+            continue
+        for metric_key, needles in specs:
+            texts: list[str] = []
+            for physical in sorted(inspection.page_texts):
+                text = inspection.page_texts[physical]
+                if _passage_matching([text], needles):
+                    texts.append(text)
+            passage = _passage_matching(texts, needles) if texts else ""
+            if not passage:
+                continue
+            if _collapsed(passage).lower() == _collapsed(calendar.passage).lower():
+                continue
+            pages = _pages_containing_passage(inspection, passage)
+            if not pages:
+                continue
+            corpus.setdefault(
+                (metric_key, year),
+                MetricExclusionEvidence(
+                    metric_key=metric_key,
+                    fiscal_year=year,
+                    source_file=inspection.source_file,
+                    physical_pages=pages,
+                    printed_pages=_printed_for_physical(inspection, pages),
+                    passage=passage,
+                    cross_filing=False,
+                ),
+            )
+    return corpus
 
 
 def _window_applies_to_item(
@@ -1229,6 +1335,7 @@ def enrich_management_payload(
     extraction_document: str,
     calendar_corpus: dict[int, CalendarYearEvidence] | None = None,
     year_end_map: Mapping[int, str] | None = None,
+    exclusion_corpus: Mapping[tuple[str, int], MetricExclusionEvidence] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Return an enriched working copy and the page-resolution record."""
     if classify_extracted_payload(payload, path=extraction_document) != KIND_MANAGEMENT_KPI:
@@ -1289,11 +1396,17 @@ def enrich_management_payload(
         extra_texts = _page_texts(inspection, extra_pages)
         if calendar is not None and calendar.cross_filing:
             extra_texts.append(calendar.passage)
-        exclusion_texts = list(extra_texts) + _page_texts(inspection, physical_pages)
-        if calendar is not None and calendar.fifty_three_week:
-            exclusion_texts.extend(inspection.page_texts[page] for page in sorted(inspection.page_texts))
+        exclusion = _metric_exclusion_evidence(
+            str(item["metric_id"]),
+            calendar,
+            list(extra_texts) + _page_texts(inspection, physical_pages),
+            corpus=exclusion_corpus,
+            presenting_source=inspection.source_file,
+        )
         week_excluded = _metric_excludes_53rd_week(
-            str(item["metric_id"]), calendar, exclusion_texts
+            str(item["metric_id"]),
+            calendar,
+            [exclusion.passage] if exclusion is not None else (),
         )
         qualifiers = item.get("qualifiers")
         if not isinstance(qualifiers, dict):
@@ -1346,6 +1459,26 @@ def enrich_management_payload(
                 physical_pages=pages,
                 printed_pages=_printed_for_physical(inspection, pages),
             )
+        exclusion_record = None
+        if exclusion is not None:
+            passages["metric_exclusion"] = exclusion.passage
+            passage_bindings["metric_exclusion"] = _passage_binding(
+                source_file=exclusion.source_file,
+                physical_pages=exclusion.physical_pages,
+                printed_pages=exclusion.printed_pages,
+                cross_filing=exclusion.cross_filing,
+            )
+            exclusion_record = {
+                "metric_id": item["metric_id"],
+                "metric_key": exclusion.metric_key,
+                "period": item.get("period"),
+                "fiscal_year": exclusion.fiscal_year,
+                "source_file": exclusion.source_file,
+                "physical_pages": list(exclusion.physical_pages),
+                "printed_pages": list(exclusion.printed_pages),
+                "passage": exclusion.passage,
+                "cross_filing": exclusion.cross_filing,
+            }
         supporting = {
             "printed_pages": list(printed),
             "physical_pages": list(physical_pages),
@@ -1358,6 +1491,7 @@ def enrich_management_payload(
                 52 if calendar is not None else None
             ),
             "metric_excludes_53rd_week": week_excluded,
+            "metric_exclusion": exclusion_record,
             "comparison_window": (
                 None
                 if item_window is None
@@ -1431,6 +1565,7 @@ def enrich_management_payload(
                 "fiscal_year_length_weeks": supporting["fiscal_year_length_weeks"],
                 "comparison_window": supporting["comparison_window"],
                 "calendar_provenance": supporting["calendar_provenance"],
+                "metric_exclusion": exclusion_record,
                 "definition_features": supporting["definition_features"],
                 "prior_period_levels": supporting["prior_period_levels"],
             }
@@ -1481,6 +1616,7 @@ def enrich_management_working_copies(
         if source_file not in inspections:
             inspections[source_file] = inspect_source_pdf(pdf)
     calendar_corpus = collect_calendar_corpus(inspections)
+    exclusion_corpus = collect_exclusion_corpus(inspections, calendar_corpus)
     year_end_map: dict[int, str] = {}
     for path in sorted(extracted.glob("*.json")):
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -1502,6 +1638,7 @@ def enrich_management_working_copies(
             extraction_document=path.name,
             calendar_corpus=calendar_corpus,
             year_end_map=year_end_map,
+            exclusion_corpus=exclusion_corpus,
         )
         path.write_text(json.dumps(enriched, indent=2) + "\n", encoding="utf-8")
         written.append(path.name)
@@ -1609,6 +1746,8 @@ def _document_pages(supporting: Mapping[str, Any]) -> list[int]:
         pages.append(int(provenance["physical_page"]))
     window = supporting.get("comparison_window") or {}
     pages.extend(int(page) for page in window.get("physical_pages") or [])
+    exclusion = supporting.get("metric_exclusion") or {}
+    pages.extend(int(page) for page in exclusion.get("physical_pages") or [])
     return pages
 
 
@@ -1643,6 +1782,21 @@ def _failure_record(
     return record
 
 
+def _pair_failure_mapping(reason: str) -> tuple[str, str, str] | None:
+    mapped = _FAILURE_REMAINING.get(reason)
+    if mapped is not None:
+        return mapped
+    from .management_kpi_identity import COMPARISON_CONFLICT_REASONS
+
+    if reason in COMPARISON_CONFLICT_REASONS:
+        return (
+            reason,
+            CAUSE_AMBIGUITY,
+            "aligned documentary evidence for this comparison pair",
+        )
+    return None
+
+
 def build_group_decisions(
     group_selections: Iterable[Any],
     assessments: Iterable[Any],
@@ -1650,11 +1804,14 @@ def build_group_decisions(
 ) -> tuple[dict[str, Any], ...]:
     """Reproducible per-group documentary decisions for admission review."""
     from .management_kpi_identity import (
-        COMPARISON_CONFLICT_REASONS,
         FAMILY_SALES_PER_SQUARE_FOOT,
         HISTORICAL_COMPARISON_ELIGIBLE,
         LEVEL_ADMITTED,
+        PAIR_KIND_HISTORICAL,
+        PAIR_SUPPORTED,
         REASON_MISSING_COMPARISON,
+        REASON_PERIOD_MISMATCH,
+        REQUIRED_COMPARISON_REASONS,
     )
     from .management_kpi_reconciliation import (
         REASON_MISSING_REVISION_LINK,
@@ -1666,14 +1823,19 @@ def build_group_decisions(
 
     by_locator = {item.locator: item for item in observations}
     by_assessment = {item.locator: item for item in assessments}
+    pair_by_key: dict[tuple[str, str], Any] = {}
+    for assessment in assessments:
+        for pair in getattr(assessment, "pair_assessments", ()) or ():
+            pair_by_key[tuple(pair.locators)] = pair
     decisions: list[dict[str, Any]] = []
     for group in group_selections:
         locators = [item.locator for item in group.occurrences]
+        locator_set = set(locators)
         consumed: list[str] = []
         satisfied: list[str] = []
         pages: list[int] = []
         failures: list[dict[str, Any]] = []
-        seen_failures: set[tuple[str, str, str]] = set()
+        seen_failures: set[tuple[str, str, str, str]] = set()
         level_states: list[str] = []
         comparison_states: list[str] = []
         for locator in locators:
@@ -1708,19 +1870,23 @@ def build_group_decisions(
                     satisfied.append("level_admission")
                 level_states.append(assessment.level_admission)
                 comparison_states.append(assessment.historical_comparison)
-                peers = list(assessment.peer_locators)
-                for reason in assessment.unresolved_reasons:
+                occurrence_reasons = [
+                    reason
+                    for reason in assessment.unresolved_reasons
+                    if reason in REQUIRED_COMPARISON_REASONS
+                    or reason
+                    in {
+                        "presentation_role",
+                        "assurance",
+                        "revision",
+                    }
+                ]
+                for reason in occurrence_reasons:
                     mapped = _FAILURE_REMAINING.get(reason)
-                    if mapped is None and reason in COMPARISON_CONFLICT_REASONS:
-                        mapped = (
-                            reason,
-                            CAUSE_AMBIGUITY,
-                            "aligned documentary evidence for this comparison pair",
-                        )
                     if mapped is None:
                         continue
                     requirement, cause, remaining = mapped
-                    key = (locator, requirement, reason)
+                    key = ("occurrence", locator, requirement, reason)
                     if key in seen_failures:
                         continue
                     seen_failures.add(key)
@@ -1744,7 +1910,6 @@ def build_group_decisions(
                             cause=cause,
                             remaining=remaining,
                             locator=locator,
-                            peer=peers[0] if peers else "",
                             document=failure_document,
                             pages=failure_pages,
                             passage=passage,
@@ -1755,7 +1920,7 @@ def build_group_decisions(
                 if reason not in unresolved_obs:
                     continue
                 mapped = _FAILURE_REMAINING[reason]
-                key = (locator, mapped[0], reason)
+                key = ("occurrence", locator, mapped[0], reason)
                 if key in seen_failures:
                     continue
                 seen_failures.add(key)
@@ -1768,6 +1933,64 @@ def build_group_decisions(
                         document=document,
                         pages=occurrence_pages,
                         passage=str(passages.get(mapped[0], "")),
+                        detail=reason,
+                    )
+                )
+        for pair in sorted(pair_by_key.values(), key=lambda item: item.locators):
+            if not locator_set.intersection(pair.locators):
+                continue
+            if pair.outcome == PAIR_SUPPORTED:
+                continue
+            for reason in pair.reasons:
+                if reason == REASON_PERIOD_MISMATCH and pair.kind == PAIR_KIND_HISTORICAL:
+                    continue
+                mapped = _pair_failure_mapping(reason)
+                if mapped is None:
+                    continue
+                requirement, cause, remaining = mapped
+                key = ("pair", pair.locators[0], pair.locators[1], f"{requirement}:{reason}")
+                if key in seen_failures:
+                    continue
+                seen_failures.add(key)
+                left = by_locator.get(pair.locators[0])
+                right = by_locator.get(pair.locators[1])
+                left_support = _supporting_dict(left) if left is not None else {}
+                right_support = _supporting_dict(right) if right is not None else {}
+                field_name = {
+                    "comparison_window": "comparison_window",
+                    "calendar": "calendar",
+                    "definition": "definition",
+                    "period_date": "dates",
+                    "historical_comparison": "value",
+                    "presentation": "presentation",
+                }.get(requirement, "")
+                left_bindings = left_support.get("passage_bindings") or {}
+                right_bindings = right_support.get("passage_bindings") or {}
+                binding = left_bindings.get(field_name) or right_bindings.get(field_name) or {}
+                left_passages = left_support.get("passages") or {}
+                right_passages = right_support.get("passages") or {}
+                passage = _passage_text(
+                    left_passages.get(field_name) or right_passages.get(field_name)
+                )
+                pair_pages = list(_document_pages(left_support)) + list(
+                    _document_pages(right_support)
+                )
+                failure_pages = [
+                    int(page) for page in binding.get("physical_pages") or []
+                ] or pair_pages
+                failures.append(
+                    _failure_record(
+                        requirement=requirement,
+                        cause=cause,
+                        remaining=remaining,
+                        locator=pair.locators[0],
+                        peer=pair.locators[1],
+                        document=str(
+                            binding.get("source_file")
+                            or (left.extraction_document if left is not None else "")
+                        ),
+                        pages=failure_pages,
+                        passage=passage,
                         detail=reason,
                     )
                 )
@@ -1794,6 +2017,17 @@ def build_group_decisions(
                         pages=pages,
                     )
                 )
+        group_pairs = [
+            pair
+            for pair in pair_by_key.values()
+            if locator_set.intersection(pair.locators)
+        ]
+        historical_pairs = [
+            pair for pair in group_pairs if pair.kind == PAIR_KIND_HISTORICAL
+        ]
+        supported_historical = [
+            pair for pair in historical_pairs if pair.outcome == PAIR_SUPPORTED
+        ]
         comparison_missing = any(
             REASON_MISSING_COMPARISON
             in getattr(by_assessment.get(locator), "unresolved_reasons", ())
@@ -1803,12 +2037,17 @@ def build_group_decisions(
             item
             for item in failures
             if item["requirement"] in {"calendar", "comparison_window", "definition"}
+            and item.get("comparison_pair")
         ]
         same_identity_peers = any(
             getattr(by_assessment.get(locator), "peer_locators", ())
             for locator in locators
         )
-        if comparison_missing and group.family == FAMILY_SALES_PER_SQUARE_FOOT:
+        if (
+            comparison_missing
+            and group.family == FAMILY_SALES_PER_SQUARE_FOOT
+            and not supported_historical
+        ):
             if same_identity_peers and alignment_conflicts:
                 additional = ""
                 rewritten: list[dict[str, Any]] = []
@@ -1816,6 +2055,7 @@ def build_group_decisions(
                     if (
                         item["requirement"] == "historical_comparison"
                         and item.get("cause") == CAUSE_SOURCE_ABSENCE
+                        and not item.get("comparison_pair")
                     ):
                         rewritten.append(
                             {
@@ -1846,7 +2086,7 @@ def build_group_decisions(
                             pages=pages,
                         )
                     )
-            else:
+            elif not historical_pairs:
                 additional = _FAILURE_REMAINING["missing_comparison"][2]
                 if not any(
                     item["requirement"] == "historical_comparison"
@@ -1874,18 +2114,12 @@ def build_group_decisions(
         )
         comparison_eligibility = (
             HISTORICAL_COMPARISON_ELIGIBLE
-            if comparison_states
-            and all(state == HISTORICAL_COMPARISON_ELIGIBLE for state in comparison_states)
+            if any(state == HISTORICAL_COMPARISON_ELIGIBLE for state in comparison_states)
+            or supported_historical
             else "ineligible"
         )
         if comparison_eligibility == HISTORICAL_COMPARISON_ELIGIBLE:
-            conflict_failures = [
-                item
-                for item in failures
-                if item["requirement"] in {"calendar", "comparison_window", "definition"}
-            ]
-            if conflict_failures:
-                comparison_eligibility = "ineligible"
+            satisfied.append("historical_comparison")
         satisfied = sorted(set(satisfied))
         if comparison_eligibility != HISTORICAL_COMPARISON_ELIGIBLE:
             satisfied = [item for item in satisfied if item != "historical_comparison"]
@@ -1902,6 +2136,10 @@ def build_group_decisions(
                 "evidence_consumed": consumed,
                 "requirements_satisfied": satisfied,
                 "remaining_failures": failures,
+                "pair_assessments": [
+                    pair.to_payload()
+                    for pair in sorted(group_pairs, key=lambda item: item.locators)
+                ],
                 "cause": primary or CAUSE_SELECTION,
                 "pages_searched": sorted(set(pages)),
                 "additional_evidence_needed": additional,
