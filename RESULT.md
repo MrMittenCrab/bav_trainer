@@ -1,5 +1,72 @@
 # RESULT.md — Step 3.3.1 Finish revenue-driver presentation and verification
 
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 3.3.1 — Finish revenue-driver presentation and verification  
+**Work:** `8a8f7457f9524a6997e0ec2fbbe5ac23`  
+**Plan:** `8aa00f2d3d2749d5a2f4ab39f2f3eec0`  
+**Finding:** Test disclosure-led historical revenue drivers  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `28089b961e72b3058d043efb9008e42c7b144d15cc3e3e2837174acb2f5eaf70` (26043).  
+SESSION SHA-256 `b37e5b0348b8d6f2210a51f8307511842fcc862ede5059c7ca76687bb4bad4aa` (4944).  
+IMPLEMENTATION SHA-256 `222af3e06a7083bce757747728e63de4bda63789db3acbdfacf5fad744a3d98a` (8325).  
+No commit / push / sync / checkpoint / branch change. No BAV regeneration. No layout edit.
+
+## Required plan change
+
+No required plan change. Native `screencapture -x` inspection of all four Revenue Driver Analysis hypotheses on the authorized working copy found no demonstrated clipping, truncation, overlap, or unreadable scaling. Broader strategy synthesis and Session Endpoint closure remain subsequent work.
+
+## Native screenshot inspection (this attempt)
+
+Carried forward Screen Recording recovery: `.git/autocycle/implement-render-fix-20260920/SCREEN-RECORDING.md` and `screen-test.png` SHA-256 `12e93d5d0f4674a14a5670a591a329ce45d4956762db38245227ccf6ec431091`.
+
+Started from accepted BAV SHA-256 `f0f46a03f4c2091f8d9a1d3002b37bcda2bd46c6851389d9ebc4171cbf4f1a0c` (224649). Operated only on the already-authorized native Excel working copy `.git/autocycle/excel-workbooks/5dc9d0038b5f6b7cfbc50b3c/autocycle-verification-5dc9d0038b5f6b7cfbc50b3c.xlsx` SHA-256 `1d332daa8740fc53df6eaf90ecff5c7446f19502ad9510a7ab5ff56954aa1cae`. Immutable saved snapshot `.git/autocycle/excel-verification-fb95_r2m/saved-copy.xlsx` was not overwritten (same hash). Prior `attempt-20260920-1818-diagnostics.json` SHA-256 `8d43da333a8a03fd0e5430b15ea4ded5581e5faf5ddd6a12b4d83be7b68c2554` retained.
+
+Capture method: activate Microsoft Excel, `goto` a range on `Revenue Driver Analysis`, 100% zoom, window bounds `{0,39,1710,1112}`, overlapping `scroll row`/`scroll column`, then direct `/usr/sbin/screencapture -x`. PDF/CopyPicture/print-area paths were not repeated. AutoRecover banner "Open recovered workbooks?" was present; it was not dismissed. `set active sheet` failed `-10006` while that banner was up; `goto` switched the visible sheet without clicking the banner. Source and granted-copy hashes were unchanged after close-without-save.
+
+New evidence (does not overwrite 1818 files): `.git/autocycle/revenue-driver-render-3-3-1/attempt-20260920-1938/` including `inspection.json`, `rda-capture-log.txt`, `capture-hashes.sha256`, and 44 PNGs under `captures/`.
+
+| Required cell | Inspected screenshot | SHA-256 | Visual finding |
+|---|---|---|---|
+| A5 | `rda-01-header-a5.png` | `b68a141ad97f822bb4fdaf71b4b90edd226316d97b64581369a1947fb34b129d` | Merged wrapped scope note fully readable: management statements vs outcomes; descriptive differences not causal; revenue/stores identity; reported vs constant-currency / fiscal labels kept distinct. |
+| B12 | `rda-01-header-a5.png` | same | Store disclosure + `LULU_FY2022_Annual_Report.pdf`; Form 10-K p. 32; Item 7; period-end 2023-01-29. B13/B14 locators also visible. |
+| B15 | `rda-01-header-a5.png` | same | Finding complete: 4 aligned periods; supported descriptively; 2026-02-01 store-count growth 5.74% exceeded revenue 4.86% (−0.878 pp); Revenue per Store declined as identity, not productivity proof. |
+| B18 | `rda-01-header-a5.png` / `rda-03-store-b18.png` | `450d1af5b374b07b8c4343dba20e624620f272d37dc47059d93417e55f3a8b22` | Limitations fully wrapped: distinct scopes; not new-store contribution/organic/productivity/causal; period-end vs average-store denominators not substituted. |
+| F25 | `rda-03-store-b18.png` | `450d1af5…` | Period-specific store counterexample in the Feb 1, 2026 column fully wrapped, including the identity caveat. Aligned observations: store growth 14.1/8.5/7.9/5.7%; revenue 29.6/18.6/10.1/4.9%; differences 15.52/10.05/2.20/−0.88. |
+| B36 | `rda-07-compsales.png` | `728276189f9293e3e01699b08d57a066f1f69d074d671d35997e9da609b0e7e9` | Comparable-sales limitations complete: not causal; reported vs constant-currency separate; identities unmerged (`company_operated_stores` / `…_direct_to_consumer` / `…_ecommerce`); historical compsales comparison ineligible. Verdict supported descriptively; sample 4 period-ends. |
+| B56 | `rda-09-productivity.png` | `7e1bf4abd935ddd72eb4f64ac5b54df1a07b4ccdcc7303bcd45e9cd57fd05676` | Productivity limitations complete; adjacent SPSF unavailable at 2023-01-29, 2024-01-28, 2025-02-02, 2026-02-01 with named mismatch reasons; gaps not bridged. Verdict insufficiently evidenced; sample 0. |
+| A57:A58 | `rda-09-productivity.png` | same | Heading DEFERRED DISAGREEMENT. Full 2023-01-29 SPSF disagreement: FY2022 during-the-year definition (10-K p. 3; physical 3→7) vs FY2023 average-ending definition (10-K p. 4; physical 4→10); reasons `definition_mismatch`, `ordinary_disagreement`; complete group audit-only, not admitted, not bridged. |
+| F83 | `rda-13-geographic.png` / `rda-14-geographic-obs.png` | `8e33b839de68b78a0e0084c392687dc4b4710238440f2ec6441f8cd70c8513a8` / `a23e3799db1e5a9eb23e51efd274f57cf511c398e47cbf49bfa6f4f166fc0e1e` | 2026-02-01 geographic counterexample complete: revenue 4.86%; Americas −0.766 pp; China Mainland 3.716 pp; Rest of World 1.909 pp; mix mixed, not causal. Hypothesis, Power of Three ×2 / China Mainland locators, mixed verdict, arithmetic-decomposition limitations readable. |
+| A90:B90 | `rda-14-geographic-obs.png` | `a23e3799…` | NOTES: Scope and evidence limits + full scope paragraph; Identities versus inference also readable. Revenue per Store identity 10,900 / 12,382 / 13,539 / 13,805 / 13,690 visible. |
+
+First 16 numbered captures (`01-header-a5.png` …) showed Overview because sheet `goto` had not yet run; retained, not overwritten. Some later `screencapture -x` frames were occluded by Cursor, Chrome, or Mission Control (`rda-front-05-f25.png` is Mission Control). Overlapping RDA views above were used for inspection. Formatting properties were not treated as readability.
+
+**Presentation defects demonstrated:** none. No wrapping/row-height/column-width/pagination edit. Ordinary `python -m bav build Lululemon` was not re-run.
+
+## Native Excel carry-forward
+
+Final BAV bytes unchanged (`f0f46a03…`). Granted copy and saved snapshot remain `1d332daa…`. Formulas, literal inputs and transitive dependencies are unchanged by identity; the accepted 37-reference / 103-cell VERIFIED evidence is carried forward without recalculation.
+
+Retained: `.git/autocycle/excel-verification-fb95_r2m/`, `excel-verification-7vjhjujd/`, `excel-verification-kd2d78ng/`, `excel-verification-ti974vnt/`, `excel-verification-kzg9a_ex/`.
+
+## Artifact hashes (unchanged)
+
+| Path | SHA-256 | Bytes |
+|---|---|---|
+| `build/output/Lululemon/Lululemon_BAV.xlsx` | `f0f46a03f4c2091f8d9a1d3002b37bcda2bd46c6851389d9ebc4171cbf4f1a0c` | 224649 |
+| `.git/autocycle/excel-verification-fb95_r2m/saved-copy.xlsx` | `1d332daa8740fc53df6eaf90ecff5c7446f19502ad9510a7ab5ff56954aa1cae` | 260706 |
+| granted working copy | `1d332daa8740fc53df6eaf90ecff5c7446f19502ad9510a7ab5ff56954aa1cae` | 260706 |
+
+`SEGMENT_BRIDGE_TOLERANCE = 0.0`. Protected artifacts and source extracts were not replaced. No Trainer derivation (BAV unchanged). No model/workbook/Trainer/build regressions re-run (no implementation change).
+
+## Remaining toward Completion
+
+Four hypotheses, deferred SPSF disagreement, and both period-specific counterexamples were visually inspected at readable scale on native Excel screenshots. This bounded work does not close broader strategy synthesis, Session Endpoint, or earlier deferred obligations.
+
+---
+
+# RESULT.md — Step 3.3.1 Finish revenue-driver presentation and verification
+
 **Status:** BLOCKED (this bounded attempt; Review adjudicates Step closure)  
 **Step:** 3.3.1 — Finish revenue-driver presentation and verification  
 **Work:** `8a8f7457f9524a6997e0ec2fbbe5ac23`  
