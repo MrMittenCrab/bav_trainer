@@ -2,11 +2,13 @@
 
 ## Product target
 
-Build a complete **Business Analysis and Valuation research system** whose primary product is a professional company BAV workbook suitable as proof of work.
+Build a complete Business Analysis and Valuation equity-research system. The Excel workbook is the analytical and source-traceability layer, Markdown is the canonical human-readable research output, and figures are reusable visual evidence.
 
 The intended product relationship is:
 
-source-grounded company evidence → complete BAV analytical model → professional `<Company>_BAV.xlsx` → derivative `<Company>_BAV_Trainer.xlsx`
+source-grounded company evidence → complete BAV analytical model → professional `<Company>_BAV.xlsx` with reproducible Markdown research and figures
+
+The completed model also supports an optional derivative `<Company>_BAV_Trainer.xlsx`.
 
 The BAV workbook is the authoritative analytical model. It replaces the former Answer Key concept and must not present itself as an answer key, exercise or Trainer.
 
@@ -27,6 +29,34 @@ Formula correctness is necessary but not sufficient. The product must support ac
 
 Historical accounting analysis, normalization and reformulation, NOA, NOPAT, forecasting, valuation and investment interpretation remain long-term goals. A bounded Session need not complete every later stage.
 
+## Research output architecture
+
+The completed Lululemon build contains:
+
+- `build/lululemon/Lululemon_BAV.xlsx`
+- `build/lululemon/research/Lululemon_Drivers.md`
+- `build/lululemon/research/Lululemon_Forecast.md`
+- `build/lululemon/research/Lululemon_Valuation.md`
+- `build/lululemon/research/Lululemon_Overview.md`
+- `build/lululemon/figures/drivers/growth.png`
+- `build/lululemon/figures/drivers/geography.png`
+- `build/lululemon/figures/drivers/margin.png`
+
+Root `README.md` documents the workbook / research / figures architecture. Root `STYLE.md` is the single source of truth for human-facing BAV presentation and language conventions, applied to Markdown research, generated figures and future rendered research. Do not duplicate its specification in README or individual modules.
+
+The research module sequence is Drivers, Forecast, Valuation, Overview:
+
+- Drivers: historical business, operating and financial analysis.
+- Forecast: forward estimates and assumptions.
+- Valuation: standalone valuation.
+- Overview: cross-module synthesis.
+
+Module names use one word unless a one-word name would be genuinely unclear. Session 4 implements Drivers only; Forecast, Valuation and Overview files remain zero-content placeholders, without headings, explanatory text, TODOs, templates or analysis.
+
+Research and figures must be reproducible from the same validated BAV inputs as the workbook. Preserve calculations, source references, reconciliations and validation controls; do not maintain a separate uncontrolled numerical dataset. Figures use Matplotlib and one centralized style implementation derived from STYLE.md.
+
+Preserve the existing validated workbook. Presentation changes are limited to support needed for Drivers or employer-facing wording that materially obscures economic meaning; this architecture does not authorize a general workbook redesign or removal of audit evidence.
+
 ## Scope boundary
 
 The initial curriculum is for **non-financial operating companies**. Banks, insurers, brokers, and other financial institutions require separate sector-specific accounting and valuation logic.
@@ -34,6 +64,8 @@ The initial curriculum is for **non-financial operating companies**. Banks, insu
 Hong Kong company input may remain manual. Automatic HKEX scraping is not required when annual reports, interim reports, results materials, Excel exports, Bloomberg exports, or Wind exports are supplied.
 
 Analysis and exercises should follow materiality and the information actually supplied. Missing historical facts must not be invented.
+
+BAV supplies target-side equity-research evidence only. It does not perform buyer-specific, M&A or Fast Retailing interpretation. Existing Fast Retailing analytical controls and regression coverage remain preserved.
 
 ## Source-data architecture
 
@@ -46,6 +78,8 @@ LLM-assisted extraction is permitted upstream, but extraction must remain separa
 The standard filing workflow is:
 
 source documents → one extracted JSON per filing → deterministic validation → deterministic cross-filing reconciliation → `StandardizedFinancials` → complete BAV reference model → professional BAV workbook → optional derivative Trainer
+
+Canonical Markdown research and reusable figures consume the same validated analytical outputs, with traceability to the workbook and source evidence.
 
 Cross-filing differences, restatements, and source conflicts must be recorded rather than silently overwritten. Later audited presentations may take deterministic precedence, but the superseded observations remain in provenance.
 
@@ -206,7 +240,7 @@ The default test is: **does reconstructing this cell teach historical model logi
 - **Workbook-wide Check.** One Check validates every active historical practice cell.
 - **Check is non-disclosing.** Aggregate counts are allowed; answers/formulas/hints are not printed or inserted.
 - **Shared analytical structure.** BAV and Trainer retain corresponding analytical identities and schedules. Opening presentation and learning instructions may differ according to product purpose.
-- **Restrained presentation.** Preserve Aptos Narrow 11, black text and ordinary white cells for the existing analytical surface. Bright yellow denotes only Trainer practice; green/red denote functional Check feedback. Avoid decorative borders and fills. Professional opening and analytical presentation should materially improve understanding.
+- **Restrained presentation.** Preserve Aptos Narrow 11, black text and ordinary white cells for the existing analytical surface. Bright yellow denotes only Trainer practice; green/red denote functional Check feedback. Avoid decorative borders and fills. Professional opening and analytical presentation should materially improve understanding. STYLE.md governs research presentation; Session 4 does not require restyling the preserved analytical workbook.
 - **Semantic component mapping.** Practice formulas resolve by semantic identity rather than fragile static coordinates.
 - **Professional workbook preserved.** Trainer derivation removes only selected learning cells and adds training presentation; it must not mutate the BAV. Source facts and non-practice calculations remain populated.
 - **Standardized identity survives round trips.** Identity-bearing fields such as `LineItem.concept` survive supported standardized-data export/reload.
@@ -248,7 +282,7 @@ Preserve accepted Geographic Analysis, Operating KPIs and Normalization Judgment
 
 Preserve already accepted accounting, ingestion, geographic, KPI, normalization, provenance, workbook and regression work unless a demonstrated defect prevents the Session Endpoint.
 
-Standalone M&A Net Debt / Debt-Like Items Bridge, Complete NOPAT / RNOA and forecasting remain deferred unless a bounded historical dependency is directly necessary for the current Endpoint.
+Historical Net Debt / Debt-Like Items Bridge, Complete NOPAT / RNOA and forecasting remain deferred unless a bounded historical dependency is directly necessary for the current Endpoint. Buyer-specific and M&A analysis remain outside the product scope.
 
 ### Step 9 exit gate
 
@@ -354,7 +388,7 @@ This baseline being complete does **not** freeze Step 9. Historical depth, refer
 
 ## End-state definition of done
 
-The broader BAV research system succeeds when an unfamiliar supported non-financial company can be analyzed through a professional, auditable research workbook that enables the analyst to:
+The broader BAV research system succeeds when an unfamiliar supported non-financial company can be analyzed through a professional, auditable research workbook, canonical Markdown modules and reusable figures that enable the analyst to:
 
 - construct and audit the historical accounting model;
 - make defensible material accounting/reformulation judgments;
