@@ -1,5 +1,68 @@
 # RESULT.md — Step 3.3.1 Finish revenue-driver presentation and verification
 
+**Status:** BLOCKED (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 3.3.1 — Finish revenue-driver presentation and verification  
+**Work:** `8a8f7457f9524a6997e0ec2fbbe5ac23`  
+**Plan:** `1514e4f5040245289fcedaab76234184`  
+**Finding:** Test disclosure-led historical revenue drivers  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `28089b961e72b3058d043efb9008e42c7b144d15cc3e3e2837174acb2f5eaf70` (26043).  
+SESSION SHA-256 `b37e5b0348b8d6f2210a51f8307511842fcc862ede5059c7ca76687bb4bad4aa` (4944).  
+IMPLEMENTATION SHA-256 `7b5b63e1192cb5d98e44d1bf8b688bf8d585db78dab5daacab38885ad944c85e` (6640).  
+No commit / push / sync / checkpoint / branch change. No BAV regeneration.
+
+## Required plan change
+
+Rendered readability remains blocked on human authorization. Bounded alternatives were attempted; a timeout is not the only evidence. `screencapture` returned a concrete Screen Recording denial (`could not create image from display` / `from rect`). Excel CopyPicture, copy, and print-area assignment fail with automation errors. Whole-sheet PDF still times out on an ungranted destination; a granted-folder PDF returned `exported` in 8.3s but wrote no file. Do not treat wrapping, character counts, or export-command success as readability. Broader strategy synthesis and Session Endpoint closure remain subsequent work.
+
+## Rendering attempts (this attempt)
+
+Started from reviewed final workbook SHA-256 `f0f46a03f4c2091f8d9a1d3002b37bcda2bd46c6851389d9ebc4171cbf4f1a0c` (224649). Inspected `.git/autocycle/revenue-driver-render-3-3-1/export.applescript` (prior 120s whole-sheet PDF). Operated on the already-granted native Excel verification copy of that workbook (`1d332daa…`); source BAV bytes were never overwritten. Idle hung Excel (0 workbooks / 0 windows leftover from the prior PDF timeout) was quit and relaunched so open/select would work. Granted copy and source hashes were unchanged after close-without-save.
+
+| Method | Limit | Measured result |
+|---|---|---|
+| Prior whole-sheet PDF to `revenue-driver-render-3-3-1/` | 120s | Timed out; no PDF (preserved diagnostic) |
+| Healthy-Excel whole-sheet PDF after hiding other sheets, ungranted PDF path | 60s AppleScript / 70s runner | `AppleEvent timed out` (-1712); no PDF |
+| Whole-sheet PDF beside granted xlsx | 70s | Script returned `exported` in 8.3s; **no PDF file written** (searched granted dir, render dir, Documents, Desktop, Downloads, Excel container) |
+| Set worksheet / page-setup print area | 45s | `Can't set print area` (-10006) |
+| CopyPicture plain / screen / bitmap / picture | 45–60s | Parameter error (-50) after successful select |
+| `copy` / `copy object selection` then temp-workbook PDF | 45s | `-1708` (`misccopy` / selection does not understand copy object) |
+| System Events window resize / bounds | 15s | `Can't get window 1 of process Microsoft Excel` (-1719) |
+| Quartz `screencapture -l` | n/a | Quartz/AppKit unavailable in invoking Python |
+| `screencapture -x` display and `-R` Excel bounds `{20,40,1600,1000}` after activate/select/100% zoom | immediate | **Concrete denial:** `could not create image from display` / `could not create image from rect` |
+
+Successful authorized Excel automation (not readability evidence): open granted copy; activate `Revenue Driver Analysis`; select `A1:F18`, `A21:F26`, `A27:F37`, `A48:F61`, `A67:F84`, `A85:F91`, `A57:F58` at 100% zoom; move window to `{20,40,1620,1040}`; close without saving.
+
+No readable screenshot or rendered page was retained. Required cells were therefore not inspected at readable scale. No presentation defect was demonstrated; no wrapping/row-height/column-width edit and no `python -m bav build Lululemon` regeneration were performed.
+
+Diagnostics: `.git/autocycle/revenue-driver-render-3-3-1/attempt-20260920-1818-diagnostics.json` (SHA-256 `8d43da333a8a03fd0e5430b15ea4ded5581e5faf5ddd6a12b4d83be7b68c2554`). Prior `export.applescript` retained.
+
+Human decision required (do not bypass): grant Screen Recording to the invoking terminal/agent, and/or grant/repair native Excel PDF export so a PDF is actually written to a permitted path. Do not dismiss Excel dialogs as a retry.
+
+## Native Excel carry-forward
+
+Final BAV bytes unchanged (`f0f46a03…`). Granted verification copy and `.git/autocycle/excel-verification-fb95_r2m/saved-copy.xlsx` remain `1d332daa…`. Formulas, literal inputs and transitive dependencies are unchanged by identity; the accepted 37-reference / 103-cell VERIFIED evidence is carried forward without recalculation.
+
+Retained: `.git/autocycle/excel-verification-fb95_r2m/`, `excel-verification-7vjhjujd/`, `excel-verification-kd2d78ng/`, `excel-verification-ti974vnt/`, `excel-verification-kzg9a_ex/`.
+
+## Artifact hashes (unchanged)
+
+| Path | SHA-256 | Bytes |
+|---|---|---|
+| `build/output/Lululemon/Lululemon_BAV.xlsx` | `f0f46a03f4c2091f8d9a1d3002b37bcda2bd46c6851389d9ebc4171cbf4f1a0c` | 224649 |
+| `.git/autocycle/excel-verification-fb95_r2m/saved-copy.xlsx` | `1d332daa8740fc53df6eaf90ecff5c7446f19502ad9510a7ab5ff56954aa1cae` | 260706 |
+
+`SEGMENT_BRIDGE_TOLERANCE = 0.0`. Protected artifacts and source extracts were not replaced. No Trainer derivation (BAV unchanged).
+
+## Remaining toward Completion
+
+Required rendered inspection of all four hypotheses (A5, B12, B15, B18, B36, B56, A57:A58, F25, F83, A90:B90) is still missing. Deferred SPSF disclosure and native Excel caches remain as previously verified. This attempt does not close broader strategy interpretation, Session Endpoint, or earlier deferred obligations.
+
+---
+
+# RESULT.md — Step 3.3.1 Finish revenue-driver presentation and verification
+
 **Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
 **Step:** 3.3.1 — Finish revenue-driver presentation and verification  
 **Work:** `8a8f7457f9524a6997e0ec2fbbe5ac23`  
