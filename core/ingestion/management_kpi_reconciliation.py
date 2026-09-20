@@ -8,7 +8,12 @@ from itertools import combinations
 from typing import Any, Iterable, Mapping, Sequence
 
 from .management_kpi_identity import (
+    REASON_CALENDAR_REPORTING,
+    REASON_CALENDAR_WEEK,
+    REASON_MISSING_BASIS,
     REASON_MISSING_DEFINITION,
+    REASON_MISSING_POPULATION,
+    REASON_MISSING_UNIT,
     REASON_PERIOD_DATE,
     REASON_UNBOUND_DEFINITION,
     REQUIRED_COMPARISON_REASONS,
@@ -51,6 +56,13 @@ REASON_AMBIGUOUS_OCCURRENCE = "ambiguous_occurrence"
 REASON_MISSING_PRESENTATION = "missing_presentation"
 REASON_MISSING_PROVENANCE = "missing_provenance"
 REASON_ORDINARY_DISAGREEMENT = "ordinary_disagreement"
+_ORDINARY_AGREEMENT_GAPS = (
+    ("population", REASON_MISSING_POPULATION),
+    ("unit", REASON_MISSING_UNIT),
+    ("basis", REASON_MISSING_BASIS),
+    ("calendar_week_adjustment", REASON_CALENDAR_WEEK),
+    ("calendar_reporting_basis", REASON_CALENDAR_REPORTING),
+)
 RELATIONSHIP_RECOGNIZED = "recognized"
 RELATIONSHIP_UNRESOLVED = "unresolved"
 RELATIONSHIP_INCOMPATIBLE = "incompatible"
@@ -830,6 +842,31 @@ def _ordinary_admission_reasons(
     return tuple(reasons)
 
 
+def _ordinary_member_evidence(
+    occurrence: ManagementKpiReconciledOccurrence,
+) -> dict[str, object]:
+    evidence = dict(occurrence.evidence)
+    return {
+        "definition_text": occurrence.definition_text,
+        "population": evidence.get("population", ""),
+        "unit": evidence.get("unit", ""),
+        "basis": evidence.get("basis", ""),
+        "calendar_week_adjustment": evidence.get("calendar_week_adjustment", ""),
+        "calendar_reporting_basis": evidence.get("calendar_reporting_basis", ""),
+    }
+
+
+def _ordinary_missing_reasons(
+    occurrence: ManagementKpiReconciledOccurrence,
+) -> tuple[str, ...]:
+    member = _ordinary_member_evidence(occurrence)
+    reasons: list[str] = []
+    for key, reason in _ORDINARY_AGREEMENT_GAPS:
+        if not text_present(member.get(key, "")):
+            reasons.append(reason)
+    return tuple(reasons)
+
+
 def _ordinary_agreement_reasons(
     occurrences: tuple[ManagementKpiReconciledOccurrence, ...],
 ) -> tuple[str, ...]:
@@ -840,28 +877,17 @@ def _ordinary_agreement_reasons(
     values = {item.value for item in occurrences}
     if len(values) != 1 or None in values:
         _append_reason(reasons, REASON_ORDINARY_DISAGREEMENT)
+    missing = False
+    for item in occurrences:
+        for reason in _ordinary_missing_reasons(item):
+            missing = True
+            _append_reason(reasons, reason)
+    if missing:
+        _append_reason(reasons, REASON_ORDINARY_DISAGREEMENT)
     first = occurrences[0]
-    first_ev = dict(first.evidence)
+    first_ev = _ordinary_member_evidence(first)
     for other in occurrences[1:]:
-        other_ev = dict(other.evidence)
-        conflicts = evidenced_conflicts(
-            {
-                "definition_text": first.definition_text,
-                "population": first_ev.get("population", ""),
-                "unit": first_ev.get("unit", ""),
-                "basis": first_ev.get("basis", ""),
-                "calendar_week_adjustment": first_ev.get("calendar_week_adjustment", ""),
-                "calendar_reporting_basis": first_ev.get("calendar_reporting_basis", ""),
-            },
-            {
-                "definition_text": other.definition_text,
-                "population": other_ev.get("population", ""),
-                "unit": other_ev.get("unit", ""),
-                "basis": other_ev.get("basis", ""),
-                "calendar_week_adjustment": other_ev.get("calendar_week_adjustment", ""),
-                "calendar_reporting_basis": other_ev.get("calendar_reporting_basis", ""),
-            },
-        )
+        conflicts = evidenced_conflicts(first_ev, _ordinary_member_evidence(other))
         for reason in conflicts:
             _append_reason(reasons, reason)
             _append_reason(reasons, REASON_ORDINARY_DISAGREEMENT)

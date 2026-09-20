@@ -21,6 +21,8 @@ from core.ingestion.management_kpi_history import selected_management_kpi_histor
 from core.ingestion.management_kpi_identity import (
     FAMILY_COMPARABLE_SALES_GROWTH,
     FAMILY_SALES_PER_SQUARE_FOOT,
+    REASON_CALENDAR_REPORTING,
+    REASON_CALENDAR_WEEK,
 )
 from core.ingestion.management_kpi_reconciliation import (
     SELECTION_DEFERRED,
@@ -48,18 +50,22 @@ from core.tests.test_management_kpi_identity import (
     REPORTING_BASIS_53,
     _apply_affirmative_compsales,
     _apply_affirmative_spsf,
+    _set_reporting_basis,
     _write_json,
 )
 from core.tests.test_management_kpi_reconciliation import (
     FAMILIES,
     SHARED_PERIOD,
     _apply_same_period,
+    _assert_deferred_group,
     _attach_family_evidence,
     _attach_family_revision,
+    _clear_week_adjustment,
     _cli_validate_and_reconcile,
     _family_period_group,
     _write_audited_revised_family_pair,
     _write_family_pair,
+    _write_ordinary_agreeing_pair,
     _write_revised_family_pair,
     _write_three_peer,
     write_incoming_ambiguous_fixture,
@@ -317,6 +323,60 @@ def test_ordinary_singleton_reaches_standardized_history(tmp_path: Path, family:
     assert "source_file" not in serialized
     assert "assurance" not in serialized
     assert "revision" not in serialized
+    _assert_export_reload_export(fin)
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize(
+    "mutate_left,reason",
+    [
+        (True, REASON_CALENDAR_REPORTING),
+        (False, REASON_CALENDAR_WEEK),
+    ],
+)
+def test_ordinary_repeat_missing_evidence_does_not_reach_standardized(
+    tmp_path: Path, family: str, mutate_left: bool, reason: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "miss-hist")
+    other = (
+        FAMILY_SALES_PER_SQUARE_FOOT
+        if family == FAMILY_COMPARABLE_SALES_GROWTH
+        else FAMILY_COMPARABLE_SALES_GROWTH
+    )
+    if reason == REASON_CALENDAR_REPORTING:
+        def extra(payload, blank=None):
+            return _set_reporting_basis(payload, blank)
+    else:
+        extra = _clear_week_adjustment(family)
+    _write_ordinary_agreeing_pair(
+        dest,
+        family,
+        left_extra=extra if mutate_left else None,
+        right_extra=extra if not mutate_left else None,
+    )
+    singleton_name = MANAGEMENT_NAMES[2] if mutate_left else MANAGEMENT_NAMES[1]
+    payload_doc = json.loads((dest / singleton_name).read_text(encoding="utf-8"))
+    apply_other = (
+        _apply_affirmative_spsf
+        if other == FAMILY_SALES_PER_SQUARE_FOOT
+        else _apply_affirmative_compsales
+    )
+    payload_doc = apply_other(payload_doc)
+    payload_doc = _apply_same_period(
+        payload_doc, other, period=SHARED_PERIOD, value=12
+    )
+    payload_doc = _attach_family_evidence(payload_doc, other, role="current")
+    _write_json(dest / singleton_name, payload_doc)
+    reconciled = _reconcile(dest)
+    payload = management_admission_payload(reconciled.management_admission)
+    group = _family_period_group(payload, family)
+    _assert_deferred_group(group, reason)
+    _assert_handoff_diagnostic(reconciled.management_admission, selected=1)
+    fin = standardize_reconciled(reconciled)
+    assert _management_rows(fin, family=family, period=SHARED_PERIOD) == []
+    other_rows = _management_rows(fin, family=other, period=SHARED_PERIOD)
+    assert len(other_rows) == 1
+    assert other_rows[0]["value"] == 12
     _assert_export_reload_export(fin)
 
 

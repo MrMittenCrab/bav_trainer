@@ -7,6 +7,7 @@ import json
 import shutil
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import Iterable
 
@@ -23,11 +24,15 @@ from core.ingestion.management_kpi_identity import (
     FAMILY_SALES_PER_SQUARE_FOOT,
     REASON_CALENDAR_REPORTING,
     REASON_CALENDAR_WEEK,
+    REASON_MISSING_BASIS,
     REASON_MISSING_COMPARISON,
+    REASON_MISSING_POPULATION,
+    REASON_MISSING_UNIT,
     REASON_PERIOD_MISMATCH,
     REQUIRED_COMPARISON_REASONS,
     STATUS_SUPPORTED,
     STATUS_UNSUPPORTED_VARIANT,
+    evidenced_conflicts,
     peer_gap_reason,
 )
 from core.ingestion.management_kpi_reconciliation import (
@@ -63,6 +68,7 @@ from core.ingestion.management_kpi_reconciliation import (
     RELATIONSHIP_UNRESOLVED,
     SELECTION_DEFERRED,
     SELECTION_SELECTED,
+    _select_ordinary_group,
     presentation_role_combination,
 )
 from core.tests.test_management_kpi_admission import (
@@ -1919,6 +1925,126 @@ def _assert_deferred_group(group: dict, *needles: str) -> None:
         assert needle in group["reasons"]
 
 
+ORDINARY_AGREEMENT_GAPS = (
+    ("population", REASON_MISSING_POPULATION),
+    ("unit", REASON_MISSING_UNIT),
+    ("basis", REASON_MISSING_BASIS),
+    ("calendar_week_adjustment", REASON_CALENDAR_WEEK),
+    ("calendar_reporting_basis", REASON_CALENDAR_REPORTING),
+)
+MISSING_EVIDENCE_REPRS = (Ellipsis, None, "", " ", " \t ")
+
+
+def _admission_object(dest: Path):
+    return reconcile_filings(
+        load_and_validate_extracted_dir(dest, source_root=SOURCE)
+    ).management_admission
+
+
+def _family_group_record(admission, family: str, *, period: str = SHARED_PERIOD):
+    metric_id = _family_metric_id(family)
+    locators = {
+        item.locator
+        for item in admission.observations
+        if item.kind == "reported_kpi"
+        and item.metric_id == metric_id
+        and item.period == period
+    }
+    supported = {
+        item.locator
+        for item in admission.assessments
+        if item.locator in locators and item.status == STATUS_SUPPORTED
+    }
+    matches = [
+        item
+        for item in admission.group_selections
+        if {occ.locator for occ in item.occurrences} == supported
+    ]
+    assert supported
+    assert len(matches) == 1
+    return matches[0]
+
+
+def _write_ordinary_agreeing_pair(dest: Path, family: str, *, left_extra=None, right_extra=None):
+    def left_mutate(payload):
+        payload = _attach_family_evidence(payload, family, role="comparative")
+        return payload if left_extra is None else left_extra(payload)
+
+    def right_mutate(payload):
+        payload = _attach_family_evidence(payload, family, role="current")
+        return payload if right_extra is None else right_extra(payload)
+
+    _write_family_pair(
+        dest,
+        family,
+        left_value=10,
+        right_value=10,
+        left_mutate=left_mutate,
+        right_mutate=right_mutate,
+    )
+
+
+def _write_ordinary_agreeing_three(dest: Path, family: str, *, third_extra=None):
+    first, second = _affirmative_family_pair(family)
+    third = json.loads((EXTRACTED / MANAGEMENT_NAMES[3]).read_text(encoding="utf-8"))
+    if family == FAMILY_COMPARABLE_SALES_GROWTH:
+        third = _apply_affirmative_compsales(third)
+    else:
+        third = _apply_affirmative_spsf(third)
+    extras = (None, None, third_extra)
+    for payload, role, name, extra in zip(
+        (first, second, third),
+        ("comparative", "current", "prior"),
+        MANAGEMENT_NAMES[1:4],
+        extras,
+    ):
+        payload = _apply_same_period(payload, family, period=SHARED_PERIOD, value=10)
+        payload = _attach_family_evidence(payload, family, role=role)
+        if extra is not None:
+            payload = extra(payload)
+        _write_json(dest / name, payload)
+
+
+def _replace_occurrence_evidence(occurrence, key: str, value):
+    evidence = dict(occurrence.evidence)
+    if value is Ellipsis:
+        evidence.pop(key, None)
+    else:
+        evidence[key] = value
+    return replace(
+        occurrence,
+        evidence=tuple(sorted(evidence.items(), key=lambda item: item[0])),
+    )
+
+
+def _mutate_occurrence_evidence(occurrences, indexes, key: str, value):
+    updated = list(occurrences)
+    for index in indexes:
+        updated[index] = _replace_occurrence_evidence(updated[index], key, value)
+    return tuple(updated)
+
+
+def _assert_ordinary_deferred(occurrences, *needles: str) -> None:
+    for ordered in (occurrences, tuple(reversed(occurrences))):
+        status, reasons, selected, superseded, revision, assurance = _select_ordinary_group(
+            ordered
+        )
+        assert status == SELECTION_DEFERRED
+        assert selected is None
+        assert superseded is None
+        assert revision is None
+        assert assurance == ()
+        for needle in needles:
+            assert needle in reasons
+
+
+def _clear_week_adjustment(family: str):
+    def mutate(payload):
+        return _mutate_metric(payload, family, lambda item: item.pop("qualifiers", None))
+
+    return mutate
+
+
 @pytest.mark.parametrize("family", FAMILIES)
 def test_explicit_revision_links_are_directed_and_gated(tmp_path: Path, family: str):
     dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "rev")
@@ -3427,3 +3553,137 @@ def test_unresolved_revision_does_not_bypass_through_ordinary_route(
     assert all(
         occ["assurance_evidence"]["status"] != "audited" for occ in group["occurrences"]
     )
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_ordinary_repeat_missing_evidence_defers_complete_group(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "miss")
+    _write_ordinary_agreeing_pair(dest, family)
+    admission = _admission_object(dest)
+    group = _family_group_record(admission, family)
+    assert group.status == SELECTION_SELECTED
+    assert len(group.occurrences) == 2
+    intact_status, intact_reasons, intact_selected, *_ = _select_ordinary_group(
+        group.occurrences
+    )
+    assert intact_status == SELECTION_SELECTED
+    assert intact_reasons == ()
+    assert intact_selected is not None
+    for key, reason in ORDINARY_AGREEMENT_GAPS:
+        for blank in MISSING_EVIDENCE_REPRS:
+            for indexes in ((0,), (1,), (0, 1)):
+                mutated = _mutate_occurrence_evidence(
+                    group.occurrences, indexes, key, blank
+                )
+                _assert_ordinary_deferred(
+                    mutated, reason, REASON_ORDINARY_DISAGREEMENT
+                )
+                left_ev = dict(mutated[0].evidence)
+                right_ev = dict(mutated[1].evidence)
+                mismatch = {
+                    "population": "population_mismatch",
+                    "unit": "unit_mismatch",
+                    "basis": "basis_mismatch",
+                    "calendar_week_adjustment": "calendar_mismatch",
+                    "calendar_reporting_basis": "calendar_reporting_mismatch",
+                }[key]
+                if indexes == (0, 1):
+                    assert mismatch not in evidenced_conflicts(left_ev, right_ev)
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_ordinary_repeat_missing_evidence_defers_larger_group(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES[1:4] + MANAGEMENT_NAMES[1:4], tmp_path / "miss3")
+    _write_ordinary_agreeing_three(dest, family)
+    admission = _admission_object(dest)
+    group = _family_group_record(admission, family)
+    assert group.status == SELECTION_SELECTED
+    assert len(group.occurrences) == 3
+    for key, reason in ORDINARY_AGREEMENT_GAPS:
+        for blank in MISSING_EVIDENCE_REPRS:
+            mutated = _mutate_occurrence_evidence(group.occurrences, (1,), key, blank)
+            _assert_ordinary_deferred(mutated, reason)
+            status, reasons, selected, *_ = _select_ordinary_group(group.occurrences)
+            assert status == SELECTION_SELECTED
+            assert reasons == ()
+            assert selected is not None
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize("which", ["left", "right", "both"])
+@pytest.mark.parametrize("blank", [None, "", " ", " \t "])
+def test_ordinary_repeat_missing_reporting_basis_defers_admission(
+    tmp_path: Path, family: str, which: str, blank: str | None
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "rb-miss")
+    left_extra = (
+        (lambda payload: _set_reporting_basis(payload, blank))
+        if which in {"left", "both"}
+        else None
+    )
+    right_extra = (
+        (lambda payload: _set_reporting_basis(payload, blank))
+        if which in {"right", "both"}
+        else None
+    )
+    _write_ordinary_agreeing_pair(
+        dest, family, left_extra=left_extra, right_extra=right_extra
+    )
+    admitted = _admission(dest)
+    group = _family_period_group(admitted, family)
+    _assert_deferred_group(group, REASON_CALENDAR_REPORTING, REASON_ORDINARY_DISAGREEMENT)
+    assert len(group["occurrences"]) == 2
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize("which", ["left", "right", "both"])
+def test_ordinary_repeat_missing_week_adjustment_defers_admission(
+    tmp_path: Path, family: str, which: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "week-miss")
+    extra = _clear_week_adjustment(family)
+    _write_ordinary_agreeing_pair(
+        dest,
+        family,
+        left_extra=extra if which in {"left", "both"} else None,
+        right_extra=extra if which in {"right", "both"} else None,
+    )
+    admitted = _admission(dest)
+    group = _family_period_group(admitted, family)
+    _assert_deferred_group(group, REASON_CALENDAR_WEEK, REASON_ORDINARY_DISAGREEMENT)
+    assert len(group["occurrences"]) == 2
+
+
+def test_real_2024_spsf_repeat_requires_affirmative_agreement(tmp_path: Path):
+    from core.ingestion.management_kpi_enrichment import enrich_management_working_copies
+
+    dest = tmp_path / "real-spsf"
+    dest.mkdir()
+    for name in ANNUAL_NAMES + MANAGEMENT_NAMES:
+        shutil.copy2(EXTRACTED / name, dest / name)
+    enrich_management_working_copies(dest, SOURCE)
+    admission = _admission_object(dest)
+    matches = [
+        item
+        for item in admission.group_selections
+        if item.family == FAMILY_SALES_PER_SQUARE_FOOT and item.period == "2024-01-28"
+    ]
+    assert len(matches) == 1
+    group = matches[0]
+    assert group.status == SELECTION_SELECTED
+    assert len(group.occurrences) == 2
+    assert {occ.value for occ in group.occurrences} == {1609}
+    intact_status, intact_reasons, intact_selected, *_ = _select_ordinary_group(
+        group.occurrences
+    )
+    assert intact_status == SELECTION_SELECTED
+    assert intact_reasons == ()
+    assert intact_selected is not None
+    for key, reason in ORDINARY_AGREEMENT_GAPS:
+        for indexes in ((0,), (1,), (0, 1)):
+            mutated = _mutate_occurrence_evidence(group.occurrences, indexes, key, Ellipsis)
+            _assert_ordinary_deferred(mutated, reason)
+            status, reasons, selected, *_ = _select_ordinary_group(group.occurrences)
+            assert status == SELECTION_SELECTED
+            assert selected is not None
+            assert reason not in reasons
