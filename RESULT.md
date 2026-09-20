@@ -1,3 +1,116 @@
+# RESULT.md — Step 4.1 Publish Lululemon Drivers
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 4.1 — Publish Lululemon Drivers  
+**Work:** `e4c434039eb248f3985ef7254930e7be`  
+**Plan:** `d8a7307b658f4b27b9c88481416820b2`  
+**Finding:** Publish Lululemon Drivers  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `e42f104e22b753ba957bb2e6c9988d446c49a90c3b3ab987cf8d05973e5566af` (28705).  
+SESSION SHA-256 `610809fd496777d99ddbae5931a3d18b4097323c0e92418b7127a4fb3b9c9311` (4170).  
+IMPLEMENTATION SHA-256 `95b342954453504aacab4afd6b51372cad742e539747cc30c483326a121c19e8` (9269).  
+No commit / push / sync / checkpoint / branch change.
+
+## Required plan change
+
+No required plan change. Ordinary `python -m bav build Lululemon` now publishes the workbook / research / figures architecture at `build/lululemon/`. Forecast, Valuation and Overview remain zero-byte. Session acceptance, forecasting and earlier deferred obligations remain subsequent work.
+
+## Publication
+
+Company output moved from `build/output/<Name>/` to `build/<slug>/`. Ordinary Lululemon writes `build/lululemon/Lululemon_BAV.xlsx`, `research/Lululemon_Drivers.md`, empty reserved modules, and `figures/drivers/{growth,geography,margin}.png`. Fast Retailing writes `build/fast_retailing/FastRetailing_BAV.xlsx` and does not publish research. Supporting artifacts, formula links, derivative Trainer paths and atomic replacement are unchanged except for that directory.
+
+Root `STYLE.md` is the sole presentation and language specification. One Matplotlib implementation in `core/research/style.py` applies it. Figures do not set independent typography, spacing or palettes. Accent is optional and off by default; accent-enabled generation produced identical PNGs because no series used the highlight role.
+
+Resolved fonts (not vendored): Aptos Regular `/Applications/Microsoft Excel.app/Contents/Resources/DFonts/Aptos.ttf`; DengXian Regular `/Applications/Microsoft Excel.app/Contents/Resources/DFonts/Deng.ttf`. Aptos ASCII space does not advance under the Agg renderer; figures use the same face's en space (U+2002). That is not a family substitution. Required faces were present; none were reported unavailable.
+
+Drivers headings are exactly `# Lululemon — Drivers` then Context, Growth, Geography, Margin, Conclusions, Limits. Five conclusions. Four Limits, each once. No Forecast, Valuation, Overview, buyer or M&A analysis. Relative figure links: `../figures/drivers/{growth,geography,margin}.png`.
+
+## Claim / source mappings
+
+All research numbers come from the same compute path as the workbook (`prepare_company_input` → existing BAV series). Independent anchors reconcile.
+
+| Claim | Source series | Independent check |
+|---|---|---|
+| Revenue $6,256.6 / 8,110.5 / 9,619.3 / 10,588.1 / 11,102.6 million | IS `revenue` (USD thousands / 1000) | `REVENUE_ANCHORS` 6256617 … 11102600 |
+| Operating profit $1,333.4 … $2,210.6 million | IS `operating_income` / 1000 | 1333355 … 2210615 |
+| Operating margin 21.3 / 16.4 / 22.2 / 23.7 / 19.9% | `compute_reported_margin_series` | 2210615/11102600 = 19.91% → 19.9% |
+| Stores 574 / 655 / 711 / 767 / 811 | `compute_operating_kpi_series` | `INDEPENDENT_STORE_TOTALS` |
+| Revenue growth 29.63 / 18.60 / 10.07 / 4.86% | store-revenue relationship | (8110518−6256617)/6256617 = 29.63% |
+| Store growth 14.11 / 8.55 / 7.88 / 5.74% | same | (811−767)/767 = 5.74% |
+| FY2026 store > revenue (−0.878 pp) | same | 5.74 − 4.86 = 0.88 pp |
+| Compsales 25% FY2023 stores+DTC; 13/4/2% later stores+e-comm; 16% store-only | driver analysis + management KPI series | reported global identities; not one series |
+| Geo pp FY2026 Americas −0.766, China 3.716, RoW 1.909 | `revenue_growth_contribution` | sum = 4.859 vs 4.86% growth; residuals ~0 |
+| Geo sums all four growth years | same | \|Σ contrib − 100×growth\| < 1e-9 |
+
+Plotted values are the same floats. Display rounding: millions 1 decimal, growth 2 decimals, contributions 3 decimals.
+
+## Verification
+
+| Check | Measured result |
+|---|---|
+| Required paths, 0-byte placeholders, exact headings, 3 PNGs, relative links | Pass |
+| Fonts actually resolved to Aptos / DengXian Regular files | Pass; ASCII space workaround recorded |
+| Centralized style; accent-disabled default | Pass; accent-on hashes identical to accent-off |
+| Internal BAV terminology scan of Drivers | None of admitted / fail-closed / SOURCE_UNAVAILABLE / hypothesis / verdict / audit-only |
+| Five-minute read | Revenue slowed 29.63→4.86%; stores 574→811; FY2026 store>revenue; Americas −0.766 pp; OM 16.4→23.7→19.9%; compsales not one series |
+| Two builds, unchanged inputs | Markdown, placeholders and all three PNGs byte-identical. Workbook zip bytes 227423 vs 227421; analytical cells vs prior `build/output/Lululemon` BAV: formula 0, literal 0 |
+| `test_research_drivers` + `test_current_build` + `test_build_cli` + `test_build_contract` | **73 passed** |
+| `test_revenue_driver` + generic-engine + research retest | **25 passed** |
+| Trainer, learner-ready, protected artifacts, Fast Retailing, reference integrity | **426 passed** including **50/50** protected and **8/8** extracts |
+| Lululemon + geographic/KPI workbook + revenue-driver suites (prior batch) | **581 passed** after removing issuer literals from production research modules |
+| Ordinary `python -m bav build Lululemon` | Active including Revenue Driver Analysis; research+figures published |
+| Ordinary `python -m bav build FastRetailing` | No research directory; driver families unavailable |
+| Trainer derivation from final BAV | BAV bytes unchanged. 37 source facts; 824 blank yellow; Check **0 / 0 / 824 / 824** |
+| Formula/literal vs `.git/autocycle/excel-verification-fb95_r2m/saved-copy.xlsx` | Formula changed **0**. Non-Overview literal changed **0**. Overview already differed from that older snapshot (Step 3.4). Native recalc not required |
+| vs last accepted BAV `5bb6537b…` | Formula **0**, literal **0**, only xlsx container metadata |
+
+`SEGMENT_BRIDGE_TOLERANCE = 0.0`. Protected PDFs, extracts and authenticated baselines were not replaced.
+
+## Session conditions (measured, not acceptance)
+
+1. STYLE.md sole standard — yes.  
+2. README architecture / module order / STYLE authority, no style-rule copy — yes.  
+3–4. Four research files; Forecast/Valuation/Overview 0 bytes — yes.  
+5. Drivers structure and prose — yes.  
+6. Three Matplotlib figures, centralized style — yes.  
+7. Five-minute understanding — yes, as read.  
+8. Workbook still traces calculations; numbers from same inputs — yes.  
+9. No analytical control weakened — workbook cells identical to last accepted BAV.  
+10. Focused checks passed; native evidence carried forward.  
+11. No buyer/M&A/Forecast/Valuation/Overview analysis in Drivers — yes.
+
+## Artifact hashes
+
+| Path | SHA-256 | Bytes |
+|---|---|---|
+| `build/lululemon/Lululemon_BAV.xlsx` | `7fa3c9fdc52e5c78fbc9c646dca9df4454533cabbf6852d7265dd0d684a358bd` | 227421 |
+| `build/lululemon/research/Lululemon_Drivers.md` | `bfd1b0cb8a26f0feac1a37dfd75439298342f19bc8dfc42dc2573548cec19d4f` | 3787 |
+| `build/lululemon/research/Lululemon_Forecast.md` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | 0 |
+| `build/lululemon/research/Lululemon_Valuation.md` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | 0 |
+| `build/lululemon/research/Lululemon_Overview.md` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | 0 |
+| `build/lululemon/figures/drivers/growth.png` | `76d4e28f7dbf7aea4ea2f8e67fc6aa0de1617e8b873bc60c5bbf5348ec12c16b` | 65406 |
+| `build/lululemon/figures/drivers/geography.png` | `5ad8e6d2eab2a503b6917fa0350083775a7c0a4ba8fd59217b576a98adeb6432` | 53598 |
+| `build/lululemon/figures/drivers/margin.png` | `4a9a206f21e46720c192df1a06406f0c86264216ebbf5f34c3258b579d1da9c4` | 62091 |
+| `build/lululemon/Lululemon_BAV_Trainer.xlsx` (derived) | `866b24521bb4f9b3a88b8f4ab4894942beed9cc837fc9f414d223c7d4ed69fb3` | 66616 |
+| `build/fast_retailing/FastRetailing_BAV.xlsx` | `4b308474353a3303548f9daaa41ee9124fd7d56bddd189e25611e5e6d32b1eb8` | 135552 |
+| `STYLE.md` | `4360b24bb849370a0fa48f21aa7cc83b8bf6b35c2ad9bac7e10de2829a107fc6` | 1645 |
+| `.git/autocycle/excel-verification-fb95_r2m/saved-copy.xlsx` | `1d332daa8740fc53df6eaf90ecff5c7446f19502ad9510a7ab5ff56954aa1cae` | 260706 |
+
+After blank Check the Trainer file was 66998 / `89ed00b1749410053bc3ae685a20586a6b7f5df90c3b1dab0afe484771e05def`. BAV bytes were not rewritten.
+
+## Native Excel carry-forward
+
+Formulas, literal inputs and transitive dependencies on analytical surfaces match the last accepted BAV by cell identity. The older saved snapshot still differs only on already-accepted Overview narrative. Native recalculation and new screenshots were not required.
+
+Retained: `.git/autocycle/excel-verification-fb95_r2m/`, `excel-verification-7vjhjujd/`, `excel-verification-kd2d78ng/`, `excel-verification-ti974vnt/`, `excel-verification-kzg9a_ex/`, `revenue-driver-render-3-3-1/`, `overview-synthesis-3-4/`.
+
+## Remaining toward Completion
+
+This bounded work publishes Drivers, STYLE, empty reserved modules and three figures. Publication is not Session acceptance. Forecasting, valuation, Overview content, and earlier deferred normalization / source-workflow / normalized-per-share obligations remain open.
+
+---
+
 # RESULT.md — Step 3.4 Connect historical revenue findings to disclosed strategy
 
 **Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  

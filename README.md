@@ -35,13 +35,20 @@ Company names are case-insensitive; `LULU` resolves to Lululemon. `FastRetailing
 ambiguous names fail with candidates. List reads the current BAV. Check reads a
 derived Trainer and never guesses a release workbook.
 
-The canonical current product is:
+The ordinary Lululemon build writes:
 
-- `build/output/Lululemon/Lululemon_BAV.xlsx`
+- `build/lululemon/Lululemon_BAV.xlsx` — the analytical and source-traceability workbook
+- `build/lululemon/research/*.md` — canonical human-readable research
+- `build/lululemon/figures/` — reproducible figures
 
-The same directory holds the BAV component map and assumptions,
+Research module order is Drivers → Forecast → Valuation → Overview. Drivers is
+implemented. Forecast, Valuation and Overview remain reserved empty files.
+Presentation and language follow root `STYLE.md`.
+
+The same company directory holds the BAV component map and assumptions,
 `rowmap.json`, `build_status.json`, and source/reconciliation provenance under
-`supporting/`. Keep the BAV and sidecars together. `build/` is ignored by Git.
+`supporting/`. Keep the BAV, research, figures and sidecars together. `build/`
+is ignored by Git.
 
 Ordinary `python -m bav build Lululemon` does not generate a Trainer. The same
 completed model can still produce `Lululemon_BAV_Trainer.xlsx`. Check then

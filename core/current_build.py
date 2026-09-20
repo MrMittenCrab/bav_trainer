@@ -25,7 +25,7 @@ from .ingestion.filing_standardizer import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT_ROOT = ROOT / 'build/output'
+OUTPUT_ROOT = ROOT / 'build'
 # These are project routing/admission settings, not analytical special cases.
 PROJECTS = tuple(
     (item['name'], item['slug'], tuple(item['aliases']),
@@ -70,7 +70,7 @@ def resolve_company(query: str) -> Company:
     name, slug, aliases, periods, facts, strategy = matches[0]
     return Company(
         name, slug, aliases, periods, facts, strategy,
-        ROOT / 'benchmark' / slug, OUTPUT_ROOT / name,
+        ROOT / 'benchmark' / slug, OUTPUT_ROOT / slug,
     )
 
 
@@ -231,6 +231,8 @@ def build_company(company: Company, assumptions=None):
         fin = prepare_company_input(company, staged)
         bav = build_bav_workbook(fin, staged / company.bav.name, assumptions, current_snapshot=True)
         verify_staged(fin, bav, assumptions)
+        from .research.publish import publish_company_research
+        publish_company_research(company.name, fin, staged)
         rows = status_rows(load_semantic_map(bav))
         _write_json(staged / 'build_status.json', rows)
         if current.exists():

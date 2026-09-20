@@ -145,7 +145,7 @@ def _validate_build_output(output: Path, inputs: list[Path]) -> None:
         if (destination.is_symlink() or resolved in protected_files
                 or any(resolved.is_relative_to(p.resolve()) for p in protected)
                 or resolved.suffix.lower() == ".pdf"):
-            raise ValueError(f"protected build destination: {destination}; use build/output/")
+            raise ValueError(f"protected build destination: {destination}; use a path under build/")
 
 
 def cmd_build(args: argparse.Namespace) -> int:

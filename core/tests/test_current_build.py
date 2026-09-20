@@ -24,7 +24,7 @@ def test_aliases_and_missing_company(tmp_path):
     identities = [resolve_company(name) for name in ('Lululemon', 'lululemon', 'LULU')]
     assert identities[0] == identities[1] == identities[2]
     company = identities[0]
-    assert company.output == ROOT / 'build/output/Lululemon'
+    assert company.output == ROOT / 'build/lululemon'
     assert company.bav.name == 'Lululemon_BAV.xlsx'
     assert company.trainer.name == 'Lululemon_BAV_Trainer.xlsx'
     assert company.answer.name == 'Lululemon_BAV.xlsx'
@@ -47,7 +47,7 @@ def test_company_build_rebuild_failure_and_workbook_contract(tmp_path, monkeypat
     monkeypatch.setattr(current_build, 'OUTPUT_ROOT', tmp_path)
     assert main(['build', 'Lululemon']) == 0
     company = current_build.resolve_company('LULU')
-    assert company.output == tmp_path / 'Lululemon'
+    assert company.output == tmp_path / 'lululemon'
     smap = load_semantic_map(company.bav)
     families = {c.family_id for c in smap.all_ordered()}
     assert 'geographic_operating_profit_growth_contribution' in families
@@ -60,6 +60,13 @@ def test_company_build_rebuild_failure_and_workbook_contract(tmp_path, monkeypat
     assert (company.output / 'supporting/provenance.json').is_file()
     assert company.bav.is_file()
     assert not company.trainer.is_file()
+    research = company.output / 'research'
+    assert (research / 'Lululemon_Drivers.md').is_file()
+    for name in ('Lululemon_Forecast.md', 'Lululemon_Valuation.md', 'Lululemon_Overview.md'):
+        path = research / name
+        assert path.is_file() and path.stat().st_size == 0
+    for name in ('growth.png', 'geography.png', 'margin.png'):
+        assert (company.output / 'figures' / 'drivers' / name).is_file()
     wb = load_workbook(company.bav)
     assert 'Build Status' in wb.sheetnames
     assert 'Overview' in wb.sheetnames
@@ -113,7 +120,7 @@ def test_company_build_rebuild_failure_and_workbook_contract(tmp_path, monkeypat
     wb.close()
     assert main(['check', 'lulu']) == 0
     assert main(['build', 'LULU']) == 0
-    assert sorted(p.name for p in tmp_path.iterdir()) == ['Lululemon']
+    assert sorted(p.name for p in tmp_path.iterdir()) == ['lululemon']
     assert sorted(p.name for p in company.output.glob('*.xlsx')) == ['Lululemon_BAV.xlsx']
     before = snapshot(company.output)
     def fail(*args, **kwargs):
@@ -122,7 +129,7 @@ def test_company_build_rebuild_failure_and_workbook_contract(tmp_path, monkeypat
     assert main(['build', 'Lululemon']) == 1
     assert snapshot(company.output) == before
     assert 'deliberate staged validation failure' in capsys.readouterr().err
-    assert sorted(p.name for p in tmp_path.iterdir()) == ['Lululemon']
+    assert sorted(p.name for p in tmp_path.iterdir()) == ['lululemon']
 
 
 def test_missing_build_errors(tmp_path, monkeypatch, capsys):
