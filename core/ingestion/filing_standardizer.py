@@ -26,6 +26,10 @@ from ..data.interface import (
     LineItem,
     StandardizedFinancials,
 )
+from ..data.issuer_fiscal import (
+    issuer_fiscal_label,
+    issuer_fiscal_years_from_reconciled,
+)
 from .filing_reconciler import (
     ReconciledCompanyData,
     ReconciledValue,
@@ -150,11 +154,22 @@ def _line_values_for_axis(
     }
 
 
+def _issuer_period_label(period: date, mapping: dict[date, int]) -> str:
+    if period in mapping:
+        return issuer_fiscal_label(mapping[period])
+    if mapping:
+        raise ValueError(
+            f"issuer fiscal-year mapping missing period-end {period.isoformat()}"
+        )
+    return f"FY{period.year}"
+
+
 def standardize_reconciled(
     reconciled: ReconciledCompanyData,
 ) -> StandardizedFinancials:
     """Emit model-only StandardizedFinancials from reconciled documentary facts."""
     model_periods = list(reconciled.periods)
+    mapping = issuer_fiscal_years_from_reconciled(reconciled)
     grouped = _group_by_row(reconciled)
 
     statements: dict[str, list[LineItem]] = {
@@ -194,7 +209,7 @@ def standardize_reconciled(
         jurisdiction=reconciled.jurisdiction,
         stock_code=reconciled.stock_code,
         periods=[
-            FinancialPeriod(end_date=period, label=f"FY{period.year}")
+            FinancialPeriod(end_date=period, label=_issuer_period_label(period, mapping))
             for period in model_periods
         ],
         income_statement=statements["income_statement"],

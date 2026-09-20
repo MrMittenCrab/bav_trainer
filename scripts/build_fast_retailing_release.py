@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-BENCH = ROOT / "benchmark" / "fast_retailing"
+BENCH = ROOT / "build" / "input" / "fast_retailing"
 MANIFEST = BENCH / "source_manifest.json"
 EXTRACTED = BENCH / "extracted"
 SOURCE = BENCH / "source"
@@ -130,9 +130,9 @@ source-grounded filings through the production pipeline.
 
 ## Dependencies
 
-- Repository checkout with `benchmark/fast_retailing/source/` PDFs matching
-  `benchmark/fast_retailing/source_manifest.json`
-- Extracted filings under `benchmark/fast_retailing/extracted/FY2021.json` …
+- Repository checkout with `build/input/fast_retailing/source/` PDFs matching
+  `build/input/fast_retailing/source_manifest.json`
+- Extracted filings under `build/input/fast_retailing/extracted/FY2021.json` …
   `FY2025.json`
 - Python environment with project dependencies installed
 

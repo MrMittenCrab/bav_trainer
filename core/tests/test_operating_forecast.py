@@ -30,7 +30,7 @@ from core.model.working_capital import compute_working_capital_series
 
 ROOT = Path(__file__).resolve().parents[2]
 DEMO_JSON = ROOT / "example" / "DEMO_HK_Standardized.json"
-FR_STD = ROOT / "benchmark" / "fast_retailing" / "reconciled" / "standardized.json"
+FR_STD = ROOT / "build" / "input" / "fast_retailing" / "reconciled" / "standardized.json"
 
 
 def _ingest_demo():

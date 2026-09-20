@@ -41,8 +41,8 @@ from core.model.ratio_values import UNDEFINED_RATIO
 ROOT = Path(__file__).resolve().parents[2]
 QUALIFY = Path("/tmp/bav_norm_qualify_9M2411166")
 ADMIT_PROTO = Path("/tmp/bav_norm_admit_9M2411167")
-LIVE_DIR = ROOT / "build" / "input" / "lululemon-live"
-ASSUMPTIONS = ROOT / "release" / "lululemon" / "Lululemon_Answer_Key.assumptions.json"
+LIVE_DIR = ROOT / "build" / "input" / "lululemon" / "evidence" / "prior-live"
+ASSUMPTIONS = ROOT / "core" / "tests" / "fixtures" / "ordinary_reconcile" / "lululemon_assumptions.json"
 
 RETAINED = {
     "evidence.json": "fb9a13378756600a0087e6a6785ed38ad06a587b8d76182cf6c41d1c129f6960",
@@ -81,37 +81,41 @@ ORDINARY_SELECTORS = (
 C1 = "3f6f5dde023847e3347a4c830d822614a28c81a9"
 C2 = "20d93331bd3c1b3cccd72a3bf5c805453789e189"
 EXTRACT_BLOB = "5e3ef5cfdbfebcf5871dd7e75fad81654d669151"
-PROTECTED = [
-    "benchmark/fast_retailing/extracted/FY2021.json",
-    "benchmark/fast_retailing/extracted/FY2022.json",
-    "benchmark/fast_retailing/extracted/FY2023.json",
-    "benchmark/fast_retailing/extracted/FY2024.json",
-    "benchmark/fast_retailing/extracted/FY2025.json",
-    "benchmark/fast_retailing/reconciled/conflicts.json",
-    "benchmark/fast_retailing/reconciled/provenance.json",
-    "benchmark/fast_retailing/reconciled/standardized.json",
-    "benchmark/fast_retailing/source_manifest.json",
-    "benchmark/fast_retailing/source/Fastretailing_CFS2021.pdf",
-    "benchmark/fast_retailing/source/Fastretailing_CFS2022.pdf",
-    "benchmark/fast_retailing/source/Fastretailing_CFS2023.pdf",
-    "benchmark/fast_retailing/source/Fastretailing_CFS2024.pdf",
-    "benchmark/fast_retailing/source/Fastretailing_CFS2025.pdf",
-    "benchmark/lululemon/extracted/LULU_FY2022.json",
-    "benchmark/lululemon/extracted/LULU_FY2023.json",
-    "benchmark/lululemon/extracted/LULU_FY2024.json",
-    "benchmark/lululemon/extracted/LULU_FY2025.json",
-    "benchmark/lululemon/reconciled/conflicts.json",
-    "benchmark/lululemon/reconciled/provenance.json",
-    "benchmark/lululemon/reconciled/standardized.json",
-    "benchmark/lululemon/source/LULU_FY2022_Annual_Report.pdf",
-    "benchmark/lululemon/source/LULU_FY2023_Annual_Report.pdf",
-    "benchmark/lululemon/source/LULU_FY2024_Annual_Report.pdf",
-    "benchmark/lululemon/source/LULU_FY2025_Annual_Report.pdf",
+RELOCATED = {
+    "benchmark/fast_retailing/extracted/FY2021.json": "build/input/fast_retailing/extracted/FY2021.json",
+    "benchmark/fast_retailing/extracted/FY2022.json": "build/input/fast_retailing/extracted/FY2022.json",
+    "benchmark/fast_retailing/extracted/FY2023.json": "build/input/fast_retailing/extracted/FY2023.json",
+    "benchmark/fast_retailing/extracted/FY2024.json": "build/input/fast_retailing/extracted/FY2024.json",
+    "benchmark/fast_retailing/extracted/FY2025.json": "build/input/fast_retailing/extracted/FY2025.json",
+    "benchmark/fast_retailing/reconciled/conflicts.json": "build/input/fast_retailing/reconciled/conflicts.json",
+    "benchmark/fast_retailing/reconciled/provenance.json": "build/input/fast_retailing/reconciled/provenance.json",
+    "benchmark/fast_retailing/reconciled/standardized.json": "build/input/fast_retailing/reconciled/standardized.json",
+    "benchmark/fast_retailing/source_manifest.json": "build/input/fast_retailing/source_manifest.json",
+    "benchmark/fast_retailing/source/Fastretailing_CFS2021.pdf": "build/input/fast_retailing/source/Fastretailing_CFS2021.pdf",
+    "benchmark/fast_retailing/source/Fastretailing_CFS2022.pdf": "build/input/fast_retailing/source/Fastretailing_CFS2022.pdf",
+    "benchmark/fast_retailing/source/Fastretailing_CFS2023.pdf": "build/input/fast_retailing/source/Fastretailing_CFS2023.pdf",
+    "benchmark/fast_retailing/source/Fastretailing_CFS2024.pdf": "build/input/fast_retailing/source/Fastretailing_CFS2024.pdf",
+    "benchmark/fast_retailing/source/Fastretailing_CFS2025.pdf": "build/input/fast_retailing/source/Fastretailing_CFS2025.pdf",
+    "benchmark/lululemon/extracted/LULU_FY2022.json": "build/input/lululemon/extracted/LULU_FY2022.json",
+    "benchmark/lululemon/extracted/LULU_FY2023.json": "build/input/lululemon/extracted/LULU_FY2023.json",
+    "benchmark/lululemon/extracted/LULU_FY2024.json": "build/input/lululemon/extracted/LULU_FY2024.json",
+    "benchmark/lululemon/extracted/LULU_FY2025.json": "build/input/lululemon/extracted/LULU_FY2025.json",
+    "benchmark/lululemon/reconciled/conflicts.json": "core/tests/fixtures/ordinary_reconcile/lululemon/conflicts.json",
+    "benchmark/lululemon/reconciled/provenance.json": "core/tests/fixtures/ordinary_reconcile/lululemon/provenance.json",
+    "benchmark/lululemon/reconciled/standardized.json": "core/tests/fixtures/ordinary_reconcile/lululemon/standardized.json",
+    "benchmark/lululemon/source/LULU_FY2022_Annual_Report.pdf": "build/input/lululemon/source/LULU_FY2022_Annual_Report.pdf",
+    "benchmark/lululemon/source/LULU_FY2023_Annual_Report.pdf": "build/input/lululemon/source/LULU_FY2023_Annual_Report.pdf",
+    "benchmark/lululemon/source/LULU_FY2024_Annual_Report.pdf": "build/input/lululemon/source/LULU_FY2024_Annual_Report.pdf",
+    "benchmark/lululemon/source/LULU_FY2025_Annual_Report.pdf": "build/input/lululemon/source/LULU_FY2025_Annual_Report.pdf",
+}
+STAYED = [
     "example/DEMO_HK_Answer_Key.xlsx",
     "example/DEMO_HK_Assumptions.json",
     "example/DEMO_HK_Standardized.json",
     "example/DEMO_HK_Trainer.xlsx",
     "example/GOOGL_Demo_Integrated_Financials.xlsx",
+]
+RETIRED = [
     "release/fast_retailing/FastRetailing_Answer_Key.assumptions.json",
     "release/fast_retailing/FastRetailing_Answer_Key.component_map.json",
     "release/fast_retailing/FastRetailing_Answer_Key.xlsx",
@@ -133,16 +137,16 @@ PROTECTED = [
     "release/lululemon/supporting/provenance.json",
     "release/lululemon/supporting/standardized.json",
 ]
-EXTRACTED_EIGHT = [
-    "benchmark/lululemon/extracted/LULU_FY2022.json",
-    "benchmark/lululemon/extracted/LULU_FY2023.json",
-    "benchmark/lululemon/extracted/LULU_FY2024.json",
-    "benchmark/lululemon/extracted/LULU_FY2025.json",
-    "benchmark/lululemon/extracted/LULU_FY2022_management_kpis.json",
-    "benchmark/lululemon/extracted/LULU_FY2023_management_kpis.json",
-    "benchmark/lululemon/extracted/LULU_FY2024_management_kpis.json",
-    "benchmark/lululemon/extracted/LULU_FY2025_management_kpis.json",
-]
+EXTRACTED_EIGHT_RELOCATED = {
+    "benchmark/lululemon/extracted/LULU_FY2022.json": "build/input/lululemon/extracted/LULU_FY2022.json",
+    "benchmark/lululemon/extracted/LULU_FY2023.json": "build/input/lululemon/extracted/LULU_FY2023.json",
+    "benchmark/lululemon/extracted/LULU_FY2024.json": "build/input/lululemon/extracted/LULU_FY2024.json",
+    "benchmark/lululemon/extracted/LULU_FY2025.json": "build/input/lululemon/extracted/LULU_FY2025.json",
+    "benchmark/lululemon/extracted/LULU_FY2022_management_kpis.json": "build/input/lululemon/extracted/LULU_FY2022_management_kpis.json",
+    "benchmark/lululemon/extracted/LULU_FY2023_management_kpis.json": "build/input/lululemon/extracted/LULU_FY2023_management_kpis.json",
+    "benchmark/lululemon/extracted/LULU_FY2024_management_kpis.json": "build/input/lululemon/extracted/LULU_FY2024_management_kpis.json",
+    "benchmark/lululemon/extracted/LULU_FY2025_management_kpis.json": "build/input/lululemon/extracted/LULU_FY2025_management_kpis.json",
+}
 
 
 def _sha256(path: Path) -> str:
@@ -811,17 +815,29 @@ def test_ordinary_outputs_and_selectors_unchanged(retained):
 
 def test_protected_artifacts_and_eight_extracts_unchanged():
     matches = 0
-    for rel in PROTECTED:
+    for old, new in RELOCATED.items():
+        wt = _git_out(["git", "hash-object", str(ROOT / new)])
+        c1 = _git_out(["git", "rev-parse", f"{C1}:{old}"])
+        c2 = _git_out(["git", "rev-parse", f"{C2}:{old}"])
+        assert wt == c1 == c2, (old, new)
+        matches += 1
+    for rel in STAYED:
         wt = _git_out(["git", "hash-object", str(ROOT / rel)])
         c1 = _git_out(["git", "rev-parse", f"{C1}:{rel}"])
         c2 = _git_out(["git", "rev-parse", f"{C2}:{rel}"])
         assert wt == c1 == c2, rel
         matches += 1
+    for rel in RETIRED:
+        c1 = _git_out(["git", "rev-parse", f"{C1}:{rel}"])
+        c2 = _git_out(["git", "rev-parse", f"{C2}:{rel}"])
+        assert c1 == c2, rel
+        assert not (ROOT / rel).is_file(), rel
+        matches += 1
     assert matches == 50
     extract_matches = 0
-    for rel in EXTRACTED_EIGHT:
-        wt = _git_out(["git", "hash-object", str(ROOT / rel)])
-        at = _git_out(["git", "rev-parse", f"{EXTRACT_BLOB}:{rel}"])
-        assert wt == at, rel
+    for old, new in EXTRACTED_EIGHT_RELOCATED.items():
+        wt = _git_out(["git", "hash-object", str(ROOT / new)])
+        at = _git_out(["git", "rev-parse", f"{EXTRACT_BLOB}:{old}"])
+        assert wt == at, (old, new)
         extract_matches += 1
     assert extract_matches == 8

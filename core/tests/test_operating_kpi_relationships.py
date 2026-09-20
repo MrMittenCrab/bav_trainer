@@ -104,7 +104,7 @@ from core.tests.test_operating_kpi_facts import (
 from core.tests.test_operating_kpi_management_history import _compsales, _spsf
 
 ROOT = Path(__file__).resolve().parents[2]
-FR_JSON = ROOT / "benchmark" / "fast_retailing" / "reconciled" / "standardized.json"
+FR_JSON = ROOT / "build" / "input" / "fast_retailing" / "reconciled" / "standardized.json"
 P0 = date(2023, 12, 31)
 P1 = date(2024, 12, 31)
 P2 = date(2025, 12, 31)

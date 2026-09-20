@@ -43,7 +43,7 @@ from core.tests.test_operating_kpi_facts import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
-BENCH = ROOT / "benchmark" / "lululemon"
+BENCH = ROOT / "build" / "input" / "lululemon"
 EXTRACTED = BENCH / "extracted"
 SOURCE = BENCH / "source"
 ANNUAL_NAMES = (

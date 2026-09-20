@@ -204,10 +204,12 @@ def cmd_build(args: argparse.Namespace) -> int:
 
 
 def cmd_check(args: argparse.Namespace) -> int:
-    from .current_build import current_workbook
+    from .current_build import check_company_output
     if bool(args.company) == bool(args.workbook):
         raise ValueError('Specify a company or --workbook')
-    workbook = current_workbook(args.company) if args.company else Path(args.workbook)
+    if args.company:
+        return check_company_output(args.company)
+    workbook = Path(args.workbook)
     summary = check_workbook(workbook)
     print(
         f"Checked {summary.total} practice cells: "

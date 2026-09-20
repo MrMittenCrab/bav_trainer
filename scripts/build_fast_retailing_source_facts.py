@@ -1,7 +1,7 @@
 """Historical Step 9M.0 helper — OBSOLETE after Step 9M.1.
 
-Formerly built benchmark/fast_retailing/source_facts.json from CFS text extracts.
-Canonical documentary input is now benchmark/fast_retailing/extracted/FY*.json
+Formerly built Fast Retailing source_facts.json from CFS text extracts.
+Canonical documentary input is now build/input/fast_retailing/extracted/FY*.json
 via the generic validate-source / reconcile CLI. Kept only as migration history;
 do not use for normal benchmark execution.
 
@@ -16,8 +16,8 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-EXTRACT = ROOT / "benchmark" / "fast_retailing" / "_extract"
-OUT = ROOT / "benchmark" / "fast_retailing" / "source_facts.json"
+EXTRACT = ROOT / "build" / "input" / "fast_retailing" / "evidence" / "_extract"
+OUT = ROOT / "build" / "input" / "fast_retailing" / "source_facts.json"
 
 STMT_BS = "Consolidated Statement of Financial Position"
 STMT_IS = "Consolidated Statement of Profit or Loss"
@@ -541,7 +541,7 @@ def parse_primary(year: int) -> dict[str, Any]:
                 cash_flow.insert(insert_at, ex)
 
     return {
-        "file": f"benchmark/fast_retailing/source/Fastretailing_CFS{year}.pdf",
+        "file": f"build/input/fast_retailing/source/Fastretailing_CFS{year}.pdf",
         "periods": periods,
         "income_statement": income,
         "balance_sheet": bs,

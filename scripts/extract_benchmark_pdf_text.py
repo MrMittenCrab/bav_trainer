@@ -11,8 +11,8 @@ from pathlib import Path
 from pypdf import PdfReader
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "benchmark" / "fast_retailing" / "source"
-OUT = ROOT / "benchmark" / "fast_retailing" / "_extract"
+SOURCE = ROOT / "build" / "input" / "fast_retailing" / "source"
+OUT = ROOT / "build" / "input" / "fast_retailing" / "evidence" / "_extract"
 
 
 def extract_year(year: int, *, max_pages: int = 30) -> Path:

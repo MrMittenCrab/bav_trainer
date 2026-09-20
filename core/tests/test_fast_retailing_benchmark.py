@@ -6,6 +6,7 @@ import hashlib
 import json
 import subprocess
 import sys
+import tempfile
 from datetime import date
 from pathlib import Path
 
@@ -33,7 +34,7 @@ import pytest
 from scripts.audit_fast_retailing_benchmark import run_audit
 
 ROOT = Path(__file__).resolve().parents[2]
-BENCH = ROOT / "benchmark" / "fast_retailing"
+BENCH = ROOT / "build" / "input" / "fast_retailing"
 MANIFEST = BENCH / "source_manifest.json"
 EXTRACTED = BENCH / "extracted"
 SOURCE = BENCH / "source"
@@ -81,7 +82,9 @@ def test_source_manifest_locks_five_pdfs():
     assert len(manifest["sources"]) == 5
     assert {s["fiscal_year"] for s in manifest["sources"]} == {2021, 2022, 2023, 2024, 2025}
     for entry in manifest["sources"]:
-        path = ROOT / entry["path"]
+        path = ROOT / entry["path"].replace(
+            "benchmark/fast_retailing/", "build/input/fast_retailing/", 1
+        )
         assert path.is_file()
         data = path.read_bytes()
         assert len(data) == entry["bytes"]
@@ -1593,7 +1596,38 @@ def test_fast_retailing_g7_retained_conflict_policy():
     assert CONFLICTS_JSON.read_bytes() == committed_conflicts
 
 
-RELEASE = ROOT / "release" / "fast_retailing"
+_FROZEN_RELEASE_COMMIT = "3f6f5dde023847e3347a4c830d822614a28c81a9"
+_RETIRED_RELEASE_FILES = (
+    "FastRetailing_Trainer.xlsx",
+    "FastRetailing_Answer_Key.xlsx",
+    "FastRetailing_Answer_Key.assumptions.json",
+    "FastRetailing_Answer_Key.component_map.json",
+    "supporting/standardized.json",
+    "supporting/provenance.json",
+    "supporting/conflicts.json",
+)
+
+
+def _retired_release_bytes(rel: str) -> bytes:
+    return subprocess.check_output(
+        ["git", "show", f"{_FROZEN_RELEASE_COMMIT}:release/fast_retailing/{rel}"],
+        cwd=ROOT,
+    )
+
+
+def _resolve_release_root() -> Path:
+    """Use git history for the retired release pair; do not require a live tree."""
+    dest = Path(tempfile.gettempdir()) / f"bav_retired_release_fr_{_FROZEN_RELEASE_COMMIT[:12]}"
+    for name in _RETIRED_RELEASE_FILES:
+        path = dest / name
+        if path.is_file():
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(_retired_release_bytes(name))
+    return dest
+
+
+RELEASE = _resolve_release_root()
 RELEASE_TRAINER = RELEASE / "FastRetailing_Trainer.xlsx"
 RELEASE_ANSWER = RELEASE / "FastRetailing_Answer_Key.xlsx"
 RELEASE_STD = RELEASE / "supporting" / "standardized.json"

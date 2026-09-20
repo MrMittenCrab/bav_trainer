@@ -32,7 +32,7 @@ from core.trainer.workbook import build_training_workbook
 from core.tests.test_normalization import _inject_formula_and_cached_value
 
 ROOT = Path(__file__).resolve().parents[2]
-LULU_STD = ROOT / "benchmark" / "lululemon" / "reconciled" / "standardized.json"
+LULU_STD = ROOT / "core" / "tests" / "fixtures" / "ordinary_reconcile" / "lululemon" / "standardized.json"
 
 P1 = date(2024, 12, 31)
 P2 = date(2025, 12, 31)

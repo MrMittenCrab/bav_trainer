@@ -119,9 +119,11 @@ def _issuer_fiscal_name(
             continue
         if _JAN31_FOLLOWING_YEAR not in item.calendar_reporting_basis:
             continue
-        if period.month not in (1, 2):
+        label = _label_for(financials, period)
+        token = _fiscal_year_token(label)
+        if not token.isdigit():
             return None
-        return f"fiscal {period.year - 1}"
+        return f"fiscal {token}"
     return None
 
 
@@ -132,7 +134,7 @@ def _calendar_limitation(view: "DriversView") -> str:
     label = view.labels[view.periods.index(period)]
     naming = ""
     issuer = view.issuer_fiscal_name
-    if issuer and issuer.casefold() != label.casefold():
+    if issuer and _fiscal_year_token(issuer) != _fiscal_year_token(label):
         naming = f"; the issuer names it {issuer}"
     return (
         f"{label}, the year ended {_date_text(period)}, is a 53-week year{naming}. "
@@ -146,6 +148,11 @@ def _calendar_limit_block(view: "DriversView") -> str:
     if not text:
         return ""
     return f"\n{text}\n"
+
+
+def _fiscal_year_token(label: str) -> str:
+    text = label.casefold().replace("fiscal ", "").replace("fy", "").strip()
+    return text
 
 
 def _date_text(period: date) -> str:
@@ -189,6 +196,11 @@ class DriversView:
     revenue: tuple[float, ...]
     operating_profit: tuple[float, ...]
     operating_margin: tuple[float, ...]
+    gross_margin: tuple[float, ...]
+    net_operating_expense_burden: tuple[float, ...]
+    gross_margin_change: tuple[float | None, ...]
+    net_operating_expense_burden_change: tuple[float | None, ...]
+    operating_margin_change: tuple[float | None, ...]
     stores: tuple[float, ...]
     revenue_growth: tuple[float | None, ...]
     store_growth: tuple[float | None, ...]
@@ -272,6 +284,14 @@ def assemble_drivers_view(
     issuer_name = (
         _issuer_fiscal_name(financials, week_period) if week_period is not None else None
     )
+    if (
+        margins.gross_margin is None
+        or margins.net_operating_expense_burden is None
+        or margins.gross_margin_change is None
+        or margins.net_operating_expense_burden_change is None
+        or margins.reconstructed_operating_margin_change is None
+    ):
+        raise ValueError("Drivers requires the validated three-component margin bridge")
     return DriversView(
         company_name=financials.company_name,
         display_name=display_name,
@@ -282,6 +302,19 @@ def assemble_drivers_view(
         revenue=tuple(float(revenue_item.values[period]) for period in axis),
         operating_profit=tuple(float(operating_item.values[period]) for period in axis),
         operating_margin=tuple(float(value) for value in margins.reported_operating_margin),
+        gross_margin=tuple(float(value) for value in margins.gross_margin),
+        net_operating_expense_burden=tuple(
+            float(value) for value in margins.net_operating_expense_burden
+        ),
+        gross_margin_change=tuple(
+            _numeric(value) for value in margins.gross_margin_change
+        ),
+        net_operating_expense_burden_change=tuple(
+            _numeric(value) for value in margins.net_operating_expense_burden_change
+        ),
+        operating_margin_change=tuple(
+            _numeric(value) for value in margins.reconstructed_operating_margin_change
+        ),
         stores=tuple(float(stores.period_end_count[period]) for period in axis),
         revenue_growth=tuple(
             _numeric(relationship.revenue_growth[period]) for period in axis
@@ -378,9 +411,24 @@ def render_drivers_markdown(view: DriversView) -> str:
         f"{_pct(view.operating_margin[i], 1)} in {view.labels[i]}"
         for i in range(len(view.periods))
     )
-    om_change = (
-        view.operating_margin[latest] - view.operating_margin[latest - 1]
-    ) * 100
+    gm_text = ", ".join(
+        f"{_pct(view.gross_margin[i], 1)} in {view.labels[i]}"
+        for i in range(len(view.periods))
+    )
+    burden_text = ", ".join(
+        f"{_pct(view.net_operating_expense_burden[i], 1)} in {view.labels[i]}"
+        for i in range(len(view.periods))
+    )
+    gm_change = view.gross_margin_change[latest]
+    burden_change = view.net_operating_expense_burden_change[latest]
+    om_change = view.operating_margin_change[latest]
+    if gm_change is None or burden_change is None or om_change is None:
+        raise ValueError("Drivers requires a latest-period margin decomposition")
+    om_change_pp = om_change * 100
+    gm_change_pp = gm_change * 100
+    burden_change_pp = burden_change * 100
+    if abs(om_change_pp - (gm_change_pp - burden_change_pp)) > 1e-9:
+        raise ValueError("latest operating-margin change does not equal GM change minus burden change")
     definition_period = (
         view.store_only_comparable_sales.period
         if view.store_only_comparable_sales is not None
@@ -424,9 +472,13 @@ In {view.labels[latest]}, China Mainland ({_pp(latest_geo["china_mainland"])}) a
 
 Operating margin was {om_text}.
 
-The latest change was {om_change:+.2f} pp, in the year with the slowest revenue growth ({_pct(view.revenue_growth[latest])}) and a negative Americas contribution.
+In {view.labels[latest]}, operating-margin change was {om_change_pp:+.2f} pp, equal to the gross-margin change ({gm_change_pp:+.2f} pp) minus the net-operating-expense-burden change ({burden_change_pp:+.2f} pp).
 
-![Reported operating margin](../figures/drivers/margin.png)
+Gross margin was {gm_text}. Net operating expense burden was {burden_text}.
+
+Management explanations of the latest operating-margin movement are unavailable.
+
+![Gross margin, net operating expense burden, and operating margin](../figures/drivers/margin.png)
 
 ## Conclusions
 
@@ -555,26 +607,32 @@ def plot_geography(view: DriversView, path: Path, style: ResearchStyle) -> None:
 def plot_margin(view: DriversView, path: Path, style: ResearchStyle) -> None:
     fig, ax = new_figure(style)
     labels = [_figure_period_label(view, i) for i in range(len(view.periods))]
-    values = [value * 100 for value in view.operating_margin]
-    ax.plot(
-        range(len(values)),
-        values,
-        color=style.series_color(0),
-        marker="o",
-        markersize=5,
-        linewidth=1.2,
-        label="Operating margin",
+    x = list(range(len(view.periods)))
+    series = (
+        (view.gross_margin, "Gross margin"),
+        (view.net_operating_expense_burden, "Net operating expense burden"),
+        (view.operating_margin, "Operating margin"),
     )
-    ax.set_xticks(range(len(values)), labels)
+    for series_index, (values, label) in enumerate(series):
+        ax.plot(
+            x,
+            [value * 100 for value in values],
+            color=style.series_color(series_index),
+            marker="o",
+            markersize=5,
+            linewidth=1.2,
+            label=label,
+        )
+    ax.set_xticks(x, labels)
     ax.set_ylabel("Percent of revenue")
     ax.legend(loc="upper right")
     finish_figure(
         fig,
         ax,
         style,
-        "Reported operating margin",
+        "Gross margin, net operating expense burden, and operating margin",
         f"Source: {view.display_name} BAV income statement.\n"
-        "Operating margin is income from operations divided by revenue.",
+        "Operating-margin change equals gross-margin change minus net-operating-expense-burden change.",
         path,
     )
 

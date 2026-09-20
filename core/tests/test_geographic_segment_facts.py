@@ -41,10 +41,10 @@ from core.data.standardized_io import standardized_from_payload, standardized_to
 from core.tests.test_filing_reconciler import _filing, _validated
 
 ROOT = Path(__file__).resolve().parents[2]
-BENCH = ROOT / "benchmark" / "lululemon"
+BENCH = ROOT / "build" / "input" / "lululemon"
 EXTRACTED = BENCH / "extracted"
 SOURCE = BENCH / "source"
-RECONCILED = BENCH / "reconciled"
+RECONCILED = ROOT / "core" / "tests" / "fixtures" / "ordinary_reconcile" / "lululemon"
 NS = GEO_NAMESPACE
 
 P2024 = date(2024, 12, 31)
@@ -1361,7 +1361,10 @@ def test_lululemon_extracted_filings_round_trip_and_five_period_bridges():
     committed_std = json.loads((RECONCILED / "standardized.json").read_text())
     live_without_segment = dict(live)
     live_without_segment.pop("historical_segment")
-    assert live_without_segment == committed_std
+    from core.tests.test_lululemon_benchmark import _comparable_standardized
+    assert _comparable_standardized(live_without_segment) == _comparable_standardized(
+        committed_std
+    )
     assert live["historical_segment"]["namespace"] == NS
     committed_conflicts = json.loads((RECONCILED / "conflicts.json").read_text())
     live_conflicts = reconciliation_conflicts_payload(reconciled)

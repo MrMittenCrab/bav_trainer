@@ -39,7 +39,7 @@ from core.ingestion.operating_kpi import select_operating_kpi_facts
 from core.tests.test_filing_reconciler import _filing, _validated
 
 ROOT = Path(__file__).resolve().parents[2]
-BENCH = ROOT / "benchmark" / "lululemon"
+BENCH = ROOT / "build" / "input" / "lululemon"
 EXTRACTED = BENCH / "extracted"
 SOURCE = BENCH / "source"
 FIXTURE = (

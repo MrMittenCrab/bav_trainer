@@ -91,8 +91,8 @@ from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
 from core.trainer.workbook import build_training_workbook, derive_trainer_workbook
 
 ROOT = Path(__file__).resolve().parents[2]
-FR_JSON = ROOT / "benchmark" / "fast_retailing" / "reconciled" / "standardized.json"
-LULU_JSON = ROOT / "benchmark" / "lululemon" / "reconciled" / "standardized.json"
+FR_JSON = ROOT / "build" / "input" / "fast_retailing" / "reconciled" / "standardized.json"
+LULU_JSON = ROOT / "core" / "tests" / "fixtures" / "ordinary_reconcile" / "lululemon" / "standardized.json"
 LULU_DISCLOSURES = (
     ROOT / "core" / "tests" / "fixtures" / "strategy" / "lululemon_management_disclosures.json"
 )

@@ -2849,3 +2849,169 @@ The generic path fix and measured diagnostic history are recorded in
 `docs/excel-permission-diagnosis-2026-09-20.md`. Native execution success alone
 was not used as acceptance: the saved-cache verifier ran on the exact stable
 copy and retained independently inspectable evidence for Review.
+
+---
+
+# Step 5.1 — Canonical build migration and Drivers corrections
+
+Date: 2026-09-21. Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**.
+
+This append records the bounded Step 5.1 attempt. It does not rewrite prior ledger history and does not close the Session Endpoint.
+
+## Work completed in this attempt
+
+Preserved prior inventory and canonical input migration. Finished remaining company-name build/check wiring, issuer fiscal-year mapping at the data/presentation boundary, Margin prose/figure, lowercase on-disk output, and pre-removal verification. Obsolete duplicate trees were **not** deleted because required native Excel presentation inspection is BLOCKED.
+
+## Canonical input inventory (pre-build hashes, unchanged after build)
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `build/input/lululemon/reconciled/standardized.json` | `88021a6274fedf54899b12ee5727ce8985ad50dcb8f0b85e051a746d1dd8d803` | 70646 |
+| `build/input/lululemon/reconciled/provenance.json` | `63abff929fafa11b4824c4df4f53c3c058ffc770cae2c28c9125737caa2da462` | 793887 |
+| `build/input/lululemon/reconciled/conflicts.json` | `d8a33012f6ea73126ac4e2ece3613e7011c11cb2b581745d8c3563e3c2e978e0` | 4718 |
+| `build/input/lululemon/reconciled/management_kpi_admission.json` | `c5b28f92bae9776a592131ad0463d8fff695265a3f2fbebcfd3d3acd123b38b9` | 2269596 |
+| `build/input/lululemon/extracted/LULU_FY2022.json` | `706cd75845133425b1821b9ff989ef1131005bdfb2321a76b1a6e91f710a6f18` | 60110 |
+| `build/input/lululemon/extracted/LULU_FY2023.json` | `fcaa9abb417c4f96eb5496c5fc3f1b683b13c17a498c400de869e81880788c05` | 73971 |
+| `build/input/lululemon/extracted/LULU_FY2024.json` | `0ddc2893afa892d2e1684a38fdc3a3275bb82ace5d4a237c785ad1246d327c4f` | 72244 |
+| `build/input/lululemon/extracted/LULU_FY2025.json` | `fc4ffe8e7ce7f919c815ff4eecdb171d7f75f528a925cbced5814044d8363a10` | 70176 |
+| `build/input/lululemon/extracted/LULU_FY2022_management_kpis.json` | `d5288f1d4835fe678b2942158a8b6e55e85deffd4cbd1da12fd353aa5b7b13d7` | 18386 |
+| `build/input/lululemon/extracted/LULU_FY2023_management_kpis.json` | `92ec08cf350d90ddd4faf54d7fcec114e70b009a2bfe81285eefd2fb9982ef19` | 21774 |
+| `build/input/lululemon/extracted/LULU_FY2024_management_kpis.json` | `3513278b78b1964e38538498ab02bb6b2ec47bcd5187dfa663cb63b56ca89dde` | 22055 |
+| `build/input/lululemon/extracted/LULU_FY2025_management_kpis.json` | `386c160d8880f14af900011c993b8f98a94ff700166d80f61c1e760d2346ba78` | 20053 |
+| `build/input/lululemon/source/LULU_FY2022_Annual_Report.pdf` | `b344d1e7a710259fa06f88773dee0b3827334820ce2b881fe6b95ca2ae275e4e` | 4913067 |
+| `build/input/lululemon/source/LULU_FY2023_Annual_Report.pdf` | `cd47ea251d608d06a3e58b5d782f2d41d5a231a994d2f7993267a430cb13c0f1` | 5848446 |
+| `build/input/lululemon/source/LULU_FY2024_Annual_Report.pdf` | `9268fd530db162babdd1ec4363cf388ebce57125d83b7e097aba6f98ba0ca7ec` | 5953217 |
+| `build/input/lululemon/source/LULU_FY2025_Annual_Report.pdf` | `82e00f900cc912a7d79596409594156b7779c3a193783ea8fecf87bc013c71cc` | 6590658 |
+
+Accepted current reconciled `standardized.json` was not replaced by stale `lululemon-live` or benchmark reconciliations. Distinct prior-live bytes are already relocated to `build/input/lululemon/evidence/prior-live/` (`standardized.json` `6c9aad59…51e5`, `provenance.json` `5067c1d0…5951`, `conflicts.json` `d8a33012…978e0`, `management_kpi_admission.json` `ea01edfd…915ef`). Fast Retailing audit extracts already relocated to `build/input/fast_retailing/evidence/_extract/` (five `CFS2021–2025_p1-30.txt` byte-identical to `benchmark/fast_retailing/_extract/`).
+
+## Issuer fiscal mapping (extracted evidence, not calendar year of period-end)
+
+| Period-end | Issuer FY | Calendar year of end-date |
+|---|---|---|
+| 2022-01-30 | FY2021 | 2022 |
+| 2023-01-29 | FY2022 | 2023 |
+| 2024-01-28 | FY2023 | 2024 |
+| 2025-02-02 | FY2024 (53-week) | 2025 |
+| 2026-02-01 | FY2025 | 2026 |
+
+Extracted filing current-period evidence: `LULU_FY2024.json` / `LULU_FY2024_management_kpis.json` have `fiscal_year=2024` and period-end `2025-02-02`. Mapping is applied at `prepare_company_input` and survives export/reload of period-end dates and labels (`core/tests/test_issuer_fiscal.py`: **3 passed**). Overview, Drivers Markdown and all three figures use these labels. Column headers retain actual period-end dates.
+
+## Ordinary build / check (before removal)
+
+```bash
+python -m bav build Lululemon
+python -m bav check Lululemon
+```
+
+| Measurement | Result |
+|---|---|
+| Build exit | **0** |
+| Check exit | **0** |
+| Output directory (on-disk name) | `build/output/lululemon/` |
+| Primary workbook | `Lululemon_BAV.xlsx` SHA-256 `ac4285e7b2cce648bbc46e9742111f0a12ffac2b1d729b1b173c2fd867a169a4` (227421) |
+| Drivers Markdown | `313a0ac193df4621390fc76e41cb26eadd3f057c0bae48693b14b66c583acc79` (4191) |
+| Placeholders | Forecast/Valuation/Overview SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` (0 bytes each) |
+| `figures/drivers/growth.png` | `dd4aae26b7d6fb72ed02890110e04182148c53a40b9717ae9fc355426e2910ce` (63564) |
+| `figures/drivers/geography.png` | `7112d2d57cd0e216b5cc416621a3379daf76157758fe5936aab9b50bd07de500` (51504) |
+| `figures/drivers/margin.png` | `eebb5cd7783b09e2c41486d7f0667367ec8f0a813d4ee1cb17114d841f007c38` (66103) |
+| Supporting | `build_status.json` `4f6ed926…f6e9`; `assumptions.json` `73fbb33f…d21a`; `component_map.json` `0db38272…19f3`; `rowmap.json` `b8d8c9c9…4ca4` |
+| Active `lululemon-live` code dependency | **none** |
+| Recreated `build/lululemon` or `lululemon-live` | **no** |
+
+## Margin independent reconciliation
+
+Computed from the same validated BAV margin series. Latest period FY2025 (ended 1 February 2026):
+
+| Quantity | Value |
+|---|---:|
+| Gross margin change | −2.6244 pp |
+| Net operating expense burden change | +1.1300 pp |
+| Operating-margin change | −3.7544 pp |
+| Identity OM = GM − burden | **0.000000e+00** |
+
+Drivers prose: `operating-margin change was -3.75 pp, equal to the gross-margin change (-2.62 pp) minus the net-operating-expense-burden change (+1.13 pp)`. Levels: GM 57.7/55.4/58.3/59.2/56.6%; burden 36.4/39.0/36.1/35.6/36.7%; OM 21.3/16.4/22.2/23.7/19.9%.
+
+Inspected `extracted/*_management_kpis.json` and `reconciled/management_kpi_admission.json`: no admitted gross-margin / operating-margin causal explanations with locators. Recorded as unavailable. No new extraction added.
+
+## Workbook analytical comparison vs pre-migration `build/lululemon/Lululemon_BAV.xlsx`
+
+Non-empty cells 19133 / 19133. Only-current 0, only-pre 0.
+
+| Class | Count |
+|---|---:|
+| Formula/type changes | **0** |
+| Literal changes | **2** |
+
+Intended fiscal-label differences only:
+
+- `Overview!A3`: `Historical coverage: FY2022 – FY2026 (5 periods)` → `Historical coverage: FY2021 – FY2025 (5 periods)`
+- `_CheckContext!A3`: embedded standardized period labels FY2022–FY2026 → FY2021–FY2025; numerical values unchanged
+
+Checkpoint `51468d6872d6cc6bfebbe780664003171bcb105c` contains `release/lululemon/Lululemon_Answer_Key.xlsx`. Historical checkpoint discrepancy remains unresolved evidence, not a newly passed comparison. Intended fiscal-label differences are recorded separately above.
+
+## Figures and fonts
+
+`resolve_required_fonts` and renderer-measured word-spacing remain in `core/tests/test_research_drivers.py` (passed). Visual inspection of the three regenerated PNGs: FY labels and period-end dates readable; source notes present; no clipping, overlap, or missing-glyph warnings observed. The extra inter-word spacing from STYLE is visible as wider gaps, not missing glyphs.
+
+## Regressions (path expectations adapted; numerical assertions not weakened)
+
+| Suite | Result |
+|---|---|
+| `test_issuer_fiscal.py` | **3 passed** |
+| `test_current_build.py` `test_research_drivers.py` `test_build_contract.py` `test_reported_margin.py` `test_source_availability.py` | **89 passed** (protected-artifacts test excluded here; it still requires retired release files to be absent) |
+| `test_lululemon_benchmark.py` `test_fast_retailing_benchmark.py` `test_management_kpi_admission.py` `test_operating_kpi_facts.py` `test_operating_kpi_analysis.py` `test_operating_kpi_relationships.py` `test_operating_kpi_workbook.py` | **610 passed** |
+| `test_trainer.py` `test_build_cli.py` `test_geographic_segment_facts.py` `test_geographic_segment_analysis.py` `test_geographic_segment_workbook.py` `test_revenue_driver.py` `test_source_availability.py` | **193 passed** |
+
+`test_normalization_candidate_admission.py::test_protected_artifacts_and_eight_extracts_unchanged` **failed** because `release/fast_retailing/*` and `release/lululemon/*` still exist. That test already accounts relocation (25) + stayed (5) + retired (20) = 50 and eight extracts. Removal of those retired files is gated on native Excel presentation inspection.
+
+## Native Excel
+
+Overview presentation changed (A3 fiscal coverage). Helper:
+
+```sh
+python3 ~/.autocycle/excel_verification.py build/output/lululemon/Lululemon_BAV.xlsx -- python3 /tmp/verify_lululemon_overview_presentation.py '{workbook}' --original build/output/lululemon/Lululemon_BAV.xlsx
+```
+
+| Measurement | Result |
+|---|---|
+| Status | **BLOCKED** |
+| Source SHA-256 | `ac4285e7b2cce648bbc46e9742111f0a12ffac2b1d729b1b173c2fd867a169a4` |
+| Evidence | `.git/autocycle/excel-verification-z0ozjjfv/result.json` |
+| Action | Excel automation timed out (−1712) opening the verification copy. A timeout alone does not establish a permission failure. If Excel shows a Grant Access dialog for that copy, grant that file once and reuse the same path. Copy: `.git/autocycle/excel-workbooks/abe47425be87411eb1fee0c2/autocycle-verification-abe47425be87411eb1fee0c2.xlsx`. |
+
+Retained `.git/autocycle/excel-verification-fb95_r2m/saved-copy.xlsx` belongs to source SHA-256 `f0f46a03f4c2091f8d9a1d3002b37bcda2bd46c6851389d9ebc4171cbf4f1a0c`, not the current workbook. `docs/native-excel-kpi-references.json` `source_sha256` is `27cf81c5f6cc71fdeeae46d90825704a7ac4b2e1e90a346464e29ffa17d83e67`. Neither is applicable to this generation. Prior acceptance and Excel recovery are not granted. No security dialog was operated.
+
+## Removal inventory (not deleted)
+
+| Path | Status | Accounting |
+|---|---|---|
+| `build/lululemon/` | present (28 files) | obsolete generated tree; pre-migration BAV used for formula/literal compare |
+| `build/lululemon-live/` | absent | already gone |
+| `build/input/lululemon-live/` | present (4 files) | unique bytes already in `build/input/lululemon/evidence/prior-live/` |
+| `build/fast_retailing/` | present (8 files) | obsolete generated tree |
+| `build/output/FastRetailing/` | present (8 files) | uppercase/legacy output |
+| `build/output/rowmap.json` | present | leftover non-company artifact |
+| `benchmark/lululemon/` | present (18 files) | relocated into `build/input/lululemon/` + fixtures; identity in Git |
+| `benchmark/fast_retailing/` | present (23 files) | relocated into `build/input/fast_retailing/`; `_extract` in `evidence/_extract/` |
+| `release/lululemon/` | present (10 files) | retired in protected-artifact ledger; identity in Git |
+| `release/fast_retailing/` | present (10 files) | retired in protected-artifact ledger; identity in Git |
+
+No duplicate was deleted in this attempt.
+
+## Remaining gaps toward Completion
+
+- Native Excel readable inspection of the changed Overview fiscal-label presentation is unresolved (helper BLOCKED, −1712).
+- Gated removal of obsolete duplicate trees is therefore not done; `test_protected_artifacts_and_eight_extracts_unchanged` still fails while retired release files remain.
+- Post-removal repeat build/check from unchanged canonical inputs is not done.
+- Historical checkpoint discrepancy vs `51468d6872d6cc6bfebbe780664003171bcb105c` remains unresolved evidence.
+- Earlier normalization, broader source-workflow and normalized-per-share obligations remain deferred.
+- KPI native-reference file and fb95 saved-copy are not applicable to the current workbook hash.
+
+## Required plan changes
+
+None. The Excel helper supplied a concrete Action; this attempt did not guess around it or remove duplicates without that gate.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.

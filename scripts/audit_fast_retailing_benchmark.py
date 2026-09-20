@@ -18,7 +18,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-BENCH = ROOT / "benchmark" / "fast_retailing"
+BENCH = ROOT / "build" / "input" / "fast_retailing"
 RECONCILED = BENCH / "reconciled"
 STD_JSON = RECONCILED / "standardized.json"
 PROV_JSON = RECONCILED / "provenance.json"

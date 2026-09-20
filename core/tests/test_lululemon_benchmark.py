@@ -61,10 +61,10 @@ from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
 from core.trainer.workbook import build_training_workbook
 
 ROOT = Path(__file__).resolve().parents[2]
-BENCH = ROOT / "benchmark" / "lululemon"
+BENCH = ROOT / "build" / "input" / "lululemon"
 EXTRACTED = BENCH / "extracted"
 SOURCE = BENCH / "source"
-RECONCILED = BENCH / "reconciled"
+RECONCILED = ROOT / "core" / "tests" / "fixtures" / "ordinary_reconcile" / "lululemon"
 STD_JSON = RECONCILED / "standardized.json"
 PROV_JSON = RECONCILED / "provenance.json"
 CONFLICTS_JSON = RECONCILED / "conflicts.json"
@@ -208,9 +208,22 @@ def _statement_provenance(payload: dict) -> dict:
 
 def _comparable_standardized(payload: dict) -> dict:
     """Canonical-comparable standardized payload: ignore optional handoffs."""
+    from datetime import date
+    from core.data.issuer_fiscal import (
+        issuer_fiscal_label,
+        issuer_fiscal_years_from_extracted,
+    )
     comparable = dict(payload)
     comparable.pop("historical_segment", None)
     comparable.pop("historical_operating_kpis", None)
+    mapping = issuer_fiscal_years_from_extracted(EXTRACTED)
+    periods = []
+    for item in comparable.get("periods", []):
+        period = dict(item)
+        end = date.fromisoformat(str(period["end_date"]))
+        period["label"] = issuer_fiscal_label(mapping[end])
+        periods.append(period)
+    comparable["periods"] = periods
     return comparable
 
 

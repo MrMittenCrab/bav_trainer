@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_EXTRACTED = ROOT / "benchmark" / "lululemon" / "extracted"
+DEFAULT_EXTRACTED = ROOT / "build" / "input" / "lululemon" / "extracted"
 DEFAULT_FACTS = (
     ROOT
     / "core"

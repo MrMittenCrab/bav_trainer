@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-BENCH = ROOT / "benchmark" / "lululemon"
+BENCH = ROOT / "build" / "input" / "lululemon"
 EXTRACTED = BENCH / "extracted"
 SOURCE = BENCH / "source"
 RECONCILED = BENCH / "reconciled"
@@ -128,9 +128,9 @@ and excluded from practice and Check. No interest amounts were invented.
 
 ## Dependencies
 
-- Repository checkout with `benchmark/lululemon/source/` PDFs
-- Extracted filings under `benchmark/lululemon/extracted/`
-- Checked-in reconciled payload under `benchmark/lululemon/reconciled/`
+- Repository checkout with `build/input/lululemon/source/` PDFs
+- Extracted filings under `build/input/lululemon/extracted/`
+- Checked-in reconciled payload under `build/input/lululemon/reconciled/`
 - Python environment with project dependencies installed
 
 ## Build

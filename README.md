@@ -27,39 +27,42 @@ From the repository root:
 ```bash
 pip install -r requirements-trainer.txt
 python -m bav build Lululemon
+python -m bav check Lululemon
 python -m bav list Lululemon
 ```
 
 Company names are case-insensitive; `LULU` resolves to Lululemon. `FastRetailing`,
-`Fast Retailing`, and `9983` resolve to the other benchmark company. Unknown or
-ambiguous names fail with candidates. List reads the current BAV. Check reads a
-derived Trainer and never guesses a release workbook.
+`Fast Retailing`, and `9983` resolve to the other company. Unknown or
+ambiguous names fail with candidates. Internal lookup uses lowercase slugs.
+List reads the current BAV. Check resolves `build/output/<company>/` without
+path arguments; a derived Trainer is still checked when present and remains
+non-disclosing.
 
-The ordinary Lululemon build writes:
+Persistent inputs live under `build/input/<company>/` (`source/`, `extracted/`,
+`reconciled/`). Ordinary `python -m bav build Lululemon` consumes
+`build/input/lululemon/reconciled/standardized.json` and writes only under
+`build/output/lululemon/`:
 
-- `build/lululemon/Lululemon_BAV.xlsx` — the analytical and source-traceability workbook
-- `build/lululemon/research/*.md` — canonical human-readable research
-- `build/lululemon/figures/` — reproducible figures
+- `build/output/lululemon/Lululemon_BAV.xlsx` — the analytical and source-traceability workbook
+- `build/output/lululemon/research/*.md` — canonical human-readable research
+- `build/output/lululemon/figures/` — reproducible figures
+- `build/output/lululemon/supporting/{build_status,assumptions,component_map,rowmap}.json`
 
 Research module order is Drivers → Forecast → Valuation → Overview. Drivers is
 implemented. Forecast, Valuation and Overview remain reserved empty files.
 Presentation and language follow root `STYLE.md`.
 
-The same company directory holds the BAV component map and assumptions,
-`rowmap.json`, `build_status.json`, and source/reconciliation provenance under
-`supporting/`. Keep the BAV, research, figures and sidecars together. `build/`
-is ignored by Git.
+Keep the BAV, research, figures and generated sidecars together. Outputs are
+not a second persistent input store. `build/` is ignored by Git.
 
 Ordinary `python -m bav build Lululemon` does not generate a Trainer. The same
-completed model can still produce `Lululemon_BAV_Trainer.xlsx`. Check then
-resolves that Trainer against the matching BAV.
+completed model can still produce `Lululemon_BAV_Trainer.xlsx`.
 
-Each company build validates the current extracted filings against source PDFs
-and reconciles them afresh. Project settings retain established comparative-period
+Company builds consume the accepted reconciled model plus source-grounded
+issuer fiscal-year labels. Project settings retain established comparative-period
 admission and supported note-fact handoffs (including the vetted store-count
-handoff); they do not change accounting or evidence rules. Committed benchmark
-and release artifacts are read only. Invalid source binding aborts the build;
-there is no fallback to a stale standardized model.
+handoff); they do not change accounting or evidence rules. Invalid or missing
+canonical input aborts the build.
 
 A build is a **development snapshot**, not parent-module completion or release
 acceptance. Independently integrated, admitted families appear immediately.
@@ -75,7 +78,8 @@ single atomic directory exchange replace the current generation. A failed build
 returns nonzero and preserves the previous BAV. Replacement supports macOS and
 Linux directory exchange; unsupported platforms fail closed. Successful builds
 retire recognized old flat `Live`, `KPI`, `Preview`, dated, Trainer, and Answer Key
-artifacts for that company. `release/` remains a separate publication/archive workflow.
+artifacts for that company. Historical benchmark and release trees are retained
+through Git history, not a second live company data architecture.
 
 Advanced explicit-path compatibility remains available and still derives a Trainer
 from the completed BAV:

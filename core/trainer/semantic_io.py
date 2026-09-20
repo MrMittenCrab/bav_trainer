@@ -12,9 +12,33 @@ _BAV_SUFFIX = "_BAV"
 _TRAINER_SUFFIX = "_Trainer"
 
 
+def supporting_dir(workbook_path: Path) -> Path:
+    return Path(workbook_path).parent / "supporting"
+
+
+def sidecar_paths(workbook_path: Path) -> tuple[Path, Path, Path]:
+    """Return component_map, assumptions, and rowmap paths for a workbook."""
+    workbook_path = Path(workbook_path)
+    supporting = supporting_dir(workbook_path)
+    supporting_map = supporting / "component_map.json"
+    if supporting_map.is_file() or (supporting / "assumptions.json").is_file() or (
+        supporting / "rowmap.json"
+    ).is_file():
+        return (
+            supporting_map,
+            supporting / "assumptions.json",
+            supporting / "rowmap.json",
+        )
+    return (
+        workbook_path.with_suffix(".component_map.json"),
+        workbook_path.with_suffix(".assumptions.json"),
+        workbook_path.parent / "rowmap.json",
+    )
+
+
 def component_map_path_for(workbook_path: Path) -> Path:
-    """Sidecar path: foo.xlsx -> foo.component_map.json"""
-    return workbook_path.with_suffix(".component_map.json")
+    """Sidecar path: supporting/component_map.json or foo.component_map.json."""
+    return sidecar_paths(workbook_path)[0]
 
 
 def company_stem_from_output(stem: str) -> str:

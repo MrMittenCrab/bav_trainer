@@ -83,9 +83,9 @@ def test_style_specification_and_fonts():
 
 def test_readme_documents_architecture_without_copying_style():
     text = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "build/lululemon/Lululemon_BAV.xlsx" in text
-    assert "build/lululemon/research/*.md" in text
-    assert "build/lululemon/figures/" in text
+    assert "build/output/lululemon/Lululemon_BAV.xlsx" in text
+    assert "build/output/lululemon/research/*.md" in text
+    assert "build/output/lululemon/figures/" in text
     assert "Drivers → Forecast → Valuation → Overview" in text
     assert "STYLE.md" in text
     assert "Aptos Regular" not in text
@@ -129,6 +129,18 @@ def test_lululemon_drivers_from_validated_outputs(tmp_path):
         assert abs(total - view.consolidated_revenue_growth[index] * 100) < 1e-9
     assert "−0.766 pp" in text or "-0.766 pp" in text
     assert "5.74%" in text and "4.86%" in text
+    latest_i = view.periods.index(latest)
+    assert view.labels[latest_i] == "FY2025"
+    assert view.labels[view.periods.index(FIFTY_THREE_WEEK_END)] == "FY2024"
+    gm = view.gross_margin_change[latest_i]
+    burden = view.net_operating_expense_burden_change[latest_i]
+    om = view.operating_margin_change[latest_i]
+    assert gm is not None and burden is not None and om is not None
+    assert abs(om - (gm - burden)) < 1e-12
+    assert "operating-margin change was -3.75 pp" in text
+    assert "gross-margin change (-2.62 pp)" in text
+    assert "net-operating-expense-burden change (+1.13 pp)" in text
+    assert "Management explanations of the latest operating-margin movement are unavailable." in text
     assembled = assemble_drivers_view(fin, company.name)
     assert assembled.revenue == view.revenue
     assert assembled.operating_margin == view.operating_margin
@@ -190,8 +202,8 @@ def test_drivers_calendar_limitation_reconciles_53_week_year(tmp_path):
     assert 2023 in inspection.fifty_two_week_years
     company = resolve_company("Lululemon")
     fin = prepare_company_input(company, tmp_path / "input")
-    assert _label_for(fin, FIFTY_THREE_WEEK_END) == "FY2025"
-    assert _label_for(fin, DISPLAYED_FY2024_END) == "FY2024"
+    assert _label_for(fin, FIFTY_THREE_WEEK_END) == "FY2024"
+    assert _label_for(fin, DISPLAYED_FY2024_END) == "FY2023"
     adjustments = {
         (item.period, item.calendar_week_adjustment)
         for item in fin.historical_operating_kpis.management_observations
@@ -204,25 +216,21 @@ def test_drivers_calendar_limitation_reconciles_53_week_year(tmp_path):
     assert (DISPLAYED_FY2024_END, "included") in adjustments
     view = assemble_drivers_view(fin, company.name)
     assert view.fifty_three_week_period == FIFTY_THREE_WEEK_END
-    assert view.labels[view.periods.index(FIFTY_THREE_WEEK_END)] == "FY2025"
-    assert view.labels[view.periods.index(DISPLAYED_FY2024_END)] == "FY2024"
+    assert view.labels[view.periods.index(FIFTY_THREE_WEEK_END)] == "FY2024"
+    assert view.labels[view.periods.index(DISPLAYED_FY2024_END)] == "FY2023"
     assert view.issuer_fiscal_name == "fiscal 2024"
     text = render_drivers_markdown(view)
-    assert "| FY2024 | 28 January 2024 |" in text
-    assert "| FY2025 | 2 February 2025 |" in text
+    assert "| FY2023 | 28 January 2024 |" in text
+    assert "| FY2024 | 2 February 2025 |" in text
     week_sentences = [
         sentence.strip()
         for sentence in re.split(r"(?<=\.)\s+", text)
         if "53-week" in sentence
     ]
     assert len(week_sentences) == 1
-    assert week_sentences[0].startswith("FY2025, the year ended 2 February 2025, is a 53-week year")
-    assert "fiscal 2024" in week_sentences[0]
-    assert "FY2024 is a 53-week" not in text
-    assert re.search(
-        r"FY2024[^\n]*53-week|53-week[^\n]*FY2024 is",
-        text,
-    ) is None
+    assert week_sentences[0].startswith("FY2024, the year ended 2 February 2025, is a 53-week year")
+    assert "FY2025 is a 53-week" not in text
+    assert "FY2023 is a 53-week" not in text
     assert "exclude or realign that extra week" in text
     publish_drivers(fin, tmp_path / "out", display_name=company.name)
     published = (tmp_path / "out" / "research" / "Lululemon_Drivers.md").read_text(

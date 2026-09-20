@@ -19,16 +19,30 @@ def test_public_namespace_and_compatibility():
             assert command in result.stdout
 
 
+def test_output_directory_uses_lowercase_slug(tmp_path, monkeypatch):
+    from core import current_build
+    from core.__main__ import main
+    monkeypatch.setattr(current_build, 'OUTPUT_ROOT', tmp_path)
+    legacy = tmp_path / 'Lululemon'
+    legacy.mkdir()
+    (legacy / 'stale.txt').write_text('stale', encoding='utf-8')
+    assert main(['build', 'Lululemon']) == 0
+    names = [p.name for p in tmp_path.iterdir()]
+    assert names == ['lululemon']
+    assert (tmp_path / 'lululemon' / 'Lululemon_BAV.xlsx').is_file()
+    assert not (tmp_path / 'lululemon' / 'stale.txt').exists()
+
+
 def test_aliases_and_missing_company(tmp_path):
     from core.current_build import resolve_company
     identities = [resolve_company(name) for name in ('Lululemon', 'lululemon', 'LULU')]
     assert identities[0] == identities[1] == identities[2]
     company = identities[0]
-    assert company.output == ROOT / 'build/lululemon'
+    assert company.output == ROOT / 'build/output/lululemon'
+    assert company.input == ROOT / 'build/input/lululemon'
     assert company.bav.name == 'Lululemon_BAV.xlsx'
     assert company.trainer.name == 'Lululemon_BAV_Trainer.xlsx'
     assert company.answer.name == 'Lululemon_BAV.xlsx'
-    assert company.benchmark == ROOT / 'benchmark/lululemon'
     with pytest.raises(ValueError, match='Unknown company.*Lululemon'):
         resolve_company('missing-company')
 
@@ -57,7 +71,12 @@ def test_company_build_rebuild_failure_and_workbook_contract(tmp_path, monkeypat
     assert any('comparable_sales' in f for f in families)
     assert any('square_foot' in f for f in families)
     assert any(f.startswith('revenue_driver_') for f in families)
-    assert (company.output / 'supporting/provenance.json').is_file()
+    supporting = company.output / 'supporting'
+    assert (supporting / 'build_status.json').is_file()
+    assert (supporting / 'assumptions.json').is_file()
+    assert (supporting / 'component_map.json').is_file()
+    assert (supporting / 'rowmap.json').is_file()
+    assert not (supporting / 'standardized.json').is_file()
     assert company.bav.is_file()
     assert not company.trainer.is_file()
     research = company.output / 'research'
@@ -181,7 +200,7 @@ def test_source_failure_does_not_fallback_or_replace(tmp_path, monkeypatch):
     before = snapshot(current)
     def fail(*args, **kwargs):
         raise ValueError('source hash mismatch')
-    monkeypatch.setattr(current_build, 'load_and_validate_extracted_dir', fail)
+    monkeypatch.setattr(current_build, 'standardized_from_payload', fail)
     assert main(['build', 'LULU']) == 1
     assert snapshot(current) == before
 

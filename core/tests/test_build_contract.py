@@ -16,10 +16,14 @@ from core.trainer.workbook import build_training_workbook
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def _standardized_path(company="lululemon"):
+    if company == "lululemon":
+        return ROOT / "core/tests/fixtures/ordinary_reconcile/lululemon/standardized.json"
+    return ROOT / "build/input" / company / "reconciled/standardized.json"
+
+
 def financials(company="lululemon"):
-    return standardized_from_payload(json.loads(
-        (ROOT / "benchmark" / company / "reconciled/standardized.json").read_text()
-    ))
+    return standardized_from_payload(json.loads(_standardized_path(company).read_text()))
 
 
 def extension(**changes):
@@ -61,7 +65,7 @@ def register(monkeypatch, module):
 
 def test_new_completed_module_reaches_cli_without_dispatch_changes(monkeypatch, tmp_path):
     register(monkeypatch, extension())
-    source = ROOT / "benchmark/lululemon/reconciled/standardized.json"
+    source = ROOT / "core/tests/fixtures/ordinary_reconcile/lululemon/standardized.json"
     assert main(["build", str(source), "-o", str(tmp_path / "Example")]) == 0
     answer = tmp_path / "Example_BAV.xlsx"
     assert load_semantic_map(answer).all_ordered()[-1].semantic_key == "test.complete"
@@ -119,7 +123,7 @@ def test_verification_rejects_same_count_wrong_identity(tmp_path):
 @pytest.mark.parametrize("company", ["lululemon", "fast_retailing"])
 def test_release_build_and_verification_accept_registered_extension(monkeypatch, tmp_path, company):
     register(monkeypatch, extension())
-    source = ROOT / "benchmark" / company / "reconciled/standardized.json"
+    source = _standardized_path(company)
     fin = financials(company)
     _, generic_answer = build_training_workbook(fin, tmp_path / "generic/Example")
     if company == "lululemon":
@@ -190,7 +194,7 @@ def test_missing_input_is_a_clear_cli_error(monkeypatch, tmp_path, capsys):
     register(monkeypatch, extension(required_inputs=(
         RequiredInput("management-KPI", lambda fin: fin.historical_operating_kpis is not None),
     )))
-    source = ROOT / "benchmark/lululemon/reconciled/standardized.json"
+    source = ROOT / "core/tests/fixtures/ordinary_reconcile/lululemon/standardized.json"
     assert main(["build", str(source), "-o", str(tmp_path / "Missing")]) == 1
     error = capsys.readouterr().err
     assert "test_complete: missing required input: management-KPI" in error
@@ -199,7 +203,7 @@ def test_missing_input_is_a_clear_cli_error(monkeypatch, tmp_path, capsys):
 
 @pytest.mark.parametrize("company", ["lululemon", "fast_retailing"])
 def test_release_rejects_workbook_from_older_contract(monkeypatch, tmp_path, company):
-    source = ROOT / "benchmark" / company / "reconciled/standardized.json"
+    source = _standardized_path(company)
     trainer, answer = build_training_workbook(financials(company), tmp_path / "Old")
     register(monkeypatch, extension())
     with pytest.raises((ValueError, RuntimeError), match="semantic component mismatch"):

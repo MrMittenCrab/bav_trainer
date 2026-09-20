@@ -209,8 +209,8 @@ from core.trainer.semantic_io import component_map_path_for, load_semantic_map, 
 from core.trainer.workbook import build_training_workbook
 
 ROOT = Path(__file__).resolve().parents[2]
-FR_JSON = ROOT / "benchmark" / "fast_retailing" / "reconciled" / "standardized.json"
-LULU_JSON = ROOT / "benchmark" / "lululemon" / "reconciled" / "standardized.json"
+FR_JSON = ROOT / "build" / "input" / "fast_retailing" / "reconciled" / "standardized.json"
+LULU_JSON = ROOT / "core" / "tests" / "fixtures" / "ordinary_reconcile" / "lululemon" / "standardized.json"
 DEMO_JSON = ROOT / "example" / "DEMO_HK_Standardized.json"
 P0 = date(2023, 12, 31)
 LEASE_DT_LULULEMON_SPECS = 486

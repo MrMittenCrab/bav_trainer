@@ -1,0 +1,129 @@
+{
+  "company_name": "lululemon athletica inc.",
+  "conflicts": [
+    {
+      "observations": [
+        {
+          "filing_year": 2022,
+          "pdf_page": 53,
+          "presentation_role": "current_period",
+          "source_file": "LULU_FY2022_Annual_Report.pdf",
+          "source_sha256": "b344d1e7a710259fa06f88773dee0b3827334820ce2b881fe6b95ca2ae275e4e",
+          "value": -510510
+        },
+        {
+          "filing_year": 2023,
+          "pdf_page": 59,
+          "presentation_role": "comparative",
+          "source_file": "LULU_FY2023_Annual_Report.pdf",
+          "source_sha256": "cd47ea251d608d06a3e58b5d782f2d41d5a231a994d2f7993267a430cb13c0f1",
+          "value": -573438
+        },
+        {
+          "filing_year": 2024,
+          "pdf_page": 54,
+          "presentation_role": "comparative",
+          "source_file": "LULU_FY2024_Annual_Report.pdf",
+          "source_sha256": "9268fd530db162babdd1ec4363cf388ebce57125d83b7e097aba6f98ba0ca7ec",
+          "value": -573438
+        }
+      ],
+      "period": "2023-01-29",
+      "reason": "later_audited_presentation",
+      "row_identity": "cash_flow|cash flows from operating activities|inventories|change_in_inventories",
+      "selected": {
+        "filing_year": 2024,
+        "pdf_page": 54,
+        "presentation_role": "comparative",
+        "source_file": "LULU_FY2024_Annual_Report.pdf",
+        "source_sha256": "9268fd530db162babdd1ec4363cf388ebce57125d83b7e097aba6f98ba0ca7ec",
+        "value": -573438
+      },
+      "statement": "cash_flow"
+    },
+    {
+      "observations": [
+        {
+          "filing_year": 2022,
+          "pdf_page": 53,
+          "presentation_role": "current_period",
+          "source_file": "LULU_FY2022_Annual_Report.pdf",
+          "source_sha256": "b344d1e7a710259fa06f88773dee0b3827334820ce2b881fe6b95ca2ae275e4e",
+          "value": -113820
+        },
+        {
+          "filing_year": 2023,
+          "pdf_page": 59,
+          "presentation_role": "comparative",
+          "source_file": "LULU_FY2023_Annual_Report.pdf",
+          "source_sha256": "cd47ea251d608d06a3e58b5d782f2d41d5a231a994d2f7993267a430cb13c0f1",
+          "value": -113820
+        },
+        {
+          "filing_year": 2024,
+          "pdf_page": 54,
+          "presentation_role": "comparative",
+          "source_file": "LULU_FY2024_Annual_Report.pdf",
+          "source_sha256": "9268fd530db162babdd1ec4363cf388ebce57125d83b7e097aba6f98ba0ca7ec",
+          "value": -54833
+        }
+      ],
+      "period": "2023-01-29",
+      "reason": "later_audited_presentation",
+      "row_identity": "cash_flow|cash flows from operating activities|prepaid expenses and other current assets|change_in_prepaid_expenses_and_other_current_assets",
+      "selected": {
+        "filing_year": 2024,
+        "pdf_page": 54,
+        "presentation_role": "comparative",
+        "source_file": "LULU_FY2024_Annual_Report.pdf",
+        "source_sha256": "9268fd530db162babdd1ec4363cf388ebce57125d83b7e097aba6f98ba0ca7ec",
+        "value": -54833
+      },
+      "statement": "cash_flow"
+    },
+    {
+      "observations": [
+        {
+          "filing_year": 2023,
+          "pdf_page": 59,
+          "presentation_role": "current_period",
+          "source_file": "LULU_FY2023_Annual_Report.pdf",
+          "source_sha256": "cd47ea251d608d06a3e58b5d782f2d41d5a231a994d2f7993267a430cb13c0f1",
+          "value": 47167
+        },
+        {
+          "filing_year": 2024,
+          "pdf_page": 54,
+          "presentation_role": "comparative",
+          "source_file": "LULU_FY2024_Annual_Report.pdf",
+          "source_sha256": "9268fd530db162babdd1ec4363cf388ebce57125d83b7e097aba6f98ba0ca7ec",
+          "value": 40587
+        },
+        {
+          "filing_year": 2025,
+          "pdf_page": 53,
+          "presentation_role": "comparative",
+          "source_file": "LULU_FY2025_Annual_Report.pdf",
+          "source_sha256": "82e00f900cc912a7d79596409594156b7779c3a193783ea8fecf87bc013c71cc",
+          "value": 40587
+        }
+      ],
+      "period": "2024-01-28",
+      "reason": "later_audited_presentation",
+      "row_identity": "cash_flow|cash flows from operating activities|prepaid expenses and other current assets|change_in_prepaid_expenses_and_other_current_assets",
+      "selected": {
+        "filing_year": 2025,
+        "pdf_page": 53,
+        "presentation_role": "comparative",
+        "source_file": "LULU_FY2025_Annual_Report.pdf",
+        "source_sha256": "82e00f900cc912a7d79596409594156b7779c3a193783ea8fecf87bc013c71cc",
+        "value": 40587
+      },
+      "statement": "cash_flow"
+    }
+  ],
+  "overlap_conflict_count": 3,
+  "supplemental_conflict_count": 0,
+  "supplemental_conflicts": [],
+  "ticker": "LULU"
+}

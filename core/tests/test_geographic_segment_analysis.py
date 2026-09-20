@@ -50,9 +50,9 @@ from core.tests.test_historical_segment import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
-EXTRACTED = ROOT / "benchmark" / "lululemon" / "extracted"
-SOURCE = ROOT / "benchmark" / "lululemon" / "source"
-FR_JSON = ROOT / "benchmark" / "fast_retailing" / "reconciled" / "standardized.json"
+EXTRACTED = ROOT / "build" / "input" / "lululemon" / "extracted"
+SOURCE = ROOT / "build" / "input" / "lululemon" / "source"
+FR_JSON = ROOT / "build" / "input" / "fast_retailing" / "reconciled" / "standardized.json"
 P0 = date(2023, 12, 31)
 P1 = date(2024, 12, 31)
 P2 = date(2025, 12, 31)

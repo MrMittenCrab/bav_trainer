@@ -186,7 +186,8 @@ class SemanticMap:
     @classmethod
     def from_workbook(cls, wb_path: Path) -> SemanticMap:
         """Load from embedded _ComponentMap sheet or sidecar JSON."""
-        sidecar = wb_path.with_suffix(".component_map.json")
+        supporting = wb_path.parent / "supporting" / "component_map.json"
+        sidecar = supporting if supporting.is_file() else wb_path.with_suffix(".component_map.json")
         if sidecar.exists():
             return cls.load_json(sidecar)
         from openpyxl import load_workbook
