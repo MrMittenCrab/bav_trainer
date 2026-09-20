@@ -10704,6 +10704,10 @@ class ReferenceModelBuilder:
         )
         ws["A5"] = analysis.scope_note
         ws.column_dimensions["A"].width = 72
+        period_count = max(len(self.periods), 1)
+        merge_end = 1 + period_count
+        wrap = Alignment(wrap_text=True, vertical="top")
+        period_col_width = 16.0
 
         header_row = 7
         ws.cell(row=header_row, column=1, value="Metric").font = BOLD
@@ -10711,16 +10715,71 @@ class ReferenceModelBuilder:
             cell = ws.cell(row=header_row, column=2 + j, value=pd)
             cell.number_format = "mmm dd, yyyy"
             cell.font = BOLD
-            ws.column_dimensions[self._col(2 + j)].width = 16
+            ws.column_dimensions[self._col(2 + j)].width = period_col_width
+
+        def _wrapped_height(text: str, *, width: float) -> float:
+            chars_per_line = max(24, int(width * 0.9))
+            paragraphs = str(text or "").splitlines() or [""]
+            lines = 0
+            for paragraph in paragraphs:
+                length = max(len(paragraph), 1)
+                lines += max(1, (length + chars_per_line - 1) // chars_per_line)
+            return max(18.0, 15.0 * lines + 8.0)
+
+        def _raise_row(row: int, height: float) -> None:
+            current = ws.row_dimensions[row].height
+            ws.row_dimensions[row].height = max(float(current or 0), height)
+
+        merged_intro_width = 72.0 + period_col_width * period_count
+        for intro_row in range(2, 6):
+            cell = ws.cell(row=intro_row, column=1)
+            cell.alignment = wrap
+            ws.merge_cells(
+                start_row=intro_row,
+                start_column=1,
+                end_row=intro_row,
+                end_column=merge_end,
+            )
+            _raise_row(intro_row, _wrapped_height(str(cell.value or ""), width=merged_intro_width))
 
         def _section(row: int, title: str) -> None:
             ws.cell(row=row, column=1, value=title).font = BOLD
 
         def _label(row: int, text: str) -> None:
-            ws.cell(row=row, column=1, value=text)
-            ws.cell(row=row, column=1).alignment = Alignment(
-                wrap_text=True, vertical="top"
+            cell = ws.cell(row=row, column=1, value=text)
+            cell.alignment = wrap
+            _raise_row(row, _wrapped_height(text, width=72.0))
+
+        def _narrative(row: int, text: str) -> None:
+            cell = ws.cell(row=row, column=2, value=text)
+            cell.alignment = wrap
+            ws.merge_cells(
+                start_row=row,
+                start_column=2,
+                end_row=row,
+                end_column=merge_end,
             )
+            merged_width = period_col_width * period_count
+            _raise_row(row, _wrapped_height(text, width=merged_width))
+            _label_value = ws.cell(row=row, column=1).value
+            if isinstance(_label_value, str) and _label_value:
+                _raise_row(row, _wrapped_height(_label_value, width=72.0))
+
+        def _period_interpretations(row: int, test) -> None:
+            _label(row, "Period-specific interpretation")
+            grouped: dict[date, list[str]] = {}
+            for observation in test.observations:
+                if observation.note:
+                    grouped.setdefault(observation.period, []).append(observation.note)
+            tallest = 18.0
+            for j, period in enumerate(self.periods):
+                notes = grouped.get(period) or []
+                text = " ".join(dict.fromkeys(notes)) if notes else None
+                cell = ws.cell(row=row, column=2 + j, value=text)
+                cell.alignment = wrap
+                if text:
+                    tallest = max(tallest, _wrapped_height(text, width=period_col_width))
+            _raise_row(row, tallest)
 
         def _mapped_ref(component_id: str) -> SemanticCellRef:
             mapped = self.semantic_map.get(component_id)
@@ -10777,42 +10836,23 @@ class ReferenceModelBuilder:
             _section(cursor, f"HYPOTHESIS — {test.theme.replace('_', ' ').upper()}")
             cursor += 1
             _label(cursor, "Analyst hypothesis")
-            ws.cell(row=cursor, column=2, value=test.hypothesis)
-            ws.merge_cells(
-                start_row=cursor, start_column=2,
-                end_row=cursor, end_column=1 + max(len(self.periods), 1),
-            )
+            _narrative(cursor, test.hypothesis)
             cursor += 1
             _label(cursor, "Economic mechanism")
-            ws.cell(row=cursor, column=2, value=test.mechanism)
-            ws.merge_cells(
-                start_row=cursor, start_column=2,
-                end_row=cursor, end_column=1 + max(len(self.periods), 1),
-            )
+            _narrative(cursor, test.mechanism)
             cursor += 1
             for disclosure in test.disclosures:
                 role = disclosure.role.replace("_", " ")
                 _label(cursor, f"Management statement ({role})")
-                ws.cell(
-                    row=cursor,
-                    column=2,
-                    value=(
-                        f"{disclosure.text} "
-                        f"[{disclosure.source_file}; {disclosure.page_reference}; "
-                        f"{disclosure.section}; period-end {disclosure.period.isoformat()}]"
-                    ),
-                )
-                ws.merge_cells(
-                    start_row=cursor, start_column=2,
-                    end_row=cursor, end_column=1 + max(len(self.periods), 1),
+                _narrative(
+                    cursor,
+                    f"{disclosure.text} "
+                    f"[{disclosure.source_file}; {disclosure.page_reference}; "
+                    f"{disclosure.section}; period-end {disclosure.period.isoformat()}]",
                 )
                 cursor += 1
             _label(cursor, "Finding")
-            ws.cell(row=cursor, column=2, value=test.finding)
-            ws.merge_cells(
-                start_row=cursor, start_column=2,
-                end_row=cursor, end_column=1 + max(len(self.periods), 1),
-            )
+            _narrative(cursor, test.finding)
             cursor += 1
             _label(cursor, "Verdict")
             ws.cell(row=cursor, column=2, value=test.verdict.replace("_", " "))
@@ -10830,27 +10870,19 @@ class ReferenceModelBuilder:
             )
             cursor += 1
             _label(cursor, "Limitations")
-            ws.cell(row=cursor, column=2, value=" ".join(test.limitations))
-            ws.merge_cells(
-                start_row=cursor, start_column=2,
-                end_row=cursor, end_column=1 + max(len(self.periods), 1),
-            )
+            _narrative(cursor, " ".join(test.limitations))
             cursor += 1
             if test.failed_requirement:
                 _label(cursor, "Failed requirement")
-                ws.cell(row=cursor, column=2, value=test.failed_requirement)
+                _narrative(cursor, test.failed_requirement)
                 cursor += 1
             if test.additional_evidence:
                 _label(cursor, "Additional evidence needed")
-                ws.cell(row=cursor, column=2, value=test.additional_evidence)
+                _narrative(cursor, test.additional_evidence)
                 cursor += 1
             for note in test.identity_notes:
                 _label(cursor, "Identity note")
-                ws.cell(row=cursor, column=2, value=note)
-                ws.merge_cells(
-                    start_row=cursor, start_column=2,
-                    end_row=cursor, end_column=1 + max(len(self.periods), 1),
-                )
+                _narrative(cursor, note)
                 cursor += 1
 
             observation_rows: dict[str, int] = {}
@@ -10869,7 +10901,9 @@ class ReferenceModelBuilder:
                     cursor,
                     "Revenue-versus-store-count growth difference (pp, descriptive)",
                 )
-                cursor += 2
+                cursor += 1
+                _period_interpretations(cursor, test)
+                cursor += 1
                 for j, period in enumerate(self.periods):
                     col_idx = 2 + j
                     spec_id = revenue_driver_component_id(
@@ -10923,7 +10957,8 @@ class ReferenceModelBuilder:
                 _section(cursor, "ALIGNED COMPARABLE-SALES OBSERVATIONS")
                 relationship = self.operating_kpi_compsales_relationship
                 if relationship is not None:
-                    for identity in relationship.identities:
+                    identities = relationship.identities
+                    for identity_index, identity in enumerate(identities):
                         cursor += 1
                         series = relationship.series[identity]
                         label = comparable_sales_identity_label(
@@ -10985,27 +11020,27 @@ class ReferenceModelBuilder:
                                     identity=identity,
                                     points=True,
                                 )
-                        cursor += 2
+                        if identity_index == len(identities) - 1:
+                            cursor += 1
+                            _period_interpretations(cursor, test)
+                            cursor += 1
+                        else:
+                            cursor += 2
             elif test.theme == THEME_PRODUCTIVITY:
                 cursor += 1
                 _section(cursor, "PRODUCTIVITY DIAGNOSTICS")
                 cursor += 1
                 _label(cursor, "Sales-per-square-foot growth")
-                ws.cell(
-                    row=cursor,
-                    column=2,
-                    value=(
-                        "Adjacent SPSF growth remains unavailable unless immediately "
-                        "adjacent semantically compatible reported observations exist. "
-                        "Revenue per Store is an identity diagnostic, not store-only "
-                        "productivity."
-                    ),
+                _narrative(
+                    cursor,
+                    "Adjacent SPSF growth remains unavailable unless immediately "
+                    "adjacent semantically compatible reported observations exist. "
+                    "Revenue per Store is an identity diagnostic, not store-only "
+                    "productivity.",
                 )
-                ws.merge_cells(
-                    start_row=cursor, start_column=2,
-                    end_row=cursor, end_column=1 + max(len(self.periods), 1),
-                )
-                cursor += 2
+                cursor += 1
+                _period_interpretations(cursor, test)
+                cursor += 1
             elif test.theme == THEME_GEOGRAPHIC_GROWTH:
                 cursor += 1
                 _section(cursor, "ALIGNED GEOGRAPHIC CONTRIBUTION OBSERVATIONS")
@@ -11042,6 +11077,7 @@ class ReferenceModelBuilder:
                                     points=True,
                                 )
                         cursor += 1
+                    _period_interpretations(cursor, test)
                     cursor += 1
             cursor += 1
 
@@ -11081,26 +11117,15 @@ class ReferenceModelBuilder:
         _section(cursor, "NOTES")
         cursor += 1
         _label(cursor, "Scope and evidence limits")
-        ws.cell(row=cursor, column=2, value=analysis.scope_note)
-        ws.merge_cells(
-            start_row=cursor, start_column=2,
-            end_row=cursor, end_column=1 + max(len(self.periods), 1),
-        )
+        _narrative(cursor, analysis.scope_note)
         cursor += 1
         _label(cursor, "Identities versus inference")
-        ws.cell(
-            row=cursor,
-            column=2,
-            value=(
-                "Linked observation cells are admitted schedule values, not new "
-                "measurements. Descriptive growth differences are not new-store "
-                "contribution, organic growth, or causal attribution. Strategic "
-                "objectives remain management statements, not achieved outcomes."
-            ),
-        )
-        ws.merge_cells(
-            start_row=cursor, start_column=2,
-            end_row=cursor, end_column=1 + max(len(self.periods), 1),
+        _narrative(
+            cursor,
+            "Linked observation cells are admitted schedule values, not new "
+            "measurements. Descriptive growth differences are not new-store "
+            "contribution, organic growth, or causal attribution. Strategic "
+            "objectives remain management statements, not achieved outcomes.",
         )
 
         self.rowmap["revenue_driver_header_row"] = header_row

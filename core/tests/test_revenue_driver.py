@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from datetime import date
 from pathlib import Path
+import shutil
 
 import pytest
 from openpyxl import load_workbook
@@ -34,10 +35,16 @@ from core.engine.component_catalog import (
     REVENUE_DRIVER_STORE_GROWTH_FAMILY_ID,
     SemanticCellRef,
     expand_revenue_driver_specs,
+    is_operating_kpi_source_identity,
     resolve_revenue_driver_link_formula,
     revenue_driver_component_id,
 )
 from core.engine.reference_model import ReferenceModelBuilder
+from core.ingestion.management_kpi_identity import (
+    POP_COMPANY_OPERATED_STORES,
+    POP_STORES_AND_DTC,
+    POP_STORES_AND_ECOMMERCE,
+)
 from core.model.line_resolver import MissingLineError
 from core.model.period_axis import PeriodAxisError
 from core.model.revenue_driver import (
@@ -59,11 +66,13 @@ from core.tests.test_learner_ready_presentation import (
     _assert_answer_key_no_yellow,
     assert_bav_has_no_exercise_framing,
 )
+from core.tests.test_geographic_segment_workbook import _geo_tiny
 from core.tests.test_operating_kpi_facts import _kpi_model_observation
-from core.tests.test_operating_kpi_management_history import _compsales
+from core.tests.test_operating_kpi_management_history import _compsales, _spsf
 from core.tests.test_operating_kpi_relationships import _fin_with_relationship
 from core.trainer.checker import check_workbook
-from core.trainer.semantic_io import load_semantic_map
+from core.tests.test_normalization import _inject_formula_and_cached_value
+from core.trainer.semantic_io import load_semantic_map, parse_cell_ref
 from core.trainer.workbook import build_training_workbook, derive_trainer_workbook
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -251,8 +260,11 @@ def test_comparable_sales_keeps_identities_and_descriptive_differences():
     bases = {item.inputs.get("basis") for item in test.observations if item.consistent is not None}
     assert "reported" in bases
     assert "constant_dollar" not in bases
-    assert "ineligible" in " ".join(test.limitations).lower()
-    assert "not new-store contribution" in " ".join(test.limitations).lower()
+    joined_limits = " ".join(test.limitations).lower()
+    assert "not new-store contribution" in joined_limits
+    assert "fy2022" not in joined_limits
+    assert "2023-01-29" not in joined_limits
+    assert "store-only" not in joined_limits
     round_trip = standardized_from_payload(standardized_to_payload(fin))
     assert round_trip.historical_strategy == fin.historical_strategy
 
@@ -277,6 +289,67 @@ def test_productivity_insufficient_without_adjacent_spsf_growth():
     assert test.failed_requirement == FAILED_SPSF_GROWTH
     assert ADDITIONAL_SPSF in test.additional_evidence
     assert "divided by company-operated stores" in " ".join(test.identity_notes).lower()
+    joined_limits = " ".join(test.limitations)
+    assert "2023-01-29" not in joined_limits
+    assert "definition disagreement" not in joined_limits.lower()
+
+
+def test_comparable_sales_limitations_follow_admitted_populations():
+    fin = _store_fin(
+        {P1: 10, P2: 12},
+        {P1: 100.0, P2: 130.0},
+        _disclosure(THEME_COMPARABLE_SALES),
+        management=[
+            _compsales(
+                period=P1,
+                value=4.0,
+                geography="",
+                basis="reported",
+                population=POP_COMPANY_OPERATED_STORES,
+            ),
+            _compsales(
+                period=P2,
+                value=5.0,
+                geography="global",
+                basis="reported",
+                population=POP_STORES_AND_ECOMMERCE,
+            ),
+            _compsales(
+                period=P1,
+                value=6.0,
+                geography="global",
+                basis="reported",
+                population=POP_STORES_AND_DTC,
+            ),
+        ],
+    )
+    test = compute_revenue_driver_analysis(fin).tests[0]
+    joined = " ".join(test.limitations)
+    assert POP_COMPANY_OPERATED_STORES in joined
+    assert POP_STORES_AND_ECOMMERCE in joined
+    assert POP_STORES_AND_DTC in joined
+    assert P1.isoformat() in joined
+    assert P2.isoformat() in joined
+    assert "FY2022" not in joined
+    assert "store-only and later stores-plus-DTC" not in joined
+
+
+def test_productivity_limitations_follow_missing_spsf_periods():
+    fin = _store_fin(
+        {P0: 10, P1: 12, P2: 15},
+        {P0: 100.0, P1: 130.0, P2: 160.0},
+        _disclosure(THEME_PRODUCTIVITY),
+        management=[
+            _spsf(period=P1, value=1600),
+            _spsf(period=P2, value=1500),
+        ],
+    )
+    test = compute_revenue_driver_analysis(fin).tests[0]
+    joined = " ".join(test.limitations)
+    assert P0.isoformat() in joined
+    assert "not bridged" in joined.lower()
+    assert "2023-01-29" not in joined
+    assert "definition disagreement" not in joined.lower()
 
 
 def test_geographic_mixed_when_a_segment_subtracts():
@@ -307,27 +380,77 @@ def test_interim_axis_is_rejected_when_operating_history_exists():
         compute_revenue_driver_analysis(fin)
 
 
+DRIVER_FAMILY_IDS = (
+    REVENUE_DRIVER_STORE_GROWTH_FAMILY_ID,
+    REVENUE_DRIVER_REVENUE_GROWTH_FAMILY_ID,
+    REVENUE_DRIVER_STORE_DIFFERENCE_FAMILY_ID,
+    REVENUE_DRIVER_COMPSALES_FAMILY_ID,
+    REVENUE_DRIVER_COMPSALES_DIFFERENCE_FAMILY_ID,
+    REVENUE_DRIVER_RPS_FAMILY_ID,
+    REVENUE_DRIVER_GEO_CONTRIBUTION_FAMILY_ID,
+)
+
+
+def _copy_workbooks(trainer: Path, answer: Path, dest: Path) -> tuple[Path, Path]:
+    dest.mkdir()
+    copied_trainer = dest / trainer.name
+    copied_answer = dest / answer.name
+    shutil.copy2(trainer, copied_trainer)
+    shutil.copy2(answer, copied_answer)
+    for sidecar in (
+        answer.with_suffix(".component_map.json"),
+        answer.with_suffix(".assumptions.json"),
+        answer.with_suffix(".trainer.json"),
+    ):
+        if sidecar.is_file():
+            shutil.copy2(sidecar, dest / sidecar.name)
+    return copied_trainer, copied_answer
+
+
+def _assert_readable_driver_layout(sheet) -> None:
+    long_cells = 0
+    for row in sheet.iter_rows(min_col=1, max_col=2, max_row=sheet.max_row or 1):
+        for cell in row:
+            value = cell.value
+            if not isinstance(value, str) or value.startswith("="):
+                continue
+            if len(value) < 80:
+                continue
+            long_cells += 1
+            assert cell.alignment.wrap_text is True, cell.coordinate
+            height = sheet.row_dimensions[cell.row].height or 15
+            assert height > 15, (cell.coordinate, len(value), height)
+    assert long_cells >= 1
+
+
 def test_workbook_links_notes_trainer_check_and_skips_without_disclosures(tmp_path):
-    fin = _tiny(with_payments=False)
-    fin.historical_operating_kpis = _store_fin(
+    fin = _geo_tiny(
+        _snapshot(P1, values=_corp_values(rev=(80.0, 25.0, 15.0))),
+        _snapshot(P2, values=_corp_values(rev=(110.0, 15.0, 15.0))),
+    )
+    store = _store_fin(
         {P1: 10, P2: 12},
-        {P1: 1000.0, P2: 1100.0},
+        {P1: 120.0, P2: 140.0},
         _disclosure(THEME_STORE_EXPANSION, role=ROLE_OBJECTIVE),
-        _disclosure(THEME_PRODUCTIVITY, role=ROLE_OPERATING_USE),
-    ).historical_operating_kpis
+        management=[
+            _compsales(period=P1, value=4.0, geography="global", basis="reported"),
+            _compsales(period=P2, value=5.0, geography="global", basis="reported"),
+        ],
+    )
+    fin.historical_operating_kpis = store.historical_operating_kpis
     fin.historical_strategy = HistoricalStrategyData(
         disclosures=(
             _disclosure(THEME_STORE_EXPANSION, role=ROLE_OBJECTIVE),
+            _disclosure(THEME_COMPARABLE_SALES, role=ROLE_OPERATING_USE),
             _disclosure(THEME_PRODUCTIVITY, role=ROLE_OPERATING_USE),
+            _disclosure(THEME_GEOGRAPHIC_GROWTH),
         )
     )
     trainer, answer = build_training_workbook(fin, tmp_path / "DRIVER.xlsx")
     smap = load_semantic_map(answer)
     families = {comp.family_id for comp in smap.all_ordered()}
-    assert REVENUE_DRIVER_STORE_GROWTH_FAMILY_ID in families
-    assert REVENUE_DRIVER_REVENUE_GROWTH_FAMILY_ID in families
-    assert REVENUE_DRIVER_STORE_DIFFERENCE_FAMILY_ID in families
-    assert REVENUE_DRIVER_RPS_FAMILY_ID in families
+    for family_id in DRIVER_FAMILY_IDS:
+        assert family_id in families
     awb = load_workbook(answer, data_only=False)
     assert REVENUE_DRIVER_SHEET_NAME in awb.sheetnames
     sheet = awb[REVENUE_DRIVER_SHEET_NAME]
@@ -338,15 +461,20 @@ def test_workbook_links_notes_trainer_check_and_skips_without_disclosures(tmp_pa
     )
     assert "Analyst hypothesis" in values
     assert "Management statement" in values
+    assert "Period-specific interpretation" in values
     assert "We plan to open stores." not in values or "objective" in values.lower()
     assert "descriptive" in values.lower()
     assert "NOTES" in values
     assert "not new-store contribution" in values.lower() or "causal attribution" in values.lower()
+    assert "contributed negatively" in values.lower()
+    assert "FY2022 store-only" not in values
+    assert "2023-01-29 SPSF" not in values
     assert any(
         isinstance(cell.value, str) and cell.value.startswith("=")
         for row in sheet.iter_rows()
         for cell in row
     )
+    _assert_readable_driver_layout(sheet)
     awb.close()
     _assert_answer_key_no_yellow(answer)
     assert_bav_has_no_exercise_framing(answer)
@@ -367,6 +495,49 @@ def test_workbook_links_notes_trainer_check_and_skips_without_disclosures(tmp_pa
     assert blank.incorrect == 0
     assert blank.correct == 0
     assert blank.blank == blank.total
+    dumped_blank = repr(blank)
+    assert "999" not in dumped_blank
+
+    practice = [
+        comp for comp in smap.all_ordered() if not is_operating_kpi_source_identity(comp)
+    ]
+    filled_trainer, filled_answer = _copy_workbooks(
+        trainer, answer, tmp_path / "filled_check"
+    )
+    filled_wb = load_workbook(filled_trainer, data_only=False)
+    for comp in practice:
+        row, col = parse_cell_ref(comp.cell)
+        filled_wb[comp.tab].cell(row=row, column=col).value = comp.formula
+    filled_wb.save(filled_trainer)
+    filled_wb.close()
+    filled = check_workbook(filled_trainer)
+    assert filled.incorrect == 0
+    assert filled.blank == 0
+    assert filled.correct == filled.total
+    assert answer.read_bytes() == before
+    assert filled_answer.read_bytes() == before
+
+    for family_id in DRIVER_FAMILY_IDS:
+        case_trainer, case_answer = _copy_workbooks(
+            filled_trainer, filled_answer, tmp_path / f"incorrect_{family_id}"
+        )
+        bad = next(comp for comp in driver_comps if comp.family_id == family_id)
+        _inject_formula_and_cached_value(
+            case_trainer,
+            bad.tab,
+            bad.cell,
+            formula="=999",
+            cached_value=999.0,
+        )
+        summary = check_workbook(case_trainer)
+        assert summary.incorrect == 1
+        assert summary.blank == 0
+        assert summary.correct == summary.total - 1
+        dumped = repr(summary)
+        assert "=999" not in dumped
+        assert bad.formula not in dumped
+        assert case_answer.read_bytes() == before
+        assert answer.read_bytes() == before
 
     skipped = ReferenceModelBuilder(_tiny(with_payments=False))
     assert skipped.revenue_driver_schedule is False
@@ -410,12 +581,19 @@ def test_lululemon_ordinary_disclosures_test_admitted_history(tmp_path):
     ]
     latest = next(item for item in store.observations if item.period.isoformat() == "2026-02-01")
     assert latest.consistent is True
-    assert "Store-count growth exceeded revenue growth" in latest.note
-    assert "Period-end Revenue per Store declined" in latest.note
+    assert "Store-count growth exceeded revenue growth" in latest.note or "exceeded revenue growth" in latest.note
+    assert "2026-02-01" in latest.note
+    assert "Period-end Revenue per Store declined" in latest.note or "period-end Revenue per Store declined" in latest.note
+    assert "exceeded revenue growth" in store.finding
     assert any(item.role == ROLE_OBJECTIVE for item in store.disclosures)
     compsales = by_theme[THEME_COMPARABLE_SALES]
     assert compsales.verdict in {VERDICT_SUPPORTED, VERDICT_MIXED}
-    assert "ineligible" in " ".join(compsales.limitations)
+    compsales_limits = " ".join(compsales.limitations)
+    assert "ineligible" in compsales_limits
+    assert "company_operated_stores" in compsales_limits
+    assert "company_operated_stores_and_direct_to_consumer" in compsales_limits or "direct_to_consumer" in compsales_limits
+    assert "2023-01-29" in compsales_limits
+    assert "FY2022 store-only" not in compsales_limits
     identities = {
         str(item.inputs.get("identity"))
         for item in compsales.observations
@@ -425,11 +603,36 @@ def test_lululemon_ordinary_disclosures_test_admitted_history(tmp_path):
     productivity = by_theme[THEME_PRODUCTIVITY]
     assert productivity.verdict == VERDICT_INSUFFICIENT
     assert productivity.failed_requirement == FAILED_SPSF_GROWTH
+    productivity_limits = " ".join(productivity.limitations)
+    assert "2023-01-29" in productivity_limits
+    assert "not bridged" in productivity_limits.lower()
+    assert "The deferred 2023-01-29 SPSF definition disagreement is not bridged." not in productivity.limitations
     geographic = by_theme[THEME_GEOGRAPHIC_GROWTH]
     assert geographic.verdict == VERDICT_MIXED
     assert geographic.sample_size >= 1
+    assert any("contributed negatively" in item.note for item in geographic.observations)
+    assert "contributed negatively" in geographic.finding
+    assert "2026-02-01" in geographic.finding or any(
+        "2026-02-01" in item.note for item in geographic.observations
+    )
     builder = ReferenceModelBuilder(fin)
     assert builder.revenue_driver_schedule is True
     assert builder.revenue_driver_specs
     exported = standardized_from_payload(standardized_to_payload(fin))
     assert exported.historical_strategy == fin.historical_strategy
+    trainer, answer = build_training_workbook(fin, tmp_path / "LULU_DRIVER.xlsx")
+    awb = load_workbook(answer, data_only=False)
+    sheet = awb[REVENUE_DRIVER_SHEET_NAME]
+    values = " ".join(str(cell.value or "") for row in sheet.iter_rows() for cell in row)
+    assert "Period-specific interpretation" in values
+    assert "exceeded revenue growth" in values.lower()
+    assert "contributed negatively" in values.lower()
+    assert "2026-02-01" in values
+    assert "FY2022 store-only" not in values
+    _assert_readable_driver_layout(sheet)
+    awb.close()
+    _assert_answer_key_no_yellow(answer)
+    assert_bav_has_no_exercise_framing(answer)
+    before = answer.read_bytes()
+    derive_trainer_workbook(answer, trainer)
+    assert answer.read_bytes() == before

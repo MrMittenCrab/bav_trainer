@@ -13,7 +13,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
-from ..data.historical_operating_kpis import FAMILY_SALES_PER_SQUARE_FOOT
+from ..data.historical_operating_kpis import (
+    FAMILY_COMPARABLE_SALES_GROWTH,
+    FAMILY_SALES_PER_SQUARE_FOOT,
+)
 from ..data.historical_strategy import (
     ROLE_OBJECTIVE,
     THEME_COMPARABLE_SALES,
@@ -29,7 +32,17 @@ from .geographic_segment import (
     geographic_segment_applicable,
 )
 from .line_resolver import MissingLineError
-from .management_kpi import compute_management_kpi_series, management_kpi_applicable
+from .management_kpi import (
+    REASON_CALENDAR_REPORTING_MISMATCH,
+    REASON_CALENDAR_WEEK_MISMATCH,
+    REASON_DEFINITION_MISMATCH,
+    REASON_MISSING_OBSERVATION,
+    REASON_MISSING_PRIOR_OBSERVATION,
+    REASON_PERIOD_KIND_MISMATCH,
+    REASON_QUALIFIER_MISMATCH,
+    compute_management_kpi_series,
+    management_kpi_applicable,
+)
 from .operating_kpi import operating_kpi_applicable
 from .operating_kpi_relationships import (
     compute_operating_kpi_revenue_comparable_sales_relationship,
@@ -134,6 +147,20 @@ ADDITIONAL_SPSF = (
     "admitted adjacent SPSF observations with equivalent definition, "
     "population, calendar, and comparison-window evidence"
 )
+_SEGMENT_LABELS = {
+    "americas": "Americas",
+    "china_mainland": "China Mainland",
+    "rest_of_world": "Rest of World",
+}
+_SPSF_REASON_LABELS = {
+    REASON_DEFINITION_MISMATCH: "definition mismatch",
+    REASON_PERIOD_KIND_MISMATCH: "period-kind mismatch",
+    REASON_CALENDAR_WEEK_MISMATCH: "calendar week-adjustment mismatch",
+    REASON_CALENDAR_REPORTING_MISMATCH: "calendar reporting-basis mismatch",
+    REASON_QUALIFIER_MISMATCH: "qualifier mismatch",
+    REASON_MISSING_OBSERVATION: "missing admitted observation",
+    REASON_MISSING_PRIOR_OBSERVATION: "missing prior admitted observation",
+}
 
 
 @dataclass(frozen=True)
@@ -222,6 +249,141 @@ def _objective_limitation(
     return ()
 
 
+def _format_ratio_pct(value: float) -> str:
+    return f"{value * 100:.2f}%"
+
+
+def _format_pp(value: float) -> str:
+    return f"{value:.3f} pp"
+
+
+def _segment_label(identity: str) -> str:
+    return _SEGMENT_LABELS.get(identity, identity.replace("_", " ").title())
+
+
+def _is_counterexample_note(note: str) -> bool:
+    lowered = note.lower()
+    return any(
+        token in lowered
+        for token in (
+            "exceeded",
+            "counterexample",
+            "negatively",
+            "declined",
+            "did not",
+        )
+    )
+
+
+def _finding_with_counterexamples(base: str, observations: tuple[RevenueDriverPeriodObservation, ...]) -> str:
+    extras = tuple(
+        item.note
+        for item in observations
+        if item.note and _is_counterexample_note(item.note)
+    )
+    if not extras:
+        return base
+    return base + " " + " ".join(extras)
+
+
+def _compsales_population_limitations(
+    financials: StandardizedFinancials,
+) -> tuple[str, ...]:
+    data = financials.historical_operating_kpis
+    if data is None:
+        return ()
+    by_population: dict[str, list[date]] = {}
+    for item in data.management_observations:
+        if item.family != FAMILY_COMPARABLE_SALES_GROWTH:
+            continue
+        if item.basis != "reported":
+            continue
+        periods = by_population.setdefault(item.population, [])
+        if item.period not in periods:
+            periods.append(item.period)
+    if len(by_population) <= 1:
+        return ()
+    parts = []
+    for population in sorted(by_population):
+        dates = ", ".join(period.isoformat() for period in sorted(by_population[population]))
+        parts.append(f"{population} at period-end {dates}")
+    return (
+        "Admitted comparable-sales identities remain distinct by population "
+        "and are never merged: " + "; ".join(parts) + ".",
+    )
+
+
+def _compsales_adjacent_comparison_ineligible(
+    financials: StandardizedFinancials, axis: list[date]
+) -> bool:
+    if not management_kpi_applicable(financials):
+        return False
+    series = compute_management_kpi_series(financials, axis)
+    saw_identity = False
+    for identity in series.identities:
+        item = series.series[identity]
+        if item.family != FAMILY_COMPARABLE_SALES_GROWTH:
+            continue
+        saw_identity = True
+        for index, period in enumerate(axis):
+            if index == 0:
+                continue
+            if _numeric(item.adjacent_change[period]) is not None:
+                return False
+    return saw_identity
+
+
+def _spsf_evidence_limitations(
+    financials: StandardizedFinancials, axis: list[date]
+) -> tuple[str, ...]:
+    limits: list[str] = []
+    data = financials.historical_operating_kpis
+    observations = ()
+    if data is not None:
+        observations = tuple(
+            item
+            for item in data.management_observations
+            if item.family == FAMILY_SALES_PER_SQUARE_FOOT
+        )
+    admitted_periods = {item.period for item in observations}
+    if observations:
+        missing = tuple(period for period in axis if period not in admitted_periods)
+        if missing:
+            dates = ", ".join(period.isoformat() for period in missing)
+            limits.append(
+                "No admitted sales-per-square-foot observation exists for "
+                f"period-end {dates}; those period(s) are not bridged."
+            )
+    if not management_kpi_applicable(financials):
+        return tuple(limits)
+    series = compute_management_kpi_series(financials, axis)
+    reason_parts: list[str] = []
+    for identity in series.identities:
+        item = series.series[identity]
+        if item.family != FAMILY_SALES_PER_SQUARE_FOOT:
+            continue
+        for index, period in enumerate(axis):
+            if index == 0:
+                continue
+            reasons = item.unavailable_reasons.get(period) or ()
+            if not reasons:
+                continue
+            labels = tuple(
+                _SPSF_REASON_LABELS.get(reason, reason.replace("_", " "))
+                for reason in reasons
+            )
+            reason_parts.append(
+                f"{period.isoformat()} ({', '.join(labels)})"
+            )
+    if reason_parts:
+        limits.append(
+            "Adjacent SPSF growth is unavailable on admitted evidence at "
+            + "; ".join(reason_parts)
+            + ". Those gaps are not bridged."
+        )
+    return tuple(limits)
+
+
 def _store_expansion_test(
     financials: StandardizedFinancials,
     axis: list[date],
@@ -298,27 +460,43 @@ def _store_expansion_test(
             )
         elif stores > 0 and rev <= 0:
             notes.append(
-                "Store count grew while consolidated revenue did not; this "
-                "contradicts expansion as a coincident revenue driver in this period."
+                f"Period-end {period.isoformat()}: store count grew "
+                f"{_format_ratio_pct(stores)} while consolidated revenue did not "
+                f"({_format_ratio_pct(rev)}); this contradicts expansion as a "
+                "coincident revenue driver in this period."
             )
         elif rev > 0 and stores <= 0:
             notes.append(
-                "Consolidated revenue grew without store-count growth."
+                f"Period-end {period.isoformat()}: consolidated revenue grew "
+                f"{_format_ratio_pct(rev)} without store-count growth "
+                f"({_format_ratio_pct(stores)})."
             )
         else:
-            notes.append("Neither revenue nor store count grew.")
-        if stores > rev:
             notes.append(
-                "Store-count growth exceeded revenue growth. This is a "
+                f"Period-end {period.isoformat()}: neither revenue nor store "
+                "count grew."
+            )
+        if stores > rev:
+            difference_number = _numeric(difference)
+            difference_text = (
+                f" (descriptive difference {_format_pp(difference_number)})"
+                if difference_number is not None
+                else ""
+            )
+            notes.append(
+                f"Period-end {period.isoformat()}: store-count growth "
+                f"{_format_ratio_pct(stores)} exceeded revenue growth "
+                f"{_format_ratio_pct(rev)}{difference_text}. This is a "
                 "descriptive counterexample, not new-store contribution or "
                 "proof that expansion reduced productivity."
             )
         rps_change_number = _numeric(rps_change)
         if rps_change_number is not None and rps_change_number < 0:
             notes.append(
-                "Period-end Revenue per Store declined. That identity uses "
-                "total-company revenue divided by company-operated stores and "
-                "cannot independently demonstrate store productivity."
+                f"Period-end {period.isoformat()}: period-end Revenue per Store "
+                "declined. That identity uses total-company revenue divided by "
+                "company-operated stores and cannot independently demonstrate "
+                "store productivity."
             )
         observations.append(
             RevenueDriverPeriodObservation(
@@ -341,10 +519,11 @@ def _store_expansion_test(
     else:
         failed = ""
         additional = ""
-        finding = (
+        finding = _finding_with_counterexamples(
             f"{len(tested)} aligned period(s) compare statement-derived "
             "consolidated revenue growth with company-operated store-count "
-            f"growth. Verdict: {verdict.replace('_', ' ')}."
+            f"growth. Verdict: {verdict.replace('_', ' ')}.",
+            tuple(observations),
         )
     return RevenueDriverHypothesisTest(
         theme=THEME_STORE_EXPANSION,
@@ -370,13 +549,19 @@ def _comparable_sales_test(
     disclosures: tuple[HistoricalStrategyDisclosure, ...],
 ) -> RevenueDriverHypothesisTest:
     limitations = [
-        "Historical comparable-sales-to-comparable-sales comparison remains "
-        "ineligible under existing calendar and comparison-window rules.",
-        "FY2022 store-only and later stores-plus-DTC identities remain distinct "
-        "and are never merged.",
         "The revenue-versus-comparable-sales difference is not new-store "
         "contribution, organic growth, productivity, or causal evidence.",
         "Reported and constant-currency comparable-sales series remain separate.",
+        *_compsales_population_limitations(financials),
+        *(
+            (
+                "Historical comparable-sales-to-comparable-sales comparison remains "
+                "ineligible on the admitted identities, periods, and calendar/"
+                "comparison-window evidence.",
+            )
+            if _compsales_adjacent_comparison_ineligible(financials, axis)
+            else ()
+        ),
         *_objective_limitation(disclosures),
     ]
     inputs = (
@@ -438,23 +623,26 @@ def _comparable_sales_test(
             consistent = rev > 0 and compsales > 0
             if consistent:
                 note = (
-                    "Consolidated revenue grew and reported global comparable "
-                    "sales were positive. The difference is descriptive only."
+                    f"Period-end {period.isoformat()}: consolidated revenue grew "
+                    f"{_format_ratio_pct(rev)} and reported global comparable "
+                    f"sales were {compsales:.2f}%. The difference is descriptive only."
                 )
             elif rev > 0 and compsales <= 0:
                 note = (
-                    "Consolidated revenue grew while reported comparable sales "
-                    "were not positive."
+                    f"Period-end {period.isoformat()}: consolidated revenue grew "
+                    f"{_format_ratio_pct(rev)} while reported comparable sales "
+                    f"were {compsales:.2f}%."
                 )
             elif rev <= 0 and compsales > 0:
                 note = (
-                    "Reported comparable sales were positive while consolidated "
-                    "revenue did not grow."
+                    f"Period-end {period.isoformat()}: reported comparable sales "
+                    f"were {compsales:.2f}% while consolidated revenue did not "
+                    f"grow ({_format_ratio_pct(rev)})."
                 )
             else:
                 note = (
-                    "Neither consolidated revenue growth nor reported comparable "
-                    "sales were positive."
+                    f"Period-end {period.isoformat()}: neither consolidated "
+                    "revenue growth nor reported comparable sales were positive."
                 )
             observations.append(
                 RevenueDriverPeriodObservation(
@@ -478,11 +666,11 @@ def _comparable_sales_test(
     else:
         failed = ""
         additional = ADDITIONAL_COMPSALES_HISTORY
-        finding = (
+        finding = _finding_with_counterexamples(
             f"{len(flags)} identity-period observation(s) across "
-            f"{len(unique_tested)} period-end date(s). Historical comparable-"
-            "sales-to-comparable-sales comparison remains ineligible. Verdict: "
-            f"{verdict.replace('_', ' ')}."
+            f"{len(unique_tested)} period-end date(s). Verdict: "
+            f"{verdict.replace('_', ' ')}.",
+            tuple(observations),
         )
     return RevenueDriverHypothesisTest(
         theme=THEME_COMPARABLE_SALES,
@@ -511,7 +699,7 @@ def _productivity_test(
         REVENUE_PER_STORE_SCOPE_NOTE,
         "Adjacent SPSF change/growth remain unavailable unless immediately "
         "adjacent semantically compatible reported observations exist.",
-        "The deferred 2023-01-29 SPSF definition disagreement is not bridged.",
+        *_spsf_evidence_limitations(financials, axis),
         *_objective_limitation(disclosures),
     ]
     inputs = (
@@ -741,11 +929,28 @@ def _geographic_test(
             )
             continue
         consistent = cons > 0 and period_positive
+        negative_parts = []
+        positive_parts = []
+        for identity in identities:
+            number = _numeric(contribs[identity])
+            if number is None:
+                continue
+            label = _segment_label(identity)
+            if number < 0:
+                negative_parts.append(f"{label} {_format_pp(number)}")
+            elif number > 0:
+                positive_parts.append(f"{label} {_format_pp(number)}")
         if consistent and period_negative:
             note = (
-                "Consolidated revenue grew and at least one admitted segment "
-                "contributed positively, while at least one segment contributed "
-                "negatively. Mix is mixed, not a causal explanation."
+                f"Period-end {period.isoformat()}: consolidated revenue grew "
+                f"{_format_ratio_pct(cons)} while {', '.join(negative_parts)} "
+                "contributed negatively"
+                + (
+                    f" and {', '.join(positive_parts)} contributed positively"
+                    if positive_parts
+                    else ""
+                )
+                + ". Mix is mixed, not a causal explanation."
             )
             # Mixed period: keep consistent True for "expansion present" but
             # record the counterexample; overall verdict uses mixed if any
@@ -769,7 +974,8 @@ def _geographic_test(
                     inputs=contribs,
                     consistent=True,
                     note=(
-                        "Consolidated revenue grew and admitted geographic "
+                        f"Period-end {period.isoformat()}: consolidated revenue "
+                        f"grew {_format_ratio_pct(cons)} and admitted geographic "
                         "contributions were non-negative."
                     ),
                 )
@@ -782,8 +988,9 @@ def _geographic_test(
                     inputs=contribs,
                     consistent=False,
                     note=(
-                        "Consolidated revenue did not grow with a positive "
-                        "admitted geographic contribution."
+                        f"Period-end {period.isoformat()}: consolidated revenue "
+                        f"did not grow with a positive admitted geographic "
+                        f"contribution ({_format_ratio_pct(cons)})."
                     ),
                 )
             )
@@ -801,12 +1008,13 @@ def _geographic_test(
     else:
         failed = ""
         additional = ""
-        finding = (
+        finding = _finding_with_counterexamples(
             f"{len(unique_tested)} aligned period(s) and {len(identities)} "
             "admitted geographic identit"
             f"{'y' if len(identities) == 1 else 'ies'}. Findings use reported "
             "currency. Verdict: "
-            f"{verdict.replace('_', ' ')}."
+            f"{verdict.replace('_', ' ')}.",
+            tuple(observations),
         )
     return RevenueDriverHypothesisTest(
         theme=THEME_GEOGRAPHIC_GROWTH,
