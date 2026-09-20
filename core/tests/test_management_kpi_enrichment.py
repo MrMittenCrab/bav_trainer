@@ -17,9 +17,11 @@ from core.ingestion.management_kpi_enrichment import (
     FISCAL_CALENDAR_BASIS,
     SourceInspection,
     decode_filing_text,
+    definition_features,
     enrich_management_working_copies,
     field_supporting_passages,
     inspect_source_pdf,
+    page_reference_from_printed,
     printed_pages_from_reference,
     resolve_physical_pages,
 )
@@ -1352,3 +1354,181 @@ def test_unrelated_strategy_language_cannot_satisfy_presentation_assurance_or_re
         assert "management_use" not in passages
         assert "assurance" not in passages
         assert "revision" not in passages
+
+
+def test_definition_features_store_only_excludes_dtc_mention():
+    store_only = (
+        "Net revenue from company-operated stores open, or open after significant "
+        "expansion, for at least 12 full fiscal months. Excludes new stores, stores "
+        "not in expanded space for at least 12 full fiscal months, temporarily "
+        "relocated/closed stores, direct-to-consumer and other operations, and "
+        "closed company-operated stores."
+    )
+    total = "Comparable store sales plus direct-to-consumer net revenue."
+    ecommerce = (
+        "Comparable company-operated store and all e-commerce net revenue. "
+        "Excludes new/expanded stores under 12 months, temporarily relocated/closed "
+        "stores, closed stores, and channels other than company-operated stores and "
+        "e-commerce."
+    )
+    strategy = (
+        "Opening new stores and expanding existing stores is an important part "
+        "of our growth strategy."
+    )
+    dtc_neighbor = (
+        "Direct to consumer net revenue increased 33.2% compared to fiscal 2021."
+    )
+    assert definition_features(store_only)["channel_population"] == (
+        "company_operated_stores"
+    )
+    assert definition_features(total)["channel_population"] == (
+        "company_operated_stores_and_direct_to_consumer"
+    )
+    assert definition_features(ecommerce)["channel_population"] == (
+        "company_operated_stores_and_ecommerce"
+    )
+    assert "channel_population" not in definition_features(strategy)
+    assert definition_features(dtc_neighbor).get("channel_population") != (
+        "company_operated_stores"
+    )
+
+
+def test_fy2022_presentation_source_agrees_with_table_passage_bindings(
+    tmp_path: Path,
+):
+    dest = _copy_extracted(tmp_path / "fy22-src")
+    sidecar = enrich_management_working_copies(dest, SOURCE)
+    working = json.loads((dest / "LULU_FY2022_management_kpis.json").read_text())
+    by_metric = {item["metric_id"]: item for item in _fy2022_fields(sidecar)}
+    payload = reconciliation_management_admission_payload(
+        reconcile_filings(
+            load_and_validate_extracted_dir(dest, source_root=SOURCE),
+            admit_periods=ADMIT_2022,
+        )
+    )
+    admitted = {
+        item["metric_id"]: item
+        for item in payload["observations"]
+        if item["kind"] == "reported_kpi"
+        and item["extraction_document"] == "LULU_FY2022_management_kpis.json"
+        and item["metric_id"] in {row[0] for row in _FY2022_FOCUS}
+    }
+    assert set(admitted) == {row[0] for row in _FY2022_FOCUS}
+    table_ref = page_reference_from_printed((33,))
+    for metric_id, basis, _phrase in _FY2022_FOCUS:
+        field = by_metric[metric_id]
+        bindings = field["passage_bindings"]
+        presentation = bindings["presentation"]
+        management_use = bindings["management_use"]
+        definition = bindings["definition"]
+        assert presentation["source_file"] == "LULU_FY2022_Annual_Report.pdf"
+        assert presentation["physical_pages"] == [37]
+        assert presentation["printed_pages"] == [33]
+        assert 37 not in management_use["physical_pages"]
+        assert 33 not in management_use["printed_pages"]
+        assert set(management_use["physical_pages"]) <= {35, 36}
+        if "total_comparable" in metric_id:
+            assert 37 not in definition["physical_pages"]
+        reported = next(
+            item
+            for item in working["reported_kpis"]
+            if item["metric_id"] == metric_id
+        )
+        assert reported["source"]["page_reference"] == "Form 10-K p. 27"
+        assert reported["presentation"]["source"]["page_reference"] == table_ref
+        assert "physical_page_mapping" not in reported["presentation"]["source"]
+        observation = admitted[metric_id]
+        source = observation["presentation_evidence"]["source"]
+        assert printed_pages_from_reference(source["page_reference"]) == (33,)
+        assert source["physical_page_mapping"] == "33→37"
+        assert observation["source"]["page_reference"] == "Form 10-K p. 27"
+        assert observation["physical_page_mapping"] == "27→31"
+        features = observation["supporting_evidence"]["definition_features"]
+        if "store_sales" in metric_id:
+            assert features["channel_population"] == "company_operated_stores"
+            assert observation["scope"] == {"channel": "company_operated_stores"}
+        else:
+            assert features["channel_population"] == (
+                "company_operated_stores_and_direct_to_consumer"
+            )
+            assert observation["scope"] == {"geography": "global"}
+        assert observation["basis"] == basis
+
+
+def test_fy2022_store_only_population_features_survive_admission(tmp_path: Path):
+    payload = _enriched_admission(tmp_path)
+    focus = [
+        item
+        for item in payload["assessments"]["items"]
+        if item["status"] == "supported"
+        and item["family"] == FAMILY_COMPARABLE_SALES_GROWTH
+        and item["evidence"]["extraction_document"]
+        == "LULU_FY2022_management_kpis.json"
+        and item["evidence"]["period"] == "2023-01-29"
+    ]
+    by_population = {}
+    for item in focus:
+        fields = item["metric_identity_fields"]
+        by_population.setdefault(fields["population"], []).append(item)
+        features = None
+        for observation in payload["observations"]:
+            if observation["locator"] != item["locator"]:
+                continue
+            features = observation["supporting_evidence"]["definition_features"]
+            source = observation["presentation_evidence"]["source"]
+            assert printed_pages_from_reference(source["page_reference"]) == (33,)
+            assert source["physical_page_mapping"] == "33→37"
+            break
+        assert features is not None
+        assert features["channel_population"] == fields["population"]
+        if fields["population"] == "company_operated_stores":
+            lowered_def = item["evidence"]["definition_text"].lower()
+            assert "direct-to-consumer" in lowered_def or "direct to consumer" in lowered_def
+            assert "exclud" in lowered_def
+        else:
+            assert fields["population"] == (
+                "company_operated_stores_and_direct_to_consumer"
+            )
+            assert "plus direct-to-consumer" in item["evidence"]["definition_text"].lower()
+    assert set(by_population) == {
+        "company_operated_stores",
+        "company_operated_stores_and_direct_to_consumer",
+    }
+    assert len(by_population["company_operated_stores"]) == 2
+    assert len(by_population["company_operated_stores_and_direct_to_consumer"]) == 2
+
+
+def test_neighboring_dtc_cannot_satisfy_store_only_identity_requirements():
+    dtc = (
+        "We use total comparable sales to evaluate the performance of our business "
+        "from an omni-channel perspective. Total comparable sales combines comparable "
+        "store sales and direct to consumer net revenue. Direct to consumer net "
+        "revenue increased 33.2%."
+    )
+    inspection = SourceInspection(
+        source_file="LULU_FY2022_Annual_Report.pdf",
+        physical_to_printed={35: 31, 37: 33},
+        printed_to_physical={31: 35, 33: 37},
+        fifty_three_week_years=(),
+        fifty_two_week_years=(2022,),
+        fiscal_calendar_evidenced=True,
+        page_texts={35: dtc, 37: dtc},
+    )
+    for metric_id, basis, _phrase in _FY2022_FOCUS:
+        if "store_sales" not in metric_id:
+            continue
+        item = {"metric_id": metric_id, "value": 16.0, "basis": basis}
+        passages = field_supporting_passages(
+            inspection=inspection,
+            physical_pages=(35, 37),
+            item=item,
+            comparison_window=None,
+            calendar=None,
+        )
+        assert "presentation" not in passages
+        assert "management_use" not in passages
+        definition = passages.get("definition", "")
+        assert "comparable store sales reflects" not in definition.lower()
+        assert definition_features(dtc).get("channel_population") != (
+            "company_operated_stores"
+        )

@@ -1,3 +1,179 @@
+# RESULT.md — Step 3.2.6 Repair FY2022 provenance and population metadata through admission
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 3.2.6 — Repair FY2022 provenance and population metadata through admission  
+**Work:** `6743e8167c864555b33c54efb3c41328`  
+**Plan:** `3ef0b7a54ef14ce9972456cbbdeea8bc`  
+**Finding:** Complete real-source Lululemon KPI production acceptance  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `28089b961e72b3058d043efb9008e42c7b144d15cc3e3e2837174acb2f5eaf70` (26043).  
+SESSION SHA-256 `b37e5b0348b8d6f2210a51f8307511842fcc862ede5059c7ca76687bb4bad4aa` (4944).  
+IMPLEMENTATION SHA-256 `60577fdf82d9bde92581dd49d674584fcf3549be9df2aba00ef4aac3d14053d5` (7584).  
+No commit / push / sync / checkpoint / branch change.
+
+## Required plan change
+
+No required plan change. FY2022 `presentation_evidence.source` now agrees with the current-period table passage (physical 37 / printed 33) without overwriting management-use or definition locators. Reported comparable-store-sales `definition_features.channel_population` is store-only; total comparable remains stores-plus-DTC. Canonical selection still requires a later-audited two-occurrence revision group with a documentary revision link (`selection_limitation`). That remaining gate is a selection-policy / unavailable-assurance decision for Review. This bounded repair does not close the major Completion.
+
+## FY2022 provenance and population-metadata repair
+
+Prior Step 3.2.6 bound presentation *passages* to the page-37 table but left `presentation_evidence.source` on the value observation locator (`Form 10-K p. 27` / `27→31`) and classified store-only definitions as stores-plus-DTC because the exclusion clause mentions direct-to-consumer. Constant-dollar identities also received empty `definition_features` because definition lookup used `metric_id` only.
+
+Ordinary enrichment now writes presentation `page_reference` from the presentation passage binding and admission re-validates that locator against the PDF (`33→37`). Management-use stays on physical 35 / printed 31 (reported) or physical 36 / printed 32 (constant-dollar). Definition stays on the identity-specific passage (store-only table footnote physical 37 / printed 33; total comparable MD&A physical 35 / printed 31). Observation value source remains `Form 10-K p. 27` / `27→31`. Unrelated strategy language and neighboring DTC disclosures still cannot satisfy store-only presentation, management-use or store-only population features.
+
+| Identity | Presentation source | Management use | Definition | `definition_features.channel_population` | Scope / basis |
+|---|---|---|---|---|---|
+| `comparable_store_sales_growth` | physical 37 / printed 33 / `33→37` | physical 35 / printed 31 | physical 37 / printed 33 (table footnote) | `company_operated_stores` | `{channel: company_operated_stores}` / reported |
+| `comparable_store_sales_growth_constant_dollar` | same table `33→37` | physical 36 / printed 32 | physical 37 / printed 33 | `company_operated_stores` | same channel / constant-dollar |
+| `total_comparable_sales_growth` | same table `33→37` | physical 35 / printed 31 | physical 35 / printed 31 | `company_operated_stores_and_direct_to_consumer` | `{geography: global}` / reported |
+| `total_comparable_sales_growth_constant_dollar` | same table `33→37` | physical 36 / printed 32 | physical 35 / printed 31 | `company_operated_stores_and_direct_to_consumer` | same geography / constant-dollar |
+
+Store-only versus store-plus-DTC, reported versus constant-currency, and FY2022 versus later stores+e-commerce definitions remain distinct. FY2022 definitions are not equated with FY2023 e-commerce. Assurance and revision stay unresolved (`unknown` / `selection_limitation`). Annual-report placement was not treated as audited KPI assurance. The four false FY2022 presentation-absence findings remain removed (**0** presentation / `genuine_source_absence` failures).
+
+This supersedes the prior Step 3.2.6 metadata-consistency claim that presentation was already bound to physical 37 / printed 33: passage bindings were correct, but `presentation_evidence.source` and store-only `definition_features` were not until this repair.
+
+## Admission after ordinary build
+
+`prepare_company_input` / `python -m bav build Lululemon` enriched permitted working copies only (`supporting/extracted/`). Protected PDFs, `benchmark/lululemon/extracted/` and authenticated baselines were not written.
+
+| Measurement | Result |
+|---|---|
+| Status | `admitted_unreconciled` |
+| Canonical selection | `deferred` |
+| Documents / reported observations | 4 / **138** (135 original + 3 traced prior-period SPSF) |
+| Focus CompSales + SPSF assessments | **31** (24 CompSales, 7 SPSF) |
+| Period kind on focus items | **date** (all 31) |
+| Definition equivalence (focus) | CompSales **18 equivalent**, **6 different**; SPSF **7 different** |
+| FY2022 CompSales presentation | **4/4** `role=current`; source `Form 10-K p. 33` / `33→37`; `presentation_role` absent from unresolved; **0** presentation failures |
+| FY2022 store-only features | **2/2** `company_operated_stores` (reported + constant-dollar); total comparable **2/2** stores-plus-DTC; identity `population` matches features |
+| Pair assessments | **39** (36 historical, 3 same-period); **7 supported**, **32 unsupported** |
+| SPSF pairs | **21** (14 unsupported, **7 supported**) |
+| SPSF historical pairs supported | **5** (52-week included, average-ending levels) |
+| FY2022-current / FY2023-current SPSF | `unsupported` for `definition_mismatch` (and recorded `period_mismatch`); **`calendar_mismatch` absent** |
+| Failure attribution | pair-scoped **79**, occurrence-only **69**, canonical-selection **28** |
+| SPSF level / historical comparison | **7/7 level admitted**; historical comparison **4 eligible** / **3 ineligible** |
+| Group selection | selected **0**, deferred **28** |
+| Group level / comparison / canonical | level **28 admitted**; comparison **3 eligible** (SPSF 2023-01-29, 2024-01-28, 2026-02-01) / **25 ineligible**; canonical **28 deferred** |
+| Reconciliation | 37 incompatible; 6 singletons; 2 unresolved; revision links recognized **0** |
+| StandardizedFinancials management histories | **0** (store-count observations remain 5) |
+| Cause class on all 28 groups | **selection_limitation** |
+
+All seven SPSF occurrence calendars, three traced priors and both FY2024 SPSF exclusion bindings (FY2024 physical 40 / printed 34; traced occurrence `cross_filing=true`) are unchanged. Comparison windows remain unbound on SPSF and are not copied onto priors. FY2022 calendar evidence remains FY2023 physical page 33 (`Fiscal 2023, 2022, and 2021 were each 52-week years.`).
+
+Remaining FY2022 CompSales failures are occurrence-scoped **assurance** and **revision** (`selection_limitation`; pages 31, 33, 35–37) plus group-scoped **canonical_selection** (later-audited two-occurrence revision group with a documentary revision link). Those are selection-policy / unavailable-assurance gaps, not implementation defects or genuine source absence of the table or store-only definition. Canonical deferral alone does not establish source absence.
+
+Comparable Sales Analysis and Sales per Square Foot Analysis remain unavailable (no sheets; Build Status / CLI `Source unavailable / not admitted`). Supported SPSF historical pairs do not enter `StandardizedFinancials` without canonical selection.
+
+## Revenue per Store (preserved)
+
+Five period-end observations, distinct average-store denominators, period alignment, USD thousands, missing/zero-input behavior and total-company-revenue scope limitation are unchanged. Independent Python series matches prior anchors. Component-map SHA unchanged.
+
+| Period | Period-end RPS | Average-store RPS | Adjacent change | Adjacent growth |
+|---|---:|---:|---:|---:|
+| 2022-01-30 | 10900.029616724738 | unavailable | unavailable | unavailable |
+| 2023-01-29 | 12382.470229007633 | 13198.564686737185 | 1482.440612282895 | 0.1360033563586171 |
+| 2024-01-28 | 13529.223628691983 | 14083.862371888727 | 1146.7533996843504 | 0.09261103628562929 |
+| 2025-02-02 | 13804.597131681878 | 14327.6400541272 | 275.3735029898944 | 0.020353976735656764 |
+| 2026-02-01 | 13690.012330456228 | 14071.736375158429 | −114.58480122565015 | −0.008300481363753479 |
+
+Scope note still states total-company consolidated revenue includes revenue outside company-operated stores.
+
+## Ordinary source-bound Lululemon build
+
+Interpreter: `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**.
+
+```bash
+python -m bav build Lululemon
+```
+
+| Measurement | Result |
+|---|---|
+| Exit | **0** |
+| Output directory | `build/output/Lululemon/` |
+| Primary workbook | `Lululemon_BAV.xlsx` (192536) |
+| Trainer generated by ordinary build | **No** |
+| Admission | `supporting/management_kpi_admission.json` (2300533; SHA-256 `9bf64b582b6f31baeb12db46bdb378fecb0c0509f478bba1e89ef91cc34c2538`) |
+| Page resolution | `supporting/management_kpi_page_resolution.json` (126057; SHA-256 `d2f55444eb4dd7105149c7da3640b12592762307c7deb13a5727cdb6e8c6e188`) |
+| Standardized | `supporting/standardized.json` (30504; SHA-256 `a1eea9608b0dc60eb5be0a70b47668dc3db6a4e4e4be56cf2bfc431d6447447f`) — unchanged vs Step 3.2.3 / 3.2.4 / 3.2.5 |
+| CLI / Build Status Active | Condensed Financials, ALT DuPont, Earnings Quality, Working Capital Analysis, Per Share Analysis, Geographic Segment Analysis, Store Count Analysis, **Revenue per Store Analysis** (17 cells) |
+| CLI / Build Status Unavailable | Comparable Sales Analysis — Source unavailable / not admitted (0); Sales per Square Foot Analysis — Source unavailable / not admitted (0) |
+
+## BAV-only verification
+
+- Sheets include `Overview`, `Build Status`, `Revenue per Store Analysis`; no Trainer / CompSales / SPSF sheets. Deferred forecast tabs remain placeholders.
+- Visible cells/Notes contain none of: Trainer, Answer Key, exercise, practice, Formula Check, ungraded, learner. Exercise-framing hits: **0**.
+- Semantic components **793**; sidecar **793**; embedded `_ComponentMap` **793**.
+- Non-source identities **783/783** formulas match the map and have non-empty Notes.
+- KPI source facts **10/10** populated.
+- Yellow fill: **0**.
+- Standardized export/reload: payload equality **True**.
+
+BAV SHA-256: `fc6c072424f62cca90e025e436844d8a9a0c34e3a77881ed06643f423ea870ca` (192536). Rebuild packaging hash differs from the prior official file (`27cf81c5…`, also 192536); formula/input surface is the unchanged component-map and standardized payloads.  
+Component-map SHA-256: `3384ff9ec9944f7c209dc1f3541ef91e8a6293db24e5a30f9ada8f0121acfc63` (1094906) — **unchanged** vs Step 3.2.3 / 3.2.4 / 3.2.5.  
+Assumptions SHA-256: `73fbb33f222a978828042ebde1fbbc3cd285c40efda6be5217c2cfbae1fda21a` (69) — unchanged.
+
+## Explicit Trainer derivation
+
+`derive_trainer_workbook` on the published BAV:
+
+| Measurement | Result |
+|---|---|
+| Derived path | `build/output/Lululemon/Lululemon_BAV_Trainer.xlsx` (47637 at derive; 53269 after Check recolor) |
+| Trainer SHA-256 after Check | `a0e7e02b770112ba3ff7082267eb1b8a1a45059144481000f98dce2f40264110` |
+| BAV / component-map / assumptions SHA-256 after derivation and Check | unchanged |
+| Trainer-only sidecars | none |
+| Active practice cells | **783** blank, **783** bright yellow, **0** comments/hints |
+| KPI sources on Trainer | **10** still populated |
+| Check blank | 783 / 0 / 0 / 783 |
+| Check correctly completed | 783 / 783 / 0 / 0 |
+| Check one incorrect RPS practice (`Revenue per Store Analysis!B9` = 0) | 783 / 782 / 1 / 0 |
+
+Check summaries did not disclose formulas. Official BAV hash unchanged after Check.
+
+## Excel recalculation
+
+Carried forward verified native Excel recovery `.git/autocycle/excel-verification-kzg9a_ex/result.json` (`status: VERIFIED`) and retained `saved-copy.xlsx`. Verification log: **50** independent references, **50** affected/dependency cells, `formulas_preserved: true`, sheets `Revenue per Store Analysis` and `Store Count Analysis`. Source SHA-256 of that recovery was the prior official BAV `27cf81c5…`.
+
+This repair did not change formulas, inputs or dependencies: component-map SHA, standardized SHA, RPS series and 17 RPS mapped cells are unchanged, and CompSales/SPSF remain unactivated. Native recalculation was therefore not repeated. This **supersedes** the stale Excel-unavailable claim in the prior Step 3.2.6 record (and the carried-forward 3.2.4 / 3.2.5 unavailable narrative): cached-value verification for the unchanged RPS/store-count surface is VERIFIED at kzg9a_ex, not unavailable.
+
+## Regressions
+
+Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**.
+
+| Suite | Result |
+|---|---|
+| `test_management_kpi_enrichment.py` | **38 passed** (prior 34 retained; added presentation-source vs passage-binding agreement for all four FY2022 identities, store-only `definition_features` propagation into admission, store-only exclusion of DTC mentions, and negative neighboring-DTC / unrelated-strategy cases) |
+| identity + admission + reconciliation + history + analysis + management-history | **1438 passed** |
+| RPS + operating KPI facts + source availability + Lululemon + Fast Retailing | **457 passed** including `test_protected_artifacts_and_eight_extracts_unchanged` — **50/50** artifacts and **8/8** extracts |
+| current build + operating KPI workbook/relationships/analysis + trainer + build CLI/contract | **216 passed** |
+| filing CLI + protected-artifact test (explicit) | **12 passed** |
+
+Protected extracts and authenticated baselines were not replaced.
+
+## Remaining gaps toward Completion
+
+- Comparable Sales Analysis and Sales per Square Foot Analysis remain unavailable. FY2022 presentation locators and store-only population features are now consistent with the table and definitions. Canonical selection still requires an audited reviser + documentary revision pair that the supplied MD&A does not provide (`selection_limitation`). Review must decide whether that policy remains the admission gate.
+- Three SPSF groups are comparison-eligible from supported same-identity 52-week average-ending pairs, but those levels are not handed to the model without canonical selection. Do not read selection-route rejection as genuine source absence of SPSF values.
+- FY2022 SPSF historical comparison stays ineligible: average-during-year vs later average-ending (`definition_mismatch` on the correct pairs).
+- FY2024 current / FY2025 prior SPSF historical comparison stays ineligible: 53-week excluded vs 52-week included (`calendar_mismatch` on those pairs).
+- FY2021 SPSF `$1,443` on FY2023 page 10 has no corpus fiscal-year-end, so it remains metadata only.
+- Disclosure-led driver testing and strategy interpretation remain subsequent Session work.
+- Earlier deferred normalization / workflow commitments remain deferred.
+
+This bounded repair completed FY2022 presentation-source and store-only population-metadata correction through ordinary enrichment, admission and build. It does not close the major Completion: CompSales/SPSF analysis are still not activated.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+
+
+---
+
+# Historical record — Step 3.2.6 (prior presentation-evidence repair)
+
+The following is the prior Step 3.2.6 implementation record (plan `224ff1050e504f4eae9271e2bb018cb7`), preserved. Its claim that presentation was already bound to physical 37 / printed 33 described passage bindings only; `presentation_evidence.source` and store-only `definition_features` were still wrong. Its Excel-unavailable claim is superseded by the kzg9a_ex VERIFIED recovery carried forward above.
+
 # RESULT.md — Step 3.2.6 Repair FY2022 presentation evidence and reassess KPI admission
 
 **Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  

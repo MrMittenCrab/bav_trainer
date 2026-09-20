@@ -309,6 +309,20 @@ def printed_pages_from_reference(page_reference: str) -> tuple[int, ...]:
     return tuple(dict.fromkeys(pages))
 
 
+def page_reference_from_printed(printed_pages: Iterable[int]) -> str:
+    """Form 10-K printed-page locator matching `printed_pages_from_reference`."""
+    pages = tuple(dict.fromkeys(int(page) for page in printed_pages))
+    if not pages:
+        return ""
+    if len(pages) == 1:
+        return f"Form 10-K p. {pages[0]}"
+    first, last = pages[0], pages[-1]
+    consecutive = pages == tuple(range(first, last + 1))
+    if consecutive and 1 < len(pages) <= 8:
+        return f"Form 10-K pp. {first}–{last}"
+    return f"Form 10-K p. {pages[0]}"
+
+
 def resolve_physical_pages(
     page_reference: str,
     inspection: SourceInspection,
@@ -526,18 +540,49 @@ def validate_physical_page_binding(
     return resolved_pages
 
 
+_ECOMMERCE_TOKEN_RE = re.compile(r"e-?commerce")
+_DTC_TOKEN_RE = re.compile(r"direct[-\s]to[-\s]consumer")
+_EXCLUDE_CLAUSE_RE = re.compile(r"exclud(?:e|es|ing)\b[^.]*")
+_OTHER_THAN_CLAUSE_RE = re.compile(r"other than[^.]*")
+_INCLUDES_ECOMMERCE_RE = re.compile(
+    r"(?:plus|and|including|includes)\s+(?:all\s+)?e-?commerce"
+    r"|company-operated store(?:s)? and (?:all\s+)?e-?commerce"
+)
+_INCLUDES_DTC_RE = re.compile(
+    r"(?:plus|and|including|includes)\s+direct[-\s]to[-\s]consumer"
+)
+
+
+def _channel_population_feature(lowered: str) -> str:
+    """Store-only, stores+DTC, or stores+e-commerce; exclusions are not inclusion."""
+    excluded = " ".join(_EXCLUDE_CLAUSE_RE.findall(lowered))
+    excluded_population = _OTHER_THAN_CLAUSE_RE.sub("", excluded)
+    ecommerce_included = bool(_INCLUDES_ECOMMERCE_RE.search(lowered)) or (
+        bool(_ECOMMERCE_TOKEN_RE.search(lowered))
+        and not bool(_ECOMMERCE_TOKEN_RE.search(excluded_population))
+    )
+    dtc_included = bool(_INCLUDES_DTC_RE.search(lowered)) or (
+        bool(_DTC_TOKEN_RE.search(lowered))
+        and not bool(_DTC_TOKEN_RE.search(excluded_population))
+    )
+    if ecommerce_included:
+        return "company_operated_stores_and_ecommerce"
+    if dtc_included:
+        return "company_operated_stores_and_direct_to_consumer"
+    if "company-operated store" in lowered or "comparable store" in lowered:
+        return "company_operated_stores"
+    return ""
+
+
 def definition_features(text: str) -> dict[str, str]:
     """Documentary features used for equivalence; original text is not rewritten."""
     lowered = " ".join(text.lower().split())
     if not lowered:
         return {}
     features: dict[str, str] = {}
-    if "e-commerce" in lowered or "ecommerce" in lowered:
-        features["channel_population"] = "company_operated_stores_and_ecommerce"
-    elif "direct to consumer" in lowered or "direct-to-consumer" in lowered:
-        features["channel_population"] = "company_operated_stores_and_direct_to_consumer"
-    elif "company-operated store" in lowered or "comparable store" in lowered:
-        features["channel_population"] = "company_operated_stores"
+    population = _channel_population_feature(lowered)
+    if population:
+        features["channel_population"] = population
     if "average ending square footage" in lowered:
         features["square_footage_basis"] = "average_ending"
     elif "average store square footage" in lowered or "average square footage" in lowered:
@@ -933,10 +978,12 @@ def _management_use_passage(texts: Iterable[str], item: MappingLike) -> str:
             texts, (phrase, _MANAGEMENT_USE_STRATEGY)
         )
     if _is_constant_dollar_item(item):
-        listing = _passage_matching(texts, ("constant dollar changes", phrase))
         uses = _passage_matching(texts, ("management uses", "constant currency"))
-        if listing and uses:
+        if uses:
             return uses
+        listing = _passage_matching(texts, ("constant dollar changes", phrase))
+        if listing:
+            return listing
         return we_use
     return we_use or strategy
 
@@ -991,17 +1038,25 @@ def field_supporting_passages(
         inspection.page_texts[page] for page in sorted(inspection.page_texts)
     ]
     definition_passage = _passage_matching(
-        texts, definition_needles, reject=_DEFINITION_REJECT
+        texts, definition_needles, reject=_DEFINITION_REJECT + (_TABLE_INTRO_NEEDLE,)
     ) or (
-        _passage_matching(texts, ("comparable store sales", "direct to consumer"))
+        _passage_matching(
+            texts,
+            ("comparable store sales", "direct to consumer"),
+            reject=_DEFINITION_REJECT + (_TABLE_INTRO_NEEDLE,),
+        )
         if "total_comparable" in metric
         else ""
     )
     if not definition_passage:
         definition_passage = _passage_matching(
-            all_texts, definition_needles, reject=_DEFINITION_REJECT
+            all_texts, definition_needles, reject=_DEFINITION_REJECT + (_TABLE_INTRO_NEEDLE,)
         ) or (
-            _passage_matching(all_texts, ("comparable store sales", "direct to consumer"))
+            _passage_matching(
+                all_texts,
+                ("comparable store sales", "direct to consumer"),
+                reject=_DEFINITION_REJECT + (_TABLE_INTRO_NEEDLE,),
+            )
             if "total_comparable" in metric
             else ""
         )
@@ -1015,6 +1070,10 @@ def field_supporting_passages(
     management_use = _management_use_passage(texts, item)
     if not management_use:
         management_use = _management_use_passage(all_texts, item)
+    elif _is_constant_dollar_item(item) and "management uses" not in management_use.lower():
+        constant_use = _management_use_passage(all_texts, item)
+        if constant_use and "management uses" in constant_use.lower():
+            management_use = constant_use
     table_passage = _current_period_table_passage(texts, item)
     if not table_passage:
         table_passage = _current_period_table_passage(all_texts, item)
@@ -1295,17 +1354,25 @@ def _definition_pages_and_text(
     payload: dict[str, Any],
     inspection: SourceInspection,
     metric_id: str,
+    definition_id: str = "",
 ) -> tuple[tuple[int, ...], str]:
     pages: list[int] = []
     text = ""
+    matched: dict[str, Any] | None = None
     for definition in payload.get("kpi_definitions") or []:
         if not isinstance(definition, dict):
             continue
-        if definition.get("metric_id") != metric_id:
-            continue
-        source = definition.get("source") or {}
-        pages.extend(resolve_physical_pages(str(source.get("page_reference") or ""), inspection))
-        text = str(definition.get("definition") or "")
+        if definition_id and definition.get("definition_id") == definition_id:
+            matched = definition
+            break
+        if matched is None and definition.get("metric_id") == metric_id:
+            matched = definition
+    if matched is not None:
+        source = matched.get("source") or {}
+        pages.extend(
+            resolve_physical_pages(str(source.get("page_reference") or ""), inspection)
+        )
+        text = str(matched.get("definition") or "")
     return tuple(dict.fromkeys(pages)), text
 
 
@@ -1434,7 +1501,10 @@ def enrich_management_payload(
         physical_pages = resolve_physical_pages(page_reference, inspection)
         printed = printed_pages_from_reference(page_reference)
         definition_pages, definition_text = _definition_pages_and_text(
-            enriched, inspection, str(item["metric_id"])
+            enriched,
+            inspection,
+            str(item["metric_id"]),
+            definition_id=str(item.get("definition_id") or ""),
         )
         original_period = str(item.get("period") or "")
         if original_period == expected_label:
@@ -1580,7 +1650,9 @@ def enrich_management_payload(
                     "fifty_three_week": calendar.fifty_three_week,
                 }
             ),
-            "definition_features": definition_features(definition_text),
+            "definition_features": definition_features(
+                definition_text or passages.get("definition", "")
+            ),
             "prior_period_levels": (
                 spsf_levels
                 if item["metric_id"] in SUPPORTED_METRIC_MAPPINGS
@@ -1602,12 +1674,15 @@ def enrich_management_payload(
                 "",
             )
         if presentation_passage and "presentation" not in item:
+            presentation_binding = passage_bindings.get("presentation") or {}
+            presentation_printed = tuple(presentation_binding.get("printed_pages") or ())
+            presentation_ref = page_reference_from_printed(presentation_printed) or page_reference
             item["presentation"] = {
                 "role": "prior" if item.get("traced_prior_period") else "current",
                 "evidence": presentation_passage,
                 "source": {
                     "section": source.get("section", ""),
-                    "page_reference": page_reference,
+                    "page_reference": presentation_ref,
                     "source_file": inspection.source_file,
                 },
             }

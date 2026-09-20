@@ -564,17 +564,54 @@ def _supporting_pairs(payload: object) -> tuple[tuple[str, str], ...]:
 
 
 def _bind_dimension_pages(
-    record: OccurrenceDimensionEvidence, page_mapping: str
+    record: OccurrenceDimensionEvidence,
+    page_mapping: str,
+    *,
+    page_reference: str = "",
 ) -> OccurrenceDimensionEvidence:
-    if not page_mapping or record.source is None:
+    if record.source is None:
+        return record
+    if not page_mapping and not page_reference:
         return record
     return replace(
         record,
         source=PrintedSourceRef(
             section=record.source.section,
-            page_reference=record.source.page_reference,
-            physical_page_mapping=page_mapping,
+            page_reference=page_reference or record.source.page_reference,
+            physical_page_mapping=page_mapping or record.source.physical_page_mapping,
         ),
+    )
+
+
+def _presentation_source_binding(
+    payload: object,
+    *,
+    bound: BoundManagementDocument,
+) -> tuple[str, str]:
+    """PDF-validated presentation locator from identity-specific passage bindings."""
+    if not isinstance(payload, dict):
+        return "", ""
+    bindings = payload.get("passage_bindings") or {}
+    presentation = bindings.get("presentation") or {}
+    printed = list(presentation.get("printed_pages") or [])
+    claimed = list(presentation.get("physical_pages") or [])
+    if not printed:
+        return "", ""
+    inspection = _inspection_for(bound)
+    if inspection is None:
+        return "", ""
+    from .management_kpi_enrichment import (
+        format_physical_page_mapping,
+        page_reference_from_printed,
+        validate_physical_page_binding,
+    )
+
+    resolved = validate_physical_page_binding(inspection, printed, claimed)
+    if not resolved:
+        return "", ""
+    return (
+        format_physical_page_mapping(printed, resolved),
+        page_reference_from_printed(printed),
     )
 
 
@@ -1149,6 +1186,10 @@ def _observation_from_reported(
         printed_source=printed_source,
         bound=bound,
     )
+    presentation_mapping, presentation_ref = _presentation_source_binding(
+        item.get("supporting_evidence"),
+        bound=bound,
+    )
     if page_mapping:
         printed_source = PrintedSourceRef(
             section=printed_source.section,
@@ -1216,7 +1257,11 @@ def _observation_from_reported(
             revision_unknown=revision_unresolved is not None,
             page_resolved=bool(page_mapping),
         ),
-        presentation_record=_bind_dimension_pages(presentation_record, page_mapping),
+        presentation_record=_bind_dimension_pages(
+            presentation_record,
+            presentation_mapping or page_mapping,
+            page_reference=presentation_ref,
+        ),
         assurance_record=_bind_dimension_pages(assurance_record, page_mapping),
         revision_record=revision_record,
         supporting_evidence=supporting_pairs,
