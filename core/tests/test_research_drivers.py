@@ -4,8 +4,12 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import warnings
 from datetime import date
 from pathlib import Path
+
+from matplotlib import ft2font
+from PIL import Image
 
 from core.current_build import prepare_company_input, resolve_company
 from core.ingestion.management_kpi_enrichment import inspect_source_pdf
@@ -17,7 +21,22 @@ from core.research.drivers import (
     render_drivers_markdown,
 )
 from core.research.publish import publish_company_research, verify_research_artifacts
-from core.research.style import apply_research_style, resolve_required_fonts
+from core.research.style import (
+    CJK_FACE,
+    FIGURE_DPI,
+    FIGURE_SIZE,
+    LABEL_PT,
+    LATIN_FACE,
+    MIN_WORD_GAP_EM,
+    PT,
+    TITLE_PT,
+    _ink_gap_px,
+    apply_research_style,
+    finish_figure,
+    new_figure,
+    resolve_required_fonts,
+    spaced,
+)
 from core.tests.test_lululemon_benchmark import REVENUE_ANCHORS
 from core.tests.test_management_kpi_admission import EXTRACTED, SOURCE
 from core.tests.test_operating_kpi_facts import INDEPENDENT_STORE_TOTALS
@@ -210,3 +229,93 @@ def test_drivers_calendar_limitation_reconciles_53_week_year(tmp_path):
         encoding="utf-8"
     )
     assert published == text
+
+
+def _font_has(path: Path, codepoint: int) -> bool:
+    return codepoint in ft2font.FT2Font(str(path)).get_charmap()
+
+
+def _interior_ink_gaps(path: Path, y0: int, y1: int, *, min_gap: int = 2) -> list[int]:
+    image = Image.open(path).convert("L")
+    strip = image.crop((0, y0, image.size[0], y1))
+    cols = [
+        any(strip.getpixel((x, row)) < 200 for row in range(strip.size[1]))
+        for x in range(strip.size[0])
+    ]
+    gaps: list[int] = []
+    index = 0
+    width = len(cols)
+    while index < width:
+        if cols[index]:
+            index += 1
+            continue
+        end = index
+        while end < width and not cols[end]:
+            end += 1
+        if index > 0 and end < width and end - index >= min_gap:
+            gaps.append(end - index)
+        index = end
+    return gaps
+
+
+def test_figure_word_spacing_uses_required_fonts_and_visible_gaps(tmp_path):
+    fonts = resolve_required_fonts()
+    assert fonts.latin_name == LATIN_FACE
+    assert fonts.cjk_name == CJK_FACE
+    assert fonts.latin_path.name == "Aptos.ttf"
+    assert fonts.cjk_path.name == "Deng.ttf"
+    assert _font_has(fonts.latin_path, 0x20)
+    assert _font_has(fonts.cjk_path, 0x20)
+    assert not _font_has(fonts.latin_path, 0x2002)
+    assert not _font_has(fonts.cjk_path, 0x2002)
+
+    style = apply_research_style(accent=None)
+    assert style.fonts.latin_path == fonts.latin_path
+    assert style.fonts.cjk_path == fonts.cjk_path
+    assert set(style.word_space) == {" "}
+    assert "\u2002" not in style.word_space
+    assert len(style.word_space) > 1
+    assert spaced("Revenue growth") == f"Revenue{style.word_space}growth"
+    assert "\u2002" not in spaced("Revenue growth")
+
+    min_title = TITLE_PT * FIGURE_DPI * PT * MIN_WORD_GAP_EM
+    min_note = LABEL_PT * FIGURE_DPI * PT * MIN_WORD_GAP_EM
+    assert _ink_gap_px("Revenue growth", pt=TITLE_PT) < min_title
+    assert _ink_gap_px(spaced("Revenue growth"), pt=TITLE_PT) >= min_title
+    assert _ink_gap_px(spaced("store-count growth"), pt=LABEL_PT) >= min_note
+
+    title = "Revenue growth, store-count growth, and reported comparable sales"
+    source = (
+        "Source: Lululemon BAV income statement and company-operated store counts.\n"
+        "Comparable sales use the reported global definition of each year."
+    )
+    fig, ax = new_figure(style)
+    ax.bar([0, 1], [10, 20], color=style.series_color(0), label="Consolidated revenue growth")
+    ax.set_xticks([0, 1], ["FY2025\n2 Feb 2025", "FY2024\n28 Jan 2024"])
+    ax.set_ylabel("Percentage-point contribution")
+    ax.legend(loc="upper right")
+    path = tmp_path / "spacing.png"
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        finish_figure(fig, ax, style, title, source, path)
+    missing = [
+        str(item.message)
+        for item in caught
+        if "missing from font" in str(item.message) or "Glyph" in str(item.message)
+    ]
+    assert missing == []
+    assert path.is_file() and path.stat().st_size > 0
+
+    image = Image.open(path)
+    assert image.size == (
+        int(FIGURE_SIZE[0] * FIGURE_DPI),
+        int(FIGURE_SIZE[1] * FIGURE_DPI),
+    )
+    title_gaps = _interior_ink_gaps(path, 90, 125)
+    note_line_one = _interior_ink_gaps(path, 626, 644)
+    note_line_two = _interior_ink_gaps(path, 652, 672)
+    assert max(title_gaps) >= min_title, (title_gaps, min_title)
+    assert max(note_line_one) >= min_note, (note_line_one, min_note)
+    assert max(note_line_two) >= min_note, (note_line_two, min_note)
+    assert sum(gap >= min_title for gap in title_gaps) >= 3
+    assert sum(gap >= min_note for gap in note_line_one) >= 3

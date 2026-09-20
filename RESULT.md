@@ -1,3 +1,109 @@
+# RESULT.md — Step 4.1.2 Repair centralized Drivers figure spacing
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 4.1.2 — Repair centralized Drivers figure spacing  
+**Work:** `e4c434039eb248f3985ef7254930e7be`  
+**Plan:** `28482007e0c2496a92d601ac0007296b`  
+**Finding:** Publish Lululemon Drivers  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `e42f104e22b753ba957bb2e6c9988d446c49a90c3b3ab987cf8d05973e5566af` (28705).  
+SESSION SHA-256 `610809fd496777d99ddbae5931a3d18b4097323c0e92418b7127a4fb3b9c9311` (4170).  
+IMPLEMENTATION SHA-256 `10814ec87edafff9af90105873c9261d9f49e280cf6d9dfb0acb993ba9ade697` (6016).  
+No commit / push / sync / checkpoint / branch change.
+
+## Required plan change
+
+No required plan change. Centralized figure spacing now uses a renderer-measured run of the supported U+0020 from Aptos Regular and DengXian Regular. Session acceptance, forecasting and earlier deferred obligations remain subsequent work.
+
+## Repair
+
+`core/research/style.py` no longer substitutes U+2002. Aptos Regular and DengXian Regular both contain U+0020 and neither contains U+2002; the previous en-space path produced missing-glyph boxes via last-resort. One U+0020 does advance under Agg, but the rasterized gap at figure sizes is below a visible word break (5–8 px at 11 pt / 150 dpi).
+
+`apply_research_style` now measures Agg ink gaps for `Revenue growth`, `store-count growth` and `2 Feb 2025` at 11 pt and 9 pt, then repeats U+0020 until every probe gap is ≥ 0.65 em. This host selected **four** U+0020 (21 / 20 / 23 px at 11 pt; 17 / 16 / 18 px at 9 pt). Last-resort substitution is disabled. `spaced()` still runs on every figure text artist before the shared `savefig`.
+
+Resolved fonts (not vendored): Aptos Regular `/Applications/Microsoft Excel.app/Contents/Resources/DFonts/Aptos.ttf`; DengXian Regular `/Applications/Microsoft Excel.app/Contents/Resources/DFonts/Deng.ttf`. `STYLE.md` SHA unchanged. No font copying or warning suppression.
+
+| N × U+0020 | 11 pt `Revenue growth` | 11 pt `store-count growth` | 9 pt `store-count growth` | Result |
+|---|---|---|---|---|
+| 1 | 6 px (< 14.9) | 5 px | 4 px | invisible |
+| 2 | 11 px | 10 px | 8 px | still tight |
+| 3 | 16 px | 15 px | 12 px (< 12.2) | fails 9 pt tight pair |
+| 4 | 21 px | 20 px | 16 px | selected |
+
+Calendar wording is unchanged: displayed FY2025 ends 2 February 2025 and is the issuer’s fiscal 2024 53-week year; displayed FY2024 ends 28 January 2024.
+
+## Per-figure visual inspection (4×–6× readable crops)
+
+Inspected regenerated `build/lululemon/figures/drivers/{growth,geography,margin}.png` at 1125×720 and enlarged title, legend, y-label, tick and source-note bands.
+
+| Figure | Titles / legends / notes | Ticks | Defects |
+|---|---|---|---|
+| growth | Word-separated; no tofu | `2 Feb 2025`, `28 Jan 2024` readable at 6× | None. No clip, overlap, or missing-glyph boxes |
+| geography | `China Mainland`, `Rest of World`, source note spaced | Same fiscal dates | None |
+| margin | `Reported operating margin`, `Operating margin`, source note spaced | FY2022–FY2026 including `2 Feb 2025` | None |
+
+Figures are reusable without manual cleanup. Chart data, labels, source notes, relative Markdown links and grayscale presentation are unchanged.
+
+## Verification
+
+| Check | Measured result |
+|---|---|
+| Focused rendering regression `test_figure_word_spacing_uses_required_fonts_and_visible_gaps` | **1 passed** — Aptos/DengXian files; U+2002 absent from both cmaps; no `missing from font` / Glyph warnings on shared `finish_figure` save; native one-space gap below threshold; spaced title/note ink gaps above 0.65 em |
+| Calendar regression `test_drivers_calendar_limitation_reconciles_53_week_year` | **1 passed** — FY2025 / 2 February 2025 / fiscal 2024; FY2024 is 28 January 2024 |
+| `test_research_drivers` | **7 passed** |
+| `test_current_build` + `test_build_cli` + `test_build_contract` + `test_revenue_driver` + `test_protected_artifacts_and_eight_extracts_unchanged` | **87 passed**; **50/50** protected and **8/8** extracts |
+| Two builds, unchanged inputs | Markdown, placeholders and all three PNGs byte-identical. Workbook zip 227421 vs 227420; analytical cells formula **0**, literal **0** |
+| vs pre-rebuild BAV `bcacf70d…` (228421) | Formula **0**, literal **0** |
+| vs `.git/autocycle/excel-verification-fb95_r2m/saved-copy.xlsx` | Formula **0**. Literal/structure diffs confined to Overview (2 changed + 2 only-left + 48 only-right = 52 previously recorded). Native recalc not required |
+| vs checkpoint `51468d6872d6cc6bfebbe780664003171bcb105c` `release/lululemon/Lululemon_Answer_Key.xlsx` | Historical product gap, not this repair: ckpt has Trainer / no later KPI-driver sheets; shared cells formula **61**, literal **802**; only-ckpt 679 (Trainer 668); only-cur 8690. This step added none versus last published BAV |
+| Fast Retailing BAV | Unchanged SHA-256 `4b308474…` (135552) |
+| `python -m bav build Lululemon` (twice) | Research + figures published; Forecast/Valuation/Overview remain 0 bytes; Drivers SHA unchanged `9923e74f…` |
+| Learner-ready + export-reload + management-KPI + Trainer + reference + Fast Retailing suites | Carried forward from Step 4.1.1 (unchanged analytical surfaces; workbook formulas/literals identical to last published BAV) |
+
+`SEGMENT_BRIDGE_TOLERANCE = 0.0`. Protected PDFs, extracts and authenticated baselines were not replaced. Workbook presentation was not changed; native Excel carry-forward remains applicable.
+
+## Session conditions (measured, not acceptance)
+
+1. STYLE.md sole standard — yes; SHA unchanged.  
+2. README architecture / module order / STYLE authority — yes; unchanged.  
+3–4. Four research files; Forecast/Valuation/Overview 0 bytes — yes.  
+5. Drivers structure and prose — yes; calendar Limit still names FY2025 / 2 February 2025.  
+6. Three Matplotlib figures, centralized style, reusable without cleanup — yes after this spacing repair; 4×/6× inspection found normal word separation and no tofu.  
+7. Five-minute understanding — yes, as read.  
+8. Workbook still traces calculations; numbers from same inputs — yes; analytical cells identical to pre-rebuild.  
+9. No analytical control weakened — formula/literal 0 vs last published BAV.  
+10. Focused rendering + calendar + build/protected checks passed; native evidence carried forward.  
+11. No buyer/M&A/Forecast/Valuation/Overview analysis in Drivers — yes.
+
+## Artifact hashes
+
+| Path | SHA-256 | Bytes |
+|---|---|---|
+| `build/lululemon/Lululemon_BAV.xlsx` | `2507ef35930fd4be42a69ac6bef059d97e58fa1ad4a28ee4b866086c4d237bc0` | 227420 |
+| `build/lululemon/research/Lululemon_Drivers.md` | `9923e74f58b034997dacac98b3def8dfaadc9b35a3cdee7e1ce2789db94cafe0` | 3853 |
+| `build/lululemon/research/Lululemon_Forecast.md` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | 0 |
+| `build/lululemon/research/Lululemon_Valuation.md` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | 0 |
+| `build/lululemon/research/Lululemon_Overview.md` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | 0 |
+| `build/lululemon/figures/drivers/growth.png` | `82bd14146ad776041fa868a0491cbf172f9321d3bbb34143591557a10db2c372` | 63775 |
+| `build/lululemon/figures/drivers/geography.png` | `a57ebcb7474b9ae14ec4263f3c9c003ab2d74c843f165adf5482c14bd4d81c6a` | 51721 |
+| `build/lululemon/figures/drivers/margin.png` | `4c2ad01b7564e684dddf6d119bbcd60e9b481b7b33e1052e1bdc2c26c33e63e6` | 61408 |
+| `build/fast_retailing/FastRetailing_BAV.xlsx` | `4b308474353a3303548f9daaa41ee9124fd7d56bddd189e25611e5e6d32b1eb8` | 135552 |
+| `STYLE.md` | `4360b24bb849370a0fa48f21aa7cc83b8bf6b35c2ad9bac7e10de2829a107fc6` | 1645 |
+| `.git/autocycle/excel-verification-fb95_r2m/saved-copy.xlsx` | `1d332daa8740fc53df6eaf90ecff5c7446f19502ad9510a7ab5ff56954aa1cae` | 260706 |
+
+## Native Excel carry-forward
+
+Formulas, literal inputs and transitive dependencies on analytical surfaces match the last published BAV by cell identity. The older saved snapshot still differs only on already-accepted Overview narrative (52 literals). Native recalculation and new screenshots were not required.
+
+Retained: `.git/autocycle/excel-verification-fb95_r2m/`, `excel-verification-7vjhjujd/`, `excel-verification-kd2d78ng/`, `excel-verification-ti974vnt/`, `excel-verification-kzg9a_ex/`, `revenue-driver-render-3-3-1/`, `overview-synthesis-3-4/`.
+
+## Remaining toward Completion
+
+This bounded work repairs centralized figure word spacing and regenerates the three Drivers PNGs. Publication and this repair are not Session acceptance. Review still judges professional figure presentation against all eleven conditions. Forecasting, valuation, Overview content, and earlier deferred normalization / source-workflow / normalized-per-share obligations remain open.
+
+---
+
 # RESULT.md — Step 4.1.1 Reconcile Drivers calendar limitation
 
 **Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
