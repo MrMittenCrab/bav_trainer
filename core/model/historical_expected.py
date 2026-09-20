@@ -24,6 +24,14 @@ from ..engine.component_catalog import (
     REVENUE_PER_STORE_COMPONENT_CATALOG,
     REVENUE_PER_STORE_GROWTH_FAMILY_ID,
     REVENUE_PER_STORE_PERIOD_END_FAMILY_ID,
+    REVENUE_DRIVER_COMPSALES_DIFFERENCE_FAMILY_ID,
+    REVENUE_DRIVER_COMPSALES_FAMILY_ID,
+    REVENUE_DRIVER_GEO_CONTRIBUTION_FAMILY_ID,
+    REVENUE_DRIVER_REVENUE_GROWTH_FAMILY_ID,
+    REVENUE_DRIVER_RPS_FAMILY_ID,
+    REVENUE_DRIVER_STORE_DIFFERENCE_FAMILY_ID,
+    REVENUE_DRIVER_STORE_GROWTH_FAMILY_ID,
+    REVENUE_DRIVER_COMPONENT_CATALOG,
     comparable_sales_identity_from_component,
     INVENTORY_ANALYSIS_COMPONENT_CATALOG,
     REPORTED_MARGIN_COMPONENT_CATALOG,
@@ -319,6 +327,16 @@ _OPERATING_KPI_FAMILY_SERIES = (
     REVENUE_PER_STORE_AVERAGE_FAMILY_ID,
     REVENUE_PER_STORE_CHANGE_FAMILY_ID,
     REVENUE_PER_STORE_GROWTH_FAMILY_ID,
+)
+
+_REVENUE_DRIVER_FAMILY_SERIES = (
+    REVENUE_DRIVER_STORE_GROWTH_FAMILY_ID,
+    REVENUE_DRIVER_REVENUE_GROWTH_FAMILY_ID,
+    REVENUE_DRIVER_STORE_DIFFERENCE_FAMILY_ID,
+    REVENUE_DRIVER_COMPSALES_FAMILY_ID,
+    REVENUE_DRIVER_COMPSALES_DIFFERENCE_FAMILY_ID,
+    REVENUE_DRIVER_RPS_FAMILY_ID,
+    REVENUE_DRIVER_GEO_CONTRIBUTION_FAMILY_ID,
 )
 
 _OWNERSHIP_ATTRIBUTION_FAMILY_SERIES = (
@@ -1391,6 +1409,80 @@ def goodwill_intangibles_expected_series(
     }
 
 
+def revenue_driver_expected_value_for_component(
+    component: ResolvedComponent,
+    *,
+    operating_kpi: OperatingKpiSeries | None = None,
+    operating_kpi_relationship: OperatingKpiRevenueStoreRelationship | None = None,
+    operating_kpi_compsales_relationship: (
+        OperatingKpiRevenueComparableSalesRelationship | None
+    ) = None,
+    revenue_per_store: RevenuePerStoreSeries | None = None,
+    geographic: GeographicSegmentSeries | None = None,
+) -> float | str | None:
+    """Look up one revenue-driver observation from admitted linked series."""
+    family_ids = {family.id for family in REVENUE_DRIVER_COMPONENT_CATALOG}
+    if component.family_id not in family_ids:
+        raise ValueError(
+            f"revenue_driver_expected_value_for_component unknown family "
+            f"{component.family_id!r}"
+        )
+    if not component.period_end:
+        raise ValueError(
+            f"revenue-driver component {component.id!r} is missing period_end"
+        )
+    period = date.fromisoformat(component.period_end)
+    family_id = component.family_id
+    if family_id == REVENUE_DRIVER_STORE_GROWTH_FAMILY_ID:
+        if operating_kpi is None:
+            raise ValueError("store-growth observation requires OperatingKpiSeries")
+        return operating_kpi.growth[period]
+    if family_id == REVENUE_DRIVER_REVENUE_GROWTH_FAMILY_ID:
+        if operating_kpi_relationship is None:
+            raise ValueError(
+                "revenue-growth observation requires "
+                "OperatingKpiRevenueStoreRelationship"
+            )
+        return operating_kpi_relationship.revenue_growth[period]
+    if family_id == REVENUE_DRIVER_STORE_DIFFERENCE_FAMILY_ID:
+        if operating_kpi_relationship is None:
+            raise ValueError(
+                "store-difference observation requires "
+                "OperatingKpiRevenueStoreRelationship"
+            )
+        return operating_kpi_relationship.growth_difference_pp[period]
+    if family_id == REVENUE_DRIVER_RPS_FAMILY_ID:
+        if revenue_per_store is None:
+            raise ValueError("Revenue per Store observation requires RevenuePerStoreSeries")
+        return revenue_per_store.period_end_revenue_per_store[period]
+    if family_id in {
+        REVENUE_DRIVER_COMPSALES_FAMILY_ID,
+        REVENUE_DRIVER_COMPSALES_DIFFERENCE_FAMILY_ID,
+    }:
+        if operating_kpi_compsales_relationship is None:
+            raise ValueError(
+                "comparable-sales observation requires "
+                "OperatingKpiRevenueComparableSalesRelationship"
+            )
+        identity = comparable_sales_identity_from_component(
+            component, operating_kpi_compsales_relationship.identities
+        )
+        series = operating_kpi_compsales_relationship.series[identity]
+        if family_id == REVENUE_DRIVER_COMPSALES_FAMILY_ID:
+            return series.comparable_sales_growth[period]
+        return series.growth_difference_pp[period]
+    if family_id == REVENUE_DRIVER_GEO_CONTRIBUTION_FAMILY_ID:
+        if geographic is None:
+            raise ValueError(
+                "geographic contribution observation requires GeographicSegmentSeries"
+            )
+        identity = comparable_sales_identity_from_component(
+            component, geographic.identities
+        )
+        return geographic.revenue_growth_contribution[period][identity]
+    raise ValueError(f"Unknown revenue-driver family {family_id!r}")
+
+
 def expected_value_for_component(
     anchor: AnchorMetrics,
     component: ResolvedComponent,
@@ -1548,6 +1640,15 @@ def expected_value_for_component(
                 f"Geographic family {family_id!r} requires a GeographicSegmentSeries"
             )
         return geographic_expected_value_for_component(geographic, component)
+    elif family_id in _REVENUE_DRIVER_FAMILY_SERIES:
+        return revenue_driver_expected_value_for_component(
+            component,
+            operating_kpi=operating_kpi,
+            operating_kpi_relationship=operating_kpi_relationship,
+            operating_kpi_compsales_relationship=operating_kpi_compsales_relationship,
+            revenue_per_store=revenue_per_store,
+            geographic=geographic,
+        )
     elif family_id in _OPERATING_KPI_FAMILY_SERIES:
         compsales_ids = {family.id for family in COMPARABLE_SALES_COMPONENT_CATALOG}
         relationship_ids = {family.id for family in REVENUE_STORE_COMPONENT_CATALOG}

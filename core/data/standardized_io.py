@@ -14,6 +14,11 @@ from .historical_operating_kpis import (
     require_management_observation_text_fields,
     validate_historical_operating_kpis,
 )
+from .historical_strategy import (
+    deserialize_historical_strategy,
+    serialize_historical_strategy,
+    validate_historical_strategy,
+)
 from .historical_segments import validate_historical_segment
 from .interface import (
     FinancialPeriod,
@@ -454,6 +459,7 @@ def standardized_to_payload(fin: StandardizedFinancials) -> dict:
     """Serialize model-relevant fields only (no source paths, provenance, or hints)."""
     validate_historical_segment(fin)
     validate_historical_operating_kpis(fin)
+    validate_historical_strategy(fin)
     payload = {
         "ticker": fin.ticker,
         "company_name": fin.company_name,
@@ -481,6 +487,9 @@ def standardized_to_payload(fin: StandardizedFinancials) -> dict:
     serialized_kpis = _serialize_historical_operating_kpis(fin.historical_operating_kpis)
     if serialized_kpis is not None:
         payload["historical_operating_kpis"] = serialized_kpis
+    serialized_strategy = serialize_historical_strategy(fin.historical_strategy)
+    if serialized_strategy is not None:
+        payload["historical_strategy"] = serialized_strategy
     return payload
 
 
@@ -647,7 +656,13 @@ def standardized_from_payload(payload: dict, *, strict: bool = False) -> Standar
             if "historical_operating_kpis" in payload
             else None
         ),
+        historical_strategy=deserialize_historical_strategy(
+            payload["historical_strategy"]
+            if "historical_strategy" in payload
+            else None
+        ),
     )
     validate_historical_segment(fin)
     validate_historical_operating_kpis(fin)
+    validate_historical_strategy(fin)
     return fin

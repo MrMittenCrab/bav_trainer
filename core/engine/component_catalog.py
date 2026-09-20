@@ -7955,3 +7955,264 @@ def expand_revenue_per_store_specs(
     return tuple(specs)
 
 
+REVENUE_DRIVER_SHEET_NAME = "Revenue Driver Analysis"
+REVENUE_DRIVER_PRACTICE_CATEGORY = "revenue_driver"
+REVENUE_DRIVER_STORE_GROWTH_FAMILY_ID = "revenue_driver_store_growth"
+REVENUE_DRIVER_REVENUE_GROWTH_FAMILY_ID = "revenue_driver_revenue_growth"
+REVENUE_DRIVER_STORE_DIFFERENCE_FAMILY_ID = "revenue_driver_store_difference"
+REVENUE_DRIVER_COMPSALES_FAMILY_ID = "revenue_driver_comparable_sales"
+REVENUE_DRIVER_COMPSALES_DIFFERENCE_FAMILY_ID = (
+    "revenue_driver_comparable_sales_difference"
+)
+REVENUE_DRIVER_RPS_FAMILY_ID = "revenue_driver_revenue_per_store"
+REVENUE_DRIVER_GEO_CONTRIBUTION_FAMILY_ID = (
+    "revenue_driver_geographic_contribution"
+)
+
+
+def revenue_driver_spec_identity(spec: object) -> str:
+    return operating_kpi_spec_identity(spec)
+
+
+def revenue_driver_component_id(
+    family_id: str, period: date, identity: str = ""
+) -> str:
+    if identity:
+        return comparable_sales_component_id(family_id, period, identity)
+    return store_count_component_id(family_id, period)
+
+
+def resolve_revenue_driver_link_formula(
+    source: SemanticCellRef,
+    *,
+    from_tab: str,
+) -> str:
+    """Link a revenue-driver observation to a mapped admitted schedule cell."""
+    return f"={semantic_formula_cell(source, from_tab=from_tab)}"
+
+
+def _require_revenue_driver_period_axis(periods: list[date], *, caller: str) -> None:
+    _require_store_count_period_axis(periods, caller=caller)
+
+
+def expand_revenue_driver_specs(
+    periods: list[date],
+    *,
+    start_order: int,
+    store_growth_periods: tuple[date, ...] = (),
+    revenue_growth_periods: tuple[date, ...] = (),
+    store_difference_periods: tuple[date, ...] = (),
+    rps_periods: tuple[date, ...] = (),
+    compsales_periods_by_identity: dict[str, tuple[date, ...]] | None = None,
+    compsales_difference_by_identity: dict[str, tuple[date, ...]] | None = None,
+    geo_periods_by_identity: dict[str, tuple[date, ...]] | None = None,
+) -> tuple[ComponentSpec, ...]:
+    """Expand revenue-driver observation families for supported periods."""
+    _require_revenue_driver_period_axis(periods, caller="expand_revenue_driver_specs")
+    families = {family.id: family for family in REVENUE_DRIVER_COMPONENT_CATALOG}
+    specs: list[ComponentSpec] = []
+    order = start_order
+    period_index = {period: index for index, period in enumerate(periods)}
+
+    def _append(family: ComponentFamily, period: date, identity: str = "") -> None:
+        nonlocal order
+        if period not in period_index:
+            raise ValueError(
+                "expand_revenue_driver_specs received periods outside the "
+                f"canonical axis: {[period]}"
+            )
+        period_end = period.isoformat()
+        token = comparable_sales_identity_token(identity) if identity else ""
+        semantic = (
+            f"{family.semantic_key}.{token}.{period_end}"
+            if identity
+            else f"{family.semantic_key}.{period_end}"
+        )
+        hints = family.hints + ((f"Management identity: {identity}.",) if identity else ())
+        specs.append(
+            ComponentSpec(
+                id=revenue_driver_component_id(family.id, period, identity),
+                family_id=family.id,
+                order=order,
+                family_order=family.order,
+                title=family.title,
+                short_hint=family.short_hint,
+                semantic_key=semantic,
+                category=family.category,
+                tab_template=family.tab_template,
+                period_index=period_index[period],
+                period_end=period_end,
+                depends_on=(),
+                hints=hints,
+                tolerance=family.tolerance,
+            )
+        )
+        order += 1
+
+    for period in periods:
+        if period in store_growth_periods:
+            _append(families[REVENUE_DRIVER_STORE_GROWTH_FAMILY_ID], period)
+        if period in revenue_growth_periods:
+            _append(families[REVENUE_DRIVER_REVENUE_GROWTH_FAMILY_ID], period)
+        if period in store_difference_periods:
+            _append(families[REVENUE_DRIVER_STORE_DIFFERENCE_FAMILY_ID], period)
+        if period in rps_periods:
+            _append(families[REVENUE_DRIVER_RPS_FAMILY_ID], period)
+    for identity, identity_periods in (compsales_periods_by_identity or {}).items():
+        for period in periods:
+            if period in identity_periods:
+                _append(
+                    families[REVENUE_DRIVER_COMPSALES_FAMILY_ID],
+                    period,
+                    identity,
+                )
+    for identity, identity_periods in (compsales_difference_by_identity or {}).items():
+        for period in periods:
+            if period in identity_periods:
+                _append(
+                    families[REVENUE_DRIVER_COMPSALES_DIFFERENCE_FAMILY_ID],
+                    period,
+                    identity,
+                )
+    for identity, identity_periods in (geo_periods_by_identity or {}).items():
+        for period in periods:
+            if period in identity_periods:
+                _append(
+                    families[REVENUE_DRIVER_GEO_CONTRIBUTION_FAMILY_ID],
+                    period,
+                    identity,
+                )
+    return tuple(specs)
+
+
+REVENUE_DRIVER_COMPONENT_CATALOG: tuple[ComponentFamily, ...] = (
+    ComponentFamily(
+        id=REVENUE_DRIVER_STORE_GROWTH_FAMILY_ID,
+        order=177,
+        title="Revenue-driver store-count growth",
+        short_hint=(
+            "Link company-operated store-count growth from Store Count Analysis. "
+            "The comparison with revenue growth is descriptive, not new-store "
+            "contribution or causal attribution."
+        ),
+        semantic_key="revenue_driver.store_count_growth",
+        category=REVENUE_DRIVER_PRACTICE_CATEGORY,
+        tab_template=REVENUE_DRIVER_SHEET_NAME,
+        period_scope="comparable",
+        hints=(
+            "Link the mapped store-count growth cell for the same period-end date.",
+            "This is not new-store contribution or causal evidence.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id=REVENUE_DRIVER_REVENUE_GROWTH_FAMILY_ID,
+        order=178,
+        title="Revenue-driver consolidated revenue growth",
+        short_hint=(
+            "Link statement-derived consolidated revenue growth from Store "
+            "Count Analysis. Fiscal-year labels stay distinct from period-end dates."
+        ),
+        semantic_key="revenue_driver.revenue_growth",
+        category=REVENUE_DRIVER_PRACTICE_CATEGORY,
+        tab_template=REVENUE_DRIVER_SHEET_NAME,
+        period_scope="comparable",
+        hints=(
+            "Link the mapped statement-derived revenue-growth cell.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id=REVENUE_DRIVER_STORE_DIFFERENCE_FAMILY_ID,
+        order=179,
+        title="Revenue-driver store-growth difference",
+        short_hint=(
+            "Link the descriptive percentage-point difference between revenue "
+            "growth and store-count growth. This is not new-store contribution, "
+            "organic growth, or causal attribution."
+        ),
+        semantic_key="revenue_driver.store_difference",
+        category=REVENUE_DRIVER_PRACTICE_CATEGORY,
+        tab_template=REVENUE_DRIVER_SHEET_NAME,
+        period_scope="comparable",
+        hints=(
+            "The difference compares distinct scopes and is not causal.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id=REVENUE_DRIVER_COMPSALES_FAMILY_ID,
+        order=180,
+        title="Revenue-driver comparable sales",
+        short_hint=(
+            "Link admitted global reported comparable-sales percentages. "
+            "Identities stay isolated. Historical comparable-sales comparison "
+            "remains ineligible."
+        ),
+        semantic_key="revenue_driver.comparable_sales",
+        category=REVENUE_DRIVER_PRACTICE_CATEGORY,
+        tab_template=REVENUE_DRIVER_SHEET_NAME,
+        period_scope="comparable",
+        hints=(
+            "Do not merge store-only and stores-plus-DTC identities.",
+            "Reported and constant-currency series remain distinct.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id=REVENUE_DRIVER_COMPSALES_DIFFERENCE_FAMILY_ID,
+        order=181,
+        title="Revenue-driver comparable-sales difference",
+        short_hint=(
+            "Link the descriptive difference between revenue growth and reported "
+            "comparable sales. This is not new-store contribution, organic "
+            "growth, or causal attribution."
+        ),
+        semantic_key="revenue_driver.comparable_sales_difference",
+        category=REVENUE_DRIVER_PRACTICE_CATEGORY,
+        tab_template=REVENUE_DRIVER_SHEET_NAME,
+        period_scope="comparable",
+        hints=(
+            "The difference is descriptive only.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id=REVENUE_DRIVER_RPS_FAMILY_ID,
+        order=182,
+        title="Revenue-driver Revenue per Store identity",
+        short_hint=(
+            "Link period-end Revenue per Store. Total-company revenue divided "
+            "by company-operated stores cannot independently demonstrate store "
+            "productivity."
+        ),
+        semantic_key="revenue_driver.revenue_per_store",
+        category=REVENUE_DRIVER_PRACTICE_CATEGORY,
+        tab_template=REVENUE_DRIVER_SHEET_NAME,
+        period_scope="all",
+        hints=(
+            "This is an accounting identity, not store-only productivity.",
+        ),
+        tolerance=1e-12,
+    ),
+    ComponentFamily(
+        id=REVENUE_DRIVER_GEO_CONTRIBUTION_FAMILY_ID,
+        order=183,
+        title="Revenue-driver geographic contribution",
+        short_hint=(
+            "Link admitted geographic revenue-growth contributions. They are an "
+            "arithmetic decomposition of reported geographic revenue changes, "
+            "not organic, constant-currency, or causal growth."
+        ),
+        semantic_key="revenue_driver.geographic_contribution",
+        category=REVENUE_DRIVER_PRACTICE_CATEGORY,
+        tab_template=REVENUE_DRIVER_SHEET_NAME,
+        period_scope="comparable",
+        hints=(
+            "Reported-currency contributions are not constant-currency results.",
+        ),
+        tolerance=1e-12,
+    ),
+)
+
+

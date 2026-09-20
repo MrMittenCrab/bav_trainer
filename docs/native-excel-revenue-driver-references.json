@@ -1,0 +1,230 @@
+{
+  "source_sha256": "7470a1aaba549ace96895b04ae53b130353785783a8c3c739259118ac3bd5162",
+  "sheets": [
+    "Revenue Driver Analysis"
+  ],
+  "cells": [
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "C22",
+      "value": 0.14111498257839722,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "C23",
+      "value": 0.29631045020016406,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "C24",
+      "value": 15.519546762176684,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "D22",
+      "value": 0.08549618320610687,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "D23",
+      "value": 0.18602510961691965,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "D24",
+      "value": 10.052892641081277,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "E22",
+      "value": 0.07876230661040788,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "E23",
+      "value": 0.10071940950245954,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "E24",
+      "value": 2.195710289205166,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "F22",
+      "value": 0.05736636245110821,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "F23",
+      "value": 0.04858971266492295,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "F24",
+      "value": -0.877664978618526,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "C40",
+      "value": 25.0,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "C41",
+      "value": 4.631045020016405,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "D44",
+      "value": 13.0,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "D45",
+      "value": 5.602510961691966,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "E44",
+      "value": 4.0,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "E45",
+      "value": 6.0719409502459545,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "F44",
+      "value": 2.0,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "F45",
+      "value": 2.8589712664922953,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "C76",
+      "value": 24.25508865254178,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "C78",
+      "value": 2.2734650370959257,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "C80",
+      "value": 3.1024913303787014,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "D76",
+      "value": 10.038729955349337,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "D78",
+      "value": 4.7747505153185035,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "D80",
+      "value": 3.7890304910241244,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "E76",
+      "value": 3.0824454808354638,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "E78",
+      "value": 4.13312724718009,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "E80",
+      "value": 2.8563682222304,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "F76",
+      "value": -0.766065685278018,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "F78",
+      "value": 3.716068358083385,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "F80",
+      "value": 1.908968593686928,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "B84",
+      "value": 10900.029616724738,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "C84",
+      "value": 12382.470229007633,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "D84",
+      "value": 13529.223628691983,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "E84",
+      "value": 13804.597131681878,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue Driver Analysis",
+      "cell": "F84",
+      "value": 13690.012330456228,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS; admitted Lululemon comparable-sales percentages and geographic net revenue in build/output/Lululemon/supporting/standardized.json. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    }
+  ]
+}

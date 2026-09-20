@@ -8,7 +8,8 @@
     "admit_periods": [
       "2022-01-30"
     ],
-    "supplemental_facts": "core/tests/fixtures/operating_kpis/lululemon_company_operated_stores.json"
+    "supplemental_facts": "core/tests/fixtures/operating_kpis/lululemon_company_operated_stores.json",
+    "strategy_disclosures": "core/tests/fixtures/strategy/lululemon_management_disclosures.json"
   },
   {
     "name": "FastRetailing",

@@ -29,7 +29,8 @@ OUTPUT_ROOT = ROOT / 'build/output'
 # These are project routing/admission settings, not analytical special cases.
 PROJECTS = tuple(
     (item['name'], item['slug'], tuple(item['aliases']),
-     tuple(item['admit_periods']), item['supplemental_facts'])
+     tuple(item['admit_periods']), item['supplemental_facts'],
+     item.get('strategy_disclosures'))
     for item in json.loads(Path(__file__).with_name('project_companies.json').read_text())
 )
 
@@ -41,6 +42,7 @@ class Company:
     aliases: tuple[str, ...]
     admit_periods: tuple[str, ...]
     supplemental_facts: str | None
+    strategy_disclosures: str | None
     benchmark: Path
     output: Path
 
@@ -65,8 +67,11 @@ def resolve_company(query: str) -> Company:
         label = 'Ambiguous' if matches else 'Unknown'
         candidates = ', '.join(p[0] for p in (matches or PROJECTS))
         raise ValueError(f'{label} company {query!r}; candidates: {candidates}')
-    name, slug, aliases, periods, facts = matches[0]
-    return Company(name, slug, aliases, periods, facts, ROOT / 'benchmark' / slug, OUTPUT_ROOT / name)
+    name, slug, aliases, periods, facts, strategy = matches[0]
+    return Company(
+        name, slug, aliases, periods, facts, strategy,
+        ROOT / 'benchmark' / slug, OUTPUT_ROOT / name,
+    )
 
 
 def current_workbook(query: str, *, answer: bool = False) -> Path:
@@ -118,6 +123,9 @@ def prepare_company_input(company: Company, staged: Path):
         raise ValueError('Source validation failed: ' + '; '.join(errors))
     reconciled = reconcile_filings(validated, admit_periods=tuple(date.fromisoformat(p) for p in company.admit_periods) or None)
     fin = standardize_reconciled(reconciled)
+    if company.strategy_disclosures:
+        from .data.historical_strategy import load_strategy_disclosures
+        fin.historical_strategy = load_strategy_disclosures(ROOT / company.strategy_disclosures)
     _write_json(supporting / 'standardized.json', standardized_to_payload(fin))
     _write_json(supporting / 'provenance.json', reconciliation_provenance_payload(reconciled))
     _write_json(supporting / 'conflicts.json', reconciliation_conflicts_payload(reconciled))

@@ -1,3 +1,105 @@
+# RESULT.md — Step 3.3 Test disclosure-led historical revenue drivers
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 3.3 — Test disclosure-led historical revenue drivers  
+**Work:** `8a8f7457f9524a6997e0ec2fbbe5ac23`  
+**Plan:** `c725d560c2fb486191e16749804fd7ce`  
+**Finding:** Test disclosure-led historical revenue drivers  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `28089b961e72b3058d043efb9008e42c7b144d15cc3e3e2837174acb2f5eaf70` (26043).  
+SESSION SHA-256 `b37e5b0348b8d6f2210a51f8307511842fcc862ede5059c7ca76687bb4bad4aa` (4944).  
+IMPLEMENTATION SHA-256 `0928f4128b1fb67324e0f2094a30ee7522c9d865049a5661b63b71c992ee3c0b` (6828).  
+No commit / push / sync / checkpoint / branch change.
+
+## Required plan change
+
+No required plan change. Ordinary Lululemon BAV now presents four source-linked revenue-driver hypothesis tests on admitted history. Broader strategy synthesis, forecasting and Session Endpoint closure remain subsequent work. Deferred SPSF comparison, historical comparable-sales comparison ineligibility, and earlier normalization/per-share obligations are unchanged.
+
+## Ordinary publication
+
+`python -m bav build Lululemon` emits **Revenue Driver Analysis** as Active. Fast Retailing has no strategy payload; the sheet is absent and Build Status reports **Source unavailable / not admitted**.
+
+Disclosures live in `core/tests/fixtures/strategy/lululemon_management_disclosures.json` (10 source-bound statements) and attach only in ordinary `prepare_company_input`. Protected `benchmark/lululemon/reconciled/standardized.json` has no `historical_strategy`; `LEASE_DT_LULULEMON_SPECS = 486` is unchanged.
+
+## Tested hypotheses (admitted Lululemon history)
+
+Independent anchors: `REVENUE_ANCHORS` and `INDEPENDENT_STORE_TOTALS`; admitted global reported comparable-sales percentages and geographic net revenue from `supporting/standardized.json`. Sample n and period-ends are actual filing dates, not fiscal-year labels.
+
+| Theme | Locators | Periods tested | Verdict | Measured result |
+|---|---|---|---|---|
+| Store expansion | FY2022 10-K p.32 strategy; FY2024 10-K p.3 strategy + objective | 4: 2023-01-29 … 2026-02-01 | **supported descriptively** | Store counts 574→655→711→767→811 and revenue 6,256,617→8,110,518→9,619,278→10,588,126→11,102,600 both rose in every adjacent window. FY2026 store growth 5.74% exceeded revenue growth 4.86% (descriptive difference −0.88 pp); period-end Revenue per Store declined 13,804.60→13,690.01. Objective text is not treated as an achieved outcome. |
+| Comparable sales | FY2022 10-K p.31–32 operating use; FY2024 10-K p.33 operating use | 4 identity-periods across the same four dates | **supported descriptively** | Global reported compsales +25% (stores+DTC, 2023-01-29), +13% / +4% / +2% (stores+ecommerce, 2024-01-28 … 2026-02-01) were positive while statement-derived revenue grew. FY2022 store-only vs later stores+DTC/ecommerce identities are not merged. Historical compsales-to-compsales comparison remains ineligible. Differences are descriptive, not organic/new-store attribution. |
+| Productivity | FY2022 10-K p.3 and FY2024 10-K p.34 SPSF operating use | 0 | **insufficiently evidenced** | Failed requirement: immediately adjacent semantically compatible reported SPSF observations. Additional evidence: equivalent definition, population, calendar and comparison-window. Three SPSF levels remain admitted (1,609 / 1,574 / 1,426) without adjacent growth. RPS is labeled an identity, not store-only productivity. |
+| Geographic growth | FY2022 10-K p.24 Power of Three ×2; FY2024 10-K p.3 China Mainland | 4; 3 identities | **mixed** | Reported-currency contributions. Americas 2026-02-01 contribution −0.766 pp while China Mainland and Rest of World were positive and consolidated revenue still grew. Not organic, constant-currency, or causal. |
+
+Revenue-growth-minus-store-growth and revenue-growth-minus-compsales are descriptive percentage-point differences only. Total-company revenue / company-operated stores cannot independently demonstrate productivity or expansion’s causal contribution.
+
+## Workbook presentation
+
+Professional BAV sheet `Revenue Driver Analysis`: management statements with source file / page / section / period-end, analyst hypotheses, mechanisms, findings, verdicts, sample sizes, limitations, failed requirements, identity notes, linked observation formulas (37), and Notes. No yellow cells; no Trainer/exercise/practice framing.
+
+Mapped driver cells: store growth 4, revenue growth 4, store difference 4, compsales 4, compsales difference 4, geographic contribution 12, Revenue per Store identity 5. **Total 37.**
+
+Preserved KPI coverage: **24** Comparable Sales source facts, **3** SPSF levels, **5** Revenue per Store period-end cells (**17** RPS mapped cells). Store-count sources remain 5.
+
+## Trainer / Check
+
+Optional `derive_trainer_workbook`: primary BAV bytes unchanged. 37 driver practice cells blank-yellow, no comments. Workbook-wide Check: **blank 824 / correct 0 / incorrect 0 / total 824** (non-disclosing).
+
+## Native Excel
+
+New/changed driver formulas were recalculated with the installed helper. Status **VERIFIED**.
+
+```
+python3 ~/.autocycle/excel_verification.py build/output/Lululemon/Lululemon_BAV.xlsx -- python3 scripts/verify_cached_workbook.py '{workbook}' --original build/output/Lululemon/Lululemon_BAV.xlsx --references docs/native-excel-revenue-driver-references.json
+```
+
+| Item | Value |
+|---|---|
+| Status | VERIFIED |
+| Independent references | 37 |
+| Checked cells (incl. transitive deps) | 103 |
+| Formulas preserved | true |
+| Evidence | `.git/autocycle/excel-verification-kd2d78ng/` |
+| Snapshot | `.git/autocycle/excel-verification-kd2d78ng/saved-copy.xlsx` |
+| Copy SHA-256 | `5cd5bf14328ff378b4f07bb0d1f26fb866c3a754d343c6167cb952c2ce5b8c74` |
+| References SHA-256 | `cb64ba83ae9b4057fbbb00fb1328935f0e0d3e4878c8c1b56c0292a96a6cd241` |
+
+Carried forward unchanged RPS/store-count cached-value evidence: `.git/autocycle/excel-verification-ti974vnt/` and `.git/autocycle/excel-verification-kzg9a_ex/` (corresponding formulas, literal inputs and transitive dependencies on those schedules were not rewritten).
+
+## Verification commands
+
+| Command | Result |
+|---|---|
+| `python -m pytest core/tests/test_revenue_driver.py` | **11 passed** |
+| `python -m pytest` current_build, RPS, build_contract, build_cli, catalog wording, `test_protected_artifacts_and_eight_extracts_unchanged` | **87 passed** including **50/50** protected artifacts and **8/8** extracts |
+| `python -m pytest` operating_kpi_workbook, lululemon_benchmark, fast_retailing_benchmark, operating_kpi_relationships/facts, geographic committed identities | **498 passed** |
+| `python -m bav build Lululemon` | exit 0; Revenue Driver Analysis Active |
+| `python -m bav build FastRetailing` | exit 0; no Revenue Driver sheet; status unavailable |
+| Trainer Check | 824 blank, 0 correct, 0 incorrect |
+| Native Excel helper | **VERIFIED** |
+
+`SEGMENT_BRIDGE_TOLERANCE = 0.0`. Protected PDFs, extracts and authenticated baselines were not replaced.
+
+## Artifact hashes
+
+| Path | SHA-256 | Bytes |
+|---|---|---|
+| `build/output/Lululemon/Lululemon_BAV.xlsx` | `7470a1aaba549ace96895b04ae53b130353785783a8c3c739259118ac3bd5162` | 223349 |
+| `build/output/Lululemon/Lululemon_BAV.component_map.json` | `847ab414c3b1c5a1e4141a6bffee8cb1f071ac6d9d67df5a90a51b41fd74fe62` | 1202071 |
+| `build/output/Lululemon/supporting/standardized.json` | `e283d2ebf9bc63a7678a58bd7f25c8a0577776886b327086718a4872ce94cf8a` | 68218 |
+| `core/tests/fixtures/strategy/lululemon_management_disclosures.json` | `8da4536a21d6874ddedfaea06cb4e3b948f11b23a33d8f55b1f24c850157d845` | 4255 |
+| `docs/native-excel-revenue-driver-references.json` | `cb64ba83ae9b4057fbbb00fb1328935f0e0d3e4878c8c1b56c0292a96a6cd241` | 19150 |
+| `build/output/Lululemon/Lululemon_BAV_Trainer.xlsx` (derived) | `0b91cc3c398410a17fb80422b18c12074de0ceb84469af31e6dbc504d6efc7c8` | 63139 |
+| `build/output/FastRetailing/FastRetailing_BAV.xlsx` | `0503bbf580fa4c55ca71ace4adcdd2a909eb540ba82a665e5e7482fba94cff1c` | 135090 |
+
+## Remaining toward Completion
+
+Ordinary BAV now shows source-linked tests, measured findings, identities and evidence limits. This attempt does not close broader strategy interpretation, Session Endpoint, deferred SPSF adjacency, historical comparable-sales comparison windows, or earlier normalization / normalized-per-share obligations.
+
+---
+
 # RESULT.md — Step 3.2.8 Require affirmative agreement for repeated management disclosures
 
 **Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  

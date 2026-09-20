@@ -59,6 +59,15 @@ from ..model.operating_kpi_relationships import (
     operating_kpi_revenue_comparable_sales_relationship_applicable,
     operating_kpi_revenue_sales_per_square_foot_relationship_applicable,
 )
+from ..model.revenue_driver import (
+    SCOPE_NOTE as REVENUE_DRIVER_SCOPE_NOTE,
+    THEME_COMPARABLE_SALES,
+    THEME_GEOGRAPHIC_GROWTH,
+    THEME_PRODUCTIVITY,
+    THEME_STORE_EXPANSION,
+    compute_revenue_driver_analysis,
+    revenue_driver_applicable,
+)
 from ..model.revenue_per_store import (
     SCOPE_NOTE as REVENUE_PER_STORE_SCOPE_NOTE,
     compute_revenue_per_store_series,
@@ -199,6 +208,7 @@ from .component_catalog import (
     expand_sales_per_square_foot_specs,
     expand_sales_per_square_foot_difference_specs,
     expand_revenue_per_store_specs,
+    expand_revenue_driver_specs,
     expand_capex_specs,
     geographic_component_id,
     geographic_identity_label,
@@ -245,6 +255,16 @@ from .component_catalog import (
     REVENUE_PER_STORE_GROWTH_FAMILY_ID,
     REVENUE_PER_STORE_PERIOD_END_FAMILY_ID,
     REVENUE_PER_STORE_SHEET_NAME,
+    REVENUE_DRIVER_SHEET_NAME,
+    REVENUE_DRIVER_STORE_GROWTH_FAMILY_ID,
+    REVENUE_DRIVER_REVENUE_GROWTH_FAMILY_ID,
+    REVENUE_DRIVER_STORE_DIFFERENCE_FAMILY_ID,
+    REVENUE_DRIVER_COMPSALES_FAMILY_ID,
+    REVENUE_DRIVER_COMPSALES_DIFFERENCE_FAMILY_ID,
+    REVENUE_DRIVER_RPS_FAMILY_ID,
+    REVENUE_DRIVER_GEO_CONTRIBUTION_FAMILY_ID,
+    revenue_driver_component_id,
+    resolve_revenue_driver_link_formula,
     StoreCountSourceRef,
     SemanticCellRef,
     comparable_sales_identity_label,
@@ -328,6 +348,7 @@ STORE_COUNT_SHEET = STORE_COUNT_SHEET_NAME
 COMPARABLE_SALES_SHEET = COMPARABLE_SALES_SHEET_NAME
 SALES_PER_SQUARE_FOOT_SHEET = SALES_PER_SQUARE_FOOT_SHEET_NAME
 REVENUE_PER_STORE_SHEET = REVENUE_PER_STORE_SHEET_NAME
+REVENUE_DRIVER_SHEET = REVENUE_DRIVER_SHEET_NAME
 SALES_PER_SQUARE_FOOT_SCOPE_NOTE = (
     "Adjacent change and growth are analyst-derived calculations, not causal "
     "evidence, and are distinct from comparable-sales percentage-point change."
@@ -487,6 +508,59 @@ def _revenue_per_store_expand_inputs(
         tuple(change_periods),
         tuple(growth_periods),
     )
+
+
+def _numeric_driver_value(value) -> bool:
+    return value is not None and not is_source_unavailable(value) and not isinstance(value, str)
+
+
+def _revenue_driver_expand_inputs(analysis):
+    store_growth = []
+    revenue_growth = []
+    store_difference = []
+    rps_periods = []
+    compsales = {}
+    compsales_difference = {}
+    geo = {}
+    for test in analysis.tests:
+        for observation in test.observations:
+            period = observation.period
+            inputs = observation.inputs
+            if test.theme == THEME_STORE_EXPANSION:
+                if _numeric_driver_value(inputs.get("store_count_growth")):
+                    store_growth.append(period)
+                if _numeric_driver_value(inputs.get("revenue_growth")):
+                    revenue_growth.append(period)
+                if _numeric_driver_value(inputs.get("growth_difference_pp")):
+                    store_difference.append(period)
+                if _numeric_driver_value(inputs.get("period_end_revenue_per_store_change")):
+                    rps_periods.append(period)
+            elif test.theme == THEME_COMPARABLE_SALES:
+                identity = str(inputs.get("identity") or "")
+                if identity and _numeric_driver_value(inputs.get("comparable_sales_percent")):
+                    compsales.setdefault(identity, []).append(period)
+                if identity and _numeric_driver_value(inputs.get("growth_difference_pp")):
+                    compsales_difference.setdefault(identity, []).append(period)
+            elif test.theme == THEME_PRODUCTIVITY:
+                if _numeric_driver_value(inputs.get("period_end_revenue_per_store_change")):
+                    rps_periods.append(period)
+            elif test.theme == THEME_GEOGRAPHIC_GROWTH:
+                for key, value in inputs.items():
+                    if key == "consolidated_revenue_growth":
+                        continue
+                    if _numeric_driver_value(value):
+                        geo.setdefault(str(key), []).append(period)
+    # Period-end RPS levels are useful even when change is missing (opening).
+    return (
+        tuple(dict.fromkeys(store_growth)),
+        tuple(dict.fromkeys(revenue_growth)),
+        tuple(dict.fromkeys(store_difference)),
+        tuple(dict.fromkeys(rps_periods)),
+        {key: tuple(dict.fromkeys(values)) for key, values in compsales.items()},
+        {key: tuple(dict.fromkeys(values)) for key, values in compsales_difference.items()},
+        {key: tuple(dict.fromkeys(values)) for key, values in geo.items()},
+    )
+
 
 
 def _shared_revenue_expand_inputs(
@@ -1364,6 +1438,44 @@ class ReferenceModelBuilder:
         self.operating_kpi_specs = tuple(specs)
         return self.operating_kpi_specs
 
+    def _prepare_revenue_driver(self, start_order: int):
+        self.revenue_driver_analysis = None
+        self.revenue_driver_schedule = False
+        if not revenue_driver_applicable(self.fin):
+            self.revenue_driver_specs = ()
+            return self.revenue_driver_specs
+        analysis = compute_revenue_driver_analysis(self.fin, self.periods)
+        self.revenue_driver_analysis = analysis
+        (
+            store_growth_periods,
+            revenue_growth_periods,
+            store_difference_periods,
+            rps_from_tests,
+            compsales_periods,
+            compsales_difference,
+            geo_periods,
+        ) = _revenue_driver_expand_inputs(analysis)
+        rps_periods = list(rps_from_tests)
+        if self.revenue_per_store_series is not None:
+            for period in self.revenue_per_store_series.periods:
+                value = self.revenue_per_store_series.period_end_revenue_per_store[period]
+                if _numeric_driver_value(value):
+                    rps_periods.append(period)
+        specs = expand_revenue_driver_specs(
+            self.periods,
+            start_order=start_order,
+            store_growth_periods=store_growth_periods,
+            revenue_growth_periods=revenue_growth_periods,
+            store_difference_periods=store_difference_periods,
+            rps_periods=tuple(dict.fromkeys(rps_periods)),
+            compsales_periods_by_identity=compsales_periods,
+            compsales_difference_by_identity=compsales_difference,
+            geo_periods_by_identity=geo_periods,
+        )
+        self.revenue_driver_specs = specs
+        self.revenue_driver_schedule = True
+        return self.revenue_driver_specs
+
     def _default_assumptions(self) -> dict[str, Any]:
         anchor_rev = 1000.0
         if self.fin.income_statement and self.periods:
@@ -2097,6 +2209,23 @@ class ReferenceModelBuilder:
         identity: str = "",
     ) -> None:
         spec = self._operating_kpi_spec_index[(family_id, period_index, identity)]
+        self.semantic_map.register(
+            spec, tab, row, col, formula, expected, related_cells=related
+        )
+
+    def _register_revenue_driver(
+        self,
+        family_id: str,
+        period_index: int,
+        tab: str,
+        row: int,
+        col: int,
+        formula: str,
+        expected: float | str,
+        related: list[str] | None = None,
+        identity: str = "",
+    ) -> None:
+        spec = self._revenue_driver_spec_index[(family_id, period_index, identity)]
         self.semantic_map.register(
             spec, tab, row, col, formula, expected, related_cells=related
         )
@@ -10545,6 +10674,436 @@ class ReferenceModelBuilder:
                     formula,
                     growth,
                 )
+
+    def _build_revenue_driver(self, wb: Workbook) -> None:
+        analysis = self.revenue_driver_analysis
+        if analysis is None:
+            raise RuntimeError(
+                "revenue_driver_analysis required when building "
+                "Revenue Driver Analysis"
+            )
+        if analysis.scope_note != REVENUE_DRIVER_SCOPE_NOTE:
+            raise RuntimeError("revenue-driver scope note drifted")
+        ws = wb.create_sheet(REVENUE_DRIVER_SHEET)
+        ws["A1"] = f"{self.fin.company_name} — Revenue Driver Analysis"
+        ws["A1"].font = BOLD
+        ws["A2"] = (
+            "Disclosure-led historical revenue-driver tests. Management "
+            "statements are source facts, not achieved outcomes. Analyst "
+            "hypotheses are tested separately from accounting identities."
+        )
+        ws["A3"] = (
+            "Tests reuse admitted store-count, comparable-sales, Revenue per "
+            "Store, and geographic schedules. Missing or incompatible inputs "
+            "suppress only dependent claims."
+        )
+        ws["A4"] = (
+            "Fiscal-year labels stay distinct from actual period-end dates. "
+            "Reported and constant-currency metrics, and geographic and "
+            "channel populations, remain distinct. Sample sizes sit beside findings."
+        )
+        ws["A5"] = analysis.scope_note
+        ws.column_dimensions["A"].width = 72
+
+        header_row = 7
+        ws.cell(row=header_row, column=1, value="Metric").font = BOLD
+        for j, pd in enumerate(self.periods):
+            cell = ws.cell(row=header_row, column=2 + j, value=pd)
+            cell.number_format = "mmm dd, yyyy"
+            cell.font = BOLD
+            ws.column_dimensions[self._col(2 + j)].width = 16
+
+        def _section(row: int, title: str) -> None:
+            ws.cell(row=row, column=1, value=title).font = BOLD
+
+        def _label(row: int, text: str) -> None:
+            ws.cell(row=row, column=1, value=text)
+            ws.cell(row=row, column=1).alignment = Alignment(
+                wrap_text=True, vertical="top"
+            )
+
+        def _mapped_ref(component_id: str) -> SemanticCellRef:
+            mapped = self.semantic_map.get(component_id)
+            return SemanticCellRef(
+                id=mapped.id,
+                semantic_key=mapped.semantic_key,
+                period_end=mapped.period_end,
+                cell=mapped.cell,
+                tab=mapped.tab,
+            )
+
+        def _put_link(
+            family_id: str,
+            period_index: int,
+            row: int,
+            col_idx: int,
+            source_id: str,
+            expected,
+            *,
+            identity: str = "",
+            pct: bool = False,
+            points: bool = False,
+            compsales_pct: bool = False,
+        ) -> None:
+            formula = resolve_revenue_driver_link_formula(
+                _mapped_ref(source_id),
+                from_tab=REVENUE_DRIVER_SHEET,
+            )
+            cell = ws.cell(row=row, column=col_idx, value=formula)
+            if pct:
+                cell.number_format = PCT_FMT
+            elif points:
+                cell.number_format = "0.00"
+            elif compsales_pct:
+                cell.number_format = COMPARABLE_SALES_PCT_FORMAT
+            else:
+                cell.number_format = NUM_FMT
+            assert expected is not None
+            token = comparable_sales_identity_token(identity) if identity else ""
+            self._register_revenue_driver(
+                family_id,
+                period_index,
+                REVENUE_DRIVER_SHEET,
+                row,
+                col_idx,
+                formula,
+                expected if isinstance(expected, str) else float(expected),
+                identity=token,
+            )
+
+        index = {spec.id: spec for spec in self.revenue_driver_specs}
+        cursor = 9
+        for test in analysis.tests:
+            _section(cursor, f"HYPOTHESIS — {test.theme.replace('_', ' ').upper()}")
+            cursor += 1
+            _label(cursor, "Analyst hypothesis")
+            ws.cell(row=cursor, column=2, value=test.hypothesis)
+            ws.merge_cells(
+                start_row=cursor, start_column=2,
+                end_row=cursor, end_column=1 + max(len(self.periods), 1),
+            )
+            cursor += 1
+            _label(cursor, "Economic mechanism")
+            ws.cell(row=cursor, column=2, value=test.mechanism)
+            ws.merge_cells(
+                start_row=cursor, start_column=2,
+                end_row=cursor, end_column=1 + max(len(self.periods), 1),
+            )
+            cursor += 1
+            for disclosure in test.disclosures:
+                role = disclosure.role.replace("_", " ")
+                _label(cursor, f"Management statement ({role})")
+                ws.cell(
+                    row=cursor,
+                    column=2,
+                    value=(
+                        f"{disclosure.text} "
+                        f"[{disclosure.source_file}; {disclosure.page_reference}; "
+                        f"{disclosure.section}; period-end {disclosure.period.isoformat()}]"
+                    ),
+                )
+                ws.merge_cells(
+                    start_row=cursor, start_column=2,
+                    end_row=cursor, end_column=1 + max(len(self.periods), 1),
+                )
+                cursor += 1
+            _label(cursor, "Finding")
+            ws.cell(row=cursor, column=2, value=test.finding)
+            ws.merge_cells(
+                start_row=cursor, start_column=2,
+                end_row=cursor, end_column=1 + max(len(self.periods), 1),
+            )
+            cursor += 1
+            _label(cursor, "Verdict")
+            ws.cell(row=cursor, column=2, value=test.verdict.replace("_", " "))
+            cursor += 1
+            _label(cursor, "Sample size / tested period-ends")
+            tested = (
+                ", ".join(period.isoformat() for period in test.periods_tested)
+                if test.periods_tested
+                else "none"
+            )
+            ws.cell(
+                row=cursor,
+                column=2,
+                value=f"{test.sample_size}; {tested}",
+            )
+            cursor += 1
+            _label(cursor, "Limitations")
+            ws.cell(row=cursor, column=2, value=" ".join(test.limitations))
+            ws.merge_cells(
+                start_row=cursor, start_column=2,
+                end_row=cursor, end_column=1 + max(len(self.periods), 1),
+            )
+            cursor += 1
+            if test.failed_requirement:
+                _label(cursor, "Failed requirement")
+                ws.cell(row=cursor, column=2, value=test.failed_requirement)
+                cursor += 1
+            if test.additional_evidence:
+                _label(cursor, "Additional evidence needed")
+                ws.cell(row=cursor, column=2, value=test.additional_evidence)
+                cursor += 1
+            for note in test.identity_notes:
+                _label(cursor, "Identity note")
+                ws.cell(row=cursor, column=2, value=note)
+                ws.merge_cells(
+                    start_row=cursor, start_column=2,
+                    end_row=cursor, end_column=1 + max(len(self.periods), 1),
+                )
+                cursor += 1
+
+            observation_rows: dict[str, int] = {}
+            if test.theme == THEME_STORE_EXPANSION:
+                cursor += 1
+                _section(cursor, "ALIGNED STORE-EXPANSION OBSERVATIONS")
+                cursor += 1
+                observation_rows["store_growth"] = cursor
+                _label(cursor, "Company-operated store-count growth")
+                cursor += 1
+                observation_rows["revenue_growth"] = cursor
+                _label(cursor, "Consolidated revenue growth (statement-derived)")
+                cursor += 1
+                observation_rows["difference"] = cursor
+                _label(
+                    cursor,
+                    "Revenue-versus-store-count growth difference (pp, descriptive)",
+                )
+                cursor += 2
+                for j, period in enumerate(self.periods):
+                    col_idx = 2 + j
+                    spec_id = revenue_driver_component_id(
+                        REVENUE_DRIVER_STORE_GROWTH_FAMILY_ID, period
+                    )
+                    if spec_id in index:
+                        source = store_count_component_id("store_count_growth", period)
+                        _put_link(
+                            REVENUE_DRIVER_STORE_GROWTH_FAMILY_ID,
+                            j,
+                            observation_rows["store_growth"],
+                            col_idx,
+                            source,
+                            self.operating_kpi_series.growth[period],
+                            pct=True,
+                        )
+                    spec_id = revenue_driver_component_id(
+                        REVENUE_DRIVER_REVENUE_GROWTH_FAMILY_ID, period
+                    )
+                    if spec_id in index:
+                        source = revenue_store_component_id(
+                            REVENUE_STORE_GROWTH_FAMILY_ID, period
+                        )
+                        _put_link(
+                            REVENUE_DRIVER_REVENUE_GROWTH_FAMILY_ID,
+                            j,
+                            observation_rows["revenue_growth"],
+                            col_idx,
+                            source,
+                            self.operating_kpi_relationship.revenue_growth[period],
+                            pct=True,
+                        )
+                    spec_id = revenue_driver_component_id(
+                        REVENUE_DRIVER_STORE_DIFFERENCE_FAMILY_ID, period
+                    )
+                    if spec_id in index:
+                        source = revenue_store_component_id(
+                            REVENUE_STORE_DIFFERENCE_FAMILY_ID, period
+                        )
+                        _put_link(
+                            REVENUE_DRIVER_STORE_DIFFERENCE_FAMILY_ID,
+                            j,
+                            observation_rows["difference"],
+                            col_idx,
+                            source,
+                            self.operating_kpi_relationship.growth_difference_pp[period],
+                            points=True,
+                        )
+            elif test.theme == THEME_COMPARABLE_SALES:
+                cursor += 1
+                _section(cursor, "ALIGNED COMPARABLE-SALES OBSERVATIONS")
+                relationship = self.operating_kpi_compsales_relationship
+                if relationship is not None:
+                    for identity in relationship.identities:
+                        cursor += 1
+                        series = relationship.series[identity]
+                        label = comparable_sales_identity_label(
+                            entity_ticker=series.entity_ticker,
+                            entity_company=series.entity_company,
+                            geography=series.geography,
+                            population=series.population,
+                            unit=series.unit,
+                            basis=series.basis,
+                            comparison=series.comparison,
+                        )
+                        source_row = cursor
+                        _label(cursor, f"Reported comparable sales ({label})")
+                        cursor += 1
+                        difference_row = cursor
+                        _label(
+                            cursor,
+                            f"Revenue-versus-comparable-sales difference, pp ({label})",
+                        )
+                        for j, period in enumerate(self.periods):
+                            col_idx = 2 + j
+                            spec_id = revenue_driver_component_id(
+                                REVENUE_DRIVER_COMPSALES_FAMILY_ID, period, identity
+                            )
+                            if spec_id in index:
+                                _put_link(
+                                    REVENUE_DRIVER_COMPSALES_FAMILY_ID,
+                                    j,
+                                    source_row,
+                                    col_idx,
+                                    comparable_sales_source_component_id(
+                                        period, identity
+                                    ),
+                                    relationship.series[identity].comparable_sales_growth[
+                                        period
+                                    ],
+                                    identity=identity,
+                                    compsales_pct=True,
+                                )
+                            spec_id = revenue_driver_component_id(
+                                REVENUE_DRIVER_COMPSALES_DIFFERENCE_FAMILY_ID,
+                                period,
+                                identity,
+                            )
+                            if spec_id in index:
+                                _put_link(
+                                    REVENUE_DRIVER_COMPSALES_DIFFERENCE_FAMILY_ID,
+                                    j,
+                                    difference_row,
+                                    col_idx,
+                                    comparable_sales_component_id(
+                                        COMPARABLE_SALES_DIFFERENCE_FAMILY_ID,
+                                        period,
+                                        identity,
+                                    ),
+                                    relationship.series[identity].growth_difference_pp[
+                                        period
+                                    ],
+                                    identity=identity,
+                                    points=True,
+                                )
+                        cursor += 2
+            elif test.theme == THEME_PRODUCTIVITY:
+                cursor += 1
+                _section(cursor, "PRODUCTIVITY DIAGNOSTICS")
+                cursor += 1
+                _label(cursor, "Sales-per-square-foot growth")
+                ws.cell(
+                    row=cursor,
+                    column=2,
+                    value=(
+                        "Adjacent SPSF growth remains unavailable unless immediately "
+                        "adjacent semantically compatible reported observations exist. "
+                        "Revenue per Store is an identity diagnostic, not store-only "
+                        "productivity."
+                    ),
+                )
+                ws.merge_cells(
+                    start_row=cursor, start_column=2,
+                    end_row=cursor, end_column=1 + max(len(self.periods), 1),
+                )
+                cursor += 2
+            elif test.theme == THEME_GEOGRAPHIC_GROWTH:
+                cursor += 1
+                _section(cursor, "ALIGNED GEOGRAPHIC CONTRIBUTION OBSERVATIONS")
+                series = self.geographic_series
+                if series is not None:
+                    for identity in series.identities:
+                        cursor += 1
+                        contrib_row = cursor
+                        _label(
+                            cursor,
+                            f"{geographic_identity_label(identity)} revenue-growth "
+                            "contribution (pp, reported)",
+                        )
+                        for j, period in enumerate(self.periods):
+                            col_idx = 2 + j
+                            spec_id = revenue_driver_component_id(
+                                REVENUE_DRIVER_GEO_CONTRIBUTION_FAMILY_ID,
+                                period,
+                                identity,
+                            )
+                            if spec_id in index:
+                                _put_link(
+                                    REVENUE_DRIVER_GEO_CONTRIBUTION_FAMILY_ID,
+                                    j,
+                                    contrib_row,
+                                    col_idx,
+                                    geographic_component_id(
+                                        "geographic_revenue_growth_contribution",
+                                        period,
+                                        identity,
+                                    ),
+                                    series.revenue_growth_contribution[period][identity],
+                                    identity=identity,
+                                    points=True,
+                                )
+                        cursor += 1
+                    cursor += 1
+            cursor += 1
+
+        rps_specs_exist = any(
+            spec.family_id == REVENUE_DRIVER_RPS_FAMILY_ID
+            for spec in self.revenue_driver_specs
+        )
+        if rps_specs_exist and self.revenue_per_store_series is not None:
+            _section(cursor, "IDENTITY DIAGNOSTIC — REVENUE PER STORE")
+            cursor += 1
+            rps_row = cursor
+            _label(
+                cursor,
+                "Period-end Revenue per Store (identity, not store productivity)",
+            )
+            cursor += 2
+            for j, period in enumerate(self.periods):
+                col_idx = 2 + j
+                spec_id = revenue_driver_component_id(
+                    REVENUE_DRIVER_RPS_FAMILY_ID, period
+                )
+                if spec_id in index:
+                    _put_link(
+                        REVENUE_DRIVER_RPS_FAMILY_ID,
+                        j,
+                        rps_row,
+                        col_idx,
+                        revenue_per_store_component_id(
+                            REVENUE_PER_STORE_PERIOD_END_FAMILY_ID, period
+                        ),
+                        self.revenue_per_store_series.period_end_revenue_per_store[
+                            period
+                        ],
+                    )
+
+        cursor += 1
+        _section(cursor, "NOTES")
+        cursor += 1
+        _label(cursor, "Scope and evidence limits")
+        ws.cell(row=cursor, column=2, value=analysis.scope_note)
+        ws.merge_cells(
+            start_row=cursor, start_column=2,
+            end_row=cursor, end_column=1 + max(len(self.periods), 1),
+        )
+        cursor += 1
+        _label(cursor, "Identities versus inference")
+        ws.cell(
+            row=cursor,
+            column=2,
+            value=(
+                "Linked observation cells are admitted schedule values, not new "
+                "measurements. Descriptive growth differences are not new-store "
+                "contribution, organic growth, or causal attribution. Strategic "
+                "objectives remain management statements, not achieved outcomes."
+            ),
+        )
+        ws.merge_cells(
+            start_row=cursor, start_column=2,
+            end_row=cursor, end_column=1 + max(len(self.periods), 1),
+        )
+
+        self.rowmap["revenue_driver_header_row"] = header_row
 
     def _build_model_tab(self, wb: Workbook, scenario: str) -> None:
         ws = wb.create_sheet(f"Model_{scenario}")

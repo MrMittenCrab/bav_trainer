@@ -13,6 +13,8 @@ from datetime import date
 from enum import Enum
 from typing import Any
 
+from .historical_strategy import HistoricalStrategyData
+
 
 class DocumentType(str, Enum):
     ANNUAL_REPORT = "annual_report"
@@ -149,6 +151,7 @@ class StandardizedFinancials:
     historical_lease: HistoricalLeaseData | None = None
     historical_segment: HistoricalSegmentData | None = None
     historical_operating_kpis: HistoricalOperatingKpiData | None = None
+    historical_strategy: HistoricalStrategyData | None = None
 
     def period_dates(self) -> list[date]:
         return [p.end_date for p in self.periods]

@@ -56,12 +56,14 @@ def test_company_build_rebuild_failure_and_workbook_contract(tmp_path, monkeypat
     assert 'revenue_per_store_period_end' in families
     assert any('comparable_sales' in f for f in families)
     assert any('square_foot' in f for f in families)
+    assert any(f.startswith('revenue_driver_') for f in families)
     assert (company.output / 'supporting/provenance.json').is_file()
     assert company.bav.is_file()
     assert not company.trainer.is_file()
     wb = load_workbook(company.bav)
     assert 'Build Status' in wb.sheetnames
     assert 'Overview' in wb.sheetnames
+    assert 'Revenue Driver Analysis' in wb.sheetnames
     assert 'Trainer' not in wb.sheetnames
     rows = list(wb['Build Status'].values)
     assert any('Comparable Sales' in str(row) and 'Active / available' in str(row) for row in rows)
@@ -69,6 +71,9 @@ def test_company_build_rebuild_failure_and_workbook_contract(tmp_path, monkeypat
     assert len(rps_rows) == 1
     assert 'Active / available' in str(rps_rows[0]) and rps_rows[0][3] == 17
     assert any('Sales per Square Foot' in str(row) and 'Active / available' in str(row) for row in rows)
+    driver_rows = [row for row in rows if 'Revenue Driver Analysis' in str(row)]
+    assert len(driver_rows) == 1
+    assert 'Active / available' in str(driver_rows[0]) and driver_rows[0][3] > 0
     opening = ' '.join(
         str(cell.value or '')
         for row in wb['Overview'].iter_rows(max_row=12, max_col=4)

@@ -27,6 +27,15 @@ GROUPS = (
         'revenue_per_store_change',
         'revenue_per_store_growth',
     )),
+    ('Revenue drivers', 'Revenue Driver Analysis', (
+        'revenue_driver_store_growth',
+        'revenue_driver_revenue_growth',
+        'revenue_driver_store_difference',
+        'revenue_driver_comparable_sales',
+        'revenue_driver_comparable_sales_difference',
+        'revenue_driver_revenue_per_store',
+        'revenue_driver_geographic_contribution',
+    )),
 )
 
 
@@ -36,14 +45,18 @@ def status_rows(smap):
     components = smap.all_ordered()
     counts = Counter(c.family_id for c in components)
     rows = []
-    special_tabs = {c.tab for c in components if c.family_id.startswith(('geographic_', 'operating_kpi_', 'store_count_', 'revenue_per_store_'))}
+    special_tabs = {c.tab for c in components if c.family_id.startswith(('geographic_', 'operating_kpi_', 'store_count_', 'revenue_per_store_', 'revenue_driver_'))}
     for tab in dict.fromkeys(c.tab for c in components):
         if tab not in special_tabs:
             rows.append(dict(group='Historical analysis', family=tab, status=ACTIVE,
                              cells=sum(c.tab == tab for c in components)))
     for group, title, families in GROUPS:
         total = sum(counts[f] for f in families)
-        module = modules.get('geographic' if group == 'Geographic Analysis' else 'operating_kpi')
+        module = modules.get(
+            'geographic' if group == 'Geographic Analysis'
+            else 'revenue_driver' if group == 'Revenue drivers'
+            else 'operating_kpi'
+        )
         integrated = bool(module and module.workbook_capable and module.prepare and module.writers
                           and module.status != 'deferred'
                           and (module.current_ready or (module.status == 'complete' and module.complete_analysis)))

@@ -14,6 +14,7 @@ from .component_catalog import (
     ComponentSpec,
     geographic_spec_identity,
     operating_kpi_spec_identity,
+    revenue_driver_spec_identity,
 )
 
 if TYPE_CHECKING:
@@ -177,6 +178,9 @@ SALES_PER_SQUARE_FOOT = _writer(
 REVENUE_PER_STORE = _writer(
     "_build_revenue_per_store", 14, when="revenue_per_store_schedule"
 )
+REVENUE_DRIVER = _writer(
+    "_build_revenue_driver", 15, when="revenue_driver_schedule"
+)
 
 
 def _integrated(id: str, writers: tuple[WorkbookWriter, ...], *,
@@ -224,6 +228,14 @@ BUILD_MODULES = (
         (OPERATING_KPI, COMPARABLE_SALES, SALES_PER_SQUARE_FOOT, REVENUE_PER_STORE),
         spec_key=lambda s: (
             s.family_id, s.period_index, operating_kpi_spec_identity(s),
+        ),
+    ),
+    _integrated(
+        "revenue_driver",
+        (REVENUE_DRIVER,),
+        depends_on=("historical", "operating_kpi"),
+        spec_key=lambda s: (
+            s.family_id, s.period_index, revenue_driver_spec_identity(s),
         ),
     ),
     BuildModule("forecast", "deferred", True, True),

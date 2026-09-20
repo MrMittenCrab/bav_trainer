@@ -23,6 +23,7 @@ from ..engine.component_catalog import (
     COMPARABLE_SALES_COMPONENT_CATALOG,
     SALES_PER_SQUARE_FOOT_COMPONENT_CATALOG,
     REVENUE_PER_STORE_COMPONENT_CATALOG,
+    REVENUE_DRIVER_COMPONENT_CATALOG,
     is_operating_kpi_source_identity,
     INVENTORY_ANALYSIS_COMPONENT_CATALOG,
     REPORTED_MARGIN_COMPONENT_CATALOG,
@@ -425,8 +426,15 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
             geographic_family_ids = {
                 family.id for family in GEOGRAPHIC_SEGMENT_COMPONENT_CATALOG
             }
+            revenue_driver_family_ids = {
+                family.id for family in REVENUE_DRIVER_COMPONENT_CATALOG
+            }
             geographic = None
-            if any(comp.family_id in geographic_family_ids for comp in comps):
+            if any(
+                comp.family_id in geographic_family_ids
+                or comp.family_id in revenue_driver_family_ids
+                for comp in comps
+            ):
                 if geographic_segment_applicable(financials):
                     geographic = compute_geographic_segment_series(
                         financials,
@@ -459,6 +467,7 @@ def check_workbook(trainer_path: Path) -> CheckSummary:
                 | compsales_family_ids
                 | spsf_family_ids
                 | rps_family_ids
+                | revenue_driver_family_ids
             )
             if any(comp.family_id in needed_ids for comp in comps):
                 if operating_kpi_applicable(financials):

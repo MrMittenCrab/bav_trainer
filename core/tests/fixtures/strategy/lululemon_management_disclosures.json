@@ -1,0 +1,94 @@
+{
+  "disclosures": [
+    {
+      "theme": "store_expansion",
+      "role": "strategy",
+      "text": "Opening new stores and expanding existing stores is an important part of our growth strategy.",
+      "period": "2023-01-29",
+      "source_file": "LULU_FY2022_Annual_Report.pdf",
+      "page_reference": "Form 10-K p. 32",
+      "section": "Item 7 — Comparable Store Sales and Total Comparable Sales"
+    },
+    {
+      "theme": "store_expansion",
+      "role": "strategy",
+      "text": "Our physical retail locations remain a key part of our growth strategy and we view them as a valuable tool in helping us build our brand and product line as well as enabling our omni-channel capabilities.",
+      "period": "2025-02-02",
+      "source_file": "LULU_FY2024_Annual_Report.pdf",
+      "page_reference": "Form 10-K p. 3",
+      "section": "Item 1 — Business"
+    },
+    {
+      "theme": "store_expansion",
+      "role": "objective",
+      "text": "We plan to continue to expand square footage and open new company-operated stores to support our growth objectives.",
+      "period": "2025-02-02",
+      "source_file": "LULU_FY2024_Annual_Report.pdf",
+      "page_reference": "Form 10-K p. 3",
+      "section": "Item 1 — Business"
+    },
+    {
+      "theme": "comparable_sales",
+      "role": "operating_use",
+      "text": "We use total comparable sales to evaluate the performance of our business from an omni-channel perspective.",
+      "period": "2023-01-29",
+      "source_file": "LULU_FY2022_Annual_Report.pdf",
+      "page_reference": "Form 10-K p. 31",
+      "section": "Item 7 — Comparable Store Sales and Total Comparable Sales"
+    },
+    {
+      "theme": "comparable_sales",
+      "role": "operating_use",
+      "text": "Accordingly, total comparable sales is just one way of assessing the success of our growth strategy insofar as comparable sales do not reflect the performance of stores opened, or significantly expanded, within the last 12 full fiscal months.",
+      "period": "2023-01-29",
+      "source_file": "LULU_FY2022_Annual_Report.pdf",
+      "page_reference": "Form 10-K p. 32",
+      "section": "Item 7 — Comparable Store Sales and Total Comparable Sales"
+    },
+    {
+      "theme": "comparable_sales",
+      "role": "operating_use",
+      "text": "We use comparable sales to evaluate the performance of our company-operated store and e-commerce businesses from an omni-channel perspective.",
+      "period": "2025-02-02",
+      "source_file": "LULU_FY2024_Annual_Report.pdf",
+      "page_reference": "Form 10-K p. 33",
+      "section": "Item 7 — Comparable Sales and Sales Per Square Foot"
+    },
+    {
+      "theme": "productivity",
+      "role": "operating_use",
+      "text": "We use sales per square foot to assess the performance of our company-operated stores relative to their square footage.",
+      "period": "2023-01-29",
+      "source_file": "LULU_FY2022_Annual_Report.pdf",
+      "page_reference": "Form 10-K p. 3",
+      "section": "Item 1 — Company-Operated Stores"
+    },
+    {
+      "theme": "productivity",
+      "role": "operating_use",
+      "text": "We use sales per square foot to assess the performance of our company-operated stores relative to their square footage.",
+      "period": "2025-02-02",
+      "source_file": "LULU_FY2024_Annual_Report.pdf",
+      "page_reference": "Form 10-K p. 34",
+      "section": "Item 7 — Comparable Sales and Sales Per Square Foot"
+    },
+    {
+      "theme": "geographic_growth",
+      "role": "strategy",
+      "text": "Our Power of Three ×2 plan leverages the success of our prior growth strategy, and is comprised of three key pillars – Product Innovation, Guest Experience, and Market Expansion.",
+      "period": "2023-01-29",
+      "source_file": "LULU_FY2022_Annual_Report.pdf",
+      "page_reference": "Form 10-K p. 24",
+      "section": "Item 7 — Overview"
+    },
+    {
+      "theme": "geographic_growth",
+      "role": "strategy",
+      "text": "We believe China Mainland net revenue growth will drive an increase in our overall international net revenue.",
+      "period": "2025-02-02",
+      "source_file": "LULU_FY2024_Annual_Report.pdf",
+      "page_reference": "Form 10-K p. 3",
+      "section": "Item 1 — Business"
+    }
+  ]
+}
