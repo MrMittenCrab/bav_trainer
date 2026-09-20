@@ -56,6 +56,8 @@ from core.ingestion.management_kpi_reconciliation import (
     REASON_MISSING_REVISER_VALUE,
     REASON_UNKNOWN_ASSURANCE,
     REASON_UNAUDITED_REVISER,
+    REASON_MISSING_PRESENTATION,
+    REASON_ORDINARY_DISAGREEMENT,
     RELATIONSHIP_INCOMPATIBLE,
     RELATIONSHIP_RECOGNIZED,
     RELATIONSHIP_UNRESOLVED,
@@ -80,6 +82,8 @@ from core.tests.test_management_kpi_identity import (
     REPORTING_BASIS_53,
     _admission,
     _affirmative_family_pair,
+    _apply_affirmative_compsales,
+    _apply_affirmative_spsf,
     _family_metric_id,
     _set_reporting_basis,
     _write_json,
@@ -1066,8 +1070,11 @@ def test_supplied_pairs_keep_unknown_presentation_and_assurance():
         assert item["assurance"] == "unknown"
         assert "assurance" in item["unresolved"]
         assert "presentation_role" in item["unresolved"]
-        assert "revision" in item["unresolved"]
         assert item["revision_evidence"]["revises"] is None
+        if item["kind"] == "reported_kpi":
+            assert "revision" not in item["unresolved"]
+        else:
+            assert "revision" in item["unresolved"]
     for item in recon["items"]:
         for occ in item["occurrences"]:
             assert occ["presentation_evidence"]["role"] == "unknown"
@@ -1877,6 +1884,28 @@ def _assert_selected_group(group: dict, *, reviser_locator: str, superseded_loca
     assert reviser["assurance_evidence"]["status"] == "audited"
 
 
+def _assert_ordinary_selected_group(group: dict, *, selected_locator: str) -> None:
+    assert group["kind"] == "group_selection"
+    assert group["status"] == SELECTION_SELECTED
+    assert "canonical_selection" not in group
+    assert group["reasons"] == []
+    assert group["selected"]["locator"] == selected_locator
+    assert group["superseded"] is None
+    assert group["revision"] is None
+    assert selected_locator in {occ["locator"] for occ in group["occurrences"]}
+    selected = next(occ for occ in group["occurrences"] if occ["locator"] == selected_locator)
+    assert selected["value"] is not None
+    assert selected["definition"]["text"]
+    assert selected["source"]["page_reference"]
+    assert selected["bound_source_file"].endswith(".pdf")
+    assert selected["presentation_evidence"]["role"] not in {"", "unknown"}
+    assert selected["presentation_evidence"]["evidence"]
+    assert selected["presentation_evidence"]["source"]["page_reference"]
+    if group["assurance_evidence"] is not None:
+        assert group["assurance_evidence"]["status"] == selected["assurance_evidence"]["status"]
+        assert group["assurance_evidence"]["status"] in {"unknown", "unaudited", "audited"}
+
+
 def _assert_deferred_group(group: dict, *needles: str) -> None:
     assert group["kind"] == "group_selection"
     assert group["status"] == SELECTION_DEFERRED
@@ -2680,7 +2709,7 @@ def test_independent_groups_do_not_lend_selection(tmp_path: Path, family: str):
     _assert_selected_group(
         selected, reviser_locator=reviser, superseded_locator=superseded
     )
-    _assert_deferred_group(deferred, REASON_MISSING_REVISION_LINK)
+    _assert_deferred_group(deferred, REASON_ORDINARY_DISAGREEMENT)
     other_locators = set(deferred["locators"])
     assert reviser not in other_locators
     assert superseded not in other_locators
@@ -2715,7 +2744,7 @@ def test_geographic_variant_is_an_independent_group(tmp_path: Path):
         and item["family"] == FAMILY_COMPARABLE_SALES_GROWTH
     ]
     assert len(americas) == 1
-    _assert_deferred_group(americas[0], REASON_MISSING_REVISION_LINK)
+    _assert_deferred_group(americas[0], REASON_ORDINARY_DISAGREEMENT)
     assert set(americas[0]["locators"]).isdisjoint(global_group["locators"])
 
 
@@ -3243,3 +3272,158 @@ def test_cli_serializes_incoming_ambiguous_candidate_deferral(
     }
     assert after_copy == extracted_copy
     assert _bytes_by_name(EXTRACTED) == before
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_ordinary_supported_singleton_is_selected(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES[1:2] + MANAGEMENT_NAMES[1:2], tmp_path / "ord-single")
+    payload = json.loads((dest / MANAGEMENT_NAMES[1]).read_text(encoding="utf-8"))
+    if family == FAMILY_COMPARABLE_SALES_GROWTH:
+        payload = _apply_affirmative_compsales(payload)
+    else:
+        payload = _apply_affirmative_spsf(payload)
+    payload = _apply_same_period(payload, family, period=SHARED_PERIOD, value=10)
+    payload = _attach_family_evidence(payload, family, role="current")
+    _write_json(dest / MANAGEMENT_NAMES[1], payload)
+    admitted = _admission(dest)
+    group = _family_period_group(admitted, family)
+    assert len(group["occurrences"]) == 1
+    _assert_ordinary_selected_group(group, selected_locator=group["occurrences"][0]["locator"])
+    assert group["occurrences"][0]["assurance_evidence"]["status"] == "unknown"
+    assert group["assurance_evidence"]["status"] == "unknown"
+    assert REASON_SINGLETON not in group["reasons"]
+    assert REASON_MISSING_REVISION_LINK not in group["reasons"]
+    assert admitted["reconciliation"]["selected_count"] >= 1
+    assert admitted["reconciliation"]["superseded_count"] == 0
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_ordinary_agreeing_repeats_select_deterministic_current(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "ord-agree")
+    _write_family_pair(
+        dest,
+        family,
+        left_value=10,
+        right_value=10,
+        left_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="comparative"
+        ),
+        right_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="current"
+        ),
+    )
+    admitted = _admission(dest)
+    group = _family_period_group(admitted, family)
+    assert len(group["occurrences"]) == 2
+    current = next(
+        occ
+        for occ in group["occurrences"]
+        if occ["presentation_evidence"]["role"] == "current"
+    )
+    comparative = next(
+        occ
+        for occ in group["occurrences"]
+        if occ["presentation_evidence"]["role"] == "comparative"
+    )
+    _assert_ordinary_selected_group(group, selected_locator=current["locator"])
+    assert comparative["locator"] in group["locators"]
+    assert comparative["source"]["page_reference"]
+    assert current["value"] == comparative["value"] == 10
+    assert current["assurance_evidence"]["status"] == "unknown"
+    assert comparative["assurance_evidence"]["status"] == "unknown"
+    assert group["assurance_evidence"]["status"] == "unknown"
+    swapped = tmp_path / "ord-agree-swap"
+    swapped.mkdir()
+    for name in ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3]:
+        shutil.copy2(dest / name, swapped / name)
+    _write_family_pair(
+        swapped,
+        family,
+        left_value=10,
+        right_value=10,
+        left_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="current"
+        ),
+        right_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="comparative"
+        ),
+    )
+    swapped_group = _family_period_group(_admission(swapped), family)
+    swapped_current = next(
+        occ
+        for occ in swapped_group["occurrences"]
+        if occ["presentation_evidence"]["role"] == "current"
+    )
+    _assert_ordinary_selected_group(
+        swapped_group, selected_locator=swapped_current["locator"]
+    )
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_ordinary_conflicting_group_is_deferred_without_subset(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "ord-conf")
+    _write_family_pair(
+        dest,
+        family,
+        left_value=10,
+        right_value=11,
+        left_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="current"
+        ),
+        right_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="comparative"
+        ),
+    )
+    admitted = _admission(dest)
+    group = _family_period_group(admitted, family)
+    assert len(group["occurrences"]) == 2
+    _assert_deferred_group(group, REASON_ORDINARY_DISAGREEMENT)
+    assert {occ["value"] for occ in group["occurrences"]} == {10, 11}
+    assert admitted["reconciliation"]["selected_count"] == 0
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_ordinary_unsupported_occurrence_is_not_selected(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES[1:2] + MANAGEMENT_NAMES[1:2], tmp_path / "ord-unsup")
+    payload = json.loads((dest / MANAGEMENT_NAMES[1]).read_text(encoding="utf-8"))
+    if family == FAMILY_COMPARABLE_SALES_GROWTH:
+        payload = _apply_affirmative_compsales(payload)
+    else:
+        payload = _apply_affirmative_spsf(payload)
+    payload = _apply_same_period(payload, family, period=SHARED_PERIOD, value=10)
+    _write_json(dest / MANAGEMENT_NAMES[1], payload)
+    admitted = _admission(dest)
+    group = _family_period_group(admitted, family)
+    _assert_deferred_group(group, REASON_MISSING_PRESENTATION)
+    assert admitted["reconciliation"]["selected_count"] == 0
+    assert all(
+        occ["assurance_evidence"]["status"] == "unknown" for occ in group["occurrences"]
+    )
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_unresolved_revision_does_not_bypass_through_ordinary_route(
+    tmp_path: Path, family: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "ord-bypass")
+    _write_revised_family_pair(
+        dest,
+        family,
+        left_value=10,
+        right_value=10,
+        left_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="comparative"
+        ),
+        right_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="current"
+        ),
+    )
+    admitted = _admission(dest)
+    group = _family_period_group(admitted, family)
+    _assert_deferred_group(group, REASON_UNKNOWN_ASSURANCE)
+    assert REASON_ORDINARY_DISAGREEMENT not in group["reasons"]
+    assert group["selected"] is None
+    assert admitted["reconciliation"]["selected_count"] == 0
+    assert all(
+        occ["assurance_evidence"]["status"] != "audited" for occ in group["occurrences"]
+    )

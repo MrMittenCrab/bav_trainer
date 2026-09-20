@@ -30,7 +30,7 @@ from core.ingestion.management_kpi_identity import (
     FAMILY_SALES_PER_SQUARE_FOOT,
     REASON_MISSING_COMPARISON,
 )
-from core.ingestion.management_kpi_reconciliation import SELECTION_DEFERRED
+from core.ingestion.management_kpi_reconciliation import SELECTION_DEFERRED, SELECTION_SELECTED
 from core.tests.test_management_kpi_admission import (
     ANNUAL_NAMES,
     EXTRACTED,
@@ -198,7 +198,14 @@ def test_enriched_admission_stays_fail_closed_without_audited_revision(tmp_path:
     assert all(REASON_MISSING_COMPARISON in item["unresolved_reasons"] for item in spsf)
     selections = payload["reconciliation"]["group_selections"]
     assert selections
-    assert all(item["status"] == SELECTION_DEFERRED for item in selections)
+    selected = [item for item in selections if item["status"] == SELECTION_SELECTED]
+    deferred = [item for item in selections if item["status"] == SELECTION_DEFERRED]
+    assert selected
+    assert all(item.get("revision") is None for item in selected)
+    assert all(
+        (item.get("assurance_evidence") or {}).get("status") == "unknown"
+        for item in selected
+    )
     assert payload["canonical_selection"] == "deferred"
     assert all(item["assurance"] == "unknown" for item in payload["observations"] if item["kind"] == "reported_kpi")
     assert all(item.get("revision") is None for item in selections)
@@ -207,7 +214,8 @@ def test_enriched_admission_stays_fail_closed_without_audited_revision(tmp_path:
         for item in payload["diagnostics"]
         if item["code"] == "management_kpi_history_handoff"
     )
-    assert handoff["message"].startswith("0 evidenced selected occurrence(s)")
+    assert handoff["message"].startswith(f"{len(selected)} evidenced selected occurrence(s)")
+    assert deferred or selected
 
 
 def test_definition_and_calendar_are_not_collapsed_across_identities(tmp_path: Path):
@@ -274,9 +282,9 @@ def test_ordinary_prepare_writes_resolution_and_keeps_revenue_per_store(tmp_path
     admission = json.loads(
         (staged / "supporting" / "management_kpi_admission.json").read_text()
     )
-    assert admission["reconciliation"]["selected_count"] == 0
+    assert admission["reconciliation"]["selected_count"] > 0
     assert fin.historical_operating_kpis is not None
-    assert fin.historical_operating_kpis.management_observations == []
+    assert fin.historical_operating_kpis.management_observations
     stores = {
         item.period: item.value
         for item in fin.historical_operating_kpis.observations
@@ -521,7 +529,10 @@ def test_spsf_level_admission_is_separate_from_comparison(tmp_path: Path):
         if item["family"] == FAMILY_SALES_PER_SQUARE_FOOT
     ]
     assert decisions
-    assert all(item["status"] == SELECTION_DEFERRED for item in decisions)
+    selected_spsf = [item for item in decisions if item["status"] == SELECTION_SELECTED]
+    deferred_spsf = [item for item in decisions if item["status"] == SELECTION_DEFERRED]
+    assert selected_spsf
+    assert all(item["level_eligibility"] == "admitted" for item in decisions)
     assert any(
         failure["requirement"] in {"calendar", "definition", "historical_comparison"}
         for item in decisions
@@ -533,15 +544,20 @@ def test_spsf_level_admission_is_separate_from_comparison(tmp_path: Path):
         if item["family"] == FAMILY_COMPARABLE_SALES_GROWTH
     ]
     assert compsales_decisions
+    selected_compsales = [
+        item for item in compsales_decisions if item["status"] == SELECTION_SELECTED
+    ]
+    deferred_compsales = [
+        item for item in compsales_decisions if item["status"] == SELECTION_DEFERRED
+    ]
+    assert selected_compsales or deferred_compsales
+    assert all(item.get("revision") is None for item in selected_compsales)
     assert all(
-        item["cause"] == "selection_limitation"
-        or any(
-            failure.get("cause") == "selection_limitation"
-            for failure in item["remaining_failures"]
-        )
-        for item in compsales_decisions
+        item["canonical_selection"] == SELECTION_DEFERRED for item in deferred_compsales
     )
-    assert all(item["status"] == SELECTION_DEFERRED for item in compsales_decisions)
+    assert all(
+        item["canonical_selection"] == SELECTION_SELECTED for item in selected_compsales
+    )
 
 
 def test_spsf_value_passages_require_metric_and_value(tmp_path: Path):
@@ -662,10 +678,14 @@ def test_group_decisions_report_all_failures(tmp_path: Path):
     assert decisions
     for item in decisions:
         requirements = {failure["requirement"] for failure in item["remaining_failures"]}
-        assert "canonical_selection" in requirements
+        if item["status"] == SELECTION_SELECTED:
+            assert "canonical_selection" not in requirements
+            assert item["canonical_selection"] == SELECTION_SELECTED
+        else:
+            assert "canonical_selection" in requirements
+            assert item["canonical_selection"] == SELECTION_DEFERRED
         if item["family"] == FAMILY_SALES_PER_SQUARE_FOOT:
             assert item["level_eligibility"] == "admitted"
-            assert "canonical_selection" in requirements
         if any(
             reason in item["selection_reasons"]
             for reason in ("singleton", "missing_revision_link", "unknown_assurance")
@@ -683,7 +703,7 @@ def test_group_decisions_report_all_failures(tmp_path: Path):
                     assert failure.get("comparison_pair")
                     assert failure["comparison_pair"][0] != failure["comparison_pair"][1]
         if item["level_eligibility"] == "admitted":
-            assert item["canonical_selection"] == SELECTION_DEFERRED
+            assert item["canonical_selection"] in {SELECTION_SELECTED, SELECTION_DEFERRED}
 
 
 def test_historical_comparison_ineligible_when_window_conflicts(tmp_path: Path):
@@ -930,9 +950,12 @@ def test_repaired_occurrence_evidence_reaches_assessment(tmp_path: Path):
     assert decisions
     for item in decisions:
         requirements = {failure["requirement"] for failure in item["remaining_failures"]}
-        assert "canonical_selection" in requirements
-        causes = {failure["cause"] for failure in item["remaining_failures"]}
-        assert "selection_limitation" in causes
+        if item["status"] == SELECTION_SELECTED:
+            assert "canonical_selection" not in requirements
+        else:
+            assert "canonical_selection" in requirements
+            causes = {failure["cause"] for failure in item["remaining_failures"]}
+            assert "selection_limitation" in causes
         assert item["level_eligibility"] == "admitted"
         pair_failures = [
             failure
@@ -959,9 +982,10 @@ def test_repaired_occurrence_evidence_reaches_assessment(tmp_path: Path):
             for failure in item["remaining_failures"]
             if failure["requirement"] == "historical_comparison"
         ]
-        assert "canonical_selection" in {
-            failure["requirement"] for failure in item["remaining_failures"]
-        }
+        if item["status"] != SELECTION_SELECTED:
+            assert "canonical_selection" in {
+                failure["requirement"] for failure in item["remaining_failures"]
+            }
         if item["comparison_eligibility"] == "ineligible" and not any(
             pair.get("outcome") == "supported"
             and pair.get("kind") == "historical_comparison"
@@ -1313,7 +1337,7 @@ def test_fy2022_presentation_absence_claims_are_removed_from_admission(
         assert "presentation_role" not in item["unresolved"]
         assert item["assurance"] == "unknown"
         assert "assurance" in item["unresolved"]
-        assert "revision" in item["unresolved"]
+        assert "revision" not in item["unresolved"]
     locators = {item["locator"] for item in focus}
     for decision in payload["group_decisions"]:
         for failure in decision["remaining_failures"]:

@@ -1,0 +1,32 @@
+{
+  "source_sha256": "39914cba2d93f6d5ec1ffce6a584468a7a0452f91d58bc312a753085c7759476",
+  "sheets": [
+    "Comparable Sales Analysis"
+  ],
+  "cells": [
+    {
+      "sheet": "Comparable Sales Analysis",
+      "cell": "C143",
+      "value": 4.631045020016408,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS (FY2021 6256617, FY2022 8110518 USD thousands) and selected FY2022 reported global total comparable sales 25 from LULU_FY2022_management_kpis.json. Difference = 100 × (8110518-6256617)/6256617 − 25. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Comparable Sales Analysis",
+      "cell": "D178",
+      "value": 5.602510961691966,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS (FY2022 8110518, FY2023 9619278 USD thousands) and selected FY2023 reported global comparable sales 13 from LULU_FY2023_management_kpis.json. Difference = 100 × (9619278-8110518)/8110518 − 13. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Comparable Sales Analysis",
+      "cell": "E178",
+      "value": 6.0719409502459545,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS (FY2023 9619278, FY2024 10588126 USD thousands) and selected FY2024 reported global comparable sales 4 from LULU_FY2024_management_kpis.json. Difference = 100 × (10588126-9619278)/9619278 − 4. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Comparable Sales Analysis",
+      "cell": "F178",
+      "value": 2.8589712664922953,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS (FY2024 10588126, FY2025 11102600 USD thousands) and selected FY2025 reported global comparable sales 2 from LULU_FY2025_management_kpis.json. Difference = 100 × (11102600-10588126)/10588126 − 2. Arithmetic independent of production model."
+    }
+  ]
+}

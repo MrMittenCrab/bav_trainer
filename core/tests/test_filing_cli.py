@@ -323,7 +323,10 @@ def test_reconcile_serializes_management_identity_assessments(tmp_path: Path):
         assert item["presentation_evidence"]["role"] == "unknown"
         assert item["assurance_evidence"]["status"] == "unknown"
         assert item["revision_evidence"]["revises"] is None
-        assert "revision" in item["unresolved"]
+        if item["kind"] == "reported_kpi":
+            assert "revision" not in item["unresolved"]
+        else:
+            assert "revision" in item["unresolved"]
     for item in recon["items"]:
         for occ in item["occurrences"]:
             assert occ["presentation_evidence"]["role"] == "unknown"

@@ -1861,7 +1861,7 @@ _FAILURE_REMAINING = {
     "canonical_selection": (
         "canonical_selection",
         CAUSE_SELECTION,
-        "later-audited two-occurrence revision group with a documentary revision link",
+        "ordinary occurrence admission or a complete documentary revision selection",
     ),
 }
 
@@ -1955,10 +1955,9 @@ def build_group_decisions(
         REQUIRED_COMPARISON_REASONS,
     )
     from .management_kpi_reconciliation import (
-        REASON_MISSING_REVISION_LINK,
+        REASON_ORDINARY_DISAGREEMENT,
         REASON_SINGLETON,
-        REASON_UNAUDITED_REVISER,
-        REASON_UNKNOWN_ASSURANCE,
+        REVISION_ROUTE_REASONS,
         SELECTION_SELECTED,
     )
 
@@ -2139,16 +2138,28 @@ def build_group_decisions(
         additional = ""
         unresolved_decision = ""
         primary = ""
+        revision_route = bool(REVISION_ROUTE_REASONS & set(reasons)) or REASON_SINGLETON in reasons
+        if group.status == SELECTION_SELECTED or not revision_route:
+            failures = [
+                item
+                for item in failures
+                if item.get("requirement") not in {"assurance", "revision"}
+            ]
         if group.status != SELECTION_SELECTED:
-            selection_hit = {
-                REASON_UNAUDITED_REVISER,
-                REASON_UNKNOWN_ASSURANCE,
-                REASON_MISSING_REVISION_LINK,
-                REASON_SINGLETON,
-            } & set(reasons)
-            if selection_hit or reasons:
+            if reasons:
                 primary = CAUSE_SELECTION
-                unresolved_decision = _FAILURE_REMAINING["canonical_selection"][2]
+                if revision_route:
+                    unresolved_decision = (
+                        "later-audited two-occurrence revision group with a "
+                        "documentary revision link"
+                    )
+                elif REASON_ORDINARY_DISAGREEMENT in reasons:
+                    unresolved_decision = (
+                        "agreement on value and identity, definition, population, "
+                        "units, currency basis and calendar semantics"
+                    )
+                else:
+                    unresolved_decision = _FAILURE_REMAINING["canonical_selection"][2]
                 failures.append(
                     _failure_record(
                         requirement="canonical_selection",
@@ -2281,7 +2292,7 @@ def build_group_decisions(
                     pair.to_payload()
                     for pair in sorted(group_pairs, key=lambda item: item.locators)
                 ],
-                "cause": primary or CAUSE_SELECTION,
+                "cause": primary or (CAUSE_SELECTION if group.status != SELECTION_SELECTED else ""),
                 "pages_searched": sorted(set(pages)),
                 "additional_evidence_needed": additional,
                 "unresolved_decision": unresolved_decision,

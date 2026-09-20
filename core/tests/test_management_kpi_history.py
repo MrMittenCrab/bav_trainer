@@ -294,6 +294,32 @@ def test_selected_occurrence_reaches_standardized_history(
     assert _assert_export_reload_export(fin)
 
 
+@pytest.mark.parametrize("family", FAMILIES)
+def test_ordinary_singleton_reaches_standardized_history(tmp_path: Path, family: str):
+    dest = _copy_json(ANNUAL_NAMES[1:2] + MANAGEMENT_NAMES[1:2], tmp_path / "ord-hist")
+    payload = json.loads((dest / MANAGEMENT_NAMES[1]).read_text(encoding="utf-8"))
+    payload = (
+        _apply_affirmative_compsales(payload)
+        if family == FAMILY_COMPARABLE_SALES_GROWTH
+        else _apply_affirmative_spsf(payload)
+    )
+    payload = _apply_same_period(payload, family, period=SHARED_PERIOD, value=12)
+    payload = _attach_family_evidence(payload, family, role="current")
+    _write_json(dest / MANAGEMENT_NAMES[1], payload)
+    reconciled = _reconcile(dest)
+    _assert_handoff_diagnostic(reconciled.management_admission, selected=1)
+    fin = standardize_reconciled(reconciled)
+    rows = _management_rows(fin, family=family, period=SHARED_PERIOD)
+    assert len(rows) == 1
+    assert rows[0]["value"] == 12
+    assert rows[0]["period_kind"] == "date"
+    serialized = json.dumps(standardized_to_payload(fin)["historical_operating_kpis"])
+    assert "source_file" not in serialized
+    assert "assurance" not in serialized
+    assert "revision" not in serialized
+    _assert_export_reload_export(fin)
+
+
 def test_both_families_share_a_period_and_round_trip(tmp_path: Path):
     dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "both")
     _write_both_selected(dest, compsales=(-3, 0), spsf=(1407.5, 1426))

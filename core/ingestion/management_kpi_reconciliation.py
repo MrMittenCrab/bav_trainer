@@ -5,9 +5,12 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from itertools import combinations
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 from .management_kpi_identity import (
+    REASON_MISSING_DEFINITION,
+    REASON_PERIOD_DATE,
+    REASON_UNBOUND_DEFINITION,
     REQUIRED_COMPARISON_REASONS,
     STATUS_OUTSIDE_SCOPE,
     STATUS_SUPPORTED,
@@ -45,6 +48,9 @@ REASON_MISSING_REVISER_VALUE = "missing_reviser_value"
 REASON_UNKNOWN_ASSURANCE = "unknown_assurance"
 REASON_UNAUDITED_REVISER = "unaudited_reviser"
 REASON_AMBIGUOUS_OCCURRENCE = "ambiguous_occurrence"
+REASON_MISSING_PRESENTATION = "missing_presentation"
+REASON_MISSING_PROVENANCE = "missing_provenance"
+REASON_ORDINARY_DISAGREEMENT = "ordinary_disagreement"
 RELATIONSHIP_RECOGNIZED = "recognized"
 RELATIONSHIP_UNRESOLVED = "unresolved"
 RELATIONSHIP_INCOMPATIBLE = "incompatible"
@@ -89,6 +95,25 @@ def _build_presentation_role_combinations() -> dict[tuple[str, str], str]:
 
 
 PRESENTATION_ROLE_COMBINATIONS = _build_presentation_role_combinations()
+REVISION_ROUTE_REASONS = frozenset(
+    {
+        REASON_MISSING_REVISION_LINK,
+        REASON_COMPETING_DIRECTION,
+        REASON_MISSING_REVISER_VALUE,
+        REASON_UNKNOWN_ASSURANCE,
+        REASON_UNAUDITED_REVISER,
+        REASON_AMBIGUOUS_TARGET,
+        REASON_OUTSIDE_SCOPE_TARGET,
+        REASON_UNSUPPORTED_TARGET,
+        REASON_RECIPROCAL,
+        REASON_CYCLIC,
+        REASON_GROUP_LARGER_THAN_TWO,
+        REASON_MISSING_EVIDENCE,
+        REASON_MISSING_TARGET,
+        RELATIONSHIP_UNRESOLVED,
+        RELATIONSHIP_INCOMPATIBLE,
+    }
+)
 
 
 def presentation_role_combination(left_role: str, right_role: str) -> str:
@@ -738,7 +763,174 @@ def _member_from_occurrence(
     )
 
 
-def _select_two_occurrence_group(
+def _occurrence_has_revision_claim(occurrence: ManagementKpiReconciledOccurrence) -> bool:
+    revises = dict(occurrence.revision_evidence).get("revises")
+    return isinstance(revises, dict) and bool(revises)
+
+
+def _group_has_revision_assertions(
+    occurrences: tuple[ManagementKpiReconciledOccurrence, ...],
+    revision_links: Sequence[ManagementKpiRevisionLink],
+) -> bool:
+    locators = {item.locator for item in occurrences}
+    if any(_link_involves(item, locators) for item in revision_links):
+        return True
+    return any(_occurrence_has_revision_claim(item) for item in occurrences)
+
+
+def _dimension_is_documented(evidence: Mapping[str, Any] | tuple) -> bool:
+    payload = dict(evidence)
+    if not text_present(payload.get("evidence", "")):
+        return False
+    if not text_present(payload.get("locator", "")):
+        return False
+    source = payload.get("source")
+    if not isinstance(source, dict):
+        return False
+    return text_present(source.get("page_reference", ""))
+
+
+def _presentation_is_documented(occurrence: ManagementKpiReconciledOccurrence) -> bool:
+    evidence = dict(occurrence.presentation_evidence)
+    role = str(evidence.get("role") or "unknown")
+    if role in {"", "unknown"}:
+        return False
+    return _dimension_is_documented(evidence)
+
+
+def _provenance_is_documented(occurrence: ManagementKpiReconciledOccurrence) -> bool:
+    if not text_present(occurrence.bound_source_file):
+        return False
+    if not text_present(occurrence.bound_source_sha256):
+        return False
+    source = dict(occurrence.source)
+    return text_present(source.get("page_reference", ""))
+
+
+def _ordinary_admission_reasons(
+    occurrence: ManagementKpiReconciledOccurrence,
+) -> tuple[str, ...]:
+    reasons: list[str] = []
+    if occurrence.value is None:
+        _append_reason(reasons, REASON_MISSING_VALUE)
+    if not text_present(occurrence.occurrence_identity):
+        _append_reason(reasons, REASON_AMBIGUOUS_OCCURRENCE)
+    if not text_present(occurrence.period) or occurrence.period_kind != "date":
+        _append_reason(reasons, REASON_PERIOD_DATE)
+    evidence = dict(occurrence.evidence)
+    if not text_present(occurrence.definition_text):
+        if not text_present(evidence.get("definition_id", "")):
+            _append_reason(reasons, REASON_MISSING_DEFINITION)
+        else:
+            _append_reason(reasons, REASON_UNBOUND_DEFINITION)
+    if not _presentation_is_documented(occurrence):
+        _append_reason(reasons, REASON_MISSING_PRESENTATION)
+    if not _provenance_is_documented(occurrence):
+        _append_reason(reasons, REASON_MISSING_PROVENANCE)
+    return tuple(reasons)
+
+
+def _ordinary_agreement_reasons(
+    occurrences: tuple[ManagementKpiReconciledOccurrence, ...],
+) -> tuple[str, ...]:
+    reasons: list[str] = []
+    identities = [item.occurrence_identity for item in occurrences]
+    if len(set(identities)) != len(occurrences):
+        _append_reason(reasons, REASON_AMBIGUOUS_OCCURRENCE)
+    values = {item.value for item in occurrences}
+    if len(values) != 1 or None in values:
+        _append_reason(reasons, REASON_ORDINARY_DISAGREEMENT)
+    first = occurrences[0]
+    first_ev = dict(first.evidence)
+    for other in occurrences[1:]:
+        other_ev = dict(other.evidence)
+        conflicts = evidenced_conflicts(
+            {
+                "definition_text": first.definition_text,
+                "population": first_ev.get("population", ""),
+                "unit": first_ev.get("unit", ""),
+                "basis": first_ev.get("basis", ""),
+                "calendar_week_adjustment": first_ev.get("calendar_week_adjustment", ""),
+                "calendar_reporting_basis": first_ev.get("calendar_reporting_basis", ""),
+            },
+            {
+                "definition_text": other.definition_text,
+                "population": other_ev.get("population", ""),
+                "unit": other_ev.get("unit", ""),
+                "basis": other_ev.get("basis", ""),
+                "calendar_week_adjustment": other_ev.get("calendar_week_adjustment", ""),
+                "calendar_reporting_basis": other_ev.get("calendar_reporting_basis", ""),
+            },
+        )
+        for reason in conflicts:
+            _append_reason(reasons, reason)
+            _append_reason(reasons, REASON_ORDINARY_DISAGREEMENT)
+    return tuple(reasons)
+
+
+def _ordinary_representative(
+    occurrences: tuple[ManagementKpiReconciledOccurrence, ...],
+) -> ManagementKpiReconciledOccurrence:
+    current = [item for item in occurrences if _occurrence_role(item) == "current"]
+    if len(current) == 1:
+        return current[0]
+    ordered = current or list(occurrences)
+    ordered.sort(key=lambda item: item.locator)
+    return ordered[0]
+
+
+def _deferred_selection(reasons: list[str]) -> tuple[
+    str,
+    tuple[str, ...],
+    ManagementKpiRevisionMember | None,
+    ManagementKpiRevisionMember | None,
+    ManagementKpiSupportingRevision | None,
+    tuple[tuple[str, Any], ...],
+]:
+    return (
+        SELECTION_DEFERRED,
+        tuple(reasons),
+        None,
+        None,
+        None,
+        (),
+    )
+
+
+def _select_ordinary_group(
+    occurrences: tuple[ManagementKpiReconciledOccurrence, ...],
+) -> tuple[
+    str,
+    tuple[str, ...],
+    ManagementKpiRevisionMember | None,
+    ManagementKpiRevisionMember | None,
+    ManagementKpiSupportingRevision | None,
+    tuple[tuple[str, Any], ...],
+]:
+    reasons: list[str] = []
+    identities = [item.occurrence_identity for item in occurrences]
+    if len(set(identities)) != len(occurrences):
+        _append_reason(reasons, REASON_AMBIGUOUS_OCCURRENCE)
+    for item in occurrences:
+        for reason in _ordinary_admission_reasons(item):
+            _append_reason(reasons, reason)
+    if len(occurrences) > 1:
+        for reason in _ordinary_agreement_reasons(occurrences):
+            _append_reason(reasons, reason)
+    if reasons:
+        return _deferred_selection(reasons)
+    selected_occ = _ordinary_representative(occurrences)
+    return (
+        SELECTION_SELECTED,
+        (),
+        _member_from_occurrence(selected_occ),
+        None,
+        None,
+        selected_occ.assurance_evidence,
+    )
+
+
+def _select_revision_group(
     occurrences: tuple[ManagementKpiReconciledOccurrence, ...],
     revision_links: Sequence[ManagementKpiRevisionLink],
 ) -> tuple[
@@ -812,10 +1004,6 @@ def _select_two_occurrence_group(
                         _append_reason(reasons, reason)
                     _append_reason(reasons, gate_status)
 
-    selected = None
-    superseded = None
-    revision = None
-    assurance_evidence: tuple[tuple[str, Any], ...] = ()
     eligible = (
         len(occurrences) == 2
         and len(set(identities)) == 2
@@ -832,33 +1020,38 @@ def _select_two_occurrence_group(
     if eligible and candidate is not None and candidate.revised is not None:
         reviser_occ = by_locator[candidate.reviser.locator]
         revised_occ = by_locator[candidate.revised.locator]
-        selected = _member_from_occurrence(reviser_occ)
-        superseded = _member_from_occurrence(revised_occ)
-        revision = ManagementKpiSupportingRevision(
-            reviser=candidate.reviser,
-            revised=candidate.revised,
-            evidence=candidate.evidence,
-            source=candidate.source,
-        )
-        assurance_evidence = reviser_occ.assurance_evidence
         return (
             SELECTION_SELECTED,
             (),
-            selected,
-            superseded,
-            revision,
-            assurance_evidence,
+            _member_from_occurrence(reviser_occ),
+            _member_from_occurrence(revised_occ),
+            ManagementKpiSupportingRevision(
+                reviser=candidate.reviser,
+                revised=candidate.revised,
+                evidence=candidate.evidence,
+                source=candidate.source,
+            ),
+            reviser_occ.assurance_evidence,
         )
     if not reasons:
         _append_reason(reasons, REASON_MISSING_REVISION_LINK)
-    return (
-        SELECTION_DEFERRED,
-        tuple(reasons),
-        None,
-        None,
-        None,
-        (),
-    )
+    return _deferred_selection(reasons)
+
+
+def _select_group(
+    occurrences: tuple[ManagementKpiReconciledOccurrence, ...],
+    revision_links: Sequence[ManagementKpiRevisionLink],
+) -> tuple[
+    str,
+    tuple[str, ...],
+    ManagementKpiRevisionMember | None,
+    ManagementKpiRevisionMember | None,
+    ManagementKpiSupportingRevision | None,
+    tuple[tuple[str, Any], ...],
+]:
+    if _group_has_revision_assertions(occurrences, revision_links):
+        return _select_revision_group(occurrences, revision_links)
+    return _select_ordinary_group(occurrences)
 
 
 def reconcile_group_selections(
@@ -866,7 +1059,7 @@ def reconcile_group_selections(
     assessments: Sequence[Any],
     revision_links: Sequence[ManagementKpiRevisionLink],
 ) -> tuple[ManagementKpiGroupSelection, ...]:
-    """Select audited revisers only for complete two-occurrence evidenced groups."""
+    """Select ordinary supported disclosures or audited documentary revisers."""
     by_locator = {item.locator: item for item in observations}
     grouped: dict[tuple[str, str, str], list[Any]] = defaultdict(list)
     for assessment in assessments:
@@ -892,7 +1085,7 @@ def reconcile_group_selections(
             superseded,
             revision,
             assurance_evidence,
-        ) = _select_two_occurrence_group(occurrences, revision_links)
+        ) = _select_group(occurrences, revision_links)
         records.append(
             ManagementKpiGroupSelection(
                 status=status,

@@ -285,8 +285,11 @@ def test_mixed_directory_admits_all_135_observations(tmp_path: Path):
         assert item.bound_source_file.endswith(".pdf")
         assert "physical_page_mapping" in item.unresolved
         assert "canonical_selection" in item.unresolved
-        assert "revision" in item.unresolved
         assert item.revision_record.revises == ()
+        if item.kind == "reported_kpi":
+            assert "revision" not in item.unresolved
+        else:
+            assert "revision" in item.unresolved
     payload = reconciliation_management_admission_payload(mixed_reconciled)
     assert payload["reported_observation_count"] == 135
     assert payload["status"] == "admitted_unreconciled"

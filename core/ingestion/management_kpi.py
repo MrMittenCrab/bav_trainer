@@ -959,7 +959,7 @@ def _parse_revision_evidence(
             raise ValueError(
                 f"{context}.revises asserts a target without documentary evidence"
             )
-        return OccurrenceRevisionEvidence(locator=locator), "revision"
+        return OccurrenceRevisionEvidence(locator=locator), None
     if not isinstance(raw, dict):
         raise ValueError(f"{context}.revision must be an object")
     extra = sorted(key for key in raw if key not in _REVISION_OBJECT_KEYS)
@@ -1849,19 +1849,21 @@ def admit_management_documents(
     deferred_count = sum(
         1 for item in group_selections if item.status == SELECTION_DEFERRED
     )
-    diagnostics.append(
-        ManagementAdmissionDiagnostic(
-            code="deferred_canonical_selection",
-            identity="management_kpi",
-            message=(
-                "canonical later-audited selection remains deferred; general "
-                "admission is not complete"
-            ),
-            occurrences=tuple(
-                item.document.extraction_document for item in documents
-            ),
+    if deferred_count:
+        diagnostics.append(
+            ManagementAdmissionDiagnostic(
+                code="deferred_canonical_selection",
+                identity="management_kpi",
+                message=(
+                    f"{deferred_count} group(s) remain deferred after ordinary "
+                    "or documentary-revision selection; general admission is "
+                    "not complete"
+                ),
+                occurrences=tuple(
+                    item.document.extraction_document for item in documents
+                ),
+            )
         )
-    )
     diagnostics.append(
         ManagementAdmissionDiagnostic(
             code="management_kpi_history_handoff",
