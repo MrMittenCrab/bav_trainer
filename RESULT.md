@@ -1,3 +1,100 @@
+# RESULT.md — Step 4.1.1 Reconcile Drivers calendar limitation
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 4.1.1 — Reconcile Drivers calendar limitation  
+**Work:** `e4c434039eb248f3985ef7254930e7be`  
+**Plan:** `95525118e4a74878a28d7bf14daaf9ed`  
+**Finding:** Publish Lululemon Drivers  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `e42f104e22b753ba957bb2e6c9988d446c49a90c3b3ab987cf8d05973e5566af` (28705).  
+SESSION SHA-256 `610809fd496777d99ddbae5931a3d18b4097323c0e92418b7127a4fb3b9c9311` (4170).  
+IMPLEMENTATION SHA-256 `540aa40c92a93d86e65ac5fbad28a03261add628f0c141c982f99064b191c27a` (5832).  
+No commit / push / sync / checkpoint / branch change.
+
+## Required plan change
+
+No required plan change. The ordinary Lululemon build now resolves the Drivers calendar limitation from source calendar metadata and the same period mapping used by the table and figures. Session acceptance, forecasting and earlier deferred obligations remain subsequent work.
+
+## Correction
+
+`core/research/drivers.py` no longer hardcodes “FY2024 is a 53-week year.” It identifies the unique admitted extra-week period (`calendar_week_adjustment == excluded`) on the canonical axis, then writes the displayed label from `_label_for` / `financials.periods`.
+
+| Identity | Source | Output |
+|---|---|---|
+| 53-week period-end | Protected extract `LULU_FY2024_management_kpis.json` `report.fiscal_year_end`; PDF inspection `2024 in fifty_three_week_years` | **2 February 2025** |
+| Issuer naming | Extract `report.fiscal_year == 2024`; original reporting basis “FY2024 contains 53 weeks.” | **fiscal 2024** |
+| Displayed label | Same mapping as the table and figures (`FY{end_date.year}`) | **FY2025** |
+| Displayed FY2024 | Period ended **28 January 2024** | 52-week / `included`; does not receive the 53-week claim |
+
+Issuer naming is distinguished from the output label using existing `calendar_reporting_basis` (“Sunday closest to January 31 of the following year”). The analytical period axis is unchanged.
+
+Extra-week wording checked against source locators and retained once: FY2024 extract / FY2024 10-K comparable-sales definition excludes the 53rd week; FY2025 extract realigns the prior-year window (“shifted by one week”). Regenerated Limits sentence:
+
+> FY2025, the year ended 2 February 2025, is a 53-week year; the issuer names it fiscal 2024. Some later comparable-sales presentations exclude or realign that extra week and cannot be joined to the earlier observations.
+
+Numerical table, figure labels/captions, units, rounding, geographic contribution sums and the other three Limits are unchanged.
+
+## Verification
+
+| Check | Measured result |
+|---|---|
+| Focused calendar regression `test_drivers_calendar_limitation_reconciles_53_week_year` | **1 passed** — source 53-week period, issuer fiscal 2024, displayed FY2025, 2 February 2025 reconciled; “FY2024 is a 53-week” absent |
+| Regenerated Drivers vs source metadata | Calendar sentence uses FY2025 / 2 February 2025 / fiscal 2024. Table: FY2024 \| 28 January 2024; FY2025 \| 2 February 2025. Headings exact. Five conclusions. |
+| `test_research_drivers` | **6 passed** |
+| `test_current_build` + `test_build_cli` + `test_build_contract` + `test_revenue_driver` + protected artifacts/extracts | **87 passed**; **50/50** protected and **8/8** extracts |
+| Learner-ready + export-reload + management-KPI history | **1081 passed** |
+| Trainer + reference integrity + Fast Retailing | **418 passed** |
+| Two builds, unchanged inputs | Markdown, placeholders and all three PNGs byte-identical. Workbook zip 228423 vs 228421; analytical cells formula **0**, literal **0** |
+| vs pre-rebuild BAV `7fa3c9fd…` | Formula **0**, literal **0** |
+| vs `.git/autocycle/excel-verification-fb95_r2m/saved-copy.xlsx` | Formula **0**. Literal **52**, all Overview (already recorded; not new). Native recalc not required |
+| Fast Retailing BAV | Unchanged SHA-256 `4b308474…` (135552) |
+| STYLE / fonts / centralized figures | STYLE SHA unchanged. Aptos / DengXian still resolved. Figure code untouched; two-build PNG hashes identical |
+| `python -m bav build Lululemon` (twice) | Research + figures published; Forecast/Valuation/Overview remain 0 bytes |
+
+`SEGMENT_BRIDGE_TOLERANCE = 0.0`. Protected PDFs, extracts and authenticated baselines were not replaced. Native Excel carry-forward remains applicable; workbook presentation was not changed.
+
+## Session conditions (measured, not acceptance)
+
+1. STYLE.md sole standard — yes; unchanged.  
+2. README architecture / module order / STYLE authority — yes; unchanged.  
+3–4. Four research files; Forecast/Valuation/Overview 0 bytes — yes.  
+5. Drivers structure and prose — yes; calendar Limit now names FY2025 / 2 February 2025.  
+6. Three Matplotlib figures, centralized style — yes; two-build identical.  
+7. Five-minute understanding — yes, as read; 53-week year is the displayed FY2025 period.  
+8. Workbook still traces calculations; numbers from same inputs — yes; analytical cells identical to pre-rebuild.  
+9. No analytical control weakened — formula/literal 0 vs last published BAV.  
+10. Focused checks passed; native evidence carried forward.  
+11. No buyer/M&A/Forecast/Valuation/Overview analysis in Drivers — yes.
+
+## Artifact hashes
+
+| Path | SHA-256 | Bytes |
+|---|---|---|
+| `build/lululemon/Lululemon_BAV.xlsx` | `bcacf70d41492771545d37a426276a59e88f7eef21c47ead9aa9d46ba3596e79` | 228421 |
+| `build/lululemon/research/Lululemon_Drivers.md` | `9923e74f58b034997dacac98b3def8dfaadc9b35a3cdee7e1ce2789db94cafe0` | 3853 |
+| `build/lululemon/research/Lululemon_Forecast.md` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | 0 |
+| `build/lululemon/research/Lululemon_Valuation.md` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | 0 |
+| `build/lululemon/research/Lululemon_Overview.md` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | 0 |
+| `build/lululemon/figures/drivers/growth.png` | `5488ca7bfecf0899e6330c621b56aff01e299e7697acf34305ddb29e9128abde` | 71293 |
+| `build/lululemon/figures/drivers/geography.png` | `4fc599c74c618bf4eed27f2b9d28efc3eb1965d92612fe538d1340858dfe3e3b` | 56412 |
+| `build/lululemon/figures/drivers/margin.png` | `146839561c0da23beb21fc3ab5abd9ea9a36f8c3b00e1a51adbb103554799dc7` | 65213 |
+| `build/fast_retailing/FastRetailing_BAV.xlsx` | `4b308474353a3303548f9daaa41ee9124fd7d56bddd189e25611e5e6d32b1eb8` | 135552 |
+| `STYLE.md` | `4360b24bb849370a0fa48f21aa7cc83b8bf6b35c2ad9bac7e10de2829a107fc6` | 1645 |
+| `.git/autocycle/excel-verification-fb95_r2m/saved-copy.xlsx` | `1d332daa8740fc53df6eaf90ecff5c7446f19502ad9510a7ab5ff56954aa1cae` | 260706 |
+
+## Native Excel carry-forward
+
+Formulas, literal inputs and transitive dependencies on analytical surfaces match the last published BAV by cell identity. The older saved snapshot still differs only on already-accepted Overview narrative (52 literals). Native recalculation and new screenshots were not required.
+
+Retained: `.git/autocycle/excel-verification-fb95_r2m/`, `excel-verification-7vjhjujd/`, `excel-verification-kd2d78ng/`, `excel-verification-ti974vnt/`, `excel-verification-kzg9a_ex/`, `revenue-driver-render-3-3-1/`, `overview-synthesis-3-4/`.
+
+## Remaining toward Completion
+
+This bounded work corrects the Drivers calendar limitation and regenerates the module. Publication and this repair are not Session acceptance. Forecasting, valuation, Overview content, and earlier deferred normalization / source-workflow / normalized-per-share obligations remain open.
+
+---
+
 # RESULT.md — Step 4.1 Publish Lululemon Drivers
 
 **Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  

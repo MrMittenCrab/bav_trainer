@@ -81,11 +81,71 @@ def _numeric(value) -> float | None:
     return float(value)
 
 
+_JAN31_FOLLOWING_YEAR = "Sunday closest to January 31 of the following year"
+_EXCLUDED_EXTRA_WEEK = "excluded"
+
+
 def _label_for(financials: StandardizedFinancials, period: date) -> str:
     for item in financials.periods:
         if item.end_date == period:
             return item.label
     return period.isoformat()
+
+
+def _fifty_three_week_period(
+    financials: StandardizedFinancials, axis: tuple[date, ...]
+) -> date | None:
+    data = financials.historical_operating_kpis
+    if data is None:
+        return None
+    found = {
+        item.period
+        for item in data.management_observations
+        if item.period in axis and item.calendar_week_adjustment == _EXCLUDED_EXTRA_WEEK
+    }
+    if len(found) != 1:
+        return None
+    return next(iter(found))
+
+
+def _issuer_fiscal_name(
+    financials: StandardizedFinancials, period: date
+) -> str | None:
+    data = financials.historical_operating_kpis
+    if data is None:
+        return None
+    for item in data.management_observations:
+        if item.period != period:
+            continue
+        if _JAN31_FOLLOWING_YEAR not in item.calendar_reporting_basis:
+            continue
+        if period.month not in (1, 2):
+            return None
+        return f"fiscal {period.year - 1}"
+    return None
+
+
+def _calendar_limitation(view: "DriversView") -> str:
+    period = view.fifty_three_week_period
+    if period is None or period not in view.periods:
+        return ""
+    label = view.labels[view.periods.index(period)]
+    naming = ""
+    issuer = view.issuer_fiscal_name
+    if issuer and issuer.casefold() != label.casefold():
+        naming = f"; the issuer names it {issuer}"
+    return (
+        f"{label}, the year ended {_date_text(period)}, is a 53-week year{naming}. "
+        "Some later comparable-sales presentations exclude or realign that extra "
+        "week and cannot be joined to the earlier observations."
+    )
+
+
+def _calendar_limit_block(view: "DriversView") -> str:
+    text = _calendar_limitation(view)
+    if not text:
+        return ""
+    return f"\n{text}\n"
 
 
 def _date_text(period: date) -> str:
@@ -138,6 +198,8 @@ class DriversView:
     geo_identities: tuple[str, ...]
     geo_contributions: tuple[dict[str, float | None], ...]
     consolidated_revenue_growth: tuple[float | None, ...]
+    fifty_three_week_period: date | None = None
+    issuer_fiscal_name: str | None = None
 
     def period_ended(self, period: date) -> str:
         return _date_text(period)
@@ -206,6 +268,10 @@ def assemble_drivers_view(
     geo_test = next(item for item in analysis.tests if item.theme == THEME_GEOGRAPHIC_GROWTH)
     if store_test.sample_size != 4 or geo_test.sample_size != 4:
         raise ValueError("Drivers expected four aligned growth and geographic periods")
+    week_period = _fifty_three_week_period(financials, tuple(axis))
+    issuer_name = (
+        _issuer_fiscal_name(financials, week_period) if week_period is not None else None
+    )
     return DriversView(
         company_name=financials.company_name,
         display_name=display_name,
@@ -239,6 +305,8 @@ def assemble_drivers_view(
         consolidated_revenue_growth=tuple(
             _numeric(geo.consolidated_revenue_growth[period]) for period in axis
         ),
+        fifty_three_week_period=week_period,
+        issuer_fiscal_name=issuer_name,
     )
 
 
@@ -375,9 +443,7 @@ Comparable sales cannot be read as a continuous series. The year ended {_date_te
 Geographic contributions split reported-currency revenue change. They are not organic growth, constant-currency growth, or a causal explanation.
 
 Sales per square foot cannot support a productivity reading. The {_date_text(definition_period)} filings disagree on the definition, later years do not line up on calendar and definition, and year-to-year sales-per-square-foot growth is not available. Revenue divided by stores is not store productivity.
-
-FY2024 is a 53-week year. Some later comparable-sales presentations exclude or realign that extra week and cannot be joined to the earlier observations.
-"""
+{_calendar_limit_block(view)}"""
     return body
 
 

@@ -2,17 +2,29 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
+from datetime import date
 from pathlib import Path
 
 from core.current_build import prepare_company_input, resolve_company
-from core.research.drivers import assemble_drivers_view, expected_sections, publish_drivers
+from core.ingestion.management_kpi_enrichment import inspect_source_pdf
+from core.research.drivers import (
+    _label_for,
+    assemble_drivers_view,
+    expected_sections,
+    publish_drivers,
+    render_drivers_markdown,
+)
 from core.research.publish import publish_company_research, verify_research_artifacts
 from core.research.style import apply_research_style, resolve_required_fonts
 from core.tests.test_lululemon_benchmark import REVENUE_ANCHORS
+from core.tests.test_management_kpi_admission import EXTRACTED, SOURCE
 from core.tests.test_operating_kpi_facts import INDEPENDENT_STORE_TOTALS
 
 ROOT = Path(__file__).resolve().parents[2]
+FIFTY_THREE_WEEK_END = date(2025, 2, 2)
+DISPLAYED_FY2024_END = date(2024, 1, 28)
 FORBIDDEN_PROSE = (
     "admitted",
     "fail-closed",
@@ -130,3 +142,71 @@ def test_fast_retailing_does_not_publish_drivers(tmp_path):
     fin = prepare_company_input(company, tmp_path / "input")
     publish_company_research(company.name, fin, tmp_path / "out")
     assert not (tmp_path / "out" / "research").exists()
+
+
+def test_drivers_calendar_limitation_reconciles_53_week_year(tmp_path):
+    extract = json.loads(
+        (EXTRACTED / "LULU_FY2024_management_kpis.json").read_text(encoding="utf-8")
+    )
+    assert extract["report"]["fiscal_year"] == 2024
+    assert extract["report"]["fiscal_year_end"] == FIFTY_THREE_WEEK_END.isoformat()
+    assert "53 weeks" in extract["report"]["reporting_basis"]
+    fy2024_definition = next(
+        item["definition"]
+        for item in extract["kpi_definitions"]
+        if item["metric_id"] == "comparable_sales_growth"
+    )
+    assert "53rd week is excluded from comparable sales" in fy2024_definition
+    fy2025 = json.loads(
+        (EXTRACTED / "LULU_FY2025_management_kpis.json").read_text(encoding="utf-8")
+    )
+    fy2025_definition = next(
+        item["definition"]
+        for item in fy2025["kpi_definitions"]
+        if item["metric_id"] == "comparable_sales_growth"
+    )
+    assert "shifted by one week" in fy2025_definition
+    inspection = inspect_source_pdf(SOURCE / "LULU_FY2024_Annual_Report.pdf")
+    assert 2024 in inspection.fifty_three_week_years
+    assert 2023 in inspection.fifty_two_week_years
+    company = resolve_company("Lululemon")
+    fin = prepare_company_input(company, tmp_path / "input")
+    assert _label_for(fin, FIFTY_THREE_WEEK_END) == "FY2025"
+    assert _label_for(fin, DISPLAYED_FY2024_END) == "FY2024"
+    adjustments = {
+        (item.period, item.calendar_week_adjustment)
+        for item in fin.historical_operating_kpis.management_observations
+        if item.family == "comparable_sales_growth"
+        and item.geography == "global"
+        and item.basis == "reported"
+        and item.population == "company_operated_stores_and_ecommerce"
+    }
+    assert (FIFTY_THREE_WEEK_END, "excluded") in adjustments
+    assert (DISPLAYED_FY2024_END, "included") in adjustments
+    view = assemble_drivers_view(fin, company.name)
+    assert view.fifty_three_week_period == FIFTY_THREE_WEEK_END
+    assert view.labels[view.periods.index(FIFTY_THREE_WEEK_END)] == "FY2025"
+    assert view.labels[view.periods.index(DISPLAYED_FY2024_END)] == "FY2024"
+    assert view.issuer_fiscal_name == "fiscal 2024"
+    text = render_drivers_markdown(view)
+    assert "| FY2024 | 28 January 2024 |" in text
+    assert "| FY2025 | 2 February 2025 |" in text
+    week_sentences = [
+        sentence.strip()
+        for sentence in re.split(r"(?<=\.)\s+", text)
+        if "53-week" in sentence
+    ]
+    assert len(week_sentences) == 1
+    assert week_sentences[0].startswith("FY2025, the year ended 2 February 2025, is a 53-week year")
+    assert "fiscal 2024" in week_sentences[0]
+    assert "FY2024 is a 53-week" not in text
+    assert re.search(
+        r"FY2024[^\n]*53-week|53-week[^\n]*FY2024 is",
+        text,
+    ) is None
+    assert "exclude or realign that extra week" in text
+    publish_drivers(fin, tmp_path / "out", display_name=company.name)
+    published = (tmp_path / "out" / "research" / "Lululemon_Drivers.md").read_text(
+        encoding="utf-8"
+    )
+    assert published == text
