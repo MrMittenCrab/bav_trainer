@@ -167,7 +167,7 @@ def verify_staged(fin, bav: Path, assumptions=None, trainer: Path | None = None)
                     raise ValueError('BAV must not contain a Trainer sheet')
                 opening = ' '.join(
                     str(cell.value)
-                    for row in wb['Overview'].iter_rows(max_row=12, max_col=4)
+                    for row in wb['Overview'].iter_rows()
                     for cell in row
                     if cell.value is not None
                 ).casefold()

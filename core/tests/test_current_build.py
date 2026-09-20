@@ -76,11 +76,20 @@ def test_company_build_rebuild_failure_and_workbook_contract(tmp_path, monkeypat
     assert 'Active / available' in str(driver_rows[0]) and driver_rows[0][3] > 0
     opening = ' '.join(
         str(cell.value or '')
-        for row in wb['Overview'].iter_rows(max_row=12, max_col=4)
+        for row in wb['Overview'].iter_rows()
         for cell in row
     )
     for term in ('Trainer', 'Answer Key', 'exercise', 'practice', 'Check'):
         assert term not in opening
+    assert 'HISTORICAL REVENUE AND DISCLOSED STRATEGY' in opening
+    assert 'Management statement' in opening
+    assert 'Historical finding' in opening
+    assert 'Analyst inference' in opening
+    assert 'exceeded revenue growth' in opening.lower()
+    assert 'contributed negatively' in opening.lower()
+    assert 'audit-only' in opening.lower()
+    assert 'untested' in opening.lower()
+    assert 'Schedules: ' not in opening
     for comp in smap.all_ordered():
         cell = wb[comp.tab][comp.cell]
         if is_operating_kpi_source_identity(comp):

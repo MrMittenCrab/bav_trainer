@@ -66,6 +66,15 @@ from core.model.revenue_driver import (
     compute_revenue_driver_analysis,
     revenue_driver_applicable,
 )
+from core.model.revenue_strategy_synthesis import (
+    DEFERRED_SPSF_LINK,
+    PROFESSIONAL_FALLBACK,
+    UNTESTED_INITIATIVES,
+    WHAT_HISTORY_ESTABLISHES,
+    compute_historical_strategy_synthesis,
+    disclosure_locator,
+    strategy_synthesis_applicable,
+)
 from core.tests.test_capex import P1, P2, _tiny
 from core.tests.test_historical_segment import _corp_values, _snapshot
 from core.tests.test_learner_ready_presentation import (
@@ -228,6 +237,22 @@ def test_catalog_orders_and_link_formulas():
     assert [spec.id for spec in specs] == [
         revenue_driver_component_id(REVENUE_DRIVER_STORE_GROWTH_FAMILY_ID, P2)
     ]
+
+
+def test_opening_without_strategy_stays_professional_fallback(tmp_path):
+    fin = _tiny()
+    assert not strategy_synthesis_applicable(fin)
+    trainer, answer = build_training_workbook(fin, tmp_path / "NO_STRATEGY.xlsx")
+    awb = load_workbook(answer, data_only=False)
+    opening = " ".join(
+        str(cell.value or "") for row in awb["Overview"].iter_rows() for cell in row
+    )
+    assert PROFESSIONAL_FALLBACK in opening
+    assert "HISTORICAL REVENUE AND DISCLOSED STRATEGY" not in opening
+    assert "Schedules: " not in opening
+    assert "Management statement" not in opening
+    awb.close()
+    derive_trainer_workbook(answer, trainer)
 
 
 def test_missing_disclosures_skip_analysis():
@@ -548,6 +573,105 @@ def test_geographic_mixed_when_a_segment_subtracts():
     assert any("negatively" in item.note for item in test.observations)
 
 
+def test_strategy_synthesis_connects_findings_without_claiming_outcomes():
+    from core.tests.test_geographic_segment_workbook import _geo_tiny
+
+    fin = _geo_tiny(
+        _snapshot(P1, values=_corp_values(rev=(80.0, 25.0, 15.0))),
+        _snapshot(P2, values=_corp_values(rev=(110.0, 15.0, 15.0))),
+    )
+    store = _store_fin(
+        {P1: 10, P2: 12},
+        {P1: 120.0, P2: 140.0},
+        _disclosure(
+            THEME_STORE_EXPANSION,
+            role=ROLE_OBJECTIVE,
+            text="We plan to open stores.",
+        ),
+        management=[
+            _compsales(period=P1, value=4.0, geography="global", basis="reported"),
+            _compsales(period=P2, value=5.0, geography="global", basis="reported"),
+        ],
+    )
+    fin.historical_operating_kpis = store.historical_operating_kpis
+    store_statement = _disclosure(
+        THEME_STORE_EXPANSION,
+        role=ROLE_OBJECTIVE,
+        text="We plan to open stores.",
+    )
+    compsales_statement = _disclosure(
+        THEME_COMPARABLE_SALES, role=ROLE_OPERATING_USE
+    )
+    productivity_statement = _disclosure(
+        THEME_PRODUCTIVITY, role=ROLE_OPERATING_USE
+    )
+    geo_statement = _disclosure(THEME_GEOGRAPHIC_GROWTH)
+    fin.historical_strategy = HistoricalStrategyData(
+        disclosures=(
+            store_statement,
+            compsales_statement,
+            productivity_statement,
+            geo_statement,
+        )
+    )
+    analysis = compute_revenue_driver_analysis(fin)
+    synthesis = compute_historical_strategy_synthesis(fin, analysis)
+    assert strategy_synthesis_applicable(fin)
+    assert "historical growth pattern" in synthesis.lead
+    assert "do not establish causal drivers" in synthesis.lead
+    assert "comprehensive strategy execution" in synthesis.lead
+    assert synthesis.untested == UNTESTED_INITIATIVES
+    assert synthesis.limits == WHAT_HISTORY_ESTABLISHES
+    by_theme = {item.theme: item for item in synthesis.interpretations}
+    assert set(by_theme) == {
+        THEME_STORE_EXPANSION,
+        THEME_COMPARABLE_SALES,
+        THEME_PRODUCTIVITY,
+        THEME_GEOGRAPHIC_GROWTH,
+    }
+    store_row = by_theme[THEME_STORE_EXPANSION]
+    assert store_statement.text in store_row.management_statement
+    assert disclosure_locator(store_statement) in store_row.management_statement
+    assert analysis.tests[0].finding in store_row.finding
+    assert REVENUE_DRIVER_SHEET_NAME in store_row.finding
+    assert "not achieved historical outcomes" in store_row.inference
+    assert "not new-store contribution" in store_row.inference
+    geo_row = by_theme[THEME_GEOGRAPHIC_GROWTH]
+    assert "contributed negatively" in geo_row.inference
+    assert "arithmetic decomposition" in geo_row.inference
+    productivity = by_theme[THEME_PRODUCTIVITY]
+    assert "cannot test" in productivity.inference
+    assert "not independent productivity evidence" in synthesis.productivity_gap
+    assert DEFERRED_SPSF_LINK not in synthesis.productivity_gap
+    assert "average during the year" not in synthesis.productivity_gap
+    assert "ordinary_disagreement" not in synthesis.productivity_gap
+
+
+def test_strategy_synthesis_links_deferred_spsf_without_promoting_it():
+    period = P1
+    disagreement = _deferred_disagreement(period=period)
+    fin = _attach_deferred(
+        _store_fin(
+            {P0: 10, P1: 12, P2: 15},
+            {P0: 100.0, P1: 130.0, P2: 160.0},
+            _disclosure(THEME_PRODUCTIVITY, role=ROLE_OPERATING_USE),
+            management=[_spsf(period=P2, value=1500)],
+        ),
+        disagreement,
+    )
+    synthesis = compute_historical_strategy_synthesis(fin)
+    assert DEFERRED_SPSF_LINK in synthesis.productivity_gap
+    assert "sample size 0" in synthesis.productivity_gap
+    assert disagreement.members[0].locator not in synthesis.productivity_gap
+    assert disagreement.members[0].definition_text not in synthesis.productivity_gap
+    assert "average during the year" not in synthesis.lead
+    productivity = next(
+        item for item in synthesis.interpretations if item.theme == THEME_PRODUCTIVITY
+    )
+    assert disagreement.members[0].locator not in productivity.finding
+    assert disagreement.members[0].locator not in productivity.inference
+
+
 def test_interim_axis_is_rejected_when_operating_history_exists():
     fin = _store_fin(
         {P1: 10, P2: 12},
@@ -656,6 +780,28 @@ def test_workbook_links_notes_trainer_check_and_skips_without_disclosures(tmp_pa
         for cell in row
     )
     _assert_readable_driver_layout(sheet)
+    overview = awb["Overview"]
+    opening = " ".join(
+        str(cell.value or "") for row in overview.iter_rows() for cell in row
+    )
+    assert "HISTORICAL REVENUE AND DISCLOSED STRATEGY" in opening
+    assert "Management statement" in opening
+    assert "Historical finding" in opening
+    assert "Analyst inference" in opening
+    assert "We open stores." in opening
+    assert "not achieved historical outcomes" in opening
+    assert "contributed negatively" in opening.lower()
+    assert "untested" in opening.lower()
+    assert PROFESSIONAL_FALLBACK not in opening
+    assert "Schedules: " not in opening
+    assert any(
+        cell.hyperlink
+        and "Revenue Driver Analysis" in str(getattr(cell.hyperlink, "target", "") or cell.hyperlink)
+        for row in overview.iter_rows()
+        for cell in row
+        if cell.hyperlink
+    )
+    _assert_readable_driver_layout(overview)
     awb.close()
     _assert_answer_key_no_yellow(answer)
     assert_bav_has_no_exercise_framing(answer)
@@ -848,6 +994,31 @@ def test_lululemon_ordinary_disclosures_test_admitted_history(tmp_path):
         assert member.locator in values
         assert member.definition_text in values
     _assert_readable_driver_layout(sheet)
+    overview = awb["Overview"]
+    opening = " ".join(
+        str(cell.value or "") for row in overview.iter_rows() for cell in row
+    )
+    assert "HISTORICAL REVENUE AND DISCLOSED STRATEGY" in opening
+    for disclosure in fixture.disclosures:
+        assert disclosure_locator(disclosure) in opening
+        if disclosure.role != ROLE_OBJECTIVE:
+            assert disclosure.text in opening
+    assert store.finding in opening
+    assert "exceeded revenue growth" in opening.lower()
+    assert "2026-02-01" in opening
+    assert "contributed negatively" in opening.lower()
+    assert "arithmetic decomposition" in opening.lower()
+    assert "not achieved historical outcomes" in opening
+    assert "cannot test" in opening.lower() or "cannot be treated" in opening.lower()
+    assert "audit-only" in opening.lower()
+    assert DEFERRED_SPSF_LINK in opening
+    assert "untested" in opening.lower()
+    assert "do not establish causal drivers" in opening
+    assert "Schedules: " not in opening
+    for member in spsf_deferred[0].members:
+        assert member.locator not in opening
+        assert member.definition_text not in opening
+    _assert_readable_driver_layout(overview)
     awb.close()
     _assert_answer_key_no_yellow(answer)
     assert_bav_has_no_exercise_framing(answer)

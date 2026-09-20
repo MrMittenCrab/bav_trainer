@@ -1,3 +1,79 @@
+# RESULT.md — Step 3.4 Connect historical revenue findings to disclosed strategy
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 3.4 — Connect historical revenue findings to disclosed strategy  
+**Work:** `a0711a837cc54312a8ab84b424f945bb`  
+**Plan:** `f50d0be82bde4cefbe1f97c59d6327a1`  
+**Finding:** Connect historical revenue findings to disclosed strategy  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `28089b961e72b3058d043efb9008e42c7b144d15cc3e3e2837174acb2f5eaf70` (26043).  
+SESSION SHA-256 `b37e5b0348b8d6f2210a51f8307511842fcc862ede5059c7ca76687bb4bad4aa` (4944).  
+IMPLEMENTATION SHA-256 `bf053b273c2926814a5c3b14e71adb23c66dc6c8985fdbbeb30922bfe03f5b6e` (6635).  
+No commit / push / sync / checkpoint / branch change.
+
+## Required plan change
+
+No required plan change. Ordinary Lululemon BAV Overview is now a source-backed historical reading that connects the four accepted driver findings to management-disclosed strategy, with locators, counterexamples and explicit limits. Session Endpoint, forecasting and earlier deferred obligations remain subsequent work.
+
+## Synthesis published on Overview
+
+Ordinary `python -m bav build Lululemon` remains Active for Revenue Driver Analysis and the supporting KPI / geographic schedules. Fast Retailing still has no strategy payload; Overview uses the generic professional fallback and the driver sheet stays absent.
+
+Generic module `core/model/revenue_strategy_synthesis.py` consumes admitted `compute_revenue_driver_analysis` results and source-bound disclosures. Issuer statements stay in company inputs. Protected `benchmark/lululemon/reconciled/standardized.json` still has no `historical_strategy`. Disclosure fixture unchanged SHA-256 `8da4536a21d6874ddedfaea06cb4e3b948f11b23a33d8f55b1f24c850157d845`.
+
+| Theme | Management statement / locator | Historical finding / schedule | Analyst inference / qualification |
+|---|---|---|---|
+| Store expansion | FY2022 10-K p.32 strategy; FY2024 10-K p.3 strategy; FY2024 p.3 objective as locator only | Supported descriptively; 4 aligned periods; 2026-02-01 store 5.74% exceeded revenue 4.86% (−0.878 pp); period-end RPS declined. See Revenue Driver / Store Count / Revenue per Store. | Coincident descriptor, not new-store contribution, organic growth or causal evidence. Objective is a plan, not an achieved outcome. |
+| Comparable sales | FY2022 10-K p.31 and p.32 operating use; FY2024 10-K p.33 operating use | Supported descriptively; 4 identity-period observations. See Revenue Driver and Comparable Sales Analysis. | Descriptive only. Reported vs constant-currency remain separate. Historical comparable-sales comparison remains ineligible. |
+| Store productivity | FY2022 10-K p.3 operating use; FY2024 10-K p.34 operating use | Insufficiently evidenced; sample 0; adjacent SPSF unavailable. RPS rose in 3 periods and declined in 1 as identity only. | Disclosure remains a statement, not a demonstrated outcome. Total-company revenue / stores is not independent productivity evidence. |
+| Geographic expansion | FY2022 10-K p.24 Power of Three ×2; FY2024 10-K p.3 China Mainland | Mixed; 4 periods / 3 identities. 2026-02-01 revenue 4.86%; Americas −0.766 pp; China Mainland 3.716 pp; Rest of World 1.909 pp. See Revenue Driver and Geographic Segment Analysis. | Arithmetic decomposition of reported revenue, not organic, constant-currency or causal growth. |
+
+Combined reading: store expansion and comparable sales are descriptively consistent; geographic mix is mixed; productivity cannot be treated as a demonstrated driver; latest-period store and geographic counterexamples prevent lockstep or uniformly positive readings. History does not establish causal drivers, comprehensive strategy execution, or untested initiatives.
+
+Productivity gap links to the complete deferred 2023-01-29 SPSF disagreement on Revenue Driver Analysis without copying member locators or definition texts onto Overview. Untested initiatives remain untested. Supporting-schedule hyperlinks retained.
+
+Preserved: four hypotheses/verdicts/sample sizes/counterexamples; 24 CompSales facts; 3 SPSF levels; 5 RPS periods; 39 pair assessments; five supported historical SPSF comparisons; admission/comparison independence; FY2022 store-only vs later stores-plus-DTC; 2023-01-29 disagreement audit-only; FY2024 exclusion/calendar failures; `SEGMENT_BRIDGE_TOLERANCE = 0.0`.
+
+## Verification
+
+| Check | Measured result |
+|---|---|
+| `python -m pytest core/tests/test_revenue_driver.py` | **18 passed** (prior 15 retained; added synthesis, deferred-SPSF link-without-promotion, professional fallback, Overview assertions) |
+| `test_current_build` + `test_build_cli` + `test_build_contract` + `test_protected_artifacts_and_eight_extracts_unchanged` | **69 passed** including **50/50** protected artifacts and **8/8** extracts |
+| Lululemon + Fast Retailing + Trainer + learner-ready | **394 passed** |
+| operating KPI workbook + geographic workbook + management KPI history + revenue driver | **120 passed** |
+| Ordinary `python -m bav build Lululemon` | Active for driver / CompSales / SPSF / RPS / geographic. Overview has synthesis; 0 yellow; no exercise framing. |
+| Trainer derivation from final BAV | BAV bytes unchanged. 37 source facts populated; 824 blank yellow practices; pristine Check **0 / 0 / 824 / 824**. |
+| Formula/literal compare vs `.git/autocycle/excel-verification-fb95_r2m/saved-copy.xlsx` | Overview narrative **52** cells changed (intended). Formula changed **0**. Non-Overview literal changed **0**. Native recalculation not required. |
+| Native Overview screenshots | Granted overlapping views at 100% zoom inspected; no clipping/truncation demonstrated. AutoRecover banner present, not dismissed. |
+
+`SEGMENT_BRIDGE_TOLERANCE = 0.0`. Protected PDFs, extracts and authenticated baselines were not replaced.
+
+## Artifact hashes
+
+| Path | SHA-256 | Bytes |
+|---|---|---|
+| `build/output/Lululemon/Lululemon_BAV.xlsx` | `5bb6537b6cf32556b4382c51b18a1a2ca013ec85e804b91803e1fece7bc4b2a3` | 228422 |
+| `build/output/Lululemon/Lululemon_BAV_Trainer.xlsx` | `2dd85f089755242951b7cd7f046080e1ac7c6c5bcee69fd89e43b53701d8ce52` | 66642 |
+| `.git/autocycle/excel-verification-fb95_r2m/saved-copy.xlsx` | `1d332daa8740fc53df6eaf90ecff5c7446f19502ad9510a7ab5ff56954aa1cae` | 260706 |
+| granted working copy (in-place update of same source-path copy) | `5bb6537b6cf32556b4382c51b18a1a2ca013ec85e804b91803e1fece7bc4b2a3` | 228422 |
+| `core/tests/fixtures/strategy/lululemon_management_disclosures.json` | `8da4536a21d6874ddedfaea06cb4e3b948f11b23a33d8f55b1f24c850157d845` | 4255 |
+
+## Native Excel carry-forward
+
+Formulas, literal inputs and transitive dependencies on unchanged analytical surfaces match the immutable saved snapshot by identity. Accepted 37-reference / 103-cell VERIFIED evidence is carried forward without recalculation.
+
+Retained: `.git/autocycle/revenue-driver-render-3-3-1/`, `excel-verification-fb95_r2m/`, `excel-verification-7vjhjujd/`, `excel-verification-kd2d78ng/`, `excel-verification-ti974vnt/`, `excel-verification-kzg9a_ex/`.
+
+New visual evidence: `.git/autocycle/overview-synthesis-3-4/` (`inspection.json`, `capture-granted-log.txt`, `capture-granted-hashes.sha256`, 8 PNGs under `captures-granted/`). First ungranted-folder captures under `captures/` show Chrome plus a folder-access dialog and are not readability evidence; that dialog was not clicked.
+
+## Remaining toward Completion
+
+This bounded work publishes the Overview synthesis connecting verified findings to disclosed strategy. It does not close the Session Endpoint, forecasting, valuation, or earlier deferred normalization / source-workflow / normalized-per-share obligations.
+
+---
+
 # RESULT.md — Step 3.3.1 Finish revenue-driver presentation and verification
 
 **Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 from openpyxl.comments import Comment
-from openpyxl.styles import Border, Font, PatternFill
+from openpyxl.styles import Alignment, Border, Font, PatternFill
 
 from ..engine.component_catalog import (
     CAPEX_COMPONENT_CATALOG,
@@ -284,7 +284,7 @@ class TrainingWorkbookGenerator:
         return standardized_from_payload(load_check_context(self.bav_path).source_payload)
 
     def _add_bav_opening(self, wb) -> None:
-        """Professional cover: company, coverage, units, structure, source, limits."""
+        """Professional cover: identity, source-backed interpretation, navigation."""
         for name in (BAV_OPENING_SHEET, "Trainer"):
             if name in wb.sheetnames:
                 del wb[name]
@@ -318,31 +318,128 @@ class TrainingWorkbookGenerator:
             and title != "Build Status"
             and wb[title].sheet_state == "visible"
         ]
+        from ..model.revenue_strategy_synthesis import (
+            PROFESSIONAL_FALLBACK,
+            compute_historical_strategy_synthesis,
+            strategy_synthesis_applicable,
+        )
+
         ws = wb.create_sheet(BAV_OPENING_SHEET, 0)
         ws.sheet_view.showGridLines = False
-        ws["A1"] = "Business Analysis and Valuation"
-        ws["A2"] = identity
-        ws["A3"] = f"Historical coverage: {coverage}"
-        ws["A4"] = f"Units: {currency}; {units}"
-        ws["A5"] = (
-            "Analytical structure: source statements, condensed reformulation, "
-            "profitability and quality diagnostics, and admitted operating schedules."
-        )
-        if structure:
-            ws["A6"] = "Schedules: " + "; ".join(structure)
-            source_row, limit_row = "A7", "A8"
+        wrap = Alignment(wrap_text=True, vertical="top")
+        label_width = 28.0
+        narrative_width = 88.0
+        ws.column_dimensions["A"].width = label_width
+        ws.column_dimensions["B"].width = narrative_width
+
+        def _wrapped_height(text: str, *, width: float) -> float:
+            chars_per_line = max(24, int(width * 0.9))
+            paragraphs = str(text or "").splitlines() or [""]
+            lines = 0
+            for paragraph in paragraphs:
+                length = max(len(paragraph), 1)
+                lines += max(1, (length + chars_per_line - 1) // chars_per_line)
+            return max(18.0, 15.0 * lines + 8.0)
+
+        def _raise_row(row: int, height: float) -> None:
+            current = ws.row_dimensions[row].height
+            ws.row_dimensions[row].height = max(float(current or 0), height)
+
+        def _write(row: int, column: int, text: str, *, width: float) -> None:
+            cell = ws.cell(row=row, column=column, value=text)
+            cell.alignment = wrap
+            if text:
+                _raise_row(row, _wrapped_height(text, width=width))
+
+        def _label(row: int, text: str) -> None:
+            _write(row, 1, text, width=label_width)
+
+        def _narrative(row: int, text: str) -> None:
+            _write(row, 2, text, width=narrative_width)
+            label = ws.cell(row=row, column=1).value
+            if isinstance(label, str) and label:
+                _raise_row(row, _wrapped_height(label, width=label_width))
+
+        def _wide(row: int, text: str) -> None:
+            cell = ws.cell(row=row, column=1, value=text)
+            cell.alignment = wrap
+            ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+            _raise_row(row, _wrapped_height(text, width=label_width + narrative_width))
+
+        _wide(1, "Business Analysis and Valuation")
+        _wide(2, identity)
+        _wide(3, f"Historical coverage: {coverage}")
+        _wide(4, f"Units: {currency}; {units}")
+
+        cursor = 6
+        navigation: list[str] = []
+        if strategy_synthesis_applicable(fin):
+            synthesis = compute_historical_strategy_synthesis(fin)
+            _label(cursor, "Historical reading")
+            _narrative(cursor, synthesis.lead)
+            cursor += 2
+            _wide(cursor, "HISTORICAL REVENUE AND DISCLOSED STRATEGY")
+            cursor += 1
+            for item in synthesis.interpretations:
+                _wide(cursor, item.heading.upper())
+                cursor += 1
+                _label(cursor, "Management statement")
+                _narrative(cursor, item.management_statement)
+                cursor += 1
+                _label(cursor, "Historical finding")
+                _narrative(cursor, item.finding)
+                cursor += 1
+                _label(cursor, "Analyst inference")
+                _narrative(cursor, item.inference)
+                cursor += 2
+            _wide(cursor, "WHAT THE HISTORY ESTABLISHES")
+            cursor += 1
+            _label(cursor, "Limits")
+            _narrative(cursor, synthesis.limits)
+            cursor += 1
+            if synthesis.productivity_gap:
+                _label(cursor, "Productivity evidence")
+                _narrative(cursor, synthesis.productivity_gap)
+                cursor += 1
+            _label(cursor, "Untested initiatives")
+            _narrative(cursor, synthesis.untested)
+            cursor += 2
+            navigation = [
+                name for name in synthesis.navigation if name in structure
+            ]
         else:
-            source_row, limit_row = "A6", "A7"
-        ws[source_row] = (
-            "Source basis: source-grounded filings reconciled into StandardizedFinancials. "
-            "Conflicts and superseded observations remain in supporting audit artifacts."
+            _wide(cursor, PROFESSIONAL_FALLBACK)
+            cursor += 2
+
+        if not navigation:
+            navigation = list(structure)
+        _wide(cursor, "SUPPORTING SCHEDULES")
+        cursor += 1
+        for name in navigation:
+            cell = ws.cell(row=cursor, column=1, value=name)
+            cell.alignment = wrap
+            if name in wb.sheetnames:
+                cell.hyperlink = f"#'{name}'!A1"
+            cursor += 1
+        cell = ws.cell(row=cursor, column=1, value="Build Status")
+        cell.alignment = wrap
+        cell.hyperlink = "#'Build Status'!A1"
+        cursor += 2
+
+        _label(cursor, "Source basis")
+        _narrative(
+            cursor,
+            "Source-grounded filings reconciled into StandardizedFinancials. "
+            "Conflicts and superseded observations remain in supporting audit artifacts.",
         )
-        ws[limit_row] = (
-            "Availability limitations: optional modules appear only when required "
-            "historical facts are supplied. See Build Status for unavailable or "
-            "inactive families. Missing facts are not invented."
+        cursor += 1
+        _label(cursor, "Availability")
+        _narrative(
+            cursor,
+            "Optional modules appear only when required historical facts are "
+            "supplied. See Build Status for unavailable or inactive families. "
+            "Missing facts are not invented.",
         )
-        ws.column_dimensions["A"].width = 110
 
     def _add_trainer_ui(self, wb) -> None:
         if "Trainer" in wb.sheetnames:
