@@ -3,6 +3,149 @@
 **Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
 **Step:** 3.3.1 — Finish revenue-driver presentation and verification  
 **Work:** `8a8f7457f9524a6997e0ec2fbbe5ac23`  
+**Plan:** `ae0a334d973046dba34439501d718da6`  
+**Finding:** Test disclosure-led historical revenue drivers  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `28089b961e72b3058d043efb9008e42c7b144d15cc3e3e2837174acb2f5eaf70` (26043).  
+SESSION SHA-256 `b37e5b0348b8d6f2210a51f8307511842fcc862ede5059c7ca76687bb4bad4aa` (4944).  
+IMPLEMENTATION SHA-256 `2421f7753841af1d1cde8f1e5b548e06d8e3223dd5205ce55d9d8619e2a602ed` (6773).  
+No commit / push / sync / checkpoint / branch change.
+
+## Required plan change
+
+No required plan change. Ordinary Lululemon BAV now publishes the deferred 2023-01-29 SPSF disagreement from admission/provenance evidence without admitting the group. Native Excel PDF/page screenshots of Revenue Driver Analysis timed out; that visual-clipping check remains an explicit rendering-access gap already allowed by the plan. Broader strategy synthesis, forecasting and Session Endpoint closure remain subsequent work.
+
+## Deferred 2023-01-29 SPSF disagreement
+
+Ordinary `python -m bav build Lululemon` remains Active for Revenue Driver Analysis. Fast Retailing still has no strategy payload; the sheet is absent and Build Status reports Source unavailable / not admitted.
+
+The disagreement is carried through the existing StandardizedFinancials KPI handoff as `historical_operating_kpis.deferred_disagreements`, not as `management_observations`. Reported values stay documentary. Admission and comparison eligibility remain independent.
+
+Handoff rule (generic): a deferred group is published only when it has `ordinary_disagreement` plus at least one evidenced conflict reason (`definition_mismatch`, qualifier/population/unit/basis/calendar mismatches). Missing-revision, missing-presentation, unknown-assurance, value-only ordinary disagreement, absent admission, and other-family conflicts do not produce a sales-per-square-foot disagreement assertion.
+
+Measured Lululemon deferred group (not admitted):
+
+| Field | Evidence |
+|---|---|
+| Period-end | 2023-01-29 |
+| Family | `sales_per_square_foot` |
+| Reasons | `definition_mismatch`, `ordinary_disagreement` |
+| Current locator | `LULU_FY2022_management_kpis.json:reported_kpis[17]:sales_per_square_foot:2023-01-29` |
+| Current source | Form 10-K p. 3; physical `3→7` |
+| Current definition | Total net revenue from all company-operated stores divided by average store square footage **during the year** … |
+| Prior locator | `LULU_FY2023_management_kpis.json:reported_kpis[36]:sales_per_square_foot:2023-01-29` |
+| Prior source | Form 10-K p. 4; physical `4→10` |
+| Prior definition | Total net revenue from all company-operated stores divided by average **ending** square footage of stores for each period during the year … |
+| Reported values | 1580 and 1580 (unadmitted) |
+| Consequence | Complete group remains audit-only; not bridged into the productivity test; does not create an admitted observation |
+
+Admitted SPSF levels remain **3** (2024-01-28 / 2025-02-02 / 2026-02-01). Period-end 2023-01-29 is absent from `management_observations`. Missing admitted observations and unavailable adjacent SPSF growth remain stated separately and do not substitute for the disagreement row.
+
+Preserved KPI coverage: **24** Comparable Sales facts, **3** SPSF levels, **5** Revenue per Store periods, **39** pair assessments and five supported historical SPSF comparisons. Store-count sources remain 5.
+
+## Workbook presentation (inspected after regeneration)
+
+Professional BAV sheet `Revenue Driver Analysis` after `python -m bav build Lululemon`. Period columns widened 16→28. Deferred disagreement is a full-width wrapped row, not joined into the ordinary limitations blob.
+
+| Cell (relocated equivalents) | Role | Characters | wrap_text | row height |
+|---|---|---|---|---|
+| A5 | scope note | 615 | True | 68 |
+| B12 | first store disclosure | 225 | True | 38 |
+| B15 | store finding + 2026-02-01 counterexample | 635 | True | 98 |
+| B18 | store limitations | 640 | True | 98 |
+| B36 | compsales limitations | 655 | True | 98 |
+| B56 | productivity limitations (admitted-evidence only) | 887 | True | 128 |
+| A57 | DEFERRED DISAGREEMENT heading | 21 | False | default |
+| A58 | deferred SPSF disagreement (full-width merge A–F) | 1215 | True | 113 |
+| F25 | store period-specific interpretation 2026-02-01 | 485 | True | 308 |
+| F83 (was F81) | geographic period-specific interpretation 2026-02-01 | 218 | True | 143 |
+| A90 / B90 (was A5/B88 pair at foot) | scope note | 25 / 615 | True | 143 / 83 |
+
+Four hypotheses, long disclosures, findings, limitations, counterexamples, headings and source locators are present. Yellow cells: **0**. Exercise-framing hits: **0**. Linked observation formulas: **37**. Notes present.
+
+Period-specific counterexamples preserved:
+
+- Store expansion, period-end **2026-02-01**: store-count growth **5.74%** exceeded revenue growth **4.86%** (descriptive difference **−0.878 pp**). Period-end Revenue per Store declined. Not new-store contribution or productivity proof.
+- Geographic growth, period-end **2026-02-01**: consolidated revenue grew **4.86%** while **Americas −0.766 pp** contributed negatively and China Mainland **3.716 pp** / Rest of World **1.909 pp** contributed positively. Mix is mixed, not causal.
+
+Native Excel PDF export of this sheet timed out after 120s on a dedicated copy (`.git/autocycle/revenue-driver-render-3-3-1/`). No screenshot or rendered page was obtained. Character counts and wrap/height properties therefore do not close visual clipping. That remains an explicit rendering-access gap. The original BAV bytes were unchanged by the timed-out export (`f0f46a03…`).
+
+## Trainer / Check
+
+Optional `derive_trainer_workbook`: primary BAV bytes unchanged. **37** driver practice cells blank-yellow, no comments; **37** KPI source facts populated. Semantic components **861**; Check surface **824**.
+
+Workbook-wide Check on copies of the ordinary derived Trainer (BAV bytes unchanged throughout):
+
+| Case | total | blank | correct | incorrect |
+|---|---|---|---|---|
+| Blank | 824 | 824 | 0 | 0 |
+| All formulas filled | 824 | 0 | 824 | 0 |
+| Incorrect each driver family (`=999`) | 824 | 0 | 823 | 1 |
+
+Families covered with an incorrect case: Revenue per Store, store growth, revenue growth, store difference, comparable sales, comparable-sales difference, geographic contribution. Summaries are non-disclosing (`=999` and formulas absent from `repr`).
+
+## Native Excel
+
+Formulas relocated with the extra deferred-disagreement rows (geographic C76/C78/C80 → C78/C80/C82; Revenue per Store B84:F84 → B86:F86). Store and compsales formula addresses were unchanged. Independent references were rebound to the final workbook hash and recalculated.
+
+```
+python3 ~/.autocycle/excel_verification.py build/output/Lululemon/Lululemon_BAV.xlsx -- python scripts/verify_cached_workbook.py '{workbook}' --original build/output/Lululemon/Lululemon_BAV.xlsx --references docs/native-excel-revenue-driver-references.json
+```
+
+| Item | Value |
+|---|---|
+| Status | VERIFIED |
+| Independent references | 37 |
+| Checked cells (incl. transitive deps) | 103 |
+| Formulas preserved | true |
+| Evidence | `.git/autocycle/excel-verification-fb95_r2m/` |
+| Snapshot | `.git/autocycle/excel-verification-fb95_r2m/saved-copy.xlsx` |
+| Copy SHA-256 | `1d332daa8740fc53df6eaf90ecff5c7446f19502ad9510a7ab5ff56954aa1cae` |
+| References SHA-256 | `440732349af1a8c11e2c51de5a96e71125b4e55584e97be1a198fe0474727aea` |
+
+Retained prior evidence dirs: `.git/autocycle/excel-verification-7vjhjujd/`, `.git/autocycle/excel-verification-kd2d78ng/`, `.git/autocycle/excel-verification-ti974vnt/`, `.git/autocycle/excel-verification-kzg9a_ex/`.
+
+## Verification commands
+
+| Command | Result |
+|---|---|
+| `python -m pytest core/tests/test_revenue_driver.py` | **15 passed** |
+| `python -m pytest core/tests/test_management_kpi_history.py` (with revenue-driver) | included in **63 passed** then later **132 passed** with build/protected |
+| `python -m pytest` operating_kpi_management_history, management_kpi_admission, current_build, operating_kpi_workbook, lululemon_benchmark, fast_retailing_benchmark, build_cli, build_contract, revenue_per_store | **1574 passed** |
+| `python -m pytest` protected artifacts + operating_kpi_relationships/facts + geographic_segment_analysis + trainer | **199 passed** including **50/50** protected artifacts and **8/8** extracts |
+| `python -m pytest` current_build, revenue_driver, management_kpi_history, protected artifacts, build_cli, build_contract (after layout) | **132 passed** |
+| `python -m bav build Lululemon` | exit 0; Revenue Driver Analysis Active |
+| `python -m bav build FastRetailing` | exit 0; no Revenue Driver sheet; status unavailable |
+| Trainer Check | blank 824; filled 824 correct; 7 driver-family incorrect cases each 1 incorrect |
+| Native Excel helper | **VERIFIED** (37 refs, 103 cells) |
+| Native Excel PDF export of Revenue Driver Analysis | **timed out 120s**; no rendered pages |
+
+`SEGMENT_BRIDGE_TOLERANCE = 0.0`. Protected PDFs, extracts and authenticated baselines were not replaced.
+
+## Artifact hashes
+
+| Path | SHA-256 | Bytes |
+|---|---|---|
+| `build/output/Lululemon/Lululemon_BAV.xlsx` | `f0f46a03f4c2091f8d9a1d3002b37bcda2bd46c6851389d9ebc4171cbf4f1a0c` | 224649 |
+| `build/output/Lululemon/Lululemon_BAV.component_map.json` | `0db382729238162bc6e1240c42b6792fc63fbb5b526fd95c3fda5e45d19619f3` | 1202071 |
+| `build/output/Lululemon/supporting/standardized.json` | `88021a6274fedf54899b12ee5727ce8985ad50dcb8f0b85e051a746d1dd8d803` | 70646 |
+| `core/tests/fixtures/strategy/lululemon_management_disclosures.json` | `8da4536a21d6874ddedfaea06cb4e3b948f11b23a33d8f55b1f24c850157d845` | 4255 |
+| `docs/native-excel-revenue-driver-references.json` | `440732349af1a8c11e2c51de5a96e71125b4e55584e97be1a198fe0474727aea` | 19150 |
+| `build/output/Lululemon/Lululemon_BAV_Trainer.xlsx` (derived) | `747cf7ba4e822b0202bbb0a4d5c68ebffbb2a58ec37d619096098c5dd5d7721d` | 63829 |
+| `build/output/FastRetailing/FastRetailing_BAV.xlsx` | `228f3933478b2e2241bd0e0726f6c3eb979ce6dc22cf93d88ee92c4e87e6854b` | 135092 |
+
+## Remaining toward Completion
+
+Deferred SPSF disagreement is now evidence-derived in the model and published workbook, with generic non-Lululemon/absent/incompatible regressions. Native Excel cached values for the 37 relocated driver formulas were independently recalculated. Visual readability of wrapped cells was not established by a rendered page or screenshot because Excel PDF export timed out; that remains an explicit rendering-access gap. This attempt does not close broader strategy interpretation, Session Endpoint, historical comparable-sales comparison windows, or earlier normalization / normalized-per-share obligations.
+
+---
+
+# RESULT.md — Step 3.3.1 Finish revenue-driver presentation and verification
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 3.3.1 — Finish revenue-driver presentation and verification  
+**Work:** `8a8f7457f9524a6997e0ec2fbbe5ac23`  
 **Plan:** `6573768c570445d7a990964b4c543a70`  
 **Finding:** Test disclosure-led historical revenue drivers  
 

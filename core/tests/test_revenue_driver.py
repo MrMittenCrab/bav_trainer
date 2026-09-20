@@ -23,6 +23,10 @@ from core.data.historical_strategy import (
     load_strategy_disclosures,
 )
 from core.data.standardized_io import standardized_from_payload, standardized_to_payload
+from core.data.interface import (
+    HistoricalManagementKpiDeferredDisagreement,
+    HistoricalManagementKpiDeferredMember,
+)
 from core.engine.component_catalog import (
     REVENUE_DRIVER_COMPSALES_DIFFERENCE_FAMILY_ID,
     REVENUE_DRIVER_COMPSALES_FAMILY_ID,
@@ -41,6 +45,8 @@ from core.engine.component_catalog import (
 )
 from core.engine.reference_model import ReferenceModelBuilder
 from core.ingestion.management_kpi_identity import (
+    FAMILY_COMPARABLE_SALES_GROWTH,
+    FAMILY_SALES_PER_SQUARE_FOOT,
     POP_COMPANY_OPERATED_STORES,
     POP_STORES_AND_DTC,
     POP_STORES_AND_ECOMMERCE,
@@ -123,6 +129,70 @@ def _store_fin(
         management=management,
     )
     return _with_strategy(fin, *disclosures)
+
+
+def _deferred_member(
+    *,
+    locator: str,
+    definition_text: str,
+    presentation_role: str = "current",
+    extraction_document: str = "example.json",
+    page_reference: str = "Form 10-K p. 10",
+    physical_page_mapping: str = "10",
+    reported_value: float | None = 1580.0,
+) -> HistoricalManagementKpiDeferredMember:
+    return HistoricalManagementKpiDeferredMember(
+        locator=locator,
+        extraction_document=extraction_document,
+        page_reference=page_reference,
+        physical_page_mapping=physical_page_mapping,
+        presentation_role=presentation_role,
+        definition_text=definition_text,
+        population=POP_COMPANY_OPERATED_STORES,
+        unit="USD_per_square_foot",
+        basis="reported",
+        calendar_week_adjustment="included",
+        calendar_reporting_basis="52_week",
+        reported_value=reported_value,
+    )
+
+
+def _deferred_disagreement(
+    *,
+    family: str = FAMILY_SALES_PER_SQUARE_FOOT,
+    period: date = P2,
+    reasons: tuple[str, ...] = ("definition_mismatch", "ordinary_disagreement"),
+    members: tuple[HistoricalManagementKpiDeferredMember, ...] | None = None,
+) -> HistoricalManagementKpiDeferredDisagreement:
+    return HistoricalManagementKpiDeferredDisagreement(
+        family=family,
+        period=period,
+        reasons=list(reasons),
+        members=list(
+            members
+            or (
+                _deferred_member(
+                    locator=f"{family}:current:{period.isoformat()}",
+                    definition_text="average during the year",
+                    presentation_role="current",
+                ),
+                _deferred_member(
+                    locator=f"{family}:prior:{period.isoformat()}",
+                    definition_text="average ending square footage",
+                    presentation_role="prior",
+                    page_reference="Form 10-K p. 11",
+                    physical_page_mapping="11",
+                ),
+            )
+        ),
+    )
+
+
+def _attach_deferred(fin, *items: HistoricalManagementKpiDeferredDisagreement):
+    data = fin.historical_operating_kpis
+    assert data is not None
+    data.deferred_disagreements = list(items)
+    return fin
 
 
 def test_catalog_orders_and_link_formulas():
@@ -350,6 +420,116 @@ def test_productivity_limitations_follow_missing_spsf_periods():
     assert "not bridged" in joined.lower()
     assert "2023-01-29" not in joined
     assert "definition disagreement" not in joined.lower()
+    assert "ordinary_disagreement" not in joined
+
+
+def test_productivity_discloses_evidence_derived_deferred_disagreement():
+    period = P1
+    disagreement = _deferred_disagreement(period=period)
+    fin = _attach_deferred(
+        _store_fin(
+            {P0: 10, P1: 12, P2: 15},
+            {P0: 100.0, P1: 130.0, P2: 160.0},
+            _disclosure(THEME_PRODUCTIVITY),
+            management=[_spsf(period=P2, value=1500)],
+        ),
+        disagreement,
+    )
+    test = compute_revenue_driver_analysis(fin).tests[0]
+    joined = " ".join(test.limitations)
+    assert period.isoformat() in joined
+    assert "definition_mismatch" in joined
+    assert "ordinary_disagreement" in joined
+    assert "average during the year" in joined
+    assert "average ending square footage" in joined
+    assert disagreement.members[0].locator in joined
+    assert disagreement.members[1].locator in joined
+    assert "example.json" in joined
+    assert "Form 10-K p. 10" in joined
+    assert "audit-only" in joined.lower()
+    assert "not admitted" in joined.lower()
+    assert "does not create an admitted observation" in joined
+    assert "2023-01-29" not in joined
+    round_trip = standardized_from_payload(standardized_to_payload(fin))
+    restored = round_trip.historical_operating_kpis.deferred_disagreements
+    assert len(restored) == 1
+    assert restored[0].period == period
+    assert restored[0].reasons == list(disagreement.reasons)
+    assert [item.locator for item in restored[0].members] == [
+        item.locator for item in disagreement.members
+    ]
+    assert all(
+        item.period != period
+        for item in round_trip.historical_operating_kpis.management_observations
+        if item.family == FAMILY_SALES_PER_SQUARE_FOOT
+    )
+
+
+def test_unrelated_absent_and_incompatible_inputs_do_not_assert_disagreement():
+    absent = _store_fin(
+        {P1: 10, P2: 12},
+        {P1: 100.0, P2: 130.0},
+        _disclosure(THEME_PRODUCTIVITY),
+    )
+    absent_joined = " ".join(compute_revenue_driver_analysis(absent).tests[0].limitations)
+    assert "ordinary_disagreement" not in absent_joined
+    assert "definition_mismatch" not in absent_joined
+    assert "audit-only" not in absent_joined.lower()
+
+    unrelated = _attach_deferred(
+        _store_fin(
+            {P1: 10, P2: 12},
+            {P1: 100.0, P2: 130.0},
+            _disclosure(THEME_PRODUCTIVITY),
+            _disclosure(THEME_COMPARABLE_SALES),
+            management=[
+                _compsales(period=P1, value=4.0, geography="global", basis="reported"),
+                _compsales(period=P2, value=5.0, geography="global", basis="reported"),
+            ],
+        ),
+        _deferred_disagreement(
+            family=FAMILY_COMPARABLE_SALES_GROWTH,
+            period=P2,
+            members=(
+                _deferred_member(
+                    locator="compsales:current",
+                    definition_text="stores only",
+                    presentation_role="current",
+                ),
+                _deferred_member(
+                    locator="compsales:prior",
+                    definition_text="stores plus digital",
+                    presentation_role="prior",
+                ),
+            ),
+        ),
+    )
+    by_theme = {
+        test.theme: test for test in compute_revenue_driver_analysis(unrelated).tests
+    }
+    productivity_joined = " ".join(by_theme[THEME_PRODUCTIVITY].limitations)
+    compsales_joined = " ".join(by_theme[THEME_COMPARABLE_SALES].limitations)
+    assert "ordinary_disagreement" not in productivity_joined
+    assert "stores plus digital" not in productivity_joined
+    assert "ordinary_disagreement" in compsales_joined
+    assert "stores plus digital" in compsales_joined
+
+    incompatible = _attach_deferred(
+        _store_fin(
+            {P1: 10, P2: 12},
+            {P1: 100.0, P2: 130.0},
+            _disclosure(THEME_PRODUCTIVITY),
+        ),
+        _deferred_disagreement(
+            family=FAMILY_COMPARABLE_SALES_GROWTH,
+            period=P2,
+        ),
+    )
+    incompatible_joined = " ".join(
+        compute_revenue_driver_analysis(incompatible).tests[0].limitations
+    )
+    assert "ordinary_disagreement" not in incompatible_joined
+    assert "average during the year" not in incompatible_joined
 
 
 def test_geographic_mixed_when_a_segment_subtracts():
@@ -469,6 +649,7 @@ def test_workbook_links_notes_trainer_check_and_skips_without_disclosures(tmp_pa
     assert "contributed negatively" in values.lower()
     assert "FY2022 store-only" not in values
     assert "2023-01-29 SPSF" not in values
+    assert "DEFERRED DISAGREEMENT" not in values
     assert any(
         isinstance(cell.value, str) and cell.value.startswith("=")
         for row in sheet.iter_rows()
@@ -606,7 +787,37 @@ def test_lululemon_ordinary_disclosures_test_admitted_history(tmp_path):
     productivity_limits = " ".join(productivity.limitations)
     assert "2023-01-29" in productivity_limits
     assert "not bridged" in productivity_limits.lower()
-    assert "The deferred 2023-01-29 SPSF definition disagreement is not bridged." not in productivity.limitations
+    assert "definition_mismatch" in productivity_limits
+    assert "ordinary_disagreement" in productivity_limits
+    assert "audit-only" in productivity_limits.lower()
+    assert "not admitted" in productivity_limits.lower()
+    deferred = fin.historical_operating_kpis.deferred_disagreements
+    spsf_deferred = [
+        item for item in deferred if item.family == FAMILY_SALES_PER_SQUARE_FOOT
+    ]
+    assert len(spsf_deferred) == 1
+    assert spsf_deferred[0].period.isoformat() == "2023-01-29"
+    assert "definition_mismatch" in spsf_deferred[0].reasons
+    assert "ordinary_disagreement" in spsf_deferred[0].reasons
+    locators = {member.locator for member in spsf_deferred[0].members}
+    definitions = {member.definition_text for member in spsf_deferred[0].members}
+    assert len(spsf_deferred[0].members) == 2
+    assert locators
+    assert any("during" in text.lower() or "ending" in text.lower() for text in definitions)
+    assert all(locator in productivity_limits for locator in locators)
+    for member in spsf_deferred[0].members:
+        assert member.locator in productivity_limits
+        assert member.extraction_document in productivity_limits
+        if member.page_reference:
+            assert member.page_reference in productivity_limits
+        assert member.definition_text in productivity_limits
+    spsf_admitted = {
+        item.period.isoformat()
+        for item in fin.historical_operating_kpis.management_observations
+        if item.family == FAMILY_SALES_PER_SQUARE_FOOT
+    }
+    assert "2023-01-29" not in spsf_admitted
+    assert len(spsf_admitted) == 3
     geographic = by_theme[THEME_GEOGRAPHIC_GROWTH]
     assert geographic.verdict == VERDICT_MIXED
     assert geographic.sample_size >= 1
@@ -629,6 +840,13 @@ def test_lululemon_ordinary_disclosures_test_admitted_history(tmp_path):
     assert "contributed negatively" in values.lower()
     assert "2026-02-01" in values
     assert "FY2022 store-only" not in values
+    assert "definition_mismatch" in values
+    assert "ordinary_disagreement" in values
+    assert "2023-01-29" in values
+    assert "DEFERRED DISAGREEMENT" in values
+    for member in spsf_deferred[0].members:
+        assert member.locator in values
+        assert member.definition_text in values
     _assert_readable_driver_layout(sheet)
     awb.close()
     _assert_answer_key_no_yellow(answer)

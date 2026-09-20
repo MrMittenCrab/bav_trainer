@@ -122,11 +122,42 @@ class HistoricalManagementKpiObservation:
 
 
 @dataclass
+class HistoricalManagementKpiDeferredMember:
+    """One unadmitted occurrence that participates in a deferred disagreement."""
+
+    locator: str
+    extraction_document: str
+    page_reference: str
+    physical_page_mapping: str
+    presentation_role: str
+    definition_text: str
+    population: str
+    unit: str
+    basis: str
+    calendar_week_adjustment: str
+    calendar_reporting_basis: str
+    reported_value: float | None = None
+
+
+@dataclass
+class HistoricalManagementKpiDeferredDisagreement:
+    """Audit-only ordinary disagreement; never an admitted observation."""
+
+    family: str
+    period: date
+    reasons: list[str] = field(default_factory=list)
+    members: list[HistoricalManagementKpiDeferredMember] = field(default_factory=list)
+
+
+@dataclass
 class HistoricalOperatingKpiData:
     """Optional historical operating-KPI inputs used by later analysis."""
 
     observations: list[HistoricalOperatingKpiObservation] = field(default_factory=list)
     management_observations: list[HistoricalManagementKpiObservation] = field(
+        default_factory=list
+    )
+    deferred_disagreements: list[HistoricalManagementKpiDeferredDisagreement] = field(
         default_factory=list
     )
 

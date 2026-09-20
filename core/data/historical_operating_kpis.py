@@ -15,6 +15,8 @@ from ..ingestion.management_kpi_identity import (
 )
 from .filing import PresentationRole, SupplementalFact
 from .interface import (
+    HistoricalManagementKpiDeferredDisagreement,
+    HistoricalManagementKpiDeferredMember,
     HistoricalManagementKpiObservation,
     HistoricalOperatingKpiData,
     HistoricalOperatingKpiObservation,
@@ -340,6 +342,121 @@ def _validate_management_observations(
         _validate_management_observation(item, axis=axis, seen=seen)
 
 
+def _require_deferred_text(identity: str, field: str, value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError(
+            f"historical_operating_kpis.deferred_disagreements {identity} "
+            f"{field} must be a string"
+        )
+    return value
+
+
+def _validate_deferred_member(
+    item: HistoricalManagementKpiDeferredMember,
+    *,
+    identity: str,
+) -> None:
+    if not isinstance(item, HistoricalManagementKpiDeferredMember):
+        raise ValueError(
+            "historical_operating_kpis.deferred_disagreements members must be "
+            "deferred-disagreement members"
+        )
+    _require_deferred_text(identity, "locator", item.locator)
+    if not item.locator.strip():
+        raise ValueError(
+            f"historical_operating_kpis.deferred_disagreements {identity} "
+            "missing locator"
+        )
+    _require_deferred_text(identity, "extraction_document", item.extraction_document)
+    _require_deferred_text(identity, "page_reference", item.page_reference)
+    _require_deferred_text(identity, "physical_page_mapping", item.physical_page_mapping)
+    _require_deferred_text(identity, "presentation_role", item.presentation_role)
+    _require_deferred_text(identity, "definition_text", item.definition_text)
+    _require_deferred_text(identity, "population", item.population)
+    _require_deferred_text(identity, "unit", item.unit)
+    _require_deferred_text(identity, "basis", item.basis)
+    _require_deferred_text(
+        identity, "calendar_week_adjustment", item.calendar_week_adjustment
+    )
+    _require_deferred_text(
+        identity, "calendar_reporting_basis", item.calendar_reporting_basis
+    )
+    if item.reported_value is None:
+        return
+    if isinstance(item.reported_value, bool) or not isinstance(
+        item.reported_value, (int, float)
+    ):
+        raise ValueError(
+            f"historical_operating_kpis.deferred_disagreements {identity} "
+            "reported_value must be a number or null"
+        )
+    if not math.isfinite(float(item.reported_value)):
+        raise ValueError(
+            f"historical_operating_kpis.deferred_disagreements {identity} "
+            "reported_value must be finite"
+        )
+
+
+def _validate_deferred_disagreements(
+    items: list[HistoricalManagementKpiDeferredDisagreement],
+    axis: set[date],
+) -> None:
+    seen: set[tuple[str, date, tuple[str, ...]]] = set()
+    for item in items:
+        if not isinstance(item, HistoricalManagementKpiDeferredDisagreement):
+            raise ValueError(
+                "historical_operating_kpis.deferred_disagreements entries must be "
+                "deferred disagreements"
+            )
+        if item.family not in SUPPORTED_FAMILIES:
+            raise ValueError(
+                "historical_operating_kpis.deferred_disagreements unsupported "
+                f"family: {item.family!r}"
+            )
+        if not isinstance(item.period, date):
+            raise ValueError(
+                "historical_operating_kpis.deferred_disagreements period must be a date"
+            )
+        if item.period not in axis:
+            raise ValueError(
+                "historical_operating_kpis.deferred_disagreements period "
+                f"{item.period.isoformat()} is outside the model axis"
+            )
+        if not isinstance(item.reasons, list) or not item.reasons:
+            raise ValueError(
+                "historical_operating_kpis.deferred_disagreements reasons must be "
+                "a nonempty list"
+            )
+        for reason in item.reasons:
+            if not isinstance(reason, str) or not reason.strip():
+                raise ValueError(
+                    "historical_operating_kpis.deferred_disagreements reasons "
+                    "must be nonempty strings"
+                )
+        if not isinstance(item.members, list) or len(item.members) < 2:
+            raise ValueError(
+                "historical_operating_kpis.deferred_disagreements members must "
+                "contain at least two occurrences"
+            )
+        identity = f"{item.family}/{item.period.isoformat()}"
+        locators: list[str] = []
+        for member in item.members:
+            _validate_deferred_member(member, identity=identity)
+            locators.append(member.locator)
+        if len(set(locators)) != len(locators):
+            raise ValueError(
+                "historical_operating_kpis.deferred_disagreements duplicate "
+                f"locator in {identity}"
+            )
+        key = (item.family, item.period, tuple(sorted(locators)))
+        if key in seen:
+            raise ValueError(
+                "duplicate deferred disagreement "
+                f"{item.family} for {item.period.isoformat()}"
+            )
+        seen.add(key)
+
+
 def validate_historical_operating_kpi_data(
     data: HistoricalOperatingKpiData,
     *,
@@ -352,6 +469,10 @@ def validate_historical_operating_kpi_data(
         raise ValueError(
             "historical_operating_kpis.management_observations must be a list"
         )
+    if not isinstance(data.deferred_disagreements, list):
+        raise ValueError(
+            "historical_operating_kpis.deferred_disagreements must be a list"
+        )
     if not data.observations and not data.management_observations:
         raise ValueError(
             "historical_operating_kpis must contain at least one observation"
@@ -359,6 +480,7 @@ def validate_historical_operating_kpi_data(
     axis = set(model_periods)
     _validate_store_observations(data.observations, axis)
     _validate_management_observations(data.management_observations, axis)
+    _validate_deferred_disagreements(data.deferred_disagreements, axis)
 
 
 def validate_historical_operating_kpis(fin: StandardizedFinancials) -> None:

@@ -315,7 +315,10 @@ def _historical_operating_kpis(
     reconciled: ReconciledCompanyData,
 ) -> HistoricalOperatingKpiData | None:
     """Emit selected store facts and evidenced management histories on the axis."""
-    from .management_kpi_history import selected_management_kpi_histories
+    from .management_kpi_history import (
+        deferred_management_kpi_disagreements,
+        selected_management_kpi_histories,
+    )
 
     model_periods = set(reconciled.periods)
     observations: list[HistoricalOperatingKpiObservation] = []
@@ -343,12 +346,17 @@ def _historical_operating_kpis(
         reconciled.management_admission,
         model_periods=reconciled.periods,
     )
+    deferred = deferred_management_kpi_disagreements(
+        reconciled.management_admission,
+        model_periods=reconciled.periods,
+    )
     if not observations and not management:
         return None
     observations.sort(key=lambda row: (row.metric, row.population, row.period.isoformat()))
     return HistoricalOperatingKpiData(
         observations=observations,
         management_observations=management,
+        deferred_disagreements=deferred,
     )
 
 

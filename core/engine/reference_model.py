@@ -10707,7 +10707,7 @@ class ReferenceModelBuilder:
         period_count = max(len(self.periods), 1)
         merge_end = 1 + period_count
         wrap = Alignment(wrap_text=True, vertical="top")
-        period_col_width = 16.0
+        period_col_width = 28.0
 
         header_row = 7
         ws.cell(row=header_row, column=1, value="Metric").font = BOLD
@@ -10764,6 +10764,19 @@ class ReferenceModelBuilder:
             _label_value = ws.cell(row=row, column=1).value
             if isinstance(_label_value, str) and _label_value:
                 _raise_row(row, _wrapped_height(_label_value, width=72.0))
+
+        def _wide_narrative(row: int, text: str) -> None:
+            cell = ws.cell(row=row, column=1, value=text)
+            cell.alignment = wrap
+            ws.merge_cells(
+                start_row=row,
+                start_column=1,
+                end_row=row,
+                end_column=merge_end,
+            )
+            _raise_row(
+                row, _wrapped_height(text, width=merged_intro_width)
+            )
 
         def _period_interpretations(row: int, test) -> None:
             _label(row, "Period-specific interpretation")
@@ -10869,9 +10882,28 @@ class ReferenceModelBuilder:
                 value=f"{test.sample_size}; {tested}",
             )
             cursor += 1
+            ordinary_limits = tuple(
+                item
+                for item in test.limitations
+                if not (
+                    item.startswith("Deferred ")
+                    and "disagreement at period-end" in item
+                )
+            )
+            deferred_limits = tuple(
+                item
+                for item in test.limitations
+                if item.startswith("Deferred ")
+                and "disagreement at period-end" in item
+            )
             _label(cursor, "Limitations")
-            _narrative(cursor, " ".join(test.limitations))
+            _narrative(cursor, " ".join(ordinary_limits))
             cursor += 1
+            for item in deferred_limits:
+                _section(cursor, "DEFERRED DISAGREEMENT")
+                cursor += 1
+                _wide_narrative(cursor, item)
+                cursor += 1
             if test.failed_requirement:
                 _label(cursor, "Failed requirement")
                 _narrative(cursor, test.failed_requirement)

@@ -23,6 +23,8 @@ from .historical_segments import validate_historical_segment
 from .interface import (
     FinancialPeriod,
     HistoricalLeaseData,
+    HistoricalManagementKpiDeferredDisagreement,
+    HistoricalManagementKpiDeferredMember,
     HistoricalManagementKpiObservation,
     HistoricalOperatingKpiData,
     HistoricalOperatingKpiObservation,
@@ -237,7 +239,26 @@ def _deserialize_historical_segment_period(entry: object) -> HistoricalSegmentPe
     )
 
 
-_KPI_PAYLOAD_KEYS = frozenset({"observations", "management_observations"})
+_KPI_PAYLOAD_KEYS = frozenset(
+    {"observations", "management_observations", "deferred_disagreements"}
+)
+_DEFERRED_DISAGREEMENT_KEYS = frozenset({"family", "period", "reasons", "members"})
+_DEFERRED_MEMBER_KEYS = frozenset(
+    (
+        "locator",
+        "extraction_document",
+        "page_reference",
+        "physical_page_mapping",
+        "presentation_role",
+        "definition_text",
+        "population",
+        "unit",
+        "basis",
+        "calendar_week_adjustment",
+        "calendar_reporting_basis",
+        "reported_value",
+    )
+)
 _MANAGEMENT_OBSERVATION_KEYS = frozenset(
     (
         *MANAGEMENT_IDENTITY_FIELDS,
@@ -289,6 +310,58 @@ def _management_sort_key(
     )
 
 
+def _deferred_member_sort_key(
+    item: HistoricalManagementKpiDeferredMember,
+) -> tuple[str, ...]:
+    return (item.locator, item.extraction_document)
+
+
+def _deferred_disagreement_sort_key(
+    item: HistoricalManagementKpiDeferredDisagreement,
+) -> tuple[str, ...]:
+    return (
+        item.family,
+        _date_key(item.period),
+        tuple(member.locator for member in sorted(item.members, key=_deferred_member_sort_key)),
+    )
+
+
+def _serialize_deferred_member(
+    item: HistoricalManagementKpiDeferredMember,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "locator": item.locator,
+        "extraction_document": item.extraction_document,
+        "page_reference": item.page_reference,
+        "physical_page_mapping": item.physical_page_mapping,
+        "presentation_role": item.presentation_role,
+        "definition_text": item.definition_text,
+        "population": item.population,
+        "unit": item.unit,
+        "basis": item.basis,
+        "calendar_week_adjustment": item.calendar_week_adjustment,
+        "calendar_reporting_basis": item.calendar_reporting_basis,
+        "reported_value": (
+            None if item.reported_value is None else _json_number(item.reported_value)
+        ),
+    }
+    return payload
+
+
+def _serialize_deferred_disagreement(
+    item: HistoricalManagementKpiDeferredDisagreement,
+) -> dict[str, Any]:
+    return {
+        "family": item.family,
+        "period": _date_key(item.period),
+        "reasons": list(item.reasons),
+        "members": [
+            _serialize_deferred_member(member)
+            for member in sorted(item.members, key=_deferred_member_sort_key)
+        ],
+    }
+
+
 def _serialize_historical_operating_kpis(
     data: HistoricalOperatingKpiData | None,
 ) -> dict[str, Any] | None:
@@ -313,6 +386,13 @@ def _serialize_historical_operating_kpis(
         payload["management_observations"] = [
             _serialize_management_observation(item)
             for item in sorted(data.management_observations, key=_management_sort_key)
+        ]
+    if data.deferred_disagreements:
+        payload["deferred_disagreements"] = [
+            _serialize_deferred_disagreement(item)
+            for item in sorted(
+                data.deferred_disagreements, key=_deferred_disagreement_sort_key
+            )
         ]
     return payload
 
@@ -405,6 +485,120 @@ def _deserialize_management_observation(
     )
 
 
+def _require_deferred_string(entry: dict[str, Any], field: str, *, identity: str) -> str:
+    value = entry[field]
+    if not isinstance(value, str):
+        raise ValueError(
+            f"historical_operating_kpis.deferred_disagreements {identity} "
+            f"{field} must be a string"
+        )
+    return value
+
+
+def _deserialize_deferred_member(
+    entry: object,
+    *,
+    identity: str,
+) -> HistoricalManagementKpiDeferredMember:
+    if not isinstance(entry, dict):
+        raise ValueError(
+            "historical_operating_kpis.deferred_disagreements members must be objects"
+        )
+    unknown = entry.keys() - _DEFERRED_MEMBER_KEYS
+    if unknown:
+        raise ValueError(
+            "historical_operating_kpis.deferred_disagreements member unsupported "
+            "field(s): " + ", ".join(sorted(unknown))
+        )
+    missing = _DEFERRED_MEMBER_KEYS - entry.keys()
+    if missing:
+        raise ValueError(
+            "historical_operating_kpis.deferred_disagreements member missing "
+            "field(s): " + ", ".join(sorted(missing))
+        )
+    reported = entry["reported_value"]
+    if reported is not None and (
+        isinstance(reported, bool) or not isinstance(reported, (int, float))
+    ):
+        raise ValueError(
+            f"historical_operating_kpis.deferred_disagreements {identity} "
+            "reported_value must be a number or null"
+        )
+    return HistoricalManagementKpiDeferredMember(
+        locator=_require_deferred_string(entry, "locator", identity=identity),
+        extraction_document=_require_deferred_string(
+            entry, "extraction_document", identity=identity
+        ),
+        page_reference=_require_deferred_string(
+            entry, "page_reference", identity=identity
+        ),
+        physical_page_mapping=_require_deferred_string(
+            entry, "physical_page_mapping", identity=identity
+        ),
+        presentation_role=_require_deferred_string(
+            entry, "presentation_role", identity=identity
+        ),
+        definition_text=_require_deferred_string(
+            entry, "definition_text", identity=identity
+        ),
+        population=_require_deferred_string(entry, "population", identity=identity),
+        unit=_require_deferred_string(entry, "unit", identity=identity),
+        basis=_require_deferred_string(entry, "basis", identity=identity),
+        calendar_week_adjustment=_require_deferred_string(
+            entry, "calendar_week_adjustment", identity=identity
+        ),
+        calendar_reporting_basis=_require_deferred_string(
+            entry, "calendar_reporting_basis", identity=identity
+        ),
+        reported_value=None if reported is None else float(reported),
+    )
+
+
+def _deserialize_deferred_disagreement(
+    entry: object,
+) -> HistoricalManagementKpiDeferredDisagreement:
+    if not isinstance(entry, dict):
+        raise ValueError(
+            "historical_operating_kpis.deferred_disagreements entries must be objects"
+        )
+    unknown = entry.keys() - _DEFERRED_DISAGREEMENT_KEYS
+    if unknown:
+        raise ValueError(
+            "historical_operating_kpis.deferred_disagreements unsupported field(s): "
+            + ", ".join(sorted(unknown))
+        )
+    missing = _DEFERRED_DISAGREEMENT_KEYS - entry.keys()
+    if missing:
+        raise ValueError(
+            "historical_operating_kpis.deferred_disagreements missing field(s): "
+            + ", ".join(sorted(missing))
+        )
+    family = entry["family"]
+    if not isinstance(family, str) or not family.strip():
+        raise ValueError(
+            "historical_operating_kpis.deferred_disagreements family must be a string"
+        )
+    reasons = entry["reasons"]
+    if not isinstance(reasons, list):
+        raise ValueError(
+            "historical_operating_kpis.deferred_disagreements reasons must be a list"
+        )
+    members = entry["members"]
+    if not isinstance(members, list):
+        raise ValueError(
+            "historical_operating_kpis.deferred_disagreements members must be a list"
+        )
+    identity = f"{family}/{entry.get('period')}"
+    return HistoricalManagementKpiDeferredDisagreement(
+        family=family,
+        period=_parse_kpi_period(entry["period"]),
+        reasons=list(reasons),
+        members=[
+            _deserialize_deferred_member(member, identity=identity) for member in members
+        ],
+    )
+
+
 def _deserialize_observation_list(payload: dict[str, Any], *, field: str) -> list:
     if field not in payload:
         return []
@@ -429,12 +623,16 @@ def _deserialize_historical_operating_kpis(
         )
     raw_obs = _deserialize_observation_list(payload, field="observations")
     raw_mgmt = _deserialize_observation_list(payload, field="management_observations")
+    raw_deferred = _deserialize_observation_list(payload, field="deferred_disagreements")
     return HistoricalOperatingKpiData(
         observations=[
             _deserialize_historical_operating_kpi_observation(entry) for entry in raw_obs
         ],
         management_observations=[
             _deserialize_management_observation(entry) for entry in raw_mgmt
+        ],
+        deferred_disagreements=[
+            _deserialize_deferred_disagreement(entry) for entry in raw_deferred
         ],
     )
 

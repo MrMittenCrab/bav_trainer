@@ -10,11 +10,18 @@ from ..data.historical_operating_kpis import (
     validate_historical_operating_kpi_data,
 )
 from ..data.interface import (
+    HistoricalManagementKpiDeferredDisagreement,
+    HistoricalManagementKpiDeferredMember,
     HistoricalManagementKpiObservation,
     HistoricalOperatingKpiData,
 )
-from .management_kpi_identity import assess_reported_observations
+from .management_kpi_identity import (
+    COMPARISON_CONFLICT_REASONS,
+    assess_reported_observations,
+)
 from .management_kpi_reconciliation import (
+    REASON_ORDINARY_DISAGREEMENT,
+    SELECTION_DEFERRED,
     SELECTION_SELECTED,
     reconcile_group_selections,
     reconcile_revision_links,
@@ -72,6 +79,90 @@ def selected_management_kpi_histories(
         + (row.period.isoformat(),)
     )
     return transferred
+
+
+def deferred_management_kpi_disagreements(
+    admission: Any | None,
+    *,
+    model_periods: Iterable[date],
+) -> list[HistoricalManagementKpiDeferredDisagreement]:
+    """Carry ordinary definition/qualifier disagreements without admitting them."""
+    if admission is None:
+        return []
+    axis = set(model_periods)
+    derived = derive_evidenced_group_selections(admission)
+    _require_cached_selections_match(admission, derived)
+    transferred: list[HistoricalManagementKpiDeferredDisagreement] = []
+    seen: set[tuple[str, date, tuple[str, ...]]] = set()
+    for group in derived:
+        if group.status != SELECTION_DEFERRED:
+            continue
+        if not _is_ordinary_conflict_disagreement(group):
+            continue
+        period = _axis_date_or_none(group.period, axis=axis)
+        if period is None:
+            continue
+        members = tuple(
+            sorted(
+                (_deferred_member_from_occurrence(item) for item in group.occurrences),
+                key=lambda item: item.locator,
+            )
+        )
+        if len(members) < 2:
+            continue
+        locators = tuple(item.locator for item in members)
+        key = (str(group.family), period, locators)
+        if key in seen:
+            raise ValueError(
+                "duplicate deferred disagreement "
+                f"{group.family} for {period.isoformat()}"
+            )
+        seen.add(key)
+        transferred.append(
+            HistoricalManagementKpiDeferredDisagreement(
+                family=str(group.family),
+                period=period,
+                reasons=list(group.reasons),
+                members=list(members),
+            )
+        )
+    transferred.sort(
+        key=lambda item: (
+            item.family,
+            item.period.isoformat(),
+            tuple(member.locator for member in item.members),
+        )
+    )
+    return transferred
+
+
+def _is_ordinary_conflict_disagreement(group: Any) -> bool:
+    reasons = set(group.reasons)
+    if REASON_ORDINARY_DISAGREEMENT not in reasons:
+        return False
+    return bool(reasons.intersection(COMPARISON_CONFLICT_REASONS))
+
+
+def _deferred_member_from_occurrence(occurrence: Any) -> HistoricalManagementKpiDeferredMember:
+    source = dict(occurrence.source)
+    evidence = dict(occurrence.evidence)
+    role = dict(occurrence.presentation_evidence).get("role", "")
+    return HistoricalManagementKpiDeferredMember(
+        locator=str(occurrence.locator),
+        extraction_document=str(occurrence.extraction_document or ""),
+        page_reference=str(source.get("page_reference") or ""),
+        physical_page_mapping=str(source.get("physical_page_mapping") or ""),
+        presentation_role=str(role or ""),
+        definition_text=str(occurrence.definition_text or ""),
+        population=str(evidence.get("population") or ""),
+        unit=str(evidence.get("unit") or ""),
+        basis=str(evidence.get("basis") or ""),
+        calendar_week_adjustment=str(evidence.get("calendar_week_adjustment") or ""),
+        calendar_reporting_basis=str(evidence.get("calendar_reporting_basis") or ""),
+        reported_value=(
+            None if occurrence.value is None else float(occurrence.value)
+        ),
+    )
 
 
 def _require_cached_selections_match(admission: Any, derived: tuple[Any, ...]) -> None:
@@ -138,6 +229,13 @@ def _history_from_selected_group(
         calendar_reporting_basis=str(evidence.get("calendar_reporting_basis", "")),
         qualifiers=dict(source.qualifiers),
     )
+
+
+def _axis_date_or_none(value: str, *, axis: set[date]) -> date | None:
+    try:
+        return _require_axis_date(value, axis=axis)
+    except ValueError:
+        return None
 
 
 def _require_axis_date(value: str, *, axis: set[date]) -> date:

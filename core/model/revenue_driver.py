@@ -17,6 +17,10 @@ from ..data.historical_operating_kpis import (
     FAMILY_COMPARABLE_SALES_GROWTH,
     FAMILY_SALES_PER_SQUARE_FOOT,
 )
+from ..data.interface import (
+    HistoricalManagementKpiDeferredDisagreement,
+    StandardizedFinancials,
+)
 from ..data.historical_strategy import (
     ROLE_OBJECTIVE,
     THEME_COMPARABLE_SALES,
@@ -26,7 +30,6 @@ from ..data.historical_strategy import (
     HistoricalStrategyData,
     HistoricalStrategyDisclosure,
 )
-from ..data.interface import StandardizedFinancials
 from .geographic_segment import (
     compute_geographic_segment_series,
     geographic_segment_applicable,
@@ -161,6 +164,17 @@ _SPSF_REASON_LABELS = {
     REASON_MISSING_OBSERVATION: "missing admitted observation",
     REASON_MISSING_PRIOR_OBSERVATION: "missing prior admitted observation",
 }
+_FAMILY_DISAGREEMENT_LABELS = {
+    FAMILY_SALES_PER_SQUARE_FOOT: "sales-per-square-foot",
+    FAMILY_COMPARABLE_SALES_GROWTH: "comparable-sales",
+}
+_QUALIFIER_FIELDS = (
+    ("population", "population"),
+    ("unit", "unit"),
+    ("basis", "basis"),
+    ("calendar_week_adjustment", "calendar week-adjustment"),
+    ("calendar_reporting_basis", "calendar reporting-basis"),
+)
 
 
 @dataclass(frozen=True)
@@ -333,6 +347,78 @@ def _compsales_adjacent_comparison_ineligible(
     return saw_identity
 
 
+def _deferred_member_locator(member) -> str:
+    pages = []
+    if member.page_reference:
+        pages.append(member.page_reference)
+    if member.physical_page_mapping:
+        pages.append(f"physical {member.physical_page_mapping}")
+    source = "; ".join(
+        part
+        for part in (member.extraction_document, *pages)
+        if part
+    )
+    locator = member.locator
+    if source:
+        return f"{locator} [{source}]"
+    return locator
+
+
+def _conflicting_qualifier_labels(
+    item: HistoricalManagementKpiDeferredDisagreement,
+) -> tuple[str, ...]:
+    labels: list[str] = []
+    for field, label in _QUALIFIER_FIELDS:
+        values = {getattr(member, field) for member in item.members}
+        if len(values) > 1:
+            labels.append(label)
+    definitions = {member.definition_text for member in item.members}
+    if len(definitions) > 1:
+        labels.insert(0, "definition")
+    return tuple(labels)
+
+
+def _format_deferred_disagreement(
+    item: HistoricalManagementKpiDeferredDisagreement,
+) -> str:
+    family_label = _FAMILY_DISAGREEMENT_LABELS.get(
+        item.family, item.family.replace("_", "-")
+    )
+    conflict_labels = _conflicting_qualifier_labels(item)
+    conflict_text = (
+        ", ".join(conflict_labels) if conflict_labels else "definition or qualifier"
+    )
+    member_parts = []
+    for member in item.members:
+        role = member.presentation_role.replace("_", " ") or "unspecified role"
+        member_parts.append(
+            f'{role} occurrence {_deferred_member_locator(member)} '
+            f'defines {family_label} as "{member.definition_text}"'
+        )
+    reasons = ", ".join(item.reasons)
+    return (
+        f"Deferred {family_label} disagreement at period-end "
+        f"{item.period.isoformat()} is not admitted. Conflicting {conflict_text} "
+        f"evidence: " + "; ".join(member_parts) + ". Deferral reasons: "
+        f"{reasons}. The complete group remains audit-only; the disagreement is "
+        "not bridged into the test and does not create an admitted observation."
+    )
+
+
+def _deferred_disagreement_limitations(
+    financials: StandardizedFinancials,
+    family: str,
+) -> tuple[str, ...]:
+    data = financials.historical_operating_kpis
+    if data is None:
+        return ()
+    return tuple(
+        _format_deferred_disagreement(item)
+        for item in data.deferred_disagreements
+        if item.family == family
+    )
+
+
 def _spsf_evidence_limitations(
     financials: StandardizedFinancials, axis: list[date]
 ) -> tuple[str, ...]:
@@ -381,6 +467,7 @@ def _spsf_evidence_limitations(
             + "; ".join(reason_parts)
             + ". Those gaps are not bridged."
         )
+    limits.extend(_deferred_disagreement_limitations(financials, FAMILY_SALES_PER_SQUARE_FOOT))
     return tuple(limits)
 
 
@@ -561,6 +648,9 @@ def _comparable_sales_test(
             )
             if _compsales_adjacent_comparison_ineligible(financials, axis)
             else ()
+        ),
+        *_deferred_disagreement_limitations(
+            financials, FAMILY_COMPARABLE_SALES_GROWTH
         ),
         *_objective_limitation(disclosures),
     ]

@@ -17,7 +17,10 @@ from core.ingestion.filing_cli import load_and_validate_extracted_dir
 from core.ingestion.filing_reconciler import reconcile_filings
 from core.ingestion.filing_standardizer import standardize_reconciled
 from core.ingestion.management_kpi import management_admission_payload
-from core.ingestion.management_kpi_history import selected_management_kpi_histories
+from core.ingestion.management_kpi_history import (
+    deferred_management_kpi_disagreements,
+    selected_management_kpi_histories,
+)
 from core.ingestion.management_kpi_identity import (
     FAMILY_COMPARABLE_SALES_GROWTH,
     FAMILY_SALES_PER_SQUARE_FOOT,
@@ -25,6 +28,7 @@ from core.ingestion.management_kpi_identity import (
     REASON_CALENDAR_WEEK,
 )
 from core.ingestion.management_kpi_reconciliation import (
+    REASON_ORDINARY_DISAGREEMENT,
     SELECTION_DEFERRED,
     SELECTION_SELECTED,
 )
@@ -104,6 +108,19 @@ def _snapshot(reconciled) -> dict:
             for item in reconciled.selected_operating_kpi_facts
         ),
     }
+
+
+def _deferred_rows(fin, *, family: str | None = None, period: str | None = None):
+    data = fin.historical_operating_kpis
+    if data is None:
+        return []
+    payload = standardized_to_payload(fin)["historical_operating_kpis"]
+    rows = payload.get("deferred_disagreements", [])
+    if family is not None:
+        rows = [row for row in rows if row["family"] == family]
+    if period is not None:
+        rows = [row for row in rows if row["period"] == period]
+    return rows
 
 
 def _management_rows(fin, *, family: str | None = None, period: str | None = None):
@@ -698,4 +715,182 @@ def test_cli_both_family_handoff_and_reload(tmp_path: Path):
 
 
 def test_none_admission_returns_no_management_histories():
-    assert selected_management_kpi_histories(None, model_periods=(date(2024, 1, 28),)) == []
+    axis = (date(2024, 1, 28),)
+    assert selected_management_kpi_histories(None, model_periods=axis) == []
+    assert deferred_management_kpi_disagreements(None, model_periods=axis) == []
+
+
+def _mutate_family_definition(payload: dict, family: str, text: str) -> dict:
+    payload = copy.deepcopy(payload)
+    payload["kpi_definitions"][
+        0 if family == FAMILY_COMPARABLE_SALES_GROWTH else 1
+    ]["definition"] = text
+    return payload
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_ordinary_definition_disagreement_is_handed_off_without_admission(
+    tmp_path: Path, family: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "def-hand")
+    other = (
+        FAMILY_SALES_PER_SQUARE_FOOT
+        if family == FAMILY_COMPARABLE_SALES_GROWTH
+        else FAMILY_COMPARABLE_SALES_GROWTH
+    )
+    changed = (
+        AFFIRMATIVE_COMPSALES_DEFINITION + " changed"
+        if family == FAMILY_COMPARABLE_SALES_GROWTH
+        else AFFIRMATIVE_SPSF_DEFINITION + " changed"
+    )
+    _write_ordinary_agreeing_pair(
+        dest,
+        family,
+        right_extra=lambda payload: _mutate_family_definition(payload, family, changed),
+    )
+    singleton_name = MANAGEMENT_NAMES[1]
+    payload_doc = json.loads((dest / singleton_name).read_text(encoding="utf-8"))
+    apply_other = (
+        _apply_affirmative_spsf
+        if other == FAMILY_SALES_PER_SQUARE_FOOT
+        else _apply_affirmative_compsales
+    )
+    payload_doc = apply_other(payload_doc)
+    payload_doc = _apply_same_period(payload_doc, other, period=SHARED_PERIOD, value=12)
+    payload_doc = _attach_family_evidence(payload_doc, other, role="current")
+    _write_json(dest / singleton_name, payload_doc)
+    reconciled = _reconcile(dest)
+    payload = management_admission_payload(reconciled.management_admission)
+    group = _family_period_group(payload, family)
+    _assert_deferred_group(group, "definition_mismatch", REASON_ORDINARY_DISAGREEMENT)
+    _assert_handoff_diagnostic(reconciled.management_admission, selected=1)
+    fin = standardize_reconciled(reconciled)
+    assert _management_rows(fin, family=family, period=SHARED_PERIOD) == []
+    other_rows = _management_rows(fin, family=other, period=SHARED_PERIOD)
+    assert len(other_rows) == 1
+    assert other_rows[0]["value"] == 12
+    deferred = _deferred_rows(fin, family=family, period=SHARED_PERIOD)
+    assert len(deferred) == 1
+    record = deferred[0]
+    assert "definition_mismatch" in record["reasons"]
+    assert REASON_ORDINARY_DISAGREEMENT in record["reasons"]
+    assert len(record["members"]) == 2
+    texts = {member["definition_text"] for member in record["members"]}
+    assert changed in texts
+    locators = {member["locator"] for member in record["members"]}
+    assert locators == set(group["locators"])
+    serialized = json.dumps(standardized_to_payload(fin)["historical_operating_kpis"])
+    assert "source_file" not in serialized
+    assert "assurance" not in serialized
+    assert "revision" not in serialized
+    _assert_export_reload_export(fin)
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_value_only_ordinary_disagreement_is_not_handed_off_as_definition_conflict(
+    tmp_path: Path, family: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "val-hand")
+    other = (
+        FAMILY_SALES_PER_SQUARE_FOOT
+        if family == FAMILY_COMPARABLE_SALES_GROWTH
+        else FAMILY_COMPARABLE_SALES_GROWTH
+    )
+    _write_family_pair(
+        dest,
+        family,
+        left_value=10,
+        right_value=11,
+        left_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="current"
+        ),
+        right_mutate=lambda payload: _attach_family_evidence(
+            payload, family, role="comparative"
+        ),
+    )
+    singleton_name = MANAGEMENT_NAMES[1]
+    payload_doc = json.loads((dest / singleton_name).read_text(encoding="utf-8"))
+    apply_other = (
+        _apply_affirmative_spsf
+        if other == FAMILY_SALES_PER_SQUARE_FOOT
+        else _apply_affirmative_compsales
+    )
+    payload_doc = apply_other(payload_doc)
+    payload_doc = _apply_same_period(payload_doc, other, period=SHARED_PERIOD, value=12)
+    payload_doc = _attach_family_evidence(payload_doc, other, role="current")
+    _write_json(dest / singleton_name, payload_doc)
+    reconciled = _reconcile(dest)
+    payload = management_admission_payload(reconciled.management_admission)
+    group = _family_period_group(payload, family)
+    _assert_deferred_group(group, REASON_ORDINARY_DISAGREEMENT)
+    assert "definition_mismatch" not in group["reasons"]
+    fin = standardize_reconciled(reconciled)
+    assert _management_rows(fin, family=family, period=SHARED_PERIOD) == []
+    assert _deferred_rows(fin, family=family, period=SHARED_PERIOD) == []
+    assert _management_rows(fin, family=other, period=SHARED_PERIOD)
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_revision_incompatible_definition_mismatch_is_not_ordinary_disagreement_handoff(
+    tmp_path: Path, family: str
+):
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "rev-hand")
+    other = (
+        FAMILY_SALES_PER_SQUARE_FOOT
+        if family == FAMILY_COMPARABLE_SALES_GROWTH
+        else FAMILY_COMPARABLE_SALES_GROWTH
+    )
+    changed = (
+        AFFIRMATIVE_COMPSALES_DEFINITION + " changed"
+        if family == FAMILY_COMPARABLE_SALES_GROWTH
+        else AFFIRMATIVE_SPSF_DEFINITION + " changed"
+    )
+
+    def mutate_right(payload: dict) -> dict:
+        return _mutate_family_definition(payload, family, changed)
+
+    _write_audited_revised_family_pair(dest, family, right_mutate=mutate_right)
+    singleton_name = MANAGEMENT_NAMES[1]
+    payload_doc = json.loads((dest / singleton_name).read_text(encoding="utf-8"))
+    apply_other = (
+        _apply_affirmative_spsf
+        if other == FAMILY_SALES_PER_SQUARE_FOOT
+        else _apply_affirmative_compsales
+    )
+    payload_doc = apply_other(payload_doc)
+    payload_doc = _apply_same_period(payload_doc, other, period=SHARED_PERIOD, value=12)
+    payload_doc = _attach_family_evidence(payload_doc, other, role="current")
+    _write_json(dest / singleton_name, payload_doc)
+    reconciled = _reconcile(dest)
+    payload = management_admission_payload(reconciled.management_admission)
+    group = _family_period_group(payload, family)
+    _assert_deferred_group(group, "definition_mismatch")
+    assert REASON_ORDINARY_DISAGREEMENT not in group["reasons"]
+    fin = standardize_reconciled(reconciled)
+    assert _management_rows(fin, family=family, period=SHARED_PERIOD) == []
+    assert _deferred_rows(fin, family=family, period=SHARED_PERIOD) == []
+
+
+def test_ordinary_repeat_missing_evidence_does_not_hand_off_disagreement(
+    tmp_path: Path,
+):
+    family = FAMILY_SALES_PER_SQUARE_FOOT
+    dest = _copy_json(ANNUAL_NAMES[1:3] + MANAGEMENT_NAMES[1:3], tmp_path / "miss-def")
+    extra = _clear_week_adjustment(family)
+    _write_ordinary_agreeing_pair(dest, family, right_extra=extra)
+    payload_doc = json.loads((dest / MANAGEMENT_NAMES[1]).read_text(encoding="utf-8"))
+    payload_doc = _apply_affirmative_compsales(payload_doc)
+    payload_doc = _apply_same_period(
+        payload_doc, FAMILY_COMPARABLE_SALES_GROWTH, period=SHARED_PERIOD, value=12
+    )
+    payload_doc = _attach_family_evidence(
+        payload_doc, FAMILY_COMPARABLE_SALES_GROWTH, role="current"
+    )
+    _write_json(dest / MANAGEMENT_NAMES[1], payload_doc)
+    reconciled = _reconcile(dest)
+    payload = management_admission_payload(reconciled.management_admission)
+    group = _family_period_group(payload, family)
+    _assert_deferred_group(group, REASON_CALENDAR_WEEK)
+    fin = standardize_reconciled(reconciled)
+    assert _deferred_rows(fin, family=family, period=SHARED_PERIOD) == []
+    assert _management_rows(fin, family=FAMILY_COMPARABLE_SALES_GROWTH)
