@@ -31,16 +31,33 @@ Historical accounting analysis, normalization and reformulation, NOA, NOPAT, for
 
 ## Research output architecture
 
+The canonical build architecture separates persistent upstream inputs from generated outputs:
+
+- `build/input/<company>/source/`: original source filings.
+- `build/input/<company>/extracted/`: filing-level ordinary financial and management KPI extraction.
+- `build/input/<company>/reconciled/`: accepted company-level reconciled data and admission evidence.
+- `build/output/<company>/`: generated workbook, research, figures and supporting build artifacts.
+
+All company directory names are lowercase, including `lululemon` and `fast_retailing`. Human-facing filenames may retain normal capitalization.
+
 The completed Lululemon build contains:
 
-- `build/lululemon/Lululemon_BAV.xlsx`
-- `build/lululemon/research/Lululemon_Drivers.md`
-- `build/lululemon/research/Lululemon_Forecast.md`
-- `build/lululemon/research/Lululemon_Valuation.md`
-- `build/lululemon/research/Lululemon_Overview.md`
-- `build/lululemon/figures/drivers/growth.png`
-- `build/lululemon/figures/drivers/geography.png`
-- `build/lululemon/figures/drivers/margin.png`
+- `build/output/lululemon/Lululemon_BAV.xlsx`
+- `build/output/lululemon/research/Lululemon_Drivers.md`
+- `build/output/lululemon/research/Lululemon_Forecast.md`
+- `build/output/lululemon/research/Lululemon_Valuation.md`
+- `build/output/lululemon/research/Lululemon_Overview.md`
+- `build/output/lululemon/figures/drivers/growth.png`
+- `build/output/lululemon/figures/drivers/geography.png`
+- `build/output/lululemon/figures/drivers/margin.png`
+- `build/output/lululemon/supporting/build_status.json`
+- `build/output/lululemon/supporting/assumptions.json`
+- `build/output/lululemon/supporting/component_map.json`
+- `build/output/lululemon/supporting/rowmap.json`
+
+`python -m bav build Lululemon` reads the canonical Lululemon input and writes only under `build/output/lululemon/`. `python -m bav check Lululemon` checks that canonical output without requiring paths. Internal lookup may normalize company names to lowercase slugs.
+
+Benchmark and release are uses of canonical outputs, represented through Git tracking, tags or release packaging, not separate company data architectures. After canonical paths and dependencies are verified, remove obsolete generated artifacts and duplicate legacy, benchmark and release company trees, including obsolete Trainer and Answer Key outputs. Preserve original filings and canonical upstream data. Compatibility copies or symlinks require an active supported interface; do not maintain alternate active build architectures.
 
 Root `README.md` documents the workbook / research / figures architecture. Root `STYLE.md` is the single source of truth for human-facing BAV presentation and language conventions, applied to Markdown research, generated figures and future rendered research. Do not duplicate its specification in README or individual modules.
 
@@ -51,7 +68,7 @@ The research module sequence is Drivers, Forecast, Valuation, Overview:
 - Valuation: standalone valuation.
 - Overview: cross-module synthesis.
 
-Module names use one word unless a one-word name would be genuinely unclear. Session 4 implements Drivers only; Forecast, Valuation and Overview files remain zero-content placeholders, without headings, explanatory text, TODOs, templates or analysis.
+Module names use one word unless a one-word name would be genuinely unclear. Session 5 corrects Drivers only; Forecast, Valuation and Overview files remain zero-content placeholders, without headings, explanatory text, TODOs, templates or analysis.
 
 Research and figures must be reproducible from the same validated BAV inputs as the workbook. Preserve calculations, source references, reconciliations and validation controls; do not maintain a separate uncontrolled numerical dataset. Figures use Matplotlib and one centralized style implementation derived from STYLE.md.
 
@@ -70,6 +87,12 @@ BAV supplies target-side equity-research evidence only. It does not perform buye
 ## Source-data architecture
 
 The analytical engine does not interpret arbitrary PDFs directly.
+
+`build/input/<company>/` contains all persistent upstream data needed to reproduce the BAV output. For Lululemon, `source/` holds original filings; `extracted/` holds ordinary financial and management KPI filing JSON, such as `LULU_FY2022.json` and `LULU_FY2022_management_kpis.json`; `reconciled/` holds `standardized.json`, `provenance.json`, `conflicts.json` and `management_kpi_admission.json`.
+
+`build/input/lululemon/reconciled/standardized.json` remains the canonical company model consumed by the BAV build. Integrate useful existing upstream evidence into this architecture without retaining duplicate identical files or a separate `lululemon-live` tree. Use the same structure for `fast_retailing`.
+
+Preserve issuer fiscal-year labels and actual period-end dates as distinct information at the canonical data/presentation boundary. Workbook presentation, Markdown and figures use the same issuer fiscal-year mapping; never derive issuer fiscal year from the calendar year of the period-end date.
 
 For filing-based workflows, the canonical upstream handoff is **source-grounded filing JSON**. Each filing is extracted independently and preserves reported labels, statement sections, periods, currency/unit scale, values, and page-level provenance.
 
