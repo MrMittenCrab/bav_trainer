@@ -1378,3 +1378,67 @@ Fast Retailing practice count remains **577** (no store history → Revenue per 
 ## Next priority (not started)
 
 Not started. This bounded attempt does not begin the next implementation step.
+
+---
+
+# Native Excel recovery evidence — 2026-09-20
+
+The prior unavailable native Excel cached-value verification now has two
+successful real-workbook attempts on the same stable verification file.
+This updates the Excel acceptance evidence only; it does not activate deferred
+CompSales/SPSF analysis, close the major Completion, or reach the Session Endpoint.
+
+The original `build/output/Lululemon/Lululemon_BAV.xlsx` remains untouched:
+SHA-256 `27cf81c5f6cc71fdeeae46d90825704a7ac4b2e1e90a346464e29ffa17d83e67`.
+AutoCycle copied it in place into
+`.git/autocycle/excel-workbooks/5dc9d0038b5f6b7cfbc50b3c/autocycle-verification-5dc9d0038b5f6b7cfbc50b3c.xlsx`.
+Only that stable copy was opened, recalculated, saved and closed by native Excel.
+
+| Attempt | Result/evidence | Saved snapshot SHA-256 |
+| --- | --- | --- |
+| First successful real BAV run | `.git/autocycle/excel-verification-1a8_lsvq/result.json` | `22525b539f2e160f5dcf29631aa6019ce81699d642fe9181a59dacdb6c135a7d` |
+| Repeated same-path run | `.git/autocycle/excel-verification-kzg9a_ex/result.json` | `d49f89a3fef342376a0832a192a8f450abb99529f28e1fa711b6c24a731eafd5` |
+
+Each attempt's directory contains `excel.log`, `verification.log` and immutable
+`saved-copy.xlsx`. Review should inspect the snapshot matching its result hash;
+subsequent attempts can update the stable working copy.
+
+`scripts/verify_cached_workbook.py` is the read-only executable acceptance check.
+It accepts a separate workbook argument and compares saved native values with
+`docs/native-excel-kpi-references.json` (SHA-256
+`ca2cc16cf89a721d664f26340c3c1e1b0ca0d9e1d35ef9fbe75db7a92dbe248c`).
+The reference data uses the pre-existing independent revenue and company-operated
+store-count anchors, independent denominator/change/growth arithmetic, and the
+retained unavailable opening observations. It does not read expectations from the
+recalculated workbook or invoke production model calculations.
+
+Both real runs returned `VERIFIED`: 50 independent-reference comparisons and
+50 affected/dependency cells checked; all 33 affected formulas have independent
+references; no missing/error caches on the checked surface; formula and literal
+input preservation checked across every sheet, including hidden sheets. Numeric
+absolute tolerance remains `1e-8`. Source, saved copy and reference inputs remain
+unchanged during read-only verification. A mismatch, formula/input change,
+missing/error cache, or unsupported dependency fails with a nonzero exit.
+
+Reproducible invocation after the reviewed helper is installed (the executing
+interpreter must have openpyxl):
+
+```sh
+/Users/lizhiguo/Documents/Developer/.venv/bin/python ~/.autocycle/excel_verification.py build/output/Lululemon/Lululemon_BAV.xlsx -- /Users/lizhiguo/Documents/Developer/.venv/bin/python scripts/verify_cached_workbook.py '{workbook}' --original build/output/Lululemon/Lululemon_BAV.xlsx --references docs/native-excel-kpi-references.json
+```
+
+Permission provenance: the initial real-copy attempt timed out at Excel open
+(`-1712`) while access was not granted. A retry returned no workbook object
+(`-2753`). A normal macOS open request returned success but Excel still reported
+zero workbooks. A normal quit, guarded by a zero-workbook check, succeeded;
+reopening through the unchanged native script then produced the two successful
+runs above. The user reported no new Grant Access window for these successful
+runs. The individual contribution of the normal-open request versus restart to
+clearing this expired request was not separately isolated. No security dialog
+was operated by automation, no force quit was used, and no sandbox/Full Disk
+Access settings were changed. The production helper does not restart Excel.
+
+The generic path fix and measured diagnostic history are recorded in
+`docs/excel-permission-diagnosis-2026-09-20.md`. Native execution success alone
+was not used as acceptance: the saved-cache verifier ran on the exact stable
+copy and retained independently inspectable evidence for Review.

@@ -1,0 +1,309 @@
+{
+  "source_sha256": "27cf81c5f6cc71fdeeae46d90825704a7ac4b2e1e90a346464e29ffa17d83e67",
+  "sheets": [
+    "Revenue per Store Analysis",
+    "Store Count Analysis"
+  ],
+  "cells": [
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "B10",
+      "value": 574,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "B20",
+      "value": 6256617,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "B9",
+      "value": 10900.029616724738,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "B12",
+      "value": "N/A",
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "B15",
+      "value": "N/A",
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "B18",
+      "value": "N/A",
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "B14",
+      "value": "N/A",
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "B17",
+      "value": "N/A",
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "B23",
+      "value": "N/A",
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "B26",
+      "value": "N/A",
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "C10",
+      "value": 655,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "C20",
+      "value": 8110518,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "C9",
+      "value": 12382.470229007633,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "C12",
+      "value": 13198.564686737185,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "C15",
+      "value": 1482.440612282895,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "C18",
+      "value": 0.1360033563586171,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "C14",
+      "value": 81,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "C17",
+      "value": 0.14111498257839722,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "C23",
+      "value": 0.29631045020016406,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "C26",
+      "value": 15.519546762176684,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "D10",
+      "value": 711,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "D20",
+      "value": 9619278,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "D9",
+      "value": 13529.223628691983,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "D12",
+      "value": 14083.862371888727,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "D15",
+      "value": 1146.7533996843504,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "D18",
+      "value": 0.09261103628562929,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "D14",
+      "value": 56,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "D17",
+      "value": 0.08549618320610687,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "D23",
+      "value": 0.18602510961691965,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "D26",
+      "value": 10.052892641081277,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "E10",
+      "value": 767,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "E20",
+      "value": 10588126,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "E9",
+      "value": 13804.597131681878,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "E12",
+      "value": 14327.6400541272,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "E15",
+      "value": 275.3735029898944,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "E18",
+      "value": 0.020353976735656764,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "E14",
+      "value": 56,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "E17",
+      "value": 0.07876230661040788,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "E23",
+      "value": 0.10071940950245954,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "E26",
+      "value": 2.195710289205166,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "F10",
+      "value": 811,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "F20",
+      "value": 11102600,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "F9",
+      "value": 13690.012330456228,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "F12",
+      "value": 14071.736375158429,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "F15",
+      "value": -114.58480122565015,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Revenue per Store Analysis",
+      "cell": "F18",
+      "value": -0.008300481363753479,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "F14",
+      "value": 44,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "F17",
+      "value": 0.05736636245110821,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "F23",
+      "value": 0.04858971266492295,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    },
+    {
+      "sheet": "Store Count Analysis",
+      "cell": "F26",
+      "value": -0.877664978618526,
+      "source": "Independent supplied-report anchors: core/tests/test_lululemon_benchmark.py::REVENUE_ANCHORS; core/tests/test_operating_kpi_facts.py::INDEPENDENT_STORE_TOTALS. USD thousands; company-operated period-end stores. Arithmetic independent of production model."
+    }
+  ]
+}

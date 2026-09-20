@@ -1,0 +1,448 @@
+--- a/excel_verification.py
++++ b/excel_verification.py
+@@ -1,7 +1,8 @@
+ #!/usr/bin/env python3
+-"""Recalculate a unique evidence copy in native Excel, then run the project verifier."""
++"""Recalculate a stable verification copy in native Excel, then run the project verifier."""
+ import argparse
+ import hashlib
++import fcntl
+ import json
+ import platform
+ import os
+@@ -51,6 +52,23 @@
+ end run
+ '''
+ 
++# Query before touching the reusable file: a previous interrupted attempt or a
++# user may still have it open. Never overwrite or close that workbook implicitly.
++ENSURE_CLOSED = r'''
++on run argv
++    set copyPath to item 1 of argv
++    with timeout of 30 seconds
++        tell application "Microsoft Excel"
++            repeat with existingBook in (get workbooks)
++                if (POSIX path of ((full name of existingBook) as text)) is copyPath then
++                    error "Verification workbook is already open; close that copy before retrying"
++                end if
++            end repeat
++        end tell
++    end timeout
++end run
++'''
++
+ def native_available():
+     if platform.system() != 'Darwin':
+         raise RuntimeError('Native Microsoft Excel verification requires macOS')
+@@ -70,14 +88,38 @@
+         raise ValueError('Verifier command must include a separate literal {workbook} argument')
+     evidence_dir=Path(evidence_dir);evidence_dir.mkdir(parents=True,exist_ok=True)
+     folder=Path(tempfile.mkdtemp(prefix='excel-verification-',dir=evidence_dir)).resolve()
+-    # A unique basename avoids Excel's same-name collision with an open source.
+-    copy=folder/(source.stem+'-'+folder.name+'.xlsx')
++    # Identity follows the source PATH, not its contents or this attempt. Excel
++    # persists sandbox grants for this file; new basenames require new grants.
++    key=hashlib.sha256(os.fsencode(str(source))).hexdigest()[:24]
++    stable=evidence_dir.resolve()/'excel-workbooks'/key
++    copy=stable/('autocycle-verification-'+key+'.xlsx')
+     before=digest(source)
+     result={'status':'BLOCKED','source':str(source),'source_sha256':before,'copy':str(copy),'action':'','evidence':str(folder/'result.json')}
+     phase='prepare copy'
++    lock=None
+     try:
+-        shutil.copy2(source,copy)
++        stable.mkdir(parents=True,exist_ok=True)
++        lock=(stable/'verification.lock').open('a')
++        try:
++            fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
++        except BlockingIOError:
++            raise RuntimeError('Another verification is using this source workbook; retry after it finishes')
++        if copy.is_symlink() or (copy.exists() and copy.samefile(source)):
++            raise RuntimeError('Verification path aliases another file; refusing to overwrite it')
++        phase='locate native Excel'
+         native_available()
++        runner=[sys.executable,str(Path(__file__).with_name('adjudication.py')),'run',str(timeout)]
++        if copy.exists():
++            phase='check verification workbook is closed'
++            preflight=folder/'ensure_closed.applescript';preflight.write_text(ENSURE_CLOSED)
++            checked=subprocess.run(runner+['osascript',str(preflight),str(copy)],capture_output=True,text=True)
++            (folder/'preflight.log').write_text(checked.stdout+checked.stderr)
++            if checked.returncode:
++                raise RuntimeError((checked.stderr or checked.stdout).strip() or
++                                   'Excel open-workbook check failed (exit '+str(checked.returncode)+')')
++        phase='update verification copy'
++        # Truncate/write in place; unlink/rename replacement can lose a grant.
++        shutil.copyfile(source,copy)
+         script=folder/'recalculate.applescript';script.write_text(APPLESCRIPT)
+         runner=[sys.executable,str(Path(__file__).with_name('adjudication.py')),'run',str(timeout)]
+         phase='native Excel automation'
+@@ -86,7 +128,7 @@
+         if native.returncode:
+             detail=(native.stderr or native.stdout).strip()
+             if native.returncode==124 or '-1712' in detail:
+-                raise RuntimeError('Excel automation timed out; inspect Excel for a blocking dialog or password prompt, resolve it without closing unrelated workbooks, then retry. '+detail)
++                raise RuntimeError('Excel automation timed out. '+detail+' If Excel shows a Grant Access dialog for this verification path, grant that file once and reuse the same path. A timeout alone does not establish a permission failure.')
+             if '-1743' in detail:
+                 raise RuntimeError('Allow macOS Automation permission for the invoking terminal/agent to control Microsoft Excel, then retry. '+detail)
+             raise RuntimeError(detail or 'Excel automation exited '+str(native.returncode))
+@@ -96,11 +138,19 @@
+         args=[str(copy) if arg=='{workbook}' else arg for arg in command]
+         checked=subprocess.run(runner+args,capture_output=True,text=True)
+         (folder/'verification.log').write_text(checked.stdout+checked.stderr)
++        phase='preserve saved verification evidence'
++        snapshot=folder/'saved-copy.xlsx'
++        shutil.copyfile(copy,snapshot)
++        result.update(copy_sha256=digest(copy),snapshot=str(snapshot))
++        phase='cached-value verification'
+         if checked.returncode:
+             raise RuntimeError('Native Excel saved the copy but cached-value verification failed (exit '+str(checked.returncode)+'): '+(checked.stderr or checked.stdout).strip())
+-        result.update(status='VERIFIED',action='NONE',copy_sha256=digest(copy))
++        result.update(status='VERIFIED',action='NONE')
+     except (OSError,RuntimeError,subprocess.SubprocessError) as error:
+         result['action']=f'Resolve {phase}: {error}. Verification copy: {copy}. Evidence: {folder}. If Excel still has this copy open, resolve that copy only before retrying.'
++    finally:
++        if lock is not None:
++            lock.close()
+     # A verifier must not be able to hide a concurrent source change as success.
+     if not source.exists() or digest(source)!=before:
+         result.update(status='BLOCKED',action='Source workbook changed during verification; preserve files and investigate. Evidence: '+str(folder))
+@@ -151,6 +201,8 @@
+         result = verify(request['source'], command, evidence)
+     except (OSError, ValueError, KeyError, RuntimeError, subprocess.SubprocessError) as error:
+         result = {'status': 'BLOCKED', 'action': str(error), 'evidence': str(folder/'result.json')}
++    result['reviewed_sha'] = fields.get('REVIEWED_SHA', '')
++    result['blocker_key'] = fields.get('BLOCKER_KEY', '')
+     (folder/'result.json').write_text(json.dumps(result, indent=2) + '\n')
+     if result['status'] == 'BLOCKED':
+         print('    Blocked  ✗')
+@@ -160,7 +212,47 @@
+     return 0
+ 
+ 
++def review_evidence(head):
++    """Retain the latest recovery result across a fresh Review process."""
++    from adjudication import location
++    paths = sorted(Path(location()).glob('excel-resume-*/result.json'),
++                   key=lambda p: p.stat().st_mtime_ns, reverse=True)
++    unreadable = False
++    for path in paths:
++        try:
++            result = json.loads(path.read_text())
++            if not isinstance(result, dict):
++                raise ValueError('Expected an Excel recovery result object')
++            if result.get('reviewed_sha') != head:
++                continue
++            source = result.get('source')
++            if source and (not Path(source).is_file() or digest(Path(source)) != result.get('source_sha256')):
++                continue
++            # Do not offer old success as fresh verification when a newer
++            # interrupted record cannot be read. Known failure reasons remain.
++            if unreadable and result.get('status') == 'VERIFIED':
++                continue
++            return str(path)
++        except (OSError, ValueError, TypeError) as error:
++            unreadable = True
++            print('Unreadable Excel recovery evidence: '+str(path)+': '+str(error), file=sys.stderr)
++    return 'NONE'
++
++
++def failure_action(path, key):
++    if path == 'NONE':
++        return ''
++    result = json.loads(Path(path).read_text())
++    if result.get('status') == 'BLOCKED' and result.get('blocker_key') == key:
++        return ' '.join(result['action'].splitlines())
++    return ''
++
++
+ def main():
++    if sys.argv[1:2] == ['--review-evidence']:
++        print(review_evidence(sys.argv[2])); return 0
++    if sys.argv[1:2] == ['--failure-action']:
++        print(failure_action(sys.argv[2], sys.argv[3])); return 0
+     if sys.argv[1:2] == ['--resume-blocker']:
+         return resume_blocker(sys.argv[2])
+     parser=argparse.ArgumentParser(description=__doc__)
+--- a/stage
++++ b/stage
+@@ -404,13 +404,18 @@
+ Use stagnation as advisory context to seriously reconsider repeated unproductive approaches or the major Step's relevance. There is no threshold or ceiling and no automatic response to any value. A candidate alone never counts as a no-progress judgment. Neither deferral nor a proposed repair bypasses ownership, checkpoint, publication or recovery safeguards. Only Review decides blocker significance, progress, closure and redirection; Plan follows that decision."
+     fi
+ 
++    local EXCEL_EVIDENCE="${AUTOCYCLE_EXCEL_RECOVERY:-}"
++    if [[ -z "$EXCEL_EVIDENCE" ]]; then
++        EXCEL_EVIDENCE=$(python3 "$(dirname "$ADJUDICATOR")/excel_verification.py" --review-evidence "$SHA")
++    fi
++
+     # Bash 3.2 misparses quotes in heredocs nested inside $(...). Read directly;
+     # EOF is the expected nonzero read status because no NUL delimiter is sent.
+     IFS= read -r -d '' PROMPT <<PROMPT_EOF || true
+ Review HEAD $SHA on branch $BRANCH against the current IMPLEMENTATION.md, SESSION.md and TARGET.md if present.
+ Fresh session deriving a new Endpoint: ${AUTOCYCLE_NEW_SESSION:-0}.
+-Native Excel resume verification evidence: ${AUTOCYCLE_EXCEL_RECOVERY:-NONE}.
+-If present, inspect that new evidence and its verified copy when adjudicating the preserved Excel blocker. Do not replay completed work. Only Review can accept recovery or Completion; retain any other unresolved requirements.
++Native Excel resume verification evidence: $EXCEL_EVIDENCE.
++If present, inspect that new evidence and its saved snapshot (the stable copy may be updated by a later attempt) when adjudicating the preserved Excel blocker. Do not replay completed work. Only Review can accept recovery or Completion; retain any other unresolved requirements.
+ 
+ $HUMAN_INPUT_PROMPT
+ $INPUT_CONTEXT_PROMPT
+@@ -524,6 +529,18 @@
+     [[ -n "$HUMAN_ACTION" && -n "$BLOCKER_KEY" ]] || fail "invalid adjudication fields; rerun review."
+     if [[ "$STATUS" == BLOCKED ]]; then
+         [[ "$HUMAN_ACTION" != NONE && "$NEXT_STEP" != NONE ]] || fail "BLOCKED lacks concrete human action."
++    fi
++    # Review owns acceptance. For the same unresolved Excel finding, preserve
++    # the measured failure Action instead of a provider's generic paraphrase.
++    if [[ "$STATUS" == BLOCKED && "$BLOCKER_KEY" == *excel* && "$EXCEL_EVIDENCE" != NONE ]]; then
++        local EXCEL_ACTION
++        EXCEL_ACTION=$(python3 "$(dirname "$ADJUDICATOR")/excel_verification.py" --failure-action "$EXCEL_EVIDENCE" "$BLOCKER_KEY")
++        if [[ -n "$EXCEL_ACTION" ]]; then
++            HUMAN_ACTION="$EXCEL_ACTION"
++            NEXT_STEP="$EXCEL_ACTION"
++            NEXT_LINE="NEXT_STEP: $EXCEL_ACTION"
++            printf '\nEXCEL_FAILURE_PROVENANCE: %s\n' "$EXCEL_EVIDENCE" >> "$REVIEW_LOG"
++        fi
+     fi
+     # The canonical validator checks the current blocking finding. A retained
+     # candidate is historical evidence, not an unconditional veto on acceptance.
+--- a/test_excel_resume.py
++++ b/test_excel_resume.py
+@@ -4,6 +4,7 @@
+ 
+ 
+ def exercise(failure=''):
++ expected={'native':'Excel save failed','permission':'Excel open failed: User canceled. (-128)','verifier':'cached-value verification failed'}.get(failure,'')
+  c=Case()
+  try:
+   ok(c.run('1'))
+@@ -28,6 +29,8 @@
+  def mocked(args,**kwargs):
+   if 'osascript' in args:
+    with (Path.cwd()/'.git/autocycle/excel-calls').open('a') as f:f.write('native\\n')
++   if os.environ.get('EXCEL_FAILURE')=='permission':
++    return subprocess.CompletedProcess(args,1,'','Excel open failed: User canceled. (-128)')
+    if os.environ.get('EXCEL_FAILURE')=='native':
+     return subprocess.CompletedProcess(args,1,'','Excel save failed: Parameter error (-50)')
+    Path(args[-1]).write_bytes(b'cached')
+@@ -54,11 +57,22 @@
+   if failure:
+    fail(r)
+    assert '    Blocked  ✗' in r.stdout and '    Action: Resolve ' in r.stdout,r.stdout
+-   assert ('Excel save failed' if failure=='native' else 'cached-value verification failed') in r.stdout,r.stdout
++   assert expected in r.stdout,r.stdout
+    assert 'STALE' not in r.stdout,r.stdout
+    assert 'STAGE=review_done' in (c.a/'resume-state').read_text()
+    assert after==state, 'failed recovery must retain progress and blocker state'
+    assert kinds.count('review')==2
++   # A later fresh Review must consume the persisted failure, even if its
++   # provider regresses to the generic legacy Action.
++   (c.a/'current-review').unlink()
++   r=c.run('--resume',REVIEW_STATUS='BLOCKED',BLOCKER_KEY_OVERRIDE='excel-cached-value-verification')
++   fail(r)
++   assert expected in r.stdout,r.stdout
++   assert 'STALE' not in r.stdout,r.stdout
++   assert 'Native Excel resume verification evidence: /' in c.events()[-1]['prompt']
++   cache=(c.a/'current-review').read_text()
++   assert expected in cache
++
+   else:
+    ok(r)
+    assert 'STAGE=session_complete' in (c.a/'resume-state').read_text()
+@@ -71,6 +85,6 @@
+ 
+ 
+ if __name__=='__main__':
+- for failure in ('','native','verifier'):
++ for failure in ('','native','permission','verifier'):
+   exercise(failure)
+   print('PASS persisted Excel blocker resume: '+(failure or 'success'))
+--- /dev/null
++++ b/test_excel_stable_path.py
+@@ -0,0 +1,102 @@
++"""Native calls are mocked: granting one file must cover subsequent retries."""
++import json
++import fcntl
++import tempfile
++import unittest
++import subprocess
++from pathlib import Path
++from unittest.mock import patch
++import excel_verification as excel
++
++
++class StablePathTests(unittest.TestCase):
++ def setUp(self):
++  self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
++  self.root=Path(self.tmp.name);self.source=self.root/'source.xlsx'
++  self.source.write_bytes(b'original one');self.evidence=self.root/'evidence'
++  self.authorized=set();self.open_paths=[];self.verifier_paths=[]
++ def run_native(self,args,**kwargs):
++  path=Path(args[-1])
++  if 'osascript' in args:
++   if Path(args[-2]).name=='ensure_closed.applescript':
++    return subprocess.CompletedProcess(args,0,'closed','')
++   self.open_paths.append(path)
++   if path not in self.authorized:
++    self.authorized.add(path) # Simulate one human grant for this path.
++    if len(self.authorized)>1:
++     return subprocess.CompletedProcess(args,1,'','Excel open failed: Grant Access required')
++   path.write_bytes(b'cached '+path.read_bytes())
++  else:
++   self.verifier_paths.append(path)
++   assert path.read_bytes().startswith(b'cached ')
++  return subprocess.CompletedProcess(args,0,'verified','')
++ def verify(self):
++  with patch.object(excel,'native_available'),patch.object(excel.subprocess,'run',side_effect=self.run_native):
++   return excel.verify(self.source,['check','{workbook}'],self.evidence)
++ def test_authorized_path_reused_after_source_content_changes(self):
++  first=self.verify();self.assertEqual(first['status'],'VERIFIED')
++  first_evidence=Path(first['evidence']).read_bytes()
++  first_copy=Path(first.get('snapshot',first['copy'])).read_bytes()
++  self.source.write_bytes(b'original two')
++  second=self.verify()
++  self.assertEqual(second['status'],'VERIFIED',second['action'])
++  self.assertEqual(self.open_paths[0],self.open_paths[1])
++  self.assertEqual(self.verifier_paths,self.open_paths)
++  self.assertEqual(self.source.read_bytes(),b'original two')
++  self.assertEqual(Path(first['evidence']).read_bytes(),first_evidence)
++  self.assertEqual(Path(first['snapshot']).read_bytes(),first_copy)
++  self.assertNotEqual(first['evidence'],second['evidence'])
++ def test_update_preserves_authorized_inode_until_excel_saves(self):
++  first=self.verify();copy=Path(first['copy']);inode=copy.stat().st_ino
++  def native(args,**kwargs):
++   if 'osascript' in args and Path(args[-2]).name!='ensure_closed.applescript':
++    self.assertEqual(Path(args[-1]),copy)
++    self.assertEqual(copy.stat().st_ino,inode)
++   return self.run_native(args,**kwargs)
++  with patch.object(excel,'native_available'),patch.object(excel.subprocess,'run',side_effect=native):
++   result=excel.verify(self.source,['check','{workbook}'],self.evidence)
++  self.assertEqual(result['status'],'VERIFIED')
++ def test_open_copy_is_not_overwritten(self):
++  first=self.verify();copy=Path(first['copy']);copy.write_bytes(b'open unsaved work')
++  def native(args,**kwargs):
++   if 'osascript' in args and Path(args[-2]).name=='ensure_closed.applescript':
++    return subprocess.CompletedProcess(args,1,'','Verification workbook is already open; close that copy before retrying')
++   return self.run_native(args,**kwargs)
++  with patch.object(excel,'native_available'),patch.object(excel.subprocess,'run',side_effect=native):
++   result=excel.verify(self.source,['check','{workbook}'],self.evidence)
++  self.assertEqual(result['status'],'BLOCKED')
++  self.assertIn('already open',result['action'])
++  self.assertEqual(copy.read_bytes(),b'open unsaved work')
++ def test_concurrent_retry_cannot_overwrite_verification_copy(self):
++  first=self.verify();copy=Path(first['copy']);before=copy.read_bytes()
++  with (copy.parent/'verification.lock').open('a') as lock:
++   fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
++   result=self.verify()
++  self.assertEqual(result['status'],'BLOCKED')
++  self.assertIn('Another verification',result['action'])
++  self.assertEqual(copy.read_bytes(),before)
++ def test_stable_path_cannot_alias_original(self):
++  first=self.verify();copy=Path(first['copy']);copy.unlink()
++  copy.hardlink_to(self.source)
++  before=self.source.read_bytes();result=self.verify()
++  self.assertEqual(result['status'],'BLOCKED')
++  self.assertIn('aliases',result['action'])
++  self.assertEqual(self.source.read_bytes(),before)
++ def test_same_filename_in_different_directories_has_distinct_slot(self):
++  first=self.verify()
++  self.source=self.root/'other'/'source.xlsx';self.source.parent.mkdir()
++  self.source.write_bytes(b'other source');self.authorized.clear()
++  second=self.verify()
++  self.assertEqual(second['status'],'VERIFIED')
++  self.assertNotEqual(first['copy'],second['copy'])
++ def test_permission_failure_preserves_open_boundary(self):
++  def denied(args,**kwargs):
++   return subprocess.CompletedProcess(args,1,'','Excel open failed: User canceled. (-128)')
++  with patch.object(excel,'native_available'),patch.object(excel.subprocess,'run',side_effect=denied):
++   result=excel.verify(self.source,['check','{workbook}'],self.evidence)
++  self.assertEqual(result['status'],'BLOCKED')
++  self.assertIn('Excel open failed: User canceled. (-128)',result['action'])
++  self.assertNotIn('interactive failures',result['action'])
++  self.assertEqual(self.source.read_bytes(),b'original one')
++
++if __name__=='__main__':unittest.main()
+--- /dev/null
++++ b/test_excel_evidence.py
+@@ -0,0 +1,50 @@
++"""Review's specific failure evidence must survive both retries and interrupts."""
++import json
++import contextlib
++import io
++from pathlib import Path
++import subprocess
++import sys
++import tempfile
++import unittest
++from unittest.mock import patch
++import excel_verification as excel
++
++class EvidenceTests(unittest.TestCase):
++ def test_failed_saved_copy_survives_retry(self):
++  with tempfile.TemporaryDirectory() as folder:
++   root=Path(folder);source=root/'source.xlsx';source.write_bytes(b'original')
++   def run(args,**kwargs):
++    if 'osascript' in args:
++     if Path(args[-2]).name!='ensure_closed.applescript':Path(args[-1]).write_bytes(b'saved bad cache')
++     return subprocess.CompletedProcess(args,0,'','')
++    return subprocess.CompletedProcess(args,1,'','Required cache wrong')
++   with patch.object(excel,'native_available'),patch.object(excel.subprocess,'run',side_effect=run):
++    result=excel.verify(source,['verify','{workbook}'],root/'evidence')
++   self.assertEqual(result['status'],'BLOCKED')
++   self.assertIn('snapshot',result)
++   Path(result['copy']).write_bytes(b'next attempt')
++   self.assertEqual(Path(result['snapshot']).read_bytes(),b'saved bad cache')
++   self.assertIn('Required cache wrong',result['action'])
++ def test_interrupted_record_does_not_hide_current_failure(self):
++  with tempfile.TemporaryDirectory() as folder:
++   root=Path(folder);good=root/'excel-resume-good';good.mkdir()
++   record=good/'result.json';record.write_text(json.dumps({'reviewed_sha':'HEAD','blocker_key':'excel-cached-value-verification','status':'BLOCKED','action':'Excel open failed: User canceled. (-128)'}))
++   broken=root/'excel-resume-interrupted';broken.mkdir();(broken/'result.json').write_text('{"status":')
++   errors=io.StringIO()
++   with patch('adjudication.location',return_value=root),contextlib.redirect_stderr(errors):
++    self.assertEqual(excel.review_evidence('HEAD'),str(record))
++    self.assertEqual(excel.review_evidence('OTHER'),'NONE')
++   self.assertIn('Unreadable Excel recovery evidence',errors.getvalue())
++   self.assertEqual(excel.failure_action(str(record),'excel-cached-value-verification'),'Excel open failed: User canceled. (-128)')
++   self.assertEqual(excel.failure_action(str(record),'unrelated'),'')
++
++ def test_partial_new_record_cannot_resurrect_old_success(self):
++  with tempfile.TemporaryDirectory() as folder:
++   root=Path(folder);old=root/'excel-resume-old';old.mkdir()
++   (old/'result.json').write_text(json.dumps({'reviewed_sha':'HEAD','status':'VERIFIED'}))
++   newer=root/'excel-resume-new';newer.mkdir();(newer/'result.json').write_text('{')
++   with patch('adjudication.location',return_value=root),contextlib.redirect_stderr(io.StringIO()):
++    self.assertEqual(excel.review_evidence('HEAD'),'NONE')
++
++if __name__=='__main__':unittest.main()
+--- a/README.md
++++ b/README.md
+@@ -169,13 +169,26 @@
+ 
+ Use the project's actual cached-value verifier and its required arguments; the
+ literal `{workbook}` argument is replaced with the verification copy's path.
+-The helper never recalculates with openpyxl or substitutes LibreOffice. It creates
+-a uniquely named `.xlsx` copy under the existing Git AutoCycle evidence directory,
++The helper never recalculates with openpyxl or substitutes LibreOffice. It updates
++a stable, source-specific `.xlsx` copy in place under the existing Git AutoCycle
++evidence directory (`excel-workbooks/<source-path-hash>/`),
+ opens it in native Microsoft Excel, calculates its used ranges, saves it through
+ Excel, and closes that copy. It does not calculate all open workbooks, change
+ application calculation settings, close unrelated workbooks, or quit Excel.
+ 
+-Excel/verification logs, source/copy hashes and `result.json` remain with the copy.
++Excel on macOS separately requires file sandbox access and Automation permission.
++At first use, grant Excel access to the identified verification file if requested.
++Later runs reuse that path and update its contents without deleting/replacing it;
++new source paths or removal of the authorized file may require a new grant.
++Do not automate security dialogs or grant Full Disk Access for this workflow.
++A per-source lock prevents concurrent reuse, and an open copy is not overwritten.
++
++Each attempt retains separate Excel/verification logs, hashes, `result.json`, and
++an immutable `saved-copy.xlsx` snapshot after saved-cache verification, including
++verifier rejection. Review should inspect that
++snapshot because a later run can update the stable working copy. A fresh Review
++receives the latest recovery evidence for the same HEAD and unchanged source;
++a known failure Action is retained for the same unresolved Excel blocker.
+ Only a successful project verifier produces `VERIFIED`; command success or a
+ changed file alone cannot pass. Failed automation or verification produces a
+ specific Action for the existing candidate/Review blocker flow. Timed-out copies
