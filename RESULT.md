@@ -3015,3 +3015,162 @@ None. The Excel helper supplied a concrete Action; this attempt did not guess ar
 ## Next priority (not started)
 
 Not started. This bounded attempt does not begin the next implementation step.
+
+---
+
+# RESULT.md — Step 7.1 Finish canonical migration verification
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 7.1 — Finish canonical migration verification  
+**Work:** `578514d1133a4d2d9ec6a032875cbb2e`  
+**Plan:** `1211fbe4423347e3a3b9e9646d981ff7`  
+**Finding:** planning-obstacle  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**.
+
+This append records the bounded Step 7.1 attempt. It does not rewrite prior ledger history, does not close the Session Endpoint, and does not implement Drivers expansion, Word/PDF publication, or BAV-facing rebranding.
+
+## Required plan change
+
+None. Inherited Step 5.1 Completion and unfinished obligations were reused. Native Excel was not retried because a later preserved helper run already produced a saved snapshot and readable Overview inspection, and the current/post-removal workbook is cell-identical to that snapshot.
+
+## Preserved interrupted work inspected
+
+`.git/autocycle/excel-verification-z0ozjjfv/` remains the Step 5.1 open-stage timeout: source SHA-256 `ac4285e7b2cce648bbc46e9742111f0a12ffac2b1d729b1b173c2fd867a169a4`, error `-1712`, no saved snapshot. Helper text treats this as a timeout, not a permission failure.
+
+A later interrupted attempt left `.git/autocycle/excel-verification-3v0t6_ur/`:
+
+| Field | Value |
+|---|---|
+| Helper status | **VERIFIED** |
+| Source SHA-256 | `ac4285e7b2cce648bbc46e9742111f0a12ffac2b1d729b1b173c2fd867a169a4` |
+| Copy / snapshot SHA-256 | `3536481334c876cf9911fa0dba7f9d8e72c1332b43b1d54fa5f0ed97dcdd19af` (264020) |
+| `excel.log` | `Excel recalculated, saved and closed verification copy` |
+| Verifier | repository `scripts/verify_lululemon_overview_presentation.py` (byte-identical to `/tmp/verify_lululemon_overview_presentation.py`) |
+| Verifier result | Overview A3 literal `Historical coverage: FY2021 – FY2025 (5 periods)`; formula diffs **0** |
+| Native captures | `overview-a3-rect.png` `2b64d382…1513d3`; `overview-lower.png` `dd1211ab…807b68a4b`; `overview-full.png` `76672040…bd5a2f` (hashes match `overview-inspection.json`) |
+
+Re-inspected the A3 crop: formula bar and Overview A3 both read `Historical coverage: FY2021 – FY2025 (5 periods)`; title `Business Analysis and Valuation` / `lululemon athletica inc. (LULU)`; Overview tab active; AutoRecover banner present and not dismissed. Openpyxl literal check alone was not used as presentation acceptance.
+
+## Excel diagnosis this step (no new native attempt)
+
+| Probe | Result |
+|---|---|
+| Helper | `/Users/lizhiguo/.autocycle/excel_verification.py` present; stable path `.git/autocycle/excel-workbooks/abe47425be87411eb1fee0c2/autocycle-verification-abe47425be87411eb1fee0c2.xlsx` |
+| Interpreters | system `python3` 3.14.0; venv `/Users/lizhiguo/Documents/Developer/.venv/bin/python` 3.14.0 |
+| Verifiers | `scripts/verify_lululemon_overview_presentation.py` and `scripts/verify_cached_workbook.py` present |
+| Excel locate | `/Applications/Microsoft Excel.app/` |
+| Excel process | PID 83850 running since 6:28AM; verification copy **not** open (`lsof` empty); lock not held |
+| Native attempts this step | **0** of 2. Second attempt not authorized: no open-stage defect remained after the preserved VERIFIED run, and current formulas/literals match that saved copy. Did not force-quit Excel, close other workbooks, overwrite the granted copy, or dismiss the AutoRecover banner. |
+
+## Canonical inventory (unchanged vs Step 5.1)
+
+All 16 recorded Lululemon source / extracted / reconciled files still match Step 5.1 SHA-256 and byte sizes, including `standardized.json` `88021a6274…d803` (70646). Distinct prior-live evidence remains under `build/input/lululemon/evidence/prior-live/` (`standardized.json` `6c9aad59…51e5`; `provenance.json` `5067c1d0…5951`; `conflicts.json` `d8a33012…978e0`; `management_kpi_admission.json` `ea01edfd…915ef`). Fast Retailing audit extracts remain under `build/input/fast_retailing/evidence/_extract/`. Accepted inputs were not overwritten with stale benchmark data.
+
+On-disk company directories are lowercase `build/input/{lululemon,fast_retailing}` and `build/output/{lululemon,fast_retailing}`. `build/output/Lululemon` is the same inode as `build/output/lululemon` on this case-insensitive volume, not a second tree. Runtime resolution uses only `build/input/<slug>` and `build/output/<slug>` (`core/current_build.py`); no silent benchmark / release / uppercase / `lululemon-live` fallback.
+
+## Removal accounting
+
+Obsolete duplicates listed in Step 5.1 were already absent at the start of this attempt (working-tree deletions; not committed). This step did not delete unique upstream evidence. Authenticated 50/50 + 8/8 accounting:
+
+| Class | Count | Disposition |
+|---|---:|---|
+| Relocated | 25 | content-identical at canonical / fixture destinations; git hashes match C1/C2 |
+| Stayed | 5 | `example/` demo artifacts unchanged |
+| Retired | 20 | absent from working tree; C1 == C2 in git history |
+| Extracts | 8 | relocated Lululemon ordinary + management-KPI JSON match `5e3ef5cf…` |
+
+`test_protected_artifacts_and_eight_extracts_unchanged` **passed without exclusions**.
+
+## Ordinary build / check after removal
+
+```bash
+python -m bav build Lululemon
+python -m bav check Lululemon
+python -m bav check FastRetailing
+```
+
+| Measurement | Result |
+|---|---|
+| Lululemon build / check | **0** / **0** |
+| Fast Retailing check | **0** |
+| Recreated obsolete paths | **no** (`build/lululemon`, `lululemon-live`, uppercase output, `build/output/rowmap.json`, `benchmark/{lululemon,fast_retailing}`, `release/{lululemon,fast_retailing}` remain absent) |
+| Post-build workbook | `9394e45b23dc59904e13e1392c4ddc349113ca0db2b6bdf229d5ff4f305878e0` (227422) |
+| vs native saved-copy | nonempty cells **19133 / 19133 same**; formula **0**; literal **0**; hidden-sheet visibility identical |
+| Research / figures / supporting | byte-identical to Step 5.1 (`Drivers` `313a0ac1…cc79` 4191; placeholders `e3b0c442…` 0 bytes; growth/geography/margin PNGs `dd4aae26…` / `7112d2d5…` / `eebb5cd7…`; sidecars `4f6ed926…` / `73fbb33f…` / `0db38272…` / `b8d8c9c9…`) |
+| Canonical inputs after rebuild | unchanged |
+
+Workbook zip hash differs from inspected source `ac4285e7…` (227421) and the 15:33 rebuild `e52be9b4…` (227422) by xlsx packaging only. Cell identity, not the zip hash, is the applicability evidence.
+
+## Native / reference applicability
+
+| Evidence | Source SHA-256 | Applicable to current cells? |
+|---|---|---|
+| `excel-verification-3v0t6_ur` saved-copy + Overview captures | `ac4285e7…` | **Yes** — 19133/19133 cell identity including hidden sheets; Overview A3 unchanged |
+| `excel-verification-fb95_r2m/saved-copy.xlsx` `1d332daa…` | `f0f46a03…` (prior RESULT) | **No** — formula **0**; literal **4** (Overview 3 + `_CheckContext` 1); only-current **48** Overview; only-fb95 **2** Overview (54 cells; 52 prior Overview diffs plus intended fiscal-label pair). Hash ≠ current |
+| `docs/native-excel-kpi-references.json` | `27cf81c5f6cc71fdeeae46d90825704a7ac4b2e1e90a346464e29ffa17d83e67` | **No** — different source hash; recovery not granted |
+
+Changed formulas/dependencies were not observed; native recalculation of the post-removal zip was not required. The presentation change remains the intended Overview fiscal coverage, already natively inspected on the granted copy.
+
+## Checkpoint `51468d6872d6cc6bfebbe780664003171bcb105c`
+
+Retained `release/lululemon/Lululemon_Answer_Key.xlsx` SHA-256 `ecb1a4120e8a50ca132ab62bca0cc214968bd2770b0e94560c75740d5662570f` (119554). Current nonempty 19133 vs checkpoint 11122.
+
+| Class | Count |
+|---|---:|
+| Shared same | 9580 |
+| Formula/type changes | **61** (all `_ComponentMap`) / type **0** |
+| Literal changes | **802** (`_ComponentMap` 799; Per Share 1; Accounting Judgment 1; `_CheckContext` 1) |
+| Only-current | **8690** (later KPI/driver/Overview/Build Status sheets) |
+| Only-checkpoint | **679** (Trainer 668; `_ComponentMap` 11) |
+
+Checkpoint has Trainer and no Overview / later KPI-driver sheets. Historical product gap, not a newly passed comparison. Intended fiscal-label change is separate: Overview A3 `FY2021 – FY2025`; column headers keep actual period-end dates including FY2024's 53-week year **2025-02-02**.
+
+Pre-migration `build/lululemon/Lululemon_BAV.xlsx` bytes (`2507ef35…`) are no longer on disk. Step 5.1 measured formula **0**, literal **2** (Overview A3 and `_CheckContext` A3 fiscal labels only) against that tree; this step did not recover those bytes and does not reset that comparison.
+
+## Issuer labels, Margin, figures
+
+Issuer mapping from extracted filings (not calendar year of period-end): 2022-01-30 FY2021; 2023-01-29 FY2022; 2024-01-28 FY2023; 2025-02-02 FY2024 (53-week); 2026-02-01 FY2025. Workbook Overview A3, Drivers table/limits, and all three figures use these labels. Income Statement row 6 dates are 2022-01-30 … 2026-02-01.
+
+Independent Margin from accepted `StandardizedFinancials` (identity OM = GM − net operating-expense burden):
+
+| Period | GM % | Burden % | OM % | Identity |
+|---|---:|---:|---:|---:|
+| FY2021 | 57.676 | 36.365 | 21.311 | 2.8e-17 |
+| FY2022 | 55.389 | 39.010 | 16.379 | −5.6e-17 |
+| FY2023 | 58.314 | 36.143 | 22.171 | 5.6e-17 |
+| FY2024 | 59.225 | 35.560 | 23.665 | −2.8e-17 |
+| FY2025 | 56.601 | 36.690 | 19.911 | 2.8e-17 |
+
+FY2024→FY2025: GM **−2.6244** pp, burden **+1.1300** pp, OM **−3.7544** pp, identity 5.8e-15. Matches Drivers prose. No impairment concept in the accepted IS; management explanations remain unavailable. `SEGMENT_BRIDGE_TOLERANCE = 0.0`.
+
+Fonts: Aptos Regular `/Applications/Microsoft Excel.app/Contents/Resources/DFonts/Aptos.ttf`; DengXian Regular `…/Deng.ttf`. `test_figure_word_spacing_uses_required_fonts_and_visible_gaps` passed. Visual re-inspection of the three PNGs: issuer FY labels and period-end dates readable, including FY2024 / 2 Feb 2025; source notes present; word gaps visible; no missing-glyph boxes.
+
+## Regressions
+
+| Suite | Result |
+|---|---|
+| `test_issuer_fiscal` + `test_current_build` + `test_research_drivers` + `test_build_contract` + `test_reported_margin` + `test_source_availability` + `test_protected_artifacts_and_eight_extracts_unchanged` | **90 passed** (protected included; no exclusions) |
+| `test_lululemon_benchmark` + management-KPI admission + operating-KPI facts/analysis/relationships/workbook | **317 passed** |
+| `test_trainer` + `test_build_cli` + geographic facts/analysis/workbook + `test_revenue_driver` | **160 passed** |
+| `test_fast_retailing_benchmark` | **293 passed** |
+| management-KPI history/reconciliation/analysis/identity + learner-ready + revenue-per-store | **382 passed** |
+
+Numerical and evidence assertions were not weakened. Path expectations already used canonical lowercase inputs.
+
+## Preservation
+
+Retained: numerical inputs/formulas, accounting/normalization controls, structured filing handoff, `StandardizedFinancials`, atomic publication, four driver hypotheses, 24 Comparable Sales facts, three SPSF levels, five Revenue per Store periods, 39 pair assessments, five supported SPSF comparisons, 2023-01-29 SPSF disagreement audit-only, excluded/calendar failures, unavailable adjacent SPSF growth, undated FY2021 metadata. Forecast / Valuation / Overview remain 0-byte placeholders. Optional Trainer functionality is unchanged (no Trainer generated). Repository/infrastructure names unchanged.
+
+## Remaining gaps toward Completion
+
+- Expanded Drivers, Word/PDF publication, and product-facing BAV branding remain mandatory Session work after Review; this step neither implemented nor certified them.
+- Historical checkpoint discrepancy vs `51468d6872d6cc6bfebbe780664003171bcb105c` remains unresolved evidence.
+- Pre-migration `build/lululemon/` bytes are gone; Step 5.1's two intended fiscal-label diffs are the last measured comparison against that tree.
+- Earlier normalization, broader source-workflow and normalized-per-share obligations remain deferred.
+- KPI native-reference file and fb95 saved-copy remain inapplicable to the current generation hash.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
