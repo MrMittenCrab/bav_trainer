@@ -250,6 +250,12 @@ class DriversView:
     reported_operating_margin_change: tuple[float | None, ...] | None = None
     reconstructed_component_operating_margin_change: tuple[float | None, ...] | None = None
     operating_margin_change_residual: tuple[float | None, ...] | None = None
+    gross_margin_contribution: tuple[float | None, ...] | None = None
+    sga_ratio_contribution: tuple[float | None, ...] | None = None
+    impairment_ratio_contribution: tuple[float | None, ...] | None = None
+    other_operating_ratio_contribution: tuple[float | None, ...] | None = None
+    reconstructed_contribution_sum: tuple[float | None, ...] | None = None
+    contribution_residual: tuple[float | None, ...] | None = None
     amount_bridge_convention: str = ""
     geo_component_revenue: tuple[dict[str, float | None], ...] | None = None
     geo_reconstructed_revenue: tuple[float | None, ...] | None = None
@@ -349,11 +355,7 @@ def assemble_drivers_view(
     footprint = analysis.footprint_identity
     inspected = _inspected_latest_margin_explanation(financials, display_name)
     extra = () if inspected is None else (inspected[1],)
-    assessments = tuple(
-        item
-        for item in (*analysis.assessments, *margins.assessments, *extra)
-        if item.name
-    )
+    assessments = _unique_assessments((*analysis.assessments, *extra))
     findings = tuple(_finding_sentence(item) for item in assessments)
     reported_om_change = _adjacent_numeric_changes(margins.reported_operating_margin)
     component_om = margins.reconstructed_component_operating_margin
@@ -455,6 +457,24 @@ def assemble_drivers_view(
         reported_operating_margin_change=reported_om_change,
         reconstructed_component_operating_margin_change=component_om_change,
         operating_margin_change_residual=om_change_residual,
+        gross_margin_contribution=tuple(
+            _numeric(value) for value in (margins.gross_margin_contribution or ())
+        ),
+        sga_ratio_contribution=tuple(
+            _numeric(value) for value in (margins.sga_ratio_contribution or ())
+        ),
+        impairment_ratio_contribution=tuple(
+            _numeric(value) for value in (margins.impairment_ratio_contribution or ())
+        ),
+        other_operating_ratio_contribution=tuple(
+            _numeric(value) for value in (margins.other_operating_ratio_contribution or ())
+        ),
+        reconstructed_contribution_sum=tuple(
+            _numeric(value) for value in (margins.reconstructed_contribution_sum or ())
+        ),
+        contribution_residual=tuple(
+            _numeric(value) for value in (margins.contribution_residual or ())
+        ),
         amount_bridge_convention=margins.amount_bridge_convention,
         geo_component_revenue=None if geo_recon is None else geo_recon.component_revenue,
         geo_reconstructed_revenue=(
@@ -622,6 +642,19 @@ def _research_safe(text: str) -> str:
     return cleaned
 
 
+def _unique_assessments(
+    items: tuple[MarginRelationshipAssessment, ...],
+) -> tuple[MarginRelationshipAssessment, ...]:
+    seen: set[str] = set()
+    unique: list[MarginRelationshipAssessment] = []
+    for item in items:
+        if not item.name or item.name in seen:
+            continue
+        seen.add(item.name)
+        unique.append(item)
+    return tuple(unique)
+
+
 def _finding_sentence(item) -> str:
     status = "established" if item.established else "unestablished"
     limit = f" {item.limitation}" if item.limitation and not item.established else ""
@@ -777,43 +810,86 @@ def _amount_bridge_block(view: DriversView) -> str:
     )
 
 
+def _contrib_cell(value: float | None) -> str:
+    if value is None:
+        return "n/a"
+    return f"{_opt_change_pp(value)} ({_opt_bps(value)})"
+
+
 def _margin_change_block(view: DriversView) -> str:
-    if not view.reported_operating_margin_change:
+    if not view.gross_margin_contribution:
         return ""
     rows = [
-        "| Fiscal year | Reported operating-margin change | Reconstructed component change | Residual | Reported (bps) |",
-        "| --- | ---: | ---: | ---: | ---: |",
+        "| Fiscal year | Δgross margin | −Δ(SG&A/revenue) | −Δ(impairment/revenue) | −Δ(other operating items/revenue) | Reconstructed sum | Reported operating-margin change | Residual |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     present = False
     for index, label in enumerate(view.labels):
-        reported = (
+        gm = (
             None
-            if view.reported_operating_margin_change is None
-            else view.reported_operating_margin_change[index]
+            if view.gross_margin_contribution is None
+            else view.gross_margin_contribution[index]
         )
-        if reported is None:
+        if gm is None and (
+            view.reported_operating_margin_change is None
+            or view.reported_operating_margin_change[index] is None
+        ):
             continue
         present = True
-        rebuilt = (
-            None
-            if view.reconstructed_component_operating_margin_change is None
-            else view.reconstructed_component_operating_margin_change[index]
-        )
-        residual = (
-            None
-            if view.operating_margin_change_residual is None
-            else view.operating_margin_change_residual[index]
-        )
         rows.append(
-            f"| {label} | {_opt_change_pp(reported)} | {_opt_change_pp(rebuilt)} | "
-            f"{_opt_change_pp(residual)} | {_opt_bps(reported)} |"
+            "| {label} | {gm} | {sga} | {imp} | {other} | {recon} | {reported} | {resid} |".format(
+                label=label,
+                gm=_contrib_cell(gm),
+                sga=_contrib_cell(
+                    None
+                    if view.sga_ratio_contribution is None
+                    or index >= len(view.sga_ratio_contribution)
+                    else view.sga_ratio_contribution[index]
+                ),
+                imp=_contrib_cell(
+                    None
+                    if view.impairment_ratio_contribution is None
+                    or index >= len(view.impairment_ratio_contribution)
+                    else view.impairment_ratio_contribution[index]
+                ),
+                other=_contrib_cell(
+                    None
+                    if view.other_operating_ratio_contribution is None
+                    or index >= len(view.other_operating_ratio_contribution)
+                    else view.other_operating_ratio_contribution[index]
+                ),
+                recon=_contrib_cell(
+                    None
+                    if view.reconstructed_contribution_sum is None
+                    or index >= len(view.reconstructed_contribution_sum)
+                    else view.reconstructed_contribution_sum[index]
+                ),
+                reported=_contrib_cell(
+                    None
+                    if view.reported_operating_margin_change is None
+                    else view.reported_operating_margin_change[index]
+                ),
+                resid=_opt_change_pp(
+                    None
+                    if view.contribution_residual is None
+                    or index >= len(view.contribution_residual)
+                    else view.contribution_residual[index]
+                ),
+            )
         )
     if not present:
         return ""
     return (
-        "Operating-margin changes are reported in percentage points and basis "
-        "points. A positive SG&A, impairment, or other operating-item ratio "
-        "change reduces operating margin. Missing comparisons stay blank.\n\n"
+        "Signed operating-margin contributions are Δgross margin, "
+        "−Δ(SG&A/revenue), −Δ(impairment or asset-related charges/revenue), "
+        "and −Δ(other reported operating items/revenue). Each term is "
+        "calculated from unrounded ratios. Percentage points are the ratio "
+        "change × 100; basis points are the same unrounded value × 10,000. "
+        "Displayed figures are rounded after the calculation. A rise in an "
+        "expense ratio is a negative contribution. Residual is reported "
+        "operating-margin change minus the reconstructed contribution sum. "
+        "Missing adjacent comparisons stay blank; they are not treated as "
+        "zero.\n\n"
         + "\n".join(rows)
         + "\n"
     )
@@ -954,6 +1030,7 @@ def _residual_conclusion(view: DriversView) -> str:
     parts: list[str] = []
     for name, series, money in (
         ("component operating-margin identity", view.operating_margin_residual, False),
+        ("component operating-margin contributions", view.contribution_residual, False),
         ("operating-profit amount bridge", view.operating_profit_change_residual, True),
         ("geographic reconstruction", view.geo_residual, True),
         ("geographic growth-contribution", view.geo_contribution_residual, True),
@@ -1097,6 +1174,53 @@ def render_drivers_markdown(view: DriversView) -> str:
     burden_change_pp = burden_change * 100
     if abs(om_change_pp - (gm_change_pp - burden_change_pp)) > 1e-9:
         raise ValueError("latest operating-margin change does not equal GM change minus burden change")
+    latest_gm_c = (
+        None
+        if view.gross_margin_contribution is None
+        else view.gross_margin_contribution[latest]
+    )
+    latest_sga_c = (
+        None
+        if view.sga_ratio_contribution is None
+        or latest >= len(view.sga_ratio_contribution)
+        else view.sga_ratio_contribution[latest]
+    )
+    latest_imp_c = (
+        None
+        if view.impairment_ratio_contribution is None
+        or latest >= len(view.impairment_ratio_contribution)
+        else view.impairment_ratio_contribution[latest]
+    )
+    latest_other_c = (
+        None
+        if view.other_operating_ratio_contribution is None
+        or latest >= len(view.other_operating_ratio_contribution)
+        else view.other_operating_ratio_contribution[latest]
+    )
+    latest_sum = (
+        None
+        if view.reconstructed_contribution_sum is None
+        or latest >= len(view.reconstructed_contribution_sum)
+        else view.reconstructed_contribution_sum[latest]
+    )
+    latest_resid = (
+        None
+        if view.contribution_residual is None
+        or latest >= len(view.contribution_residual)
+        else view.contribution_residual[latest]
+    )
+    if latest_gm_c is None or latest_sum is None:
+        raise ValueError("Drivers requires a latest-period component contribution schedule")
+    contribution_sentence = (
+        f"Signed contributions were Δgross margin {_opt_change_pp(latest_gm_c)} "
+        f"({_opt_bps(latest_gm_c)}), −Δ(SG&A/revenue) {_opt_change_pp(latest_sga_c)} "
+        f"({_opt_bps(latest_sga_c)}), −Δ(impairment or asset-related charges/revenue) "
+        f"{_opt_change_pp(latest_imp_c)} ({_opt_bps(latest_imp_c)}), and "
+        f"−Δ(other reported operating items/revenue) {_opt_change_pp(latest_other_c)} "
+        f"({_opt_bps(latest_other_c)}). The reconstructed sum is "
+        f"{_opt_change_pp(latest_sum)}; the residual versus the reported change is "
+        f"{_opt_change_pp(latest_resid)}."
+    )
     definition_period = (
         view.store_only_comparable_sales.period
         if view.store_only_comparable_sales is not None
@@ -1144,7 +1268,7 @@ In {view.labels[latest]}, China Mainland ({_pp(latest_geo["china_mainland"])}) a
 
 Operating margin was {om_text}.
 
-In {view.labels[latest]}, operating-margin change was {om_change_pp:+.2f} pp, equal to the gross-margin change ({gm_change_pp:+.2f} pp) minus the net-operating-expense-burden change ({burden_change_pp:+.2f} pp).
+In {view.labels[latest]}, operating-margin change was {om_change_pp:+.2f} pp. {contribution_sentence} That change also equals the gross-margin change ({gm_change_pp:+.2f} pp) minus the net-operating-expense-burden change ({burden_change_pp:+.2f} pp).
 
 Gross margin was {gm_text}. Net operating expense burden was {burden_text}.
 
@@ -1154,7 +1278,7 @@ Gross margin was {gm_text}. Net operating expense burden was {burden_text}.
 { _amount_bridge_block(view) }
 { _margin_change_block(view) }
 
-![Gross margin, SG&A to revenue, and operating margin](../figures/drivers/margin.png)
+![Component contributions to operating-margin change](../figures/drivers/margin.png)
 
 { _residual_conclusion(view) }
 
@@ -1288,40 +1412,86 @@ def plot_geography(view: DriversView, path: Path, style: ResearchStyle) -> None:
 
 def plot_margin(view: DriversView, path: Path, style: ResearchStyle) -> None:
     fig, ax = new_figure(style)
-    labels = [_figure_period_label(view, i) for i in range(len(view.periods))]
-    x = list(range(len(view.periods)))
-    series = [
-        (view.gross_margin, "Gross margin"),
-        (view.operating_margin, "Operating margin"),
+    indexes = [
+        i
+        for i in range(len(view.periods))
+        if view.gross_margin_contribution
+        and i < len(view.gross_margin_contribution)
+        and view.gross_margin_contribution[i] is not None
     ]
-    if (
-        view.sga_ratio
-        and len(view.sga_ratio) == len(view.periods)
-        and all(value is not None for value in view.sga_ratio)
-    ):
-        series.insert(1, (tuple(float(value) for value in view.sga_ratio), "SG&A / revenue"))
-    else:
-        series.insert(1, (view.net_operating_expense_burden, "Net operating expense burden"))
+    labels = [_figure_period_label(view, i) for i in indexes]
+    x = list(range(len(indexes)))
+    series = [
+        (view.gross_margin_contribution, "Gross margin"),
+        (view.sga_ratio_contribution, "SG&A, sign reversed"),
+        (view.impairment_ratio_contribution, "Impairment, sign reversed"),
+        (view.other_operating_ratio_contribution, "Other items, sign reversed"),
+    ]
+    width = 0.18
+    offsets = (-1.5 * width, -0.5 * width, 0.5 * width, 1.5 * width)
     for series_index, (values, label) in enumerate(series):
-        ax.plot(
-            x,
-            [value * 100 for value in values],
+        if not values:
+            continue
+        heights = [
+            float("nan")
+            if index >= len(values) or values[index] is None
+            else values[index] * 100
+            for index in indexes
+        ]
+        ax.bar(
+            [position + offsets[series_index] for position in x],
+            heights,
+            width=width,
             color=style.series_color(series_index),
-            marker="o",
-            markersize=5,
-            linewidth=1.2,
             label=label,
         )
+    reported = []
+    marker_x = []
+    if view.reported_operating_margin_change:
+        for position, index in enumerate(indexes):
+            value = (
+                view.reported_operating_margin_change[index]
+                if index < len(view.reported_operating_margin_change)
+                else None
+            )
+            if value is None:
+                continue
+            marker_x.append(position)
+            reported.append(value * 100)
+    if marker_x:
+        ax.plot(
+            marker_x,
+            reported,
+            linestyle="None",
+            marker="o",
+            markersize=5,
+            color=style.black,
+            label="Reported operating-margin change",
+        )
     ax.set_xticks(x, labels)
-    ax.set_ylabel("Percent of revenue")
-    ax.legend(loc="upper right")
+    ax.set_ylabel("Percentage-point contribution")
+    ax.axhline(0, color=style.black, linewidth=0.8)
+    known = [
+        value * 100
+        for values, _label in series
+        if values
+        for index in indexes
+        if index < len(values) and values[index] is not None
+        for value in (values[index],)
+    ]
+    known.extend(reported)
+    if known:
+        low, high = min(known), max(known)
+        pad = max(1.2, 0.28 * (high - low))
+        ax.set_ylim(low - pad, high + pad)
+    ax.legend(loc="upper left", ncol=1)
     finish_figure(
         fig,
         ax,
         style,
-        "Gross margin, SG&A to revenue, and operating margin",
+        "Component contributions to operating-margin change",
         f"Source: {view.display_name} BAV income statement.\n"
-        "Operating margin is reconstructed from disclosed components; residuals remain explicit.",
+        "Expense-ratio increases are negative contributions. Residuals remain explicit.",
         path,
     )
 

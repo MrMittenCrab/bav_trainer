@@ -141,6 +141,20 @@ def test_lululemon_drivers_from_validated_outputs(tmp_path):
     assert "operating-margin change was -3.75 pp" in text
     assert "gross-margin change (-2.62 pp)" in text
     assert "net-operating-expense-burden change (+1.13 pp)" in text
+    assert "Δgross margin" in text
+    assert "−Δ(SG&A/revenue)" in text
+    assert "−Δ(impairment or asset-related charges/revenue)" in text
+    assert "−Δ(other reported operating items/revenue)" in text
+    assert "Reconstructed sum" in text
+    table_names = [
+        line.split("|")[1].strip()
+        for line in text.splitlines()
+        if line.startswith("| ") and line.count("|") >= 3
+    ]
+    assert table_names.count("component operating-margin identity") == 1
+    assert table_names.count("latest adjacent operating-margin movement") == 1
+    assert view.gross_margin_contribution[-1] is not None
+    assert view.contribution_residual[-1] == pytest.approx(0.0)
     assert "approximately $275 million" in text
     assert "Form 10-K pp. 28–29" in text or "Form 10-K pp. 28-29" in text
     assert "Management explanations of the latest operating-margin movement are unavailable." not in text

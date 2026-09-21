@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from openpyxl import load_workbook
 
+from core.current_build import prepare_company_input, resolve_company
 from core.data.interface import (
     DocumentManifest,
     DocumentType,
@@ -40,6 +41,7 @@ from core.model.reported_margin import (
     resolve_reported_margin_sources,
 )
 from core.model.source_values import MissingHistoricalValueError
+from core.research.drivers import assemble_drivers_view, render_drivers_markdown
 from core.tests.test_capex import P1, P2, _dupont_row_by_label, _tiny
 from core.tests.test_normalization import _inject_formula_and_cached_value
 from core.trainer.checker import check_workbook
@@ -586,6 +588,49 @@ def test_lululemon_component_margin_bridge_reconciles_to_filings():
     for index in range(1, len(periods)):
         assert abs(series.gross_profit_change_residual[index]) < 1e-6
         assert series.operating_profit_change_residual[index] == 0.0
+        gm = series.gross_profit[index] / series.revenue[index]
+        prior_gm = series.gross_profit[index - 1] / series.revenue[index - 1]
+        sga_r = series.sga[index] / series.revenue[index]
+        prior_sga = series.sga[index - 1] / series.revenue[index - 1]
+        imp_r = series.impairment[index] / series.revenue[index]
+        prior_imp = series.impairment[index - 1] / series.revenue[index - 1]
+        other_r = series.other_operating_items[index] / series.revenue[index]
+        prior_other = (
+            series.other_operating_items[index - 1] / series.revenue[index - 1]
+        )
+        reported = (
+            series.operating_profit[index] / series.revenue[index]
+            - series.operating_profit[index - 1] / series.revenue[index - 1]
+        )
+        expected_gm = gm - prior_gm
+        expected_sga = -(sga_r - prior_sga)
+        expected_imp = -(imp_r - prior_imp)
+        expected_other = -(other_r - prior_other)
+        expected_sum = expected_gm + expected_sga + expected_imp + expected_other
+        assert series.gross_margin_contribution[index] == pytest.approx(expected_gm)
+        assert series.sga_ratio_contribution[index] == pytest.approx(expected_sga)
+        assert series.impairment_ratio_contribution[index] == pytest.approx(
+            expected_imp
+        )
+        assert series.other_operating_ratio_contribution[index] == pytest.approx(
+            expected_other
+        )
+        assert series.reconstructed_contribution_sum[index] == pytest.approx(
+            expected_sum
+        )
+        assert series.reported_operating_margin_change[index] == pytest.approx(
+            reported
+        )
+        assert series.contribution_residual[index] == pytest.approx(
+            reported - expected_sum
+        )
+        assert abs(series.contribution_residual[index]) < 1e-12
+    assert series.gross_margin_contribution[0] is None
+    assert series.sga_ratio_contribution[0] is None
+    assert any(
+        item.name == "component operating-margin contributions" and item.established
+        for item in series.assessments
+    )
     assert sources.acquisition_related.values[date(2026, 2, 1)] is None
     assert sources.gain_on_disposal.values[date(2026, 2, 1)] is None
     kinds = {item.kind for item in series.assessments}
@@ -599,3 +644,151 @@ def test_lululemon_component_margin_bridge_reconciles_to_filings():
     assert resolve_reported_margin_sources(restored).impairment.concept == (
         "impairment_and_restructuring"
     )
+
+
+def _add_component_lines(
+    fin: StandardizedFinancials,
+    *,
+    sga=(300.0, 300.0),
+    impairment=(0.0, 50.0),
+    other=(10.0, 0.0),
+    omit_impairment=False,
+    impairment_none_current=False,
+):
+    fin.income_statement.append(
+        _li(
+            "SG&A",
+            _vals(sga[0], sga[1]),
+            concept="selling_general_and_administrative_expenses",
+        )
+    )
+    if not omit_impairment:
+        fin.income_statement.append(
+            _li(
+                "Impairment",
+                {P1: impairment[0], P2: None}
+                if impairment_none_current
+                else _vals(impairment[0], impairment[1]),
+                concept="impairment_and_restructuring",
+            )
+        )
+    fin.income_statement.append(
+        _li(
+            "Amortization",
+            _vals(other[0], other[1]),
+            concept="amortization_of_intangible_assets",
+        )
+    )
+
+
+def test_component_contributions_sign_missing_zero_and_residual():
+    falling_burden = _tiny(with_cfo=False, with_payments=False)
+    _add_margins(falling_burden, gross=(560.0, 600.0), operating=(250.0, 250.0))
+    _add_component_lines(falling_burden)
+    series = compute_reported_margin_series(falling_burden, [P1, P2])
+    gm = 600.0 / 1100.0 - 560.0 / 1000.0
+    sga = -(300.0 / 1100.0 - 300.0 / 1000.0)
+    imp = -(50.0 / 1100.0 - 0.0 / 1000.0)
+    other = -(0.0 / 1100.0 - 10.0 / 1000.0)
+    reported = 250.0 / 1100.0 - 250.0 / 1000.0
+    assert series.gross_margin_contribution[1] == pytest.approx(gm)
+    assert series.sga_ratio_contribution[1] == pytest.approx(sga)
+    assert sga > 0
+    assert series.impairment_ratio_contribution[1] == pytest.approx(imp)
+    assert imp < 0
+    assert series.other_operating_ratio_contribution[1] == pytest.approx(other)
+    assert other > 0
+    assert series.reconstructed_contribution_sum[1] == pytest.approx(
+        gm + sga + imp + other
+    )
+    assert series.contribution_residual[1] == pytest.approx(
+        reported - (gm + sga + imp + other)
+    )
+    assert abs(series.contribution_residual[1]) < 1e-12
+    assert series.gross_margin_contribution[0] is None
+    assert round(series.sga_ratio_contribution[1] * 100, 2) == round(sga * 100, 2)
+    assert round(series.sga_ratio_contribution[1] * 10000) == round(sga * 10000)
+
+    zeros = _tiny(with_cfo=False, with_payments=False)
+    _add_margins(zeros, gross=(560.0, 616.0), operating=(250.0, 276.0))
+    _add_component_lines(zeros, sga=(300.0, 330.0), impairment=(0.0, 0.0), other=(10.0, 10.0))
+    zero_series = compute_reported_margin_series(zeros, [P1, P2])
+    assert zero_series.impairment_ratio_contribution[1] == pytest.approx(0.0)
+    assert zero_series.impairment[0] == 0.0
+    assert zero_series.impairment[1] == 0.0
+
+    missing_line = _tiny(with_cfo=False, with_payments=False)
+    _add_margins(missing_line, gross=(560.0, 600.0), operating=(250.0, 300.0))
+    _add_component_lines(missing_line, omit_impairment=True)
+    missing_series = compute_reported_margin_series(missing_line, [P1, P2])
+    assert missing_series.impairment is None
+    assert missing_series.impairment_ratio_contribution is None
+    assert missing_series.reconstructed_contribution_sum[1] is not None
+
+    sparse = _tiny(with_cfo=False, with_payments=False)
+    _add_margins(sparse, gross=(560.0, 600.0), operating=(250.0, 250.0))
+    _add_component_lines(sparse, impairment_none_current=True)
+    sparse_series = compute_reported_margin_series(sparse, [P1, P2])
+    assert sparse_series.impairment[1] is None
+    assert sparse_series.impairment_ratio_contribution[1] is None
+    assert sparse_series.reconstructed_contribution_sum[1] is None
+    assert sparse_series.contribution_residual[1] is None
+
+    fr = standardized_from_payload(json.loads(FR_JSON.read_text(encoding="utf-8")))
+    fr_series = compute_reported_margin_series(fr, canonical_fiscal_periods(fr))
+    assert fr_series.impairment_ratio_contribution is None
+    assert any(
+        value is not None and abs(value) > 1e-8
+        for value in (fr_series.contribution_residual or ())
+    )
+
+
+def test_rendered_component_contribution_schedule(tmp_path):
+    company = resolve_company("Lululemon")
+    fin = prepare_company_input(company, tmp_path / "input")
+    trainer, answer = build_training_workbook(fin, tmp_path / "LULU_CONTRIB.xlsx")
+    awb = load_workbook(answer, data_only=False)
+    ws = awb["ALT DuPont"]
+    assert any(
+        ws.cell(row, 1).value == "COMPONENT OPERATING-MARGIN CONTRIBUTIONS"
+        for row in range(1, (ws.max_row or 1) + 1)
+    )
+    gm_row = _dupont_row_by_label(ws, "Δ gross margin contribution")
+    sga_row = _dupont_row_by_label(ws, "−Δ SG&A/revenue contribution")
+    imp_row = _dupont_row_by_label(ws, "−Δ impairment/revenue contribution")
+    other_row = _dupont_row_by_label(
+        ws, "−Δ other operating items/revenue contribution"
+    )
+    sum_row = _dupont_row_by_label(ws, "Reconstructed contribution sum")
+    resid_row = _dupont_row_by_label(
+        ws, "Contribution residual (reported − reconstructed)"
+    )
+    bps_row = _dupont_row_by_label(ws, "Δ gross margin contribution (bps)")
+    assert ws.cell(gm_row, 2).value in (None, "")
+    gm_f = str(ws.cell(gm_row, 3).value)
+    sga_f = str(ws.cell(sga_row, 3).value)
+    assert gm_f.startswith("=")
+    assert sga_f.startswith("=")
+    assert "-(" in sga_f or sga_f.startswith("=-")
+    assert "*10000" in str(ws.cell(bps_row, 3).value)
+    assert '""' in str(ws.cell(sum_row, 3).value)
+    assert "reported" not in str(ws.cell(resid_row, 3).value).lower() or "-" in str(
+        ws.cell(resid_row, 3).value
+    )
+    awb.close()
+
+    text = render_drivers_markdown(assemble_drivers_view(fin, company.name))
+    assert "Δgross margin" in text
+    assert "−Δ(SG&A/revenue)" in text
+    assert "−Δ(impairment/revenue)" in text
+    assert "Reconstructed sum" in text
+    assert "unrounded" in text
+    assert "10,000" in text
+    names = [
+        line.split("|")[1].strip()
+        for line in text.splitlines()
+        if line.startswith("| ") and " | " in line
+    ]
+    assert names.count("component operating-margin identity") == 1
+    assert names.count("latest adjacent operating-margin movement") == 1
+    assert "component operating-margin contributions" in text

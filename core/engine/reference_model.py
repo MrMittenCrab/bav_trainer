@@ -330,6 +330,8 @@ from ..model.historical_expected import (
 
 NUM_FMT = "#,##0;(#,##0)"
 PCT_FMT = "0.0%"
+CONTRIBUTION_PCT_FMT = "0.00%"
+BPS_FMT = "0"
 SOURCE_START_ROW = 7
 BLUE = Font(color="0000FF")
 BOLD = Font(bold=True)
@@ -2767,7 +2769,7 @@ class ReferenceModelBuilder:
         ws = wb.create_sheet("ALT DuPont")
         ws["A1"] = f"{self.fin.company_name} — DuPont Decomposition"
         ws["A2"] = "ROE = RNOA + FLEV × Spread"
-        ws.column_dimensions["A"].width = 42
+        ws.column_dimensions["A"].width = 48
         r_hdr = 4
         ws.cell(row=r_hdr, column=1, value="Metric").font = BOLD
         for j, pd in enumerate(self.periods):
@@ -5226,6 +5228,174 @@ class ReferenceModelBuilder:
                 reported_om_change_row = None
                 recon_om_change_row = None
                 om_change_resid_row = None
+            gm_contrib_row = None
+            sga_contrib_row = None
+            imp_contrib_row = None
+            other_contrib_row = None
+            contrib_sum_row = None
+            contrib_resid_row = None
+            gm_contrib_bps_row = None
+            sga_contrib_bps_row = None
+            imp_contrib_bps_row = None
+            other_contrib_bps_row = None
+            contrib_sum_bps_row = None
+            reported_om_bps_row = None
+            contrib_resid_bps_row = None
+            contrib_note_row = None
+            if (
+                gross_margin_row is not None
+                and sga_ratio_row is not None
+                and self._n > 1
+            ):
+                contrib_head_row = cursor + 1
+                cursor = contrib_head_row
+                ws.cell(
+                    row=contrib_head_row,
+                    column=1,
+                    value="COMPONENT OPERATING-MARGIN CONTRIBUTIONS",
+                ).font = BOLD
+                gm_contrib_row = cursor + 1
+                cursor = gm_contrib_row
+                ws.cell(
+                    row=gm_contrib_row,
+                    column=1,
+                    value="Δ gross margin contribution",
+                )
+                sga_contrib_row = cursor + 1
+                cursor = sga_contrib_row
+                ws.cell(
+                    row=sga_contrib_row,
+                    column=1,
+                    value="−Δ SG&A/revenue contribution",
+                )
+                if imp_ratio_row is not None:
+                    imp_contrib_row = cursor + 1
+                    cursor = imp_contrib_row
+                    ws.cell(
+                        row=imp_contrib_row,
+                        column=1,
+                        value="−Δ impairment/revenue contribution",
+                    )
+                if other_ratio_row is not None:
+                    other_contrib_row = cursor + 1
+                    cursor = other_contrib_row
+                    ws.cell(
+                        row=other_contrib_row,
+                        column=1,
+                        value="−Δ other operating items/revenue contribution",
+                    )
+                contrib_sum_row = cursor + 1
+                cursor = contrib_sum_row
+                ws.cell(
+                    row=contrib_sum_row,
+                    column=1,
+                    value="Reconstructed contribution sum",
+                )
+                contrib_resid_row = cursor + 1
+                cursor = contrib_resid_row
+                ws.cell(
+                    row=contrib_resid_row,
+                    column=1,
+                    value="Contribution residual (reported − reconstructed)",
+                )
+                gm_contrib_bps_row = cursor + 1
+                cursor = gm_contrib_bps_row
+                ws.cell(
+                    row=gm_contrib_bps_row,
+                    column=1,
+                    value="Δ gross margin contribution (bps)",
+                )
+                sga_contrib_bps_row = cursor + 1
+                cursor = sga_contrib_bps_row
+                ws.cell(
+                    row=sga_contrib_bps_row,
+                    column=1,
+                    value="−Δ SG&A/revenue contribution (bps)",
+                )
+                if imp_contrib_row is not None:
+                    imp_contrib_bps_row = cursor + 1
+                    cursor = imp_contrib_bps_row
+                    ws.cell(
+                        row=imp_contrib_bps_row,
+                        column=1,
+                        value="−Δ impairment/revenue contribution (bps)",
+                    )
+                if other_contrib_row is not None:
+                    other_contrib_bps_row = cursor + 1
+                    cursor = other_contrib_bps_row
+                    ws.cell(
+                        row=other_contrib_bps_row,
+                        column=1,
+                        value="−Δ other operating items/revenue contribution (bps)",
+                    )
+                contrib_sum_bps_row = cursor + 1
+                cursor = contrib_sum_bps_row
+                ws.cell(
+                    row=contrib_sum_bps_row,
+                    column=1,
+                    value="Reconstructed contribution sum (bps)",
+                )
+                if reported_om_change_row is not None:
+                    reported_om_bps_row = cursor + 1
+                    cursor = reported_om_bps_row
+                    ws.cell(
+                        row=reported_om_bps_row,
+                        column=1,
+                        value="Reported operating-margin change (bps)",
+                    )
+                contrib_resid_bps_row = cursor + 1
+                cursor = contrib_resid_bps_row
+                ws.cell(
+                    row=contrib_resid_bps_row,
+                    column=1,
+                    value="Contribution residual (bps)",
+                )
+                contrib_note_row = cursor + 1
+                cursor = contrib_note_row
+                note = ws.cell(
+                    row=contrib_note_row,
+                    column=1,
+                    value=(
+                        "Contributions are unrounded ratio changes. Percent "
+                        "display is percentage points (×100). Basis-point rows "
+                        "multiply the same unrounded values by 10,000. Displayed "
+                        "rounding is after the calculation. A rise in an expense "
+                        "ratio reduces operating margin and is a negative "
+                        "contribution. Residual is reported operating-margin "
+                        "change minus the reconstructed contribution sum. Missing "
+                        "adjacent comparisons stay blank; they are not treated as "
+                        "zero."
+                    ),
+                )
+                wrap = Alignment(wrap_text=True, vertical="center")
+                for label_row in (
+                    gm_contrib_row,
+                    sga_contrib_row,
+                    imp_contrib_row,
+                    other_contrib_row,
+                    contrib_sum_row,
+                    contrib_resid_row,
+                    gm_contrib_bps_row,
+                    sga_contrib_bps_row,
+                    imp_contrib_bps_row,
+                    other_contrib_bps_row,
+                    contrib_sum_bps_row,
+                    reported_om_bps_row,
+                    contrib_resid_bps_row,
+                ):
+                    if label_row is None:
+                        continue
+                    ws.cell(row=label_row, column=1).alignment = wrap
+                    ws.row_dimensions[label_row].height = 18
+                note.alignment = Alignment(wrap_text=True, vertical="top")
+                ws.row_dimensions[contrib_note_row].height = 60
+                if self._n:
+                    ws.merge_cells(
+                        start_row=contrib_note_row,
+                        start_column=1,
+                        end_row=contrib_note_row,
+                        end_column=1 + self._n,
+                    )
 
             for j in range(self._n):
                 out_col_idx = 2 + j
@@ -5476,6 +5646,114 @@ class ReferenceModelBuilder:
                         ),
                     )
                     c.number_format = PCT_FMT
+                if gm_contrib_row is not None and gross_margin_row is not None:
+                    c = ws.cell(
+                        row=gm_contrib_row,
+                        column=out_col_idx,
+                        value=(
+                            f'=IF(OR({out_col}{gross_margin_row}="",'
+                            f'{prev_col}{gross_margin_row}="",'
+                            f"ISNA({out_col}{gross_margin_row}),"
+                            f"ISNA({prev_col}{gross_margin_row})),"
+                            f'"",{out_col}{gross_margin_row}-{prev_col}{gross_margin_row})'
+                        ),
+                    )
+                    c.number_format = CONTRIBUTION_PCT_FMT
+                if sga_contrib_row is not None and sga_ratio_row is not None:
+                    c = ws.cell(
+                        row=sga_contrib_row,
+                        column=out_col_idx,
+                        value=(
+                            f'=IF(OR({out_col}{sga_ratio_row}="",'
+                            f'{prev_col}{sga_ratio_row}="",'
+                            f"ISNA({out_col}{sga_ratio_row}),"
+                            f"ISNA({prev_col}{sga_ratio_row})),"
+                            f'"",-({out_col}{sga_ratio_row}-{prev_col}{sga_ratio_row}))'
+                        ),
+                    )
+                    c.number_format = CONTRIBUTION_PCT_FMT
+                if imp_contrib_row is not None and imp_ratio_row is not None:
+                    c = ws.cell(
+                        row=imp_contrib_row,
+                        column=out_col_idx,
+                        value=(
+                            f'=IF(OR({out_col}{imp_ratio_row}="",'
+                            f'{prev_col}{imp_ratio_row}="",'
+                            f"ISNA({out_col}{imp_ratio_row}),"
+                            f"ISNA({prev_col}{imp_ratio_row})),"
+                            f'"",-({out_col}{imp_ratio_row}-{prev_col}{imp_ratio_row}))'
+                        ),
+                    )
+                    c.number_format = CONTRIBUTION_PCT_FMT
+                if other_contrib_row is not None and other_ratio_row is not None:
+                    c = ws.cell(
+                        row=other_contrib_row,
+                        column=out_col_idx,
+                        value=(
+                            f'=IF(OR({out_col}{other_ratio_row}="",'
+                            f'{prev_col}{other_ratio_row}="",'
+                            f"ISNA({out_col}{other_ratio_row}),"
+                            f"ISNA({prev_col}{other_ratio_row})),"
+                            f'"",-({out_col}{other_ratio_row}-{prev_col}{other_ratio_row}))'
+                        ),
+                    )
+                    c.number_format = CONTRIBUTION_PCT_FMT
+                if contrib_sum_row is not None and gm_contrib_row is not None:
+                    parts = [f"{out_col}{gm_contrib_row}"]
+                    blank_tests = [f'{out_col}{gm_contrib_row}=""']
+                    if sga_contrib_row is not None:
+                        parts.append(f"{out_col}{sga_contrib_row}")
+                        blank_tests.append(f'{out_col}{sga_contrib_row}=""')
+                    if imp_contrib_row is not None:
+                        parts.append(f"{out_col}{imp_contrib_row}")
+                        blank_tests.append(f'{out_col}{imp_contrib_row}=""')
+                    if other_contrib_row is not None:
+                        parts.append(f"{out_col}{other_contrib_row}")
+                        blank_tests.append(f'{out_col}{other_contrib_row}=""')
+                    c = ws.cell(
+                        row=contrib_sum_row,
+                        column=out_col_idx,
+                        value=(
+                            f'=IF(OR({",".join(blank_tests)}),"",{"+".join(parts)})'
+                        ),
+                    )
+                    c.number_format = CONTRIBUTION_PCT_FMT
+                if (
+                    contrib_resid_row is not None
+                    and contrib_sum_row is not None
+                    and reported_om_change_row is not None
+                ):
+                    c = ws.cell(
+                        row=contrib_resid_row,
+                        column=out_col_idx,
+                        value=(
+                            f'=IF(OR({out_col}{reported_om_change_row}="",'
+                            f'{out_col}{contrib_sum_row}=""),"",'
+                            f"{out_col}{reported_om_change_row}-{out_col}{contrib_sum_row})"
+                        ),
+                    )
+                    c.number_format = CONTRIBUTION_PCT_FMT
+
+                def _bps_from(source_row: int | None, dest_row: int | None) -> None:
+                    if source_row is None or dest_row is None:
+                        return
+                    cell = ws.cell(
+                        row=dest_row,
+                        column=out_col_idx,
+                        value=(
+                            f'=IF({out_col}{source_row}="","",'
+                            f"{out_col}{source_row}*10000)"
+                        ),
+                    )
+                    cell.number_format = BPS_FMT
+
+                _bps_from(gm_contrib_row, gm_contrib_bps_row)
+                _bps_from(sga_contrib_row, sga_contrib_bps_row)
+                _bps_from(imp_contrib_row, imp_contrib_bps_row)
+                _bps_from(other_contrib_row, other_contrib_bps_row)
+                _bps_from(contrib_sum_row, contrib_sum_bps_row)
+                _bps_from(reported_om_change_row, reported_om_bps_row)
+                _bps_from(contrib_resid_row, contrib_resid_bps_row)
 
             if sga_row is not None:
                 self.rowmap["dupont_sga_row"] = sga_row
@@ -5485,6 +5763,18 @@ class ReferenceModelBuilder:
                 self.rowmap["dupont_other_operating_row"] = other_row
             if recon_om_row is not None:
                 self.rowmap["dupont_component_operating_margin_row"] = recon_om_row
+            if gm_contrib_row is not None:
+                self.rowmap["dupont_gross_margin_contribution_row"] = gm_contrib_row
+            if sga_contrib_row is not None:
+                self.rowmap["dupont_sga_contribution_row"] = sga_contrib_row
+            if imp_contrib_row is not None:
+                self.rowmap["dupont_impairment_contribution_row"] = imp_contrib_row
+            if other_contrib_row is not None:
+                self.rowmap["dupont_other_contribution_row"] = other_contrib_row
+            if contrib_sum_row is not None:
+                self.rowmap["dupont_contribution_sum_row"] = contrib_sum_row
+            if contrib_resid_row is not None:
+                self.rowmap["dupont_contribution_residual_row"] = contrib_resid_row
             next_section_after = cursor
 
         if self.inventory_analysis_series is not None:

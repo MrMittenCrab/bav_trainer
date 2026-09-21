@@ -3600,3 +3600,104 @@ Published: `build/output/lululemon/research/Lululemon_Drivers.md` SHA-256 `5bb62
 
 Not started. This bounded attempt does not begin the next implementation step.
 
+# RESULT.md — Step 7.2.2 Complete historical margin contributions and presentation verification
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 7.2.2 — Complete historical margin contributions and presentation verification  
+**Work:** `22b129faf8634719b1746886ddfec536`  
+**Plan:** `8d7d3708e33d4522b1c8e32921f6ba41`  
+**Finding:** Expand source-grounded historical Drivers  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `c3a9b136234e4dd4ef5d9e0bb3b88ed7ff7db10141a2e2b9bf530246e31e6aa5` (6353).  
+IMPLEMENTATION SHA-256 `c97c644f432a2d53903c007df8f55161fe3eb86c64a8e5d4caffa75952d609a5` (6273).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. HEAD / `IMPLEMENT_BASE_SHA` `023fc5f02d65c6df9843b1fb47df440b099c129e`.
+
+This append records the bounded Step 7.2.2 attempt. It does not rewrite prior ledger history, does not reserve future IDs, and does not begin Word/PDF publication or BAV-first presentation.
+
+## Required plan change
+
+None.
+
+## Delivered scope
+
+- Shared `reported_margin` now publishes signed adjacent-period contributions: Δgross margin, −Δ(SG&A/revenue), −Δ(impairment or asset-related charges/revenue), −Δ(other reported operating items/revenue), their reconstructed sum, reported operating-margin change, and residual = reported − reconstructed. Values are unrounded ratios. Missing adjacent pairs stay unavailable; explicit zeros stay zero; unsupported lines are omitted rather than zeroed.
+- The same series feed ALT DuPont context rows (not new practice families), `Lululemon_Drivers.md`, and `margin.png`. Drivers assessment names are de-duplicated so shared margin identities appear once.
+- Historical coverage remains FY2021–FY2025 (period ends 2022-01-30 … 2026-02-01) with issuer labels and FY2024 as the 53-week year ended 2025-02-02. Opening-period contributions stay blank.
+- Workbook contribution block is ALT DuPont rows 145–159: percent display `0.00%` (percentage points) and companion bps rows ×10,000; column A width 48; long labels wrap at row height 18; units note wraps at height 60 across A159:F159.
+- Catalog counts remain **486** Lululemon / **577** Fast Retailing. Forecast / Valuation / Overview remain zero-byte placeholders (`e3b0c442…`).
+
+## Source references (independent of generated outputs)
+
+Later-audited face-of-statement USD thousands from canonical extracted FY2022–FY2025 10-K income statements:
+
+| Period end | Revenue | Gross profit | SG&A | Impairment | Other (amort+acq+gain) | Operating profit |
+|---|---:|---:|---:|---:|---:|---:|
+| 2022-01-30 | 6,256,617 | 3,608,565 | 2,225,034 | 0 | 50,176 | 1,333,355 |
+| 2023-01-29 | 8,110,518 | 4,492,340 | 2,757,447 | 407,913 | −1,428 | 1,328,408 |
+| 2024-01-28 | 9,619,278 | 5,609,405 | 3,397,218 | 74,501 | 5,010 | 2,132,676 |
+| 2025-02-02 | 10,588,126 | 6,270,811 | 3,762,379 | 0 | 2,735 | 2,505,697 |
+| 2026-02-01 | 11,102,600 | 6,284,132 | 4,066,556 | 0 | 6,961 | 2,210,615 |
+
+Independent FY2025 contributions (unrounded): ΔGM **−2.6244** pp (−262 bps), −Δ(SG&A/revenue) **−1.0931** pp (−109 bps), −Δ(impairment/revenue) **0** pp, −Δ(other/revenue) **−0.0369** pp (−4 bps), reconstructed sum **−3.7544** pp (−375 bps), residual **0**. FY2022–FY2024 pairs likewise reconcile. Management Item 7 260 / 380 bps remain attributed commentary, not bridge terms.
+
+## Native Excel cache
+
+`.git/autocycle/excel-verification-vm1b3wsq/saved-copy.xlsx` preserved: SHA-256 `dbd85c501c76cc7c7d936fbbc264b283764beec2e159f3eb36ede7ce81ff6227` (267180); **171** checked cells, **96** independent references, formulas preserved. That binding belongs to source SHA `2a6714df…` and does not accept this presentation. Comparable Sales Analysis still has the same four formulas and independent values; acceptance is carried forward only for that unchanged surface.
+
+Changed contribution formulas were recalculated in native Excel (attempt 1 of 2; no second attempt). Helper `python3 /Users/lizhiguo/.autocycle/excel_verification.py` wrapping `scripts/verify_cached_workbook.py`. Evidence `.git/autocycle/excel-verification-hrj5h672/`. Independent refs `docs/native-excel-margin-contribution-references.json`.
+
+| Field | Value |
+|---|---|
+| Source SHA-256 | `62a9ca99000cbd4ccfdc3cae37add82ef7d5ea7f4ffe20e114ce410d50cde7d8` (230554) |
+| Copy SHA-256 | `1f6921bfe99ae3ddf85abbd62be3a0d208f3c3546bb2e389e90b132cc2cee348` |
+| References SHA-256 | `e9d0b207fcee1510854679aa08dc7fa7cfdb6e889f33e54f5251539ca409a9ff` |
+| Independent references | **56** |
+| Checked cells | **165** |
+| Formulas preserved | **true** |
+| Status | **VERIFIED** |
+| Affected listed sheet | Comparable Sales Analysis (complete formula coverage) plus ALT DuPont contribution / bps / residual cells |
+
+No force-quit, no security-dialog automation, no overwrite of the vm1b3wsq snapshot. Allowances were not reset.
+
+## Presentation inspection
+
+**Figures** (intended display 1125×720 / 7.5×4.8 in at 150 dpi). Viewing: opened the three canonical PNGs and 4×–6× crops under `.git/autocycle/step-7-2-2-figure-inspect/`.
+
+| Figure | Path | Viewing | Observation |
+|---|---|---|---|
+| growth | `build/output/lululemon/figures/drivers/growth.png` | 1125×720; title/note crops | Unchanged vs Step 7.2.1 (`dd4aae26…`). Title, legend, FY ticks including `2 Feb 2025`, source note readable. No clip, overlap, or missing-glyph boxes. |
+| geography | `build/output/lululemon/figures/drivers/geography.png` | 1125×720; title/note crops | Unchanged (`7112d2d5…`). Same fiscal ticks and notes. No clip or overlap. |
+| margin (first render) | same path, pre-fix | 1125×720; legend / FY2023 crops | Defect: two-column legend overlapped the FY2023 +4.25 pp impairment bar; `Δgross margin` jammed into one token. |
+| margin (reinspected) | `margin.png` `e7ebe708…` (62436) | 1125×720; `margin_legend_v2.png`, `margin_fy2023_v2.png`, title/ticks/notes | Corrected: one-column upper-left legend (Gross margin / SG&A, sign reversed / Impairment, sign reversed / Other items, sign reversed / Reported operating-margin change); y-limits padded. FY2023 bar no longer meets the legend. Ticks FY2022–FY2025 with `29 Jan 2023` … `2 Feb 2025` … `1 Feb 2026`. Source note readable. STYLE four-U+0020 word gaps unchanged. |
+
+**Workbook** inspected in native Microsoft Excel, not by cell reads alone. Opened the granted verification copy `autocycle-verification-abe47425be87411eb1fee0c2.xlsx` (bytes identical to `hrj5h672/saved-copy.xlsx`). Sheet **ALT DuPont**; zoom **130%**; window bounds 0,39,1645,1112; selected ranges **A114:F131** (levels), **A132:F144** (amount / OM-change bridges), **A145:F159** (contribution schedule and units note). Labels, signed Δ/−Δ wording, `0.00%` pp and integer bps, blank opening column, and wrapped note were visible at that scale. Column A width 48; contribution label wrap height 18; note height 60 merged A159:F159. System Events window capture is unavailable in this agent; a fullscreen `screencapture` was black (TCC). Retrievable figure crops remain under `.git/autocycle/step-7-2-2-figure-inspect/`. Close-without-save was requested; Excel still listed that verification copy afterward. Its bytes still match the snapshot (`1f6921bf…`). It was not overwritten and Excel was not force-quit.
+
+## Commands and measured results
+
+| Check | Measured result |
+|---|---|
+| Focused contribution + Drivers | **19 passed** (`test_reported_margin` + `test_research_drivers`) then **67 passed** including `test_trainer` after the legend repair |
+| Sign / missing / zero / residual / rendered schedule | **pass** — expense-ratio decline is a positive contribution; omitted impairment stays `None`; explicit zero stays 0; sparse current-None makes the pair unavailable; Fast Retailing contribution residual is nonzero |
+| Lululemon + FR + source/fiscal + build CLI/contract + current_build + revenue-driver + filing + geographic + protected extracts | **686 passed** |
+| `python -m bav build Lululemon` / `check Lululemon` | exit 0; Drivers published |
+| `python -m bav build FastRetailing` / `check FastRetailing` | exit 0; no Drivers research |
+| Native Excel contribution cache | **VERIFIED** (attempt 1) |
+| `SEGMENT_BRIDGE_TOLERANCE` | **0.0** |
+| Practice-family counts | **486** Lululemon / **577** Fast Retailing (context rows only) |
+
+Published: `build/output/lululemon/research/Lululemon_Drivers.md` SHA-256 `3cf67013afa03e049e1b64a794e84ced2c3533e6f16b906ed48f21fdc8ae5071` (20922); figures growth `dd4aae26…` / geography `7112d2d5…` / margin `e7ebe708…`. Fast Retailing BAV SHA-256 `7091b5914ee9755854746576fe9956ec4abe028d9eef1e7171e525532f5b76fc` (137508).
+
+## Remaining toward Completion
+
+- Mix, markdowns, freight, input costs, occupancy, and leverage remain unestablished as bridge terms; Item 7 attributions stay management explanations.
+- Adjacent SPSF growth remains unavailable; 2023-01-29 SPSF disagreement stays audit-only.
+- Agent screen-capture of the Excel window was black; Review may want a human-facing native screenshot of ALT DuPont A145:F159 at reading scale.
+- Word/PDF publication and BAV-first front-page/CLI presentation remain subsequent Session work.
+- Earlier normalization, broader source-workflow, and normalized-per-share work remain deferred.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+

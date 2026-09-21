@@ -145,6 +145,13 @@ class ReportedMarginSeries:
     reconstructed_operating_profit_change: tuple[float | None, ...] | None = None
     operating_profit_change: tuple[float | None, ...] | None = None
     operating_profit_change_residual: tuple[float | None, ...] | None = None
+    gross_margin_contribution: tuple[float | str | None, ...] | None = None
+    sga_ratio_contribution: tuple[float | str | None, ...] | None = None
+    impairment_ratio_contribution: tuple[float | str | None, ...] | None = None
+    other_operating_ratio_contribution: tuple[float | str | None, ...] | None = None
+    reconstructed_contribution_sum: tuple[float | str | None, ...] | None = None
+    reported_operating_margin_change: tuple[float | str | None, ...] | None = None
+    contribution_residual: tuple[float | str | None, ...] | None = None
     amount_bridge_convention: str = AMOUNT_BRIDGE_CONVENTION
     assessments: tuple[MarginRelationshipAssessment, ...] = ()
 
@@ -387,6 +394,13 @@ def compute_reported_margin_series(
     reconstructed_op_change: tuple[float | None, ...] | None = None
     op_change: tuple[float | None, ...] | None = None
     op_change_residual: tuple[float | None, ...] | None = None
+    gm_contribution: tuple[float | str | None, ...] | None = None
+    sga_contribution: tuple[float | str | None, ...] | None = None
+    imp_contribution: tuple[float | str | None, ...] | None = None
+    other_contribution: tuple[float | str | None, ...] | None = None
+    contribution_sum: tuple[float | str | None, ...] | None = None
+    reported_om_change: tuple[float | str | None, ...] | None = None
+    contribution_resid: tuple[float | str | None, ...] | None = None
 
     if sources.sga is not None:
         sga_amounts = tuple(
@@ -525,6 +539,24 @@ def compute_reported_margin_series(
         reconstructed_op_change = tuple(recon_op_delta)
         op_change_residual = tuple(op_delta_resid)
 
+    gm_contribution = _signed_ratio_contributions(gross_margin, expense=False)
+    sga_contribution = _signed_ratio_contributions(sga_ratio, expense=True)
+    imp_contribution = _signed_ratio_contributions(impairment_ratio, expense=True)
+    other_contribution = _signed_ratio_contributions(other_ratio, expense=True)
+    contribution_sum = _sum_contributions(
+        gm_contribution,
+        sga_contribution,
+        imp_contribution,
+        other_contribution,
+        n=len(periods),
+    )
+    reported_om_change = (
+        None
+        if reported_operating_margin is None
+        else _adjacent_changes(reported_operating_margin)
+    )
+    contribution_resid = _pair_residual(reported_om_change, contribution_sum)
+
     assessments = _assess_margin_relationships(
         periods=periods,
         revenue=revenue,
@@ -538,6 +570,12 @@ def compute_reported_margin_series(
         op_residual=op_residual,
         gp_change_residual=gp_change_residual,
         op_change_residual=op_change_residual,
+        contribution_sum=contribution_sum,
+        contribution_resid=contribution_resid,
+        gm_contribution=gm_contribution,
+        sga_contribution=sga_contribution,
+        imp_contribution=imp_contribution,
+        other_contribution=other_contribution,
         impairment_disclosed=sources.impairment is not None,
         sga_disclosed=sources.sga is not None,
     )
@@ -574,6 +612,13 @@ def compute_reported_margin_series(
         reconstructed_operating_profit_change=reconstructed_op_change,
         operating_profit_change=op_change,
         operating_profit_change_residual=op_change_residual,
+        gross_margin_contribution=gm_contribution,
+        sga_ratio_contribution=sga_contribution,
+        impairment_ratio_contribution=imp_contribution,
+        other_operating_ratio_contribution=other_contribution,
+        reconstructed_contribution_sum=contribution_sum,
+        reported_operating_margin_change=reported_om_change,
+        contribution_residual=contribution_resid,
         assessments=assessments,
     )
 
@@ -623,6 +668,72 @@ def _adjacent_optional_changes(
     return tuple(changes)
 
 
+def _signed_ratio_contributions(
+    ratios: tuple[float | str | None, ...] | None,
+    *,
+    expense: bool,
+) -> tuple[float | str | None, ...] | None:
+    if ratios is None:
+        return None
+    contributions: list[float | str | None] = [None] * len(ratios)
+    for j in range(1, len(ratios)):
+        current = ratios[j]
+        prior = ratios[j - 1]
+        if current is None or prior is None:
+            continue
+        if (
+            is_source_unavailable(current)
+            or is_source_unavailable(prior)
+            or current == UNDEFINED_RATIO
+            or prior == UNDEFINED_RATIO
+            or isinstance(current, str)
+            or isinstance(prior, str)
+        ):
+            contributions[j] = UNDEFINED_RATIO
+            continue
+        delta = float(current) - float(prior)
+        contributions[j] = -delta if expense else delta
+    return tuple(contributions)
+
+
+def _sum_contributions(
+    *parts: tuple[float | str | None, ...] | None,
+    n: int,
+) -> tuple[float | str | None, ...] | None:
+    disclosed = [part for part in parts if part is not None]
+    if not disclosed:
+        return None
+    total: list[float | str | None] = [None] * n
+    for j in range(1, n):
+        values = [part[j] for part in disclosed]
+        if any(value is None for value in values):
+            continue
+        if any(
+            is_source_unavailable(value)
+            or value == UNDEFINED_RATIO
+            or isinstance(value, str)
+            for value in values
+        ):
+            total[j] = UNDEFINED_RATIO
+            continue
+        total[j] = sum(float(value) for value in values)
+    return tuple(total)
+
+
+def _pair_residual(
+    reported: tuple[float | str | None, ...] | None,
+    reconstructed: tuple[float | str | None, ...] | None,
+) -> tuple[float | str | None, ...] | None:
+    if reported is None or reconstructed is None:
+        return None
+    residual: list[float | str | None] = [None] * len(reported)
+    for j, (left, right) in enumerate(zip(reported, reconstructed)):
+        if left is None or right is None:
+            continue
+        residual[j] = _difference_or_na(left, right)
+    return tuple(residual)
+
+
 def _numeric_ratio(value: float | str | None) -> float | None:
     if value is None or is_source_unavailable(value) or isinstance(value, str):
         return None
@@ -643,6 +754,12 @@ def _assess_margin_relationships(
     op_residual: tuple[float | None, ...] | None,
     gp_change_residual: tuple[float | None, ...] | None,
     op_change_residual: tuple[float | None, ...] | None,
+    contribution_sum: tuple[float | str | None, ...] | None,
+    contribution_resid: tuple[float | str | None, ...] | None,
+    gm_contribution: tuple[float | str | None, ...] | None,
+    sga_contribution: tuple[float | str | None, ...] | None,
+    imp_contribution: tuple[float | str | None, ...] | None,
+    other_contribution: tuple[float | str | None, ...] | None,
     impairment_disclosed: bool,
     sga_disclosed: bool,
 ) -> tuple[MarginRelationshipAssessment, ...]:
@@ -675,6 +792,32 @@ def _assess_margin_relationships(
                 disclosure_support="income-statement components only; missing lines stay omitted",
                 established=max_resid is not None and max_resid < 1e-8,
                 limitation="" if max_resid is not None and max_resid < 1e-8 else "reconstruction residual remains",
+            )
+        )
+    if contribution_sum is not None and contribution_resid is not None:
+        resid_vals = [
+            abs(value)
+            for value in (_numeric_ratio(item) for item in contribution_resid)
+            if value is not None
+        ]
+        max_resid = max(resid_vals) if resid_vals else None
+        assessments.append(
+            MarginRelationshipAssessment(
+                name="component operating-margin contributions",
+                kind=KIND_IDENTITY,
+                direction="signed component contributions reconstruct the reported operating-margin change",
+                magnitude="Δgross margin, −Δ(SG&A/revenue), −Δ(impairment or asset-related charges/revenue), and −Δ(other reported operating items/revenue) are calculated from unrounded ratios",
+                reconstruction="reconstructed contribution sum equals those signed terms; residual is reported operating-margin change minus the reconstructed sum",
+                residual=(
+                    f"largest absolute contribution residual is {max_resid:.6%}"
+                    if max_resid is not None
+                    else "opening period has no adjacent comparison"
+                ),
+                stability="the identity is tested for every adjacent pair with disclosed components",
+                contradictions="none required when the residual is a rounding or omitted-line remainder",
+                disclosure_support="income-statement components only; missing adjacent comparisons stay unavailable",
+                established=max_resid is not None and max_resid < 1e-8,
+                limitation="" if max_resid is not None and max_resid < 1e-8 else "contribution residual remains",
             )
         )
     if gp_change_residual is not None:
@@ -765,16 +908,31 @@ def _assess_margin_relationships(
         )
         if latest is not None:
             om_move = om_vals[latest] - om_vals[latest - 1]
-            gm_move = (
-                None
-                if gm_vals[latest] is None or gm_vals[latest - 1] is None
-                else gm_vals[latest] - gm_vals[latest - 1]
+            gm_move = _numeric_ratio(
+                None if gm_contribution is None else gm_contribution[latest]
             )
-            sga_move = (
-                None
-                if sga_vals[latest] is None or sga_vals[latest - 1] is None
-                else sga_vals[latest] - sga_vals[latest - 1]
+            sga_move = _numeric_ratio(
+                None if sga_contribution is None else sga_contribution[latest]
             )
+            imp_move = _numeric_ratio(
+                None if imp_contribution is None else imp_contribution[latest]
+            )
+            other_move = _numeric_ratio(
+                None if other_contribution is None else other_contribution[latest]
+            )
+            parts = []
+            if gm_move is not None:
+                parts.append(f"Δgross margin {gm_move * 100:+.2f} pp")
+            if sga_move is not None:
+                parts.append(f"−Δ(SG&A/revenue) {sga_move * 100:+.2f} pp")
+            if imp_move is not None:
+                parts.append(
+                    f"−Δ(impairment or asset-related charges/revenue) {imp_move * 100:+.2f} pp"
+                )
+            if other_move is not None:
+                parts.append(
+                    f"−Δ(other reported operating items/revenue) {other_move * 100:+.2f} pp"
+                )
             assessments.append(
                 MarginRelationshipAssessment(
                     name="latest adjacent operating-margin movement",
@@ -786,19 +944,16 @@ def _assess_margin_relationships(
                     ),
                     magnitude=f"{om_move * 100:+.2f} pp",
                     reconstruction=(
-                        f"gross-margin change {gm_move * 100:+.2f} pp and "
-                        f"SG&A/revenue change {sga_move * 100:+.2f} pp"
-                        if gm_move is not None and sga_move is not None
-                        else "component change incomplete"
+                        "; ".join(parts) if parts else "component change incomplete"
                     ),
-                    residual="component identity residual is shown separately",
+                    residual="contribution residual is shown separately",
                     stability="one adjacent pair; not a multi-year law",
                     contradictions=(
-                        "gross margin and SG&A/revenue both moved against operating margin"
+                        "gross-margin and SG&A contributions both reduced operating margin"
                         if gm_move is not None
                         and sga_move is not None
                         and gm_move < 0
-                        and sga_move > 0
+                        and sga_move < 0
                         and om_move < 0
                         else "none required"
                     ),
