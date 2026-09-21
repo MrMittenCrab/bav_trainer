@@ -3290,3 +3290,122 @@ Finishing this bounded continuation does not establish major Completion or the S
 ## Next priority (not started)
 
 Not started. This bounded attempt does not begin the next implementation step.
+
+---
+
+# RESULT.md — Step 7.1.1 Finish retrospective migration reconciliation
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 7.1.1 — Finish retrospective migration reconciliation  
+**Work:** `578514d1133a4d2d9ec6a032875cbb2e`  
+**Plan:** `f3e983eda431424d8a9a3a34f069ddec`  
+**Finding:** planning-obstacle  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `c3a9b136234e4dd4ef5d9e0bb3b88ed7ff7db10141a2e2b9bf530246e31e6aa5` (6353).  
+IMPLEMENTATION SHA-256 `4396773a8758339c523f18d220ff985f196533b1efbbe9c05b7de8bbc0493b25` (9210).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**.
+
+This append continues work `578514d1133a4d2d9ec6a032875cbb2e` after Review of checkpoint `eb20ec8d23cac61562b8b761284bf7895414abf2`. It does not rewrite prior ledger history, does not close the Session Endpoint, and does not implement Drivers expansion, Word/PDF publication, or BAV-facing rebranding.
+
+## Required plan change
+
+None. Instructions `20260921-181553-000000019` and `20260921-182344-000000020` are already in the current plan/Session. No further plan revision is required for this bounded attempt.
+
+## Authenticated baseline B
+
+| Record | SHA |
+|---|---|
+| `IMPLEMENT_BASE_SHA` / HEAD / B | `f3e832597657c13752f3fe7615e6c7ac766be4fa` |
+| Branch | `checkpoint/20260913-183303` (matches resume-state and `implementation-baseline.json`) |
+| Review checkpoint | `eb20ec8d23cac61562b8b761284bf7895414abf2` (parent of B) |
+| Reviewed attempt (retained binding) | `128cac5318639c4a0fac309a8868ef4e2b88808b` (parent of Review checkpoint; ancestor of B) |
+| `latest-implementation` HEAD | `128cac5318639c4a0fac309a8868ef4e2b88808b` (prior attempt; controller advanced) |
+
+Authentication: branch, ancestry, and checkpoint binding succeeded. Fail-closed was not triggered. Evaluation used `git show` / `git rev-parse` / `git cat-file` / `git hash-object` against B; C1 `3f6f5dde…` / C2 `20d93331…` / extract blob `5e3ef5cf…` are historical Git blobs for relocation provenance, not a replacement baseline. Recovered Answer Key `51468d6872d6cc6bfebbe780664003171bcb105c` and `.git/autocycle/comparison-7-1-1/` remain supplemental historical evidence, not B.
+
+Receipt: `.git/autocycle/comparison-7-1-1/retrospective-acceptance.json` SHA-256 `5c2b914d49e88181e34e2837e3f9d2749e102850355965a22343cee9b7fd6a03` (61227).
+
+## Retrospective acceptance reconciliation
+
+| Requirement | Result | Evidence |
+|---|---|---|
+| Authenticated Git implementation baseline; no migration-specific replacement B | **Satisfied** | B = `IMPLEMENT_BASE_SHA` = HEAD; 128cac53 retained as reviewed-attempt ancestor |
+| 50 protected artifacts + eight extracts vs canonical destinations, relocation hashes, provenance | **Satisfied** | 50/50 and 8/8; destination bytes = historical Git blob (C1=C2 or `5e3ef5cf`); old paths absent; `/build/` destinations gitignored so not in B's tree; three fixture relocations tracked at B and byte-identical |
+| Original PDFs under canonical `source/` | **Satisfied** | Four Lululemon + five Fast Retailing PDFs match C1/C2 blobs; source resolution uses `build/input/<slug>/source/` |
+| Deletions without identical destinations | **Satisfied** | 20 retired release/generated artifacts absent; Git retains C1/C2 bytes; judged obsolete/generated, not required source |
+| Obsolete trees absent; no recreated legacy copy | **Satisfied** | `build/lululemon`, `lululemon-live`, `benchmark/*`, `release/*` absent |
+| Cell accounting 9580 / 863 / 8690 / 679 with membership and disposition | **Satisfied** | G1–G12 in `dispositions.json`; no remaining unresolved membership; no numerical defect; no repair |
+| 61 `_ComponentMap` formula + 802 literal + Trainer/component-map removals | **Satisfied** | Relocation / intended product change / fiscal-label dispositions unchanged; hidden-sheet visibility and empty defined names carried forward |
+| Transient workbook `2507ef35…` recovery/comparison | **Superseded** | Instruction `20260921-181553-000000019`. Not recreated. Absence is not an independent blocker |
+| Verification before obsolete-artifact removal | **Superseded (timing only)** | Instruction `20260921-182344-000000020` permits retrospective verification. Original sequence was **not** followed. Later checks do **not** prove the earlier gate ran. Breach remains recorded below |
+| 19,133-cell content equivalence, visibility, defined names, no external links, fiscal-coverage inspection | **Satisfied (unchanged surfaces)** | Retained `.git/autocycle/excel-verification-3v0t6_ur/` snapshot `35364813…`; prior full-cell identity 19133/19133 |
+| KPI saved-cache: 50 refs / 50 cells, formulas preserved | **Satisfied** | Official verifier **VERIFIED**. Original refs SHA `ca2cc16c…` unchanged (not rewritten). Current-source binding `kpi-binding-current.json` |
+| Driver refs 37/37 and compsales 4/4 applicability | **Satisfied** | Independent derivation from REVENUE_ANCHORS, store totals, admitted compsales, and `standardized.json` `88021a62…` (70646): **37/37** and **4/4**. Original source hashes still missing; separately authenticated bindings written; original artifacts not rewritten |
+| Native snapshot reuse only where formulas/inputs/dependencies remain applicable | **Satisfied** | Current vs 3v0t6 nonempty cells identical on Revenue Driver, Comparable Sales, Revenue per Store, and Store Count sheets. No new native Excel run |
+| Company-name Lululemon build/check, canonical-only runtime, post-removal behavior | **Satisfied** | `python -m bav check Lululemon` **0**; Fast Retailing **0**; no rebuild (no repair); obsolete paths still absent |
+| Protected-artifact test without exclusions | **Satisfied** | `test_protected_artifacts_and_eight_extracts_unchanged` plus issuer fiscal / Margin / source-availability: **46 passed** |
+| Canonical runtime regressions | **Satisfied** | `test_current_build` + `test_build_cli` + `test_build_contract`: **69 passed** |
+| Issuer fiscal labels including FY2024 53-week year; Margin levels/changes | **Satisfied (carried forward)** | Mapping 2022-01-30 FY2021 … 2025-02-02 FY2024 (53-week) … 2026-02-01 FY2025; Margin identity and FY2024→FY2025 changes unchanged; no rebuild |
+| Placeholders; `SEGMENT_BRIDGE_TOLERANCE = 0.0` | **Satisfied** | Forecast/Valuation/Overview remain 0-byte `e3b0c442…`; tolerance `0.0` |
+| Expanded Drivers, Word/PDF publication, BAV-first presentation | **Unresolved (subsequent Session work)** | Not in this bounded step; not a migration-reconciliation defect |
+| Earlier normalization / source-workflow / normalized-per-share | **Deferred** | Unchanged |
+
+## Deletion-before-verification record (preserved)
+
+Obsolete trees were already absent at Step 7.1 start (working-tree deletions; not committed). This attempt did not delete again. The original required sequence — verify, then remove — was not followed. Retrospective verification is now permitted for the already-completed migration; it does not establish that the earlier gate ran. This is a recorded breach of the original timing condition, not a rewritten history and not an independent remaining blocker under instruction `20260921-182344-000000020`.
+
+## Artifact dispositions (50 + 8)
+
+Relocated **25**: working-tree canonical bytes match historical Git blobs; 22 live under gitignored `/build/`; three Lululemon reconciled fixtures are tracked at B (`core/tests/fixtures/ordinary_reconcile/lululemon/{conflicts,provenance,standardized}.json`) and match B. Stayed **5**: `example/` demo artifacts tracked at B, C1, and C2. Retired **20**: absent; historical bytes remain at C1=C2. Extracts **8**: ordinary + management-KPI JSON match blob `5e3ef5cf…`.
+
+No lost required source evidence. No identical-destination mismatch.
+
+## Applicable native / saved-cache verification
+
+Original reference artifacts unchanged vs B:
+
+| Artifact | SHA-256 | `source_sha256` (original, not rewritten) |
+|---|---|---|
+| `docs/native-excel-kpi-references.json` | `ca2cc16c…dbe248c` | `27cf81c5…` (bytes still missing) |
+| `docs/native-excel-revenue-driver-references.json` | `44073234…4727aea` | `f0f46a03…` (bytes still missing) |
+| `docs/native-excel-compsales-references.json` | `ae8f7de1…d6fda` | `39914cba…` (bytes still missing) |
+
+Current-source bindings retain those original identities and the same independent expectations. Official verifier against snapshot `35364813…` and current workbook `9394e45b…` (227422):
+
+| Binding | Status | Independent refs | Checked cells | Formulas preserved |
+|---|---|---:|---:|---|
+| `kpi-binding-current.json` | **VERIFIED** | 50 | 50 | true |
+| `driver-binding-current.json` | **VERIFIED** | 37 | 103 | true |
+| `compsales-binding-current.json` | **VERIFIED** | 4 | 17 | true |
+
+KPI rerun receipt SHA-256 `f76b1404c69dbe75537984233e9a2a1e3482689ce5c08b805e5f9a4f7701c5bd` matches Review's reproduced `verify-kpi-binding.json`. Driver/compsales receipts: `verify-driver-binding.json` `5f46c363…`; `verify-compsales-binding.json` `eca06ac5…`. Native Excel was not re-run (at most two attempts unused).
+
+## Commands and measured results
+
+| Check | Measured result |
+|---|---|
+| Baseline authentication | **pass** — B `f3e83259…` |
+| Git-first artifact reconciliation | **50/50** protected; **8/8** extracts; obsolete paths absent |
+| Independent driver / compsales derivation | **37/37** and **4/4** |
+| `scripts/verify_cached_workbook.py` KPI / driver / compsales | **VERIFIED** / **VERIFIED** / **VERIFIED** |
+| `python -m bav check Lululemon` | **0** |
+| `python -m bav check FastRetailing` | **0** |
+| Protected + fiscal + Margin + source-availability | **46 passed**, no exclusions |
+| `test_current_build` + CLI + contract | **69 passed** |
+| Transient workbook recreated | **no** |
+| Rebuild | **no** (no demonstrated defect) |
+
+## Remaining toward Completion
+
+Migration reconciliation for this bounded attempt is returned for Review. Input incorporation does not certify Completion; migration acceptance does not finish the Session Endpoint.
+
+- Expanded historical revenue/component-margin Drivers, seven-part validation, strict company-name Word/PDF publication, and BAV-first presentation remain mandatory subsequent Session work.
+- Earlier normalization, broader source-workflow, and normalized-per-share obligations remain deferred.
+- No independent remaining migration blocker from the superseded transient-workbook or pre-removal timing conditions. Actual evidence loss, broken provenance, failed verification, and other unmet active requirements were not found.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+
