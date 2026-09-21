@@ -2,15 +2,17 @@
 
 ## Product target
 
-Build a complete Business Analysis and Valuation equity-research system. The Excel workbook is the analytical and source-traceability layer, Markdown is the canonical human-readable research output, and figures are reusable visual evidence.
+Build a complete Business Analysis and Valuation equity-research system, presented as **BAV**. The Excel workbook is the core analytical and source-traceability product; canonical Markdown, figures and Word/PDF publications support it. Trainer is an optional secondary derivative.
 
 The intended product relationship is:
 
-source-grounded company evidence → complete BAV analytical model → professional `<Company>_BAV.xlsx` with reproducible Markdown research and figures
+source-grounded company evidence → complete BAV analytical model → professional `<Company>_BAV.xlsx` with reproducible Markdown research, figures and Word/PDF publication
 
-The completed model also supports an optional derivative `<Company>_BAV_Trainer.xlsx`.
+The completed model also supports an optional derivative `<Company>_BAV_Trainer.xlsx`. Neither BAV build nor publication requires Trainer generation.
 
-The BAV workbook is the authoritative analytical model. It replaces the former Answer Key concept and must not present itself as an answer key, exercise or Trainer.
+The BAV workbook is the authoritative analytical model. It replaces the former Answer Key concept and must not present itself as an answer key, exercise or Trainer. Its front page is a concise product and company-analysis summary.
+
+Product-facing CLI help, documentation, workbook opening and publication wording use BAV as the primary name. Preserve optional Trainer functionality. Do not rename the repository, Git remote or unrelated infrastructure for branding.
 
 The secondary Trainer supports progression from accounting novice toward competence as a junior accounting-based equity-research analyst. Training-specific framing, blank yellow practice cells, Check instructions and exercise-oriented presentation belong in the Trainer.
 
@@ -36,7 +38,7 @@ The canonical build architecture separates persistent upstream inputs from gener
 - `build/input/<company>/source/`: original source filings.
 - `build/input/<company>/extracted/`: filing-level ordinary financial and management KPI extraction.
 - `build/input/<company>/reconciled/`: accepted company-level reconciled data and admission evidence.
-- `build/output/<company>/`: generated workbook, research, figures and supporting build artifacts.
+- `build/output/<company>/`: generated workbook, research, figures, supporting build artifacts and published documents.
 
 All company directory names are lowercase, including `lululemon` and `fast_retailing`. Human-facing filenames may retain normal capitalization.
 
@@ -55,11 +57,11 @@ The completed Lululemon build contains:
 - `build/output/lululemon/supporting/component_map.json`
 - `build/output/lululemon/supporting/rowmap.json`
 
-`python -m bav build Lululemon` reads the canonical Lululemon input and writes only under `build/output/lululemon/`. `python -m bav check Lululemon` checks that canonical output without requiring paths. Internal lookup may normalize company names to lowercase slugs.
+`python -m bav build Lululemon` reads the canonical Lululemon input and writes only under `build/output/lululemon/`. `python -m bav check Lululemon` checks that canonical output without requiring paths. `python -m bav publish Lululemon` renders canonical analysis and referenced figures into Word and PDF under `build/output/lululemon/`. These company-name interfaces generalize to supported companies. Build remains the primary product command; Check is diagnostic. Internal lookup may normalize company names to lowercase slugs.
 
-Benchmark and release are uses of canonical outputs, represented through Git tracking, tags or release packaging, not separate company data architectures. After canonical paths and dependencies are verified, remove obsolete generated artifacts and duplicate legacy, benchmark and release company trees, including obsolete Trainer and Answer Key outputs. Preserve original filings and canonical upstream data. Compatibility copies or symlinks require an active supported interface; do not maintain alternate active build architectures.
+Benchmark and release are uses of canonical outputs, represented through Git tracking, tags or release packaging, not separate company data architectures. After canonical paths and dependencies are verified, remove obsolete generated artifacts and duplicate legacy, benchmark and release company trees, including obsolete Trainer and Answer Key outputs. Preserve original filings and canonical upstream data. Compatibility copies or symlinks require an active supported interface; do not maintain alternate active build architectures. Runtime must not silently fall back to obsolete benchmark, release or other legacy company paths.
 
-Root `README.md` documents the workbook / research / figures architecture. Root `STYLE.md` is the single source of truth for human-facing BAV presentation and language conventions, applied to Markdown research, generated figures and future rendered research. Do not duplicate its specification in README or individual modules.
+Root `README.md` documents the workbook / research / figures / publication architecture. Root `STYLE.md` is the single source of truth for human-facing BAV presentation and language conventions, applied to Markdown research, generated figures and rendered publications. Do not duplicate its specification in README or individual modules.
 
 The research module sequence is Drivers, Forecast, Valuation, Overview:
 
@@ -68,11 +70,13 @@ The research module sequence is Drivers, Forecast, Valuation, Overview:
 - Valuation: standalone valuation.
 - Overview: cross-module synthesis.
 
-Module names use one word unless a one-word name would be genuinely unclear. Session 5 corrects Drivers only; Forecast, Valuation and Overview files remain zero-content placeholders, without headings, explanatory text, TODOs, templates or analysis.
+Module names use one word unless a one-word name would be genuinely unclear. The current historical-only Session strengthens Drivers; Forecast, Valuation and Overview files remain zero-content placeholders, without headings, explanatory text, TODOs, templates or analysis.
 
 Research and figures must be reproducible from the same validated BAV inputs as the workbook. Preserve calculations, source references, reconciliations and validation controls; do not maintain a separate uncontrolled numerical dataset. Figures use Matplotlib and one centralized style implementation derived from STYLE.md.
 
-Preserve the existing validated workbook. Presentation changes are limited to support needed for Drivers or employer-facing wording that materially obscures economic meaning; this architecture does not authorize a general workbook redesign or removal of audit evidence.
+Publication is downstream of analysis and must not duplicate analytical logic or maintain a second manually edited report. Use a standard maintainable Markdown-to-document toolchain where it meets actual rendering requirements. Word and PDF must be generated entirely from the CLI, without manual post-processing, and preserve headings, tables, equations, captions, source notes, meaningful structure and readable page layout. Resolve referenced canonical figures correctly; missing figures, broken references or conversion failures must fail clearly. Apply established styling and omit internal implementation/debug material from teammate-facing reports. Verify output readability and reproducibility.
+
+Preserve the existing validated workbook. Presentation changes may support Drivers and the BAV product hierarchy, including a concise company-analysis front page; this does not authorize a general workbook redesign or removal of audit evidence.
 
 ## Scope boundary
 
@@ -82,7 +86,7 @@ Hong Kong company input may remain manual. Automatic HKEX scraping is not requir
 
 Analysis and exercises should follow materiality and the information actually supplied. Missing historical facts must not be invented.
 
-BAV supplies target-side equity-research evidence only. It does not perform buyer-specific, M&A or Fast Retailing interpretation. Existing Fast Retailing analytical controls and regression coverage remain preserved.
+BAV supplies source-grounded equity-research analysis and historical target-assessment evidence for the current Lululemon M&A teamwork project. Identify historical growth and margin drivers, recurring versus episodic components, robust relationships and unresolved explanations. This scope does not authorize buyer-specific analysis, a deal recommendation, forecasting, valuation, price targets, scenarios or forward projections. Existing Fast Retailing analytical controls and regression coverage remain preserved; Fast Retailing is a regression case, not an additional strategy project.
 
 ## Source-data architecture
 
@@ -209,11 +213,27 @@ The product should not require every topic for every company. Optional modules s
 
 Major schedules should explain what changed economically and why it matters, as well as how a number is calculated.
 
-Historical revenue-driver analysis should begin with management-stated strategy and source-grounded operating evidence. Use those disclosures to propose plausible economic drivers, connect them to historical financial outcomes, and test simple meaningful relationships where history supports them.
+The historical decomposition is the primary analytical object. Strengthen the existing Drivers analysis through this sequence:
 
-Clearly distinguish management-stated strategy, reported source facts, accounting identities, observed historical relationships and analyst inference. An accounting identity or correlation alone does not establish a causal driver. Reconsider unsupported explanations or state that evidence is insufficient.
+reported outcome → decomposition → measurable components / admitted KPIs → historical contribution analysis → reconstruction of actual results → residuals and contradictions → source and management-disclosure check → interpretation
 
-Use the evidence to form concise hypotheses about historical growth and its relationship to disclosed strategy. Methods should generalize across companies; benchmark issuers do not justify issuer-specific analytical rules.
+For each material outcome, answer: what happened, what moved it mathematically, and what explains those arithmetic movements? State the relationship or formula, calculate across available historical periods, compare implied changes with reported changes, and expose unexplained components. Prefer a few economically meaningful, source-supported decompositions over weak ratio catalogues.
+
+Revenue analysis retains or improves the existing driver tree using admitted geography/segment, footprint, comparable-sales, channel or other operational evidence where available. Quantify geographic contributions and test footprint versus intensity relationships without inventing missing components. Company-wide revenue per store is a historical intensity proxy, not pure store productivity when digital or other channels contribute. Preserve channel, currency, calendar and definition distinctions.
+
+Margin analysis explicitly follows the three-question structure. State historical revenue, gross profit, gross margin, SG&A burden, other material operating items, operating profit and operating margin. Where disclosed, use:
+
+Operating margin = Gross margin − SG&A / Revenue − impairment or asset-related charges / Revenue − other reported operating items / Revenue.
+
+Bridge changes with consistent signs and denominators in percentage points or basis points. Reconcile levels and changes to reported operating margin and show any residual. Do not hide disclosed components in an aggregate operating burden or invent undisclosed subcomponents.
+
+After establishing the arithmetic, trace explanations such as mix, markdowns, freight, input costs, occupancy, geographic mix and leverage/deleverage to source evidence. Preserve management explanations as attributed statements; measure causal contributions only where disclosures support the calculation. Inspect existing extracts and admission evidence first, extending source extraction through existing controls only for necessary gaps.
+
+For each non-trivial proposed driver relationship, historical validation tests direction, magnitude, reconstruction, residual, stability across periods, contradictions and the disclosure check. Use compact bridges or tables. Validation tests the decomposition against observed history; it is not a separate predictive model. Do not add statistically elaborate models unsupported by the historical sample.
+
+Clearly distinguish accounting identity, reported historical fact, management explanation or strategy, observed historical relationship, economically plausible causal hypothesis and inference not established by evidence. An accounting identity or correlation alone does not establish a causal driver. Reconsider unsupported explanations or state that evidence is insufficient.
+
+Use this history to identify informative versus weak relationships, recurring versus episodic movements, accounting growth versus underlying operating improvement, and sourced claims versus inference. Methods generalize across companies; benchmark issuers do not justify issuer-specific analytical rules. Apply the same approach beyond revenue and margin only where a material outcome and available evidence justify it.
 
 Other interpretation questions include:
 
@@ -305,7 +325,7 @@ Preserve accepted Geographic Analysis, Operating KPIs and Normalization Judgment
 
 Preserve already accepted accounting, ingestion, geographic, KPI, normalization, provenance, workbook and regression work unless a demonstrated defect prevents the Session Endpoint.
 
-Historical Net Debt / Debt-Like Items Bridge, Complete NOPAT / RNOA and forecasting remain deferred unless a bounded historical dependency is directly necessary for the current Endpoint. Buyer-specific and M&A analysis remain outside the product scope.
+Historical Net Debt / Debt-Like Items Bridge, Complete NOPAT / RNOA and forecasting remain deferred unless a bounded historical dependency is directly necessary for the current Endpoint. Historical Lululemon M&A target assessment is permitted within the Scope boundary; buyer-specific analysis and deal recommendations remain excluded.
 
 ### Step 9 exit gate
 
@@ -411,7 +431,7 @@ This baseline being complete does **not** freeze Step 9. Historical depth, refer
 
 ## End-state definition of done
 
-The broader BAV research system succeeds when an unfamiliar supported non-financial company can be analyzed through a professional, auditable research workbook, canonical Markdown modules and reusable figures that enable the analyst to:
+The broader BAV research system succeeds when an unfamiliar supported non-financial company can be analyzed through a professional, auditable research workbook, canonical Markdown modules, reusable figures and shareable Word/PDF publications that enable the analyst to:
 
 - construct and audit the historical accounting model;
 - make defensible material accounting/reformulation judgments;

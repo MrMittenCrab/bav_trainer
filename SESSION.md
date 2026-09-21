@@ -1,32 +1,33 @@
-# Lululemon — Drivers and Build
+# BAV — Integration, Historical Drivers, Publication and Branding
 
-Session: 5
+Session: 7
 
 ## Endpoint
 
-Complete the canonical lowercase build migration and correct Lululemon Drivers fiscal-year labels and Margin analysis, preserving validated historical analysis and source traceability.
+Complete the canonical BAV workflow for Lululemon: verified input/output integration, materially stronger source-grounded historical Drivers analysis, reproducible Word/PDF publication and consistent BAV-first presentation. Support equity research and the current Lululemon M&A target-assessment project through general BAV capabilities.
 
 Session acceptance requires:
 
-1. `build/input/<company>/` and `build/output/<company>/` are the only active build architecture, with lowercase company directories.
-2. Lululemon original filings, ordinary and management KPI extracts, accepted standardized data, provenance, conflicts and admission evidence are integrated under `build/input/lululemon/`.
-3. `build/output/lululemon/` contains the BAV workbook, Drivers Markdown, three Drivers figures and supporting build artifacts specified in TARGET; Forecast, Valuation and Overview remain zero-byte placeholders.
-4. `python -m bav build Lululemon` and `python -m bav check Lululemon` succeed without path arguments. Repeated builds do not recreate obsolete paths, and no active code depends on `lululemon-live`.
-5. Obsolete duplicate build, benchmark, release, Trainer and Answer Key artifacts are removed only after canonical input/output and dependency verification, preserving original filings and unique upstream evidence.
-6. Source-grounded issuer fiscal-year labels and actual period-end dates remain distinct and consistent across workbook, Markdown and figures.
-7. Margin explains the observed result and validated gross-margin / net-operating-expense-burden / operating-margin bridge; latest-period prose matches the arithmetic, and causal explanations use only admitted evidence. Growth and Geography remain materially unchanged except necessary correctness, consistency and path changes.
-8. STYLE-compliant figures, reproducibility, source traceability, relevant regressions and applicable native workbook verification pass without weakening analytical controls.
+1. Canonical lowercase `build/input/<company>/` and `build/output/<company>/` are the only active runtime architecture. Preserve source, extracted, reconciled, standardized and admitted KPI evidence; remove obsolete duplicates only after verified replacement and dependency checks. No silent legacy fallback.
+2. The inherited Step 5.1 migration Completion remains an obligation: resolve native presentation inspection, protected-artifact regression, historical checkpoint comparison, gated duplicate removal and post-removal verification. Planning publication or a timed-out Excel attempt supplies no acceptance or recovery.
+3. Drivers follows reported outcome → decomposition → admitted components → historical contributions → reconstruction → residuals/contradictions → disclosure check → interpretation. Revenue uses defensible geography, footprint, comparable-sales and channel evidence; intensity proxies remain explicitly limited.
+4. Margin explicitly answers what happened, what moved it mathematically and what explains those movements. Show historical revenue/gross-profit/operating-profit bridges and operating margin = gross margin − SG&A/revenue − impairment or asset-related charges/revenue − other reported operating items/revenue where disclosed; reconcile changes in pp/bps and expose residuals.
+5. Major driver relationships are tested for direction, magnitude, reconstruction, residual, stability, contradictions and disclosure support across available history. Distinguish identities, facts, management explanations, observed relationships, causal hypotheses and unestablished inference. Do not invent components or treat correlation as causation.
+6. `python -m bav publish Lululemon` generates readable Word and PDF under canonical output from canonical Markdown and referenced figures, with established styling, headings, tables, equations, captions and source notes. No manual post-processing, duplicated analytical logic or debug material; missing figures, broken references and conversion failures fail clearly.
+7. Product-facing CLI help, documentation, workbook front page and publication present BAV as primary. The workbook front page is a concise product/company-analysis summary. Trainer remains optional and functional, with no required generation for build or publish; repository, remote and unrelated infrastructure names remain unchanged.
+8. Normal Lululemon company-name build/check/publish passes with relevant regressions and focused coverage for new behavior; Fast Retailing remains usable as regression coverage. Build is primary and Check diagnostic. Fiscal labels, provenance, reproducibility, STYLE and applicable native verification remain intact.
 
 ## Priority
 
-1. Correct the shared fiscal-year boundary and Margin analysis using existing validated workbook and admitted management evidence while migrating all necessary inputs and consumers to canonical paths.
-2. Verify canonical build/check, presentation, numerical agreement, admission provenance and relevant regressions before removing duplicates; repeat verification after removal.
-3. Record measured evidence and unresolved obligations in RESULT.md. Stop when this Endpoint and current plan are accepted.
+1. Finish inherited migration verification through bounded Excel open-timeout/verifier diagnosis, historical comparison, gated removal and post-removal checks. Preserve valid completed work and every unresolved gate.
+2. Upgrade the existing Drivers generator and canonical analysis using admitted data and necessary source-grounded extraction. Prioritize explicit component margin bridges, historical revenue reconstruction and concise evidence-based interpretation useful for equity research and historical target assessment.
+3. Add maintainable CLI Word/PDF publication downstream of canonical analysis and figures, with clear failures and verified readable output.
+4. Complete required BAV product-facing wording and front-page changes, preserve optional Trainer behavior, and verify the integrated workflow and Fast Retailing regressions.
 
-Preserve accepted accounting, ingestion, geographic, store-count, KPI, normalization, provenance, workbook, optional Trainer and regression behavior. Keep admission and comparison eligibility independent, incompatible comparable-sales definitions distinct, SPSF disagreements and excluded periods audit-only, and productivity limitations explicit. Preserve source references, calculations, reconciliations and fail-closed controls.
+Preserve accepted accounting, ingestion, geographic, store-count, KPI, normalization, provenance, workbook and regression behavior. Keep admission and comparison eligibility independent, incompatible comparable-sales definitions distinct, SPSF disagreements and excluded periods audit-only, and productivity limitations explicit. Preserve source references, calculations, reconciliations and fail-closed controls.
 
-Historical acceptance and Excel recovery are not renewed by this Session. Carry forward evidence only after establishing applicability to unchanged verified surfaces. Changed formulas or dependencies require native Excel recalculation and independent saved-cache verification; changed workbook presentation requires readable native inspection. Preserve ownership, authenticated evidence, access controls and recovery guards; missing evidence or unavailable access remains explicit.
+Historical acceptance and Excel recovery are not renewed by this Session. Carry forward evidence only after establishing applicability to unchanged verified surfaces. Changed formulas or dependencies require native Excel recalculation and independent saved-cache verification; changed workbook presentation requires readable native inspection. Preserve ownership, authenticated evidence, access controls and recovery guards; never automate security approval. Missing evidence or unavailable access remains explicit.
 
-Earlier normalization, broader source-workflow and normalized-per-share obligations remain deferred with their ledger evidence and unresolved decisions. This Session does not certify the previous Session Endpoint or discharge those obligations.
+Earlier normalization, broader source-workflow and normalized-per-share obligations remain deferred with their ledger evidence and unresolved decisions. This Session does not certify previous Session Endpoints or discharge those obligations.
 
-Do not add Forecast, Valuation, Overview, Fast Retailing strategy, buyer-specific or M&A analysis, unrelated BAV features, a workbook redesign, a publishing framework, or PowerPoint, Word or PDF outputs. Preserve existing Fast Retailing regression coverage. Update README only for required architecture changes; retain STYLE as the presentation authority. Instruction publication is not implementation acceptance.
+Do not add forecasting, valuation, price targets, scenarios, forward projections, deal recommendations, buyer-specific analysis, Fast Retailing strategy, Trainer-centric work, PowerPoint or unrelated refactoring. Forecast, Valuation and Overview research files remain zero-byte placeholders. Preserve existing architecture and STYLE; revise only what the expanded objective requires. Instruction incorporation is not implementation acceptance; DONE requires this Endpoint and current plan acceptance.
