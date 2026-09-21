@@ -526,3 +526,76 @@ def test_demo_omits_reported_margin_fast_retailing_activates(tmp_path):
     assert "reconstructed_operating_margin_change" in {
         s.family_id for s in fr_builder.expected_specs
     }
+    fr_series = compute_reported_margin_series(fr, canonical_fiscal_periods(fr))
+    assert fr_series.sga is not None
+    assert fr_series.impairment is None
+    assert fr_series.operating_profit_residual is not None
+    assert any(
+        value is not None and abs(value) > 1.0
+        for value in fr_series.operating_profit_residual
+    )
+    assert any(
+        item.kind == "unestablished_inference" and not item.established
+        for item in fr_series.assessments
+    )
+
+
+LULU_RECONCILED = (
+    ROOT / "build" / "input" / "lululemon" / "reconciled" / "standardized.json"
+)
+
+
+def test_lululemon_component_margin_bridge_reconciles_to_filings():
+    payload = json.loads(LULU_RECONCILED.read_text(encoding="utf-8"))
+    fin = standardized_from_payload(payload)
+    sources = resolve_reported_margin_sources(fin)
+    assert sources.sga is not None
+    assert sources.impairment is not None
+    assert sources.amortization is not None
+    periods = canonical_fiscal_periods(fin)
+    series = compute_reported_margin_series(fin, periods)
+    independent = {
+        date(2022, 1, 30): (3608565.0, 2225034.0, 0.0, 50176.0, 1333355.0),
+        date(2023, 1, 29): (4492340.0, 2757447.0, 407913.0, -1428.0, 1328408.0),
+        date(2024, 1, 28): (5609405.0, 3397218.0, 74501.0, 5010.0, 2132676.0),
+        date(2025, 2, 2): (6270811.0, 3762379.0, 0.0, 2735.0, 2505697.0),
+        date(2026, 2, 1): (6284132.0, 4066556.0, 0.0, 6961.0, 2210615.0),
+    }
+    assert series.sga[-1] == 4066556.0
+    assert series.impairment[1] == 407913.0
+    assert series.impairment[-1] == 0.0
+    assert series.other_operating_items[-1] == 6961.0
+    for index, period in enumerate(periods):
+        gp, sga, imp, other, op = independent[period]
+        assert series.gross_profit[index] == gp
+        assert series.sga[index] == sga
+        assert series.impairment[index] == imp
+        assert series.other_operating_items[index] == other
+        assert series.reconstructed_operating_profit[index] == op
+        assert series.operating_profit_residual[index] == 0.0
+        assert series.operating_margin_residual[index] == 0.0
+        gm = gp / series.revenue[index]
+        sga_r = sga / series.revenue[index]
+        imp_r = imp / series.revenue[index]
+        other_r = other / series.revenue[index]
+        assert series.reconstructed_component_operating_margin[index] == pytest.approx(
+            gm - sga_r - imp_r - other_r
+        )
+    assert series.sga_change[0] is None
+    assert series.gross_profit_interaction[0] is None
+    for index in range(1, len(periods)):
+        assert abs(series.gross_profit_change_residual[index]) < 1e-6
+        assert series.operating_profit_change_residual[index] == 0.0
+    assert sources.acquisition_related.values[date(2026, 2, 1)] is None
+    assert sources.gain_on_disposal.values[date(2026, 2, 1)] is None
+    kinds = {item.kind for item in series.assessments}
+    assert "identity" in kinds
+    assert "unestablished_inference" in kinds
+    assert any(
+        item.name.startswith("mix") and not item.established
+        for item in series.assessments
+    )
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    assert resolve_reported_margin_sources(restored).impairment.concept == (
+        "impairment_and_restructuring"
+    )

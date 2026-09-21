@@ -38,3 +38,19 @@ def required_period_series(
         required_period_value(item, period, field=field)
         for period in periods
     )
+
+
+def optional_period_value(
+    item: LineItem | None,
+    period: date,
+) -> float | None:
+    """Return a supplied period value, or None when the line or period is absent.
+
+    Missing disclosure is not converted to zero.
+    """
+    if item is None:
+        return None
+    raw = item.values.get(period)
+    if raw is None:
+        return None
+    return float(raw)

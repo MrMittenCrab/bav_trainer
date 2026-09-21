@@ -163,6 +163,16 @@ _EXACT_ALIASES: dict[str, frozenset[str]] = {
     "change_in_cash": frozenset(),
     "gross_profit": frozenset(),
     "operating_profit": frozenset(),
+    "selling_general_and_administrative_expenses": frozenset(
+        {
+            "selling, general and administrative expenses",
+            "selling general and administrative expenses",
+        }
+    ),
+    "impairment_and_restructuring": frozenset(),
+    "amortization_of_intangible_assets": frozenset(),
+    "acquisition_related_expenses": frozenset(),
+    "gain_on_disposal_of_assets": frozenset(),
     "inventories": frozenset(),
     "change_in_inventories": frozenset(),
 }
@@ -239,6 +249,12 @@ _EXPLICIT_CONCEPT_ALIASES: dict[str, frozenset[str]] = {
         {
             "operating profit",
             "operating income",
+        }
+    ),
+    "selling_general_and_administrative_expenses": frozenset(
+        {
+            "selling general and administrative expenses",
+            "selling general administrative",
         }
     ),
 }

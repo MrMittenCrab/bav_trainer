@@ -1025,3 +1025,37 @@ def test_lululemon_ordinary_disclosures_test_admitted_history(tmp_path):
     before = answer.read_bytes()
     derive_trainer_workbook(answer, trainer)
     assert answer.read_bytes() == before
+
+
+def test_lululemon_revenue_reconstruction_and_seven_part_validation():
+    from core.current_build import prepare_company_input, resolve_company
+
+    fin = prepare_company_input(resolve_company("Lululemon"), Path("/tmp/unused"))
+    analysis = compute_revenue_driver_analysis(fin)
+    geo = analysis.geographic_reconstruction
+    footprint = analysis.footprint_identity
+    assert geo is not None
+    assert footprint is not None
+    assert all(value == 0.0 for value in geo.residual)
+    assert all(
+        value == 0.0 or value is None for value in footprint.reconstruction_residual
+    )
+    for value in footprint.change_residual:
+        if value is None:
+            continue
+        assert abs(value) < 1e-6
+    assert "non-store" in footprint.scope_note.lower() or "outside those stores" in footprint.scope_note.lower()
+    names = {item.name for item in analysis.assessments}
+    assert "geographic revenue reconstruction" in names
+    assert "footprint and intensity identity" in names
+    assert "comparable-sales coincidence" in names
+    assert "sales-per-square-foot productivity" in names
+    spsf = next(
+        item
+        for item in analysis.assessments
+        if item.name.startswith("sales-per-square-foot")
+    )
+    assert spsf.established is False
+    assert spsf.kind == "unestablished_inference"
+    for test in analysis.tests:
+        assert test.assessment is not None

@@ -3409,3 +3409,97 @@ Migration reconciliation for this bounded attempt is returned for Review. Input 
 
 Not started. This bounded attempt does not begin the next implementation step.
 
+# RESULT.md — Step 7.2 Expand source-grounded historical Drivers
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 7.2 — Expand source-grounded historical Drivers  
+**Work:** `22b129faf8634719b1746886ddfec536`  
+**Plan:** `a102857b3f5f4be0ac91ad16151b548a`  
+**Finding:** Expand source-grounded historical Drivers  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `c3a9b136234e4dd4ef5d9e0bb3b88ed7ff7db10141a2e2b9bf530246e31e6aa5` (6353).  
+IMPLEMENTATION SHA-256 `7999125899a1189c4f90a3d36602a53e00de4c8c9468599a30809490f71f6795` (7176).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. HEAD / `IMPLEMENT_BASE_SHA` `6ad34a9e5d738481359bbd26ec188fa683f3e49d`.
+
+This append records the bounded Step 7.2 attempt. It does not rewrite prior ledger history, does not reserve future IDs, and does not begin Word/PDF publication or BAV-first presentation.
+
+## Required plan change
+
+None. Protected admit-2022 reconcile output remains the fixture contract. Component series for live Lululemon Drivers were filled on the canonical gitignored input `build/input/lululemon/reconciled/standardized.json` from extracted face amounts; `standardize_reconciled` was not changed, so a later `bav reconcile` into that path would omit the folded impairment / acquisition-related / gain series again. That regeneration gap is recorded below, not a plan rewrite.
+
+## Delivered scope
+
+- Extended `reported_margin`, `revenue_driver`, and Drivers research to share one analytical object for workbook context rows, `Lululemon_Drivers.md`, and the three Drivers figures.
+- Historical coverage FY2021–FY2025 (period ends 2022-01-30 … 2026-02-01) with issuer fiscal labels and FY2024 as the 53-week year ended 2025-02-02.
+- Margin bridge: revenue, gross profit, SG&A, separately disclosed impairment/asset-related charges, other reported operating items (amortization ± acquisition-related ± gain on disposal), operating profit, and revenue ratios. Operating margin reconstructed as GM − SG&A/Rev − Imp/Rev − Other/Rev. Residuals shown; missing disclosure omitted, not zeroed.
+- Amount bridge: ΔGP = GM_prior×ΔRev + Rev_prior×ΔGM + ΔRev×ΔGM, then disclosed expense changes into operating-profit change.
+- Geographic reconstruction from admitted components; footprint identity Revenue = stores × company-wide revenue per store with store / intensity / interaction terms. Company-wide RPS labeled as an intensity proxy that includes non-store revenue.
+- Seven-part assessments for the four existing revenue themes plus material margin explanations. Mix / markdowns / freight / costs / leverage and adjacent SPSF productivity remain unestablished with the concrete evidence limit. Management explanations of the latest operating-margin movement remain unavailable in extracts.
+- ALT DuPont context rows only (no new practice families). Catalog counts remain 486 Lululemon / 577 Fast Retailing. `SEGMENT_BRIDGE_TOLERANCE = 0.0`.
+- Forecast / Valuation / Overview remain zero-byte placeholders (`e3b0c442…`). Optional Trainer not emitted by ordinary build; trainer regressions passed.
+
+## Source references (independent of generated outputs)
+
+Face-of-statement USD thousands from canonical extracted Lululemon FY2022–FY2025 10-K income statements (later-audited presentation):
+
+| Period end | Revenue | Gross profit | SG&A | Impairment | Other (amort+acq+gain) | Operating profit |
+|---|---:|---:|---:|---:|---:|---:|
+| 2022-01-30 | 6,256,617 | 3,608,565 | 2,225,034 | 0 | 50,176 | 1,333,355 |
+| 2023-01-29 | 8,110,518 | 4,492,340 | 2,757,447 | 407,913 | −1,428 | 1,328,408 |
+| 2024-01-28 | 9,619,278 | 5,609,405 | 3,397,218 | 74,501 | 5,010 | 2,132,676 |
+| 2025-02-02 | 10,588,126 | 6,270,811 | 3,762,379 | 0 | 2,735 | 2,505,697 |
+| 2026-02-01 | 11,102,600 | 6,284,132 | 4,066,556 | 0 | 6,961 | 2,210,615 |
+
+Identity GP − SG&A − Imp − Other = reported OP in every year (residual 0). Geographic component sum = reported revenue (residual 0). Stores × company-wide RPS = reported revenue (residual 0). Mix/markdowns/freight amounts are not in the protected extracts.
+
+## Native Excel
+
+Attempt 1 **BLOCKED**: Other formula referenced empty `Income Statement!E7` (FY2024 acquisition-related line absent; missing ≠ zero). Diagnosed correction: Other sums only period-disclosed source cells (`E8+E14` for FY2024; `F8` for FY2025).
+
+Attempt 2 **VERIFIED** via `python3 /Users/lizhiguo/.autocycle/excel_verification.py` wrapping `scripts/verify_cached_workbook.py`. Evidence `.git/autocycle/excel-verification-y_gf5sdi/`. Independent refs `docs/native-excel-margin-component-references.json` (current-source binding; original KPI/driver/compsales artifacts not rewritten).
+
+| Field | Value |
+|---|---|
+| Source SHA-256 | `7a190e2aea84d14f2f3477eb260b5dc5e784a19748a9b7c6c8312e5e81671c3e` (228625) |
+| Copy SHA-256 | `4a81179d1516613c311c55e8aa8b39d7034948f9458c5c8bb3029f440005c699` |
+| References SHA-256 | `11eab1cae58cb1ffad126e536fc5a950bc3e579258120fb23ec4319013977d21` |
+| Independent references | **60** |
+| Checked cells | **135** |
+| Formulas preserved | **true** |
+| Affected listed sheet | Comparable Sales Analysis (complete formula coverage) plus ALT DuPont component cells |
+
+KPI / Revenue Driver practice sheets were not edited; prior VERIFIED bindings were not re-run.
+
+## Commands and measured results
+
+| Check | Measured result |
+|---|---|
+| Protected artifacts + eight extracts | **pass** (`test_protected_artifacts_and_eight_extracts_unchanged`); Lululemon fixtures match C1; Fast Retailing provenance restored from C1 `b1ffb52e…` after a transient fold-key write |
+| `test_generic_reconcile_is_deterministic` | **pass** (standardizer output unchanged vs fixture) |
+| Margin / revenue-driver / research | **pass** (`test_reported_margin`, `test_revenue_driver`, `test_research_drivers`) |
+| Lululemon + FR + build CLI/contract + current_build + trainer | **456 passed** |
+| Geographic / KPI workbook / reconciler / RPS | **119 passed** |
+| Re-run after Other-formula correction | Lululemon benchmark + trainer **95 passed**; FR build/check **0** |
+| `python -m bav build Lululemon` | exit 0; Drivers published; placeholders 0 bytes |
+| `python -m bav check Lululemon` | exit 0 |
+| `python -m bav build FastRetailing` | exit 0; no Drivers research; driver families unavailable |
+| `python -m bav check FastRetailing` | exit 0 |
+| Native Excel margin-component | **VERIFIED** (second attempt) |
+| `SEGMENT_BRIDGE_TOLERANCE` | **0.0** |
+| Practice-family counts | **486** Lululemon / **577** Fast Retailing (context rows only) |
+
+Published: `build/output/lululemon/research/Lululemon_Drivers.md` SHA-256 `a50fdb94873817e3…` (7516); figures `growth.png` / `geography.png` / `margin.png` regenerated. Inspected for required sentences (−3.75 pp / −2.62 pp / +1.13 pp), residuals, 53-week FY2024, and forbidden-prose absence.
+
+## Remaining toward Completion
+
+- Live component series are on canonical gitignored `standardized.json` and are not emitted by current `standardize_reconciled`. Protected fixture ordinary_reconcile is unchanged. Re-reconcile of live input would drop impairment / acquisition-related / gain until a future reconcile-contract change that does not reopen migration hashes.
+- Mix, markdowns, freight, input costs, and leverage remain unestablished; management MD&A attributions are unavailable in protected extracts.
+- Word/PDF publication and BAV-first front-page/CLI presentation remain subsequent Session work.
+- Earlier normalization, broader source-workflow, and normalized-per-share work remain deferred.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+

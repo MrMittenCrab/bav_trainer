@@ -115,9 +115,14 @@ from ..model.cash_rollforward import (
     resolve_cash_rollforward_sources,
 )
 from ..model.reported_margin import (
+    ACQUISITION_EXPENSE_CONCEPT,
+    AMORTIZATION_CONCEPT,
+    GAIN_ON_DISPOSAL_CONCEPT,
     GROSS_PROFIT_CONCEPT,
+    IMPAIRMENT_CONCEPT,
     OPERATING_PROFIT_CONCEPT,
     REVENUE_CONCEPT,
+    SGA_CONCEPT,
     compute_reported_margin_series,
     gross_margin_applicable,
     gross_margin_change_applicable,
@@ -5017,6 +5022,278 @@ class ReferenceModelBuilder:
                 self.rowmap["dupont_reconstructed_operating_margin_change_row"] = (
                     reconstructed_row
                 )
+
+            def _source_guard(src_cell: str) -> str:
+                return f'IF({src_cell}="","",{src_cell})'
+
+            sga_src = self._resolved_source_row(
+                self.fin.income_statement, SGA_CONCEPT, required=False
+            )
+            imp_src = self._resolved_source_row(
+                self.fin.income_statement, IMPAIRMENT_CONCEPT, required=False
+            )
+            amort_src = self._resolved_source_row(
+                self.fin.income_statement, AMORTIZATION_CONCEPT, required=False
+            )
+            acq_src = self._resolved_source_row(
+                self.fin.income_statement, ACQUISITION_EXPENSE_CONCEPT, required=False
+            )
+            gain_src = self._resolved_source_row(
+                self.fin.income_statement, GAIN_ON_DISPOSAL_CONCEPT, required=False
+            )
+            if sga_src is not None:
+                sga_row = cursor + 1
+                cursor = sga_row
+                ws.cell(row=sga_row, column=1, value="SG&A (reported)")
+                sga_ratio_row = cursor + 1
+                cursor = sga_ratio_row
+                ws.cell(row=sga_ratio_row, column=1, value="SG&A / revenue")
+            else:
+                sga_row = None
+                sga_ratio_row = None
+            if imp_src is not None:
+                imp_row = cursor + 1
+                cursor = imp_row
+                ws.cell(
+                    row=imp_row,
+                    column=1,
+                    value="Impairment or asset-related charges (reported)",
+                )
+                imp_ratio_row = cursor + 1
+                cursor = imp_ratio_row
+                ws.cell(
+                    row=imp_ratio_row,
+                    column=1,
+                    value="Impairment or asset-related charges / revenue",
+                )
+            else:
+                imp_row = None
+                imp_ratio_row = None
+            other_src_items: list[tuple[LineItem, int]] = []
+            for concept, src_row in (
+                (AMORTIZATION_CONCEPT, amort_src),
+                (ACQUISITION_EXPENSE_CONCEPT, acq_src),
+                (GAIN_ON_DISPOSAL_CONCEPT, gain_src),
+            ):
+                if src_row is None:
+                    continue
+                resolved = resolve_line(
+                    self.fin.income_statement, concept, required=False
+                )
+                if resolved.item is not None:
+                    other_src_items.append((resolved.item, src_row))
+            if other_src_items:
+                other_row = cursor + 1
+                cursor = other_row
+                ws.cell(
+                    row=other_row,
+                    column=1,
+                    value="Other reported operating items",
+                )
+                other_ratio_row = cursor + 1
+                cursor = other_ratio_row
+                ws.cell(
+                    row=other_ratio_row,
+                    column=1,
+                    value="Other reported operating items / revenue",
+                )
+            else:
+                other_row = None
+                other_ratio_row = None
+            if sga_row is not None and gross_margin_row is not None:
+                recon_om_row = cursor + 1
+                cursor = recon_om_row
+                ws.cell(
+                    row=recon_om_row,
+                    column=1,
+                    value="Reconstructed operating margin (components)",
+                )
+                om_resid_row = cursor + 1
+                cursor = om_resid_row
+                ws.cell(
+                    row=om_resid_row,
+                    column=1,
+                    value="Operating-margin reconstruction residual",
+                )
+            else:
+                recon_om_row = None
+                om_resid_row = None
+            if gross_row is not None and self._n > 1:
+                gp_change_row = cursor + 1
+                cursor = gp_change_row
+                ws.cell(row=gp_change_row, column=1, value="Change in gross profit")
+                gp_rev_eff_row = cursor + 1
+                cursor = gp_rev_eff_row
+                ws.cell(
+                    row=gp_rev_eff_row,
+                    column=1,
+                    value="Gross-profit revenue effect",
+                )
+                gp_gm_eff_row = cursor + 1
+                cursor = gp_gm_eff_row
+                ws.cell(
+                    row=gp_gm_eff_row,
+                    column=1,
+                    value="Gross-profit gross-margin effect",
+                )
+                gp_ix_row = cursor + 1
+                cursor = gp_ix_row
+                ws.cell(row=gp_ix_row, column=1, value="Gross-profit interaction")
+            else:
+                gp_change_row = None
+                gp_rev_eff_row = None
+                gp_gm_eff_row = None
+                gp_ix_row = None
+
+            for j in range(self._n):
+                out_col_idx = 2 + j
+                out_col = self._col(out_col_idx)
+                src_col = self._col(2 + j)
+                if sga_row is not None and sga_src is not None:
+                    src = f"'Income Statement'!{src_col}{sga_src}"
+                    c = ws.cell(
+                        row=sga_row,
+                        column=out_col_idx,
+                        value=f"={_source_guard(src)}",
+                    )
+                    c.number_format = NUM_FMT
+                    if sga_ratio_row is not None:
+                        c = ws.cell(
+                            row=sga_ratio_row,
+                            column=out_col_idx,
+                            value=(
+                                f'=IF(OR({out_col}{revenue_row}=0,{out_col}{sga_row}=""),'
+                                f"NA(),{out_col}{sga_row}/{out_col}{revenue_row})"
+                            ),
+                        )
+                        c.number_format = PCT_FMT
+                if imp_row is not None and imp_src is not None:
+                    src = f"'Income Statement'!{src_col}{imp_src}"
+                    c = ws.cell(
+                        row=imp_row,
+                        column=out_col_idx,
+                        value=f"={_source_guard(src)}",
+                    )
+                    c.number_format = NUM_FMT
+                    if imp_ratio_row is not None:
+                        c = ws.cell(
+                            row=imp_ratio_row,
+                            column=out_col_idx,
+                            value=(
+                                f'=IF(OR({out_col}{revenue_row}=0,{out_col}{imp_row}=""),'
+                                f"NA(),{out_col}{imp_row}/{out_col}{revenue_row})"
+                            ),
+                        )
+                        c.number_format = PCT_FMT
+                if other_row is not None:
+                    period = self.periods[j]
+                    present = [
+                        f"'Income Statement'!{src_col}{src_row}"
+                        for item, src_row in other_src_items
+                        if item.values.get(period) is not None
+                    ]
+                    if present:
+                        c = ws.cell(
+                            row=other_row,
+                            column=out_col_idx,
+                            value="=" + "+".join(present),
+                        )
+                        c.number_format = NUM_FMT
+                        if other_ratio_row is not None:
+                            c = ws.cell(
+                                row=other_ratio_row,
+                                column=out_col_idx,
+                                value=(
+                                    f'=IF(OR({out_col}{revenue_row}=0,{out_col}{other_row}=""),'
+                                    f"NA(),{out_col}{other_row}/{out_col}{revenue_row})"
+                                ),
+                            )
+                            c.number_format = PCT_FMT
+                if (
+                    recon_om_row is not None
+                    and gross_margin_row is not None
+                    and sga_ratio_row is not None
+                ):
+                    subtract = f"{out_col}{sga_ratio_row}"
+                    if imp_ratio_row is not None:
+                        subtract += f'+IF({out_col}{imp_ratio_row}="",0,{out_col}{imp_ratio_row})'
+                    if other_ratio_row is not None:
+                        subtract += (
+                            f'+IF({out_col}{other_ratio_row}="",0,{out_col}{other_ratio_row})'
+                        )
+                    c = ws.cell(
+                        row=recon_om_row,
+                        column=out_col_idx,
+                        value=(
+                            f'=IF(OR({out_col}{gross_margin_row}="",{out_col}{sga_ratio_row}=""),'
+                            f"NA(),{out_col}{gross_margin_row}-({subtract}))"
+                        ),
+                    )
+                    c.number_format = PCT_FMT
+                    if om_resid_row is not None and operating_margin_row is not None:
+                        c = ws.cell(
+                            row=om_resid_row,
+                            column=out_col_idx,
+                            value=(
+                                f'=IF(OR({out_col}{operating_margin_row}="",'
+                                f'{out_col}{recon_om_row}=""),NA(),'
+                                f"{out_col}{operating_margin_row}-{out_col}{recon_om_row})"
+                            ),
+                        )
+                        c.number_format = PCT_FMT
+                if j == 0:
+                    continue
+                prev_col = self._col(2 + j - 1)
+                if (
+                    gp_change_row is not None
+                    and gross_row is not None
+                    and gp_rev_eff_row is not None
+                    and gp_gm_eff_row is not None
+                    and gp_ix_row is not None
+                    and gross_margin_row is not None
+                ):
+                    c = ws.cell(
+                        row=gp_change_row,
+                        column=out_col_idx,
+                        value=f"={out_col}{gross_row}-{prev_col}{gross_row}",
+                    )
+                    c.number_format = NUM_FMT
+                    c = ws.cell(
+                        row=gp_rev_eff_row,
+                        column=out_col_idx,
+                        value=(
+                            f"={prev_col}{gross_margin_row}*"
+                            f"({out_col}{revenue_row}-{prev_col}{revenue_row})"
+                        ),
+                    )
+                    c.number_format = NUM_FMT
+                    c = ws.cell(
+                        row=gp_gm_eff_row,
+                        column=out_col_idx,
+                        value=(
+                            f"={prev_col}{revenue_row}*"
+                            f"({out_col}{gross_margin_row}-{prev_col}{gross_margin_row})"
+                        ),
+                    )
+                    c.number_format = NUM_FMT
+                    c = ws.cell(
+                        row=gp_ix_row,
+                        column=out_col_idx,
+                        value=(
+                            f"=({out_col}{revenue_row}-{prev_col}{revenue_row})*"
+                            f"({out_col}{gross_margin_row}-{prev_col}{gross_margin_row})"
+                        ),
+                    )
+                    c.number_format = NUM_FMT
+
+            if sga_row is not None:
+                self.rowmap["dupont_sga_row"] = sga_row
+            if imp_row is not None:
+                self.rowmap["dupont_impairment_row"] = imp_row
+            if other_row is not None:
+                self.rowmap["dupont_other_operating_row"] = other_row
+            if recon_om_row is not None:
+                self.rowmap["dupont_component_operating_margin_row"] = recon_om_row
             next_section_after = cursor
 
         if self.inventory_analysis_series is not None:

@@ -33,12 +33,36 @@ from datetime import date
 
 from ..data.interface import LineItem, StandardizedFinancials
 from .line_resolver import AmbiguousLineError, MissingLineError, resolve_line
-from .ratio_values import UNDEFINED_RATIO, ratio_or_na
-from .source_values import required_period_value
+from .ratio_values import UNDEFINED_RATIO, is_source_unavailable, ratio_or_na
+from .source_values import optional_period_value, required_period_value
 
 GROSS_PROFIT_CONCEPT = "gross_profit"
 OPERATING_PROFIT_CONCEPT = "operating_profit"
 REVENUE_CONCEPT = "revenue"
+SGA_CONCEPT = "selling_general_and_administrative_expenses"
+IMPAIRMENT_CONCEPT = "impairment_and_restructuring"
+AMORTIZATION_CONCEPT = "amortization_of_intangible_assets"
+ACQUISITION_EXPENSE_CONCEPT = "acquisition_related_expenses"
+GAIN_ON_DISPOSAL_CONCEPT = "gain_on_disposal_of_assets"
+OTHER_OPERATING_CONCEPTS = (
+    AMORTIZATION_CONCEPT,
+    ACQUISITION_EXPENSE_CONCEPT,
+    GAIN_ON_DISPOSAL_CONCEPT,
+)
+KIND_IDENTITY = "identity"
+KIND_REPORTED_FACT = "reported_fact"
+KIND_ATTRIBUTED_EXPLANATION = "attributed_management_explanation"
+KIND_OBSERVED = "observed_relationship"
+KIND_CAUSAL = "causal_hypothesis"
+KIND_UNESTABLISHED = "unestablished_inference"
+AMOUNT_BRIDGE_CONVENTION = (
+    "Gross-profit change uses prior gross margin on the revenue change, "
+    "prior revenue on the gross-margin change, and an explicit interaction "
+    "equal to the revenue change times the gross-margin change. Operating-"
+    "profit change then subtracts disclosed SG&A, impairment or asset-related "
+    "charges, and other reported operating-item changes. Missing disclosure "
+    "is omitted from the reconstruction, not treated as zero."
+)
 
 
 @dataclass(frozen=True)
@@ -49,6 +73,10 @@ class ReportedMarginAvailability:
     gross_profit_ambiguous: bool
     operating_profit: bool
     operating_profit_ambiguous: bool
+    sga: bool = False
+    sga_ambiguous: bool = False
+    impairment: bool = False
+    impairment_ambiguous: bool = False
 
 
 @dataclass(frozen=True)
@@ -56,6 +84,28 @@ class ReportedMarginSources:
     revenue: LineItem | None
     gross_profit: LineItem | None
     operating_profit: LineItem | None
+    sga: LineItem | None = None
+    impairment: LineItem | None = None
+    amortization: LineItem | None = None
+    acquisition_related: LineItem | None = None
+    gain_on_disposal: LineItem | None = None
+
+
+@dataclass(frozen=True)
+class MarginRelationshipAssessment:
+    """Seven-part historical test of one margin relationship."""
+
+    name: str
+    kind: str
+    direction: str
+    magnitude: str
+    reconstruction: str
+    residual: str
+    stability: str
+    contradictions: str
+    disclosure_support: str
+    established: bool
+    limitation: str = ""
 
 
 @dataclass(frozen=True)
@@ -71,6 +121,32 @@ class ReportedMarginSeries:
     reconstructed_operating_margin_change: tuple[float | str | None, ...] | None = (
         None
     )
+    sga: tuple[float | None, ...] | None = None
+    impairment: tuple[float | None, ...] | None = None
+    other_operating_items: tuple[float | None, ...] | None = None
+    sga_ratio: tuple[float | str | None, ...] | None = None
+    impairment_ratio: tuple[float | str | None, ...] | None = None
+    other_operating_ratio: tuple[float | str | None, ...] | None = None
+    reconstructed_operating_profit: tuple[float | None, ...] | None = None
+    operating_profit_residual: tuple[float | None, ...] | None = None
+    reconstructed_component_operating_margin: tuple[float | str | None, ...] | None = (
+        None
+    )
+    operating_margin_residual: tuple[float | str | None, ...] | None = None
+    revenue_change: tuple[float | None, ...] | None = None
+    gross_profit_change: tuple[float | None, ...] | None = None
+    gross_profit_revenue_effect: tuple[float | None, ...] | None = None
+    gross_profit_margin_effect: tuple[float | None, ...] | None = None
+    gross_profit_interaction: tuple[float | None, ...] | None = None
+    gross_profit_change_residual: tuple[float | None, ...] | None = None
+    sga_change: tuple[float | None, ...] | None = None
+    impairment_change: tuple[float | None, ...] | None = None
+    other_operating_change: tuple[float | None, ...] | None = None
+    reconstructed_operating_profit_change: tuple[float | None, ...] | None = None
+    operating_profit_change: tuple[float | None, ...] | None = None
+    operating_profit_change_residual: tuple[float | None, ...] | None = None
+    amount_bridge_convention: str = AMOUNT_BRIDGE_CONVENTION
+    assessments: tuple[MarginRelationshipAssessment, ...] = ()
 
 
 def _resolve_unique_is(
@@ -94,6 +170,10 @@ def reported_margin_availability(
     operating_profit, operating_profit_ambiguous = _resolve_unique_is(
         financials, OPERATING_PROFIT_CONCEPT
     )
+    sga, sga_ambiguous = _resolve_unique_is(financials, SGA_CONCEPT)
+    impairment, impairment_ambiguous = _resolve_unique_is(
+        financials, IMPAIRMENT_CONCEPT
+    )
     return ReportedMarginAvailability(
         revenue=revenue is not None,
         revenue_ambiguous=revenue_ambiguous,
@@ -101,6 +181,10 @@ def reported_margin_availability(
         gross_profit_ambiguous=gross_profit_ambiguous,
         operating_profit=operating_profit is not None,
         operating_profit_ambiguous=operating_profit_ambiguous,
+        sga=sga is not None,
+        sga_ambiguous=sga_ambiguous,
+        impairment=impairment is not None,
+        impairment_ambiguous=impairment_ambiguous,
     )
 
 
@@ -111,10 +195,20 @@ def resolve_reported_margin_sources(
     revenue, _ = _resolve_unique_is(financials, REVENUE_CONCEPT)
     gross_profit, _ = _resolve_unique_is(financials, GROSS_PROFIT_CONCEPT)
     operating_profit, _ = _resolve_unique_is(financials, OPERATING_PROFIT_CONCEPT)
+    sga, _ = _resolve_unique_is(financials, SGA_CONCEPT)
+    impairment, _ = _resolve_unique_is(financials, IMPAIRMENT_CONCEPT)
+    amortization, _ = _resolve_unique_is(financials, AMORTIZATION_CONCEPT)
+    acquisition, _ = _resolve_unique_is(financials, ACQUISITION_EXPENSE_CONCEPT)
+    gain, _ = _resolve_unique_is(financials, GAIN_ON_DISPOSAL_CONCEPT)
     return ReportedMarginSources(
         revenue=revenue,
         gross_profit=gross_profit,
         operating_profit=operating_profit,
+        sga=sga,
+        impairment=impairment,
+        amortization=amortization,
+        acquisition_related=acquisition,
+        gain_on_disposal=gain,
     )
 
 
@@ -271,6 +365,183 @@ def compute_reported_margin_series(
             reconstructed[j] = _difference_or_na(gm_delta, burden_delta)
         reconstructed_operating_margin_change = tuple(reconstructed)
 
+    sga_amounts: tuple[float | None, ...] | None = None
+    impairment_amounts: tuple[float | None, ...] | None = None
+    other_amounts: tuple[float | None, ...] | None = None
+    sga_ratio: tuple[float | str | None, ...] | None = None
+    impairment_ratio: tuple[float | str | None, ...] | None = None
+    other_ratio: tuple[float | str | None, ...] | None = None
+    reconstructed_op: tuple[float | None, ...] | None = None
+    op_residual: tuple[float | None, ...] | None = None
+    reconstructed_om: tuple[float | str | None, ...] | None = None
+    om_residual: tuple[float | str | None, ...] | None = None
+    revenue_change: tuple[float | None, ...] | None = None
+    gp_change: tuple[float | None, ...] | None = None
+    gp_revenue_effect: tuple[float | None, ...] | None = None
+    gp_margin_effect: tuple[float | None, ...] | None = None
+    gp_interaction: tuple[float | None, ...] | None = None
+    gp_change_residual: tuple[float | None, ...] | None = None
+    sga_change: tuple[float | None, ...] | None = None
+    impairment_change: tuple[float | None, ...] | None = None
+    other_change: tuple[float | None, ...] | None = None
+    reconstructed_op_change: tuple[float | None, ...] | None = None
+    op_change: tuple[float | None, ...] | None = None
+    op_change_residual: tuple[float | None, ...] | None = None
+
+    if sources.sga is not None:
+        sga_amounts = tuple(
+            optional_period_value(sources.sga, period) for period in periods
+        )
+        sga_ratio = tuple(
+            None if amount is None else ratio_or_na(amount, revenue[j])
+            for j, amount in enumerate(sga_amounts)
+        )
+    if sources.impairment is not None:
+        impairment_amounts = tuple(
+            optional_period_value(sources.impairment, period) for period in periods
+        )
+        impairment_ratio = tuple(
+            None if amount is None else ratio_or_na(amount, revenue[j])
+            for j, amount in enumerate(impairment_amounts)
+        )
+
+    other_parts = []
+    for item in (
+        sources.amortization,
+        sources.acquisition_related,
+        sources.gain_on_disposal,
+    ):
+        if item is not None:
+            other_parts.append(
+                tuple(optional_period_value(item, period) for period in periods)
+            )
+    if other_parts:
+        other_amounts = tuple(
+            _sum_optional(values) for values in zip(*other_parts)
+        )
+        other_ratio = tuple(
+            None if amount is None else ratio_or_na(amount, revenue[j])
+            for j, amount in enumerate(other_amounts)
+        )
+
+    if (
+        gross_profit is not None
+        and operating_profit is not None
+        and sga_amounts is not None
+    ):
+        recon_op: list[float | None] = []
+        resid_op: list[float | None] = []
+        recon_om: list[float | str | None] = []
+        resid_om: list[float | str | None] = []
+        for j, period in enumerate(periods):
+            built = _reconstruct_operating_profit(
+                gross_profit[j],
+                sga_amounts[j],
+                None if impairment_amounts is None else impairment_amounts[j],
+                None if other_amounts is None else other_amounts[j],
+            )
+            recon_op.append(built)
+            if built is None:
+                resid_op.append(None)
+                recon_om.append(None)
+                resid_om.append(None)
+                continue
+            resid_op.append(operating_profit[j] - built)
+            om_built = ratio_or_na(built, revenue[j])
+            recon_om.append(om_built)
+            reported_om = (
+                None
+                if reported_operating_margin is None
+                else reported_operating_margin[j]
+            )
+            if (
+                reported_om is None
+                or is_source_unavailable(reported_om)
+                or is_source_unavailable(om_built)
+            ):
+                resid_om.append(
+                    UNDEFINED_RATIO
+                    if reported_om == UNDEFINED_RATIO or om_built == UNDEFINED_RATIO
+                    else None
+                )
+            else:
+                resid_om.append(float(reported_om) - float(om_built))
+        reconstructed_op = tuple(recon_op)
+        op_residual = tuple(resid_op)
+        reconstructed_om = tuple(recon_om)
+        om_residual = tuple(resid_om)
+
+        revenue_change = _adjacent_amount_changes(revenue)
+        gp_change = _adjacent_amount_changes(gross_profit)
+        sga_change = _adjacent_optional_changes(sga_amounts)
+        impairment_change = (
+            None
+            if impairment_amounts is None
+            else _adjacent_optional_changes(impairment_amounts)
+        )
+        other_change = (
+            None
+            if other_amounts is None
+            else _adjacent_optional_changes(other_amounts)
+        )
+        op_change = _adjacent_amount_changes(operating_profit)
+        n = len(periods)
+        rev_eff: list[float | None] = [None] * n
+        gm_eff: list[float | None] = [None] * n
+        interact: list[float | None] = [None] * n
+        gp_resid: list[float | None] = [None] * n
+        recon_op_delta: list[float | None] = [None] * n
+        op_delta_resid: list[float | None] = [None] * n
+        for j in range(1, n):
+            if gross_margin is None or gp_change is None or revenue_change is None:
+                continue
+            prior_gm = gross_margin[j - 1]
+            current_gm = gross_margin[j]
+            d_rev = revenue_change[j]
+            d_gp = gp_change[j]
+            if (
+                d_rev is None
+                or d_gp is None
+                or is_source_unavailable(prior_gm)
+                or is_source_unavailable(current_gm)
+            ):
+                continue
+            d_gm = float(current_gm) - float(prior_gm)
+            rev_eff[j] = float(prior_gm) * d_rev
+            gm_eff[j] = revenue[j - 1] * d_gm
+            interact[j] = d_rev * d_gm
+            gp_resid[j] = d_gp - (rev_eff[j] + gm_eff[j] + interact[j])
+            if reconstructed_op is None or reconstructed_op[j] is None:
+                continue
+            if reconstructed_op[j - 1] is None:
+                continue
+            recon_op_delta[j] = reconstructed_op[j] - reconstructed_op[j - 1]
+            if op_change is not None and op_change[j] is not None:
+                op_delta_resid[j] = op_change[j] - recon_op_delta[j]
+        gp_revenue_effect = tuple(rev_eff)
+        gp_margin_effect = tuple(gm_eff)
+        gp_interaction = tuple(interact)
+        gp_change_residual = tuple(gp_resid)
+        reconstructed_op_change = tuple(recon_op_delta)
+        op_change_residual = tuple(op_delta_resid)
+
+    assessments = _assess_margin_relationships(
+        periods=periods,
+        revenue=revenue,
+        gross_margin=gross_margin,
+        reported_operating_margin=reported_operating_margin,
+        sga_ratio=sga_ratio,
+        impairment_amounts=impairment_amounts,
+        impairment_ratio=impairment_ratio,
+        reconstructed_om=reconstructed_om,
+        om_residual=om_residual,
+        op_residual=op_residual,
+        gp_change_residual=gp_change_residual,
+        op_change_residual=op_change_residual,
+        impairment_disclosed=sources.impairment is not None,
+        sga_disclosed=sources.sga is not None,
+    )
+
     return ReportedMarginSeries(
         revenue=revenue,
         gross_profit=gross_profit,
@@ -281,4 +552,259 @@ def compute_reported_margin_series(
         gross_margin_change=gross_margin_change,
         net_operating_expense_burden_change=net_operating_expense_burden_change,
         reconstructed_operating_margin_change=reconstructed_operating_margin_change,
+        sga=sga_amounts,
+        impairment=impairment_amounts,
+        other_operating_items=other_amounts,
+        sga_ratio=sga_ratio,
+        impairment_ratio=impairment_ratio,
+        other_operating_ratio=other_ratio,
+        reconstructed_operating_profit=reconstructed_op,
+        operating_profit_residual=op_residual,
+        reconstructed_component_operating_margin=reconstructed_om,
+        operating_margin_residual=om_residual,
+        revenue_change=revenue_change,
+        gross_profit_change=gp_change,
+        gross_profit_revenue_effect=gp_revenue_effect,
+        gross_profit_margin_effect=gp_margin_effect,
+        gross_profit_interaction=gp_interaction,
+        gross_profit_change_residual=gp_change_residual,
+        sga_change=sga_change,
+        impairment_change=impairment_change,
+        other_operating_change=other_change,
+        reconstructed_operating_profit_change=reconstructed_op_change,
+        operating_profit_change=op_change,
+        operating_profit_change_residual=op_change_residual,
+        assessments=assessments,
     )
+
+
+def _sum_optional(values: tuple[float | None, ...]) -> float | None:
+    known = [value for value in values if value is not None]
+    if not known:
+        return None
+    return sum(known)
+
+
+def _reconstruct_operating_profit(
+    gross_profit: float,
+    sga: float | None,
+    impairment: float | None,
+    other: float | None,
+) -> float | None:
+    if sga is None:
+        return None
+    result = gross_profit - sga
+    if impairment is not None:
+        result -= impairment
+    if other is not None:
+        result -= other
+    return result
+
+
+def _adjacent_amount_changes(
+    levels: tuple[float, ...],
+) -> tuple[float | None, ...]:
+    changes: list[float | None] = [None] * len(levels)
+    for j in range(1, len(levels)):
+        changes[j] = levels[j] - levels[j - 1]
+    return tuple(changes)
+
+
+def _adjacent_optional_changes(
+    levels: tuple[float | None, ...],
+) -> tuple[float | None, ...]:
+    changes: list[float | None] = [None] * len(levels)
+    for j in range(1, len(levels)):
+        current = levels[j]
+        prior = levels[j - 1]
+        if current is None or prior is None:
+            continue
+        changes[j] = current - prior
+    return tuple(changes)
+
+
+def _numeric_ratio(value: float | str | None) -> float | None:
+    if value is None or is_source_unavailable(value) or isinstance(value, str):
+        return None
+    return float(value)
+
+
+def _assess_margin_relationships(
+    *,
+    periods: list[date],
+    revenue: tuple[float, ...],
+    gross_margin: tuple[float | str, ...] | None,
+    reported_operating_margin: tuple[float | str, ...] | None,
+    sga_ratio: tuple[float | str | None, ...] | None,
+    impairment_amounts: tuple[float | None, ...] | None,
+    impairment_ratio: tuple[float | str | None, ...] | None,
+    reconstructed_om: tuple[float | str | None, ...] | None,
+    om_residual: tuple[float | str | None, ...] | None,
+    op_residual: tuple[float | None, ...] | None,
+    gp_change_residual: tuple[float | None, ...] | None,
+    op_change_residual: tuple[float | None, ...] | None,
+    impairment_disclosed: bool,
+    sga_disclosed: bool,
+) -> tuple[MarginRelationshipAssessment, ...]:
+    assessments: list[MarginRelationshipAssessment] = []
+    if (
+        reconstructed_om is not None
+        and om_residual is not None
+        and sga_disclosed
+    ):
+        resid_vals = [
+            abs(value)
+            for value in (_numeric_ratio(item) for item in om_residual)
+            if value is not None
+        ]
+        max_resid = max(resid_vals) if resid_vals else None
+        assessments.append(
+            MarginRelationshipAssessment(
+                name="component operating-margin identity",
+                kind=KIND_IDENTITY,
+                direction="reconstructed operating margin equals reported operating margin when disclosed components are subtracted from gross margin",
+                magnitude="levels and adjacent changes are reconciled in amounts and percentage points",
+                reconstruction="operating margin = gross margin − SG&A/revenue − impairment or asset-related charges/revenue − other reported operating items/revenue",
+                residual=(
+                    f"largest absolute operating-margin residual is {max_resid:.6%}"
+                    if max_resid is not None
+                    else "residual not defined"
+                ),
+                stability="the identity holds in every period with disclosed SG&A",
+                contradictions="none in the reconstructed history",
+                disclosure_support="income-statement components only; missing lines stay omitted",
+                established=max_resid is not None and max_resid < 1e-8,
+                limitation="" if max_resid is not None and max_resid < 1e-8 else "reconstruction residual remains",
+            )
+        )
+    if gp_change_residual is not None:
+        gp_resid_vals = [abs(value) for value in gp_change_residual if value is not None]
+        max_gp = max(gp_resid_vals) if gp_resid_vals else None
+        assessments.append(
+            MarginRelationshipAssessment(
+                name="gross-profit amount bridge",
+                kind=KIND_IDENTITY,
+                direction="gross-profit change equals the revenue effect plus the gross-margin effect plus the interaction",
+                magnitude=AMOUNT_BRIDGE_CONVENTION,
+                reconstruction="ΔGP = GM_prior × ΔRevenue + Revenue_prior × ΔGM + ΔRevenue × ΔGM",
+                residual=(
+                    f"largest absolute gross-profit residual is {max_gp:.6f}"
+                    if max_gp is not None
+                    else "opening period has no change"
+                ),
+                stability="the interaction identity holds for every adjacent pair with defined margins",
+                contradictions="none",
+                disclosure_support="reported revenue and gross profit",
+                established=max_gp is not None and max_gp < 1e-4,
+            )
+        )
+    if impairment_disclosed and impairment_amounts is not None:
+        charged = [
+            (period, amount)
+            for period, amount in zip(periods, impairment_amounts)
+            if amount is not None and amount > 0
+        ]
+        assessments.append(
+            MarginRelationshipAssessment(
+                name="impairment or asset-related charges",
+                kind=KIND_REPORTED_FACT,
+                direction="separately disclosed impairment or restructuring charges reduce operating profit in the years they appear",
+                magnitude=(
+                    "; ".join(
+                        f"{period.isoformat()} {amount:,.0f}"
+                        for period, amount in charged
+                    )
+                    or "disclosed zeros only"
+                ),
+                reconstruction="charges enter the operating-margin identity only in periods that present the line",
+                residual="reported zeros remain zeros; later years that still present the line keep the disclosed zero",
+                stability="the charge is episodic, not a recurring operating burden",
+                contradictions="none; later filings keep the line at zero rather than dropping it silently",
+                disclosure_support="face-of-statement impairment or restructuring line with page-level locators in provenance",
+                established=True,
+            )
+        )
+    mix_limit = (
+        "Extracted filings and admitted strategy disclosures do not isolate "
+        "mix, markdowns, freight, input costs, occupancy, or leverage in "
+        "amounts that can be bridged to the reported margin change. Those "
+        "attributions remain unestablished."
+    )
+    assessments.append(
+        MarginRelationshipAssessment(
+            name="mix, markdowns, freight, costs, or leverage",
+            kind=KIND_UNESTABLISHED,
+            direction="not established",
+            magnitude="not quantified",
+            reconstruction="no source-supported component series",
+            residual="not applicable",
+            stability="not tested",
+            contradictions="not tested",
+            disclosure_support=mix_limit,
+            established=False,
+            limitation=mix_limit,
+        )
+    )
+    if (
+        reported_operating_margin is not None
+        and sga_ratio is not None
+        and gross_margin is not None
+    ):
+        om_vals = [_numeric_ratio(item) for item in reported_operating_margin]
+        gm_vals = [_numeric_ratio(item) for item in gross_margin]
+        sga_vals = [_numeric_ratio(item) for item in sga_ratio]
+        latest = next(
+            (
+                index
+                for index in range(len(periods) - 1, 0, -1)
+                if om_vals[index] is not None and om_vals[index - 1] is not None
+            ),
+            None,
+        )
+        if latest is not None:
+            om_move = om_vals[latest] - om_vals[latest - 1]
+            gm_move = (
+                None
+                if gm_vals[latest] is None or gm_vals[latest - 1] is None
+                else gm_vals[latest] - gm_vals[latest - 1]
+            )
+            sga_move = (
+                None
+                if sga_vals[latest] is None or sga_vals[latest - 1] is None
+                else sga_vals[latest] - sga_vals[latest - 1]
+            )
+            assessments.append(
+                MarginRelationshipAssessment(
+                    name="latest adjacent operating-margin movement",
+                    kind=KIND_OBSERVED,
+                    direction=(
+                        "operating margin fell"
+                        if om_move < 0
+                        else "operating margin rose"
+                    ),
+                    magnitude=f"{om_move * 100:+.2f} pp",
+                    reconstruction=(
+                        f"gross-margin change {gm_move * 100:+.2f} pp and "
+                        f"SG&A/revenue change {sga_move * 100:+.2f} pp"
+                        if gm_move is not None and sga_move is not None
+                        else "component change incomplete"
+                    ),
+                    residual="component identity residual is shown separately",
+                    stability="one adjacent pair; not a multi-year law",
+                    contradictions=(
+                        "gross margin and SG&A/revenue both moved against operating margin"
+                        if gm_move is not None
+                        and sga_move is not None
+                        and gm_move < 0
+                        and sga_move > 0
+                        and om_move < 0
+                        else "none required"
+                    ),
+                    disclosure_support=(
+                        "management explanations of mix, markdowns, freight, or "
+                        "leverage are not in the admitted extracts"
+                    ),
+                    established=True,
+                )
+            )
+    return tuple(assessments)

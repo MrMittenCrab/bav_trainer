@@ -10,7 +10,7 @@ independently demonstrate store productivity.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 
 from ..data.historical_operating_kpis import (
@@ -46,7 +46,7 @@ from .management_kpi import (
     compute_management_kpi_series,
     management_kpi_applicable,
 )
-from .operating_kpi import operating_kpi_applicable
+from .operating_kpi import compute_operating_kpi_series, operating_kpi_applicable
 from .operating_kpi_relationships import (
     compute_operating_kpi_revenue_comparable_sales_relationship,
     compute_operating_kpi_revenue_sales_per_square_foot_relationship,
@@ -57,10 +57,28 @@ from .operating_kpi_relationships import (
 )
 from .period_axis import PeriodAxisError, canonical_fiscal_periods
 from .ratio_values import SOURCE_UNAVAILABLE, is_source_unavailable
+from .reported_margin import (
+    KIND_CAUSAL,
+    KIND_IDENTITY,
+    KIND_OBSERVED,
+    KIND_UNESTABLISHED,
+    MarginRelationshipAssessment,
+    compute_reported_margin_series,
+    reported_margin_applicable,
+)
 from .revenue_per_store import (
     SCOPE_NOTE as REVENUE_PER_STORE_SCOPE_NOTE,
     compute_revenue_per_store_series,
     revenue_per_store_applicable,
+)
+
+FOOTPRINT_IDENTITY_CONVENTION = (
+    "Company-wide revenue equals store count times company-wide revenue per "
+    "store. The adjacent change uses prior intensity on the store-count "
+    "change, prior store count on the intensity change, and an explicit "
+    "interaction equal to the store-count change times the intensity change. "
+    "Company-wide revenue per store is an intensity proxy that includes "
+    "non-store revenue; it is not store productivity."
 )
 
 CALCULATION_KIND = "analyst-derived"
@@ -205,6 +223,37 @@ class RevenueDriverHypothesisTest:
     failed_requirement: str
     additional_evidence: str
     identity_notes: tuple[str, ...]
+    assessment: MarginRelationshipAssessment | None = None
+
+
+@dataclass(frozen=True)
+class GeographicRevenueReconstruction:
+    """Admitted geographic components versus consolidated revenue."""
+
+    identities: tuple[str, ...]
+    component_revenue: tuple[dict[str, float | None], ...]
+    reconstructed_revenue: tuple[float | None, ...]
+    reported_revenue: tuple[float | None, ...]
+    residual: tuple[float | None, ...]
+    contribution_amounts: tuple[dict[str, float | None], ...]
+    growth_contributions: tuple[dict[str, float | None], ...]
+    contribution_residual: tuple[float | None, ...]
+
+
+@dataclass(frozen=True)
+class FootprintIntensityIdentity:
+    """Exact store-count × intensity identity for company-wide revenue."""
+
+    stores: tuple[float | None, ...]
+    intensity: tuple[float | None, ...]
+    reconstructed_revenue: tuple[float | None, ...]
+    reconstruction_residual: tuple[float | None, ...]
+    store_effect: tuple[float | None, ...]
+    intensity_effect: tuple[float | None, ...]
+    interaction: tuple[float | None, ...]
+    change_residual: tuple[float | None, ...]
+    convention: str
+    scope_note: str
 
 
 @dataclass(frozen=True)
@@ -215,6 +264,9 @@ class RevenueDriverAnalysis:
     calculation_kind: str
     scope_note: str
     tests: tuple[RevenueDriverHypothesisTest, ...]
+    geographic_reconstruction: GeographicRevenueReconstruction | None = None
+    footprint_identity: FootprintIntensityIdentity | None = None
+    assessments: tuple[MarginRelationshipAssessment, ...] = ()
 
 
 def revenue_driver_applicable(financials: StandardizedFinancials) -> bool:
@@ -1153,9 +1205,256 @@ def compute_revenue_driver_analysis(
         tests.append(builder(financials, axis, disclosures))
     if not tests:
         raise MissingLineError("revenue-driver disclosures are not available")
+    geo_reconstruction = _geographic_reconstruction(financials, axis)
+    footprint = _footprint_intensity_identity(financials, axis)
+    assessed = tuple(
+        replace(test, assessment=_assess_revenue_test(test, geo_reconstruction, footprint))
+        for test in tests
+    )
+    assessments = tuple(
+        item.assessment for item in assessed if item.assessment is not None
+    )
+    if reported_margin_applicable(financials):
+        margins = compute_reported_margin_series(financials, axis)
+        assessments = assessments + margins.assessments
     return RevenueDriverAnalysis(
         periods=tuple(axis),
         calculation_kind=CALCULATION_KIND,
         scope_note=SCOPE_NOTE,
-        tests=tuple(tests),
+        tests=assessed,
+        geographic_reconstruction=geo_reconstruction,
+        footprint_identity=footprint,
+        assessments=assessments,
+    )
+
+
+def _geographic_reconstruction(
+    financials: StandardizedFinancials, axis: list[date]
+) -> GeographicRevenueReconstruction | None:
+    if not geographic_segment_applicable(financials):
+        return None
+    series = compute_geographic_segment_series(financials, axis)
+    component_revenue: list[dict[str, float | None]] = []
+    reconstructed: list[float | None] = []
+    reported: list[float | None] = []
+    residual: list[float | None] = []
+    contribution_amounts: list[dict[str, float | None]] = []
+    growth_contribs: list[dict[str, float | None]] = []
+    contrib_residual: list[float | None] = []
+    prior_components: dict[str, float] | None = None
+    for period in axis:
+        row: dict[str, float | None] = {}
+        missing = False
+        for identity in series.identities:
+            value = _numeric(series.net_revenue[period].get(identity))
+            row[identity] = value
+            if value is None:
+                missing = True
+        component_revenue.append(row)
+        reported_rev = _numeric(series.reported_consolidated_revenue[period])
+        reported.append(reported_rev)
+        if missing:
+            reconstructed.append(None)
+            residual.append(None)
+        else:
+            total = sum(row[identity] or 0.0 for identity in series.identities)
+            reconstructed.append(total)
+            residual.append(
+                None if reported_rev is None else total - reported_rev
+            )
+        amount_row: dict[str, float | None] = {}
+        if prior_components is None:
+            for identity in series.identities:
+                amount_row[identity] = None
+        else:
+            for identity in series.identities:
+                current = row[identity]
+                prior = prior_components.get(identity)
+                amount_row[identity] = (
+                    None
+                    if current is None or prior is None
+                    else current - prior
+                )
+        contribution_amounts.append(amount_row)
+        growth_row = {
+            identity: _numeric(
+                series.revenue_growth_contribution[period].get(identity)
+            )
+            for identity in series.identities
+        }
+        growth_contribs.append(growth_row)
+        contrib_residual.append(
+            _numeric(series.revenue_growth_contribution_residual[period])
+        )
+        prior_components = {
+            identity: value
+            for identity, value in row.items()
+            if value is not None
+        } or None
+    return GeographicRevenueReconstruction(
+        identities=series.identities,
+        component_revenue=tuple(component_revenue),
+        reconstructed_revenue=tuple(reconstructed),
+        reported_revenue=tuple(reported),
+        residual=tuple(residual),
+        contribution_amounts=tuple(contribution_amounts),
+        growth_contributions=tuple(growth_contribs),
+        contribution_residual=tuple(contrib_residual),
+    )
+
+
+def _footprint_intensity_identity(
+    financials: StandardizedFinancials, axis: list[date]
+) -> FootprintIntensityIdentity | None:
+    if not (
+        operating_kpi_applicable(financials) and revenue_per_store_applicable(financials)
+    ):
+        return None
+    stores = compute_operating_kpi_series(financials, axis)
+    rps = compute_revenue_per_store_series(financials, axis)
+    store_levels: list[float | None] = []
+    intensity: list[float | None] = []
+    reconstructed: list[float | None] = []
+    residual: list[float | None] = []
+    store_effect: list[float | None] = [None] * len(axis)
+    intensity_effect: list[float | None] = [None] * len(axis)
+    interaction: list[float | None] = [None] * len(axis)
+    change_residual: list[float | None] = [None] * len(axis)
+    for index, period in enumerate(axis):
+        store = _numeric(stores.period_end_count[period])
+        intensity_value = _numeric(rps.period_end_revenue_per_store[period])
+        revenue = _numeric(rps.revenue[period])
+        store_levels.append(store)
+        intensity.append(intensity_value)
+        if store is None or intensity_value is None:
+            reconstructed.append(None)
+            residual.append(None)
+            continue
+        built = store * intensity_value
+        reconstructed.append(built)
+        residual.append(None if revenue is None else revenue - built)
+        if index == 0:
+            continue
+        prior_store = store_levels[index - 1]
+        prior_intensity = intensity[index - 1]
+        prior_revenue = _numeric(rps.revenue[axis[index - 1]])
+        if (
+            prior_store is None
+            or prior_intensity is None
+            or revenue is None
+            or prior_revenue is None
+        ):
+            continue
+        d_store = store - prior_store
+        d_intensity = intensity_value - prior_intensity
+        store_effect[index] = d_store * prior_intensity
+        intensity_effect[index] = prior_store * d_intensity
+        interaction[index] = d_store * d_intensity
+        change_residual[index] = (revenue - prior_revenue) - (
+            store_effect[index] + intensity_effect[index] + interaction[index]
+        )
+    return FootprintIntensityIdentity(
+        stores=tuple(store_levels),
+        intensity=tuple(intensity),
+        reconstructed_revenue=tuple(reconstructed),
+        reconstruction_residual=tuple(residual),
+        store_effect=tuple(store_effect),
+        intensity_effect=tuple(intensity_effect),
+        interaction=tuple(interaction),
+        change_residual=tuple(change_residual),
+        convention=FOOTPRINT_IDENTITY_CONVENTION,
+        scope_note=REVENUE_PER_STORE_SCOPE_NOTE,
+    )
+
+
+def _assess_revenue_test(
+    test: RevenueDriverHypothesisTest,
+    geo: GeographicRevenueReconstruction | None,
+    footprint: FootprintIntensityIdentity | None,
+) -> MarginRelationshipAssessment:
+    known = tuple(item.consistent for item in test.observations if item.consistent is not None)
+    if test.theme == THEME_GEOGRAPHIC_GROWTH and geo is not None:
+        resid_vals = [abs(value) for value in geo.residual if value is not None]
+        max_resid = max(resid_vals) if resid_vals else None
+        return MarginRelationshipAssessment(
+            name="geographic revenue reconstruction",
+            kind=KIND_IDENTITY,
+            direction="admitted geographic components reconstruct consolidated revenue",
+            magnitude=f"{len(geo.identities)} geographic identities across {len(geo.reported_revenue)} periods",
+            reconstruction="sum of admitted geographic net revenue versus reported consolidated revenue",
+            residual=(
+                f"largest absolute level residual is {max_resid:.6f}"
+                if max_resid is not None
+                else "residual unavailable"
+            ),
+            stability="the arithmetic split holds in every period with complete components",
+            contradictions=test.finding if _is_counterexample_note(test.finding) else "none required",
+            disclosure_support="reported-currency geographic segment net revenue; not organic or constant-currency",
+            established=max_resid is not None and max_resid < 1e-4,
+            limitation="" if max_resid is not None and max_resid < 1e-4 else "reconstruction residual remains",
+        )
+    if test.theme == THEME_STORE_EXPANSION and footprint is not None:
+        resid_vals = [
+            abs(value) for value in footprint.reconstruction_residual if value is not None
+        ]
+        max_resid = max(resid_vals) if resid_vals else None
+        return MarginRelationshipAssessment(
+            name="footprint and intensity identity",
+            kind=KIND_IDENTITY,
+            direction="store-count and company-wide revenue per store reconstruct consolidated revenue",
+            magnitude=FOOTPRINT_IDENTITY_CONVENTION,
+            reconstruction="Revenue = stores × company-wide revenue per store",
+            residual=(
+                f"largest absolute identity residual is {max_resid:.6f}"
+                if max_resid is not None
+                else "residual unavailable"
+            ),
+            stability="the identity holds whenever both factors are defined",
+            contradictions=test.finding if _is_counterexample_note(test.finding) else "none required",
+            disclosure_support=REVENUE_PER_STORE_SCOPE_NOTE,
+            established=max_resid is not None and max_resid < 1e-4,
+        )
+    if test.theme == THEME_COMPARABLE_SALES:
+        return MarginRelationshipAssessment(
+            name="comparable-sales coincidence",
+            kind=KIND_OBSERVED if known else KIND_UNESTABLISHED,
+            direction="positive comparable-sales percentages coincided with revenue growth where aligned",
+            magnitude=f"{test.sample_size} aligned observation(s)",
+            reconstruction="not a new-store contribution and not an overlapping geography/channel add-on",
+            residual="revenue-growth-minus-comparable-sales remains a descriptive difference",
+            stability="definitions, populations, and calendars change and are not one series",
+            contradictions=test.finding if _is_counterexample_note(test.finding) else "none required",
+            disclosure_support="only compatible reported global comparable-sales identities are used",
+            established=bool(known) and test.verdict != VERDICT_INSUFFICIENT,
+            limitation=test.failed_requirement or test.additional_evidence,
+        )
+    if test.theme == THEME_PRODUCTIVITY:
+        return MarginRelationshipAssessment(
+            name="sales-per-square-foot productivity",
+            kind=KIND_UNESTABLISHED if test.verdict == VERDICT_INSUFFICIENT else KIND_OBSERVED,
+            direction="adjacent SPSF growth is the disclosed productivity test",
+            magnitude=f"{test.sample_size} aligned SPSF-growth observation(s)",
+            reconstruction="company-wide revenue per store is not this test",
+            residual="unavailable adjacent SPSF growth is not bridged",
+            stability="calendar, definition, and disagreement gaps remain",
+            contradictions=test.finding if _is_counterexample_note(test.finding) else "none required",
+            disclosure_support=test.failed_requirement or ADDITIONAL_SPSF,
+            established=test.verdict != VERDICT_INSUFFICIENT,
+            limitation=test.failed_requirement or ADDITIONAL_SPSF,
+        )
+    kind = KIND_OBSERVED if known else KIND_UNESTABLISHED
+    if test.verdict == VERDICT_INSUFFICIENT:
+        kind = KIND_UNESTABLISHED
+    return MarginRelationshipAssessment(
+        name=test.theme.replace("_", " "),
+        kind=kind if test.verdict != VERDICT_CONTRADICTED else KIND_CAUSAL,
+        direction=test.finding,
+        magnitude=f"{test.sample_size} aligned observation(s)",
+        reconstruction="disclosure-led historical comparison, not a causal proof",
+        residual="descriptive differences only",
+        stability="period-by-period notes retain counterexamples",
+        contradictions=test.finding if _is_counterexample_note(test.finding) else "none required",
+        disclosure_support="; ".join(test.limitations[:2]) if test.limitations else "",
+        established=test.verdict == VERDICT_SUPPORTED,
+        limitation=test.failed_requirement,
     )
