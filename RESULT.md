@@ -3174,3 +3174,119 @@ Retained: numerical inputs/formulas, accounting/normalization controls, structur
 ## Next priority (not started)
 
 Not started. This bounded attempt does not begin the next implementation step.
+
+---
+
+# RESULT.md — Step 7.1.1 Reconcile migration comparison evidence
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 7.1.1 — Reconcile migration comparison evidence  
+**Work:** `578514d1133a4d2d9ec6a032875cbb2e`  
+**Plan:** `3be8d9b8925d4f34b98e2b85b429d31b`  
+**Finding:** planning-obstacle  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `2cb7837b6dac913fbb7538f078c711c47f1503bc4cc2f21d195ff2e8db93b1cf` (5708).  
+IMPLEMENTATION SHA-256 `50d57a918b95396fc6d867d0e24c4f53beac6577bcc9e9d7546682e5b21ec586` (7789).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. HEAD `128cac5318639c4a0fac309a8868ef4e2b88808b`.
+
+This append records the bounded Step 7.1.1 continuation after Review of checkpoint `40ccc11256c2887934aa50937990dda840ada842`. It does not rewrite prior ledger history, does not close the Session Endpoint, and does not implement Drivers expansion, Word/PDF publication, or BAV-facing rebranding.
+
+## Required plan change
+
+None. Historical checkpoint differences are now grouped with membership and disposition. The pre-migration SHA-256 remains unrecovered after bounded search; that comparison gate is preserved for Review. Independent KPI expectations were not replaced and `docs/native-excel-kpi-references.json` was not rewritten.
+
+## Isolated checkpoint recovery
+
+Recovered `51468d6872d6cc6bfebbe780664003171bcb105c:release/lululemon/Lululemon_Answer_Key.xlsx` into `.git/autocycle/comparison-7-1-1/checkpoint-51468d68-Lululemon_Answer_Key.xlsx`.
+
+| Field | Value |
+|---|---|
+| SHA-256 | `ecb1a4120e8a50ca132ab62bca0cc214968bd2770b0e94560c75740d5662570f` |
+| Bytes | 119554 |
+| Git blob | `2708bfb1e126781192ca8aebb0f720e028593b32` |
+| `release/lululemon/` restored | **no** |
+
+Compared against current `build/output/lululemon/Lululemon_BAV.xlsx` `9394e45b23dc59904e13e1392c4ddc349113ca0db2b6bdf229d5ff4f305878e0` (227422). Hidden-sheet visibility on shared sheets matches. Defined names empty on both. External links **0**.
+
+## Historical cell accounting
+
+| Class | Count |
+|---|---:|
+| Shared same | **9580** |
+| Shared changed | **863** (formula **61**, literal **802**) |
+| Only-current | **8690** |
+| Only-checkpoint | **679** |
+
+Membership: `.git/autocycle/comparison-7-1-1/{same-cells.txt,changed-cells.json,only-checkpoint-cells.json,only-current-by-sheet.json,dispositions.json}`.
+
+| Group | n | Cells / membership | Before → after | Disposition |
+|---|---:|---|---|---|
+| G1 unchanged shared | 9580 | `same-cells.txt` | identical | unchanged |
+| G2 `_ComponentMap` formulas at reused coordinates | 61 | `I70:I118`, `I182:I185`, `I208:I215` | row occupancy after catalog growth 486→861 | **relocation** — shared IDs 486/486 formula-identical |
+| G3 `_ComponentMap` literals at reused coordinates | 799 | `changed-cells.json[_ComponentMap\|literal]` | shifted ids/order/hints | **relocation** |
+| G4 shared-id order renumber | 78 | `component-map-shared-diffs.json` `fields=={order}` | catalog insertion | **intended product change** |
+| G5 inventory short_hint | 8 | eight `inventory_*` IDs | “not practiced” → “unavailable without a prior period” | **intended product change** |
+| G6 Accounting Judgment A3 | 1 | `Accounting Judgment!A3` | Formula Check sentence removed | **intended product change** (`test_trainer` asserts this) |
+| G7 Per Share A2 | 1 | `Per Share Analysis!A2` | “not practice cells” → “supplied source inputs” | **intended product change** |
+| G8 `_CheckContext` growth | 2 | `A2` + only-current `A3` | 19706-char JSON → 30000+27514 chunks; added `historical_operating_kpis`; period labels FY2021–FY2025 | **intended product change + fiscal labels** (`CHECK_CONTEXT_CHUNK_SIZE=30000`) |
+| G9 Trainer removed | 668 | `only-checkpoint-cells.json[Trainer]` | Trainer sheet absent from BAV | **intended product change** |
+| G10 leftover `depends_on` | 11 | `_ComponentMap!L84:L88,L99:L102,L208,L210` | values moved with rows; `only_checkpoint_ids=[]` | **relocation** |
+| G11 later analytical sheets | 2113 | Overview 55, Build Status 87, Geographic 471, Store Count 65, CompSales 1113, SPSF 108, RPS 39, Revenue Driver 175 | not in checkpoint | **intended product change**; KPI/driver/compsales independently derived below |
+| G12 new `_ComponentMap` rows | 6576 | 375 new IDs | geographic/KPI/driver families | **intended product change** |
+
+No demonstrated numerical defect. No repair.
+
+## Pre-migration SHA-256 `2507ef35930fd4be42a69ac6bef059d97e58fa1ad4a28ee4b866086c4d237bc0`
+
+Bounded search (Git history of `build/lululemon/Lululemon_BAV.xlsx`, all historically named `*.xlsx` blobs, size 227420, `.git/autocycle` snapshots, recorded Excel copies, `/tmp` leftovers, `~/.autocycle`): **0 recovered bytes**. Closest leftover `/tmp/step412-pre/Lululemon_BAV.xlsx` is Step 4.1.1 `bcacf70d…` (228421), not the wanted hash. Previously reported zero formula / two fiscal-label diffs cannot be re-authenticated from recovered bytes. Access needed: the original pre-migration `build/lululemon/Lululemon_BAV.xlsx` bytes. Comparison gate preserved.
+
+## Independent reference applicability
+
+Original `docs/native-excel-kpi-references.json` unchanged SHA-256 `ca2cc16cf89a721d664f26340c3c1e1b0ca0d9e1d35ef9fbe75db7a92dbe248c`; `source_sha256` remains `27cf81c5…`. Those original source bytes are still missing.
+
+Independently derived 50/50 JSON values from `REVENUE_ANCHORS` and `INDEPENDENT_STORE_TOTALS` (USD thousands; company-operated period-end stores; opening N/A). Current vs kzg9a and vs 3v0t6 on those sheets: formulas **33/33**, literals **71/71**. Full current vs 3v0t6: **19133/19133**. Cached 50/50 on 3v0t6, kzg9a, and fb95.
+
+Current-source binding `.git/autocycle/comparison-7-1-1/kpi-binding-current.json` retains original identity and the same 50 values. Official verifier:
+
+```sh
+python scripts/verify_cached_workbook.py \
+  .git/autocycle/excel-verification-3v0t6_ur/saved-copy.xlsx \
+  --original build/output/lululemon/Lululemon_BAV.xlsx \
+  --references .git/autocycle/comparison-7-1-1/kpi-binding-current.json
+```
+
+**VERIFIED** — 50 independent references, 50 checked cells, `formulas_preserved: true`. Receipt `.git/autocycle/comparison-7-1-1/verify-kpi-binding.json`. Original refs against current remain **BLOCKED** (“different source workbook”) as required: hash alone does not bind.
+
+Driver/compsales original artifacts unchanged. Independently derived store-growth / revenue-growth / RPS / compsales residual / geographic contribution `(Δgeo)/prior_consolidated` from canonical `standardized.json` `88021a62…` (70646): driver JSON **37/37**, compsales JSON **4/4**; 3v0t6 cached **37/37** and **4/4**. Formulas on those sheets identical current/3v0t6/fb95/render-copy. Compsales original source `39914cba…` not recovered.
+
+Native Excel was not re-run: checked formulas and dependencies are unchanged vs the applicable 3v0t6 snapshot.
+
+## Removal gates
+
+**Gate-order breach (recorded, not repaired by later checks):** obsolete trees were already absent at Step 7.1 start (working-tree deletions; not committed). This attempt did not delete again and does not claim later checks prove verification preceded deletion. Acceptance consequence: Review must still treat deletion as having occurred before this historical/KPI reconciliation.
+
+Authenticated 50/50 + 8/8 still hold. Unique generated artifacts not in that ledger and not recovered: pre-migration BAV `2507ef35…`; supporting copies `11e114ca…` / `bf990c16…`. Leftover generated Drivers `9923e74f…` found in `/tmp` and copied only into isolated comparison storage; it is not upstream evidence and was not placed in canonical input. The eight protected extracts remain the canonical extracted JSON.
+
+Obsolete paths still absent. No rebuild (no repair). `python -m bav check Lululemon` **0**; `python -m bav check FastRetailing` **0**.
+
+`test_protected_artifacts_and_eight_extracts_unchanged` + `test_issuer_fiscal` + `test_reported_margin` + `test_source_availability`: **46 passed**, no exclusions.
+
+## Issuer labels, Margin, figures (unchanged carry-forward)
+
+Issuer mapping unchanged: 2022-01-30 FY2021 … 2025-02-02 FY2024 (53-week) … 2026-02-01 FY2025. Overview A3 `FY2021 – FY2025`. `_CheckContext` period labels FY2021–FY2025. Income Statement row 6 dates 2022-01-30 … 2026-02-01. Margin identity and FY2024→FY2025 changes carried forward from Step 7.1. Placeholders remain 0 bytes. `SEGMENT_BRIDGE_TOLERANCE = 0.0`.
+
+## Remaining gaps toward Completion
+
+- Pre-migration workbook `2507ef35…` remains missing; that authenticated comparison gate is open.
+- Original KPI `source_sha256` `27cf81c5…` bytes remain missing; current applicability is the documented binding plus official verifier, not a rewritten original file.
+- Gate-order breach on deletion remains an acceptance consequence for Review.
+- Expanded Drivers, Word/PDF publication, and BAV-first presentation remain mandatory subsequent Session work.
+- Earlier normalization, broader source-workflow and normalized-per-share obligations remain deferred.
+
+Finishing this bounded continuation does not establish major Completion or the Session Endpoint.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
