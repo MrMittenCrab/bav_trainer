@@ -1,45 +1,51 @@
-# Step 7.1.1 — Finish retrospective migration reconciliation
-
-AUTOCYCLE_PLAN: {"finding_key": "planning-obstacle", "inputs": [{"commitment": "Remove only recovery/comparison of transient workbook SHA-256 2507ef35930fd4be42a69ac6bef059d97e58fa1ad4a28ee4b866086c4d237bc0 from acceptance; finish migration reconciliation using the authenticated Git implementation baseline without recreating the workbook or obsolete paths, preserving every other requirement.", "id": "20260921-181553-000000019"}, {"commitment": "Reconcile Session acceptance and this plan to permit retrospective verification of the already-completed migration using authenticated baseline evidence, relocation hashes/provenance, canonical state, build/check, regressions and applicable native verification; preserve the recorded deletion-before-verification breach and every other requirement.", "id": "20260921-182344-000000020"}], "kind": "work", "objective": "Finish retrospective migration reconciliation", "plan_id": "f3e983eda431424d8a9a3a34f069ddec", "step_id": "7.1.1", "work_id": "578514d1133a4d2d9ec6a032875cbb2e"}
+# Step 7.2 — Expand source-grounded historical Drivers
+AUTOCYCLE_PLAN: {"finding_key": "Expand source-grounded historical Drivers", "kind": "work", "objective": "Expand source-grounded historical Drivers", "plan_id": "a102857b3f5f4be0ac91ad16151b548a", "step_id": "7.2", "work_id": "22b129faf8634719b1746886ddfec536"}
 
 ## Completion
 
-The canonical lowercase architecture is the only active build architecture, preserves all required upstream evidence, and reproducibly builds and checks Lululemon with correct issuer fiscal labels and validated Margin analysis, with relevant verification passed and obsolete duplicate artifacts removed only after verification.
-
-The parent Completion is retained verbatim. Instruction `20260921-182344-000000020` supersedes only its pre-removal timing condition for the already-completed migration: retrospective verification may satisfy acceptance. The original required sequence was not followed; later verification cannot establish otherwise. Instruction `20260921-181553-000000019` removes only the exact transient-workbook recovery/comparison requirement.
+Lululemon’s canonical BAV workbook, Drivers Markdown and figures reproducibly present source-grounded historical component-margin bridges and revenue reconstruction across available history, with seven-part validation of major driver relationships, explicit residuals and evidence limits, and applicable build/check, regression and native verification passed.
 
 ## Bounded work
 
-- Continue the same bounded attempt and work `578514d1133a4d2d9ec6a032875cbb2e` after Review of checkpoint `eb20ec8d23cac61562b8b761284bf7895414abf2`; finish evidence reconciliation for migration acceptance.
-- Carry forward applicable verified migration, fiscal mapping, Margin arithmetic, historical comparison, saved-cache verification, protected-artifact regression and post-removal build/check evidence. Reopen only unresolved or affected surfaces; do not repeat completed recovery searches or deletion.
-- Resolve implementation baseline B from recorded `IMPLEMENT_BASE_SHA` when available, otherwise normal implementation-baseline, bound-attempt and latest-implementation evidence. Authenticate branch, ancestry and checkpoint binding; fail closed if authentication fails. Review authenticated `128cac5318639c4a0fac309a8868ef4e2b88808b` for the reviewed attempt; retain that binding if later controller records advance.
+- Extend the existing reported-margin, revenue-driver and research generators; use shared validated analytical outputs for workbook, Markdown and figures without a parallel numerical dataset.
+- Inspect canonical extracted filings, reconciled data and admission evidence first. Fill necessary component and disclosure gaps from canonical source filings through existing extraction, validation and reconciliation controls.
+- Preserve reported labels, periods, units, signs, page-level locators, cross-filing conflicts and superseded observations. Keep `StandardizedFinancials` as the model-facing contract and preserve identity through export/reload.
+- Cover FY2021–FY2025 levels and every supported adjacent-period change. Retain issuer fiscal labels, actual period ends and FY2024’s 53-week distinction; explicitly identify unavailable or incompatible comparisons.
 
-## Retrospective reconciliation
+## Margin bridges
 
-- Evaluate authenticated B, historical Git blobs at B, canonical current files, provenance/path continuity, build/check behavior, regressions/native verification, then remaining active requirements, in that order. Use `git show B:path` or `git cat-file`; do not select a migration-specific replacement baseline.
-- Reconcile all 50 protected artifacts and eight extracts with canonical destinations, preserved relocation hashes and provenance. For tracked relocations compare surviving bytes with the old Git blob, including original PDFs under canonical `source/`; verify source resolution and absence of lost required evidence.
-- Judge deletions without identical destinations against current source/data/functionality requirements. Git preserves tracked historical bytes; obsolete/generated/redundant state needs no recreated legacy copy or additional removal receipt. Intentional generated replacements require semantic and behavioral verification rather than byte identity.
-- Retain the recovered `51468d6872d6cc6bfebbe780664003171bcb105c` Answer Key and `.git/autocycle/comparison-7-1-1/` accounting as supplemental historical evidence, not B. Finish any unresolved dispositions for 9,580 unchanged shared cells, 863 changed shared cells, 8,690 additions and 679 removals using explicit membership, before/after content and supporting evidence.
-- Preserve semantic accounting for 61 `_ComponentMap` formula changes, 802 literal changes, added analytical surfaces and removed Trainer/component-map cells, including hidden sheets, defined names and transitive dependencies. Validate relocation and intended-change dispositions against source evidence, consumers and authorized changes; repair only demonstrated defects necessary for Completion.
-- Do not require or recreate transient workbook `2507ef35930fd4be42a69ac6bef059d97e58fa1ad4a28ee4b866086c4d237bc0`. Its absence and the historical gate-order breach are not independent blockers; actual evidence loss, broken provenance, failed verification and other unmet active requirements remain defects.
+- Show revenue, gross profit, SG&A, separately disclosed impairment/asset-related charges, other reported operating items and operating profit, with their revenue ratios.
+- Reconstruct operating margin as gross margin less SG&A/revenue, impairment or asset-related charges/revenue and other reported operating items/revenue, using consistent economic signs and non-overlapping components.
+- Reconcile historical levels and adjacent changes to reported operating profit and margin in amounts and pp/bps. Show residuals explicitly; do not relabel aggregate burden as SG&A, double-count subtotals or treat missing disclosure as zero.
+- Bridge revenue and gross-margin movements into gross-profit changes, then component expense changes into operating-profit changes; state the arithmetic convention and account for interaction terms.
+- Explain what happened, what moved it mathematically and what explains those movements. Attribute management explanations to filing locators; quantify mix, markdowns, freight, costs or leverage only where evidence supports attribution.
+- Distinguish recurring and episodic movements without introducing a new normalization framework or unsupported adjusted earnings.
 
-## Applicable verification
+## Revenue reconstruction and validation
 
-- Retain `.git/autocycle/excel-verification-3v0t6_ur/` receipts, saved snapshot and captures. Carry forward authenticated 19,133-cell content equivalence, visibility/defined-name checks, absence of external links and readable fiscal-coverage inspection only for unchanged applicable surfaces.
-- Incorporate Review's reproduced `verify-kpi-binding.json` result: 50 independent references and 50 checked saved-cache cells, formulas preserved. Preserve original reference identities, independent report anchors, expectations, coverage and tolerances; retain the separate current-source binding and documented fiscal-period, unit, definition, mapping and dependency equivalence.
-- Complete applicability reconciliation for driver/comparable-sales references and their reported 37/37 and 4/4 checks. Original missing source-workbook hashes neither establish applicability nor invalidate a separately authenticated binding; never substitute generated values for independent expectations or merely rewrite `source_sha256`.
-- Reuse native snapshots only where formulas, inputs and full dependencies remain applicable. Changed formulas/dependencies require native recalculation and independent verification with `scripts/verify_cached_workbook.py`; changed presentation requires readable native inspection.
-- If a new native run is necessary, use stable-copy protection, locking and timeouts, with at most two attempts and a concrete diagnosed correction before the second. Do not force-quit Excel, close unrelated workbooks, overwrite an open copy or automate security approval.
-- Close remaining evidence gaps for reproducible company-name Lululemon build/check, canonical-only runtime and post-removal behavior. Following relevant repairs, repeat affected build/check and regressions, including the protected-artifact test without exclusions; retain Fast Retailing and optional Trainer coverage. Reuse applicable successful checks without unnecessary repetition.
-- Preserve issuer fiscal labels and actual period ends, including FY2024's 53-week year, export/reload consistency, independently reconciled Margin levels and changes, admitted locators, required fonts and readable figures.
+- Reconstruct consolidated revenue levels and changes from admitted geographic components, showing contribution amounts, growth contributions and reconciliation residuals.
+- Extend footprint/intensity decomposition with an explicit exact identity and interaction treatment. Label company-wide revenue per store as an intensity proxy that includes non-store revenue, not store productivity.
+- Use channel and comparable-sales evidence only for compatible populations, currencies, calendars and definitions. Do not add overlapping geography/channel contributions or label revenue-growth-minus-comparable-sales as new-store contribution.
+- For each major relationship, including the four existing revenue hypotheses and material margin explanations, assess direction, magnitude, reconstruction, residual, stability across periods, contradictions and disclosure support.
+- Present compact historical tables and concise findings. Mark unsupported tests as unestablished with the concrete evidence limitation; an accounting identity does not validate a causal hypothesis.
+- Distinguish identities, reported facts, attributed management explanations, observed relationships, causal hypotheses and unestablished inference. Retain counterexamples and revise explanations contradicted by history.
 
-## Preservation and records
+## Product integration and preservation
 
-- Preserve canonical source/extracted/reconciled evidence, distinct prior-live evidence, Fast Retailing audit extracts, accepted inputs, accounting/normalization controls, structured filing handoff, `StandardizedFinancials`, atomic publication and `SEGMENT_BRIDGE_TOLERANCE = 0.0`.
-- Preserve four driver hypotheses, 24 Comparable Sales facts, three SPSF levels, five Revenue per Store periods, 39 pair assessments and five supported SPSF comparisons; retain admission/comparison independence, channel/currency distinctions, denominator and missing/zero/opening behavior, assurance/revision safeguards and cross-filing provenance.
-- Keep the 2023-01-29 SPSF disagreement audit-only with both definitions/locators, excluded/calendar failures, unavailable adjacent SPSF growth and undated FY2021 metadata.
-- Retain the BAV workbook, four research modules, three Drivers figures and supporting artifacts; Forecast, Valuation and Overview research files remain zero-byte placeholders.
-- Expanded historical revenue/component-margin Drivers, seven-part validation, strict company-name Word/PDF publication and BAV-first presentation remain mandatory subsequent Session work. Earlier normalization, broader source-workflow and normalized-per-share obligations remain deferred.
-- Append a requirement-by-requirement retrospective acceptance reconciliation to RESULT.md, linking authenticated baseline, artifact dispositions, provenance, applicable checks and native evidence. Distinguish satisfied requirements, superseded conditions and concrete unresolved defects; preserve the deletion-before-verification record without rewriting history or reserving IDs.
-- Preserve ownership, provider-retry, human-adoption, interruption, candidate-validation, protected-document, unrelated-dirty-work and Review-cache safeguards. Cursor must not modify TARGET.md, SESSION.md or IMPLEMENTATION.md.
-- Return complete migration evidence or concrete remaining defects for Review. Input incorporation does not certify Completion; migration acceptance does not finish the Session Endpoint.
+- Integrate the expanded schedules into the authoritative BAV workbook and regenerate canonical Drivers Markdown and the three Drivers figures under `build/output/lululemon/`, following `STYLE.md` and existing workbook conventions.
+- Keep the analytical sequence: reported outcome → decomposition → admitted components → historical contributions → reconstruction → residuals/contradictions → disclosure check → interpretation.
+- Preserve canonical upstream evidence, prior-live evidence, Fast Retailing extracts, accepted accounting/normalization controls, atomic output publication and `SEGMENT_BRIDGE_TOLERANCE = 0.0`.
+- Preserve the 24 Comparable Sales facts, three SPSF levels, five Revenue per Store periods, 39 pair assessments and five supported SPSF comparisons, including admission/comparison independence and assurance/revision safeguards.
+- Keep the 2023-01-29 SPSF disagreement audit-only with both definitions and locators; preserve excluded/calendar failures, unavailable adjacent SPSF growth, undated FY2021 metadata and missing/zero/opening-period behavior.
+- Preserve optional Trainer functionality, semantic mappings and non-disclosing Check. Forecast, Valuation and Overview research files remain zero-byte placeholders.
+- Word/PDF publication and BAV-first front-page/CLI presentation remain subsequent Session obligations. Earlier normalization, broader source-workflow and normalized-per-share work remain deferred; do not reopen completed migration reconciliation.
+- Exclude forecasting, valuation, scenarios, deal recommendations, buyer-specific analysis, Fast Retailing strategy and unrelated refactoring.
+
+## Verification and records
+
+- Independently reconcile new component amounts, bridge arithmetic, reconstructed outcomes and disclosure claims to filing evidence; do not derive expected results from generated outputs.
+- Run company-name Lululemon build/check and relevant source, reconciliation, fiscal, margin, revenue-driver, research, workbook and protected-artifact regressions. Verify Fast Retailing build/check and affected optional Trainer behavior.
+- Recalculate changed workbook formulas and dependencies in native Excel and verify saved caches independently with `scripts/verify_cached_workbook.py`; inspect changed workbook presentation and generated figures for readability. Reuse prior evidence only for demonstrably unchanged applicable surfaces.
+- Preserve stable-copy protection, locking and timeouts; allow at most two native attempts with a diagnosed correction before the second. Do not force-quit Excel, close unrelated workbooks, overwrite open copies or automate security approval.
+- Preserve baseline authentication, ownership, recovery, protected-document and unrelated-dirty-work safeguards. Cursor must not modify TARGET.md, SESSION.md or IMPLEMENTATION.md.
+- Append delivered scope, source references, measured verification and concrete unresolved gaps to RESULT.md without rewriting historical records or reserving future IDs.
