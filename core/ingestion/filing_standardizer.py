@@ -44,6 +44,25 @@ _UNIT_SCALE_LABEL = {
     "billions": "Billions",
 }
 
+SPARSE_INCOME_STATEMENT_COMPONENT_CONCEPTS = frozenset(
+    {
+        "impairment_and_restructuring",
+        "amortization_of_intangible_assets",
+        "acquisition_related_expenses",
+        "gain_on_disposal_of_assets",
+    }
+)
+
+
+def _allow_sparse_axis(statement: str, concept: str) -> bool:
+    """Balance-sheet rows and disclosed sparse IS components may omit periods."""
+    if statement == "balance_sheet":
+        return True
+    return (
+        statement == "income_statement"
+        and concept in SPARSE_INCOME_STATEMENT_COMPONENT_CONCEPTS
+    )
+
 
 def _units_string(currency: str, unit_scale: str) -> str:
     scale = _UNIT_SCALE_LABEL.get(unit_scale, unit_scale.title())
@@ -164,6 +183,51 @@ def _issuer_period_label(period: date, mapping: dict[date, int]) -> str:
     return f"FY{period.year}"
 
 
+def _identities_by_is_component(
+    grouped: dict[tuple[str, str], list[ReconciledValue]],
+) -> dict[str, list[tuple[str, list[ReconciledValue]]]]:
+    by_concept: dict[str, list[tuple[str, list[ReconciledValue]]]] = defaultdict(list)
+    for (statement, ident), rows in grouped.items():
+        if statement != "income_statement" or not rows:
+            continue
+        concept = rows[0].suggested_concept
+        if concept not in SPARSE_INCOME_STATEMENT_COMPONENT_CONCEPTS:
+            continue
+        by_concept[concept].append((ident, rows))
+    return by_concept
+
+
+def _fold_is_component_values(
+    identities: list[tuple[str, list[ReconciledValue]]],
+    model_periods: list[date],
+) -> tuple[dict[date, float | None], ReconciledValue]:
+    """Merge same-concept IS identities; overlapping periods must agree."""
+    by_period: dict[date, list[ReconciledValue]] = defaultdict(list)
+    for _ident, rows in identities:
+        for row in rows:
+            by_period[row.period].append(row)
+    values: dict[date, float | None] = {}
+    for period in model_periods:
+        items = by_period.get(period, [])
+        if not items:
+            values[period] = None
+            continue
+        selected = {float(item.selected.value) for item in items}
+        if len(selected) != 1:
+            raise ValueError(
+                "folded income-statement component disagrees for "
+                f"{period.isoformat()}: {sorted(selected)}"
+            )
+        values[period] = next(iter(selected))
+    available = {
+        period: max(items, key=lambda row: row.selected.filing_year)
+        for period, items in by_period.items()
+        if items
+    }
+    latest = _latest_available_row(available, model_periods)
+    return values, latest
+
+
 def standardize_reconciled(
     reconciled: ReconciledCompanyData,
 ) -> StandardizedFinancials:
@@ -171,6 +235,12 @@ def standardize_reconciled(
     model_periods = list(reconciled.periods)
     mapping = issuer_fiscal_years_from_reconciled(reconciled)
     grouped = _group_by_row(reconciled)
+    component_idents = _identities_by_is_component(grouped)
+    fold_concepts = {
+        concept
+        for concept, identities in component_idents.items()
+        if len(identities) > 1
+    }
 
     statements: dict[str, list[LineItem]] = {
         "income_statement": [],
@@ -180,20 +250,34 @@ def standardize_reconciled(
 
     for (statement, _ident), rows in sorted(grouped.items(), key=lambda item: item[0]):
         by_period = {row.period: row for row in rows}
+        latest = (
+            _latest_available_row(by_period, model_periods) if by_period else rows[-1]
+        )
+        if statement == "income_statement" and latest.suggested_concept in fold_concepts:
+            continue
         values = _line_values_for_axis(
             by_period,
             model_periods,
-            allow_sparse=(statement == "balance_sheet"),
+            allow_sparse=_allow_sparse_axis(statement, latest.suggested_concept),
         )
         if values is None:
             continue
-        latest = _latest_available_row(by_period, model_periods)
         statements[statement].append(
             LineItem(
                 label=latest.label,
                 concept=latest.suggested_concept,
                 values=values,
             )
+        )
+
+    for concept in sorted(fold_concepts):
+        values, latest = _fold_is_component_values(
+            component_idents[concept], model_periods
+        )
+        if all(value is None for value in values.values()):
+            continue
+        statements["income_statement"].append(
+            LineItem(label=latest.label, concept=concept, values=values)
         )
 
     historical_shares = _historical_shares(reconciled)
@@ -398,7 +482,11 @@ def reconciliation_provenance_payload(
         label = latest.label
         concept = latest.suggested_concept
         incomplete = set(by_period) != period_set
-        retain_sparse = incomplete and statement == "balance_sheet" and bool(by_period)
+        retain_sparse = (
+            incomplete
+            and bool(by_period)
+            and _allow_sparse_axis(statement, concept)
+        )
 
         if incomplete and not retain_sparse:
             omitted.append(

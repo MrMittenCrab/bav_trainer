@@ -3503,3 +3503,100 @@ Published: `build/output/lululemon/research/Lululemon_Drivers.md` SHA-256 `a50fd
 
 Not started. This bounded attempt does not begin the next implementation step.
 
+# RESULT.md — Step 7.2.1 Complete reproducible historical Drivers bridges and assessments
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 7.2.1 — Complete reproducible historical Drivers bridges and assessments  
+**Work:** `22b129faf8634719b1746886ddfec536`  
+**Plan:** `e2561fb42a63407a92174a4cda1a3009`  
+**Finding:** Expand source-grounded historical Drivers  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `c3a9b136234e4dd4ef5d9e0bb3b88ed7ff7db10141a2e2b9bf530246e31e6aa5` (6353).  
+IMPLEMENTATION SHA-256 `51e98470865e3102d7c572cc332050eb4e9f61f479afe496e781f7ac32f40e50` (7565).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. HEAD / `IMPLEMENT_BASE_SHA` `155677b568dfd63059333f7a7ee1feaf40fd1451`.
+
+This append records the bounded Step 7.2.1 attempt. It does not rewrite prior ledger history, does not reserve future IDs, and does not begin Word/PDF publication or BAV-first presentation.
+
+## Required plan change
+
+None.
+
+## Delivered scope
+
+- Sparse income-statement components (impairment, acquisition-related charges, amortization, disposal gains) are folded by `standardize_reconciled` from canonical extracts. Missing stays omitted (`None`); explicit zeros stay zero; economic signs and later-audited agreement are preserved. Protected ordinary-reconcile fixtures compare after stripping the newly retained IS concepts and remain byte-identical to B.
+- Live gitignored `build/input/lululemon/reconciled/standardized.json` was regenerated from canonical extracts: copy → store-KPI augment → `enrich_management_working_copies` on working copies only → `reconcile_filings` + `standardize_reconciled`. Canonical extracts, `management_kpi_admission.json`, `management_kpi_page_resolution.json`, and `conflicts.json` were not overwritten. No manual edits to generated JSON.
+- Shared `DriversView` / `reported_margin` / `revenue_driver` outputs feed the BAV ALT DuPont context rows, `Lululemon_Drivers.md`, and the three Drivers figures. Seven-part assessments cover the four existing revenue themes plus material margin identities and the inspected Item 7 explanation.
+- FY2025 Form 10-K Item 7 was inspected through `inspect_source_pdf` (printed pp. 28–29, 32–33). Management’s ~$275 million tariff / de minimis comment is attributed with locators and is not a reconstructed bridge term. Production code has no issuer/ticker hard-code.
+- Historical coverage FY2021–FY2025 (period ends 2022-01-30 … 2026-02-01); FY2024 is the 53-week year ended 2025-02-02. Residuals are computed, not hardcoded.
+
+## Source references (independent of generated outputs)
+
+Later-audited face-of-statement USD thousands from canonical extracted FY2022–FY2025 10-K income statements (agreeing overlapping presentations):
+
+| Period end | Revenue | Gross profit | SG&A | Impairment | Other (amort+acq+gain) | Operating profit |
+|---|---:|---:|---:|---:|---:|---:|
+| 2022-01-30 | 6,256,617 | 3,608,565 | 2,225,034 | 0 | 50,176 | 1,333,355 |
+| 2023-01-29 | 8,110,518 | 4,492,340 | 2,757,447 | 407,913 | −1,428 | 1,328,408 |
+| 2024-01-28 | 9,619,278 | 5,609,405 | 3,397,218 | 74,501 | 5,010 | 2,132,676 |
+| 2025-02-02 | 10,588,126 | 6,270,811 | 3,762,379 | 0 | 2,735 | 2,505,697 |
+| 2026-02-01 | 11,102,600 | 6,284,132 | 4,066,556 | 0 | 6,961 | 2,210,615 |
+
+Acquisition-related is absent after 2024-01-28; gain on disposal is absent in FY2025 current. Other = disclosed components only. Identity GP − SG&A − Imp − Other = reported OP in every axis year (residual 0). FY2025 reconstructed OM change −3.7544 pp / GM −2.6058 pp versus management 380 / 260 bps on Form 10-K pp. 28–29.
+
+Item 7 inspection (`LULU_FY2025_Annual_Report.pdf`): printed p. 28 physical 34 “Gross margin decreased 260 basis points to 56.6%”; p. 29 physical 35 “Operating margin decreased 380 basis points to 19.9%” and “tariffs and the removal of the de minimis exemption resulted in a reduction to gross profit for 2025 of approximately $275 million”; pp. 32–33 markdowns, tariffs, occupancy, distribution-center costs.
+
+## Reproducible hop (not overwritten admission)
+
+Generated `standardized.json` SHA-256 `ff557205dbea166d477dcbfd90fdaf430eb6ccafbb67ce47ed02da16c4e6938f` (66982). Stores 574 / 655 / 711 / 767 / 811. Management observations: 24 comparable-sales + 3 SPSF. Deferred 2023-01-29 SPSF disagreement remains audit-only (definition_mismatch, ordinary_disagreement; both locators and definitions). Live admission sidecar unchanged (2,269,596 bytes; 39 pair assessments; `supported_count` 31). Conflicts SHA unchanged `d8a33012…978e0`.
+
+## Native Excel
+
+Attempt 1 **BLOCKED**: Excel stripped the space in `IF(...,"" ,…)` on ALT DuPont!C136 (and sibling change rows). Diagnosed correction: emit `"",` without the extra space.
+
+Attempt 2 **VERIFIED** via `python3 /Users/lizhiguo/.autocycle/excel_verification.py` wrapping `scripts/verify_cached_workbook.py`. Evidence `.git/autocycle/excel-verification-vm1b3wsq/`. Independent refs `docs/native-excel-historical-bridge-references.json` (current-source binding; prior KPI/driver/compsales artifacts not rewritten).
+
+| Field | Value |
+|---|---|
+| Source SHA-256 | `2a6714df6f023b58b9124dc76e236daa57b22558966e999cce23659ad728fae9` (229268) |
+| Copy SHA-256 | `dbd85c501c76cc7c7d936fbbc264b283764beec2e159f3eb36ede7ce81ff6227` |
+| References SHA-256 | `aff5cd3f3df099350a4827964e0d73a8852932cffa46e36bd6e2625108ec9f62` |
+| Independent references | **96** |
+| Checked cells | **171** |
+| Formulas preserved | **true** |
+| Affected listed sheet | Comparable Sales Analysis (complete formula coverage) plus ALT DuPont component / amount-bridge / OM-change cells |
+
+## Presentation inspection (separate from formula-cache verification)
+
+Inspected ALT DuPont rows 114–144: reported labels, Income Statement cell refs, missing≠zero Other formulas (`E10+E15` / `F10`), amount-bridge and OM-change residuals. Inspected published figures at 1125×720: growth / geography / margin titles, legends, FY ticks including `2 Feb 2025`, source notes; no clip or missing-glyph boxes (STYLE four-U+0020 gaps). Drivers Markdown has Context / Growth / Geography / Margin / Conclusions / Limits, historical amount and OM-change tables, computed residual sentence, and the seven-part table. Some margin identities appear twice (shared analysis + margin assessments). Forecast / Valuation / Overview remain 0-byte `e3b0c442…`.
+
+## Commands and measured results
+
+| Check | Measured result |
+|---|---|
+| Focused fold + generic reconcile + protected extracts | **pass** (`test_standardize_folds_sparse_income_statement_components`, `test_reconcile_emits_folded_sparse_is_components`, `test_generic_reconcile_is_deterministic`, `test_protected_artifacts_and_eight_extracts_unchanged`, `test_no_lulu_specific_production_branch`) |
+| `test_research_drivers` | **7 passed** |
+| Lululemon benchmark + source/fiscal | **176 passed** (`test_lululemon_benchmark`, `test_filing_cli`, `test_filing_json`, `test_source_availability`, `test_issuer_fiscal`) |
+| Prior batch (margin, revenue-driver, reconciler, workbook, RPS, hop, current_build, build CLI/contract, FR benchmark) | **772 passed** after the later generic-branch fix; one prior fail was `test_no_lulu_specific_production_branch` |
+| `test_trainer` | **58 passed** |
+| `python -m bav build Lululemon` / `check Lululemon` | exit 0; Drivers published |
+| `python -m bav build FastRetailing` / `check FastRetailing` | exit 0; no Drivers research; driver families unavailable |
+| Native Excel historical-bridge | **VERIFIED** (second attempt) |
+| `SEGMENT_BRIDGE_TOLERANCE` | **0.0** |
+| Practice-family counts | **486** Lululemon / **577** Fast Retailing (context rows only) |
+
+Published: `build/output/lululemon/research/Lululemon_Drivers.md` SHA-256 `5bb62cf0122f9ef35140ded8a1295600e9d905bbc5285bcafc03e7c1530b0fae` (21864); figures `growth.png` `dd4aae26…` / `geography.png` `7112d2d5…` / `margin.png` `e5c7baf5…`. Fast Retailing BAV SHA-256 `fd981731…` (136544).
+
+## Remaining toward Completion
+
+- Mix, markdowns, freight, input costs, occupancy, and leverage remain unestablished as bridge terms; Item 7 attributions stay management explanations.
+- Adjacent SPSF growth remains unavailable; 2023-01-29 SPSF disagreement stays audit-only.
+- Drivers assessment table repeats some shared margin identities.
+- Word/PDF publication and BAV-first front-page/CLI presentation remain subsequent Session work.
+- Earlier normalization, broader source-workflow, and normalized-per-share work remain deferred.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+

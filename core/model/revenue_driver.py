@@ -1379,9 +1379,9 @@ def _assess_revenue_test(
         return MarginRelationshipAssessment(
             name="geographic revenue reconstruction",
             kind=KIND_IDENTITY,
-            direction="admitted geographic components reconstruct consolidated revenue",
+            direction="reported geographic components reconstruct consolidated revenue",
             magnitude=f"{len(geo.identities)} geographic identities across {len(geo.reported_revenue)} periods",
-            reconstruction="sum of admitted geographic net revenue versus reported consolidated revenue",
+            reconstruction="sum of reported geographic net revenue versus reported consolidated revenue",
             residual=(
                 f"largest absolute level residual is {max_resid:.6f}"
                 if max_resid is not None

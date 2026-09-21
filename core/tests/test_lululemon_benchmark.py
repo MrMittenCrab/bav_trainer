@@ -197,12 +197,46 @@ def _read_committed_artifacts() -> dict[str, bytes]:
     return {name: (RECONCILED / name).read_bytes() for name in ARTIFACT_NAMES}
 
 
+# Protected ordinary_reconcile fixtures predate sparse IS component retention.
+# Compare the inherited contract without those newly retained face-of-statement
+# series; focused tests assert the expanded components separately.
+_EXPANDED_IS_COMPONENT_CONCEPTS = frozenset(
+    {
+        "impairment_and_restructuring",
+        "acquisition_related_expenses",
+        "gain_on_disposal_of_assets",
+    }
+)
+
+
+def _is_expanded_is_component(entry: dict) -> bool:
+    return (
+        entry.get("statement") == "income_statement"
+        and entry.get("suggested_concept") in _EXPANDED_IS_COMPONENT_CONCEPTS
+    )
+
+
 def _statement_provenance(payload: dict) -> dict:
     """Canonical-comparable provenance: statement selections only."""
     comparable = dict(payload)
     comparable["note_facts"] = []
     comparable.pop("selected_geographic_segment_facts", None)
     comparable.pop("selected_operating_kpi_facts", None)
+    comparable["omitted_incomplete_axis"] = [
+        item
+        for item in comparable.get("omitted_incomplete_axis", [])
+        if not _is_expanded_is_component(item)
+    ]
+    comparable["retained_sparse_axis"] = [
+        item
+        for item in comparable.get("retained_sparse_axis", [])
+        if not _is_expanded_is_component(item)
+    ]
+    comparable["values"] = {
+        key: value
+        for key, value in comparable.get("values", {}).items()
+        if not _is_expanded_is_component(value)
+    }
     return comparable
 
 
@@ -216,6 +250,11 @@ def _comparable_standardized(payload: dict) -> dict:
     comparable = dict(payload)
     comparable.pop("historical_segment", None)
     comparable.pop("historical_operating_kpis", None)
+    comparable["income_statement"] = [
+        item
+        for item in comparable.get("income_statement", [])
+        if item.get("concept") not in _EXPANDED_IS_COMPONENT_CONCEPTS
+    ]
     mapping = issuer_fiscal_years_from_extracted(EXTRACTED)
     periods = []
     for item in comparable.get("periods", []):
@@ -343,6 +382,65 @@ def _guarded_deterministic_reconcile(
 def test_generic_reconcile_is_deterministic(tmp_path: Path):
     committed_before = _read_committed_artifacts()
     _guarded_deterministic_reconcile(tmp_path, committed_before=committed_before)
+
+
+def test_reconcile_emits_folded_sparse_is_components(tmp_path: Path):
+    """Canonical filing inputs fold disclosed IS components without manual JSON."""
+    committed_before = _read_committed_artifacts()
+    out = tmp_path / "components"
+    completed = subprocess.run(
+        _reconcile_cmd(out),
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+        env=_subprocess_env(),
+    )
+    assert "overlap_conflicts=" in completed.stdout
+    payload = _load_json(out / "standardized.json")
+    provenance = _load_json(out / "provenance.json")
+    fin = standardized_from_payload(payload)
+    by_concept = {item.concept: item for item in fin.income_statement}
+    independent = {
+        date(2022, 1, 30): (0.0, 41394.0, 0.0, 8782.0),
+        date(2023, 1, 29): (407913.0, 0.0, -10180.0, 8752.0),
+        date(2024, 1, 28): (74501.0, 0.0, 0.0, 5010.0),
+        date(2025, 2, 2): (0.0, None, 0.0, 2735.0),
+        date(2026, 2, 1): (0.0, None, None, 6961.0),
+    }
+    assert by_concept["impairment_and_restructuring"].label == (
+        "Impairment of assets and restructuring costs"
+    )
+    assert by_concept["acquisition_related_expenses"].values[date(2026, 2, 1)] is None
+    assert by_concept["gain_on_disposal_of_assets"].values[date(2026, 2, 1)] is None
+    for period, (imp, acq, gain, amort) in independent.items():
+        assert by_concept["impairment_and_restructuring"].values[period] == imp
+        assert by_concept["acquisition_related_expenses"].values[period] == acq
+        assert by_concept["gain_on_disposal_of_assets"].values[period] == gain
+        assert by_concept["amortization_of_intangible_assets"].values[period] == amort
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    assert {
+        item.concept: item.values for item in restored.income_statement
+        if item.concept in _EXPANDED_IS_COMPONENT_CONCEPTS
+        or item.concept == "amortization_of_intangible_assets"
+    } == {
+        item.concept: item.values for item in fin.income_statement
+        if item.concept in _EXPANDED_IS_COMPONENT_CONCEPTS
+        or item.concept == "amortization_of_intangible_assets"
+    }
+    retained = {
+        item["suggested_concept"]
+        for item in provenance["retained_sparse_axis"]
+        if item["statement"] == "income_statement"
+    }
+    assert "acquisition_related_expenses" in retained
+    assert "gain_on_disposal_of_assets" in retained
+    assert any(
+        item["suggested_concept"] == "impairment_and_restructuring"
+        and item["statement"] == "income_statement"
+        for item in provenance["retained_sparse_axis"]
+    )
+    _assert_committed_artifacts_unchanged(committed_before)
 
 
 def test_default_reconcile_keeps_filing_year_ends(tmp_path: Path):

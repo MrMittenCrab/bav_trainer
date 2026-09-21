@@ -875,6 +875,186 @@ def test_standardize_retains_sparse_balance_sheet_facts(tmp_path: Path):
     assert re_by["sparse_trailing"].concept == "sparse_trailing"
 
 
+def test_standardize_folds_sparse_income_statement_components(tmp_path: Path):
+    """Disclosed IS components stay sparse; label changes fold; other IS gaps omit."""
+    from core.data.standardized_io import (
+        standardized_from_payload,
+        standardized_to_payload,
+    )
+
+    p2023 = date(2023, 12, 31)
+    p2024 = date(2024, 12, 31)
+    p2025 = date(2025, 12, 31)
+
+    def _is_row(label: str, concept: str, values: dict[date, tuple[float, PresentationRole]]):
+        return ExtractedStatementRow(
+            label=label,
+            section="",
+            suggested_concept=concept,
+            values={
+                period: FilingValue(value=value, presentation_role=role)
+                for period, (value, role) in values.items()
+            },
+            source=SourceRef(page=2, statement="Income Statement"),
+        )
+
+    def _complete_bs(year: int, amount: float) -> ExtractedStatementRow:
+        end = date(year, 12, 31)
+        return _bs_row(
+            label="Complete Liability",
+            concept="complete_liability",
+            section="non-current liabilities",
+            values={end: (amount, PresentationRole.CURRENT_PERIOD)},
+        )
+
+    filings = [
+        _filing(
+            year=2023,
+            source_file="c2023.pdf",
+            revenue_values={p2023: (100.0, PresentationRole.CURRENT_PERIOD)},
+            extra_rows=(
+                _is_row(
+                    "Impairment of goodwill and other assets",
+                    "impairment_and_restructuring",
+                    {
+                        p2023: (40.0, PresentationRole.CURRENT_PERIOD),
+                    },
+                ),
+                _is_row(
+                    "Acquisition-related expenses",
+                    "acquisition_related_expenses",
+                    {p2023: (5.0, PresentationRole.CURRENT_PERIOD)},
+                ),
+                _is_row(
+                    "Gain on disposal of assets",
+                    "gain_on_disposal_of_assets",
+                    {p2023: (0.0, PresentationRole.CURRENT_PERIOD)},
+                ),
+            ),
+            balance_sheet_rows=(_complete_bs(2023, 10.0),),
+        ),
+        _filing(
+            year=2024,
+            source_file="c2024.pdf",
+            revenue_values={
+                p2023: (100.0, PresentationRole.COMPARATIVE),
+                p2024: (110.0, PresentationRole.CURRENT_PERIOD),
+            },
+            extra_rows=(
+                _is_row(
+                    "Impairment of goodwill and other assets, restructuring costs",
+                    "impairment_and_restructuring",
+                    {
+                        p2023: (40.0, PresentationRole.COMPARATIVE),
+                        p2024: (0.0, PresentationRole.CURRENT_PERIOD),
+                    },
+                ),
+                _is_row(
+                    "Acquisition-related expenses",
+                    "acquisition_related_expenses",
+                    {
+                        p2023: (5.0, PresentationRole.COMPARATIVE),
+                        p2024: (0.0, PresentationRole.CURRENT_PERIOD),
+                    },
+                ),
+                _is_row(
+                    "Only later year",
+                    "only_later_is",
+                    {p2024: (1.0, PresentationRole.CURRENT_PERIOD)},
+                ),
+            ),
+            balance_sheet_rows=(
+                _bs_row(
+                    label="Complete Liability",
+                    concept="complete_liability",
+                    section="non-current liabilities",
+                    values={
+                        p2023: (10.0, PresentationRole.COMPARATIVE),
+                        p2024: (11.0, PresentationRole.CURRENT_PERIOD),
+                    },
+                ),
+            ),
+        ),
+        _filing(
+            year=2025,
+            source_file="c2025.pdf",
+            revenue_values={
+                p2024: (110.0, PresentationRole.COMPARATIVE),
+                p2025: (120.0, PresentationRole.CURRENT_PERIOD),
+            },
+            extra_rows=(
+                _is_row(
+                    "Impairment of assets and restructuring costs",
+                    "impairment_and_restructuring",
+                    {
+                        p2024: (0.0, PresentationRole.COMPARATIVE),
+                        p2025: (0.0, PresentationRole.CURRENT_PERIOD),
+                    },
+                ),
+            ),
+            balance_sheet_rows=(
+                _bs_row(
+                    label="Complete Liability",
+                    concept="complete_liability",
+                    section="non-current liabilities",
+                    values={
+                        p2024: (11.0, PresentationRole.COMPARATIVE),
+                        p2025: (12.0, PresentationRole.CURRENT_PERIOD),
+                    },
+                ),
+            ),
+        ),
+    ]
+    reconciled = reconcile_filings(
+        [_validated(tmp_path, filing, str(filing.filing.fiscal_year).encode()) for filing in filings]
+    )
+    fin = standardize_reconciled(reconciled)
+    by_concept = {item.concept: item for item in fin.income_statement}
+    assert set(by_concept) == {
+        "revenue",
+        "impairment_and_restructuring",
+        "acquisition_related_expenses",
+        "gain_on_disposal_of_assets",
+    }
+    assert by_concept["impairment_and_restructuring"].values == {
+        p2023: 40.0,
+        p2024: 0.0,
+        p2025: 0.0,
+    }
+    assert by_concept["impairment_and_restructuring"].label == (
+        "Impairment of assets and restructuring costs"
+    )
+    assert by_concept["acquisition_related_expenses"].values == {
+        p2023: 5.0,
+        p2024: 0.0,
+        p2025: None,
+    }
+    assert by_concept["gain_on_disposal_of_assets"].values == {
+        p2023: 0.0,
+        p2024: None,
+        p2025: None,
+    }
+    assert "only_later_is" not in by_concept
+    provenance = reconciliation_provenance_payload(reconciled)
+    assert any(
+        item["status"] == "omitted_incomplete_axis" and "only_later_is" in item["row_identity"]
+        for item in provenance["omitted_incomplete_axis"]
+    )
+    retained = {
+        item["suggested_concept"]
+        for item in provenance["retained_sparse_axis"]
+        if item["statement"] == "income_statement"
+    }
+    assert "acquisition_related_expenses" in retained
+    assert "gain_on_disposal_of_assets" in retained
+    assert "impairment_and_restructuring" in retained
+    restored = standardized_from_payload(standardized_to_payload(fin))
+    re_by = {item.concept: item for item in restored.income_statement}
+    assert re_by["gain_on_disposal_of_assets"].values[p2024] is None
+    assert re_by["gain_on_disposal_of_assets"].values[p2023] == 0.0
+    assert re_by["impairment_and_restructuring"].concept == "impairment_and_restructuring"
+
+
 def test_note_facts_not_promoted(tmp_path: Path):
     note = SupplementalFact(
         fact_type="lease_liability_total",

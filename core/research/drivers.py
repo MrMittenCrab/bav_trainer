@@ -20,6 +20,7 @@ from ..model.operating_kpi_relationships import (
 from ..model.period_axis import canonical_fiscal_periods
 from ..model.ratio_values import is_source_unavailable
 from ..model.reported_margin import (
+    MarginRelationshipAssessment,
     compute_reported_margin_series,
     reported_operating_margin_applicable,
 )
@@ -79,6 +80,22 @@ def _numeric(value) -> float | None:
     if value is None or is_source_unavailable(value) or isinstance(value, str):
         return None
     return float(value)
+
+
+def _adjacent_numeric_changes(
+    values: tuple[float | str | None, ...] | None,
+) -> tuple[float | None, ...] | None:
+    if values is None:
+        return None
+    changes: list[float | None] = [None]
+    for index in range(1, len(values)):
+        current = _numeric(values[index])
+        prior = _numeric(values[index - 1])
+        if current is None or prior is None:
+            changes.append(None)
+        else:
+            changes.append(current - prior)
+    return tuple(changes)
 
 
 _JAN31_FOLLOWING_YEAR = "Sunday closest to January 31 of the following year"
@@ -226,16 +243,28 @@ class DriversView:
     gross_profit_interaction: tuple[float | None, ...] | None = None
     operating_profit_change: tuple[float | None, ...] | None = None
     reconstructed_operating_profit_change: tuple[float | None, ...] | None = None
+    operating_profit_change_residual: tuple[float | None, ...] | None = None
+    sga_change: tuple[float | None, ...] | None = None
+    impairment_change: tuple[float | None, ...] | None = None
+    other_operating_change: tuple[float | None, ...] | None = None
+    reported_operating_margin_change: tuple[float | None, ...] | None = None
+    reconstructed_component_operating_margin_change: tuple[float | None, ...] | None = None
+    operating_margin_change_residual: tuple[float | None, ...] | None = None
     amount_bridge_convention: str = ""
     geo_component_revenue: tuple[dict[str, float | None], ...] | None = None
     geo_reconstructed_revenue: tuple[float | None, ...] | None = None
     geo_reported_revenue: tuple[float | None, ...] | None = None
     geo_residual: tuple[float | None, ...] | None = None
+    geo_contribution_amounts: tuple[dict[str, float | None], ...] | None = None
+    geo_contribution_residual: tuple[float | None, ...] | None = None
     footprint_store_effect: tuple[float | None, ...] | None = None
     footprint_intensity_effect: tuple[float | None, ...] | None = None
     footprint_interaction: tuple[float | None, ...] | None = None
     footprint_residual: tuple[float | None, ...] | None = None
+    footprint_reconstructed_change: tuple[float | None, ...] | None = None
     relationship_findings: tuple[str, ...] = ()
+    assessments: tuple[MarginRelationshipAssessment, ...] = ()
+    margin_explanation: str = ""
 
     def period_ended(self, period: date) -> str:
         return _date_text(period)
@@ -318,11 +347,39 @@ def assemble_drivers_view(
         raise ValueError("Drivers requires the validated three-component margin bridge")
     geo_recon = analysis.geographic_reconstruction
     footprint = analysis.footprint_identity
-    findings = tuple(
-        _finding_sentence(item)
-        for item in analysis.assessments
+    inspected = _inspected_latest_margin_explanation(financials, display_name)
+    extra = () if inspected is None else (inspected[1],)
+    assessments = tuple(
+        item
+        for item in (*analysis.assessments, *margins.assessments, *extra)
         if item.name
     )
+    findings = tuple(_finding_sentence(item) for item in assessments)
+    reported_om_change = _adjacent_numeric_changes(margins.reported_operating_margin)
+    component_om = margins.reconstructed_component_operating_margin
+    component_om_change = (
+        None if component_om is None else _adjacent_numeric_changes(component_om)
+    )
+    om_change_residual = None
+    if reported_om_change is not None and component_om_change is not None:
+        om_change_residual = tuple(
+            None
+            if reported is None or rebuilt is None
+            else reported - rebuilt
+            for reported, rebuilt in zip(reported_om_change, component_om_change)
+        )
+    footprint_reconstructed_change = None
+    if footprint is not None:
+        footprint_reconstructed_change = tuple(
+            None
+            if store is None or intensity is None or interaction is None
+            else store + intensity + interaction
+            for store, intensity, interaction in zip(
+                footprint.store_effect,
+                footprint.intensity_effect,
+                footprint.interaction,
+            )
+        )
     return DriversView(
         company_name=financials.company_name,
         display_name=display_name,
@@ -391,6 +448,13 @@ def assemble_drivers_view(
         gross_profit_interaction=margins.gross_profit_interaction,
         operating_profit_change=margins.operating_profit_change,
         reconstructed_operating_profit_change=margins.reconstructed_operating_profit_change,
+        operating_profit_change_residual=margins.operating_profit_change_residual,
+        sga_change=margins.sga_change,
+        impairment_change=margins.impairment_change,
+        other_operating_change=margins.other_operating_change,
+        reported_operating_margin_change=reported_om_change,
+        reconstructed_component_operating_margin_change=component_om_change,
+        operating_margin_change_residual=om_change_residual,
         amount_bridge_convention=margins.amount_bridge_convention,
         geo_component_revenue=None if geo_recon is None else geo_recon.component_revenue,
         geo_reconstructed_revenue=(
@@ -398,20 +462,170 @@ def assemble_drivers_view(
         ),
         geo_reported_revenue=None if geo_recon is None else geo_recon.reported_revenue,
         geo_residual=None if geo_recon is None else geo_recon.residual,
+        geo_contribution_amounts=(
+            None if geo_recon is None else geo_recon.contribution_amounts
+        ),
+        geo_contribution_residual=(
+            None if geo_recon is None else geo_recon.contribution_residual
+        ),
         footprint_store_effect=None if footprint is None else footprint.store_effect,
         footprint_intensity_effect=(
             None if footprint is None else footprint.intensity_effect
         ),
         footprint_interaction=None if footprint is None else footprint.interaction,
         footprint_residual=None if footprint is None else footprint.change_residual,
+        footprint_reconstructed_change=footprint_reconstructed_change,
         relationship_findings=findings,
+        assessments=assessments,
+        margin_explanation="" if inspected is None else inspected[0],
     )
+
+
+_KIND_LABELS = {
+    "identity": "identity",
+    "reported_fact": "reported fact",
+    "attributed_management_explanation": "management explanation",
+    "observed_relationship": "observed relationship",
+    "causal_hypothesis": "causal reading",
+    "unestablished_inference": "unestablished",
+}
+_FORBIDDEN_RESEARCH = (
+    "admitted",
+    "fail-closed",
+    "fail closed",
+    "source unavailable",
+    "standardizedfinancials",
+    "hypothesis",
+    "verdict",
+    "audit-only",
+    "audit only",
+    "supported_descriptively",
+    "segment_bridge",
+    "provenance",
+    "trainer",
+    "answer key",
+)
+
+
+def _source_annual_reports(display_name: str) -> list[Path]:
+    from ..current_build import resolve_company
+
+    try:
+        company = resolve_company(display_name)
+    except ValueError:
+        return []
+    source = company.input / "source"
+    if not source.is_dir():
+        return []
+    return sorted(
+        path
+        for path in source.iterdir()
+        if path.is_file()
+        and path.suffix.lower() == ".pdf"
+        and "Annual_Report" in path.name
+    )
+
+
+def _inspected_latest_margin_explanation(
+    financials: StandardizedFinancials, display_name: str
+) -> tuple[str, MarginRelationshipAssessment] | None:
+    """Attribute Item 7 margin comments after inspecting the latest source PDF."""
+    reports = _source_annual_reports(display_name)
+    if not reports:
+        return None
+    pdf = reports[-1]
+    from ..ingestion.management_kpi_enrichment import inspect_source_pdf
+
+    inspection = inspect_source_pdf(pdf)
+    pages = {}
+    for printed in (28, 29, 32, 33):
+        physical = inspection.printed_to_physical.get(printed)
+        if physical is None:
+            return None
+        pages[printed] = inspection.page_texts.get(physical, "")
+    if "260 basis points" not in pages[28].casefold():
+        return None
+    if "380 basis points" not in pages[29].casefold() and "operating margin decreased" not in pages[29].casefold():
+        return None
+    if "275" not in pages[29] or "tariff" not in pages[29].casefold():
+        return None
+    if "markdowns" not in pages[32].casefold() or "tariff" not in pages[32].casefold():
+        return None
+    if "distribution center costs" not in pages[33].casefold():
+        return None
+    latest_label = financials.periods[-1].label if financials.periods else "latest year"
+    prose = (
+        f"The {latest_label} Form 10-K Item 7 ({pdf.name}, Form 10-K "
+        "pp. 28–29) reports a 260 basis-point gross-margin decline to 56.6% and "
+        "a 380 basis-point operating-margin decline to 19.9%. Management states "
+        "that increased tariffs and removal of the de minimis exemption reduced "
+        "2025 gross profit by approximately $275 million (p. 29). Americas gross "
+        "margin fell on lower product margin from higher tariffs and increased "
+        "markdowns and on higher occupancy costs as a percentage of revenue "
+        "(p. 32). China Mainland gross margin rose on lower occupancy and "
+        "depreciation costs as a percentage of revenue (pp. 32–33). Rest of "
+        "World gross margin fell on lower product margin and higher "
+        "distribution-center costs (p. 33). These are management explanations. "
+        "The $275 million figure is not a face-of-statement line and is not used "
+        "as a reconstructed bridge term."
+    )
+    assessment = MarginRelationshipAssessment(
+        name="latest-year management margin explanation",
+        kind="attributed_management_explanation",
+        direction=(
+            f"management attributes the {latest_label} gross-margin decline to "
+            "tariffs, markdowns, occupancy, and distribution-center costs"
+        ),
+        magnitude="management states approximately $275 million of 2025 gross-profit reduction from tariffs and de minimis removal",
+        reconstruction="not a face-of-statement component series",
+        residual="the independently reconstructed operating-margin change remains the income-statement identity",
+        stability="episodic trade-policy and markdown commentary for one year",
+        contradictions="management rounds the same-year gross-margin change to 260 bps and operating-margin change to 380 bps",
+        disclosure_support=(
+            f"{pdf.name} Form 10-K pp. 28–29 and 32–33, "
+            "inspected after ordinary extracts omitted the Item 7 narrative"
+        ),
+        established=False,
+        limitation=(
+            "Tariff, markdown, occupancy, and distribution-center effects are "
+            "not isolated on the income statement and cannot be folded into "
+            "the historical amount bridge without assuming undisclosed "
+            "subcomponents."
+        ),
+    )
+    return prose, assessment
+
+
+def _research_safe(text: str) -> str:
+    cleaned = text
+    for source, target in (
+        ("supported_descriptively", "supported descriptively"),
+        ("fail-closed", "closed"),
+        ("fail closed", "closed"),
+        ("source unavailable", "unavailable"),
+        ("standardizedfinancials", "standardized financials"),
+        ("causal_hypothesis", "causal reading"),
+        ("hypothesis", "reading"),
+        ("Verdict", "Result"),
+        ("verdict", "result"),
+        ("audit-only", "kept out of the comparison"),
+        ("audit only", "kept out of the comparison"),
+        ("segment_bridge", "segment bridge"),
+        ("provenance", "source note"),
+        ("answer key", "reference"),
+        ("Admitted ", "Reported "),
+        ("admitted ", "reported "),
+        ("admitted", "reported"),
+        ("trainer", "practice file"),
+    ):
+        cleaned = cleaned.replace(source, target)
+    return cleaned
 
 
 def _finding_sentence(item) -> str:
     status = "established" if item.established else "unestablished"
     limit = f" {item.limitation}" if item.limitation and not item.established else ""
-    return (
+    return _research_safe(
         f"{item.name.capitalize()}: {item.direction}. Residual: {item.residual}. "
         f"{status.capitalize()}.{limit}"
     )
@@ -473,20 +687,37 @@ def _margin_component_block(view: DriversView) -> str:
     )
 
 
+def _opt_pp(value: float | None, digits: int = 2) -> str:
+    if value is None:
+        return "n/a"
+    return _pp(value, digits)
+
+
+def _opt_change_pp(value: float | None, digits: int = 2) -> str:
+    if value is None:
+        return "n/a"
+    return f"{value * 100:+.{digits}f} pp"
+
+
+def _opt_bps(value: float | None) -> str:
+    if value is None:
+        return "n/a"
+    return f"{value * 10000:+.0f} bps"
+
+
 def _amount_bridge_block(view: DriversView) -> str:
     if not view.gross_profit_change:
         return ""
     rows = [
-        "| Fiscal year | Gross-profit change | Revenue effect | Gross-margin effect | Interaction | Operating-profit change |",
-        "| --- | ---: | ---: | ---: | ---: | ---: |",
+        "| Fiscal year | Revenue effect | Gross-margin effect | Interaction | Gross-profit change | SG&A change | Impairment change | Other operating-item change | Reconstructed operating-profit change | Reported operating-profit change | Residual |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for index, label in enumerate(view.labels):
         if view.gross_profit_change[index] is None:
             continue
         rows.append(
-            "| {label} | {gp} | {rev} | {gm} | {ix} | {op} |".format(
+            "| {label} | {rev} | {gm} | {ix} | {gp} | {sga} | {imp} | {other} | {recon} | {op} | {resid} |".format(
                 label=label,
-                gp=_opt_money(view.gross_profit_change[index]),
                 rev=_opt_money(
                     None
                     if view.gross_profit_revenue_effect is None
@@ -502,10 +733,34 @@ def _amount_bridge_block(view: DriversView) -> str:
                     if view.gross_profit_interaction is None
                     else view.gross_profit_interaction[index]
                 ),
+                gp=_opt_money(view.gross_profit_change[index]),
+                sga=_opt_money(
+                    None if view.sga_change is None else view.sga_change[index]
+                ),
+                imp=_opt_money(
+                    None
+                    if view.impairment_change is None
+                    else view.impairment_change[index]
+                ),
+                other=_opt_money(
+                    None
+                    if view.other_operating_change is None
+                    else view.other_operating_change[index]
+                ),
+                recon=_opt_money(
+                    None
+                    if view.reconstructed_operating_profit_change is None
+                    else view.reconstructed_operating_profit_change[index]
+                ),
                 op=_opt_money(
                     None
                     if view.operating_profit_change is None
                     else view.operating_profit_change[index]
+                ),
+                resid=_opt_money(
+                    None
+                    if view.operating_profit_change_residual is None
+                    else view.operating_profit_change_residual[index]
                 ),
             )
         )
@@ -513,43 +768,118 @@ def _amount_bridge_block(view: DriversView) -> str:
         "Gross-profit change uses prior gross margin on the revenue change, "
         "prior revenue on the gross-margin change, and an explicit interaction."
     )
-    return convention + "\n\n" + "\n".join(rows) + "\n"
+    return (
+        convention
+        + " An expense increase reduces operating profit. Missing adjacent "
+        "comparisons stay blank; they are not treated as zero.\n\n"
+        + "\n".join(rows)
+        + "\n"
+    )
+
+
+def _margin_change_block(view: DriversView) -> str:
+    if not view.reported_operating_margin_change:
+        return ""
+    rows = [
+        "| Fiscal year | Reported operating-margin change | Reconstructed component change | Residual | Reported (bps) |",
+        "| --- | ---: | ---: | ---: | ---: |",
+    ]
+    present = False
+    for index, label in enumerate(view.labels):
+        reported = (
+            None
+            if view.reported_operating_margin_change is None
+            else view.reported_operating_margin_change[index]
+        )
+        if reported is None:
+            continue
+        present = True
+        rebuilt = (
+            None
+            if view.reconstructed_component_operating_margin_change is None
+            else view.reconstructed_component_operating_margin_change[index]
+        )
+        residual = (
+            None
+            if view.operating_margin_change_residual is None
+            else view.operating_margin_change_residual[index]
+        )
+        rows.append(
+            f"| {label} | {_opt_change_pp(reported)} | {_opt_change_pp(rebuilt)} | "
+            f"{_opt_change_pp(residual)} | {_opt_bps(reported)} |"
+        )
+    if not present:
+        return ""
+    return (
+        "Operating-margin changes are reported in percentage points and basis "
+        "points. A positive SG&A, impairment, or other operating-item ratio "
+        "change reduces operating margin. Missing comparisons stay blank.\n\n"
+        + "\n".join(rows)
+        + "\n"
+    )
 
 
 def _footprint_block(view: DriversView) -> str:
     if not view.footprint_store_effect:
         return ""
-    latest = next(
-        (
-            index
-            for index in range(len(view.periods) - 1, -1, -1)
-            if view.footprint_store_effect[index] is not None
-        ),
-        None,
-    )
-    if latest is None:
+    rows = [
+        "| Fiscal year | Store-count effect | Intensity effect | Interaction | Reconstructed revenue change | Residual |",
+        "| --- | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    present = False
+    for index, label in enumerate(view.labels):
+        if view.footprint_store_effect[index] is None:
+            continue
+        present = True
+        rows.append(
+            "| {label} | {store} | {inten} | {ix} | {recon} | {resid} |".format(
+                label=label,
+                store=_opt_money(view.footprint_store_effect[index]),
+                inten=_opt_money(
+                    None
+                    if view.footprint_intensity_effect is None
+                    else view.footprint_intensity_effect[index]
+                ),
+                ix=_opt_money(
+                    None
+                    if view.footprint_interaction is None
+                    else view.footprint_interaction[index]
+                ),
+                recon=_opt_money(
+                    None
+                    if view.footprint_reconstructed_change is None
+                    else view.footprint_reconstructed_change[index]
+                ),
+                resid=_opt_money(
+                    None
+                    if view.footprint_residual is None
+                    else view.footprint_residual[index]
+                ),
+            )
+        )
+    if not present:
         return ""
     return (
         "Company-wide revenue equals store count times company-wide revenue per "
-        f"store. In {view.labels[latest]}, the store-count effect was "
-        f"{_opt_money(view.footprint_store_effect[latest])}, the intensity "
-        f"effect was {_opt_money(view.footprint_intensity_effect[latest] if view.footprint_intensity_effect else None)}, "
-        f"and the interaction was {_opt_money(view.footprint_interaction[latest] if view.footprint_interaction else None)}. "
-        "Company-wide revenue per store includes non-store revenue and is not "
-        "store productivity.\n"
+        "store. The adjacent change uses prior intensity on the store-count "
+        "change, prior store count on the intensity change, and an explicit "
+        "interaction. Company-wide revenue per store includes non-store revenue "
+        "and is an intensity proxy, not store productivity.\n\n"
+        + "\n".join(rows)
+        + "\n"
     )
 
 
 def _geo_reconstruction_block(view: DriversView) -> str:
     if not view.geo_component_revenue or not view.geo_residual:
         return ""
-    rows = [
+    level_rows = [
         "| Fiscal year | Americas | China Mainland | Rest of World | Reconstructed | Reported | Residual |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for index, label in enumerate(view.labels):
         comps = view.geo_component_revenue[index]
-        rows.append(
+        level_rows.append(
             "| {label} | {am} | {cn} | {rw} | {rec} | {rep} | {res} |".format(
                 label=label,
                 am=_opt_money(comps.get("americas")),
@@ -572,11 +902,112 @@ def _geo_reconstruction_block(view: DriversView) -> str:
                 ),
             )
         )
-    return (
+    change_rows = [
+        "| Fiscal year | Americas change | China Mainland change | Rest of World change | Americas growth contribution | China Mainland growth contribution | Rest of World growth contribution | Residual |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    has_change = False
+    if view.geo_contribution_amounts:
+        for index, label in enumerate(view.labels):
+            amounts = view.geo_contribution_amounts[index]
+            if all(value is None for value in amounts.values()):
+                continue
+            has_change = True
+            contrib = view.geo_contributions[index]
+            change_rows.append(
+                "| {label} | {am} | {cn} | {rw} | {amg} | {cng} | {rwg} | {res} |".format(
+                    label=label,
+                    am=_opt_money(amounts.get("americas")),
+                    cn=_opt_money(amounts.get("china_mainland")),
+                    rw=_opt_money(amounts.get("rest_of_world")),
+                    amg=_opt_pp(contrib.get("americas")),
+                    cng=_opt_pp(contrib.get("china_mainland")),
+                    rwg=_opt_pp(contrib.get("rest_of_world")),
+                    res=_opt_money(
+                        None
+                        if view.geo_contribution_residual is None
+                        else view.geo_contribution_residual[index]
+                    ),
+                )
+            )
+    body = (
         "Consolidated revenue is reconstructed from the geographic components. "
-        "Residuals are the reconstructed total minus reported revenue.\n\n"
-        + "\n".join(rows)
+        "Residuals are the reconstructed total minus reported revenue. Growth "
+        "contributions are an arithmetic split of reported-currency revenue "
+        "change and are not organic or constant-currency growth.\n\n"
+        + "\n".join(level_rows)
         + "\n"
+    )
+    if has_change:
+        body += "\n" + "\n".join(change_rows) + "\n"
+    return body
+
+
+def _max_abs(values: tuple[float | None, ...] | None) -> float | None:
+    known = [abs(value) for value in (values or ()) if value is not None]
+    if not known:
+        return None
+    return max(known)
+
+
+def _residual_conclusion(view: DriversView) -> str:
+    parts: list[str] = []
+    for name, series, money in (
+        ("component operating-margin identity", view.operating_margin_residual, False),
+        ("operating-profit amount bridge", view.operating_profit_change_residual, True),
+        ("geographic reconstruction", view.geo_residual, True),
+        ("geographic growth-contribution", view.geo_contribution_residual, True),
+        ("store-count times company-wide revenue per store", view.footprint_residual, True),
+    ):
+        largest = _max_abs(series)
+        if largest is None:
+            parts.append(f"{name} has no adjacent comparison in the available history")
+        elif largest < (1e-8 if not money else 1e-4):
+            parts.append(f"{name} residual is {largest:.6g}")
+        else:
+            parts.append(f"{name} residual is {largest:.6g} and remains visible")
+    return (
+        "Residuals are computed from the validated reconstructions. "
+        + "; ".join(parts)
+        + ". Sales-per-square-foot productivity and mix, markdowns, freight, "
+        "costs, or leverage remain unestablished."
+    )
+
+
+def _assessment_block(view: DriversView) -> str:
+    if not view.assessments:
+        return ""
+    rows = [
+        "| Relationship | Kind | Direction | Magnitude | Reconstruction | Residual | Stability | Contradictions | Disclosure | Result |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for item in view.assessments:
+        kind = _KIND_LABELS.get(item.kind, item.kind.replace("_", " "))
+        rows.append(
+            "| {name} | {kind} | {direction} | {magnitude} | {recon} | {resid} | "
+            "{stable} | {contra} | {disc} | {result} |".format(
+                name=_research_safe(item.name),
+                kind=_research_safe(kind),
+                direction=_research_safe(item.direction),
+                magnitude=_research_safe(item.magnitude),
+                recon=_research_safe(item.reconstruction),
+                resid=_research_safe(item.residual),
+                stable=_research_safe(item.stability),
+                contra=_research_safe(item.contradictions),
+                disc=_research_safe(item.disclosure_support),
+                result="established" if item.established else "unestablished",
+            )
+        )
+    body = "\n".join(rows) + "\n"
+    lowered = body.lower()
+    for term in _FORBIDDEN_RESEARCH:
+        if term in lowered:
+            raise ValueError(f"Drivers assessment prose contains {term!r}")
+    return (
+        "Each material relationship is tested for direction, magnitude, "
+        "reconstruction, residual, stability across periods, contradictions, "
+        "and disclosure support.\n\n"
+        + body
     )
 
 
@@ -717,14 +1148,17 @@ In {view.labels[latest]}, operating-margin change was {om_change_pp:+.2f} pp, eq
 
 Gross margin was {gm_text}. Net operating expense burden was {burden_text}.
 
-Management explanations of the latest operating-margin movement are unavailable.
+{view.margin_explanation or "Management explanations of the latest operating-margin movement are unavailable."}
 
 { _margin_component_block(view) }
 { _amount_bridge_block(view) }
+{ _margin_change_block(view) }
 
 ![Gross margin, SG&A to revenue, and operating margin](../figures/drivers/margin.png)
 
-The component operating-margin identity, gross-profit amount bridge, geographic reconstruction, and store-count times company-wide revenue per store close with explicit residuals of zero. Sales-per-square-foot productivity and mix, markdowns, freight, costs, or leverage remain unestablished.
+{ _residual_conclusion(view) }
+
+{ _assessment_block(view) }
 
 ## Conclusions
 

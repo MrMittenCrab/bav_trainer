@@ -725,10 +725,12 @@ def _assess_margin_relationships(
             )
         )
     mix_limit = (
-        "Extracted filings and admitted strategy disclosures do not isolate "
-        "mix, markdowns, freight, input costs, occupancy, or leverage in "
-        "amounts that can be bridged to the reported margin change. Those "
-        "attributions remain unestablished."
+        "Face-of-statement components do not isolate mix, markdowns, freight, "
+        "input costs, occupancy, or leverage in amounts that can be bridged "
+        "independently to the reported margin change. Source filings may "
+        "attribute those items in Item 7; the attributions remain management "
+        "explanations unless a disclosed series can be folded without assuming "
+        "undisclosed subcomponents."
     )
     assessments.append(
         MarginRelationshipAssessment(
@@ -801,8 +803,8 @@ def _assess_margin_relationships(
                         else "none required"
                     ),
                     disclosure_support=(
-                        "management explanations of mix, markdowns, freight, or "
-                        "leverage are not in the admitted extracts"
+                        "income-statement identity only; Item 7 attributions are "
+                        "recorded separately after source-filing inspection"
                     ),
                     established=True,
                 )

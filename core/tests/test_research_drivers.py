@@ -141,12 +141,18 @@ def test_lululemon_drivers_from_validated_outputs(tmp_path):
     assert "operating-margin change was -3.75 pp" in text
     assert "gross-margin change (-2.62 pp)" in text
     assert "net-operating-expense-burden change (+1.13 pp)" in text
-    assert "Management explanations of the latest operating-margin movement are unavailable." in text
+    assert "approximately $275 million" in text
+    assert "Form 10-K pp. 28–29" in text or "Form 10-K pp. 28-29" in text
+    assert "Management explanations of the latest operating-margin movement are unavailable." not in text
     assert "SG&A / revenue" in text
     assert "Impairment / revenue" in text
     assert "company-wide revenue per store" in text.lower()
     assert "not store productivity" in text.lower()
     assert "unestablished" in text.lower()
+    assert "Residuals are computed from the validated reconstructions." in text
+    assert "Direction" in text and "Disclosure" in text
+    assert "geographic revenue reconstruction" in text.lower()
+    assert "footprint and intensity identity" in text.lower()
     assert view.sga_ratio[-1] == pytest.approx(4066556.0 / 11102600.0)
     assert view.impairment[1] == 407913.0
     assert view.operating_margin_residual[-1] == 0.0

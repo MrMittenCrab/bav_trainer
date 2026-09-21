@@ -5144,6 +5144,88 @@ class ReferenceModelBuilder:
                 gp_rev_eff_row = None
                 gp_gm_eff_row = None
                 gp_ix_row = None
+            if sga_row is not None and self._n > 1:
+                sga_change_row = cursor + 1
+                cursor = sga_change_row
+                ws.cell(row=sga_change_row, column=1, value="Change in SG&A")
+            else:
+                sga_change_row = None
+            if imp_row is not None and self._n > 1:
+                imp_change_row = cursor + 1
+                cursor = imp_change_row
+                ws.cell(
+                    row=imp_change_row,
+                    column=1,
+                    value="Change in impairment or asset-related charges",
+                )
+            else:
+                imp_change_row = None
+            if other_row is not None and self._n > 1:
+                other_change_row = cursor + 1
+                cursor = other_change_row
+                ws.cell(
+                    row=other_change_row,
+                    column=1,
+                    value="Change in other reported operating items",
+                )
+            else:
+                other_change_row = None
+            if (
+                gp_change_row is not None
+                and sga_change_row is not None
+                and operating_row is not None
+            ):
+                recon_op_change_row = cursor + 1
+                cursor = recon_op_change_row
+                ws.cell(
+                    row=recon_op_change_row,
+                    column=1,
+                    value="Reconstructed operating-profit change",
+                )
+                reported_op_change_row = cursor + 1
+                cursor = reported_op_change_row
+                ws.cell(
+                    row=reported_op_change_row,
+                    column=1,
+                    value="Reported operating-profit change",
+                )
+                op_change_resid_row = cursor + 1
+                cursor = op_change_resid_row
+                ws.cell(
+                    row=op_change_resid_row,
+                    column=1,
+                    value="Operating-profit change residual",
+                )
+            else:
+                recon_op_change_row = None
+                reported_op_change_row = None
+                op_change_resid_row = None
+            if operating_margin_row is not None and recon_om_row is not None and self._n > 1:
+                reported_om_change_row = cursor + 1
+                cursor = reported_om_change_row
+                ws.cell(
+                    row=reported_om_change_row,
+                    column=1,
+                    value="Reported operating-margin change",
+                )
+                recon_om_change_row = cursor + 1
+                cursor = recon_om_change_row
+                ws.cell(
+                    row=recon_om_change_row,
+                    column=1,
+                    value="Reconstructed component operating-margin change",
+                )
+                om_change_resid_row = cursor + 1
+                cursor = om_change_resid_row
+                ws.cell(
+                    row=om_change_resid_row,
+                    column=1,
+                    value="Operating-margin change residual",
+                )
+            else:
+                reported_om_change_row = None
+                recon_om_change_row = None
+                om_change_resid_row = None
 
             for j in range(self._n):
                 out_col_idx = 2 + j
@@ -5285,6 +5367,115 @@ class ReferenceModelBuilder:
                         ),
                     )
                     c.number_format = NUM_FMT
+                if sga_change_row is not None and sga_row is not None:
+                    c = ws.cell(
+                        row=sga_change_row,
+                        column=out_col_idx,
+                        value=(
+                            f'=IF(OR({out_col}{sga_row}="",{prev_col}{sga_row}=""),'
+                            f'"",{out_col}{sga_row}-{prev_col}{sga_row})'
+                        ),
+                    )
+                    c.number_format = NUM_FMT
+                if imp_change_row is not None and imp_row is not None:
+                    c = ws.cell(
+                        row=imp_change_row,
+                        column=out_col_idx,
+                        value=(
+                            f'=IF(OR({out_col}{imp_row}="",{prev_col}{imp_row}=""),'
+                            f'"",{out_col}{imp_row}-{prev_col}{imp_row})'
+                        ),
+                    )
+                    c.number_format = NUM_FMT
+                if other_change_row is not None and other_row is not None:
+                    c = ws.cell(
+                        row=other_change_row,
+                        column=out_col_idx,
+                        value=(
+                            f'=IF(OR({out_col}{other_row}="",{prev_col}{other_row}=""),'
+                            f'"",{out_col}{other_row}-{prev_col}{other_row})'
+                        ),
+                    )
+                    c.number_format = NUM_FMT
+                if (
+                    recon_op_change_row is not None
+                    and gp_change_row is not None
+                    and sga_change_row is not None
+                ):
+                    subtract = f"{out_col}{sga_change_row}"
+                    if imp_change_row is not None:
+                        subtract += (
+                            f'+IF({out_col}{imp_change_row}="",0,{out_col}{imp_change_row})'
+                        )
+                    if other_change_row is not None:
+                        subtract += (
+                            f'+IF({out_col}{other_change_row}="",0,{out_col}{other_change_row})'
+                        )
+                    c = ws.cell(
+                        row=recon_op_change_row,
+                        column=out_col_idx,
+                        value=(
+                            f'=IF(OR({out_col}{gp_change_row}="",{out_col}{sga_change_row}=""),'
+                            f'"",{out_col}{gp_change_row}-({subtract}))'
+                        ),
+                    )
+                    c.number_format = NUM_FMT
+                if reported_op_change_row is not None and operating_row is not None:
+                    c = ws.cell(
+                        row=reported_op_change_row,
+                        column=out_col_idx,
+                        value=f"={out_col}{operating_row}-{prev_col}{operating_row}",
+                    )
+                    c.number_format = NUM_FMT
+                if (
+                    op_change_resid_row is not None
+                    and reported_op_change_row is not None
+                    and recon_op_change_row is not None
+                ):
+                    c = ws.cell(
+                        row=op_change_resid_row,
+                        column=out_col_idx,
+                        value=(
+                            f'=IF(OR({out_col}{reported_op_change_row}="",'
+                            f'{out_col}{recon_op_change_row}=""),"",'
+                            f"{out_col}{reported_op_change_row}-{out_col}{recon_op_change_row})"
+                        ),
+                    )
+                    c.number_format = NUM_FMT
+                if (
+                    reported_om_change_row is not None
+                    and operating_margin_row is not None
+                ):
+                    c = ws.cell(
+                        row=reported_om_change_row,
+                        column=out_col_idx,
+                        value=(
+                            f"={out_col}{operating_margin_row}-{prev_col}{operating_margin_row}"
+                        ),
+                    )
+                    c.number_format = PCT_FMT
+                if recon_om_change_row is not None and recon_om_row is not None:
+                    c = ws.cell(
+                        row=recon_om_change_row,
+                        column=out_col_idx,
+                        value=f"={out_col}{recon_om_row}-{prev_col}{recon_om_row}",
+                    )
+                    c.number_format = PCT_FMT
+                if (
+                    om_change_resid_row is not None
+                    and reported_om_change_row is not None
+                    and recon_om_change_row is not None
+                ):
+                    c = ws.cell(
+                        row=om_change_resid_row,
+                        column=out_col_idx,
+                        value=(
+                            f'=IF(OR({out_col}{reported_om_change_row}="",'
+                            f'{out_col}{recon_om_change_row}=""),"",'
+                            f"{out_col}{reported_om_change_row}-{out_col}{recon_om_change_row})"
+                        ),
+                    )
+                    c.number_format = PCT_FMT
 
             if sga_row is not None:
                 self.rowmap["dupont_sga_row"] = sga_row

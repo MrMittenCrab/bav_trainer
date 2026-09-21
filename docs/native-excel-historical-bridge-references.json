@@ -1,0 +1,584 @@
+{
+  "source_sha256": "2a6714df6f023b58b9124dc76e236daa57b22558966e999cce23659ad728fae9",
+  "sheets": [
+    "Comparable Sales Analysis"
+  ],
+  "cells": [
+    {
+      "sheet": "Comparable Sales Analysis",
+      "cell": "C143",
+      "value": 4.631045020016408,
+      "source": "Independent supplied-report anchors: REVENUE_ANCHORS and selected reported global comparable-sales percentages from Lululemon management-KPI extracts. FY2022 revenue-growth minus 25% comparable sales. Arithmetic independent of the production model."
+    },
+    {
+      "sheet": "Comparable Sales Analysis",
+      "cell": "D178",
+      "value": 5.602510961691966,
+      "source": "Independent supplied-report anchors: REVENUE_ANCHORS and selected reported global comparable-sales percentages from Lululemon management-KPI extracts. FY2023 revenue-growth minus 13% comparable sales. Arithmetic independent of the production model."
+    },
+    {
+      "sheet": "Comparable Sales Analysis",
+      "cell": "E178",
+      "value": 6.0719409502459545,
+      "source": "Independent supplied-report anchors: REVENUE_ANCHORS and selected reported global comparable-sales percentages from Lululemon management-KPI extracts. FY2024 revenue-growth minus 4% comparable sales. Arithmetic independent of the production model."
+    },
+    {
+      "sheet": "Comparable Sales Analysis",
+      "cell": "F178",
+      "value": 2.8589712664922953,
+      "source": "Independent supplied-report anchors: REVENUE_ANCHORS and selected reported global comparable-sales percentages from Lululemon management-KPI extracts. FY2025 revenue-growth minus 2% comparable sales. Arithmetic independent of the production model."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "B124",
+      "value": 2225034.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C124",
+      "value": 2757447.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D124",
+      "value": 3397218.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E124",
+      "value": 3762379.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F124",
+      "value": 4066556.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "B126",
+      "value": 0.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C126",
+      "value": 407913.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D126",
+      "value": 74501.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E126",
+      "value": 0.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F126",
+      "value": 0.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "B128",
+      "value": 50176.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C128",
+      "value": -1428.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D128",
+      "value": 5010.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E128",
+      "value": 2735.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F128",
+      "value": 6961.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "B125",
+      "value": 0.3556289285407753,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C125",
+      "value": 0.33998407993176266,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D125",
+      "value": 0.3531676701723352,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E125",
+      "value": 0.35533946233733904,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F125",
+      "value": 0.3662706032821141,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "B127",
+      "value": 0.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C127",
+      "value": 0.0502943215217573,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D127",
+      "value": 0.007744967969529522,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E127",
+      "value": 0.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F127",
+      "value": 0.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "B129",
+      "value": 0.00801966941559632,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C129",
+      "value": -0.00017606766916737008,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D129",
+      "value": 0.0005208291100433941,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E129",
+      "value": 0.0002583082218704235,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F129",
+      "value": 0.0006269702592185615,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "B130",
+      "value": 0.2131111749368708,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C130",
+      "value": 0.16378830550650408,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D130",
+      "value": 0.22170853155507092,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E130",
+      "value": 0.23665160388155562,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F130",
+      "value": 0.19910786662583538,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "B131",
+      "value": 0.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C131",
+      "value": 0.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D131",
+      "value": 0.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E131",
+      "value": 0.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F131",
+      "value": 0.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C132",
+      "value": 883775.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C133",
+      "value": 1069255.519726555,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C134",
+      "value": -143083.41007195786,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C135",
+      "value": -42397.10965459652,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D132",
+      "value": 1117065.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D133",
+      "value": 835688.040936473,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D134",
+      "value": 237243.67787998155,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D135",
+      "value": 44133.28118354475,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E132",
+      "value": 661406.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E133",
+      "value": 564975.959260144,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E134",
+      "value": 87606.37807181422,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E135",
+      "value": 8823.662668042349,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F132",
+      "value": 13321.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F133",
+      "value": 304696.9046660382,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F134",
+      "value": -277874.08282456413,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F135",
+      "value": -13501.821841474573,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C136",
+      "value": 532413,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D136",
+      "value": 639771,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E136",
+      "value": 365161,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F136",
+      "value": 304177,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C137",
+      "value": 407913,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D137",
+      "value": -333412,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E137",
+      "value": -74501,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F137",
+      "value": 0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C138",
+      "value": -51604,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D138",
+      "value": 6438,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E138",
+      "value": -2275,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F138",
+      "value": 4226,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C139",
+      "value": -4947,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D139",
+      "value": 804268,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E139",
+      "value": 373021,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F139",
+      "value": -295082,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C140",
+      "value": -4947,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D140",
+      "value": 804268,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E140",
+      "value": 373021,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F140",
+      "value": -295082,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C141",
+      "value": 0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D141",
+      "value": 0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E141",
+      "value": 0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F141",
+      "value": 0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C142",
+      "value": -0.04932286943036682,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D142",
+      "value": 0.05792022604856695,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E142",
+      "value": 0.014943072326484647,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F142",
+      "value": -0.037543737255720244,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C143",
+      "value": -0.049322869430366706,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D143",
+      "value": 0.057920226048566836,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E143",
+      "value": 0.014943072326484702,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F143",
+      "value": -0.037543737255720244,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "C144",
+      "value": -1.1102230246251565e-16,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "D144",
+      "value": 1.1102230246251565e-16,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "E144",
+      "value": -5.551115123125783e-17,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    },
+    {
+      "sheet": "ALT DuPont",
+      "cell": "F144",
+      "value": 0.0,
+      "source": "Independent face-of-statement amounts from canonical extracted Lululemon FY2022\u2013FY2025 10-K income statements (USD thousands; later-audited presentation). Revenue 6256617/8110518/9619278/10588126/11102600; gross profit 3608565/4492340/5609405/6270811/6284132; SG&A 2225034/2757447/3397218/3762379/4066556; impairment 0/407913/74501/0/0; other operating items = amortization + acquisition-related + gain on disposal 50176/-1428/5010/2735/6961; operating profit 1333355/1328408/2132676/2505697/2210615. Ratios and bridges are arithmetic on those amounts. Not read from the workbook."
+    }
+  ]
+}
