@@ -1,51 +1,52 @@
-# Step 7.2 — Expand source-grounded historical Drivers
-AUTOCYCLE_PLAN: {"finding_key": "Expand source-grounded historical Drivers", "kind": "work", "objective": "Expand source-grounded historical Drivers", "plan_id": "a102857b3f5f4be0ac91ad16151b548a", "step_id": "7.2", "work_id": "22b129faf8634719b1746886ddfec536"}
+# Step 7.2.1 — Complete reproducible historical Drivers bridges and assessments
+AUTOCYCLE_PLAN: {"finding_key": "Expand source-grounded historical Drivers", "kind": "work", "minor": 1, "objective": "Complete reproducible historical Drivers bridges and assessments", "plan_id": "e2561fb42a63407a92174a4cda1a3009", "step_id": "7.2.1", "work_id": "22b129faf8634719b1746886ddfec536"}
 
 ## Completion
 
 Lululemon’s canonical BAV workbook, Drivers Markdown and figures reproducibly present source-grounded historical component-margin bridges and revenue reconstruction across available history, with seven-part validation of major driver relationships, explicit residuals and evidence limits, and applicable build/check, regression and native verification passed.
 
-## Bounded work
+## Bounded continuation
 
-- Extend the existing reported-margin, revenue-driver and research generators; use shared validated analytical outputs for workbook, Markdown and figures without a parallel numerical dataset.
-- Inspect canonical extracted filings, reconciled data and admission evidence first. Fill necessary component and disclosure gaps from canonical source filings through existing extraction, validation and reconciliation controls.
-- Preserve reported labels, periods, units, signs, page-level locators, cross-filing conflicts and superseded observations. Keep `StandardizedFinancials` as the model-facing contract and preserve identity through export/reload.
-- Cover FY2021–FY2025 levels and every supported adjacent-period change. Retain issuer fiscal labels, actual period ends and FY2024’s 53-week distinction; explicitly identify unavailable or incompatible comparisons.
+- Complete component ingestion, historical bridge presentation, rendered relationship assessments and source attribution through the existing standardizer, analytical models, workbook and Drivers generator.
+- Cover FY2021–FY2025 levels and every supported adjacent-period change. Preserve issuer fiscal labels, actual period ends and FY2024’s 53-week distinction; identify unavailable or incompatible comparisons.
+- Use shared validated analytical outputs for workbook, Markdown and figures, retaining `StandardizedFinancials` as the model-facing contract.
 
-## Margin bridges
+## Reproducible component reconciliation
 
-- Show revenue, gross profit, SG&A, separately disclosed impairment/asset-related charges, other reported operating items and operating profit, with their revenue ratios.
-- Reconstruct operating margin as gross margin less SG&A/revenue, impairment or asset-related charges/revenue and other reported operating items/revenue, using consistent economic signs and non-overlapping components.
-- Reconcile historical levels and adjacent changes to reported operating profit and margin in amounts and pp/bps. Show residuals explicitly; do not relabel aggregate burden as SG&A, double-count subtotals or treat missing disclosure as zero.
-- Bridge revenue and gross-margin movements into gross-profit changes, then component expense changes into operating-profit changes; state the arithmetic convention and account for interaction terms.
-- Explain what happened, what moved it mathematically and what explains those movements. Attribute management explanations to filing locators; quantify mix, markdowns, freight, costs or leverage only where evidence supports attribution.
-- Distinguish recurring and episodic movements without introducing a new normalization framework or unsupported adjusted earnings.
+- Replace manually populated live component series with deterministic, source-controlled ingestion through existing extraction, validation, reconciliation and standardization controls.
+- Retain disclosed sparse income-statement components needed for impairment, acquisition-related charges, amortization and disposal gains. Preserve missing versus explicit zero, economic signs, reported labels, units, periods and stable identities through export/reload.
+- Preserve page-level provenance, cross-filing conflicts and superseded observations. Fold components without overlapping subtotals or assuming undisclosed items are zero.
+- Preserve protected historical fixtures and extracts as evidence; add focused coverage for the expanded contract without weakening unrelated protections or replaying migration work.
+- Demonstrate that reconciliation from canonical filing inputs, reload and build reproduce the component series and historical bridges without manual edits to generated JSON.
 
-## Revenue reconstruction and validation
+## Complete historical presentation
 
-- Reconstruct consolidated revenue levels and changes from admitted geographic components, showing contribution amounts, growth contributions and reconciliation residuals.
-- Extend footprint/intensity decomposition with an explicit exact identity and interaction treatment. Label company-wide revenue per store as an intensity proxy that includes non-store revenue, not store productivity.
-- Use channel and comparable-sales evidence only for compatible populations, currencies, calendars and definitions. Do not add overlapping geography/channel contributions or label revenue-growth-minus-comparable-sales as new-store contribution.
-- For each major relationship, including the four existing revenue hypotheses and material margin explanations, assess direction, magnitude, reconstruction, residual, stability across periods, contradictions and disclosure support.
-- Present compact historical tables and concise findings. Mark unsupported tests as unestablished with the concrete evidence limitation; an accounting identity does not validate a causal hypothesis.
-- Distinguish identities, reported facts, attributed management explanations, observed relationships, causal hypotheses and unestablished inference. Retain counterexamples and revise explanations contradicted by history.
+- Present revenue, gross profit, SG&A, impairment/asset-related charges, other reported operating items and operating profit, including revenue ratios and reconstructed operating-profit and operating-margin levels.
+- Publish every supported adjacent-period gross-profit and operating-profit amount bridge: revenue effect, gross-margin effect, interaction, each component expense-change contribution, reconstructed change, reported change and residual.
+- Publish component operating-margin changes in pp/bps with reconstructed versus reported changes and residuals. State arithmetic and sign conventions; distinguish missing comparisons from zero effects.
+- Complete geographic revenue level/change reconstruction, contribution amounts, growth contributions and residuals across supported history.
+- Publish historical footprint store-count, intensity and interaction effects, reconstructed revenue changes and residuals. Label company-wide revenue per store as an intensity proxy including non-store revenue.
+- Replace hardcoded zero-residual conclusions with findings computed from validated results and availability. Keep nonzero residuals and contradictions visible.
+- Render seven-part assessments for all four existing revenue hypotheses and material margin explanations: direction, magnitude, reconstruction, residual, stability across periods, contradictions and disclosure support.
+- Inspect canonical source filings where extracts lack necessary MD&A explanations; incorporate relevant disclosures through existing source controls with filing/page locators. Attribute explanations and quantify effects only where supported.
+- Distinguish identities, reported facts, management explanations, observed relationships, causal hypotheses and unestablished inference. Record concrete evidence limits after source inspection; distinguish recurring and episodic movements without unsupported adjusted earnings.
+- Preserve compatible populations, currencies, calendars and definitions. Do not combine overlapping geographic/channel contributions or infer new-store contribution from revenue growth less comparable sales.
+- Integrate completed schedules and findings into the authoritative workbook, canonical Drivers Markdown and three Drivers figures under `build/output/lululemon/`, following `STYLE.md` and the established analytical sequence.
 
-## Product integration and preservation
+## Preservation and scope
 
-- Integrate the expanded schedules into the authoritative BAV workbook and regenerate canonical Drivers Markdown and the three Drivers figures under `build/output/lululemon/`, following `STYLE.md` and existing workbook conventions.
-- Keep the analytical sequence: reported outcome → decomposition → admitted components → historical contributions → reconstruction → residuals/contradictions → disclosure check → interpretation.
-- Preserve canonical upstream evidence, prior-live evidence, Fast Retailing extracts, accepted accounting/normalization controls, atomic output publication and `SEGMENT_BRIDGE_TOLERANCE = 0.0`.
-- Preserve the 24 Comparable Sales facts, three SPSF levels, five Revenue per Store periods, 39 pair assessments and five supported SPSF comparisons, including admission/comparison independence and assurance/revision safeguards.
-- Keep the 2023-01-29 SPSF disagreement audit-only with both definitions and locators; preserve excluded/calendar failures, unavailable adjacent SPSF growth, undated FY2021 metadata and missing/zero/opening-period behavior.
-- Preserve optional Trainer functionality, semantic mappings and non-disclosing Check. Forecast, Valuation and Overview research files remain zero-byte placeholders.
-- Word/PDF publication and BAV-first front-page/CLI presentation remain subsequent Session obligations. Earlier normalization, broader source-workflow and normalized-per-share work remain deferred; do not reopen completed migration reconciliation.
-- Exclude forecasting, valuation, scenarios, deal recommendations, buyer-specific analysis, Fast Retailing strategy and unrelated refactoring.
+- Preserve canonical upstream and prior-live evidence, Fast Retailing extracts, accepted accounting/normalization controls, atomic publication and `SEGMENT_BRIDGE_TOLERANCE = 0.0`.
+- Preserve 24 Comparable Sales facts, three SPSF levels, five Revenue per Store periods, 39 pair assessments and five supported SPSF comparisons; retain admission/comparison independence and assurance/revision safeguards.
+- Keep the 2023-01-29 SPSF disagreement audit-only with both definitions and locators; retain excluded/calendar failures, unavailable adjacent SPSF growth, undated FY2021 metadata and missing/zero/opening-period behavior.
+- Preserve optional Trainer functionality, semantic mappings and non-disclosing Check. Forecast, Valuation and Overview remain zero-byte placeholders.
+- Word/PDF publication and BAV-first presentation remain subsequent Session obligations. Earlier deferred obligations remain deferred; exclude forecasting, valuation, scenarios, deal recommendations, buyer-specific analysis, Fast Retailing strategy and unrelated refactoring.
 
 ## Verification and records
 
-- Independently reconcile new component amounts, bridge arithmetic, reconstructed outcomes and disclosure claims to filing evidence; do not derive expected results from generated outputs.
-- Run company-name Lululemon build/check and relevant source, reconciliation, fiscal, margin, revenue-driver, research, workbook and protected-artifact regressions. Verify Fast Retailing build/check and affected optional Trainer behavior.
-- Recalculate changed workbook formulas and dependencies in native Excel and verify saved caches independently with `scripts/verify_cached_workbook.py`; inspect changed workbook presentation and generated figures for readability. Reuse prior evidence only for demonstrably unchanged applicable surfaces.
-- Preserve stable-copy protection, locking and timeouts; allow at most two native attempts with a diagnosed correction before the second. Do not force-quit Excel, close unrelated workbooks, overwrite open copies or automate security approval.
-- Preserve baseline authentication, ownership, recovery, protected-document and unrelated-dirty-work safeguards. Cursor must not modify TARGET.md, SESSION.md or IMPLEMENTATION.md.
-- Append delivered scope, source references, measured verification and concrete unresolved gaps to RESULT.md without rewriting historical records or reserving future IDs.
+- Independently reconcile component values, historical bridge arithmetic and disclosure claims to filing evidence; expected values must not originate from generated outputs.
+- Exercise reconciliation reproducibility, sparse/missing/zero handling, signs, nonzero residuals and rendered historical assessments. Run Lululemon company-name build/check and relevant source, reconciliation, fiscal, margin, revenue-driver, research, workbook and protected-artifact regressions; verify Fast Retailing build/check and affected Trainer behavior.
+- Retain reviewed saved-cache verification only for demonstrably unchanged formulas, inputs and dependencies. Recalculate changed surfaces in native Excel and independently verify saved caches with `scripts/verify_cached_workbook.py`.
+- Inspect changed workbook presentation in native Excel and generated figures for readability, including labels, tables, units, source notes and clipping. Record inspected surfaces and evidence separately from formula-cache verification.
+- Preserve stable-copy protection, locking, timeouts and native-attempt accounting; allow at most two authorized attempts with a diagnosed correction before the second. Do not force-quit Excel, close unrelated workbooks, overwrite open copies or automate security approval.
+- Preserve authenticated baseline, ownership, recovery, protected-document and unrelated-dirty-work safeguards. Cursor must not modify TARGET.md, SESSION.md or IMPLEMENTATION.md.
+- Append delivered scope, source references, measured verification, presentation evidence and unresolved gaps to RESULT.md without rewriting history or reserving future IDs. Missing evidence or unavailable access remains explicit.
