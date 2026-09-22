@@ -1,43 +1,45 @@
-# Step 7.2.2 — Complete historical margin contributions and presentation verification
-AUTOCYCLE_PLAN: {"finding_key": "Expand source-grounded historical Drivers", "kind": "work", "minor": 2, "objective": "Complete historical margin contributions and presentation verification", "plan_id": "8d7d3708e33d4522b1c8e32921f6ba41", "step_id": "7.2.2", "work_id": "22b129faf8634719b1746886ddfec536"}
+# Step 7.3 — Reproducible Word/PDF publication from canonical research
+AUTOCYCLE_PLAN: {"finding_key": "Reproducible Word/PDF publication from canonical research", "kind": "work", "objective": "Reproducible Word/PDF publication from canonical research", "plan_id": "03301885c75b4572881345d1d7500ec4", "step_id": "7.3", "work_id": "7c1d2cba71024c21afc8becfcb40f6f2"}
+
+INPUT_STATUS: COMPLETE
 
 ## Completion
 
-Lululemon’s canonical BAV workbook, Drivers Markdown and figures reproducibly present source-grounded historical component-margin bridges and revenue reconstruction across available history, with seven-part validation of major driver relationships, explicit residuals and evidence limits, and applicable build/check, regression and native verification passed.
+`python -m bav publish Lululemon` reproducibly generates readable, STYLE-compliant Word and PDF publications from canonical Drivers Markdown and referenced figures, preserving accepted historical analysis, failing clearly on invalid inputs or conversion failures, with successful end-to-end and visual verification.
 
-## Bounded continuation
+## Implementation
 
-- Complete historical component operating-margin change schedules and demonstrate workbook and figure readability, preserving accepted analytical work and cache evidence.
-- Cover FY2021–FY2025 and every supported adjacent-period comparison. Preserve issuer fiscal labels, actual period ends and FY2024’s 53-week distinction.
-- Use shared validated analytical outputs through the existing models, workbook and Drivers generator; retain `StandardizedFinancials` as the model-facing contract.
+- Add the company-name `publish` command through the existing public `bav` interface and company-path resolution. Write publications only under `build/output/<company>/`.
+- Reuse `core/research` and existing artifact validation. Publication consumes canonical Markdown and figures without recalculating analysis, regenerating the workbook or requiring Trainer generation.
+- Use a standard maintainable Markdown-to-document toolchain. Document required converters, fonts, installation and the CLI workflow in README; keep STYLE.md authoritative.
+- Publish Drivers now. Forecast, Valuation and Overview remain zero-byte placeholders and contribute no empty report sections.
+- Preserve headings, tables, equations, captions, source notes, disclosure locators, fiscal labels, historical bridges, signed pp/bps contributions, residuals, seven-part assessments and evidence limits.
+- Apply STYLE typography, regular weights, spacing and grayscale presentation. Resolve installed Aptos and DengXian without silent substitution or distributing font files.
+- Make wide historical and assessment tables readable through appropriate wrapping, pagination, repeated headers or landscape sections without dropping content or shrinking below established body size.
+- Resolve figure and document references relative to canonical research. Missing Markdown, missing figures, broken references, unavailable required dependencies/fonts and conversion failures return actionable nonzero errors.
+- Companies without publishable canonical research receive a clear diagnostic; do not invent research or fall back to legacy paths.
+- Stage and validate both formats before replacing published outputs; failed conversion must preserve the last successful publication and canonical inputs.
+- Use BAV-first wording in the new command, publication and publication documentation. Exclude internal debug material without removing analytical evidence or limitations.
 
-## Component contribution schedules
+## Verification
 
-- Publish separate signed contributions for Δgross margin, −Δ(SG&A/revenue), −Δ(impairment or asset-related charges/revenue) and −Δ(other reported operating items/revenue).
-- Show each contribution in pp and bps, their reconstructed sum, reported operating-margin change and residual defined as reported minus reconstructed. Calculate from unrounded values; explain units, signs and displayed rounding.
-- Preserve disclosed component definitions, economic signs, sparse availability, missing versus explicit zero and source provenance. Mark unsupported comparisons unavailable rather than manufacturing zero effects.
-- Complete the authoritative workbook schedule, canonical Drivers Markdown and margin figure under `build/output/lululemon/`, using the same component calculations and following `STYLE.md`. Keep the historical contribution sequence readable.
-- Retain historical levels, gross-profit and operating-profit amount bridges, geographic and footprint reconstruction, computed residuals and seven-part assessments. Integrate the component contributions into relevant explanations without duplicating analytical logic.
-- Keep identities, reported facts, management explanations and causal hypotheses distinct. Preserve disclosure locators and evidence limits; management commentary must not become an unsupported quantified bridge term.
+- Run normal Lululemon company-name build, check and publish with the real conversion toolchain.
+- Repeat publication from unchanged canonical inputs; verify equivalent content, structure and figures, identifying any unavoidable container metadata differences.
+- Verify that publishing does not mutate canonical Markdown, figures, workbook, upstream evidence or placeholders.
+- Cover reference resolution, missing assets/dependencies, converter failure, preservation of prior publications and optional-Trainer independence with focused regressions.
+- Visually inspect both Word and PDF at reading scale, including every wide table, all three figures, equations, captions, source notes and page transitions. Structural extraction alone does not establish readability.
+- Record toolchain versions, commands, measured results, output paths, inspected pages, viewing conditions and retrievable visual evidence in RESULT.md. Unavailable rendering access or missing evidence remains explicit.
+- Run affected CLI, research, build-contract and optional Trainer regressions; verify Fast Retailing build/check remains usable.
 
-## Readability and cache verification
+## Preservation and remaining scope
 
-- Visually inspect the changed workbook schedules in native Excel, including relevant historical bridge context, at a usable reading scale. Check labels, columns, units, signs, source notes, wrapping and clipping.
-- Open and visually inspect all three canonical Drivers figures at their intended display size. Correct unreadable labels, legends, notes, overlaps or clipping and reinspect affected outputs.
-- Record inspected workbook sheets/ranges, figure paths, viewing conditions, observations and retrievable visual evidence in RESULT.md. Cell reads and image dimensions alone do not establish readability.
-- Preserve `.git/autocycle/excel-verification-vm1b3wsq/saved-copy.xlsx` and its verification evidence: 171 checked cells, 96 independent references and formulas preserved. Carry acceptance forward only for demonstrably unchanged formulas, inputs and dependencies; it does not establish presentation acceptance.
-- Recalculate changed formulas or dependencies in native Excel and independently verify saved caches using `scripts/verify_cached_workbook.py`, with source-derived expectations covering new contributions and reconciliation.
-- Preserve stable-copy protection, locking, timeouts and native-attempt accounting. Do not reset exhausted allowances; retain the at-most-two-authorized-attempt limit and require a diagnosed correction before a second attempt. Unavailable access or exhausted authorization remains explicit.
-- Do not force-quit Excel, close unrelated workbooks, overwrite open copies or automate security approval.
-
-## Preservation and verification
-
-- Preserve reproducible sparse-component ingestion, canonical upstream evidence, protected fixtures/extracts, provenance, conflict history, accounting/normalization controls, atomic publication and `SEGMENT_BRIDGE_TOLERANCE = 0.0`. Do not replay completed migration work.
-- Preserve 24 Comparable Sales facts, three SPSF levels, five Revenue per Store periods, 39 pair assessments and five supported SPSF comparisons, including admission/comparison independence and assurance/revision safeguards.
-- Keep the 2023-01-29 SPSF disagreement audit-only with both definitions and locators; retain excluded/calendar failures, unavailable adjacent SPSF growth, undated FY2021 metadata and missing/zero/opening-period behavior.
-- Independently reconcile historical component contributions to filing-derived amounts and revenue. Cover expense-sign reversals, pp/bps conversion, missing/zero behavior, nonzero residuals and rendered component schedules with focused regressions.
-- Run Lululemon company-name build/check and relevant analytical, research, workbook, source/reconciliation, fiscal and protected-artifact regressions. Verify Fast Retailing build/check and affected optional Trainer behavior.
-- Preserve semantic mappings and non-disclosing Check. Forecast, Valuation and Overview remain zero-byte placeholders.
-- Word/PDF publication and BAV-first presentation remain subsequent Session obligations; earlier deferred obligations remain deferred. Exclude forecasting, valuation, scenarios, deal recommendations, buyer-specific analysis, Fast Retailing strategy and unrelated refactoring.
+- Historical Drivers acceptance is closed by Review, including human-provided native Excel readability evidence. Preserve accepted analytical behavior and evidence; do not replay completed migration or historical-analysis work.
+- Preserve `StandardizedFinancials`, canonical lowercase paths, protected fixtures/extracts, provenance, conflict history, accounting/normalization controls, atomic build behavior and `SEGMENT_BRIDGE_TOLERANCE = 0.0`.
+- Preserve 24 Comparable Sales facts, three SPSF levels, five Revenue per Store periods, 39 pair assessments and five supported SPSF comparisons; retain admission/comparison independence, fiscal distinctions, missing/zero behavior and audit-only disagreements.
+- Preserve both `.git/autocycle/excel-verification-vm1b3wsq/saved-copy.xlsx` and `.git/autocycle/excel-verification-hrj5h672/saved-copy.xlsx`, their verification evidence and the accepted human screenshots.
+- Carry native acceptance forward only for unchanged verified surfaces. Changed workbook formulas/dependencies require native recalculation and independent saved-cache verification; changed presentation requires readable native inspection.
+- Preserve stable-copy protection, locking, timeouts, native-attempt accounting and the at-most-two-authorized-attempt limit; do not reset allowances. Require diagnosed correction before a second attempt. Do not force-quit Excel, close unrelated workbooks, overwrite open copies or automate security approval.
+- Broader BAV-first CLI/documentation alignment, the concise workbook front page and final Session integration remain subsequent obligations. Earlier normalization, broader source-workflow and normalized-per-share obligations remain deferred.
+- Exclude forecasting, valuation, scenarios, deal recommendations, buyer-specific analysis, Fast Retailing strategy, PowerPoint and unrelated refactoring. Preserve semantic mappings and non-disclosing Check.
 - Preserve authenticated baseline, ownership, recovery, protected-document and unrelated-dirty-work safeguards. Cursor must not modify TARGET.md, SESSION.md or IMPLEMENTATION.md.
-- Append delivered scope, source references, measured checks, cache applicability, actual visual inspection evidence and unresolved gaps to RESULT.md without rewriting history or reserving future IDs.
+- Append completion evidence and unresolved obligations to RESULT.md without rewriting history or reserving future IDs.
