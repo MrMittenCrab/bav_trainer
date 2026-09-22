@@ -529,5 +529,8 @@ def test_root_readme_is_practical_trainer_guide():
     assert "python -m bav build" in text
     assert "python -m bav list" in text
     assert "python -m bav check" in text
+    assert "Lululemon" in text
+    assert "Fast Retailing" in text
+    assert "optional derivative" in text.lower() or "optional" in text.lower()
     assert re.search(r"\bhint\b", lowered) is None
     assert re.search(r"\breveal\b", lowered) is None

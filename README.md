@@ -1,6 +1,8 @@
 # BAV — Hong Kong Edition
 
-Professional historical Business Analysis and Valuation for Hong Kong-listed **non-financial** companies. The ordinary company build produces a source-grounded `<Company>_BAV.xlsx`. A matching `<Company>_BAV_Trainer.xlsx` can still be derived from that completed model.
+BAV is the source-grounded Business Analysis and Valuation product. Supported companies are **Lululemon** and **Fast Retailing**. The ordinary company build produces `<Company>_BAV.xlsx` together with canonical Markdown research, reusable figures, and Word/PDF publication. A matching `<Company>_BAV_Trainer.xlsx` remains an optional derivative of the completed model.
+
+Hong Kong-listed **non-financial** companies are the current curriculum scope.
 
 ## What works now
 

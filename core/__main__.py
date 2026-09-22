@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""BAV Excel Trainer CLI for Hong Kong-listed companies.
+"""BAV CLI: build, check, and publish source-grounded company analysis.
 
 Usage: python -m bav <command> ...
 """
@@ -390,7 +390,9 @@ def cmd_list(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="BAV Excel Trainer — Hong Kong edition")
+    parser = argparse.ArgumentParser(
+        description="BAV — build, check, and publish source-grounded company analysis"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_ingest = sub.add_parser("ingest", help="Ingest HK documents into standardized JSON")
@@ -447,7 +449,12 @@ def main(argv: list[str] | None = None) -> int:
 
     p_build = sub.add_parser(
         "build",
-        help="Build the current company professional BAV workbook",
+        help="Build the professional BAV workbook and canonical research",
+        description=(
+            "Build the professional BAV workbook from canonical company input. "
+            "Canonical research and figures are written with the workbook. "
+            "Does not require Trainer generation."
+        ),
     )
     p_build.add_argument("input", help="Company name/ticker, or explicit standardized JSON/Excel")
     p_build.add_argument(
@@ -467,7 +474,13 @@ def main(argv: list[str] | None = None) -> int:
 
     p_check = sub.add_parser(
         "check",
-        help="Validate every practice cell in a Trainer workbook (yellow/green/red)",
+        help="Diagnose canonical BAV output; validate optional Trainer practice cells without disclosing answers",
+        description=(
+            "Diagnose a built company BAV: required sidecars, semantic map, and "
+            "canonical research when present. When a Trainer workbook exists or "
+            "is supplied with --workbook, validate every practice cell "
+            "(yellow/green/red) without disclosing answers."
+        ),
     )
     p_check.add_argument("company", nargs="?")
     p_check.add_argument("--workbook")
@@ -484,7 +497,15 @@ def main(argv: list[str] | None = None) -> int:
     p_publish.add_argument("company", help="Company name or ticker")
     p_publish.set_defaults(func=cmd_publish)
 
-    p_list = sub.add_parser("list", help="List trainer components")
+    p_list = sub.add_parser(
+        "list",
+        help="List BAV analytical families",
+        description=(
+            "List analytical families from a built BAV, or the catalog when no "
+            "workbook is given. Practice-cell coordinates describe the optional "
+            "Trainer surface."
+        ),
+    )
     p_list.add_argument("company", nargs="?")
     p_list.add_argument(
         "--workbook",

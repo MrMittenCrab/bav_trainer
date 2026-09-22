@@ -53,6 +53,16 @@ NOTE_AUTHOR = "BAV"
 JUDGMENT_FIRST_DATA_ROW = 5
 JUDGMENT_RESPONSE_COLS = (6, 7, 8)
 BAV_OPENING_SHEET = "Overview"
+_SELECTED_FALLBACK_SCHEDULES = (
+    "Income Statement",
+    "Balance Sheet",
+    "Cash Flow Statement",
+    "Condensed Financials",
+    "ALT DuPont",
+    "Geographic Segment Analysis",
+    "Store Count Analysis",
+    "Revenue Driver Analysis",
+)
 
 _TRAINER_SIDECAR_SUFFIXES = (
     ".component_map.json",
@@ -366,7 +376,7 @@ class TrainingWorkbookGenerator:
             ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
             _raise_row(row, _wrapped_height(text, width=label_width + narrative_width))
 
-        _wide(1, "Business Analysis and Valuation")
+        _wide(1, "BAV")
         _wide(2, identity)
         _wide(3, f"Historical coverage: {coverage}")
         _wide(4, f"Units: {currency}; {units}")
@@ -378,42 +388,33 @@ class TrainingWorkbookGenerator:
             _label(cursor, "Historical reading")
             _narrative(cursor, synthesis.lead)
             cursor += 2
-            _wide(cursor, "HISTORICAL REVENUE AND DISCLOSED STRATEGY")
-            cursor += 1
-            for item in synthesis.interpretations:
-                _wide(cursor, item.heading.upper())
-                cursor += 1
-                _label(cursor, "Management statement")
-                _narrative(cursor, item.management_statement)
-                cursor += 1
-                _label(cursor, "Historical finding")
-                _narrative(cursor, item.finding)
-                cursor += 1
-                _label(cursor, "Analyst inference")
-                _narrative(cursor, item.inference)
-                cursor += 2
-            _wide(cursor, "WHAT THE HISTORY ESTABLISHES")
-            cursor += 1
-            _label(cursor, "Limits")
-            _narrative(cursor, synthesis.limits)
-            cursor += 1
-            if synthesis.productivity_gap:
-                _label(cursor, "Productivity evidence")
-                _narrative(cursor, synthesis.productivity_gap)
-                cursor += 1
-            _label(cursor, "Untested initiatives")
-            _narrative(cursor, synthesis.untested)
+            limits = " ".join(
+                part
+                for part in (
+                    synthesis.limits,
+                    synthesis.productivity_gap,
+                    synthesis.untested,
+                )
+                if part
+            )
+            _label(cursor, "Evidence limits")
+            _narrative(cursor, limits)
             cursor += 2
             navigation = [
                 name for name in synthesis.navigation if name in structure
             ]
         else:
-            _wide(cursor, PROFESSIONAL_FALLBACK)
+            _label(cursor, "Historical reading")
+            _narrative(cursor, PROFESSIONAL_FALLBACK)
             cursor += 2
 
         if not navigation:
-            navigation = list(structure)
-        _wide(cursor, "SUPPORTING SCHEDULES")
+            navigation = [
+                name for name in _SELECTED_FALLBACK_SCHEDULES if name in structure
+            ]
+        if not navigation:
+            navigation = list(structure)[:8]
+        _wide(cursor, "Supporting schedules")
         cursor += 1
         for name in navigation:
             cell = ws.cell(row=cursor, column=1, value=name)
@@ -424,22 +425,6 @@ class TrainingWorkbookGenerator:
         cell = ws.cell(row=cursor, column=1, value="Build Status")
         cell.alignment = wrap
         cell.hyperlink = "#'Build Status'!A1"
-        cursor += 2
-
-        _label(cursor, "Source basis")
-        _narrative(
-            cursor,
-            "Source-grounded filings reconciled into StandardizedFinancials. "
-            "Conflicts and superseded observations remain in supporting audit artifacts.",
-        )
-        cursor += 1
-        _label(cursor, "Availability")
-        _narrative(
-            cursor,
-            "Optional modules appear only when required historical facts are "
-            "supplied. See Build Status for unavailable or inactive families. "
-            "Missing facts are not invented.",
-        )
 
     def _add_trainer_ui(self, wb) -> None:
         if "Trainer" in wb.sheetnames:

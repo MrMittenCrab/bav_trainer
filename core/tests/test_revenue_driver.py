@@ -247,10 +247,20 @@ def test_opening_without_strategy_stays_professional_fallback(tmp_path):
     opening = " ".join(
         str(cell.value or "") for row in awb["Overview"].iter_rows() for cell in row
     )
+    assert awb["Overview"]["A1"].value == "BAV"
     assert PROFESSIONAL_FALLBACK in opening
+    assert "Historical reading" in opening
     assert "HISTORICAL REVENUE AND DISCLOSED STRATEGY" not in opening
     assert "Schedules: " not in opening
     assert "Management statement" not in opening
+    assert "Historical finding" not in opening
+    assert any(
+        cell.hyperlink
+        and "Build Status" in str(getattr(cell.hyperlink, "target", "") or cell.hyperlink)
+        for row in awb["Overview"].iter_rows()
+        for cell in row
+        if cell.hyperlink
+    )
     awb.close()
     derive_trainer_workbook(answer, trainer)
 
@@ -784,19 +794,28 @@ def test_workbook_links_notes_trainer_check_and_skips_without_disclosures(tmp_pa
     opening = " ".join(
         str(cell.value or "") for row in overview.iter_rows() for cell in row
     )
-    assert "HISTORICAL REVENUE AND DISCLOSED STRATEGY" in opening
-    assert "Management statement" in opening
-    assert "Historical finding" in opening
-    assert "Analyst inference" in opening
-    assert "We open stores." in opening
-    assert "not achieved historical outcomes" in opening
-    assert "contributed negatively" in opening.lower()
+    assert overview["A1"].value == "BAV"
+    assert "Historical reading" in opening
+    assert "Evidence limits" in opening
     assert "untested" in opening.lower()
+    assert "do not establish causal drivers" in opening
     assert PROFESSIONAL_FALLBACK not in opening
+    assert "HISTORICAL REVENUE AND DISCLOSED STRATEGY" not in opening
+    assert "Management statement" not in opening
+    assert "Historical finding" not in opening
+    assert "Analyst inference" not in opening
+    assert "We open stores." not in opening
     assert "Schedules: " not in opening
     assert any(
         cell.hyperlink
         and "Revenue Driver Analysis" in str(getattr(cell.hyperlink, "target", "") or cell.hyperlink)
+        for row in overview.iter_rows()
+        for cell in row
+        if cell.hyperlink
+    )
+    assert any(
+        cell.hyperlink
+        and "Build Status" in str(getattr(cell.hyperlink, "target", "") or cell.hyperlink)
         for row in overview.iter_rows()
         for cell in row
         if cell.hyperlink
@@ -998,26 +1017,39 @@ def test_lululemon_ordinary_disclosures_test_admitted_history(tmp_path):
     opening = " ".join(
         str(cell.value or "") for row in overview.iter_rows() for cell in row
     )
-    assert "HISTORICAL REVENUE AND DISCLOSED STRATEGY" in opening
-    for disclosure in fixture.disclosures:
-        assert disclosure_locator(disclosure) in opening
-        if disclosure.role != ROLE_OBJECTIVE:
-            assert disclosure.text in opening
-    assert store.finding in opening
-    assert "exceeded revenue growth" in opening.lower()
-    assert "2026-02-01" in opening
-    assert "contributed negatively" in opening.lower()
-    assert "arithmetic decomposition" in opening.lower()
-    assert "not achieved historical outcomes" in opening
+    assert overview["A1"].value == "BAV"
+    assert "Historical reading" in opening
+    assert "Evidence limits" in opening
     assert "cannot test" in opening.lower() or "cannot be treated" in opening.lower()
     assert "audit-only" in opening.lower()
     assert DEFERRED_SPSF_LINK in opening
     assert "untested" in opening.lower()
     assert "do not establish causal drivers" in opening
+    assert "HISTORICAL REVENUE AND DISCLOSED STRATEGY" not in opening
+    assert "Management statement" not in opening
+    assert store.finding not in opening
     assert "Schedules: " not in opening
+    for disclosure in fixture.disclosures:
+        assert disclosure_locator(disclosure) in values
+        if disclosure.role != ROLE_OBJECTIVE:
+            assert disclosure.text in values
+        assert disclosure_locator(disclosure) not in opening
+    assert store.finding in values
+    assert "exceeded revenue growth" in values.lower()
+    assert "2026-02-01" in values
+    assert "contributed negatively" in values.lower()
+    assert "arithmetic decomposition" in values.lower()
+    assert "not achieved outcomes" in values
     for member in spsf_deferred[0].members:
         assert member.locator not in opening
         assert member.definition_text not in opening
+    assert any(
+        cell.hyperlink
+        and "Revenue Driver Analysis" in str(getattr(cell.hyperlink, "target", "") or cell.hyperlink)
+        for row in overview.iter_rows()
+        for cell in row
+        if cell.hyperlink
+    )
     _assert_readable_driver_layout(overview)
     awb.close()
     _assert_answer_key_no_yellow(answer)

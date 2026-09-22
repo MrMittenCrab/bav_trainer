@@ -19,6 +19,42 @@ def test_public_namespace_and_compatibility():
             assert command in result.stdout
 
 
+def test_public_help_is_bav_first_and_check_is_diagnostic():
+    def _help(*args):
+        result = subprocess.run(
+            [sys.executable, '-m', 'bav', *args],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+        return ' '.join(result.stdout.split())
+
+    top = _help('--help')
+    assert 'BAV Excel Trainer' not in top
+    assert 'BAV' in top
+    assert 'build' in top
+    assert 'check' in top
+    assert 'publish' in top
+
+    build = _help('build', '--help')
+    assert 'professional BAV' in build
+    assert 'Trainer generation' in build
+
+    check = _help('check', '--help')
+    assert 'Diagnose' in check
+    assert 'BAV' in check
+    assert 'without disclosing answers' in check
+    assert 'Trainer' in check
+    assert 'Validate every practice cell in a Trainer workbook' not in check
+
+    listing = _help('list', '--help')
+    assert 'analytical families' in listing
+    assert 'BAV' in listing
+    assert 'optional' in listing.lower()
+    assert 'Trainer' in listing
+
+
 def test_output_directory_uses_lowercase_slug(tmp_path, monkeypatch):
     from core import current_build
     from core.__main__ import main
@@ -107,15 +143,36 @@ def test_company_build_rebuild_failure_and_workbook_contract(tmp_path, monkeypat
     )
     for term in ('Trainer', 'Answer Key', 'exercise', 'practice', 'Check'):
         assert term not in opening
-    assert 'HISTORICAL REVENUE AND DISCLOSED STRATEGY' in opening
-    assert 'Management statement' in opening
-    assert 'Historical finding' in opening
-    assert 'Analyst inference' in opening
-    assert 'exceeded revenue growth' in opening.lower()
-    assert 'contributed negatively' in opening.lower()
-    assert 'audit-only' in opening.lower()
+    assert wb['Overview']['A1'].value == 'BAV'
+    assert 'lululemon athletica inc.' in opening
+    assert 'Historical coverage:' in opening
+    assert 'Units:' in opening
+    assert 'Historical reading' in opening
+    assert 'Evidence limits' in opening
     assert 'untested' in opening.lower()
+    assert 'do not establish causal drivers' in opening
+    assert 'audit-only' in opening.lower()
+    assert 'HISTORICAL REVENUE AND DISCLOSED STRATEGY' not in opening
+    assert 'Management statement' not in opening
+    assert 'Historical finding' not in opening
+    assert 'Analyst inference' not in opening
     assert 'Schedules: ' not in opening
+    links = {
+        str(getattr(cell.hyperlink, 'target', '') or cell.hyperlink)
+        for row in wb['Overview'].iter_rows()
+        for cell in row
+        if cell.hyperlink
+    }
+    assert any('Revenue Driver Analysis' in target for target in links)
+    assert any('Build Status' in target for target in links)
+    driver = ' '.join(
+        str(cell.value or '')
+        for row in wb['Revenue Driver Analysis'].iter_rows()
+        for cell in row
+    )
+    assert 'Management statement' in driver
+    assert 'exceeded revenue growth' in driver.lower()
+    assert 'contributed negatively' in driver.lower()
     for comp in smap.all_ordered():
         cell = wb[comp.tab][comp.cell]
         if is_operating_kpi_source_identity(comp):

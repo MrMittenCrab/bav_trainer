@@ -4059,3 +4059,112 @@ Saved copies `.git/autocycle/excel-verification-vm1b3wsq/saved-copy.xlsx` (`dbd8
 
 Not started. This bounded attempt does not begin the next implementation step.
 
+# RESULT.md — Step 7.4 BAV-first presentation and concise workbook front page
+
+**Status:** BLOCKED (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 7.4 — BAV-first presentation and concise workbook front page  
+**Work:** `4be4aef0dc274a529824d561b15b847e`  
+**Plan:** `7b0a10a42566441fbe106d0b2a9ab879`  
+**Finding:** BAV-first presentation and concise workbook front page  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `c3a9b136234e4dd4ef5d9e0bb3b88ed7ff7db10141a2e2b9bf530246e31e6aa5` (6353).  
+IMPLEMENTATION SHA-256 `04101c37d3593a3e96d2b9b873588138085b567dbdfd198f76dde5aa135b850d` (6525).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. HEAD / `IMPLEMENT_BASE_SHA` `b8ffef56c856866c780d553b5159100161eb72a7`.
+
+This append records the bounded Step 7.4 attempt. It does not rewrite prior ledger history, does not reserve future IDs, and does not certify migration acceptance or Session integration.
+
+## Required plan change
+
+None. Native Excel inspection of the changed opening is still required and was not available on this attempt.
+
+## Delivered scope
+
+- Public CLI help in `core/__main__.py` is BAV-first. Top-level description is `BAV — build, check, and publish source-grounded company analysis`. Build remains primary and states that Trainer generation is not required. Check describes diagnostic behavior for a built BAV and optional non-disclosing Trainer practice-cell validation. List names BAV analytical families and keeps Trainer wording for the optional practice surface. Publish help is unchanged.
+- README opening now names BAV as the product, supported companies **Lululemon** and **Fast Retailing**, and the workbook / research / figures / publication relationship. Optional Trainer instructions, company-name examples, repository/remote/infrastructure names and supported interfaces are retained. `# BAV — Hong Kong Edition` remains.
+- Overview remains the opening sheet. The professional front page is now a concise summary: **BAV** name, company identity, issuer fiscal coverage, currency/units, the existing synthesis lead (or Fast Retailing fallback), combined evidence limits, and selected schedule links plus Build Status. Per-theme management statements, findings and inferences were removed from the opening; they remain on Revenue Driver Analysis and in canonical Drivers research.
+- Aptos Narrow 11, black text, ordinary white cells and analytical-sheet formatting are unchanged. Publication rendering was not edited.
+
+## Unique content preservation (before shortening)
+
+| Content | Surviving surface |
+|---|---|
+| Company identity, FY labels, currency/units | Overview (unchanged literals) |
+| Synthesis lead | Overview Historical reading |
+| Limits, productivity gap, DEFERRED_SPSF_LINK, untested | Overview Evidence limits |
+| Management statements + locators, findings, verdicts, deferred SPSF members | Revenue Driver Analysis |
+| Availability / family status | Build Status (linked from Overview and G1 Current Progress) |
+| PROFESSIONAL_FALLBACK | Overview Historical reading when strategy synthesis does not apply |
+
+## Intended opening differences
+
+Lululemon Overview: 44 → 17 rows. Title `Business Analysis and Valuation` → `BAV`. Historical reading text is unchanged. Theme blocks and Source basis / Availability paragraphs are gone. Evidence limits now combine history-establishes, productivity-gap and untested text. Selected links: Revenue Driver Analysis, Store Count Analysis, Revenue per Store Analysis, Comparable Sales Analysis, Sales per Square Foot Analysis, Geographic Segment Analysis, Build Status.
+
+Fast Retailing Overview: 22 → 14 rows. Same BAV title and identity/coverage/units. Fallback is labeled Historical reading. Supporting schedules are the selected existing core sheets (Income Statement, Balance Sheet, Cash Flow Statement, Condensed Financials, ALT DuPont) plus Build Status, not the full visible sheet list.
+
+## Commands and measured results
+
+| Check | Measured result |
+|---|---|
+| Focused public help `test_public_help_is_bav_first_and_check_is_diagnostic` | **1 passed** — no `BAV Excel Trainer`; build primary; Check diagnostic + non-disclosing Trainer; list BAV families |
+| `test_publish_help_is_bav_first` | **1 passed** (unchanged) |
+| Opening / driver / fallback / Trainer-derive tests in `test_revenue_driver` + README framing | **26 passed** |
+| `test_current_build` + `test_build_cli` + `test_build_contract` + `test_research_drivers` + `test_publication` + `test_trainer` | **158 passed** |
+| `python -m bav build Lululemon` | **0** — no Trainer |
+| `python -m bav check Lululemon` | **0** — `Checked Lululemon output: .../Lululemon_BAV.xlsx` |
+| `python -m bav publish Lululemon` | **0** |
+| `python -m bav build FastRetailing` | **0** — no Trainer |
+| `python -m bav check FastRetailing` | **0** |
+| `python -m bav publish FastRetailing` | **1** — `No publishable canonical research`; names `FastRetailing_Drivers.md`; no Word/PDF written; no legacy fallback |
+| Forecast / Valuation / Overview research | **0 bytes** (`e3b0c442…`) |
+| `SEGMENT_BRIDGE_TOLERANCE` | **0.0** |
+| Lululemon semantic map vs pre-rebuild | **861 = 861** |
+| Fast Retailing semantic map vs pre-rebuild | **577 = 577** |
+| Workbook cell compare vs pre-rebuild | Formula **0**; analytical literal **0**; Notes **0**; fills **0**; analytical only-prior/current **0**. All diffs on Overview |
+| Publication vs pre-rebuild `_content_equal` | **True**. Word core/app fields []; PDF meta `creationDate`, `modDate`, `id` only |
+| Trainer emitted by company build | **no** |
+| Protected saved copies | unchanged: `vm1b3wsq` `dbd85c50…` (267180); `hrj5h672` `1f6921bf…` (269300) |
+
+Opening XML/layout (not native acceptance): Lululemon B6 wrap height 128 (624 chars); B8 wrap height 218 (1070 chars); Aptos Narrow 11 / black / white. Fast Retailing B6 wrap height 53 (198 chars). Valid hyperlinks on selected schedules and Build Status; G1 Current Progress → Build Status.
+
+## Native Excel
+
+**Not run.** Required readable-scale inspection of the changed opening was blocked by occupied Excel workbooks. AppleScript listed three open books; none were closed, overwritten or force-quit:
+
+- `.git/autocycle/excel-workbooks/abe47425be87411eb1fee0c2/autocycle-verification-abe47425be87411eb1fee0c2.xlsx` — the granted Lululemon verification path
+- `.git/autocycle/step-7-2-2-excel-inspect/inspect-copy.xlsx`
+- `.git/autocycle/excel-verification-hrj5h672/saved-copy.xlsx` — protected saved copy
+
+The helper was not invoked: updating the open granted Lululemon copy is forbidden, and Fast Retailing has no granted stable path (`442982a661f7f9afb9f3b814` absent). A new-path open is the previously diagnosed Grant Access / `-1712` timeout class. This step did not reset allowances or establish Excel recovery. Cached-value recalculation is not required: analytical formulas and dependencies are unchanged versus the pre-rebuild BAVs, so prior native cached-value evidence remains applicable only to those unchanged analytical surfaces. It does not accept the new opening.
+
+Publication visual evidence from Step 7.3.1 / 7.3.2 remains applicable: production rendering was not changed and `_content_equal` held.
+
+## Artifact hashes
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `build/output/lululemon/Lululemon_BAV.xlsx` | `8ee68f8ebe44c5330d51c24e4bf1c1acdd0d85801f7db13a7ca1c42213f1f00e` | 229454 |
+| `build/output/fast_retailing/FastRetailing_BAV.xlsx` | `2e98bb8ea4c682e7a28fd349b40e18028e04f3476c0f225ab6ff4a3413ba22bf` | 137763 |
+| `build/output/lululemon/Lululemon_BAV.docx` | `b6f917d6a787b277bba48d2cbc197c5b4f62d0971e6f3c7b2e7c381bf811ee3c` | 214179 |
+| `build/output/lululemon/Lululemon_BAV.pdf` | `dbd9ee0530acded8be0342ec693beec3307d8840cc08b0b4c7045491a97bda2d` | 252880 |
+| `research/Lululemon_Drivers.md` | `3cf67013afa03e049e1b64a794e84ced2c3533e6f16b906ed48f21fdc8ae5071` | 20922 |
+| `research/Lululemon_Forecast.md` / `_Valuation.md` / `_Overview.md` | `e3b0c442…` | 0 |
+| `figures/drivers/growth.png` | `dd4aae26…` | 63564 |
+| `figures/drivers/geography.png` | `7112d2d5…` | 51504 |
+| `figures/drivers/margin.png` | `e7ebe708…` | 62436 |
+| `STYLE.md` | `4360b24b…` | 1645 |
+| Pre-rebuild Lululemon BAV | `ac0fe74544da8958a5d87f83435effc2f74514efff305b861f4d2a520d4407da` | 231564 |
+| Pre-rebuild Fast Retailing BAV | `65f4f9efed2e54f89a4eb8701071bcaa2baeba70b0948ef5150979d4893fd092` | 138179 |
+
+## Remaining toward Completion
+
+- Native Microsoft Excel readable-scale inspection of the condensed Lululemon opening and Fast Retailing fallback, including wrapping, clipping and navigation. XML/openpyxl reads do not establish that acceptance.
+- Inherited migration acceptance remains unresolved. This presentation step does not certify it.
+- Final Session integration, earlier normalization, broader source-workflow and normalized-per-share obligations remain deferred.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+
+
