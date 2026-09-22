@@ -4512,4 +4512,142 @@ Canonical BAV hashes, `.autocycle.toml`, CLI/README/opening, Lululemon build/che
 
 Not started. This bounded attempt does not begin the next implementation step.
 
+# RESULT.md — Step 7.4.1 Repair controller active-document confirmation
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 7.4.1 — Repair controller active-document confirmation  
+**Work:** `4be4aef0dc274a529824d561b15b847e`  
+**Plan:** `5960e1030664428b9b8147b501d5b4cf`  
+**Finding:** BAV-first presentation and concise workbook front page  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `c3a9b136234e4dd4ef5d9e0bb3b88ed7ff7db10141a2e2b9bf530246e31e6aa5` (6353).  
+IMPLEMENTATION SHA-256 `28bdcdbdb032fafcec5bc469b8b836674c05e6dcd023c96348de67a276b5b8a3` (8119).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Library/Frameworks/Python.framework/Versions/3.14/bin/python3` **3.14**.
+
+This append records the continuation of work `4be4aef0dc274a529824d561b15b847e` from authenticated baseline `d362c0d96fc6f5c7b8f7f6bc77bcee447a398244`. It does not rewrite prior ledger history, does not replay receipts, does not revise product presentation, and does not certify native readability, migration acceptance or Session integration.
+
+## Required plan change
+
+None. Isolated confirmation coverage passed against a reviewable repair artifact. Controller installation and native re-validation remain an access gap for a later authorized recovery route.
+
+## Baseline authentication
+
+| Record | Value |
+|---|---|
+| Branch | `checkpoint/20260913-183303` |
+| HEAD / `resume-state` `IMPLEMENT_BASE_SHA` / `PLAN_SHA` | `d362c0d96fc6f5c7b8f7f6bc77bcee447a398244` |
+| `implementation-baseline.json` `head` | `d362c0d96fc6f5c7b8f7f6bc77bcee447a398244` |
+| Work-state `7.4.1` | `opened`, work `4be4aef0dc274a529824d561b15b847e`, source `d362c0d9…` |
+| Bound running attempt | `8f6ecc6d18d544969f584b6ead7fdc3d`, plan `d362c0d9…` |
+| Reviewed checkpoint (not substituted) | `1140cf8166ce0c44c78fba1ee70ea78d56b08dcd`; direct parent `72f83b0c21e26288e51e119f011bfa2d8a8cf7ab` |
+| Ancestry | `72f83b0c` → `1140cf81` → `d362c0d9` (HEAD) |
+| `latest-implementation` | prior HEAD `72f83b0c…`, `BLOCKED_CANDIDATE` (not used as this baseline) |
+
+Git `rev-parse` via the provider shell was permission-blocked. Authentication used populated `IMPLEMENT_BASE_SHA`, `.git/HEAD`, `refs/heads/checkpoint/20260913-183303`, `.git/logs/HEAD`, `implementation-baseline.json` and work-state. Binding established. Native verify remains attempt **1 of 2**. Product files were not mutated.
+
+## Diagnosis
+
+Installed and maintained helpers are byte-identical: `/Users/lizhiguo/.autocycle/native_office.py` and `/Users/lizhiguo/Documents/Developer/autocycle/native_office.py` SHA-256 `4d01663767eb60e66ef27e2d959c86a85dada88171a016ab4522203e6b3f25dd` (30428).
+
+Open-return ownership is unchanged: `open()` keeps the returned specifier only when it equals `workbook "excel-view.xlsx" of application "Microsoft Excel"` and a fresh lock exists. `position()` then `activate`s Excel, `activate object window 1 of targetDoc`, sets bounds/sheet/goto/zoom/scroll and returns `POSITIONED`. All four receipts fail later, in `confirm_view`, with `275:303: execution error: Unexpected active document (-2700)`.
+
+Current check:
+
+`if active workbook is not targetDoc then error "Unexpected active document"`
+
+That is AppleScript object-specifier equality, not path identity. `targetDoc` is rebound from the stored name specifier; `active workbook` is a different specifier form. Error `-2700` is the explicit `error` statement, not an Office object-not-found code.
+
+Supported hypothesis: specifier comparison rejects the owned slot after a successful position. The receipts do not record expected vs observed identity, so an actually different active workbook remains possible and is treated as a fail-closed case, not as acceptance. Filename-only equality would not distinguish those cases.
+
+Native live identity query was not run: it would require occupying the fixed view slot or reading unrelated workbooks. Isolated source/receipt inspection plus the 21 mocked regressions below are the measured diagnosis. No product or historical workbook was opened.
+
+## Repair artifact (not installed)
+
+`automation/autocycle-fixes/active-document-confirmation.patch` SHA-256 `510f4c93a10e52785382f381201494573d566926db0e5307a0dffe6f04f39541` (3480).
+
+Patched `confirm_view` (applied only to a temporary copy for tests):
+
+- Reads `POSIX path of ((full name of targetDoc) as text)` and of `active workbook` / `active document`.
+- Identity-query errors are re-raised (`Active document identity unavailable (N): …`); they are not swallowed.
+- `MacOffice.confirm_owned_identity` accepts only when expected path equals the owned slot path and observed equals expected.
+- Rejects blank/ambiguous identity, a different document, and same-name/different-path.
+- Records `expected:` and `observed:` in the error.
+- Preserves worksheet confirmation, Word selection confirmation, `find()` / open-return ownership, lock checks, frontmost restore and fail-closed slot lifecycle.
+
+Repaired helper text SHA-256 `0db3faee10b0afa3775575ec4197b75cab281f95d4d7c570230b708a9cdb1c5d` (32063). Installed runtime remains `4d016637…` (30428).
+
+No activation retry was added. Position already succeeded on `targetDoc`; a retry would need native identity evidence and would consume the existing 12s script timeout.
+
+## Isolated regressions
+
+`PYTHONDONTWRITEBYTECODE=1 python3 automation/autocycle-fixes/test_active_document_confirmation.py`
+
+**21 passed** in 0.128s. No Office automation, no `process`, no screenshot, no slot population.
+
+| Case | Result |
+|---|---|
+| Installed/maintained still use specifier `is not targetDoc` | pass (diagnosis) |
+| Repair removes specifier equality; Word worksheet/selection/open-return/lock text preserved | pass |
+| Owned matching POSIX paths accepted | pass |
+| Different document rejected with expected/observed | pass |
+| Same-name/different-path rejected both as observed and as owned-path mismatch | pass |
+| Filename-only equality rejected | pass |
+| Blank/None/whitespace identity rejected | pass |
+| Owned Excel/Word `confirm_view` returns bounds; generated script uses POSIX paths | pass |
+| Different document / same-name decoy / malformed reply / identity `-50` / lost ownership never return bounds | pass |
+| `Workspace.view`: owned identity reaches capture; other cases never call `capture` | pass |
+| Word owned identity still reaches capture | pass |
+
+These results do **not** accept native Excel confirmation or readability.
+
+## Deployment status
+
+| Check | Measured result |
+|---|---|
+| Live controller | PID **83448** `/bin/bash /Users/lizhiguo/bin/autocycle --resume` |
+| `install.py` `assert_stopped()` | would refuse; provider did not stop or restart the controller |
+| Installed helper after this attempt | unchanged `4d016637…` |
+| Maintained source | unchanged `4d016637…` |
+| `native_office.py process` | **not invoked** |
+| Replacement requests | **none** |
+
+Concrete access gap: the existing installer requires a stopped controller and writes outside this repository. This provider may not impersonate or restart AutoCycle. The patch remains the reviewable repair.
+
+## Preserved evidence (unchanged)
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `.git/autocycle/step-7-4/view-request-binding.json` | `e600629fa053aafe43cf798bf0ae4bcb83c19357995dfe23e99f4b4320a4bfb7` | 2097 |
+| receipt `73e7db8abfa642dc87594e39766ac9e2` | `a01899c718df370f5413473450950a27ee77d5459ffe95bbd6f6929aab85c5e9` | 1099 |
+| receipt `2b5bdffeb0084d68a7a4241368cb1913` | `32deee759395dcb5ae9377558ea23605f3de13259e961ad703c1dfbb8bd6c393` | 1100 |
+| receipt `a847e8e081dd4f0da24f1ed46f00e66e` | `377e80cd7db2eef5c64100f048a270a8bff553e3428c03e9882b99ffe9edac68` | 1117 |
+| receipt `6ebdbae0c7e444a9ab8fc3c7343ce2a3` | `196647224b255532ad4bf6056222bcbcd49478277191365fa62030a76dc857c1` | 1118 |
+| `build/output/lululemon/Lululemon_BAV.xlsx` | `8ee68f8ebe44c5330d51c24e4bf1c1acdd0d85801f7db13a7ca1c42213f1f00e` | 229454 |
+| `build/output/fast_retailing/FastRetailing_BAV.xlsx` | `2e98bb8ea4c682e7a28fd349b40e18028e04f3476c0f225ab6ff4a3413ba22bf` | 137763 |
+| `verify-4aualryy/saved-copy.xlsx` | `cc470dee425731c79945e8179112c668e6c657f60e602c4879872c27c3e2d126` | 266960 |
+| `verify-3symu378/saved-copy.xlsx` | `c4951f0c48f6ad7910244ea78c281544bea928e191eb9abf5d382eb988ba90bb` | 174602 |
+
+Original requests, receipts and referenced evidence were not rewritten. Successful native-save verification was not repeated. Native verify remains **1 of 2**.
+
+## Native readability and capture
+
+**Not performed.** Isolated regression success is not native validation. All four 125% Overview inspections remain outstanding. Subsequent production capture requires Review to establish an authorized recovery route; this attempt did not queue replacements or invoke `process`.
+
+## Carry-forward (unchanged files)
+
+Canonical BAV hashes, `.autocycle.toml`, CLI/README/opening, Lululemon build/check/publish, Fast Retailing build/check, Fast Retailing `No publishable canonical research` diagnostic, analytical formula/literal **0**, and publication `_content_equal` remain applicable to those unchanged surfaces. They still do not accept native opening readability.
+
+## Remaining toward Completion
+
+- Installed controller still uses specifier equality; the repair is not deployed. Native confirmation of the patched identity check is untested.
+- Four original receipts remain `BLOCKED` `-2700` without images. Readability (wrapping, clipping, concise presentation, company identity, fiscal coverage, currency/units, historical reading, evidence limits, supporting-schedule navigation including Build Status and Fast Retailing fallback) is still uninspected in native Excel.
+- Inherited migration acceptance remains unresolved. Opening verification does not certify it.
+- Final Session integration, earlier normalization, broader source-workflow and normalized-per-share obligations remain deferred.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+
 

@@ -1,0 +1,54 @@
+--- a/native_office.py
++++ b/native_office.py
+@@ -205,18 +205,51 @@ class MacOffice:
+         self.script(app, self.find(app, path, action+'\nreturn "POSITIONED"')+'\nerror "Fixed slot is not open"', *args)
+         return bounds
+ 
++    @staticmethod
++    def confirm_owned_identity(path, expected, observed):
++        # Full POSIX paths only. Filename equality is not identity: the same
++        # basename at another location, a blank reading, or a specifier-only
++        # match must not reach capture.
++        slot = str(Path(path))
++        expected = (expected or '').strip()
++        observed = (observed or '').strip()
++        if not expected or not observed:
++            raise NativeError('Active document identity unavailable expected:'+expected+' observed:'+observed,'native_capture')
++        if expected != slot:
++            raise NativeError('Owned document path mismatch expected:'+slot+' observed:'+expected,'native_capture')
++        if observed != expected:
++            raise NativeError('Unexpected active document expected:'+expected+' observed:'+observed,'native_capture')
++
+     def confirm_view(self, app, path, request):
+         active = 'active workbook' if app == 'excel' else 'active document'
+-        check = f'if {active} is not targetDoc then error "Unexpected active document"\n'
++        # Compare POSIX paths, not AppleScript object specifiers. Excel's
++        # `active workbook is not targetDoc` raises -2700 even when both
++        # refer to the owned slot because the specifiers are distinct.
++        check = (
++            'try\n'
++            'set expectedId to POSIX path of ((full name of targetDoc) as text)\n'
++            'set observedId to POSIX path of ((full name of '+active+') as text)\n'
++            'on error errMsg number errNum\n'
++            'error "Active document identity unavailable (" & errNum & "): " & errMsg\n'
++            'end try\n'
++        )
+         args = (path,)
+         if app == 'excel':
+             check += 'if (name of active sheet of targetDoc) is not (item 2 of argv) then error "Unexpected worksheet"\n'
+             args += (request['worksheet'],)
+         else:
+             check += f'if selection start of selection of window 1 of targetDoc is not {request.get("start", 0)} then error "Unexpected Word selection"\n'
+-        check += 'set rect to bounds of window 1 of targetDoc\nreturn (item 1 of rect as text) & "," & (item 2 of rect as text) & "," & (item 3 of rect as text) & "," & (item 4 of rect as text)'
++        check += 'set rect to bounds of window 1 of targetDoc\nreturn expectedId & tab & observedId & tab & (item 1 of rect as text) & "," & (item 2 of rect as text) & "," & (item 3 of rect as text) & "," & (item 4 of rect as text)'
+         result = self.script(app, self.find(app, path, check)+'\nerror "Fixed slot is not open"', *args)
+-        return [int(float(n)) for n in result.split(',')]
++        parts = result.split('\t')
++        if len(parts) != 3:
++            raise NativeError('Active document identity unavailable: malformed identity reply','native_capture')
++        self.confirm_owned_identity(path, parts[0], parts[1])
++        return [int(float(n)) for n in parts[2].split(',')]
+ 
+     def capture(self, path, bounds):
+         left, top, right, bottom = bounds
+         subprocess.run(['/usr/sbin/screencapture', '-x', '-t', 'png', '-R'+','.join(map(str,(left,top,right-left,bottom-top))), str(path)], check=True, capture_output=True, timeout=15)

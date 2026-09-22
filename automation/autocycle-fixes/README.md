@@ -53,3 +53,26 @@ for measured same-path reuse, per-file Grant Access, and prior-edit disposition.
 reviewed AutoCycle source changes relative to the pre-diagnosis working tree;
 it does not replace unrelated AutoCycle work. The existing installer runs the
 full mocked suite and backs up the installed runtime before updating it.
+
+## Active-document confirmation
+
+All four Step 7.4 captures failed in `confirm_view` with
+`Unexpected active document (-2700)` after a successful position of the owned
+slot. The installed helper compares AppleScript object specifiers
+(`active workbook is not targetDoc`). That comparison is not path identity and
+can fail for the owned `excel-view.xlsx` slot.
+
+[active-document-confirmation.patch](active-document-confirmation.patch)
+replaces specifier equality with POSIX-path identity, records expected and
+observed paths, and rejects blank, same-name/different-path and lost-ownership
+cases. Worksheet, Word selection, open-return ownership and lock checks stay
+unchanged. Isolated regressions (no Office, no capture):
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 automation/autocycle-fixes/test_active_document_confirmation.py
+```
+
+The patch is a reviewable repair artifact. `install.py` refuses while a live
+`autocycle --resume` process is running; this provider does not stop or
+restart the controller. Subsequent production capture still requires Review
+to authorize a recovery route.
