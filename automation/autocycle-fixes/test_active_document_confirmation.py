@@ -1,7 +1,12 @@
-"""Isolated active-document confirmation regressions. Never drive Office or capture."""
+"""Isolated confirmation and identity-reply serialization regressions.
 
+Never drive Office, occupy slots, capture, or invoke process.
+"""
+
+import hashlib
 import importlib.util
 import struct
+import subprocess
 import tempfile
 import unittest
 import zlib
@@ -9,72 +14,47 @@ from pathlib import Path
 
 INSTALLED = Path('/Users/lizhiguo/.autocycle/native_office.py')
 MAINTAINED = Path('/Users/lizhiguo/Documents/Developer/autocycle/native_office.py')
-PATCH = Path(__file__).with_name('active-document-confirmation.patch')
+SPECIFIER_PATCH = Path(__file__).with_name('active-document-confirmation.patch')
+SERIALIZATION_PATCH = Path(__file__).with_name('identity-reply-serialization.patch')
+RECORDED_RUNTIME_SHA256 = '0db3faee10b0afa3775575ec4197b75cab281f95d4d7c570230b708a9cdb1c5d'
 
-DEFECTIVE_CHECK = 'if {active} is not targetDoc then error "Unexpected active document"'
+DEFECTIVE_SPECIFIER = 'if {active} is not targetDoc then error "Unexpected active document"'
+DEFECTIVE_TAB_RETURN = 'return expectedId & tab & observedId & tab &'
+QUOTED_SENTINEL_RETURN = 'return expectedId & "\'+sep+\'" & observedId & "\'+sep+\'" &'
 
-OLD_CONFIRM = '''    def confirm_view(self, app, path, request):
-        active = 'active workbook' if app == 'excel' else 'active document'
-        check = f'if {active} is not targetDoc then error "Unexpected active document"\\n'
-        args = (path,)
-        if app == 'excel':
-            check += 'if (name of active sheet of targetDoc) is not (item 2 of argv) then error "Unexpected worksheet"\\n'
-            args += (request['worksheet'],)
-        else:
-            check += f'if selection start of selection of window 1 of targetDoc is not {request.get("start", 0)} then error "Unexpected Word selection"\\n'
-        check += 'set rect to bounds of window 1 of targetDoc\\nreturn (item 1 of rect as text) & "," & (item 2 of rect as text) & "," & (item 3 of rect as text) & "," & (item 4 of rect as text)'
-        result = self.script(app, self.find(app, path, check)+'\\nerror "Fixed slot is not open"', *args)
-        return [int(float(n)) for n in result.split(',')]
-'''
 
-NEW_CONFIRM = '''    @staticmethod
-    def confirm_owned_identity(path, expected, observed):
-        # Full POSIX paths only. Filename equality is not identity: the same
-        # basename at another location, a blank reading, or a specifier-only
-        # match must not reach capture.
-        slot = str(Path(path))
-        expected = (expected or '').strip()
-        observed = (observed or '').strip()
-        if not expected or not observed:
-            raise NativeError('Active document identity unavailable expected:'+expected+' observed:'+observed,'native_capture')
-        if expected != slot:
-            raise NativeError('Owned document path mismatch expected:'+slot+' observed:'+expected,'native_capture')
-        if observed != expected:
-            raise NativeError('Unexpected active document expected:'+expected+' observed:'+observed,'native_capture')
-
-    def confirm_view(self, app, path, request):
-        active = 'active workbook' if app == 'excel' else 'active document'
-        # Compare POSIX paths, not AppleScript object specifiers. Excel's
-        # `active workbook is not targetDoc` raises -2700 even when both
-        # refer to the owned slot because the specifiers are distinct.
-        check = (
-            'try\\n'
-            'set expectedId to POSIX path of ((full name of targetDoc) as text)\\n'
-            'set observedId to POSIX path of ((full name of '+active+') as text)\\n'
-            'on error errMsg number errNum\\n'
-            'error "Active document identity unavailable (" & errNum & "): " & errMsg\\n'
-            'end try\\n'
-        )
-        args = (path,)
-        if app == 'excel':
-            check += 'if (name of active sheet of targetDoc) is not (item 2 of argv) then error "Unexpected worksheet"\\n'
-            args += (request['worksheet'],)
-        else:
-            check += f'if selection start of selection of window 1 of targetDoc is not {request.get("start", 0)} then error "Unexpected Word selection"\\n'
-        check += 'set rect to bounds of window 1 of targetDoc\\nreturn expectedId & tab & observedId & tab & (item 1 of rect as text) & "," & (item 2 of rect as text) & "," & (item 3 of rect as text) & "," & (item 4 of rect as text)'
-        result = self.script(app, self.find(app, path, check)+'\\nerror "Fixed slot is not open"', *args)
-        parts = result.split('\\t')
-        if len(parts) != 3:
-            raise NativeError('Active document identity unavailable: malformed identity reply','native_capture')
-        self.confirm_owned_identity(path, parts[0], parts[1])
-        return [int(float(n)) for n in parts[2].split(',')]
-'''
+def sha256(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 def apply_repair(source):
-    if OLD_CONFIRM not in source:
-        raise AssertionError('Installed confirm_view does not match the diagnosed defect')
-    return source.replace(OLD_CONFIRM, NEW_CONFIRM, 1)
+    if DEFECTIVE_SPECIFIER in source:
+        raise AssertionError('Installed runtime unexpectedly still uses specifier equality')
+    if DEFECTIVE_TAB_RETURN not in source:
+        raise AssertionError('Installed confirm_view does not match the diagnosed tab delimiter')
+    patched = source
+    for old, new in _repair_replacements():
+        if old not in patched:
+            raise AssertionError('Installed confirm_view does not match a serialization replacement')
+        patched = patched.replace(old, new, 1)
+    return patched
+
+
+def _repair_replacements():
+    return (
+        (
+            "    @staticmethod\n    def confirm_owned_identity(path, expected, observed):\n",
+            "    IDENTITY_REPLY_SEP = '<<AC>>'\n\n    @staticmethod\n    def confirm_owned_identity(path, expected, observed):\n",
+        ),
+        (
+            "            raise NativeError('Unexpected active document expected:'+expected+' observed:'+observed,'native_capture')\n\n    def confirm_view(self, app, path, request):\n",
+            "            raise NativeError('Unexpected active document expected:'+expected+' observed:'+observed,'native_capture')\n\n    @staticmethod\n    def parse_identity_reply(result):\n        # Quoted sentinel, not AppleScript tab. Excel's dictionary defines\n        # class tab (Xtab); inside tell Excel that identifier is not ASCII 9.\n        parts = (result or '').split(MacOffice.IDENTITY_REPLY_SEP)\n        if len(parts) != 3:\n            raise NativeError('Active document identity unavailable: malformed identity reply','native_capture')\n        return parts\n\n    def confirm_view(self, app, path, request):\n",
+        ),
+        (
+            "        check += 'set rect to bounds of window 1 of targetDoc\\nreturn expectedId & tab & observedId & tab & (item 1 of rect as text) & \",\" & (item 2 of rect as text) & \",\" & (item 3 of rect as text) & \",\" & (item 4 of rect as text)'\n        result = self.script(app, self.find(app, path, check)+'\\nerror \"Fixed slot is not open\"', *args)\n        parts = result.split('\\t')\n        if len(parts) != 3:\n            raise NativeError('Active document identity unavailable: malformed identity reply','native_capture')\n",
+            "        sep = self.IDENTITY_REPLY_SEP\n        check += 'set rect to bounds of window 1 of targetDoc\\nreturn expectedId & \"'+sep+'\" & observedId & \"'+sep+'\" & (item 1 of rect as text) & \",\" & (item 2 of rect as text) & \",\" & (item 3 of rect as text) & \",\" & (item 4 of rect as text)'\n        result = self.script(app, self.find(app, path, check)+'\\nerror \"Fixed slot is not open\"', *args)\n        parts = self.parse_identity_reply(result)\n",
+        ),
+    )
 
 
 def load_repaired():
@@ -87,6 +67,18 @@ def load_repaired():
     spec.loader.exec_module(module)
     module._keep_tmp = tmp
     return module
+
+
+def osascript_strip(code, *args):
+    result = subprocess.run(
+        ['/usr/bin/osascript', '-e', code, '--', *map(str, args)],
+        capture_output=True,
+        text=True,
+        timeout=8,
+    )
+    if result.returncode:
+        raise RuntimeError((result.stderr or result.stdout).strip() or 'osascript failed')
+    return result.stdout.strip()
 
 
 def png(path):
@@ -102,19 +94,30 @@ def png(path):
 
 
 class DiagnosisTests(unittest.TestCase):
-    def test_installed_and_maintained_still_use_specifier_equality(self):
+    def test_installed_runtime_matches_recorded_specifier_repair(self):
         installed = INSTALLED.read_text()
         maintained = MAINTAINED.read_text()
         self.assertEqual(installed, maintained)
-        self.assertIn(DEFECTIVE_CHECK, installed)
-        confirm = installed.split('def confirm_view', 1)[1].split('def capture', 1)[0]
-        self.assertNotIn('POSIX path of ((full name of', confirm)
-        self.assertIn(DEFECTIVE_CHECK, PATCH.read_text())
+        self.assertEqual(sha256(INSTALLED), RECORDED_RUNTIME_SHA256)
+        self.assertEqual(sha256(MAINTAINED), RECORDED_RUNTIME_SHA256)
+        self.assertNotIn(DEFECTIVE_SPECIFIER, installed)
+        self.assertIn('POSIX path of ((full name of targetDoc) as text)', installed)
+        self.assertIn('def confirm_owned_identity', installed)
+        self.assertIn(DEFECTIVE_TAB_RETURN, installed)
+        self.assertIn("parts = result.split('\\t')", installed)
+        self.assertNotIn("IDENTITY_REPLY_SEP = '<<AC>>'", installed)
+        self.assertIn(DEFECTIVE_SPECIFIER, SPECIFIER_PATCH.read_text())
+        self.assertIn(DEFECTIVE_TAB_RETURN, SERIALIZATION_PATCH.read_text())
 
-    def test_repair_removes_specifier_equality_and_keeps_shared_word_checks(self):
+    def test_repair_replaces_tab_delimiter_and_keeps_specifier_protections(self):
         repaired = apply_repair(INSTALLED.read_text())
         confirm = repaired.split('def confirm_view', 1)[1].split('def capture', 1)[0]
-        self.assertNotIn(DEFECTIVE_CHECK, confirm)
+        self.assertNotIn(DEFECTIVE_SPECIFIER, confirm)
+        self.assertNotIn(DEFECTIVE_TAB_RETURN, confirm)
+        self.assertNotIn("result.split('\\t')", confirm)
+        self.assertIn(QUOTED_SENTINEL_RETURN, confirm)
+        self.assertIn("IDENTITY_REPLY_SEP = '<<AC>>'", repaired)
+        self.assertIn('def parse_identity_reply', repaired)
         self.assertIn('POSIX path of ((full name of targetDoc)', confirm)
         self.assertIn("POSIX path of ((full name of '+active+') as text)", confirm)
         self.assertIn("active = 'active workbook' if app == 'excel' else 'active document'", confirm)
@@ -123,9 +126,7 @@ class DiagnosisTests(unittest.TestCase):
         self.assertIn('name of active sheet of targetDoc', confirm)
         self.assertIn('selection start of selection of window 1 of targetDoc', confirm)
         self.assertIn('Fixed slot is not open', confirm)
-        self.assertNotIn('if active workbook is not targetDoc', confirm)
         self.assertIn('def confirm_owned_identity', repaired)
-        # Ownership / lock / open-return path is unchanged.
         self.assertIn('Office open did not return the fixed slot reference and a fresh lock', repaired)
         self.assertIn('Fixed slot ownership changed; refusing to control another document', repaired)
 
@@ -185,6 +186,7 @@ class ConfirmViewTests(unittest.TestCase):
         self.backend = self.office.MacOffice()
         self.bodies = []
         self.backend.is_open = lambda app, path: (app, str(path)) in self.backend.opened
+        self.sep = self.office.MacOffice.IDENTITY_REPLY_SEP
 
     def _own(self, app, path):
         self.backend.opened[(app, str(path))] = (self.backend.reference(app, path), ('lock',))
@@ -194,7 +196,7 @@ class ConfirmViewTests(unittest.TestCase):
             self.bodies.append(body)
             if error:
                 raise self.office.NativeError(error, 'native_capture')
-            return expected + '\t' + observed + '\t' + rect
+            return expected + self.sep + observed + self.sep + rect
         self.backend.script = script
 
     def test_owned_excel_document_returns_bounds(self):
@@ -205,6 +207,8 @@ class ConfirmViewTests(unittest.TestCase):
         body = self.bodies[-1]
         self.assertIn('full name of active workbook', body)
         self.assertNotIn('is not targetDoc', body)
+        self.assertNotIn('& tab &', body)
+        self.assertIn(f'& "{self.sep}" &', body)
         self.assertIn('Unexpected worksheet', body)
         self.assertIn('set targetDoc to workbook "excel-view.xlsx"', body)
 
@@ -218,6 +222,8 @@ class ConfirmViewTests(unittest.TestCase):
         self.assertIn('Unexpected Word selection', body)
         self.assertNotIn('active workbook', body)
         self.assertNotIn('is not targetDoc', body)
+        self.assertNotIn('& tab &', body)
+        self.assertIn(f'& "{self.sep}" &', body)
 
     def test_different_document_does_not_return_bounds(self):
         self._own('excel', self.slot)
@@ -248,6 +254,13 @@ class ConfirmViewTests(unittest.TestCase):
             self.backend.confirm_view('excel', self.slot, {'worksheet': 'Overview'})
         self.assertIn('malformed identity reply', str(raised.exception))
 
+    def test_tab_separated_legacy_reply_is_not_accepted(self):
+        self._own('excel', self.slot)
+        self.backend.script = lambda *a, **k: str(self.slot) + '\t' + str(self.slot) + '\t40,40,800,600'
+        with self.assertRaises(self.office.NativeError) as raised:
+            self.backend.confirm_view('excel', self.slot, {'worksheet': 'Overview'})
+        self.assertIn('malformed identity reply', str(raised.exception))
+
     def test_lost_ownership_never_queries_identity(self):
         self._script(str(self.slot), str(self.slot))
         with self.assertRaises(self.office.NativeError) as raised:
@@ -264,8 +277,9 @@ class CaptureBoundaryTests(unittest.TestCase):
         self.root = Path(self.tmp.name)
         self.source = self.root / 'source.xlsx'
         self.source.write_bytes(b'authoritative')
+        self.sep = self.office.MacOffice.IDENTITY_REPLY_SEP
 
-    def _workspace(self, expected=None, observed=None, drop_ownership=False, identity_error=None):
+    def _workspace(self, expected=None, observed=None, drop_ownership=False, identity_error=None, raw_reply=None):
         backend = self.office.MacOffice()
         backend.events = []
         slot_holder = {}
@@ -289,10 +303,12 @@ class CaptureBoundaryTests(unittest.TestCase):
             backend.events.append(('script', body))
             if identity_error:
                 raise self.office.NativeError(identity_error, 'native_capture')
+            if raw_reply is not None:
+                return raw_reply
             path = slot_holder['path']
             exp = str(path) if expected is None else expected
             obs = str(path) if observed is None else observed
-            return exp + '\t' + obs + '\t40,40,800,600'
+            return exp + self.sep + obs + self.sep + '40,40,800,600'
 
         def capture(path, bounds):
             backend.events.append(('capture', path, bounds))
@@ -337,6 +353,13 @@ class CaptureBoundaryTests(unittest.TestCase):
         self.assertEqual(result['status'], 'BLOCKED', result)
         self.assertFalse(any(e[0] == 'capture' for e in backend.events))
 
+    def test_wrong_owned_slot_path_never_reaches_capture(self):
+        ws, backend = self._workspace(expected='/tmp/other/excel-view.xlsx', observed='/tmp/other/excel-view.xlsx')
+        result = ws.view(self._request())
+        self.assertEqual(result['status'], 'BLOCKED', result)
+        self.assertFalse(any(e[0] == 'capture' for e in backend.events))
+        self.assertIn('Owned document path mismatch', result['action'])
+
     def test_ambiguous_identity_never_reaches_capture(self):
         ws, backend = self._workspace(expected='', observed='/tmp/autocycle-office/excel-view.xlsx')
         result = ws.view(self._request())
@@ -357,6 +380,13 @@ class CaptureBoundaryTests(unittest.TestCase):
         self.assertEqual(result['status'], 'BLOCKED', result)
         self.assertFalse(any(e[0] == 'capture' for e in backend.events))
 
+    def test_malformed_reply_never_reaches_capture(self):
+        ws, backend = self._workspace(raw_reply='40,40,800,600')
+        result = ws.view(self._request())
+        self.assertEqual(result['status'], 'BLOCKED', result)
+        self.assertFalse(any(e[0] == 'capture' for e in backend.events))
+        self.assertIn('malformed identity reply', result['action'])
+
     def test_word_owned_identity_still_reaches_capture(self):
         source = self.root / 'source.docx'
         source.write_bytes(b'authoritative')
@@ -369,6 +399,185 @@ class CaptureBoundaryTests(unittest.TestCase):
         })
         self.assertEqual(result['status'], 'CAPTURED', result)
         self.assertTrue(any(e[0] == 'capture' for e in backend.events))
+
+
+class TransportTests(unittest.TestCase):
+    """Real osascript producer/consumer boundary. No Office tell block."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.office = load_repaired()
+        cls.sep = cls.office.MacOffice.IDENTITY_REPLY_SEP
+        cls.slot = '/tmp/autocycle-office/excel-view.xlsx'
+        cls.bounds = '40,40,1320,1000'
+
+    def _return_code(self, join_expr, expected=None, observed=None, rect=None):
+        expected = self.slot if expected is None else expected
+        observed = self.slot if observed is None else observed
+        rect = self.bounds if rect is None else rect
+        code = (
+            'on run argv\n'
+            'set expectedId to item 1 of argv\n'
+            'set observedId to item 2 of argv\n'
+            'set rectText to item 3 of argv\n'
+            'return '+join_expr+'\n'
+            'end run'
+        )
+        return osascript_strip(code, expected, observed, rect)
+
+    def test_unshadowed_tab_survives_osascript_but_repaired_parser_rejects_it(self):
+        reply = self._return_code('expectedId & tab & observedId & tab & rectText')
+        self.assertEqual(reply.split('\t'), [self.slot, self.slot, self.bounds])
+        with self.assertRaises(self.office.NativeError) as raised:
+            self.office.MacOffice.parse_identity_reply(reply)
+        self.assertIn('malformed identity reply', str(raised.exception))
+
+    def test_excel_xtab_class_reply_is_the_receipt_failure(self):
+        reply = self._return_code('expectedId & «class Xtab» & observedId & «class Xtab» & rectText')
+        self.assertNotIn('\t', reply)
+        self.assertIn('«class Xtab»', reply)
+        self.assertEqual(len(reply.split(self.sep)), 1)
+        with self.assertRaises(self.office.NativeError) as raised:
+            self.office.MacOffice.parse_identity_reply(reply)
+        self.assertEqual(str(raised.exception), 'Active document identity unavailable: malformed identity reply')
+
+    def test_quoted_sentinel_survives_osascript_strip_and_parse(self):
+        join = 'expectedId & "'+self.sep+'" & observedId & "'+self.sep+'" & rectText'
+        reply = self._return_code(join)
+        parts = self.office.MacOffice.parse_identity_reply(reply)
+        self.assertEqual(parts, [self.slot, self.slot, self.bounds])
+        self.office.MacOffice.confirm_owned_identity(self.slot, parts[0], parts[1])
+        self.assertEqual([int(float(n)) for n in parts[2].split(',')], [40, 40, 1320, 1000])
+
+    def test_script_wrapper_shape_preserves_sentinel_without_office_tell(self):
+        code = (
+            'on run argv\n'
+            'set slotPath to item 1 of argv\n'
+            'with timeout of 12 seconds\n'
+            'return slotPath & "'+self.sep+'" & slotPath & "'+self.sep+'" & "40,40,1320,1000"\n'
+            'end timeout\n'
+            'end run'
+        )
+        reply = osascript_strip(code, self.slot)
+        parts = self.office.MacOffice.parse_identity_reply(reply)
+        self.assertEqual(parts[0], self.slot)
+        self.assertEqual(parts[1], self.slot)
+        self.assertEqual(parts[2], self.bounds)
+
+    def test_missing_malformed_and_ambiguous_replies_fail_closed(self):
+        parser = self.office.MacOffice.parse_identity_reply
+        cases = (
+            '',
+            self.bounds,
+            self.slot,
+            self.slot + self.sep + self.slot,
+            self.slot + self.sep + self.slot + self.sep + self.bounds + self.sep + 'extra',
+            self.slot + '\t' + self.slot + '\t' + self.bounds,
+            self.slot + '«class Xtab»' + self.slot + '«class Xtab»' + self.bounds,
+        )
+        for reply in cases:
+            with self.subTest(reply=reply):
+                with self.assertRaises(self.office.NativeError) as raised:
+                    parser(reply)
+                self.assertIn('malformed identity reply', str(raised.exception))
+
+    def test_confirm_view_uses_real_osascript_transport(self):
+        office = load_repaired()
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        slot = Path(tmp.name) / 'excel-view.xlsx'
+        slot.write_bytes(b'slot')
+        backend = office.MacOffice()
+        backend.opened[('excel', str(slot))] = (backend.reference('excel', slot), ('lock',))
+        backend.is_open = lambda app, path: (app, str(path)) in backend.opened
+        bodies = []
+        sep = office.MacOffice.IDENTITY_REPLY_SEP
+
+        def script(app, body, *args, **kwargs):
+            bodies.append(body)
+            self.assertIn(f'& "{sep}" &', body)
+            self.assertNotIn('& tab &', body)
+            code = (
+                'on run argv\n'
+                'return (item 1 of argv) & "'+sep+'" & (item 2 of argv) & "'+sep+'" & (item 3 of argv)\n'
+                'end run'
+            )
+            return osascript_strip(code, str(slot), str(slot), '40,40,1320,1000')
+
+        backend.script = script
+        bounds = backend.confirm_view('excel', slot, {'worksheet': 'Overview'})
+        self.assertEqual(bounds, [40, 40, 1320, 1000])
+        self.assertTrue(bodies)
+
+    def test_confirm_view_transport_rejects_xtab_and_blocks_capture(self):
+        office = load_repaired()
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        source = root / 'source.xlsx'
+        source.write_bytes(b'authoritative')
+        backend = office.MacOffice()
+        events = []
+
+        def open_slot(app, path):
+            backend.opened[(app, str(path))] = (backend.reference(app, path), ('lock',))
+
+        def script(app, body, *args, **kwargs):
+            events.append(('script', body))
+            code = (
+                'on run argv\n'
+                'return (item 1 of argv) & «class Xtab» & (item 1 of argv) & «class Xtab» & "40,40,1320,1000"\n'
+                'end run'
+            )
+            return osascript_strip(code, '/tmp/autocycle-office/excel-view.xlsx')
+
+        def capture(path, bounds):
+            events.append(('capture', path, bounds))
+            png(path)
+
+        backend.open = open_slot
+        backend.close = lambda app, path, save: backend.opened.pop((app, str(path)), None)
+        backend.is_open = lambda app, path: (app, str(path)) in backend.opened
+        backend.script = script
+        backend.position = lambda app, path, request: [40, 40, 1320, 1000]
+        backend.capture = capture
+        backend.frontmost = lambda: ''
+        backend.restore = lambda bundle: None
+        ws = office.Workspace(root / '.git' / 'autocycle', backend, wait_seconds=.01, poll_seconds=.001)
+        result = ws.view({
+            'app': 'excel',
+            'source': str(source),
+            'source_sha256': office.digest(source),
+            'worksheet': 'Overview',
+        })
+        self.assertEqual(result['status'], 'BLOCKED', result)
+        self.assertFalse(any(e[0] == 'capture' for e in events))
+        self.assertIn('malformed identity reply', result['action'])
+
+    def test_same_name_different_path_fails_after_real_transport(self):
+        office = load_repaired()
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        slot = Path(tmp.name) / 'excel-view.xlsx'
+        slot.write_bytes(b'slot')
+        decoy = '/tmp/other/excel-view.xlsx'
+        backend = office.MacOffice()
+        backend.opened[('excel', str(slot))] = (backend.reference('excel', slot), ('lock',))
+        backend.is_open = lambda app, path: (app, str(path)) in backend.opened
+        sep = office.MacOffice.IDENTITY_REPLY_SEP
+
+        def script(app, body, *args, **kwargs):
+            code = (
+                'on run argv\n'
+                'return (item 1 of argv) & "'+sep+'" & (item 2 of argv) & "'+sep+'" & (item 3 of argv)\n'
+                'end run'
+            )
+            return osascript_strip(code, str(slot), decoy, '40,40,1320,1000')
+
+        backend.script = script
+        with self.assertRaises(office.NativeError) as raised:
+            backend.confirm_view('excel', slot, {'worksheet': 'Overview'})
+        self.assertIn(decoy, str(raised.exception))
 
 
 if __name__ == '__main__':

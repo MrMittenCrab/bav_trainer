@@ -56,23 +56,47 @@ full mocked suite and backs up the installed runtime before updating it.
 
 ## Active-document confirmation
 
-All four Step 7.4 captures failed in `confirm_view` with
+All four original Step 7.4 captures failed in `confirm_view` with
 `Unexpected active document (-2700)` after a successful position of the owned
-slot. The installed helper compares AppleScript object specifiers
+slot. The pre-repair helper compared AppleScript object specifiers
 (`active workbook is not targetDoc`). That comparison is not path identity and
 can fail for the owned `excel-view.xlsx` slot.
 
 [active-document-confirmation.patch](active-document-confirmation.patch)
 replaces specifier equality with POSIX-path identity, records expected and
 observed paths, and rejects blank, same-name/different-path and lost-ownership
-cases. Worksheet, Word selection, open-return ownership and lock checks stay
-unchanged. Isolated regressions (no Office, no capture):
+cases. That specifier repair is already installed in the authenticated
+runtime (SHA-256 `0db3faee…`). Worksheet, Word selection, open-return
+ownership and lock checks stay unchanged.
+
+## Identity-reply serialization
+
+The four Step 7.4.2 replacements then failed with
+`Active document identity unavailable: malformed identity reply` and produced
+no images. The installed producer returns
+`expectedId & tab & observedId & tab & bounds` from inside
+`tell application "Microsoft Excel"`. Excel.sdef defines class `tab`
+(code `Xtab`, sheet tab). Application terminology takes precedence inside
+that tell block, so `tab` is not AppleScript ASCII 9. An Office-free
+`«class Xtab»` concatenation survives osascript/`stdout.strip()` as a single
+field and the consumer's `split('\\t')` raises the receipt error. Unshadowed
+AppleScript `tab` does survive the same transport; the defect is the Excel
+tell-block identifier, not generic osascript tab stripping.
+
+[identity-reply-serialization.patch](identity-reply-serialization.patch)
+keeps POSIX-path identity and changes only the producer/consumer delimiter to
+the quoted sentinel `<<AC>>`. Missing, malformed, ambiguous, legacy
+tab-separated and `Xtab` replies fail closed. Isolated regressions apply the
+serialization patch to a temporary copy of the authenticated runtime and
+cover the real osascript boundary (no Office, no capture):
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python3 automation/autocycle-fixes/test_active_document_confirmation.py
 ```
 
-The patch is a reviewable repair artifact. `install.py` refuses while a live
-`autocycle --resume` process is running; this provider does not stop or
-restart the controller. Subsequent production capture still requires Review
-to authorize a recovery route.
+Prior 21 passing isolated tests validated specifier identity against mocked
+replies; they do not validate this serialization repair. The patches remain
+reviewable artifacts. `install.py` refuses while a live `autocycle --resume`
+process is running; this provider does not stop or restart the controller
+and does not modify the installed or maintained helpers. Subsequent
+production capture still requires Review to authorize a recovery route.

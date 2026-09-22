@@ -4763,4 +4763,175 @@ Canonical BAV hashes, `.autocycle.toml`, CLI/README/opening, Lululemon build/che
 
 Not started. This bounded attempt does not begin the next implementation step.
 
+---
+
+# RESULT.md — Step 7.4.3 Repair controller identity-reply serialization
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 7.4.3 — Repair controller identity-reply serialization  
+**Work:** `4be4aef0dc274a529824d561b15b847e`  
+**Plan:** `e62932931e5b458a8775e9dc8735e7a0`  
+**Finding:** BAV-first presentation and concise workbook front page  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `c3a9b136234e4dd4ef5d9e0bb3b88ed7ff7db10141a2e2b9bf530246e31e6aa5` (6353).  
+IMPLEMENTATION SHA-256 `5c2798017350735aeb9f7129de930104a560a42c3a907ab8d42a9385a0e0c62a` (8619).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Library/Frameworks/Python.framework/Versions/3.14/bin/python3` **3.14.0**.
+
+This append records the continuation of parent work `4be4aef0dc274a529824d561b15b847e` from authenticated baseline `500852749f3ced5189ddacbd1353f5a5e3e28d48`. It does not rewrite prior ledger history, does not revise product presentation, and does not certify native readability, migration acceptance or Session integration. Controller receipts supersede Step 7.4.2’s pending-dispatch report.
+
+## Required plan change
+
+None. Isolated serialization coverage passed against a reviewable repair artifact. Controller installation and native re-validation remain an access gap for a later authorized recovery route.
+
+## Baseline authentication
+
+| Record | Value |
+|---|---|
+| Branch | `checkpoint/20260913-183303` |
+| HEAD / `resume-state` `IMPLEMENT_BASE_SHA` / `PLAN_SHA` / `implementation-baseline.json` `head` | `500852749f3ced5189ddacbd1353f5a5e3e28d48` |
+| Work-state `7.4.3` | `opened`, work `4be4aef0dc274a529824d561b15b847e`, source `50085274…` |
+| Bound running attempt | `25c8283f23cd4c438f3a602a14cc0df1`, plan `50085274…`, batch `3488508311a14b1093448e8a11044551` |
+| Reviewed checkpoint (not substituted) | `eb71ebdcc95cf214fdd1c8ef831333ea8cb45fbb`; authenticated parent `722544981016f3836137d5fc1170254ef440c8e1` |
+| Ancestry | `72254498` → `eb71ebdc` (Step 7.4.2) → `50085274` (this Plan / B) |
+| `latest-implementation` | prior HEAD `72254498…` (not used as this baseline) |
+
+Git commit objects: B parent `eb71ebdc` subject `Plan: Step 7.4.3 — Repair controller identity-reply serialization`; reviewed-checkpoint parent `72254498` subject `Step 7.4.2`. Binding established independently of the prior 7.4.2 baseline. Native verify remains attempt **1 of 2** and was not repeated. Product files were not mutated.
+
+## Replacement receipts (controller supersedes pending-dispatch)
+
+All four replacements failed with the same consumer error and produced no images.
+
+| Replacement | Company / range | Receipt SHA-256 | Action | Image |
+|---|---|---|---|---|
+| `12be0d6b5f884cf99d21713929edaf1f` | lululemon A1:B6 | `2adfb95992b8af5f08ccf4eec9e0c788fa768447c89b1d0a6fccae21c01a1fbe` | `Active document identity unavailable: malformed identity reply` | none (`b07d4850…/` has `result.json` only) |
+| `b6874c2e22b24f35b9692748346bce73` | lululemon A8:B17 | `34f79c6e58e90b9a53a8db895012c964e630ce689fe109ad41a479f49646a8b6` | same | none (`868b0599…/`) |
+| `243388224b83484790c0b9b1489a869e` | fast_retailing A1:B8 | `bfdb1c78de98945552418594142e7e832239d89c515e62770d61c13685e9c82c` | same | none (`24853ec1…/`) |
+| `dbfeddaedefa46da9c07b85259961987` | fast_retailing A8:A14 | `337a30d932386743e3abe0e3dd708ad8a495bb2b224857792a6956ec52b90db1` | same | none (`7726b8be…/`) |
+
+`failure_kind` `native_capture`; `reviewed_head` `eb71ebdc…`; `requested_head` `72254498…`. Original `-2700` receipts remain unchanged.
+
+## Runtime comparison
+
+Installed `/Users/lizhiguo/.autocycle/native_office.py` and maintained `/Users/lizhiguo/Documents/Developer/autocycle/native_office.py` are byte-identical SHA-256 `0db3faee10b0afa3775575ec4197b75cab281f95d4d7c570230b708a9cdb1c5d` (32063), matching the recorded specifier-repair runtime. **No drift.** Neither file was overwritten.
+
+The specifier-equality check is already absent. `confirm_view` reads POSIX paths, then returns `expectedId & tab & observedId & tab & bounds`. `script()` wraps that body in `tell application "Microsoft Excel"` / Word and returns `stdout.strip()`. The consumer does `result.split('\t')` and raises the receipt error when it does not yield exactly three fields.
+
+## Diagnosis (demonstrated vs hypothesis)
+
+`script()` itself does not destroy ASCII tabs: an Office-free `return a & tab & b & tab & bounds` through the same `/usr/bin/osascript` + `capture_output` + `text=True` + `stdout.strip()` path keeps two `0x09` bytes and parses to three fields.
+
+Excel.sdef defines class `tab` code `Xtab` (“Represents the sheet tab of a work sheet or chart sheet.”). Inside `tell application "Microsoft Excel"`, application terminology takes precedence over AppleScript’s text constant `tab`.
+
+Office-free probe of the Excel class code, using synthetic identities `/tmp/autocycle-office/excel-view.xlsx` and bounds `40,40,1320,1000`:
+
+| Producer | osascript rc | ASCII tabs | `split('\\t')` | Consumer |
+|---|---|---|---|---|
+| Unshadowed AppleScript `tab` | 0 | 2 | 3 fields | would parse (legacy delimiter) |
+| `expectedId & «class Xtab» & observedId & «class Xtab» & bounds` | 0 | 0 | 1 field (`…«class Xtab»…«class Xtab»…`) | exact receipt error |
+| Quoted sentinel `<<AC>>` | 0 | n/a | n/a | 3 fields; identities and bounds survive |
+
+**Demonstrated:** the installed producer emits `tab` from inside the Excel tell wrapper; the consumer requires two ASCII tabs; `«class Xtab»` concatenation through the real transport yields the receipt error; unshadowed `tab` surviving transport rules out generic osascript tab-stripping.
+
+**Hypothesis (not live-Excel-confirmed):** a running Excel tell resolves the identifier `tab` to class `Xtab` (or another non-ASCII-9 value) rather than the text constant. Live `confirm_view` stdout was not captured: that would require occupying the view slot or telling Excel. The receipts prove a successful script return that was not three tab-separated fields. If Excel had raised, `script()` would have surfaced that error instead of `malformed identity reply`.
+
+Word.sdef has tab-stop enumerators but not class `tab`. All four failed captures are Excel. The same `confirm_view` producer is shared; the repair uses a quoted sentinel for both apps.
+
+## Repair artifact (not installed)
+
+`automation/autocycle-fixes/identity-reply-serialization.patch` SHA-256 `e9641648d5c70018e3bd44f6cc28f1437884d87a10b786f6144dd19bb618bd97` (2492).
+
+Patched `confirm_view` (applied only to a temporary copy of the authenticated runtime):
+
+- Keeps POSIX-path identity, `confirm_owned_identity`, worksheet / Word-selection checks, open-return ownership, locks and fail-closed slot lifecycle.
+- Replaces AppleScript `tab` with quoted sentinel `IDENTITY_REPLY_SEP = '<<AC>>'` (not Excel terminology; not stripped by `stdout.strip()`).
+- Adds `parse_identity_reply`: exactly three sentinel fields or the same fail-closed receipt error.
+- Legacy tab-separated and `«class Xtab»` replies are malformed under the new consumer.
+
+Candidate helper text SHA-256 `3317584bd4fa727d489fb0d77f7f3f2599e2d3c18e07321b7791038665dfa3a6` (32461). `apply_repair` equals `patch -p1` on the installed 0db3faee runtime. Installed and maintained helpers remain `0db3faee…` (32063). Historical `active-document-confirmation.patch` remains `510f4c93…` (3480).
+
+## Isolated regressions
+
+`PYTHONDONTWRITEBYTECODE=1 python3 automation/autocycle-fixes/test_active_document_confirmation.py`
+
+**32 passed** in 0.377s. No Office tell, no `process`, no screenshot, no slot population. Stale harness assumption that the installed runtime still uses specifier equality was removed; specifier protections are asserted present. Prior **21** mocked-parser tests do not validate this serialization repair; transport cases below use real osascript.
+
+| Case | Result |
+|---|---|
+| Installed/maintained match recorded `0db3faee…`; specifier equality absent; `tab` delimiter present | pass (diagnosis) |
+| Repair removes `& tab &`; quoted sentinel + `parse_identity_reply`; POSIX / worksheet / Word / ownership / lock text preserved | pass |
+| Owned matching POSIX paths accepted; different document / same-name/different-path / filename-only / blank identity rejected | pass |
+| Owned Excel/Word `confirm_view` returns bounds; generated script uses quoted sentinel, not `tab` | pass |
+| Different document / same-name decoy / malformed reply / legacy tab reply / identity `-50` / lost ownership never return bounds | pass |
+| `Workspace.view`: owned identity reaches capture; wrong owned-slot path, same-name/different-path, malformed, ambiguous, lost ownership never call `capture` | pass |
+| Word owned identity still reaches capture | pass |
+| Unshadowed `tab` survives osascript+strip; repaired parser rejects it | pass (transport) |
+| `«class Xtab»` reply matches the receipt error and never reaches capture | pass (transport) |
+| Quoted sentinel survives osascript+strip and the `script()` wrapper shape without an Office tell | pass (transport) |
+| Missing / bounds-only / one-field / extra-field / tab-legacy / Xtab replies fail closed | pass (transport) |
+| `confirm_view` through real osascript keeps valid identities and `[40,40,1320,1000]`; same-name/different-path fails after transport | pass (transport) |
+
+These results do **not** accept native Excel confirmation or readability.
+
+## Deployment status
+
+| Check | Measured result |
+|---|---|
+| Installed helper after this attempt | unchanged `0db3faee…` |
+| Maintained source | unchanged `0db3faee…` |
+| `native_office.py process` | **not invoked** |
+| Replacement / `request` submissions | **none** |
+| Controller stop/restart | **not performed** |
+
+Candidate repair only. Deployment and any later capture recovery remain for Review through supported mechanisms.
+
+## Cumulative usage (not reset)
+
+| Counter | Measured |
+|---|---|
+| Native-save verification | still attempt **1 of 2**; not repeated; `verify-4aualryy` and `verify-3symu378` remain `VERIFIED` / `NONE` |
+| Company/route allowances | unchanged; this step did not reset counters or timeouts |
+| Original Overview captures | 4 `BLOCKED` `-2700` receipts retained |
+| Replacement Overview requests | **4 / 4** exhausted; all `BLOCKED` malformed identity reply; no further replacement authorized |
+| Script timeout | existing 12s confirmation timeout retained; no retry added |
+| Isolated confirmation + serialization regressions | **32 passed** (prior 21 do not validate serialization) |
+
+## Artifact preservation
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `build/output/lululemon/Lululemon_BAV.xlsx` | `8ee68f8ebe44c5330d51c24e4bf1c1acdd0d85801f7db13a7ca1c42213f1f00e` | 229454 |
+| `build/output/fast_retailing/FastRetailing_BAV.xlsx` | `2e98bb8ea4c682e7a28fd349b40e18028e04f3476c0f225ab6ff4a3413ba22bf` | 137763 |
+| `verify-4aualryy/saved-copy.xlsx` | `cc470dee425731c79945e8179112c668e6c657f60e602c4879872c27c3e2d126` | 266960 |
+| `verify-3symu378/saved-copy.xlsx` | `c4951f0c48f6ad7910244ea78c281544bea928e191eb9abf5d382eb988ba90bb` | 174602 |
+| `.git/autocycle/step-7-4/view-request-binding.json` | `e600629fa053aafe43cf798bf0ae4bcb83c19357995dfe23e99f4b4320a4bfb7` | 2097 |
+| `.git/autocycle/step-7-4-2/replacement-binding.json` | `3d9836e00cf56ae166f193a40f3d03d4599a01fb5cc2eb3b482c0672cb98279b` | 6545 |
+| receipt `73e7db8abfa642dc87594e39766ac9e2` | `a01899c718df370f5413473450950a27ee77d5459ffe95bbd6f6929aab85c5e9` | 1099 |
+| receipt `2b5bdffeb0084d68a7a4241368cb1913` | `32deee759395dcb5ae9377558ea23605f3de13259e961ad703c1dfbb8bd6c393` | 1100 |
+| receipt `a847e8e081dd4f0da24f1ed46f00e66e` | `377e80cd7db2eef5c64100f048a270a8bff553e3428c03e9882b99ffe9edac68` | 1117 |
+| receipt `6ebdbae0c7e444a9ab8fc3c7343ce2a3` | `196647224b255532ad4bf6056222bcbcd49478277191365fa62030a76dc857c1` | 1118 |
+| replacement request `12be0d6b…` | `38d91728a8342a019a0f21e600897acab005ba2df36de6116d12bf8fe7413c04` | (unchanged) |
+
+Historical `excel-verification-vm1b3wsq` and `excel-verification-hrj5h672` directories remain present and were not opened in Office. Products were not regenerated. Excel was not force-quit; unrelated workbooks were not closed.
+
+## Native readability and capture
+
+**Not performed.** Isolated transport success is not native validation. All four 125% Overview inspections remain outstanding (Lululemon A1:B6 and A8:B17; Fast Retailing A1:B8 and A8:A14; bounds `[40,40,1320,1000]`). Subsequent production capture requires Review to establish an authorized recovery route; this attempt did not queue replacements or invoke `process`.
+
+## Carry-forward (unchanged files)
+
+Canonical BAV hashes, `.autocycle.toml`, CLI/README/opening, Lululemon build/check/publish, Fast Retailing build/check, Fast Retailing `No publishable canonical research` diagnostic, analytical formula/literal **0**, and publication `_content_equal` remain applicable to those unchanged surfaces. They still do not accept native opening readability.
+
+## Remaining toward Completion
+
+- Installed controller still uses the `tab` delimiter inside the Excel tell block; the serialization repair is not deployed. Native confirmation of the patched reply is untested.
+- Four replacement receipts remain `BLOCKED` malformed identity reply without images. Original four remain `BLOCKED` `-2700` without images. Readability (wrapping, clipping, concise presentation, company identity, fiscal coverage, currency/units, historical reading, evidence limits, supporting-schedule navigation including Build Status and Fast Retailing fallback) is still uninspected in native Excel.
+- Inherited migration acceptance remains unresolved. Opening verification does not certify it.
+- Final Session integration, earlier normalization, broader source-workflow and normalized-per-share obligations remain deferred.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+
 

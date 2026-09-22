@@ -1,0 +1,42 @@
+--- a/native_office.py
++++ b/native_office.py
+@@ -205,6 +205,8 @@
+         self.script(app, self.find(app, path, action+'\nreturn "POSITIONED"')+'\nerror "Fixed slot is not open"', *args)
+         return bounds
+ 
++    IDENTITY_REPLY_SEP = '<<AC>>'
++
+     @staticmethod
+     def confirm_owned_identity(path, expected, observed):
+         # Full POSIX paths only. Filename equality is not identity: the same
+@@ -219,6 +221,15 @@
+             raise NativeError('Owned document path mismatch expected:'+slot+' observed:'+expected,'native_capture')
+         if observed != expected:
+             raise NativeError('Unexpected active document expected:'+expected+' observed:'+observed,'native_capture')
++
++    @staticmethod
++    def parse_identity_reply(result):
++        # Quoted sentinel, not AppleScript tab. Excel's dictionary defines
++        # class tab (Xtab); inside tell Excel that identifier is not ASCII 9.
++        parts = (result or '').split(MacOffice.IDENTITY_REPLY_SEP)
++        if len(parts) != 3:
++            raise NativeError('Active document identity unavailable: malformed identity reply','native_capture')
++        return parts
+ 
+     def confirm_view(self, app, path, request):
+         active = 'active workbook' if app == 'excel' else 'active document'
+@@ -239,11 +250,10 @@
+             args += (request['worksheet'],)
+         else:
+             check += f'if selection start of selection of window 1 of targetDoc is not {request.get("start", 0)} then error "Unexpected Word selection"\n'
+-        check += 'set rect to bounds of window 1 of targetDoc\nreturn expectedId & tab & observedId & tab & (item 1 of rect as text) & "," & (item 2 of rect as text) & "," & (item 3 of rect as text) & "," & (item 4 of rect as text)'
++        sep = self.IDENTITY_REPLY_SEP
++        check += 'set rect to bounds of window 1 of targetDoc\nreturn expectedId & "'+sep+'" & observedId & "'+sep+'" & (item 1 of rect as text) & "," & (item 2 of rect as text) & "," & (item 3 of rect as text) & "," & (item 4 of rect as text)'
+         result = self.script(app, self.find(app, path, check)+'\nerror "Fixed slot is not open"', *args)
+-        parts = result.split('\t')
+-        if len(parts) != 3:
+-            raise NativeError('Active document identity unavailable: malformed identity reply','native_capture')
++        parts = self.parse_identity_reply(result)
+         self.confirm_owned_identity(path, parts[0], parts[1])
+         return [int(float(n)) for n in parts[2].split(',')]
+ 
