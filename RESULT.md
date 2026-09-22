@@ -4273,4 +4273,124 @@ Canonical workbooks, publication, research and figures are byte-identical to the
 
 Not started. This bounded attempt does not begin the next implementation step.
 
+# RESULT.md — Step 7.4 Complete queued native Excel captures and review readability
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure; controller capture still pending)  
+**Step:** 7.4 — Complete queued native Excel captures and review readability  
+**Work:** `4be4aef0dc274a529824d561b15b847e`  
+**Plan:** `62c536bbd832464285c944f5d383375b`  
+**Finding:** BAV-first presentation and concise workbook front page  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `c3a9b136234e4dd4ef5d9e0bb3b88ed7ff7db10141a2e2b9bf530246e31e6aa5` (6353).  
+IMPLEMENTATION SHA-256 `98bac4027934204310f66bb1e712b59e34d4938abe9aee717192356f429f88d0` (7310).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Library/Frameworks/Python.framework/Versions/3.14/bin/python3` **3.14**.
+
+This append records the continuation of work `4be4aef0dc274a529824d561b15b847e` from checkpoint `d383f5c75eafd289c237d4014f93baa5362570a5`. It does not rewrite prior ledger history, does not reserve future IDs, does not revise product presentation, and does not certify migration acceptance or Session integration.
+
+## Required plan change
+
+None.
+
+## Baseline authentication
+
+| Record | Value |
+|---|---|
+| Branch | `checkpoint/20260913-183303` |
+| HEAD | `d62453f3f19fbaaf39bfdb75e53e6409de21d1f0` (Plan commit for this continuation; parent `d383f5c75eafd289c237d4014f93baa5362570a5`) |
+| `resume-state` `IMPLEMENT_BASE_SHA` / `PLAN_SHA` | `d62453f3f19fbaaf39bfdb75e53e6409de21d1f0` |
+| `implementation-baseline.json` `head` | `d62453f3f19fbaaf39bfdb75e53e6409de21d1f0` |
+| Reviewed baseline (checkpoint parent) | `3ef129d53060656e702c16f952842c51376ac237` = `d383f5c75eafd289c237d4014f93baa5362570a5^` |
+| `latest-implementation` | HEAD `3ef129d53060656e702c16f952842c51376ac237` on `checkpoint/20260913-183303` (prior implementation of this work) |
+| Work-state `7.4` | `opened`, work `4be4aef0dc274a529824d561b15b847e`, source `d62453f3…` |
+| Attempt | `c4fc6c5b375b486d9f98e2c899f07bb2` retained; native verify remains attempt **1 of 2** |
+
+Binding established. No second authorized verify attempt. Product files were not mutated.
+
+## Existing capture results (checked before any queue change)
+
+`python3 /Users/lizhiguo/.autocycle/native_office.py capabilities` → `excel word`.  
+`python3 /Users/lizhiguo/.autocycle/native_office.py review-evidence` → `[]`.
+
+| Check | Measured result |
+|---|---|
+| `.git/autocycle/office/receipts/` | **absent** |
+| `view.png` under `.git/autocycle/office/` | **none** |
+| Replacement requests submitted | **none** (original four IDs left in place) |
+
+Merely queuing replacements was not performed. The four original requests remain the queued set.
+
+## Source and request bindings (reconfirmed; no slot reuse for view)
+
+Canonical workbooks still match the required SHA-256 values. Existing request JSON still records those hashes, Overview ranges and zoom 125.
+
+| Request ID | Company | Range | Zoom | Request SHA-256 | Source SHA-256 | Match |
+|---|---|---|---:|---|---|---|
+| `73e7db8abfa642dc87594e39766ac9e2` | lululemon | A1:B6 | 125 | `db90d8e1db5a731c51ab1d56b095c1fca62a163f7166cadaf47a11c23a867e05` | `8ee68f8e…` | **yes** |
+| `2b5bdffeb0084d68a7a4241368cb1913` | lululemon | A8:B17 | 125 | `ffafb1cf48e38823b93d9a838e44f59e0158317ad4d17b2653f0bad71d40ec66` | `8ee68f8e…` | **yes** |
+| `a847e8e081dd4f0da24f1ed46f00e66e` | fast_retailing | A1:B8 | 125 | `7f03fbf3c79629c37fac44f873d77c703e712629df18c2fed1b5d3244256a066` | `2e98bb8e…` | **yes** |
+| `6ebdbae0c7e444a9ab8fc3c7343ce2a3` | fast_retailing | A8:A14 | 125 | `737ee17bb61f9a34fd369dff61899aaacc0a63de1a34c4fcde2b1c3355177a10` | `2e98bb8e…` | **yes** |
+
+`.git/autocycle/step-7-4/view-request-binding.json` SHA-256 `e600629fa053aafe43cf798bf0ae4bcb83c19357995dfe23e99f4b4320a4bfb7` (2097) unchanged, status still `QUEUED`. Each request still names worksheet `Overview`, zoom 125, bounds `[40,40,1320,1000]`, and `requested_head` `3ef129d53060656e702c16f952842c51376ac237`.
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `build/output/lululemon/Lululemon_BAV.xlsx` | `8ee68f8ebe44c5330d51c24e4bf1c1acdd0d85801f7db13a7ca1c42213f1f00e` | 229454 |
+| `build/output/fast_retailing/FastRetailing_BAV.xlsx` | `2e98bb8ea4c682e7a28fd349b40e18028e04f3476c0f225ab6ff4a3413ba22bf` | 137763 |
+| `.git/autocycle/office/excel-view.xlsx` (harmless placeholder; not populated) | `10a136b63e90e956d1a616d8022fc45af83c07b4a76e0c3f7ad317251c383580` | 1380 |
+| `.git/autocycle/office/excel-verify.xlsx` (still FR saved-state bytes after last verify) | `c4951f0c48f6ad7910244ea78c281544bea928e191eb9abf5d382eb988ba90bb` | 174602 |
+
+View slot was not reused. Verify slot was not reopened. No Office lock files (`~$…`) under `.git/autocycle/office/`. Historical copies and immutable snapshots were not opened in Office.
+
+Provider did not invoke `native_office.py process` (controller-owned). Provider did not screenshot.
+
+## Native-save snapshots (preserved; independent re-check)
+
+Read-only `verify_opening.py` against the frozen copies. Snapshots were not opened in Excel.
+
+| Snapshot | Copy SHA-256 | Bytes | Mode | Source SHA-256 | Result |
+|---|---|---:|---|---|---|
+| `verify-4aualryy/saved-copy.xlsx` | `cc470dee425731c79945e8179112c668e6c657f60e602c4879872c27c3e2d126` | 266960 | 0444 | `8ee68f8e…` | **VERIFIED**; formula diffs **0** |
+| `verify-3symu378/saved-copy.xlsx` | `c4951f0c48f6ad7910244ea78c281544bea928e191eb9abf5d382eb988ba90bb` | 174602 | 0444 | `2e98bb8e…` | **VERIFIED**; formula diffs **0** |
+
+| Historical snapshot | SHA-256 | Bytes |
+|---|---|---:|
+| `.git/autocycle/excel-verification-vm1b3wsq/saved-copy.xlsx` | `dbd85c501c76cc7c7d936fbbc264b283764beec2e159f3eb36ede7ce81ff6227` | 267180 |
+| `.git/autocycle/excel-verification-hrj5h672/saved-copy.xlsx` | `1f6921bfe99ae3ddf85abbd62be3a0d208f3c3546bb2e389e90b132cc2cee348` | 269300 |
+
+Native verify attempt remains **1 of 2**. Successful verification was not repeated.
+
+## Native image inspection
+
+**Not performed.** Receipts and `view.png` files are absent. XML, openpyxl, and native open/save **do not** establish readability. No presentation defect can be recorded from native images because none exist. No additional view requests were submitted.
+
+## Actual navigation checks (package/hyperlink inspection; not native clicks)
+
+Read-only openpyxl on the canonical workbooks. No Excel UI follow-through.
+
+Lululemon Overview (17 rows): in-workbook hyperlinks `A11`–`A17` → `#'Revenue Driver Analysis'!A1`, `#'Store Count Analysis'!A1`, `#'Revenue per Store Analysis'!A1`, `#'Comparable Sales Analysis'!A1`, `#'Sales per Square Foot Analysis'!A1`, `#'Geographic Segment Analysis'!A1`, `#'Build Status'!A1`. `G1` `Current Progress` → `#'Build Status'!A1`.
+
+Fast Retailing Overview (14 rows, fallback): `A9`–`A14` → `#'Income Statement'!A1`, `#'Balance Sheet'!A1`, `#'Cash Flow Statement'!A1`, `#'Condensed Financials'!A1`, `#'ALT DuPont'!A1`, `#'Build Status'!A1`. `G1` `Current Progress` → `#'Build Status'!A1`. No `Evidence limits` row.
+
+These checks confirm stored targets only. They are not native navigation and do not accept wrapping, clipping or concise presentation.
+
+## Opening package observations (not native acceptance)
+
+Aptos Narrow 11, black, white fill on inspected Overview cells. Wrap + row heights: Lululemon B6 128 (624 chars), B8 218 (1070 chars); Fast Retailing B6 53 (198 chars, fallback text). Identity, FY2021–FY2025 coverage and currency/units match the expect files. This is not readability evidence.
+
+## Carry-forward (unchanged files)
+
+Canonical BAV hashes are byte-identical to the prior Step 7.4 record. `.autocycle.toml` unchanged (`d6540de7…`, 49). Prior focused CLI/opening tests, Lululemon build/check/publish, Fast Retailing build/check, Fast Retailing `No publishable canonical research` diagnostic, analytical formula/literal **0** vs pre-rebuild, and publication `_content_equal` remain applicable to those unchanged surfaces. They still do not accept native opening readability.
+
+## Remaining toward Completion
+
+- Controller capture receipts and native images for the four queued 125% Overview views remain missing. Readability (wrapping, clipping, concise presentation, company identity, fiscal coverage, currency/units, historical reading, evidence limits, supporting-schedule navigation including Build Status and Fast Retailing fallback) is therefore still uninspected in native Excel.
+- Inherited migration acceptance remains unresolved. Opening verification does not certify it.
+- Final Session integration, earlier normalization, broader source-workflow and normalized-per-share obligations remain deferred.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+
 
