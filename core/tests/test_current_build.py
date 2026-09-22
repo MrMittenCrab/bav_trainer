@@ -15,7 +15,7 @@ def test_public_namespace_and_compatibility():
     for namespace in ('bav', 'core'):
         result = subprocess.run([sys.executable, '-m', namespace, '--help'], cwd=ROOT, capture_output=True, text=True)
         assert result.returncode == 0, result.stderr
-        for command in ('build', 'check', 'list', 'reconcile', 'validate-source'):
+        for command in ('build', 'check', 'list', 'reconcile', 'validate-source', 'publish'):
             assert command in result.stdout
 
 

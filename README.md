@@ -28,6 +28,7 @@ From the repository root:
 pip install -r requirements-trainer.txt
 python -m bav build Lululemon
 python -m bav check Lululemon
+python -m bav publish Lululemon
 python -m bav list Lululemon
 ```
 
@@ -36,7 +37,23 @@ Company names are case-insensitive; `LULU` resolves to Lululemon. `FastRetailing
 ambiguous names fail with candidates. Internal lookup uses lowercase slugs.
 List reads the current BAV. Check resolves `build/output/<company>/` without
 path arguments; a derived Trainer is still checked when present and remains
-non-disclosing.
+non-disclosing. Publish reads canonical Drivers Markdown and figures under
+`build/output/<company>/` and writes Word and PDF there. It does not rebuild
+analysis, regenerate the workbook, or require a Trainer.
+
+Publication converters and fonts are not bundled. Install and keep on PATH:
+
+- `pandoc` 3.x — Markdown parser (`brew install pandoc` or https://pandoc.org/installing.html)
+- Python packages from `requirements-trainer.txt`: `python-docx`, `reportlab`, `pymupdf`
+- The host fonts named in root `STYLE.md`, resolved at generation time. Do not copy or vendor font files. Missing faces fail instead of substituting.
+
+`python -m bav publish Lululemon` writes `Lululemon_BAV.docx` and
+`Lululemon_BAV.pdf` under `build/output/lululemon/`. Presentation follows
+root `STYLE.md`. Forecast, Valuation and Overview stay empty placeholders and
+are not added as report sections. Failed conversion leaves the last successful
+Word and PDF in place and does not change canonical research, figures, or the
+workbook. A company without publishable Drivers research fails with a
+diagnostic; publication does not invent research or use legacy paths.
 
 Persistent inputs live under `build/input/<company>/` (`source/`, `extracted/`,
 `reconciled/`). Ordinary `python -m bav build Lululemon` consumes

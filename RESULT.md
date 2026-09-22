@@ -3701,3 +3701,108 @@ Published: `build/output/lululemon/research/Lululemon_Drivers.md` SHA-256 `3cf67
 
 Not started. This bounded attempt does not begin the next implementation step.
 
+# RESULT.md — Step 7.3 Reproducible Word/PDF publication from canonical research
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 7.3 — Reproducible Word/PDF publication from canonical research  
+**Work:** `7c1d2cba71024c21afc8becfcb40f6f2`  
+**Plan:** `03301885c75b4572881345d1d7500ec4`  
+**Finding:** Reproducible Word/PDF publication from canonical research  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `c3a9b136234e4dd4ef5d9e0bb3b88ed7ff7db10141a2e2b9bf530246e31e6aa5` (6353).  
+IMPLEMENTATION SHA-256 `576edd63146ddd998f3672e736cb4b5ac159608d16758f88955e2bf969df8f88` (6065).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. HEAD / `IMPLEMENT_BASE_SHA` `7e9b9b6080addaf76f26da4bae12a95ba7e0f84d`.
+
+This append records the bounded Step 7.3 attempt. It does not rewrite prior ledger history, does not reserve future IDs, and does not begin BAV-first front-page/CLI alignment or Session integration.
+
+## Required plan change
+
+None. WeasyPrint 70 installed as a Python package but cannot load Pango/Cairo (`libgobject-2.0-0` missing). Publication uses the installed **pandoc 3.8** Markdown parser plus **python-docx 1.2.0** and **reportlab 5.0.1**. README points to `STYLE.md` for faces and does not copy the STYLE specification.
+
+## Delivered scope
+
+- `python -m bav publish <Company>` through the public `bav` interface and `resolve_company`. Writes only `build/output/<slug>/<Company>_BAV.docx` and `.pdf`.
+- Consumes canonical Drivers Markdown and figures. Does not recalculate analysis, regenerate the workbook, or require a Trainer.
+- Toolchain: pandoc JSON AST → python-docx Word + reportlab PDF. Fonts from `resolve_required_fonts()`. Missing converter, font, Markdown, figure, or broken reference returns a nonzero diagnostic.
+- Forecast / Valuation / Overview remain zero-byte and are not added as empty sections.
+- Wide numeric tables use landscape pages, wrapping, and repeated headers at 10 pt. The long seven-part assessment table is stacked as labeled records so cell text is not dropped or shrunk.
+- Staging + validation of both formats before replace. Converter failure restores the last successful pair.
+- BAV-first command help, document title/header, and README publication notes.
+
+## Toolchain (measured)
+
+| Tool | Version / path |
+|---|---|
+| pandoc | 3.8 (`/opt/anaconda3/bin/pandoc`) |
+| python-docx | 1.2.0 |
+| reportlab | 5.0.1 |
+| PyMuPDF | 1.26.4 |
+| Aptos Regular | `/Applications/Microsoft Excel.app/Contents/Resources/DFonts/Aptos.ttf` |
+| DengXian Regular | `/Applications/Microsoft Excel.app/Contents/Resources/DFonts/Deng.ttf` |
+| Viewing | PDF pages rendered with PyMuPDF at **150 dpi**; Word first page Quick Look `qlmanage -t -s 2000` |
+
+## Commands and measured results
+
+| Check | Measured result |
+|---|---|
+| `python -m bav build Lululemon` | **0** |
+| `python -m bav check Lululemon` | **0** |
+| `python -m bav publish Lululemon` | **0** → `build/output/lululemon/Lululemon_BAV.docx` (218527), `.pdf` (254736, 22 pages) |
+| Repeat publish | Extracted Word text/tables/media **identical**; PDF text/images/page count **identical**. Container SHA differs (DOCX `3f8fff25…` vs prior `d54e7e14…` / `1d5022d1…`; PDF `cfe4c758…` vs `afac02a0…` / `a2612df6…`) — creation metadata |
+| Canonical mutation after publish | Drivers/figures/placeholders/workbook/upstream **unchanged** by publish |
+| `python -m bav publish FastRetailing` | **1** — `No publishable canonical research`; no Word/PDF written; no legacy fallback |
+| `python -m bav build/check FastRetailing` | **0** / **0** |
+| Focused publication regressions | **12 passed** |
+| `test_current_build` + `test_build_cli` + `test_build_contract` + `test_research_drivers` | **87 passed** after README STYLE-name fix (one prior fail copied face names into README) |
+| `test_trainer` | **58 passed** |
+| Trainer emitted | **no** |
+| `SEGMENT_BRIDGE_TOLERANCE` | **0.0** |
+
+Publish after the verification build did not change:
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `research/Lululemon_Drivers.md` | `3cf67013afa03e049e1b64a794e84ced2c3533e6f16b906ed48f21fdc8ae5071` | 20922 |
+| `research/Lululemon_Forecast.md` | `e3b0c442…` | 0 |
+| `research/Lululemon_Valuation.md` | `e3b0c442…` | 0 |
+| `research/Lululemon_Overview.md` | `e3b0c442…` | 0 |
+| `figures/drivers/growth.png` | `dd4aae26…` | 63564 |
+| `figures/drivers/geography.png` | `7112d2d5…` | 51504 |
+| `figures/drivers/margin.png` | `e7ebe708…` | 62436 |
+| `STYLE.md` | `4360b24b…` | 1645 |
+
+The required `bav build Lululemon` rewrote the xlsx container to SHA-256 `d8cdfafd63d4f8fbeb207fa7d8011e6335d5a3d9ac808ee0c2cdfce9364dde12` (231559) from the prior `62a9ca99…` (230554). This step did not change workbook generators. Fast Retailing rebuild for usability check: `4a71ac1d…` (138178). Native Excel was not re-run (no formula/presentation edit; allowances not reset). Saved copies `.git/autocycle/excel-verification-vm1b3wsq/saved-copy.xlsx` and `excel-verification-hrj5h672/saved-copy.xlsx` were not overwritten.
+
+## Visual inspection
+
+Retrievable pages: `.git/autocycle/step-7-3-publication-inspect/pdf-page-01.png` … `pdf-page-22.png` (150 dpi), `pdf-landscape-03.png`, `pdf-title-crop.png`, `word-ql/Lululemon_BAV.docx.png` (2000 px Quick Look of page 1). Viewing: on-screen at those renders, not a printed sheet.
+
+| Surface | Pages / view | Observation |
+|---|---|---|
+| PDF 1 | Portrait; headings, context table, growth table | 10 pt body, 14 pt headings, grayscale rules. Extracted text has normal U+0020 (`Lululemon BAV`, `Lululemon — Drivers`). Title-crop ink gaps 14 px at 14 pt / 200 dpi |
+| PDF 2 | Growth figure + caption + Geography prose | Figure readable; FY ticks including `2 Feb 2025`; source note in the PNG. Caption under the figure |
+| PDF 3 | Landscape; two geography tables | Header `Lululemon BAV`; all columns present; headers wrap; no dropped cells |
+| PDF 4 | Geography figure + Margin prose | Second figure + Item 7 locators and signed pp/bps in body text |
+| PDF 5–9 | Landscape margin/amount/contribution tables | Amount-bridge 11 columns at 10 pt with wrapped headers; residuals and signed values present |
+| PDF 10 | Margin figure + residual sentence | Third figure; reconstruction residuals and evidence limits in following prose |
+| PDF 11–21 | Stacked seven-part assessments | Each relationship keeps Kind / Direction / Magnitude / Reconstruction / Residual / Stability / Contradictions / Disclosure / Result. Equations such as `Revenue = stores × company-wide revenue per store` present |
+| PDF 22 | Limits overflow | FY2024 53-week sentence. Sparse last page; not empty of required text |
+| Word QL page 1 | 2000 px | Same first-page structure as PDF 1: BAV title, Drivers heading, both opening tables, growth caption, start of growth figure. Word has 9 sections (portrait/landscape alternating), 7 grid tables, 3 embedded media |
+
+Image-caption OCR often concatenates Aptos words (`LululemonBAV`). That is an OCR artifact; extracted PDF/Word text and measured ink gaps show spaces. ReportLab still registers unused Helvetica as canvas default (`BT /F1 12 Tf` with no `Tj`); **rendered spans are Aptos only**.
+
+Word pages after page 1 were not opened in Microsoft Word. Multi-page Word WYSIWYG beyond the Quick Look first page is an explicit viewing-access gap. Landscape Word tables are confirmed by section orientation and cell text, not by a native Word scroll of every page.
+
+## Remaining toward Completion
+
+- Broader BAV-first CLI/documentation alignment and the concise workbook front page remain subsequent Session work.
+- Full native Word multi-page reading-scale inspection of every landscape table is not in this agent's Quick Look evidence.
+- Mix, markdowns, freight, occupancy, and leverage remain unestablished as bridge terms.
+- Earlier normalization, broader source-workflow, and normalized-per-share work remain deferred.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+

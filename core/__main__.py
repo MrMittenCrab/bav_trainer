@@ -342,6 +342,15 @@ def cmd_reconcile(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_publish(args: argparse.Namespace) -> int:
+    from .research.document import publish_company_documents
+    published = publish_company_documents(args.company)
+    print(f"Published {published.word.name} and {published.pdf.name}")
+    print(f"Word: {published.word}")
+    print(f"PDF: {published.pdf}")
+    return 0
+
+
 def cmd_list(args: argparse.Namespace) -> int:
     from .trainer.workbook import group_components_by_family
 
@@ -463,6 +472,17 @@ def main(argv: list[str] | None = None) -> int:
     p_check.add_argument("company", nargs="?")
     p_check.add_argument("--workbook")
     p_check.set_defaults(func=cmd_check)
+
+    p_publish = sub.add_parser(
+        "publish",
+        help="Publish BAV Word and PDF from canonical research",
+        description=(
+            "Publish BAV Word and PDF from canonical Drivers research and figures. "
+            "Does not rebuild analysis."
+        ),
+    )
+    p_publish.add_argument("company", help="Company name or ticker")
+    p_publish.set_defaults(func=cmd_publish)
 
     p_list = sub.add_parser("list", help="List trainer components")
     p_list.add_argument("company", nargs="?")
