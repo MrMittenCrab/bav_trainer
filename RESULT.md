@@ -4934,4 +4934,150 @@ Canonical BAV hashes, `.autocycle.toml`, CLI/README/opening, Lululemon build/che
 
 Not started. This bounded attempt does not begin the next implementation step.
 
+---
+
+# RESULT.md — Step 7.4.4 Deploy serialization repair and verify preserved Overview views
+
+**Status:** BLOCKED (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 7.4.4 — Deploy serialization repair and verify preserved Overview views  
+**Work:** `4be4aef0dc274a529824d561b15b847e`  
+**Plan:** `0041f416bc524f9f967b6b4a6796a1a5`  
+**Finding:** BAV-first presentation and concise workbook front page  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `c3a9b136234e4dd4ef5d9e0bb3b88ed7ff7db10141a2e2b9bf530246e31e6aa5` (6353).  
+IMPLEMENTATION SHA-256 `69670b8c5399d4ce816aad1aa7af3d35dae06e6f37c225810c258fb39de1f769` (8566).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Library/Frameworks/Python.framework/Versions/3.14/bin/python3` **3.14.0**.
+
+This append records the continuation of parent work `4be4aef0dc274a529824d561b15b847e` from independently authenticated baseline `bf351c23b71b6140f94f1353f1377cb7bc793809`. It does not rewrite prior ledger history, does not revise product presentation, does not reserve request IDs, and does not certify native readability, migration acceptance or Session integration.
+
+## Required plan change
+
+None. The supported installer refused at a live-controller boundary. The exact deployment handoff below is the recorded blocker; capture requests were not submitted.
+
+## Baseline authentication
+
+| Record | Value |
+|---|---|
+| Branch | `checkpoint/20260913-183303` (`refs/heads/checkpoint/20260913-183303` = `bf351c23…`) |
+| `resume-state` `IMPLEMENT_BASE_SHA` / `PLAN_SHA` / `implementation-baseline.json` `head` | `bf351c23b71b6140f94f1353f1377cb7bc793809` |
+| Work-state `7.4.4` | `opened`, work `4be4aef0dc274a529824d561b15b847e`, source `bf351c23…` |
+| Bound running attempt | `b0d00f5cb8654446a1efcd190b524871`, plan `bf351c23…`, batch `bab9c77697af44e7a19aa02d06efc19d`, phase `running` |
+| Reviewed checkpoint (not substituted) | `1c031c4d00f0d7ffd458e6075c8e662903013423`; authenticated parent `500852749f3ced5189ddacbd1353f5a5e3e28d48` |
+| Ancestry | `50085274` (Plan 7.4.3) → `1c031c4d` (Step 7.4.3) → `bf351c23` (this Plan / B) |
+| `latest-implementation` | prior HEAD `50085274…` (not used as this baseline) |
+
+Git `rev-parse` via the provider shell was permission-blocked. Authentication used populated `IMPLEMENT_BASE_SHA`, `.git/HEAD`, `refs/heads/checkpoint/20260913-183303`, `.git/logs/HEAD` (merge `1c031c4d` → `bf351c23`; commit `50085274` → `1c031c4d` subject `Step 7.4.3`), `implementation-baseline.json` and work-state. Binding established independently of the prior 7.4.3 baseline. Native verify remains attempt **1 of 2** and was not repeated. Product files were not mutated.
+
+## Preparation (hashes)
+
+| Artifact | SHA-256 | Bytes | Result |
+|---|---|---:|---|
+| `automation/autocycle-fixes/identity-reply-serialization.patch` | `e9641648d5c70018e3bd44f6cc28f1437884d87a10b786f6144dd19bb618bd97` | 2492 | retained |
+| Installed `/Users/lizhiguo/.autocycle/native_office.py` | `0db3faee10b0afa3775575ec4197b75cab281f95d4d7c570230b708a9cdb1c5d` | 32063 | reviewed runtime; still `& tab &` |
+| Maintained `/Users/lizhiguo/Documents/Developer/autocycle/native_office.py` | `0db3faee10b0afa3775575ec4197b75cab281f95d4d7c570230b708a9cdb1c5d` | 32063 | byte-identical; no drift |
+| `apply_repair` candidate | `3317584bd4fa727d489fb0d77f7f3f2599e2d3c18e07321b7791038665dfa3a6` | 32461 | matches reviewed candidate |
+| `.autocycle.toml` | `d6540de7131ca2028fdb6cf6c68b6bbe32fa8d60de0ff01a219beb10829783b4` | 49 | unchanged |
+
+Installed and maintained helpers remain the specifier-repair runtime. `IDENTITY_REPLY_SEP` is absent. Unrelated helper content was not rewritten. The candidate was materialized only in memory / isolated-test temps.
+
+## Installation (refused)
+
+Inspected maintained `install.py` (`d26948af…`, 3017) and `README.md` “Installing this revision”: `python3 install.py --install` from the maintained controller source after controllers are stopped. The installer runs the full suite, rejects source change during verification, calls `assert_stopped()`, backs up installed files, and atomically replaces the runtime set (launcher last). It does not run a project cycle.
+
+Measured live controller: PID **85934** `/bin/bash /Users/lizhiguo/bin/autocycle --resume` (same PID recorded on replacement receipt `12be0d6b…`).
+
+Invoked only `install.assert_stopped()` (no `--install`, no test-suite install, no file replace):
+
+```text
+RuntimeError: Stop active AutoCycle controllers before installing.
+```
+
+| Action | Measured result |
+|---|---|
+| Apply serialization repair to maintained source | **not performed** — supported install writes outside this repository; applying without install would create unrelated dirty work and installed/maintained drift |
+| `python3 install.py --install` | **not performed** — `assert_stopped()` already refused |
+| Overwrite installed helper | **not performed** |
+| Stop / restart / impersonate controller | **not performed** |
+| Installed helper after this attempt | unchanged `0db3faee…` |
+| Maintained source after this attempt | unchanged `0db3faee…` |
+| Helper used by subsequent controller dispatch | still installed `0db3faee…` (tab delimiter). Candidate tests do not establish deployment |
+
+## Dispatch / native confirmation / acceptance
+
+**Not performed.** Plan requires verified deployment before any new Overview request. Missing images and failed confirmation remain infrastructure gaps, not presentation defects.
+
+No new request files, receipts, or binding IDs were created. Original and replacement requests/receipts were not edited or deleted. `process` was not invoked. Receipt skipping was not bypassed.
+
+## Isolated regressions (candidate only)
+
+`PYTHONDONTWRITEBYTECODE=1 python3 automation/autocycle-fixes/test_active_document_confirmation.py`
+
+**32 passed** in 0.384s. No Office tell, no `process`, no screenshot, no slot population. Harness still applies the serialization patch to a temporary copy of the installed `0db3faee…` runtime; no assumption change was required.
+
+These results do **not** accept deployment, native Excel confirmation, readability or navigation.
+
+## Deployment handoff (exact)
+
+Required later, at an allowed stopped-controller boundary, through supported mechanisms only:
+
+1. Stop the live AutoCycle controller through its supported interface (`autocycle --stop` after the current checkpoint, or equivalent controller-owned stop). This provider must not issue that stop.
+2. Apply only `automation/autocycle-fixes/identity-reply-serialization.patch` (`e9641648…`) to maintained `/Users/lizhiguo/Documents/Developer/autocycle/native_office.py`. Expected text SHA-256 `3317584b…` (32461). Preserve any unrelated maintained changes (none present now).
+3. From that maintained source, run `python3 install.py --install`. Confirm installed `/Users/lizhiguo/.autocycle/native_office.py` equals `3317584b…` and is the helper subsequent controller dispatch will load.
+4. After that verified deployment, submit at most one new controller request per preserved Overview view (Lululemon `A1:B6`, `A8:B17`; Fast Retailing `A1:B8`, `A8:A14`; 125%; bounds `[40,40,1320,1000]`; original worksheet/positioning/source bindings). Link each to original and failed replacement IDs, source hashes, deployed helper hash and this Step 7.4.4 recovery authorization. Use `native_office.py request` only; do not invoke `process`.
+5. Stop further submissions if the first processed recovery request shows another identity, ownership or transport failure. No second recovery batch is authorized.
+
+## Cumulative usage (not reset)
+
+| Counter | Measured |
+|---|---|
+| Native-save verification | still attempt **1 of 2**; not repeated; `verify-4aualryy` and `verify-3symu378` remain `VERIFIED` / `NONE`; `formula_diffs` **0**; `formulas_preserved` true |
+| Company/route allowances | unchanged; this step did not reset counters or timeouts |
+| Original Overview captures | 4 `BLOCKED` `-2700` receipts retained |
+| Replacement Overview requests | **4 / 4** exhausted; all `BLOCKED` malformed identity reply |
+| New recovery Overview requests | **0 / 4** authorized allowance unused (deployment not verified) |
+| Script timeout | existing 12s confirmation timeout retained |
+| Isolated confirmation + serialization regressions | **32 passed** (candidate only) |
+
+## Artifact preservation
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `build/output/lululemon/Lululemon_BAV.xlsx` | `8ee68f8ebe44c5330d51c24e4bf1c1acdd0d85801f7db13a7ca1c42213f1f00e` | 229454 |
+| `build/output/fast_retailing/FastRetailing_BAV.xlsx` | `2e98bb8ea4c682e7a28fd349b40e18028e04f3476c0f225ab6ff4a3413ba22bf` | 137763 |
+| `verify-4aualryy/saved-copy.xlsx` | `cc470dee425731c79945e8179112c668e6c657f60e602c4879872c27c3e2d126` | 266960 |
+| `verify-3symu378/saved-copy.xlsx` | `c4951f0c48f6ad7910244ea78c281544bea928e191eb9abf5d382eb988ba90bb` | 174602 |
+| `.git/autocycle/step-7-4/view-request-binding.json` | `e600629fa053aafe43cf798bf0ae4bcb83c19357995dfe23e99f4b4320a4bfb7` | 2097 |
+| `.git/autocycle/step-7-4-2/replacement-binding.json` | `3d9836e00cf56ae166f193a40f3d03d4599a01fb5cc2eb3b482c0672cb98279b` | 6545 |
+| receipt `73e7db8abfa642dc87594e39766ac9e2` | `a01899c718df370f5413473450950a27ee77d5459ffe95bbd6f6929aab85c5e9` | 1099 |
+| receipt `2b5bdffeb0084d68a7a4241368cb1913` | `32deee759395dcb5ae9377558ea23605f3de13259e961ad703c1dfbb8bd6c393` | 1100 |
+| receipt `a847e8e081dd4f0da24f1ed46f00e66e` | `377e80cd7db2eef5c64100f048a270a8bff553e3428c03e9882b99ffe9edac68` | 1117 |
+| receipt `6ebdbae0c7e444a9ab8fc3c7343ce2a3` | `196647224b255532ad4bf6056222bcbcd49478277191365fa62030a76dc857c1` | 1118 |
+| receipt `12be0d6b5f884cf99d21713929edaf1f` | `2adfb95992b8af5f08ccf4eec9e0c788fa768447c89b1d0a6fccae21c01a1fbe` | 1101 |
+| receipt `b6874c2e22b24f35b9692748346bce73` | `34f79c6e58e90b9a53a8db895012c964e630ce689fe109ad41a479f49646a8b6` | 1102 |
+| receipt `243388224b83484790c0b9b1489a869e` | `bfdb1c78de98945552418594142e7e832239d89c515e62770d61c13685e9c82c` | 1119 |
+| receipt `dbfeddaedefa46da9c07b85259961987` | `337a30d932386743e3abe0e3dd708ad8a495bb2b224857792a6956ec52b90db1` | 1120 |
+
+Historical `excel-verification-vm1b3wsq` and `excel-verification-hrj5h672` directories remain present and were not opened in Office. Products were not regenerated. Excel was not force-quit; unrelated workbooks were not closed.
+
+## Native readability and navigation
+
+**Not performed.** Installation did not occur. All four 125% Overview inspections remain outstanding (Lululemon A1:B6 and A8:B17; Fast Retailing A1:B8 and A8:A14; bounds `[40,40,1320,1000]`). Supporting-schedule navigation, including Build Status and Fast Retailing’s fallback, was not demonstrated; the missing capability is controller-owned interaction after a deployed helper, not an invented capture. XML, stored links, transport tests and native open/save do not establish readability or demonstrated navigation.
+
+## Carry-forward (unchanged files)
+
+Canonical BAV hashes, `.autocycle.toml`, CLI/README/opening, Lululemon build/check/publish, Fast Retailing build/check, Fast Retailing `No publishable canonical research` diagnostic, analytical formula/literal **0**, and publication `_content_equal` remain applicable to those unchanged surfaces. They still do not accept native opening readability.
+
+## Remaining toward Completion
+
+- Installed controller still uses the `tab` delimiter inside the Excel tell block; the serialization repair is prepared and hash-verified but not deployed. Native confirmation of the patched reply is untested.
+- Four replacement receipts remain `BLOCKED` malformed identity reply without images. Original four remain `BLOCKED` `-2700` without images. Readability (wrapping, clipping, concise presentation, company identity, fiscal coverage, currency/units, historical reading, evidence limits, supporting-schedule navigation including Build Status and Fast Retailing fallback) is still uninspected in native Excel.
+- Inherited migration acceptance remains unresolved. Opening verification does not certify it. SESSION.md’s retrospective exception and the Git-first contract apply; the original deletion-before-verification sequencing breach is retained and is not satisfied by later checks.
+- Final Session integration, earlier normalization, broader source-workflow and normalized-per-share obligations remain deferred.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+
 
