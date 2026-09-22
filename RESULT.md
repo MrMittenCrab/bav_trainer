@@ -4393,4 +4393,123 @@ Canonical BAV hashes are byte-identical to the prior Step 7.4 record. `.autocycl
 
 Not started. This bounded attempt does not begin the next implementation step.
 
+# RESULT.md — Step 7.4 Diagnose capture dispatch and complete native readability inspection
+
+**Status:** BLOCKED (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 7.4 — Diagnose capture dispatch and complete native readability inspection  
+**Work:** `4be4aef0dc274a529824d561b15b847e`  
+**Plan:** `065f0be85e884cf7aee8c306d5280463`  
+**Finding:** BAV-first presentation and concise workbook front page  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `c3a9b136234e4dd4ef5d9e0bb3b88ed7ff7db10141a2e2b9bf530246e31e6aa5` (6353).  
+IMPLEMENTATION SHA-256 `0d42848bfebfafff2080a21b4300e78e22ce142a77a9bf8504df1762ca3c71c5` (8439).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Library/Frameworks/Python.framework/Versions/3.14/bin/python3` **3.14**.
+
+This append records the continuation of work `4be4aef0dc274a529824d561b15b847e` from checkpoint `335f49da79621145cab6d45f39f53bd4908da2a0`. It does not rewrite prior ledger history, does not reserve future IDs, does not revise product presentation, does not regenerate products, and does not certify migration acceptance or Session integration.
+
+## Required plan change
+
+None in product files. Controller dispatch remains omitted until the live AutoCycle process re-reads capabilities. Provider cannot restart the controller or invoke `native_office.py process`.
+
+## Baseline authentication
+
+| Record | Value |
+|---|---|
+| Branch | `checkpoint/20260913-183303` |
+| HEAD / `resume-state` `IMPLEMENT_BASE_SHA` / `PLAN_SHA` | `72f83b0c21e26288e51e119f011bfa2d8a8cf7ab` (this Plan commit; parent `335f49da79621145cab6d45f39f53bd4908da2a0`) |
+| `implementation-baseline.json` `head` | `72f83b0c21e26288e51e119f011bfa2d8a8cf7ab` |
+| Reviewed implementation baseline (checkpoint parent; not substituted) | `d62453f3f19fbaaf39bfdb75e53e6409de21d1f0` = `335f49da79621145cab6d45f39f53bd4908da2a0^` |
+| Checkpoint continued from | `335f49da79621145cab6d45f39f53bd4908da2a0` |
+| `latest-implementation` | HEAD `d62453f3f19fbaaf39bfdb75e53e6409de21d1f0` on `checkpoint/20260913-183303` (prior implementation of this work; log `cursor-20260923-015935-78417.log`) |
+| Work-state `7.4` | `opened`, work `4be4aef0dc274a529824d561b15b847e`, source `72f83b0c…` |
+| Ancestry | `d62453f3` → `335f49da` → `72f83b0c` (HEAD) |
+
+Binding established. Native verify remains attempt **1 of 2**. Product files were not mutated.
+
+## Dispatch diagnosis
+
+Concrete cause: **dispatch was omitted**. Capabilities were available in the repository. Processing did not fail before receipt creation because `process` was never invoked.
+
+| Check | Measured result |
+|---|---|
+| Installed helper | `/Users/lizhiguo/.autocycle/native_office.py` |
+| Controller call site | `/Users/lizhiguo/bin/autocycle` `run_engine_stage`: `python3 "$OFFICE_HELPER" process` only when `$MODE == --review-only && -n "${OFFICE_APPS:-}"` |
+| `OFFICE_APPS` assignment | Once at controller startup, only for `run\|--resume\|--restart\|--extend`, from `native_office.py capabilities` |
+| Live controller | PID **74064** `/bin/bash /Users/lizhiguo/bin/autocycle --resume` started **2026-09-23 01:46:17** |
+| Live power wrapper | PID **74078** `caffeinate -i -s env AUTOCYCLE_CAFFEINATED=1 … --resume` (non-Office path). Office path would be `caffeinate -d -i -w` plus `preflight` |
+| `.autocycle.toml` written | **2026-09-23 01:52:32** — 6 minutes after controller start |
+| `.autocycle.toml` first commit | `d383f5c75eafd289c237d4014f93baa5362570a5` 01:55:23 |
+| `controller.lock` mtime | 2026-09-23 01:46:17 (same as live `--resume`) |
+| `python3 … capabilities` now | `excel word` |
+| Subsequent Reviews | `review-20260923-015529` and `review-20260923-020537` both received `Controller native Office view evidence: []` and completed; a failed `process` would have aborted Review (`run_engine_stage` returns nonzero) |
+| Receipts / `view.png` | still absent; `review-evidence` → `[]` |
+
+`.autocycle.toml` did not exist when the live `--resume` process cached `OFFICE_APPS=""`. The same process has remained up through both later Reviews and this implement (`stage --implement-only` PID 80886 is a child). Because `OFFICE_APPS` is not re-read, `process` is skipped even though capabilities now return `excel word`.
+
+Supported correction: restart `autocycle --resume` after opt-in so startup re-reads capabilities, runs Office `preflight`, and `run_engine_stage --review-only` dispatches `process` before Review.
+
+Unavailable from this provider: invoking `process`, impersonating the controller, bypassing `controller_parent`, capturing screenshots, or restarting the live controller. This child's parent is Cursor `agent` / `stage --implement-only`, not `autocycle`; the parent guard would reject a provider `process` call.
+
+No repo-side dispatch obstruction. `.autocycle.toml` SHA-256 `d6540de7…` (49) unchanged. Access controls and ownership were not modified.
+
+## Existing receipts (checked before any queue change)
+
+| Check | Measured result |
+|---|---|
+| `.git/autocycle/office/receipts/` | **absent** |
+| `view.png` under `.git/autocycle/office/` | **none** |
+| `review-evidence` | `[]` |
+| Replacement requests | **none** (original four IDs left in place) |
+| `native_office.py process` | **not invoked** |
+
+## Source and request bindings (unchanged)
+
+Canonical workbooks still match the required SHA-256 values. Original request IDs, ranges, zoom 125 and bounds `[40,40,1320,1000]` remain. Earlier `requested_head` `3ef129d53060656e702c16f952842c51376ac237` does not invalidate them.
+
+| Request ID | Company | Range | Request SHA-256 | Source SHA-256 | Match |
+|---|---|---|---|---|---|
+| `73e7db8abfa642dc87594e39766ac9e2` | lululemon | A1:B6 | `db90d8e1…` | `8ee68f8e…` | **yes** |
+| `2b5bdffeb0084d68a7a4241368cb1913` | lululemon | A8:B17 | `ffafb1cf…` | `8ee68f8e…` | **yes** |
+| `a847e8e081dd4f0da24f1ed46f00e66e` | fast_retailing | A1:B8 | `7f03fbf3…` | `2e98bb8e…` | **yes** |
+| `6ebdbae0c7e444a9ab8fc3c7343ce2a3` | fast_retailing | A8:A14 | `737ee17b…` | `2e98bb8e…` | **yes** |
+
+`.git/autocycle/step-7-4/view-request-binding.json` SHA-256 `e600629fa053aafe43cf798bf0ae4bcb83c19357995dfe23e99f4b4320a4bfb7` (2097), status still `QUEUED`.
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `build/output/lululemon/Lululemon_BAV.xlsx` | `8ee68f8ebe44c5330d51c24e4bf1c1acdd0d85801f7db13a7ca1c42213f1f00e` | 229454 |
+| `build/output/fast_retailing/FastRetailing_BAV.xlsx` | `2e98bb8ea4c682e7a28fd349b40e18028e04f3476c0f225ab6ff4a3413ba22bf` | 137763 |
+
+View slot was not populated or reused. Verify slot was not reopened. Historical copies and immutable snapshots were not opened in Office.
+
+## Native-save snapshots (preserved; not re-run)
+
+| Snapshot | Copy SHA-256 | Bytes | Mode |
+|---|---|---:|---|
+| `verify-4aualryy/saved-copy.xlsx` | `cc470dee425731c79945e8179112c668e6c657f60e602c4879872c27c3e2d126` | 266960 | 0444 |
+| `verify-3symu378/saved-copy.xlsx` | `c4951f0c48f6ad7910244ea78c281544bea928e191eb9abf5d382eb988ba90bb` | 174602 | 0444 |
+
+Native verify attempt remains **1 of 2**. Successful verification was not repeated.
+
+## Native image inspection and navigation
+
+**Not performed.** Receipts and `view.png` files are absent. XML, openpyxl, queuing and native open/save do not establish readability. No additional view requests were submitted. Stored hyperlink targets from the prior append are unchanged and remain non-native.
+
+## Carry-forward (unchanged files)
+
+Canonical BAV hashes, `.autocycle.toml`, CLI/README/opening, Lululemon build/check/publish, Fast Retailing build/check, Fast Retailing `No publishable canonical research` diagnostic, analytical formula/literal **0**, and publication `_content_equal` remain applicable to those unchanged surfaces. They still do not accept native opening readability.
+
+## Remaining toward Completion
+
+- Controller `process` of the four original 125% Overview requests remains omitted by the live `--resume` process. Receipts/images are therefore still missing; native readability is uninspected.
+- Supported correction is a controller restart after opt-in so `OFFICE_APPS` is populated and `process` runs before Review. That restart is unavailable from this provider.
+- Inherited migration acceptance remains unresolved. Opening verification does not certify it.
+- Final Session integration, earlier normalization, broader source-workflow and normalized-per-share obligations remain deferred.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+
 
