@@ -3806,3 +3806,113 @@ Word pages after page 1 were not opened in Microsoft Word. Multi-page Word WYSIW
 
 Not started. This bounded attempt does not begin the next implementation step.
 
+# RESULT.md — Step 7.3.1 Finish publication reference handling, reproducibility and Word inspection
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 7.3.1 — Finish publication reference handling, reproducibility and Word inspection  
+**Work:** `7c1d2cba71024c21afc8becfcb40f6f2`  
+**Plan:** `d153697303254940b7a1e91f5e0bddda`  
+**Finding:** Reproducible Word/PDF publication from canonical research  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `c3a9b136234e4dd4ef5d9e0bb3b88ed7ff7db10141a2e2b9bf530246e31e6aa5` (6353).  
+IMPLEMENTATION SHA-256 `5e73b5d51b8542ab81cf426fceabdcfcf7f4168addb122108509c7acc7ef2eaa` (6818).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. HEAD / `IMPLEMENT_BASE_SHA` `7c7761c094d3000d64894cc25766bdf7d010b7aa`.
+
+This append records the bounded Step 7.3.1 attempt. It does not rewrite prior ledger history, does not reserve future IDs, and does not begin BAV-first front-page/CLI alignment or Session integration.
+
+## Required plan change
+
+None.
+
+## Repair
+
+`core/research/document.py` now validates document Link targets before flattening inline content. Local paths resolve relative to canonical research; same-document and other-markdown anchors are checked. Publications keep the link label and, for file targets, the filename. Broken or unsupported targets return a nonzero diagnostic naming the source Markdown and the target.
+
+`python-docx` and `reportlab` load only after `require_publication_libraries()`. Import-time page constants no longer come from reportlab; `_BAVCanvas` is bound after the diagnostic. Missing either library reaches the CLI error handler with `pip install -r requirements-trainer.txt; see README.` Staging still replaces both formats only after both validate; reference, dependency and conversion failures leave the last successful pair.
+
+Repeat comparison now captures first-run Word/PDF bytes before the second publish overwrites destinations. It compares Word paragraphs, tables, section geometry and media, and PDF text, images and page count. Container/core/PDF-info dates may differ; body and layout are not normalized away.
+
+Word reading-scale inspection of the first layout (19 Word pages) showed nearly empty portrait pages 5, 7 and 9 before landscape tables, and mid-word header wraps (`Reconstruct/ed`, `impairment/rev/enue`). Repair: keep the preceding body on the landscape page with its table; wrap headers at `/`, spaces or existing hyphens; weight column widths by content. Body size stays 10 pt. Reinspection after republish: **15** Word pages and **19** PDF pages; those sparse pages are gone.
+
+README was not changed. STYLE.md remains authoritative.
+
+## Toolchain (measured)
+
+| Tool | Version / path |
+|---|---|
+| pandoc | 3.8 (`/opt/anaconda3/bin/pandoc`) |
+| python-docx | 1.2.0 |
+| reportlab | 5.0.1 |
+| PyMuPDF | 1.26.4 |
+| Microsoft Word | 16.113.1 |
+| Aptos Regular | `/Applications/Microsoft Excel.app/Contents/Resources/DFonts/Aptos.ttf` |
+| DengXian Regular | `/Applications/Microsoft Excel.app/Contents/Resources/DFonts/Deng.ttf` |
+| Viewing | Word pages: Word **Save As PDF** of the inspected DOCX, then PyMuPDF **150 dpi**. PDF pages: PyMuPDF **150 dpi**. On-screen, not a printed sheet |
+
+## Commands and measured results
+
+| Check | Measured result |
+|---|---|
+| Focused publication regressions | **19 passed** (valid/broken document refs, missing `docx`/`reportlab` via fresh CLI, repeat difference + independent equality) |
+| `test_current_build` + `test_build_cli` + `test_build_contract` + `test_research_drivers` + `test_trainer` + publication | **153 passed** |
+| `python -m bav build Lululemon` | **0** |
+| `python -m bav check Lululemon` | **0** |
+| `python -m bav publish Lululemon` | **0** → `build/output/lululemon/Lululemon_BAV.docx` / `.pdf` |
+| Independent repeat (bytes captured before overwrite) | Word text/tables/sections/media **identical**; PDF text/images/pages **identical** (19 pages, 3 images). Word SHA `2ed56c8e…` vs `0d6b7912…`; PDF SHA `53bc7db5…` vs `fb1beab3…` — PDF `/CreationDate` metadata only |
+| Deliberate content difference | Detected after inserting one Drivers sentence |
+| Missing `python-docx` / `reportlab` through public CLI | each **nonzero**; `required converter unavailable`; install guidance; prior Word/PDF bytes preserved |
+| Publish mutation of canonical inputs | **NONE** — Drivers/figures/placeholders/workbook/upstream unchanged by publish; no Trainer |
+| `python -m bav publish FastRetailing` | **1** — `No publishable canonical research`; no Word/PDF written |
+| `python -m bav build/check FastRetailing` | **0** / **0** |
+| `SEGMENT_BRIDGE_TOLERANCE` | **0.0** (`core/data/historical_segments.py`) |
+| Trainer emitted | **no** |
+
+Saved copies `.git/autocycle/excel-verification-vm1b3wsq/saved-copy.xlsx` (`dbd85c50…`, 267180) and `excel-verification-hrj5h672/saved-copy.xlsx` (`1f6921bf…`, 269300) were not overwritten. Native Excel was not re-run (no formula/presentation edit; allowances not reset).
+
+## Visual inspection
+
+Inspected DOCX: `.git/autocycle/step-7-3-1-word-inspect/Lululemon_BAV.docx` SHA-256 `2ed56c8e432ba48c02ec919449589b77e56e8befe49de785737b2bc8b492afae` (214179), byte-identical to the first post-repair publish. Destination after the verification republish is `0d6b7912…` with the same Word payload. Word rendering: Microsoft Word 16.113.1 **Save As PDF** → `Lululemon_BAV.word.pdf` `45a45bdb…` (305196), then 150 dpi pages `word-page-01.png` … `word-page-15.png`. Publication PDF pages `pdf-page-01.png` … `pdf-page-19.png`. Earlier Step 7.3 PDF page set (22 pages) is **not** carried forward; layout changed.
+
+| Surface | Pages / view | Observation |
+|---|---|---|
+| Word 1 | Portrait; title, Context, both opening tables | 10 pt body, 14 pt headings, grayscale. FY2021–FY2025 context table complete. Growth amount table continues onto page 2 |
+| Word 2 | Growth table remainder + growth figure + caption + Geography prose | Figure readable; FY ticks including `2 Feb 2025`; source note in the PNG; caption under the figure |
+| Word 3 | Landscape; geography intro + two tables | Intro stays with tables (no empty preceding page). All columns present; residuals $0.0 million |
+| Word 4 | Geography figure + Margin prose | Second figure; Item 7 locators and signed pp/bps in body |
+| Word 5 | Landscape; margin identity + amount-bridge tables | Intro paragraphs on the same landscape pages as their tables. 11-column amount bridge at 10 pt; no mid-word `Reconstruct/ed` |
+| Word 6 | Landscape; signed contribution table | Headers wrap at `/` (`−Δ(impairment/revenue)`). FY2022–FY2025 signed pp/bps and residuals present |
+| Word 7 | Margin figure + residual sentence + start of stacked assessments | Third figure; equation `Revenue = stores × company-wide revenue per store` begins |
+| Word 8–14 | Stacked seven-part assessments | Kind / Direction / Magnitude / Reconstruction / Residual / Stability / Contradictions / Disclosure / Result retained for each relationship |
+| Word 15 | Conclusions 2–5 + Limits | FY2024 53-week / 2 February 2025 sentence present |
+| PDF 1–19 | Same analysis after the same layout repair | 3 figures; landscape tables with intros; 19 pages. Aptos spans only in rendered text |
+
+Image-caption OCR still concatenates Aptos words (`LululemonBAV`). Extracted Word/PDF text has normal U+0020.
+
+## Artifact hashes
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `build/output/lululemon/Lululemon_BAV.docx` | `0d6b791235753126b7277374b219b70303c1aeffaa7f8407aaf28623eebd1a2f` | 214179 |
+| `build/output/lululemon/Lululemon_BAV.pdf` | `fb1beab3e77e5c82fbe9014e5e5faf95ad835658517a3a804d4bd08ba2710953` | 252880 |
+| Inspected DOCX (Word-rendered) | `2ed56c8e432ba48c02ec919449589b77e56e8befe49de785737b2bc8b492afae` | 214179 |
+| `research/Lululemon_Drivers.md` | `3cf67013afa03e049e1b64a794e84ced2c3533e6f16b906ed48f21fdc8ae5071` | 20922 |
+| `research/Lululemon_Forecast.md` / `_Valuation.md` / `_Overview.md` | `e3b0c442…` | 0 |
+| `figures/drivers/growth.png` | `dd4aae26…` | 63564 |
+| `figures/drivers/geography.png` | `7112d2d5…` | 51504 |
+| `figures/drivers/margin.png` | `e7ebe708…` | 62436 |
+| `Lululemon_BAV.xlsx` (after required build) | `ac0fe74544da8958a5d87f83435effc2f74514efff305b861f4d2a520d4407da` | 231564 |
+| `FastRetailing_BAV.xlsx` (usability rebuild) | `65f4f9efed2e54f89a4eb8701071bcaa2baeba70b0948ef5150979d4893fd092` | 138179 |
+| `STYLE.md` | `4360b24b…` | 1645 |
+
+## Remaining toward Completion
+
+- Broader BAV-first CLI/documentation alignment and the concise workbook front page remain subsequent Session work.
+- Mix, markdowns, freight, occupancy, and leverage remain unestablished as bridge terms.
+- Earlier normalization, broader source-workflow, and normalized-per-share work remain deferred.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+

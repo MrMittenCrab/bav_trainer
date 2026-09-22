@@ -9,44 +9,16 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
 import zipfile
 
-from docx import Document
-from docx.enum.section import WD_ORIENT
-from docx.enum.text import WD_LINE_SPACING
-from docx.oxml import OxmlElement
-from docx.oxml.ns import qn
-from docx.shared import Mm, Pt, RGBColor
-from reportlab.lib.colors import black, HexColor
-from reportlab.lib.enums import TA_LEFT, TA_RIGHT
-from reportlab.lib.pagesizes import A4, landscape as landscape_size
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.units import mm
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfgen.canvas import Canvas
-from reportlab.platypus import (
-    BaseDocTemplate,
-    Frame,
-    Image as RLImage,
-    KeepTogether,
-    NextPageTemplate,
-    PageBreak,
-    PageTemplate,
-    Paragraph,
-    Spacer,
-    Table,
-    TableStyle,
-)
-
 from ..current_build import Company, resolve_company
 from .drivers import drivers_filename, placeholder_filenames
 from .publish import verify_research_artifacts
 from .style import (
-    BLACK,
     CJK_FACE,
     LABEL_PT,
     LATIN_FACE,
@@ -61,8 +33,11 @@ BODY_PT = 10
 HEADING_PT = 14
 CAPTION_PT = LABEL_PT
 PAGE_MARGIN_MM = 18
-PORTRAIT = A4
-LANDSCAPE = landscape_size(A4)
+MM_PT = 72.0 / 25.4
+PORTRAIT = (210 * MM_PT, 297 * MM_PT)
+LANDSCAPE = (297 * MM_PT, 210 * MM_PT)
+_LIBS_LOADED = False
+_BAVCanvas = None
 DEBUG_TERMS = (
     "fail-closed",
     "fail closed",
@@ -110,6 +85,13 @@ class ListBlock:
     items: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class _ParseCtx:
+    source: Path
+    origin: Path
+    heading_ids: frozenset[str]
+
+
 Block = Heading | Body | FigureBlock | TableBlock | ListBlock
 
 
@@ -143,6 +125,87 @@ def require_publication_libraries() -> None:
             + ", ".join(missing)
             + ". Install with pip install -r requirements-trainer.txt; see README."
         )
+    _load_publication_libraries()
+
+
+def _load_publication_libraries() -> None:
+    """Bind python-docx and reportlab names after a successful diagnostic."""
+    global Document, WD_ORIENT, WD_LINE_SPACING, OxmlElement, qn, Mm, Pt, RGBColor
+    global black, HexColor, TA_LEFT, TA_RIGHT, ParagraphStyle, pdfmetrics, TTFont
+    global Canvas, BaseDocTemplate, Frame, RLImage, KeepTogether, NextPageTemplate
+    global PageBreak, PageTemplate, Paragraph, Spacer, Table, TableStyle
+    global _BAVCanvas, _LIBS_LOADED
+    if _LIBS_LOADED:
+        return
+    from docx import Document as _Document
+    from docx.enum.section import WD_ORIENT as _WD_ORIENT
+    from docx.enum.text import WD_LINE_SPACING as _WD_LINE_SPACING
+    from docx.oxml import OxmlElement as _OxmlElement
+    from docx.oxml.ns import qn as _qn
+    from docx.shared import Mm as _Mm, Pt as _Pt, RGBColor as _RGBColor
+    from reportlab.lib.colors import HexColor as _HexColor, black as _black
+    from reportlab.lib.enums import TA_LEFT as _TA_LEFT, TA_RIGHT as _TA_RIGHT
+    from reportlab.lib.styles import ParagraphStyle as _ParagraphStyle
+    from reportlab.pdfbase import pdfmetrics as _pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont as _TTFont
+    from reportlab.pdfgen.canvas import Canvas as _Canvas
+    from reportlab.platypus import (
+        BaseDocTemplate as _BaseDocTemplate,
+        Frame as _Frame,
+        Image as _RLImage,
+        KeepTogether as _KeepTogether,
+        NextPageTemplate as _NextPageTemplate,
+        PageBreak as _PageBreak,
+        PageTemplate as _PageTemplate,
+        Paragraph as _Paragraph,
+        Spacer as _Spacer,
+        Table as _Table,
+        TableStyle as _TableStyle,
+    )
+
+    Document = _Document
+    WD_ORIENT = _WD_ORIENT
+    WD_LINE_SPACING = _WD_LINE_SPACING
+    OxmlElement = _OxmlElement
+    qn = _qn
+    Mm = _Mm
+    Pt = _Pt
+    RGBColor = _RGBColor
+    black = _black
+    HexColor = _HexColor
+    TA_LEFT = _TA_LEFT
+    TA_RIGHT = _TA_RIGHT
+    ParagraphStyle = _ParagraphStyle
+    pdfmetrics = _pdfmetrics
+    TTFont = _TTFont
+    Canvas = _Canvas
+    BaseDocTemplate = _BaseDocTemplate
+    Frame = _Frame
+    RLImage = _RLImage
+    KeepTogether = _KeepTogether
+    NextPageTemplate = _NextPageTemplate
+    PageBreak = _PageBreak
+    PageTemplate = _PageTemplate
+    Paragraph = _Paragraph
+    Spacer = _Spacer
+    Table = _Table
+    TableStyle = _TableStyle
+
+    class BoundCanvas(_Canvas):
+        """ReportLab defaults to Helvetica; force the resolved Aptos face."""
+
+        def __init__(self, *args, latin: str = LATIN_FACE, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._bav_latin = latin
+            self.setFont(latin, BODY_PT)
+
+        def setFont(self, psfontname, size, leading=None):
+            if psfontname in {"Helvetica", "Helvetica-Bold", "Times-Roman", "Courier"}:
+                psfontname = self._bav_latin
+            return super().setFont(psfontname, size, leading)
+
+    _BAVCanvas = BoundCanvas
+    _LIBS_LOADED = True
 
 
 def publish_company_documents(query: str) -> PublishedDocuments:
@@ -159,7 +222,7 @@ def publish_resolved_company(company: Company) -> PublishedDocuments:
     markdown = drivers.read_text(encoding="utf-8")
     _reject_debug_material(markdown, drivers)
     ast = _parse_markdown(pandoc, drivers)
-    blocks = _blocks_from_ast(ast, drivers.parent, fonts)
+    blocks = _blocks_from_ast(ast, drivers, fonts)
     _assert_no_empty_reserved_sections(blocks)
     word_name, pdf_name = publication_filenames(company.name)
     dest_word = company.output / word_name
@@ -222,7 +285,49 @@ def _parse_markdown(pandoc: Path, markdown: Path) -> dict:
         raise ValueError(f"pandoc returned invalid JSON for {markdown}: {exc}") from exc
 
 
-def _inlines_text(inlines) -> str:
+def _heading_identifier(text: str) -> str:
+    ident: list[str] = []
+    for ch in text.strip().casefold():
+        if ch.isalnum() or ch in "-_":
+            ident.append(ch)
+        elif ch.isspace():
+            ident.append("-")
+    return re.sub("-{2,}", "-", "".join(ident)).strip("-")
+
+
+def _heading_ids_from_ast(ast: dict) -> set[str]:
+    ids: set[str] = set()
+    for node in ast.get("blocks", ()):
+        if not isinstance(node, dict) or node.get("t") != "Header":
+            continue
+        content = node.get("c")
+        if not isinstance(content, list) or len(content) < 3:
+            continue
+        attr = content[1]
+        if isinstance(attr, list) and attr and attr[0]:
+            ids.add(str(attr[0]))
+        label = _inlines_text(content[2])
+        slug = _heading_identifier(label)
+        if slug:
+            ids.add(slug)
+    return ids
+
+
+def _heading_ids_from_markdown(path: Path) -> set[str]:
+    try:
+        ast = _parse_markdown(require_pandoc(), path)
+    except ValueError:
+        ast = {}
+    ids = _heading_ids_from_ast(ast)
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("#"):
+            slug = _heading_identifier(line.lstrip("#").strip())
+            if slug:
+                ids.add(slug)
+    return ids
+
+
+def _inlines_text(inlines, ctx: _ParseCtx | None = None) -> str:
     parts: list[str] = []
     for node in inlines or ():
         kind = node.get("t") if isinstance(node, dict) else None
@@ -234,39 +339,108 @@ def _inlines_text(inlines) -> str:
         elif kind == "LineBreak":
             parts.append("\n")
         elif kind == "Quoted":
-            parts.append(_inlines_text(content[1]))
+            parts.append(_inlines_text(content[1], ctx))
         elif kind in {"Emph", "Strong", "Underline", "Strikeout", "SmallCaps"}:
-            parts.append(_inlines_text(content))
+            parts.append(_inlines_text(content, ctx))
         elif kind == "Math":
             parts.append(content[1] if isinstance(content, list) else str(content))
         elif kind == "RawInline":
             parts.append(content[1] if isinstance(content, list) else "")
         elif kind == "Link":
-            parts.append(_inlines_text(content[1]))
+            target = content[2][0] if isinstance(content, list) and len(content) >= 3 else ""
+            if ctx is not None:
+                _validate_link_target(ctx.source, ctx.origin, target, ctx.heading_ids)
+            label = _inlines_text(content[1], ctx)
+            parts.append(_format_link_text(label, target))
         elif kind == "Image":
-            parts.append(_inlines_text(content[1]))
+            parts.append(_inlines_text(content[1], ctx))
         elif kind == "Code":
             parts.append(content[1] if isinstance(content, list) else str(content))
         elif kind == "Span":
-            parts.append(_inlines_text(content[1]))
+            parts.append(_inlines_text(content[1], ctx))
         elif kind == "Note":
             continue
         elif isinstance(content, list):
-            parts.append(_inlines_text(content))
+            parts.append(_inlines_text(content, ctx))
     return "".join(parts)
 
 
-def _blocks_text(blocks) -> str:
+def _format_link_text(label: str, target: str) -> str:
+    label = label.strip()
+    if not target:
+        return label
+    if target.startswith("#"):
+        return label or target
+    display = Path(target.split("#", 1)[0]).name
+    if display and display not in label:
+        return f"{label} ({display})" if label else display
+    return label or target
+
+
+def _walk_links(node, acc: list[str]) -> None:
+    if isinstance(node, dict):
+        if node.get("t") == "Link":
+            content = node.get("c")
+            if isinstance(content, list) and len(content) >= 3:
+                acc.append(str(content[2][0]))
+        for value in node.values():
+            _walk_links(value, acc)
+    elif isinstance(node, list):
+        for item in node:
+            _walk_links(item, acc)
+
+
+def _validate_document_links(
+    ast: dict, source: Path, origin: Path, heading_ids: set[str]
+) -> None:
+    targets: list[str] = []
+    _walk_links(ast, targets)
+    for target in targets:
+        _validate_link_target(source, origin, target, heading_ids)
+
+
+def _validate_link_target(
+    source: Path, origin: Path, target: str, heading_ids: set[str]
+) -> None:
+    if not target or target.startswith(("mailto:", "http://", "https://", "javascript:")):
+        raise ValueError(f"unsupported document reference {target!r} in {source}")
+    href, frag = target, ""
+    if "#" in target:
+        href, frag = target.split("#", 1)
+    if not href:
+        if not frag or frag not in heading_ids:
+            raise ValueError(
+                f"broken document reference {target!r} in {source}: "
+                f"invalid anchor {frag!r}"
+            )
+        return
+    path = _resolve_local_document(origin, href, source)
+    if frag:
+        if path.suffix.lower() in {".md", ".markdown"}:
+            ids = heading_ids if path.resolve() == source.resolve() else _heading_ids_from_markdown(path)
+            if frag not in ids:
+                raise ValueError(
+                    f"broken document reference {target!r} in {source}: "
+                    f"invalid anchor {frag!r}"
+                )
+        else:
+            raise ValueError(
+                f"unsupported document reference {target!r} in {source}: "
+                f"anchor on non-markdown target"
+            )
+
+
+def _blocks_text(blocks, ctx: _ParseCtx | None = None) -> str:
     parts: list[str] = []
     for block in blocks or ():
         kind = block.get("t") if isinstance(block, dict) else None
         content = block.get("c") if isinstance(block, dict) else None
         if kind in {"Para", "Plain"}:
-            parts.append(_inlines_text(content))
+            parts.append(_inlines_text(content, ctx))
         elif kind == "Header":
-            parts.append(_inlines_text(content[2]))
+            parts.append(_inlines_text(content[2], ctx))
         elif isinstance(content, list):
-            parts.append(_blocks_text(content))
+            parts.append(_blocks_text(content, ctx))
     return "\n".join(part for part in parts if part)
 
 
@@ -280,6 +454,24 @@ def _walk_images(node, acc: list[tuple[str, str]]) -> None:
     elif isinstance(node, list):
         for item in node:
             _walk_images(item, acc)
+
+
+def _resolve_local_document(origin: Path, target: str, source: Path) -> Path:
+    path = (origin / target).resolve()
+    research_root = origin.resolve()
+    try:
+        path.relative_to(research_root.parent.parent.resolve())
+    except ValueError as exc:
+        raise ValueError(
+            f"broken document reference {target!r} in {source}: "
+            f"target escapes canonical research"
+        ) from exc
+    if not path.is_file():
+        raise ValueError(
+            f"broken document reference {target!r} in {source}: "
+            f"missing local file {path}"
+        )
+    return path
 
 
 def _resolve_asset(origin: Path, target: str) -> Path:
@@ -300,19 +492,21 @@ def _resolve_asset(origin: Path, target: str) -> Path:
     return path
 
 
-def _cell_text(cell) -> str:
-    return _blocks_text(cell[4] if isinstance(cell, list) and len(cell) >= 5 else cell)
+def _cell_text(cell, ctx: _ParseCtx | None = None) -> str:
+    return _blocks_text(cell[4] if isinstance(cell, list) and len(cell) >= 5 else cell, ctx)
 
 
-def _table_rows(header_rows, body) -> tuple[tuple[str, ...], tuple[tuple[str, ...], ...]]:
-    headers = tuple(_cell_text(cell) for cell in header_rows[0][1]) if header_rows else ()
+def _table_rows(
+    header_rows, body, ctx: _ParseCtx | None = None
+) -> tuple[tuple[str, ...], tuple[tuple[str, ...], ...]]:
+    headers = tuple(_cell_text(cell, ctx) for cell in header_rows[0][1]) if header_rows else ()
     rows = []
     bodies = body if isinstance(body, list) else []
     for tbody in bodies:
         body_rows = tbody[3] if isinstance(tbody, list) and len(tbody) >= 4 else tbody
         for row in body_rows:
             cells = row[1] if isinstance(row, list) and len(row) >= 2 else row
-            rows.append(tuple(_cell_text(cell) for cell in cells))
+            rows.append(tuple(_cell_text(cell, ctx) for cell in cells))
     if headers:
         width = len(headers)
         normalized = []
@@ -338,8 +532,8 @@ def _table_layout(headers: tuple[str, ...], rows: tuple[tuple[str, ...], ...]) -
             default=4,
         )
         min_width += max(longest_word, 6) * char_w
-    landscape_width = (LANDSCAPE[0] - 2 * PAGE_MARGIN_MM * mm)
-    portrait_width = (PORTRAIT[0] - 2 * PAGE_MARGIN_MM * mm)
+    landscape_width = LANDSCAPE[0] - 2 * PAGE_MARGIN_MM * MM_PT
+    portrait_width = PORTRAIT[0] - 2 * PAGE_MARGIN_MM * MM_PT
     if body_long and min_width > landscape_width:
         return "stacked"
     if ncols >= 7 or min_width > portrait_width:
@@ -347,32 +541,38 @@ def _table_layout(headers: tuple[str, ...], rows: tuple[tuple[str, ...], ...]) -
     return "portrait"
 
 
-def _blocks_from_ast(ast: dict, research_dir: Path, fonts: ResolvedFonts) -> list[Block]:
+def _blocks_from_ast(ast: dict, source: Path, fonts: ResolvedFonts) -> list[Block]:
     del fonts
+    research_dir = source.parent
+    heading_ids = _heading_ids_from_ast(ast)
+    ctx = _ParseCtx(source=source, origin=research_dir, heading_ids=frozenset(heading_ids))
+    _validate_document_links(ast, source, research_dir, heading_ids)
     blocks: list[Block] = []
     for node in ast.get("blocks", ()):
         kind = node.get("t")
         content = node.get("c")
         if kind == "Header":
-            blocks.append(Heading(int(content[0]), _inlines_text(content[2])))
+            blocks.append(Heading(int(content[0]), _inlines_text(content[2], ctx)))
         elif kind in {"Para", "Plain"}:
             images: list[tuple[str, str]] = []
             _walk_images(node, images)
-            if images and not _inlines_text(content).strip():
+            if images and not _inlines_text(content, ctx).strip():
                 for caption, target in images:
                     blocks.append(FigureBlock(_resolve_asset(research_dir, target), caption))
             elif images:
-                text = _inlines_text(content).strip()
+                text = _inlines_text(content, ctx).strip()
                 if text:
                     blocks.append(Body(text))
                 for caption, target in images:
                     blocks.append(FigureBlock(_resolve_asset(research_dir, target), caption))
             else:
-                text = _inlines_text(content).strip()
+                text = _inlines_text(content, ctx).strip()
                 if text:
                     blocks.append(Body(text))
         elif kind == "Figure":
-            caption = _blocks_text(content[1][1] if isinstance(content[1], list) else content[1])
+            caption = _blocks_text(
+                content[1][1] if isinstance(content[1], list) else content[1], ctx
+            )
             images: list[tuple[str, str]] = []
             _walk_images(content[2], images)
             if not images:
@@ -382,14 +582,14 @@ def _blocks_from_ast(ast: dict, research_dir: Path, fonts: ResolvedFonts) -> lis
                     FigureBlock(_resolve_asset(research_dir, target), caption or alt)
                 )
         elif kind == "Table":
-            headers, rows = _table_rows(content[3][1], content[4])
+            headers, rows = _table_rows(content[3][1], content[4], ctx)
             if not headers and not rows:
                 raise ValueError("table has no readable cells")
             blocks.append(TableBlock(headers, rows, _table_layout(headers, rows)))
         elif kind == "OrderedList":
             items = []
             for item in content[1]:
-                text = _blocks_text(item).strip()
+                text = _blocks_text(item, ctx).strip()
                 if text:
                     items.append(text)
             if items:
@@ -397,7 +597,7 @@ def _blocks_from_ast(ast: dict, research_dir: Path, fonts: ResolvedFonts) -> lis
         elif kind == "BulletList":
             items = []
             for item in content:
-                text = _blocks_text(item).strip()
+                text = _blocks_text(item, ctx).strip()
                 if text:
                     items.append(text)
             if items:
@@ -405,7 +605,7 @@ def _blocks_from_ast(ast: dict, research_dir: Path, fonts: ResolvedFonts) -> lis
         elif kind == "RawBlock":
             continue
         else:
-            text = _blocks_text([node]).strip()
+            text = _blocks_text([node], ctx).strip()
             if text:
                 blocks.append(Body(text))
     if not blocks:
@@ -494,12 +694,35 @@ def _set_table_fixed(table, width_mm: float) -> None:
     tbl_pr.append(borders)
 
 
+def _soft_wrap_header(text: str) -> str:
+    """Break long headers at slashes, spaces or existing hyphens, never mid-word."""
+    if "/" in text:
+        return text.replace("/", "/\n")
+    if " " in text and len(text) > 18:
+        parts = text.split(" ")
+        lines: list[str] = [parts[0]]
+        for part in parts[1:]:
+            if len(lines[-1]) + 1 + len(part) <= 18:
+                lines[-1] = f"{lines[-1]} {part}"
+            else:
+                lines.append(part)
+        return "\n".join(lines)
+    if "-" in text and len(text) > 18:
+        return text.replace("-", "-\n")
+    return text
+
+
 def _fill_word_cell(cell, text: str, fonts: ResolvedFonts, size: float) -> None:
     cell.text = ""
     paragraph = cell.paragraphs[0]
     _apply_paragraph_format(paragraph, before=2, after=2)
-    run = paragraph.add_run(text)
-    _set_run_font(run, fonts, size)
+    for index, line in enumerate(text.split("\n")):
+        if index:
+            run = paragraph.add_run()
+            run.add_break()
+            _set_run_font(run, fonts, size)
+        run = paragraph.add_run(line)
+        _set_run_font(run, fonts, size)
     tc = cell._tc
     tc_pr = tc.get_or_add_tcPr()
     no_wrap = tc_pr.find(qn("w:noWrap"))
@@ -507,20 +730,36 @@ def _fill_word_cell(cell, text: str, fonts: ResolvedFonts, size: float) -> None:
         tc_pr.remove(no_wrap)
 
 
+def _column_widths_mm(block: TableBlock, width_mm: float) -> list[float]:
+    ncols = max(len(block.headers), 1)
+    weights: list[float] = []
+    for index in range(ncols):
+        samples = [block.headers[index] if index < len(block.headers) else ""]
+        samples.extend(row[index] if index < len(row) else "" for row in block.rows)
+        longest_word = max(
+            (len(word) for sample in samples for word in re.split(r"[/\s-]+", sample) if word),
+            default=4,
+        )
+        longest = max((len(sample) for sample in samples), default=4)
+        weights.append(max(longest_word, 6) + 0.2 * longest)
+    total = sum(weights) or ncols
+    return [width_mm * weight / total for weight in weights]
+
+
 def _add_word_grid(document, block: TableBlock, fonts: ResolvedFonts, *, wide: bool) -> None:
     width_mm = (297 if wide else 210) - 2 * PAGE_MARGIN_MM
     table = document.add_table(rows=1 + len(block.rows), cols=len(block.headers))
     _set_table_fixed(table, width_mm)
     for index, header in enumerate(block.headers):
-        _fill_word_cell(table.rows[0].cells[index], header, fonts, BODY_PT)
+        _fill_word_cell(table.rows[0].cells[index], _soft_wrap_header(header), fonts, BODY_PT)
     _repeat_header_row(table.rows[0])
     for row_index, row in enumerate(block.rows, start=1):
         for col_index, value in enumerate(row):
             _fill_word_cell(table.rows[row_index].cells[col_index], value, fonts, BODY_PT)
-    col_width = Mm(width_mm / max(len(block.headers), 1))
+    widths = _column_widths_mm(block, width_mm)
     for row in table.rows:
-        for cell in row.cells:
-            cell.width = col_width
+        for index, cell in enumerate(row.cells):
+            cell.width = Mm(widths[index] if index < len(widths) else widths[-1])
 
 
 def _add_word_stacked(document, block: TableBlock, fonts: ResolvedFonts) -> None:
@@ -589,8 +828,11 @@ def _render_word(path: Path, company: str, fonts: ResolvedFonts, blocks: list[Bl
     run = title.add_run(f"{company} BAV")
     _set_run_font(run, fonts, HEADING_PT)
     current_wide = False
-    for block in blocks:
+    for index, block in enumerate(blocks):
+        following = blocks[index + 1] if index + 1 < len(blocks) else None
         want_wide = isinstance(block, TableBlock) and block.layout == "landscape"
+        if isinstance(block, Body) and isinstance(following, TableBlock) and following.layout == "landscape":
+            want_wide = True
         if want_wide != current_wide:
             section = document.add_section()
             _set_section_page(section, wide=want_wide)
@@ -717,48 +959,39 @@ def _pdf_styles(latin: str) -> dict[str, ParagraphStyle]:
     }
 
 
-class _BAVCanvas(Canvas):
-    """ReportLab defaults to Helvetica; force the resolved Aptos face."""
-
-    def __init__(self, *args, latin: str = LATIN_FACE, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._bav_latin = latin
-        self.setFont(latin, BODY_PT)
-
-    def setFont(self, psfontname, size, leading=None):
-        if psfontname in {"Helvetica", "Helvetica-Bold", "Times-Roman", "Courier"}:
-            psfontname = self._bav_latin
-        return super().setFont(psfontname, size, leading)
-
-
 def _pdf_header(company: str, latin: str, canvas, doc) -> None:
     canvas.saveState()
     canvas.setFillColor(black)
     canvas.setFont(latin, BODY_PT)
     width, height = canvas._pagesize
-    canvas.drawString(PAGE_MARGIN_MM * mm, height - 12 * mm, f"{company} BAV")
+    canvas.drawString(PAGE_MARGIN_MM * MM_PT, height - 12 * MM_PT, f"{company} BAV")
     canvas.setFont(latin, LABEL_PT)
-    canvas.drawRightString(width - PAGE_MARGIN_MM * mm, 10 * mm, str(doc.page))
+    canvas.drawRightString(width - PAGE_MARGIN_MM * MM_PT, 10 * MM_PT, str(doc.page))
     canvas.setStrokeColor(HexColor("#808080"))
     canvas.setLineWidth(0.4)
     canvas.line(
-        PAGE_MARGIN_MM * mm,
-        height - 14 * mm,
-        width - PAGE_MARGIN_MM * mm,
-        height - 14 * mm,
+        PAGE_MARGIN_MM * MM_PT,
+        height - 14 * MM_PT,
+        width - PAGE_MARGIN_MM * MM_PT,
+        height - 14 * MM_PT,
     )
     canvas.restoreState()
 
 
+def _escape_cell(text: str) -> str:
+    return _escape_xml(text).replace("\n", "<br/>")
+
+
 def _pdf_table(block: TableBlock, styles, page_width: float) -> Table:
     data = [
-        [Paragraph(_escape_xml(cell), styles["cell"]) for cell in block.headers]
+        [Paragraph(_escape_cell(_soft_wrap_header(cell)), styles["cell"]) for cell in block.headers]
     ]
     for row in block.rows:
-        data.append([Paragraph(_escape_xml(cell), styles["cell"]) for cell in row])
+        data.append([Paragraph(_escape_cell(cell), styles["cell"]) for cell in row])
     ncols = len(block.headers)
-    col_w = page_width / max(ncols, 1)
-    table = Table(data, colWidths=[col_w] * ncols, repeatRows=1, splitByRow=1)
+    widths = _column_widths_mm(block, page_width / MM_PT)
+    col_ws = [width * MM_PT for width in widths]
+    table = Table(data, colWidths=col_ws, repeatRows=1, splitByRow=1)
     table.setStyle(
         TableStyle(
             [
@@ -790,16 +1023,16 @@ def _render_pdf(path: Path, company: str, fonts: ResolvedFonts, blocks: list[Blo
     latin, _cjk = _register_pdf_fonts(fonts)
     styles = _pdf_styles(latin)
     frame_kw = dict(
-        x1=PAGE_MARGIN_MM * mm,
-        y1=16 * mm,
-        width=PORTRAIT[0] - 2 * PAGE_MARGIN_MM * mm,
-        height=PORTRAIT[1] - 32 * mm,
+        x1=PAGE_MARGIN_MM * MM_PT,
+        y1=16 * MM_PT,
+        width=PORTRAIT[0] - 2 * PAGE_MARGIN_MM * MM_PT,
+        height=PORTRAIT[1] - 32 * MM_PT,
     )
     land_kw = dict(
-        x1=PAGE_MARGIN_MM * mm,
-        y1=16 * mm,
-        width=LANDSCAPE[0] - 2 * PAGE_MARGIN_MM * mm,
-        height=LANDSCAPE[1] - 32 * mm,
+        x1=PAGE_MARGIN_MM * MM_PT,
+        y1=16 * MM_PT,
+        width=LANDSCAPE[0] - 2 * PAGE_MARGIN_MM * MM_PT,
+        height=LANDSCAPE[1] - 32 * MM_PT,
     )
     document = BaseDocTemplate(
         str(path),
@@ -837,11 +1070,16 @@ def _render_pdf(path: Path, company: str, fonts: ResolvedFonts, blocks: list[Blo
         story.append(PageBreak())
         current = target
 
-    for block in blocks:
+    for index, block in enumerate(blocks):
+        following = blocks[index + 1] if index + 1 < len(blocks) else None
         if isinstance(block, TableBlock) and block.layout == "landscape":
             switch("landscape")
             story.append(_pdf_table(block, styles, landscape_w))
             story.append(Spacer(1, SECTION_PT))
+            continue
+        if isinstance(block, Body) and isinstance(following, TableBlock) and following.layout == "landscape":
+            switch("landscape")
+            story.append(Paragraph(_escape_xml(block.text), styles["body"]))
             continue
         switch("portrait")
         if isinstance(block, Heading):
