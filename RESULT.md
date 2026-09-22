@@ -4650,4 +4650,117 @@ Canonical BAV hashes, `.autocycle.toml`, CLI/README/opening, Lululemon build/che
 
 Not started. This bounded attempt does not begin the next implementation step.
 
+# RESULT.md — Step 7.4.2 Recover the four native Overview captures
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure; controller capture pending)  
+**Step:** 7.4.2 — Recover the four native Overview captures  
+**Work:** `4be4aef0dc274a529824d561b15b847e`  
+**Plan:** `ffcaa24ffe91433dac84dfed259a4c62`  
+**Finding:** BAV-first presentation and concise workbook front page  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `c3a9b136234e4dd4ef5d9e0bb3b88ed7ff7db10141a2e2b9bf530246e31e6aa5` (6353).  
+IMPLEMENTATION SHA-256 `a8a881667eeecd28c1105cd8270b3d331a39153762287da507e82d0cbdddfa76` (7704).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Library/Frameworks/Python.framework/Versions/3.14/bin/python3` **3.14.0**.
+
+This append records the continuation of parent work `4be4aef0dc274a529824d561b15b847e` from authenticated baseline `722544981016f3836137d5fc1170254ef440c8e1`. It does not rewrite prior ledger history, does not revise product presentation, and does not certify native readability, migration acceptance or Session integration. Review superseded the historical installation gap without rewriting earlier records. Queuing alone is not capture success; Review adjudicates parent Completion.
+
+## Required plan change
+
+None. Four replacement Overview requests are queued through the supported `request` interface. Controller Review-stage dispatch remains outstanding.
+
+## Baseline authentication
+
+| Record | Value |
+|---|---|
+| Branch | `checkpoint/20260913-183303` |
+| HEAD / `resume-state` `IMPLEMENT_BASE_SHA` / `PLAN_SHA` | `722544981016f3836137d5fc1170254ef440c8e1` |
+| `implementation-baseline.json` `head` | `722544981016f3836137d5fc1170254ef440c8e1` |
+| Work-state `7.4.2` | `opened`, work `4be4aef0dc274a529824d561b15b847e`, source `72254498…` |
+| Bound running attempt | `3e8647a90b2c4d71b869058b88a23932`, plan `72254498…`, batch `435a5529944e4893812b434d24209a15` |
+| Reviewed checkpoint (not substituted) | `72b022b271a1a02a749d39ef7e1f3a4b6b3e7c7d`; authenticated parent `d362c0d96fc6f5c7b8f7f6bc77bcee447a398244` |
+| Ancestry | `d362c0d9` → `72b022b2` (Step 7.4.1) → `72254498` (this Plan / B) |
+| `latest-implementation` | prior HEAD `d362c0d9…` (not used as this baseline) |
+
+`git cat-file -p` confirmed B parent `72b022b2` and reviewed-checkpoint parent `d362c0d9`. Binding established independently of the prior 7.4.1 baseline. Native verify remains attempt **1 of 2** and was not repeated. Product files were not mutated.
+
+## Runtime confirmation
+
+Installed `/Users/lizhiguo/.autocycle/native_office.py` and maintained `/Users/lizhiguo/Documents/Developer/autocycle/native_office.py` both SHA-256 `0db3faee10b0afa3775575ec4197b75cab281f95d4d7c570230b708a9cdb1c5d` (32063), matching the repaired helper. Isolated confirmation regressions remain the prior **21 passed**; they were not re-run. No runtime drift. Repair and installation were not repeated.
+
+## Existing replacement inspection (before submit)
+
+No pending or completed replacement existed. `.git/autocycle/office/requests/` held only the four original IDs. Original binding, requests and receipts were byte-identical to the Step 7.4.1 record and were left unchanged.
+
+## Replacement requests (one per original)
+
+Submitted only through `python3 /Users/lizhiguo/.autocycle/native_office.py request`. `process` was not invoked. Provider did not capture, impersonate or restart the controller. Positioning fields (source, worksheet, range, zoom, bounds, scroll_row, scroll_column) match each original.
+
+| Original | Replacement | Company | Range | Replacement request SHA-256 |
+|---|---|---|---|---|
+| `73e7db8abfa642dc87594e39766ac9e2` | `12be0d6b5f884cf99d21713929edaf1f` | lululemon | A1:B6 | `38d91728a8342a019a0f21e600897acab005ba2df36de6116d12bf8fe7413c04` |
+| `2b5bdffeb0084d68a7a4241368cb1913` | `b6874c2e22b24f35b9692748346bce73` | lululemon | A8:B17 | `3f682857e800b2006c979f83a23d40ad8fd2eea05128759b0964512d5dd14e18` |
+| `a847e8e081dd4f0da24f1ed46f00e66e` | `243388224b83484790c0b9b1489a869e` | fast_retailing | A1:B8 | `3a1de091ce7d8c0ff33ae8c19cc04a7c585970bc0e3d342e4470fa41288591fd` |
+| `6ebdbae0c7e444a9ab8fc3c7343ce2a3` | `dbfeddaedefa46da9c07b85259961987` | fast_retailing | A8:A14 | `3927963110725fef40a8205721a8357b1cf4884bccdc838d9f97dc41429bce67` |
+
+All four replacements: worksheet `Overview`, zoom 125, bounds `[40,40,1320,1000]`, `requested_head` `722544981016f3836137d5fc1170254ef440c8e1`. Lululemon source SHA-256 `8ee68f8e…`; Fast Retailing `2e98bb8e…`. Continuation bound: **4 / 4** replacement requests. No further replacement may be queued on resume.
+
+Binding: `.git/autocycle/step-7-4-2/replacement-binding.json` SHA-256 `3d9836e00cf56ae166f193a40f3d03d4599a01fb5cc2eb3b482c0672cb98279b` (6545). Links original and replacement IDs, source hashes, runtime hash `0db3faee…`, and this Review’s recovery authorization (`IMPLEMENTATION.md` Step 7.4.2 / plan `ffcaa24ffe91433dac84dfed259a4c62`). Original `.git/autocycle/step-7-4/view-request-binding.json` remains `e600629f…` (2097).
+
+## Measured capture outcomes
+
+Replacement receipts and images are **absent**. Controller Review-stage dispatch has not processed the new IDs. Original receipts remain the only available capture records:
+
+| Original ID | Status | Action | Image |
+|---|---|---|---|
+| `73e7db8a…` | `BLOCKED` | `275:303: execution error: Unexpected active document (-2700)` | none (`677c0b57…/view.png` absent) |
+| `2b5bdffe…` | `BLOCKED` | same | none (`13f55dca…/view.png` absent) |
+| `a847e8e0…` | `BLOCKED` | same | none (`cb55f9ca…/view.png` absent) |
+| `6ebdbae0…` | `BLOCKED` | same | none (`251cc64b…/view.png` absent) |
+
+No native image exists to assess wrapping, clipping, concise presentation, company identity, fiscal coverage, currency/units, historical reading, evidence limits or visible supporting-schedule navigation (including Build Status and Fast Retailing fallback). Visible navigation labels from prior XML/cached inspection remain distinct from demonstrated native navigation. Missing interaction evidence remains unresolved.
+
+## Cumulative usage (not reset)
+
+| Counter | Measured |
+|---|---|
+| Native-save verification | still attempt **1 of 2**; not repeated; `verify-4aualryy` and `verify-3symu378` remain `VERIFIED` / `NONE` |
+| Company/route allowances | unchanged; this step did not reset counters or timeouts |
+| Original Overview captures | 4 `BLOCKED` receipts retained |
+| Replacement Overview requests this continuation | **4 / 4** queued; none processed |
+| Script timeout | existing 12s confirmation timeout retained; no retry added |
+| Isolated confirmation regressions | prior **21 passed** carried forward |
+
+## Artifact preservation
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `build/output/lululemon/Lululemon_BAV.xlsx` | `8ee68f8ebe44c5330d51c24e4bf1c1acdd0d85801f7db13a7ca1c42213f1f00e` | 229454 |
+| `build/output/fast_retailing/FastRetailing_BAV.xlsx` | `2e98bb8ea4c682e7a28fd349b40e18028e04f3476c0f225ab6ff4a3413ba22bf` | 137763 |
+| `verify-4aualryy/saved-copy.xlsx` | `cc470dee425731c79945e8179112c668e6c657f60e602c4879872c27c3e2d126` | 266960 |
+| `verify-3symu378/saved-copy.xlsx` | `c4951f0c48f6ad7910244ea78c281544bea928e191eb9abf5d382eb988ba90bb` | 174602 |
+| `.git/autocycle/step-7-4/view-request-binding.json` | `e600629fa053aafe43cf798bf0ae4bcb83c19357995dfe23e99f4b4320a4bfb7` | 2097 |
+| receipt `73e7db8abfa642dc87594e39766ac9e2` | `a01899c718df370f5413473450950a27ee77d5459ffe95bbd6f6929aab85c5e9` | 1099 |
+| receipt `2b5bdffeb0084d68a7a4241368cb1913` | `32deee759395dcb5ae9377558ea23605f3de13259e961ad703c1dfbb8bd6c393` | 1100 |
+| receipt `a847e8e081dd4f0da24f1ed46f00e66e` | `377e80cd7db2eef5c64100f048a270a8bff553e3428c03e9882b99ffe9edac68` | 1117 |
+| receipt `6ebdbae0c7e444a9ab8fc3c7343ce2a3` | `196647224b255532ad4bf6056222bcbcd49478277191365fa62030a76dc857c1` | 1118 |
+
+Historical `excel-verification-vm1b3wsq` and `excel-verification-hrj5h672` directories remain present and were not opened in Office. Products were not regenerated. Excel was not force-quit; unrelated workbooks were not closed.
+
+## Carry-forward (unchanged files)
+
+Canonical BAV hashes, `.autocycle.toml`, CLI/README/opening, Lululemon build/check/publish, Fast Retailing build/check, Fast Retailing `No publishable canonical research` diagnostic, analytical formula/literal **0**, publication `_content_equal`, and the 21 isolated confirmation regressions remain applicable to those unchanged surfaces. They still do not accept native opening readability.
+
+## Remaining toward Completion
+
+- Four replacement requests are queued; controller has not produced receipts or images. Native readability and navigation remain uninspected.
+- Original four receipts remain `BLOCKED` `-2700` without images.
+- Inherited migration acceptance remains unresolved. Opening verification does not certify it.
+- Final Session integration, earlier normalization, broader source-workflow and normalized-per-share obligations remain deferred.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+
 
