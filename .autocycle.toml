@@ -1,0 +1,2 @@
+[capabilities]
+native_office = ["excel", "word"]

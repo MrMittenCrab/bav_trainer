@@ -4167,4 +4167,110 @@ Publication visual evidence from Step 7.3.1 / 7.3.2 remains applicable: producti
 
 Not started. This bounded attempt does not begin the next implementation step.
 
+# RESULT.md — Step 7.4 Fixed-slot native verification of BAV workbook openings
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure; controller capture pending)  
+**Step:** 7.4 — Fixed-slot native verification of BAV workbook openings  
+**Work:** `4be4aef0dc274a529824d561b15b847e`  
+**Plan:** `8fb1bc6c8de44b849d706ffec334aa53`  
+**Finding:** BAV-first presentation and concise workbook front page  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `c3a9b136234e4dd4ef5d9e0bb3b88ed7ff7db10141a2e2b9bf530246e31e6aa5` (6353).  
+IMPLEMENTATION SHA-256 `8c09b199a028de7c3e04f506c389b80c1717dbeda5c9ba02dc6d3082cd782005` (7393).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Library/Frameworks/Python.framework/Versions/3.14/bin/python3` **3.14**. HEAD / `IMPLEMENT_BASE_SHA` `3ef129d53060656e702c16f952842c51376ac237` (parent checkpoint `766ce611ec259cdbd8565b72a59e4f430eeab9e7`). Branch `checkpoint/20260913-183303`.
+
+This append records the bounded Step 7.4 fixed-slot verification attempt. It does not rewrite prior ledger history, does not reserve future IDs, and does not certify migration acceptance or Session integration.
+
+## Required plan change
+
+None.
+
+## Work completed in this attempt
+
+Finished the current attempt from checkpoint `766ce611ec259cdbd8565b72a59e4f430eeab9e7`. Completed CLI, README and workbook-opening work were preserved and not replayed.
+
+Added tracked `.autocycle.toml`:
+
+```
+[capabilities]
+native_office = ["excel", "word"]
+```
+
+`python3 /Users/lizhiguo/.autocycle/native_office.py capabilities` → `excel word`.
+
+Used installed fixed slots under `.git/autocycle/office/` (`excel-verify.xlsx`, `excel-view.xlsx`; Word slots unused). Historical randomized copies and protected immutable snapshots were not opened or modified.
+
+## Native Excel verification (fixed verify slot)
+
+Authorized attempt **1 of 2**. The prior presentation attempt recorded 0 native runs; the supplied re-review consumed none. Changing companies did not reset the allowance. Two sequential helper invocations were made inside this one authorized attempt. No second-attempt retry was required.
+
+| Company | Source SHA-256 | Bytes | Helper | Snapshot | Copy SHA-256 | Bytes | Status |
+|---|---|---:|---|---|---|---:|---|
+| lululemon | `8ee68f8e…` | 229454 | `excel_verification.py` | `.git/autocycle/office/evidence/excel/verify-4aualryy/saved-copy.xlsx` | `cc470dee425731c79945e8179112c668e6c657f60e602c4879872c27c3e2d126` | 266960 | **VERIFIED** |
+| fast_retailing | `2e98bb8e…` | 137763 | `excel_verification.py` | `.git/autocycle/office/evidence/excel/verify-3symu378/saved-copy.xlsx` | `c4951f0c48f6ad7910244ea78c281544bea928e191eb9abf5d382eb988ba90bb` | 174602 | **VERIFIED** |
+
+Lululemon was bound to `verify-4aualryy` before slot reuse. Fast Retailing then occupied `excel-verify.xlsx`; the Lululemon snapshot remained 0444 and byte-identical. `excel.log` for both: `Excel recalculated, saved and closed verification copy`. Verifier: formulas preserved **0** diffs; Overview cached literals match source.
+
+| Opening (cached after native save) | Lululemon | Fast Retailing |
+|---|---|---|
+| A1 | `BAV` | `BAV` |
+| Identity | `lululemon athletica inc. (LULU)` | `FAST RETAILING CO., LTD. (6288.HK)` |
+| Coverage | `Historical coverage: FY2021 – FY2025 (5 periods)` | same |
+| Units | `USD; USD in Thousands` | `JPY; JPY in Millions` |
+| Historical reading | admitted synthesis lead | `PROFESSIONAL_FALLBACK` |
+| Evidence limits | present (combined) | absent (fallback path) |
+| Rows | 17 | 14 |
+| Navigation | driver/KPI schedules + Build Status | IS/BS/CF/Condensed/ALT DuPont + Build Status |
+
+XML/cached inspection and a successful open/save **do not** establish native readability.
+
+## Controller visual capture (fixed view slot)
+
+Four declarative requests were queued. Provider did **not** capture screenshots. Controller capture is pending before Review.
+
+| Request | Company | Sheet | Range | Zoom | Bounds | Source SHA-256 |
+|---|---|---|---|---:|---|---|
+| `73e7db8abfa642dc87594e39766ac9e2` | lululemon | Overview | A1:B6 | 125 | [40,40,1320,1000] | `8ee68f8e…` |
+| `2b5bdffeb0084d68a7a4241368cb1913` | lululemon | Overview | A8:B17 | 125 | [40,40,1320,1000] | `8ee68f8e…` |
+| `a847e8e081dd4f0da24f1ed46f00e66e` | fast_retailing | Overview | A1:B8 | 125 | [40,40,1320,1000] | `2e98bb8e…` |
+| `6ebdbae0c7e444a9ab8fc3c7343ce2a3` | fast_retailing | Overview | A8:A14 | 125 | [40,40,1320,1000] | `2e98bb8e…` |
+
+Queued under `.git/autocycle/office/requests/`. Binding: `.git/autocycle/step-7-4/view-request-binding.json`.
+
+## Applicability of prior Step 7.4 measurements
+
+Canonical workbooks, publication, research and figures are byte-identical to the previous Step 7.4 record. Only `.autocycle.toml` was added. CLI/README/opening implementation was not replayed. Therefore prior focused CLI/opening tests (**158** plus the two public-help tests), Lululemon build/check/publish, Fast Retailing build/check, Fast Retailing `No publishable canonical research` diagnostic, workbook formula/literal **0** vs pre-rebuild analytical surfaces, and publication `_content_equal` **True** remain applicable. Prior analytical native caches still do not accept the changed openings.
+
+## Protected snapshots (unchanged)
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `.git/autocycle/excel-verification-vm1b3wsq/saved-copy.xlsx` | `dbd85c501c76cc7c7d936fbbc264b283764beec2e159f3eb36ede7ce81ff6227` | 267180 |
+| `.git/autocycle/excel-verification-hrj5h672/saved-copy.xlsx` | `1f6921bfe99ae3ddf85abbd62be3a0d208f3c3546bb2e389e90b132cc2cee348` | 269300 |
+
+## Artifact hashes
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `.autocycle.toml` | `d6540de7131ca2028fdb6cf6c68b6bbe32fa8d60de0ff01a219beb10829783b4` | 49 |
+| `build/output/lululemon/Lululemon_BAV.xlsx` | `8ee68f8ebe44c5330d51c24e4bf1c1acdd0d85801f7db13a7ca1c42213f1f00e` | 229454 |
+| `build/output/fast_retailing/FastRetailing_BAV.xlsx` | `2e98bb8ea4c682e7a28fd349b40e18028e04f3476c0f225ab6ff4a3413ba22bf` | 137763 |
+| `build/output/lululemon/Lululemon_BAV.docx` | `b6f917d6a787b277bba48d2cbc197c5b4f62d0971e6f3c7b2e7c381bf811ee3c` | 214179 |
+| `build/output/lululemon/Lululemon_BAV.pdf` | `dbd9ee0530acded8be0342ec693beec3307d8840cc08b0b4c7045491a97bda2d` | 252880 |
+| `research/Lululemon_Drivers.md` | `3cf67013afa03e049e1b64a794e84ced2c3533e6f16b906ed48f21fdc8ae5071` | 20922 |
+| `research/Lululemon_Forecast.md` / `_Valuation.md` / `_Overview.md` | `e3b0c442…` | 0 |
+| `STYLE.md` | `4360b24b…` | 1645 |
+
+## Remaining toward Completion
+
+- Controller capture of the four queued Overview view requests at 125% remains required for native readability (wrapping, clipping, concise presentation, navigation). Cached-value VERIFIED does not close that inspection.
+- Inherited migration acceptance remains unresolved. Opening verification does not certify it.
+- Final Session integration, earlier normalization, broader source-workflow and normalized-per-share obligations remain deferred.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+
 
