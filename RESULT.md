@@ -3916,3 +3916,146 @@ Image-caption OCR still concatenates Aptos words (`LululemonBAV`). Extracted Wor
 
 Not started. This bounded attempt does not begin the next implementation step.
 
+# RESULT.md — Step 7.3.2 Detect publication formatting and layout changes
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 7.3.2 — Detect publication formatting and layout changes  
+**Work:** `7c1d2cba71024c21afc8becfcb40f6f2`  
+**Plan:** `a5064d910eb24c66bfb612fc16fbb185`  
+**Finding:** Reproducible Word/PDF publication from canonical research  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `c3a9b136234e4dd4ef5d9e0bb3b88ed7ff7db10141a2e2b9bf530246e31e6aa5` (6353).  
+IMPLEMENTATION SHA-256 `dba2748da3910322d13fd00599e5c3a4cd139fb66d76a655a124c70d5b2fae61` (7288).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**. HEAD / `IMPLEMENT_BASE_SHA` `afe5abb094111644b190245dec7f4df6f302f65f`.
+
+This append records the bounded Step 7.3.2 attempt. It does not rewrite prior ledger history, does not reserve future IDs, and does not begin BAV-first front-page/CLI alignment or Session integration.
+
+## Required plan change
+
+None.
+
+## Correction of the earlier layout-equivalence claim
+
+Step 7.3.1 recorded that repeat publish left “body and layout” un-normalized and that Word text/tables/sections/media plus PDF text/images/page-count were identical. That comparison did **not** inspect Word typography, paragraph spacing, style definitions, table/section geometry, or PDF positioning, font size, drawing geometry or page rasters.
+
+The previous helpers compared Word paragraphs/tables/section size-orientation/media and PDF extracted text/images/page count only. Review measured that an in-memory 30 pt title still returned True. The other mutations below sit outside that old surface; they were rejected through the repaired `_content_equal` with analytical text unchanged:
+
+| Mutation | Repaired `_content_equal` | Reported difference |
+|---|---|---|
+| Word title 30 pt | **rejected** | `word/document.xml` |
+| Word paragraph spacing | **rejected** | `word/document.xml` |
+| Word Normal style typography | **rejected** | `word/styles.xml` |
+| Word table column/cell geometry | **rejected** | `word/document.xml` |
+| Word section margins | **rejected** | `word/document.xml` |
+| PDF text position (extracted text unchanged) | **rejected** | page 1 `text_position` |
+| PDF font size | **rejected** | page 1 `font_size` |
+| PDF image position (image bytes unchanged) | **rejected** | image page `image_position` |
+| PDF table-rule geometry | **rejected** | page 1 `drawing_geometry` |
+
+Container SHA differences are no longer attributed to “timestamps” without identification. Measured Word container diffs are ZIP `ZipInfo.date_time` only; all 30 member payloads including `docProps/core.xml` are byte-identical (`dcterms:created`/`modified` remain python-docx `2013-12-23T23:15:00Z`). Measured PDF container diffs are `/CreationDate`, `/ModDate` and trailer `/ID` only.
+
+## Repair
+
+`core/tests/test_publication.py` comparison helpers now:
+
+- compare the complete DOCX ZIP-member inventory and uncompressed payloads (document, styles, settings, relationships, headers, footers, numbering, tables, section properties, media, theme, customXml, content types);
+- ignore ZIP packaging timestamps only;
+- normalize no Word payload fields (none measured as volatile);
+- compare PDF page geometry, positioned text (origin/bbox/font/size/color), image placement, drawing geometry, extracted text/image content, and all-page rasters;
+- render every PDF page with **PyMuPDF**, matrix `150/72`, `csRGB`, `alpha=False`;
+- report differing Word members and PDF pages/features; name metadata fields explicitly;
+- capture first-publication bytes before the second run overwrites destinations.
+
+Production `core/research/document.py` was not changed. Publisher, company-name interface, validated references, dependency diagnostics, installed-font resolution and staged pair replacement are unchanged.
+
+## Normalization rules (measured)
+
+| Surface | Compared | Allowed to differ |
+|---|---|---|
+| Word members | every ZIP name + uncompressed payload SHA-256 | `ZipInfo.date_time` packaging timestamps |
+| Word `docProps/core.xml` / `app.xml` | full payload and parsed fields | none measured |
+| PDF content/layout | mediabox/cropbox/rotation; span origin/bbox/font/size/color; image rects + bytes; drawing items/stroke/fill; extracted text; page count | none |
+| PDF raster | all pages, PyMuPDF 150 dpi RGB, no alpha, `pixmap.samples` SHA-256 | none |
+| PDF metadata | identified, not used for equality | `creationDate`, `modDate`, trailer `/ID` |
+
+Unexplained byte differences are reported as member names or page/layout features, not as timestamps.
+
+## Toolchain (measured)
+
+| Tool | Version / path |
+|---|---|
+| pandoc | 3.8 (`/opt/anaconda3/bin/pandoc`) |
+| python-docx | 1.2.0 |
+| reportlab | 5.0.1 |
+| PyMuPDF | 1.26.4 (MuPDF 1.26.7) |
+| Microsoft Word | 16.113.1 (retained Step 7.3.1 rendering; not re-run) |
+| Aptos Regular | `/Applications/Microsoft Excel.app/Contents/Resources/DFonts/Aptos.ttf` |
+| DengXian Regular | `/Applications/Microsoft Excel.app/Contents/Resources/DFonts/Deng.ttf` |
+| Comparison renderer | PyMuPDF **150 dpi** RGB `alpha=False` |
+
+## Commands and measured results
+
+| Check | Measured result |
+|---|---|
+| Focused publication regressions | **23 passed** (prior 19 plus Word/PDF layout rejection, volatile-metadata positive control, inspect-artifact applicability) |
+| `test_current_build` + `test_build_cli` + `test_build_contract` + `test_research_drivers` + `test_trainer` | **134 passed** |
+| Independent Word mutations through `_content_equal` | all five **rejected**; analytical paragraph/table text unchanged |
+| Independent PDF mutations through `_content_equal` | all four **rejected**; extracted text, image bytes and page count (19) unchanged |
+| ZIP timestamp rewrite + PDF date/ID rewrite | **equivalent** (`word_members` empty; `pdf_pages` empty; `pdf_meta_fields` ⊆ {creationDate, modDate, id}) |
+| Deliberate analytical-content rejection | retained (`test_repeat_comparison_detects_content_difference`) |
+| `python -m bav publish Lululemon` (first) | **0** → captured `.git/autocycle/step-7-3-2-repeat/first/` |
+| `python -m bav publish Lululemon` (second) | **0** → captured `.git/autocycle/step-7-3-2-repeat/second/` after first bytes preserved |
+| Repaired comparison of the two real publishes | **equal** — Word members []; PDF pages/features []; core fields []; PDF meta `creationDate`, `modDate`, `id` |
+| Canonical inputs after both publishes | **unchanged** (Drivers/figures/placeholders/workbook/upstream); no Trainer |
+| `python -m bav publish FastRetailing` | **1** — `No publishable canonical research`; no Word/PDF written; no legacy fallback |
+| `SEGMENT_BRIDGE_TOLERANCE` | **0.0** |
+| Lululemon / Fast Retailing build/check | carried forward: production rendering and analytical inputs unchanged vs Step 7.3.1 |
+
+Independent repeat-publication hashes (bytes captured before overwrite):
+
+| Pair | Word SHA-256 | Word bytes | PDF SHA-256 | PDF bytes |
+|---|---|---:|---|---:|
+| First | `e3f38c077a2aa45fac778db9e36f9505cb785922b9c21f6cf38e0b8a1ba48970` | 214179 | `f17486292180d6f9605ead6dd31c376d401003ffe8988f7f69ea844a344b2416` | 252880 |
+| Second (canonical destination) | `7bf336eaf5fa500606c878fa870d7abc66d7a54f2877e61a4cf28949ef892dd9` | 214179 | `1b28caa8763974d749c2768e20d53fa9c5421dd614ed35b0f3a3780bf5a2f31b` | 252880 |
+
+## Visual-evidence applicability
+
+Retained `.git/autocycle/step-7-3-1-word-inspect/manifest.json` (`d9726e61…`, 12814), inspected DOCX `2ed56c8e…` (214179), native Word-rendered PDF `45a45bdb…` (305196), 15 `word-pages/word-page-*.png` and 19 `pdf-pages/pdf-page-*.png`.
+
+Using the repaired comparison:
+
+- inspected DOCX member payloads **equal** first and second Step 7.3.2 Word publications (ZIP timestamps only);
+- all 19 inspect PDF page **pixels** match both new publication PDFs at the same PyMuPDF 150 dpi RGB / no-alpha renderer (PNG encoder bytes differ; decoded samples match).
+
+Production rendering was not changed, so the Step 7.3.1 Microsoft Word 16.113.1 reading-scale inspection of all 15 Word pages and the 19 publication-PDF pages remains applicable. No new Word Save-As or page re-inspection was required.
+
+Saved copies `.git/autocycle/excel-verification-vm1b3wsq/saved-copy.xlsx` (`dbd85c50…`, 267180) and `excel-verification-hrj5h672/saved-copy.xlsx` (`1f6921bf…`, 269300) were not overwritten. Native Excel was not re-run (no formula/presentation edit; allowances not reset).
+
+## Artifact hashes
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `build/output/lululemon/Lululemon_BAV.docx` | `7bf336eaf5fa500606c878fa870d7abc66d7a54f2877e61a4cf28949ef892dd9` | 214179 |
+| `build/output/lululemon/Lululemon_BAV.pdf` | `1b28caa8763974d749c2768e20d53fa9c5421dd614ed35b0f3a3780bf5a2f31b` | 252880 |
+| Inspected DOCX (retained) | `2ed56c8e432ba48c02ec919449589b77e56e8befe49de785737b2bc8b492afae` | 214179 |
+| `research/Lululemon_Drivers.md` | `3cf67013afa03e049e1b64a794e84ced2c3533e6f16b906ed48f21fdc8ae5071` | 20922 |
+| `research/Lululemon_Forecast.md` / `_Valuation.md` / `_Overview.md` | `e3b0c442…` | 0 |
+| `figures/drivers/growth.png` | `dd4aae26…` | 63564 |
+| `figures/drivers/geography.png` | `7112d2d5…` | 51504 |
+| `figures/drivers/margin.png` | `e7ebe708…` | 62436 |
+| `Lululemon_BAV.xlsx` | `ac0fe74544da8958a5d87f83435effc2f74514efff305b861f4d2a520d4407da` | 231564 |
+| `FastRetailing_BAV.xlsx` | `65f4f9efed2e54f89a4eb8701071bcaa2baeba70b0948ef5150979d4893fd092` | 138179 |
+| `STYLE.md` | `4360b24b…` | 1645 |
+
+## Remaining toward Completion
+
+- Broader BAV-first CLI/documentation alignment and the concise workbook front page remain subsequent Session work.
+- Mix, markdowns, freight, occupancy, and leverage remain unestablished as bridge terms.
+- Earlier normalization, broader source-workflow, and normalized-per-share work remain deferred.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+
