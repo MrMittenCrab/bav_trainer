@@ -5080,4 +5080,195 @@ Canonical BAV hashes, `.autocycle.toml`, CLI/README/opening, Lululemon build/che
 
 Not started. This bounded attempt does not begin the next implementation step.
 
+---
+
+# RESULT.md — Step 7.4.4 Validate deployment and verify preserved Overview views
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure). Four recovery Overview requests are queued; controller capture is pending.  
+**Step:** 7.4.4 — Validate deployment and verify preserved Overview views  
+**Work:** `4be4aef0dc274a529824d561b15b847e`  
+**Plan:** `a47e0c9d401140518d0755b521a9b9a7`  
+**Finding:** BAV-first presentation and concise workbook front page  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `c3a9b136234e4dd4ef5d9e0bb3b88ed7ff7db10141a2e2b9bf530246e31e6aa5` (6353).  
+IMPLEMENTATION SHA-256 `badf614931d084f7acfdfe12d6ba62cfc5021a425585d5d827e2bd120b5eb580` (8567).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Library/Frameworks/Python.framework/Versions/3.14/bin/python3` **3.14.0**.
+
+This append records the continuation of parent work `4be4aef0dc274a529824d561b15b847e` from independently authenticated baseline `15bae1b39d04f7157cc2f172ef478c2afad129d1`. It does not rewrite prior ledger history, does not revise product presentation, does not reserve IDs in advance of submission, and does not certify native readability, migration acceptance or Session integration.
+
+## Required plan change
+
+None.
+
+## Baseline authentication
+
+| Record | Value |
+|---|---|
+| Branch | `checkpoint/20260913-183303` (`refs/heads/checkpoint/20260913-183303` = `15bae1b3…`) |
+| `git rev-parse HEAD` | `15bae1b39d04f7157cc2f172ef478c2afad129d1` |
+| `resume-state` `IMPLEMENT_BASE_SHA` / `PLAN_SHA` / `implementation-baseline.json` `head` | `15bae1b39d04f7157cc2f172ef478c2afad129d1` |
+| Work-state `7.4.4` | `opened`, work `4be4aef0dc274a529824d561b15b847e`, source `15bae1b3…` |
+| Bound running attempt | `230625e5fb124fe392654e33819eb3c6`, plan `15bae1b3…`, batch `27f2842b2dcd48448ec6fe8b1444a63d`, phase `running` |
+| Reviewed checkpoint (not substituted) | `86abf4bdda1e14bcbd945c62a01bd7768a7964d6`; authenticated parent `bf351c23b71b6140f94f1353f1377cb7bc793809` (`git log` subject `Partial: Step 7.4.4 — blocker evidence`) |
+| Ancestry | `bf351c23` (prior Plan) → `86abf4bd` (reviewed checkpoint) → `15bae1b3` (this Plan / B / HEAD) |
+| Prior checkpointed attempt | `b0d00f5cb8654446a1efcd190b524871` at `86abf4bd…` / plan `bf351c23…` |
+| `latest-implementation` | prior HEAD `bf351c23…` / `BLOCKED_CANDIDATE` (not used as this baseline) |
+
+Binding used populated `IMPLEMENT_BASE_SHA`, branch ref, `implementation-baseline.json`, work-state and `git log` parent of the reviewed checkpoint. Native verify remains attempt **1 of 2** and was not repeated. Product files were not mutated.
+
+## Current bytes (repaired runtime)
+
+| Artifact | SHA-256 | Bytes | Result |
+|---|---|---:|---|
+| Installed `/Users/lizhiguo/.autocycle/native_office.py` | `3317584bd4fa727d489fb0d77f7f3f2599e2d3c18e07321b7791038665dfa3a6` | 32461 | matches required repaired hash |
+| Maintained `/Users/lizhiguo/Documents/Developer/autocycle/native_office.py` | `3317584bd4fa727d489fb0d77f7f3f2599e2d3c18e07321b7791038665dfa3a6` | 32461 | byte-identical; no drift |
+| Serialization patch | `e9641648d5c70018e3bd44f6cc28f1437884d87a10b786f6144dd19bb618bd97` | 2492 | retained; not reapplied |
+| `.autocycle.toml` | `d6540de7131ca2028fdb6cf6c68b6bbe32fa8d60de0ff01a219beb10829783b4` | 49 | unchanged |
+
+Installed and maintained helpers contain `IDENTITY_REPLY_SEP = '<<AC>>'` and no `& tab &` delimiter. Matching repaired bytes supersede the prior undeployed-runtime observation. The serialization patch was not reapplied and the runtime was not reinstalled.
+
+## Installer evidence (distinct from this attempt’s verification-only run)
+
+Supported instructions (maintained `README.md` “Installing this revision” / `install.py` `d26948af…`, 3017): stop controllers, then `python3 install.py --install`. Verification-only is `python3 install.py` (runs `run_tests.py`; no replace).
+
+Current install evidence already on disk, not produced by this attempt:
+
+| Evidence | Measured |
+|---|---|
+| Backup session | `~/.autocycle/backups/session-20260923-043441-404652` |
+| Backed-up helper | SHA-256 `0db3faee10b0afa3775575ec4197b75cab281f95d4d7c570230b708a9cdb1c5d` (32063) — prior tab-delimiter runtime |
+| Installed helper mtime | 2026-09-23 04:34:41, now `3317584b…` (32461) |
+| Maintained helper mtime | 2026-09-23 04:11:40, same `3317584b…` bytes |
+
+This is current installer-backup evidence. It is not a claim that this provider executed `--install`. `--install` was not invoked. The live controller was not stopped or restarted.
+
+## Installer verification-only (measured this attempt)
+
+`python3 /Users/lizhiguo/Documents/Developer/autocycle/install.py` (no `--install`) from the maintained source.
+
+The provider environment inherited live-controller variables (`AUTOCYCLE_INPUT_BATCH=27f2842b…` and related). In that leaked environment:
+
+| Suite | Result |
+|---|---|
+| `test_completion.py` | **FAIL** — `sqlite3.OperationalError: unable to open database file` inside `input_context(AUTOCYCLE_INPUT_BATCH)` |
+| `test_candidate_resolution.py` | **FAIL** — `Progress: review instruction batch is missing` |
+| `test_install.py` | **PASS** (temp home; printed `Installed verified AutoCycle. Backup: /var/folders/…`) |
+| `test_native_office.py` | **14 passed** |
+| `test_native_office_flow.py` | **PASS** |
+| `test_office_references.py` | **6 passed** |
+| Other listed suites before this write | **PASS** as they completed |
+
+Clean-env recheck (unset all `AUTOCYCLE_*`):
+
+```text
+env -u AUTOCYCLE_INPUT_BATCH -u AUTOCYCLE_ALLOW_DIRTY … python3 test_completion.py
+```
+
+**PASS** (12 tests). The live-env failures are inherited-batch leakage, not a helper-byte defect.
+
+These results do **not** accept native Excel confirmation, readability or navigation. They do not replace dispatch binding.
+
+## Focused serialization / ownership regressions
+
+`PYTHONDONTWRITEBYTECODE=1 python3 automation/autocycle-fixes/test_active_document_confirmation.py`
+
+Stale harness assumptions that the installed runtime was still `0db3faee…` / tab-delimited were adapted so the suite loads the deployed repaired implementation instead of re-applying the patch. `apply_repair` remains in the file for the historical transformation; diagnosis now asserts `3317584b…`.
+
+**32 passed** in 0.449s. No Office tell, no `process`, no screenshot, no slot population.
+
+Adapted file SHA-256 `471d2942977a43d2a2a118343543f9bcdaf82cab860b25cc74a0e4b2a6df7660` (28861).
+
+## Dispatch binding
+
+Matching maintained/installed files and candidate tests were not treated as dispatch.
+
+| Binding | Measured |
+|---|---|
+| Live controller | PID **97500** `/bin/bash /Users/lizhiguo/bin/autocycle --resume`, started 2026-09-23 10:12:51 (after 04:34:41 install) |
+| Installed launcher | `/Users/lizhiguo/bin/autocycle` SHA-256 `81bf2a9654d08cfc3c423410d433318e263740cf4565e4c4d4e81931f9265157` (47669), byte-identical to maintained `autocycle` |
+| Installed `stage` | SHA-256 `b33be72e9b2494fe204ad7b8ac7e5cbcff1cc74953816e6aa5309bf87b0bd4ea` (79563), byte-identical to maintained `stage` |
+| Launcher `ADJUDICATOR` | `$HOME/.autocycle/adjudication.py` |
+| Launcher `OFFICE_HELPER` | `$(dirname "$ADJUDICATOR")/native_office.py` → `/Users/lizhiguo/.autocycle/native_office.py` |
+| Helper bytes at that path | `3317584bd4fa727d489fb0d77f7f3f2599e2d3c18e07321b7791038665dfa3a6` (32461); `Path.samefile` with the installed helper |
+| Review-stage dispatch | `run_engine_stage --review-only` runs `python3 "$OFFICE_HELPER" process` when `OFFICE_APPS` is set |
+| `python3 /Users/lizhiguo/.autocycle/native_office.py capabilities` from this repo | `excel word` |
+
+`process` was **not** invoked. Receipt skipping was not bypassed. Provider did not impersonate or restart the controller.
+
+## Recovery requests (queued)
+
+Submitted only through `python3 /Users/lizhiguo/.autocycle/native_office.py request` from this repository. Each request records `requested_head` `15bae1b3…` and the preserved source hash. Positioning fields match the originals (worksheet Overview, 125% zoom, bounds `[40,40,1320,1000]`, original scroll/range).
+
+Binding: `.git/autocycle/step-7-4-4/recovery-binding.json` SHA-256 `a2d99a292b7d144c4d4e4d5141200412515cab910e39ab9062d1e69a10752af6` (8959). Links original IDs, failed replacement IDs, source hashes, deployed helper hash `3317584b…`, and this Step 7.4.4 authorization (IMPLEMENTATION.md / plan `a47e0c9d401140518d0755b521a9b9a7` / attempt `230625e5…`). Original and replacement bindings remain `e600629f…` (2097) and `3d9836e0…` (6545).
+
+| View | Original | Failed replacement | Recovery | Request SHA-256 | Receipt |
+|---|---|---|---|---|---|
+| Lululemon `A1:B6` | `73e7db8a…` | `12be0d6b…` | `81641877ffec48df8c85db30b821fd22` | `591e0805…` (434) | **absent / QUEUED** |
+| Lululemon `A8:B17` | `2b5bdffe…` | `b6874c2e…` | `4db4ca44fc9b41f68801b72d9093b1c9` | `276de0e2…` (435) | **absent / QUEUED** |
+| Fast Retailing `A1:B8` | `a847e8e0…` | `24338822…` | `fb4097b081fd465a89ae01b96d664c69` | `50ac0015…` (443) | **absent / QUEUED** |
+| Fast Retailing `A8:A14` | `6ebdbae0…` | `dbfeddae…` | `e20f59914cf64ed5b2f3c811b6bcc883` | `4756ffe0…` (444) | **absent / QUEUED** |
+
+No recovery request has been processed. The first processed recovery has not demonstrated a new identity, ownership or transport failure. No second recovery batch was submitted. `review-evidence` still returns the prior **8** BLOCKED receipts only.
+
+Old requests/receipts were not edited or deleted. Their hashes match the prior ledger.
+
+## Native confirmation / readability / navigation
+
+**Not demonstrated.** Recovery receipts and images are absent. Missing images and failed controller confirmation remain infrastructure gaps, not presentation defects.
+
+Supporting-schedule navigation, including Build Status and Fast Retailing’s fallback, is **unsupported** by the installed helper: `native_office.py` exposes `capabilities|preflight|probe|power-check|request|process|review-evidence|verify` only. There is no controller-owned click, follow-hyperlink or worksheet-navigation operation. Recorded as a missing capability. Controller infrastructure was not expanded. XML, stored links, transport tests and native open/save do not establish readability or demonstrated navigation.
+
+## Cumulative usage (not reset)
+
+| Counter | Measured |
+|---|---|
+| Native-save verification | still attempt **1 of 2**; not repeated; `verify-4aualryy` and `verify-3symu378` remain `VERIFIED` / `NONE`; `formula_diffs` **0**; `formulas_preserved` true |
+| Company/route allowances | unchanged; this step did not reset counters or timeouts |
+| Original Overview captures | 4 `BLOCKED` `-2700` receipts retained |
+| Replacement Overview requests | **4 / 4** exhausted; all `BLOCKED` malformed identity reply |
+| Recovery Overview requests | **4 / 4** submitted; **0** processed; pending dispatch |
+| Script timeout | existing 12s confirmation timeout retained |
+| Isolated confirmation + serialization regressions | **32 passed** (deployed repaired implementation) |
+
+## Artifact preservation
+
+| Path | SHA-256 | Bytes |
+|---|---|---:|
+| `build/output/lululemon/Lululemon_BAV.xlsx` | `8ee68f8ebe44c5330d51c24e4bf1c1acdd0d85801f7db13a7ca1c42213f1f00e` | 229454 |
+| `build/output/fast_retailing/FastRetailing_BAV.xlsx` | `2e98bb8ea4c682e7a28fd349b40e18028e04f3476c0f225ab6ff4a3413ba22bf` | 137763 |
+| `verify-4aualryy/saved-copy.xlsx` | `cc470dee425731c79945e8179112c668e6c657f60e602c4879872c27c3e2d126` | 266960 |
+| `verify-3symu378/saved-copy.xlsx` | `c4951f0c48f6ad7910244ea78c281544bea928e191eb9abf5d382eb988ba90bb` | 174602 |
+| `.git/autocycle/excel-verification-vm1b3wsq/saved-copy.xlsx` | `dbd85c501c76cc7c7d936fbbc264b283764beec2e159f3eb36ede7ce81ff6227` | 267180 |
+| `.git/autocycle/excel-verification-hrj5h672/saved-copy.xlsx` | `1f6921bfe99ae3ddf85abbd62be3a0d208f3c3546bb2e389e90b132cc2cee348` | 269300 |
+| `.git/autocycle/step-7-4/view-request-binding.json` | `e600629fa053aafe43cf798bf0ae4bcb83c19357995dfe23e99f4b4320a4bfb7` | 2097 |
+| `.git/autocycle/step-7-4-2/replacement-binding.json` | `3d9836e00cf56ae166f193a40f3d03d4599a01fb5cc2eb3b482c0672cb98279b` | 6545 |
+| `.git/autocycle/step-7-4-4/recovery-binding.json` | `a2d99a292b7d144c4d4e4d5141200412515cab910e39ab9062d1e69a10752af6` | 8959 |
+| receipt `73e7db8abfa642dc87594e39766ac9e2` | `a01899c718df370f5413473450950a27ee77d5459ffe95bbd6f6929aab85c5e9` | 1099 |
+| receipt `2b5bdffeb0084d68a7a4241368cb1913` | `32deee759395dcb5ae9377558ea23605f3de13259e961ad703c1dfbb8bd6c393` | 1100 |
+| receipt `a847e8e081dd4f0da24f1ed46f00e66e` | `377e80cd7db2eef5c64100f048a270a8bff553e3428c03e9882b99ffe9edac68` | 1117 |
+| receipt `6ebdbae0c7e444a9ab8fc3c7343ce2a3` | `196647224b255532ad4bf6056222bcbcd49478277191365fa62030a76dc857c1` | 1118 |
+| receipt `12be0d6b5f884cf99d21713929edaf1f` | `2adfb95992b8af5f08ccf4eec9e0c788fa768447c89b1d0a6fccae21c01a1fbe` | 1101 |
+| receipt `b6874c2e22b24f35b9692748346bce73` | `34f79c6e58e90b9a53a8db895012c964e630ce689fe109ad41a479f49646a8b6` | 1102 |
+| receipt `243388224b83484790c0b9b1489a869e` | `bfdb1c78de98945552418594142e7e832239d89c515e62770d61c13685e9c82c` | 1119 |
+| receipt `dbfeddaedefa46da9c07b85259961987` | `337a30d932386743e3abe0e3dd708ad8a495bb2b224857792a6956ec52b90db1` | 1120 |
+
+Historical `excel-verification-vm1b3wsq` and `excel-verification-hrj5h672` directories remain present and were not opened in Office. Products were not regenerated. Excel was not force-quit; unrelated workbooks were not closed.
+
+## Carry-forward (unchanged files)
+
+Canonical BAV hashes, `.autocycle.toml`, CLI/README/opening, Lululemon build/check/publish, Fast Retailing build/check, Fast Retailing `No publishable canonical research` diagnostic, analytical formula/literal **0**, and publication `_content_equal` remain applicable to those unchanged surfaces. They still do not accept native opening readability.
+
+## Remaining toward Completion
+
+- Four recovery Overview requests are queued for normal controller Review-stage `process`. Native images are absent until that dispatch. Readability (wrapping, clipping, concise presentation, company identity, fiscal coverage, currency/units, historical reading, evidence limits) remains uninspected in native Excel.
+- Supporting-schedule navigation, including Build Status and Fast Retailing fallback, is a missing controller-owned interaction capability; it was not demonstrated.
+- Inherited migration acceptance remains unresolved. Opening verification does not certify it. SESSION.md’s retrospective exception and the Git-first contract apply; the original deletion-before-verification sequencing breach is retained and is not satisfied by later checks.
+- Final Session integration, earlier normalization, broader source-workflow and normalized-per-share obligations remain deferred.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+
 

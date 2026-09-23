@@ -16,7 +16,8 @@ INSTALLED = Path('/Users/lizhiguo/.autocycle/native_office.py')
 MAINTAINED = Path('/Users/lizhiguo/Documents/Developer/autocycle/native_office.py')
 SPECIFIER_PATCH = Path(__file__).with_name('active-document-confirmation.patch')
 SERIALIZATION_PATCH = Path(__file__).with_name('identity-reply-serialization.patch')
-RECORDED_RUNTIME_SHA256 = '0db3faee10b0afa3775575ec4197b75cab281f95d4d7c570230b708a9cdb1c5d'
+DEPLOYED_RUNTIME_SHA256 = '3317584bd4fa727d489fb0d77f7f3f2599e2d3c18e07321b7791038665dfa3a6'
+LEGACY_TAB_RUNTIME_SHA256 = '0db3faee10b0afa3775575ec4197b75cab281f95d4d7c570230b708a9cdb1c5d'
 
 DEFECTIVE_SPECIFIER = 'if {active} is not targetDoc then error "Unexpected active document"'
 DEFECTIVE_TAB_RETURN = 'return expectedId & tab & observedId & tab &'
@@ -58,7 +59,8 @@ def _repair_replacements():
 
 
 def load_repaired():
-    text = apply_repair(INSTALLED.read_text())
+    source = INSTALLED.read_text()
+    text = source if "IDENTITY_REPLY_SEP = '<<AC>>'" in source else apply_repair(source)
     tmp = tempfile.TemporaryDirectory()
     path = Path(tmp.name) / 'native_office.py'
     path.write_text(text)
@@ -94,23 +96,24 @@ def png(path):
 
 
 class DiagnosisTests(unittest.TestCase):
-    def test_installed_runtime_matches_recorded_specifier_repair(self):
+    def test_installed_runtime_matches_deployed_serialization_repair(self):
         installed = INSTALLED.read_text()
         maintained = MAINTAINED.read_text()
         self.assertEqual(installed, maintained)
-        self.assertEqual(sha256(INSTALLED), RECORDED_RUNTIME_SHA256)
-        self.assertEqual(sha256(MAINTAINED), RECORDED_RUNTIME_SHA256)
+        self.assertEqual(sha256(INSTALLED), DEPLOYED_RUNTIME_SHA256)
+        self.assertEqual(sha256(MAINTAINED), DEPLOYED_RUNTIME_SHA256)
+        self.assertNotEqual(sha256(INSTALLED), LEGACY_TAB_RUNTIME_SHA256)
         self.assertNotIn(DEFECTIVE_SPECIFIER, installed)
         self.assertIn('POSIX path of ((full name of targetDoc) as text)', installed)
         self.assertIn('def confirm_owned_identity', installed)
-        self.assertIn(DEFECTIVE_TAB_RETURN, installed)
-        self.assertIn("parts = result.split('\\t')", installed)
-        self.assertNotIn("IDENTITY_REPLY_SEP = '<<AC>>'", installed)
+        self.assertNotIn(DEFECTIVE_TAB_RETURN, installed)
+        self.assertNotIn("parts = result.split('\\t')", installed)
+        self.assertIn("IDENTITY_REPLY_SEP = '<<AC>>'", installed)
         self.assertIn(DEFECTIVE_SPECIFIER, SPECIFIER_PATCH.read_text())
         self.assertIn(DEFECTIVE_TAB_RETURN, SERIALIZATION_PATCH.read_text())
 
-    def test_repair_replaces_tab_delimiter_and_keeps_specifier_protections(self):
-        repaired = apply_repair(INSTALLED.read_text())
+    def test_deployed_runtime_keeps_specifier_protections(self):
+        repaired = INSTALLED.read_text()
         confirm = repaired.split('def confirm_view', 1)[1].split('def capture', 1)[0]
         self.assertNotIn(DEFECTIVE_SPECIFIER, confirm)
         self.assertNotIn(DEFECTIVE_TAB_RETURN, confirm)
