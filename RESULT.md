@@ -5271,4 +5271,178 @@ Canonical BAV hashes, `.autocycle.toml`, CLI/README/opening, Lululemon build/che
 
 Not started. This bounded attempt does not begin the next implementation step.
 
+# RESULT.md — Step 7.5 Retrospective migration acceptance and final integration verification
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 7.5 — Retrospective migration acceptance and final integration verification  
+**Work:** `85fa029f861d456fb9af43b38ccb03bd`  
+**Plan:** `3b0d9d7dada44848a25bf7a4adfbe0b5`  
+**Finding:** Retrospective migration acceptance and final integration verification  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `c3a9b136234e4dd4ef5d9e0bb3b88ed7ff7db10141a2e2b9bf530246e31e6aa5` (6353).  
+IMPLEMENTATION SHA-256 `5493b9e7af480a7f0677eb977b228ff5f479a84e226cb89dafa512a2d200e31d` (7312).  
+No commit / push / sync / checkpoint / branch change. Interpreter `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0**.
+
+This append records one evidence-led acceptance pass. It does not rewrite prior ledger history, does not reserve prospective IDs, and does not begin another implementation step. Step 7.4 is closed; its accepted presentation and navigation evidence is reused without repeating recovery.
+
+## Required plan change
+
+None.
+
+## Baseline authentication (current B; not the reviewed parent)
+
+| Record | Value |
+|---|---|
+| Branch | `checkpoint/20260913-183303` (resume-state and `implementation-baseline.json`) |
+| `IMPLEMENT_BASE_SHA` / HEAD / `implementation-baseline.json` `head` / B | `a5111f5cc3c0b6fc2ae8ca32a2f87cc8b79c1da0` |
+| B subject | `Plan: Step 7.5 — Retrospective migration acceptance and final integration verification` |
+| B parent | `1215cf59a285f0297cccf9d551d9917d06763de6` |
+| Reviewed checkpoint | `1215cf59a285f0297cccf9d551d9917d06763de6` (`Step 7.4.4`); ancestor of HEAD |
+| Reviewed checkpoint parent | `15bae1b39d04f7157cc2f172ef478c2afad129d1` (measured; **not** used as B) |
+| Work-state `7.5` | `opened`, work `85fa029f861d456fb9af43b38ccb03bd`, source `a5111f5c…` |
+| Bound running attempt | `d4a44afc24dd4557b6d3adbf7a02222c`, plan `a5111f5c…`, batch `6e5017619620414e8d77768ac6313e39`, phase `running` |
+| `latest-implementation` HEAD | `15bae1b39d04f7157cc2f172ef478c2afad129d1` (stale prior Plan; **not** used as B) |
+| Prior completed attempt | `230625e5fb124fe392654e33819eb3c6` at checkpoint `1215cf59…` / plan `15bae1b3…` / outcome `COMPLETE` |
+| Ancestry | `15bae1b3` (7.4.4 Plan) → `1215cf59` (reviewed checkpoint) → `a5111f5c` (this Plan / B / HEAD) |
+
+Authentication used populated `IMPLEMENT_BASE_SHA`, branch ref, `implementation-baseline.json`, work-state and `git rev-parse` / `git log` / `git merge-base --is-ancestor`. Fail-closed was not triggered. Historical migration commits and comparison-7-1-1 remain supplemental provenance, not a replacement B. Historical record B in `retrospective-acceptance.json` is `f3e832597657c13752f3fe7615e6c7ac766be4fa` (Step 7.1.1); it was not substituted for this implementation’s B.
+
+Receipt: `.git/autocycle/step-7-5/reconciliation.json` SHA-256 `05eeb1599b20c431bef2d41a78a3e769f9df57321021001d1703c4fbb5c42b44` (41408).
+
+## Migration evaluation order
+
+1. Authenticated B `a5111f5c…`.  
+2. Git blobs at B via `git rev-parse B:path` / `git hash-object` / `git cat-file`.  
+3. Current canonical destinations on the working tree.  
+4. Provenance/path continuity against C1 `3f6f5dde…` / C2 `20d93331…` / extract blob `5e3ef5cf…` (supplemental).  
+5. Current Check behavior (this attempt).  
+6. Required regressions (this attempt) and applicable native verification (preserved).  
+7. Remaining active Session requirements mapped below.
+
+## Artifact dispositions (50 + 8; current files vs B and historical record)
+
+Reconciled `.git/autocycle/comparison-7-1-1/retrospective-acceptance.json` SHA-256 `5c2b914d49e88181e34e2837e3f9d2749e102850355965a22343cee9b7fd6a03` (61227) and `dispositions.json` SHA-256 `04e7936c5a4f0083a82fa2fca774d25b61e9ce34a30ff30d37f8cbeef884d263` (7548) against current files. Those records used historical B `f3e83259…`. Current evaluation used this step’s B.
+
+| Class | n | Current result |
+|---|---:|---|
+| Relocated (identical) | 25 | Destination bytes = C1 = C2; old paths absent; B lacks old paths. 22 live under gitignored `build/input/…` so dest is not in B’s tree; 3 Lululemon reconciled fixtures are tracked at B and byte-identical. Recorded SHA-256s still match current files |
+| Stayed | 5 | `example/` demo artifacts tracked at B, C1 and C2; SHA-256s match the historical record |
+| Retired generated/release | 20 | Absent from working tree and from B; Git retains C1=C2 bytes. No legacy duplicate recreated |
+| Extracts | 8 | Ordinary + management-KPI JSON match extract blob `5e3ef5cf…` |
+| Obsolete trees | 8 | `build/lululemon`, `lululemon-live`, `benchmark/*`, `release/*` absent |
+
+Protected **50/50**. Extracts **8/8**. Original source PDFs: four Lululemon + five Fast Retailing under `build/input/<company>/source/` match C1/C2. No identical-relocation byte mismatch. No required source evidence lost.
+
+`test_protected_artifacts_and_eight_extracts_unchanged` (no exclusions) **passed** in this attempt.
+
+## Historical workbook differences (reassessed; not B)
+
+`dispositions.json` still accounts 9580 / 863 / 8690 / 679 with G1–G12. That comparison used checkpoint `51468d68` `release/lululemon/Lululemon_Answer_Key.xlsx` (supplemental) versus then-current workbook `9394e45b…` (227422). Those memberships remain valid historical dispositions: unchanged shared analytical cells, `_ComponentMap` relocation, intended BAV-first wording, Trainer-sheet removal, and later-added KPI/driver sheets.
+
+Current Lululemon workbook is **`8ee68f8e…` (229454)** — an intentional later replacement from authorized Steps 7.2–7.4 (Drivers bridges, Overview condensation), not a claimed identical relocation of `9394e45b…` or of checkpoint `51468d68`. Byte mismatch versus those historical workbooks does not block this migration pass.
+
+Transient pre-migration workbook `2507ef35…` remains **discarded**: absent from current B, not reconstructible as a required current artifact, and not required by the active Session/IMPLEMENTATION contract (instruction `20260921-181553-000000019`). Not recreated.
+
+## Separate migration-gate recordings
+
+| Gate | This-attempt result | Evidence class |
+|---|---|---|
+| Native presentation | **Reused accepted Step 7.4 evidence** | Review of `1215cf59…` closed presentation/navigation. Receipts still on disk with cited hashes: `16277e64…` / `4dddcbb4…` / `fe22076f…` / `c0509692…` (CAPTURED); navigation `62a11492…` / `0cb41a84…` (PRODUCED). Sources remain `8ee68f8e…` / `2e98bb8e…`. No new native recovery batch |
+| Protected-artifact regression | **Satisfied (current)** | 50/50 + 8/8 + focused test passed |
+| Historical comparison | **Satisfied as membership/disposition evidence** | G1–G12 retained; current workbook is a later authorized replacement |
+| Duplicate removal | **Satisfied (current state)** | Obsolete trees and 20 retired artifacts absent; no deletion repeated |
+| Post-removal verification | **Satisfied (current)** | Company-name Check 0/0; canonical-only runtime; no silent legacy fallback |
+
+## Deletion-before-verification record (preserved)
+
+Obsolete trees were already absent before this step. This attempt did not delete. The original verify-then-remove sequence was **not** followed. Retrospective verification is permitted for the already-completed migration (instruction `20260921-182344-000000020`). Later checks, including this pass, do **not** prove the earlier gate ran. Breach retained.
+
+## Runtime architecture (current)
+
+`core/current_build.py` resolves only `build/input/<slug>/` and `build/output/<slug>/`. Live slugs: `lululemon`, `fast_retailing`. `resolve_company` contains no `benchmark/` or `release/` fallback. Check does not require a Trainer. Source PDFs resolve under canonical `source/`.
+
+## Integrated verification (current vs preserved)
+
+Company-name **Check** rerun this attempt (required):
+
+| Command | Exit | Measured |
+|---|---:|---|
+| `python -m bav check Lululemon` | **0** | `Checked Lululemon output: …/build/output/lululemon/Lululemon_BAV.xlsx` |
+| `python -m bav check FastRetailing` | **0** | `Checked FastRetailing output: …/build/output/fast_retailing/FastRetailing_BAV.xlsx` |
+| `python -m bav publish FastRetailing` | **1** | `No publishable canonical research for FastRetailing; expected non-empty …/FastRetailing_Drivers.md. Publication does not invent research or use legacy paths.` No Word/PDF written (`ls` finds only `FastRetailing_BAV.xlsx` + `supporting/`) |
+
+Lululemon **build** and **publish** were **not** rerun. Inputs, implementation (HEAD == B, clean tracked tree before this RESULT append), dependencies and outputs are unchanged versus the last accepted products: workbooks `8ee68f8e…` / `2e98bb8e…`; Drivers `3cf67013…` (20922); figures `dd4aae26…` / `7112d2d5…` / `e7ebe708…`; Word `b6f917d6…` (214179); PDF `dbd9ee05…` (252880). Regenerating those products would only repeat applicable evidence.
+
+Required suites this attempt, no exclusions: **207 passed** in 61.33s.
+
+| Suite | n |
+|---|---:|
+| `test_protected_artifacts_and_eight_extracts_unchanged` | 1 |
+| `test_current_build.py` | 15 |
+| `test_build_cli.py` | 32 |
+| `test_build_contract.py` | 23 |
+| `test_research_drivers.py` | 7 |
+| `test_publication.py` | 23 |
+| `test_trainer.py` | 58 |
+| `test_issuer_fiscal.py` | 3 |
+| `test_reported_margin.py` | 12 |
+| `test_source_availability.py` | 33 |
+
+CLI help measured this attempt: top-level `BAV — build, check, and publish source-grounded company analysis`; build does not require Trainer; Check is diagnostic and non-disclosing; publish is BAV Word/PDF from canonical research. README still names BAV primary and points to `STYLE.md`. No Trainer workbook is present under canonical output. `SEGMENT_BRIDGE_TOLERANCE = 0.0`. Forecast / Valuation / Overview remain 0-byte `e3b0c442…`. `STYLE.md` SHA-256 `4360b24b…` (1645).
+
+## Drivers counts (current live admission / standardized)
+
+`.git/autocycle/step-7-5/drivers-counts.json`.
+
+| Required count | Measured |
+|---|---|
+| 24 Comparable Sales facts | **24** `comparable_sales_growth` assessment items, all `supported` / `admitted`; 24 of 27 `historical_operating_kpis.management_observations` |
+| 3 SPSF levels | **3** `sales_per_square_foot` management observations (7 admitted SPSF items exist across filings; hop levels remain 3) |
+| 5 Revenue per Store periods | **5** period-end RPS on canonical axis 2022-01-30 … 2026-02-01 (`10900.03` … `13690.01`) |
+| 39 pair assessments | **39** (`comparable_sales_growth` 18 unsupported + `sales_per_square_foot` 21) |
+| 5 supported SPSF comparisons | **5** supported `historical_comparison` pairs; 2 additional supported `same_period` pairs (7 supported SPSF pair outcomes total) |
+
+Deferred 2023-01-29 SPSF disagreement remains audit-only (`definition_mismatch`, `ordinary_disagreement`). `canonical_selection` remains `deferred`. Admission `supported_count` **31**. `test_research_drivers` **7 passed** covers reconstruction, component-margin identity, residuals 0, Item 7 locators, intensity-proxy limitation, and seven-part Direction/Disclosure columns. Publication fail-closed coverage is inside `test_publication` (missing figures / broken references / conversion failure).
+
+## SESSION.md eight requirements — evidence map
+
+| # | Requirement | Current finding | Artifact / dependency | Measured outcome | Gap |
+|---|---|---|---|---|---|
+| 1 | Canonical lowercase input/output only; upstream evidence; no silent fallback | **Current pass** | `build/input/{lululemon,fast_retailing}/`; `resolve_company` | Slugs lowercase; obsolete trees absent; Check uses canonical BAV only | None demonstrated |
+| 2 | Retrospective migration acceptance; retain deletion-before-verification breach | **Returned for Review** | B `a5111f5c…`; 50/50; 8/8; dispositions G1–G12; instruction `20260921-182344-000000020` | Current reconciliation + Check + regressions passed; breach recorded; later checks do not prove the earlier gate | Review adjudicates migration Completion |
+| 3 | Drivers revenue reconstruction / limited intensity proxies | **Current + preserved Drivers** | Drivers `3cf67013…`; `test_research_drivers` | 7 passed; RPS identity and “not store productivity” still in Markdown | Mix/markdowns/freight/occupancy remain unestablished (Session exclusion) |
+| 4 | Component-margin equation and bridges | **Current + preserved Drivers** | `test_reported_margin` 12 + `test_research_drivers` | OM residual 0; SG&A/Impairment/revenue language present | Same unestablished mix terms |
+| 5 | Seven-part relationship tests; no invented causation | **Current** | 39 pair assessments; Drivers table headers | Admission independence preserved; 24 CS / 3 SPSF levels / 5 RPS / 5 supported SPSF historical comparisons | Adjacent SPSF growth remains unavailable |
+| 6 | Publish readable Word/PDF from canonical research | **Preserved outputs + current FR diagnostic + `test_publication` 23** | Word `b6f917d6…`; PDF `dbd9ee05…`; FR publish exit 1 | Unchanged publication hashes; FR writes nothing; fail-closed tests passed | This attempt did not re-inspect native Word/PDF pages; 7.3 inspection remains applicable to unchanged rendering |
+| 7 | BAV-first CLI/docs/opening; optional Trainer | **Current CLI + preserved 7.4 opening + `test_trainer` 58** | Help text; workbooks `8ee68f8e…` / `2e98bb8e…` | BAV-first help; no Trainer emitted; Check independent of Trainer | Presentation/navigation reused from closed 7.4; not re-captured |
+| 8 | Company-name build/check/publish; FR regression; fiscal/STYLE/native | **Current Check + reused unchanged build/publish + fiscal/source suites** | Check 0/0; issuer-fiscal 3; source-availability 33 | Fiscal/margin/source regressions passed; STYLE unchanged; immutable native-save hashes preserved | Native recalc not repeated (formulas/dependencies unchanged; allowances not reset) |
+
+## Preserved native / immutable evidence (not re-run)
+
+| Artifact | SHA-256 | Bytes | Applicability |
+|---|---|---:|---|
+| `build/output/lululemon/Lululemon_BAV.xlsx` | `8ee68f8ebe44c5330d51c24e4bf1c1acdd0d85801f7db13a7ca1c42213f1f00e` | 229454 | Exact-state; unchanged; not regenerated |
+| `build/output/fast_retailing/FastRetailing_BAV.xlsx` | `2e98bb8ea4c682e7a28fd349b40e18028e04f3476c0f225ab6ff4a3413ba22bf` | 137763 | Exact-state; unchanged; not regenerated |
+| `verify-4aualryy/saved-copy.xlsx` | `cc470dee425731c79945e8179112c668e6c657f60e602c4879872c27c3e2d126` | 266960 | Immutable; not opened in Office; prior formula diffs **0** |
+| `verify-3symu378/saved-copy.xlsx` | `c4951f0c48f6ad7910244ea78c281544bea928e191eb9abf5d382eb988ba90bb` | 174602 | Immutable; not opened in Office; prior formula diffs **0** |
+| Step 7.4 Overview/navigation receipts listed above | cited hashes unchanged | — | Applicable: workbook sources unchanged |
+| Historical comparison-7-1-1 bindings / 3v0t6 snapshot | unchanged files | — | Supplemental historical comparison; not current B |
+
+No new native recovery, infrastructure change, or allowance reset. Controller ownership, fixed slots, locks and protected-document rules were not exercised beyond the required Check/tests.
+
+## Remaining toward Completion
+
+This bounded attempt finished the required acceptance pass and returns findings for Review. Passing presentation (already closed in Step 7.4) does not by itself establish migration or Endpoint acceptance.
+
+- Review must independently judge whether the inherited migration and the eight Session requirements are accepted.  
+- The deletion-before-verification breach remains a recorded timing breach, not cured by this pass.  
+- Earlier normalization, broader source-workflow and normalized-per-share obligations remain deferred. Session exclusions (forecasting, valuation, deal recommendations) remain binding.  
+- Mix, markdowns, freight, occupancy and leverage remain unestablished as reconstructed bridge terms.
+
+## Next priority (not started)
+
+Not started. This bounded attempt does not begin the next implementation step.
+
 
