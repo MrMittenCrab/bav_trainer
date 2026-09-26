@@ -5635,3 +5635,116 @@ This bounded attempt finished the required production and verification for Step 
 - Session exclusions (forecasting, valuation, recommendations) remain binding.
 
 
+# RESULT.md — Step 8.1.1 Inspect current canonical DOCX rendering
+
+**Status:** COMPLETE (this bounded attempt; controller Word capture pending; Review adjudicates Step closure)  
+**Step:** 8.1.1 — Inspect current canonical DOCX rendering  
+**Work:** `368b46c5bcb843d59f6cd54df45691d0`  
+**Plan:** `822f70ff050849f5bc71c54f743d3173`  
+**Finding:** Selective Driver research and canonical publication  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `747c54e81121661522429be584fbb876ff2e653ae7c07f26f09cb3ea8c10066a` (4155).  
+IMPLEMENTATION SHA-256 `137c936699833a369806878a88aee992dc54bacd8570139c327e35c1b2f2fba5` (5052).  
+No commit / push / sync / checkpoint / branch change. Products not regenerated.
+
+## Required plan change
+
+No required plan change. Rendered Word page views remain missing until the AutoCycle controller captures the queued native Word requests. Human editorial sign-off remains pending.
+
+## Authenticated baseline
+
+| Record | Value |
+|---|---|
+| `IMPLEMENT_BASE_SHA` / HEAD | `abe00ccc13bc30277bf2f0fe36e995d941a00871` |
+| Branch | `checkpoint/20260913-183303` |
+| Working tree at authentication | clean |
+| Immediate parent | `0303ccc242211a6bbfd4f6d3b75c97ba90f2a2e9` (Step 8.1) |
+| Step 8.1 plan ancestor | `bbd2327ae0d34966e7678c38e5f8163abf6b963a` |
+| `implementation-baseline.json` head | `abe00ccc13bc30277bf2f0fe36e995d941a00871` |
+| `.autocycle.toml` | `native_office = ["excel", "word"]` |
+
+Ownership and unrelated work were not disturbed. No branch switch.
+
+## Correction of prior acceptance interpretation
+
+Step 8.1 recorded python-docx heading/table/section checks plus PyMuPDF rasters of the separately generated canonical publication PDF (17 pages under `.git/autocycle/step-8-1-inspect/`). That combination **does not establish rendered Microsoft Word readability** of `Lululemon_BAV.docx`. The publication PDF is an independent ReportLab product and cannot bind Word pagination, clipping, overflow, fonts-as-rendered, or landscape transitions. This correction preserves the historical Step 8.1 record; it does not reuse those PDF rasters as DOCX fidelity evidence.
+
+## Source and rendering bindings
+
+Canonical `build/output/lululemon/Lululemon_BAV.docx` SHA-256 `014773bb10424ce8fd8384d5bc1edb04a4c932bc13c73246802ffb1b76be15d7` (254029) **matches** the Step 8.1 RESULT binding. No mismatch investigation.
+
+Immutable inspection copy `.git/autocycle/step-8-1-1-word-inspect/Lululemon_BAV.docx` is byte-identical (same SHA-256/bytes; mode `0444`). Preserved from the interrupted prior attempt; not opened in Office.
+
+| Binding | Result |
+|---|---|
+| Step 7.3.1 inspected DOCX `2ed56c8e…` (214179) | **Not applicable** — different bytes and publication |
+| Step 8.1 publication PDF `afbad9da…` (301886) | **Does not establish DOCX fidelity** |
+| Word lastRenderedPageBreak count | **0** — no stored Word pagination |
+| Word page count | **unknown** — not inferred from the publication PDF |
+
+Renderer: Microsoft Word **16.113.2** (`kMDItemVersion` 16.113.2). Installed helper `/Users/lizhiguo/.autocycle/native_office.py` SHA-256 `f54d7d1a78f62860a4cecb8ec89a6b19ab9176f2ed3f964e2c9fd5b85f06db2e` (57480). `capabilities` → `excel word`. Exposed operations: `capabilities|preflight|probe|power-check|request|process|review-evidence|verify`. **Word Save As PDF is not exposed.** Provider did not invoke `process`, did not screenshot, and did not operate on the inspection copy in Office.
+
+## Authorized Word view requests
+
+Existing authorized route: `python3 /Users/lizhiguo/.autocycle/native_office.py request` against the inspection copy. Character starts are estimated from `word/document.xml` text plus paragraph/cell marks (~23170 story characters). They are request locators, not a page inventory. All 16 requests record `source_sha256` `014773bb…` and `requested_head` `abe00ccc…`. Zoom 100%; bounds `[40,40,1320,1000]`. Receipts: **0**. No `office/evidence/word/` artifacts.
+
+| Request ID | Label | start/end | Enqueue |
+|---|---|---:|---|
+| `ddff97431ef349e0b7ff9dc7d43fabe5` | document-start (preserved interruption) | 0 | already queued |
+| `e6c0130340b242b7b9e3c977d2ffca80` | heading1-opening | 34 | exit 0 |
+| `3dc4d61d8b6f4c1ca3e589f55fb33dd9` | opening-continuation | 903 | exit 0 |
+| `e23beeac5939402eaa5132ff8b901d7a` | figure-growth | 2244 | exit 0 |
+| `4d1d604ce63549c78be813ad75ef63a6` | figure-geography | 3351 | exit 0 |
+| `5be9b36bd7314de8bb5b52795d3fe073` | figure-margin | 5276 | exit 0 |
+| `4ddecdde73ff438fa9159365178dc8a4` | figure-cash | 6658 | exit 0 |
+| `28f5050a95ec427eb46405731696393e` | appendix-heading | 6730 | exit 0 |
+| `60525d510f27465eab06f8fc9cc3874f` | appendix-selected-claims-table | 6901 | exit 0 |
+| `92f1301bd686443c92091b4d77bd3f34` | appendix-growth-evidence | 9121 | exit 0 |
+| `05611dcea1d44c9b9d6fdd96d6b159b8` | appendix-geographic-evidence | 10979 | exit 0 |
+| `4ecc64dbbfa84093a6fb95fe7dc2d725` | appendix-margin-evidence | 13064 | exit 0 |
+| `da858c9e77af4cd991e1e607c385d1f6` | appendix-cash-evidence | 17628 | exit 0 |
+| `3d6bf3099c4447fc81c576694299296c` | appendix-relationship-records | 18752 | exit 0 |
+| `8fbfe94cee0048bca8346fcbb1b74d8f` | appendix-relationship-table-mid | 20500 | exit 0 |
+| `cbdd3c603ffa4442b8a61be4300770c6` | appendix-sources | 22731 | exit 0 |
+
+Dispatch succeeded (enqueue only). Document opening, identity confirmation, rendering/export and capture have **not** run. No timeout or native error. A failed capture is not recorded and is not treated as an external dependency.
+
+## Complete page inventory and inspected coverage
+
+| Item | Measured |
+|---|---|
+| Word page count | **unresolved** |
+| Rendered page paths/hashes | **none** |
+| Pages visually inspected | **0 of unknown** |
+| Pages without defects | **not established** |
+| Argument / appendix / figures / tables / landscape / STYLE as rendered | **unresolved** |
+
+Structural OOXML measurements (supplement only; do **not** count as the required inspection): Heading 1 `Lululemon — Drivers` then body through four drawings and their question captions, then Heading 2 `Appendix` at estimated char 6730; Heading 3 sections Selected claims, Growth/Geographic/Margin/Cash evidence, Relationship records, Sources and methodology; 13 tables; 10 sections alternating portrait/landscape (A4 210.01×297.0 mm, 17.99 mm margins); styles Aptos Regular 14 pt headings / 10 pt body / 9 pt some runs; 0 bold, 0 italic; four embedded media match canonical `growth.png` `2308545e…`, `geography.png` `9d99bf69…`, `margin.png` `55ccb38c…`, `cash.png` `289bb4e2…`. STYLE.md SHA-256 `4360b24b…` (1645) unchanged.
+
+## Findings
+
+- Missing rendering evidence remains unresolved. Queued requests are not inspected pages.
+- No publication-content defect is claimed from this attempt. Structural order is argument-before-appendix with four figures before the Appendix heading; Word-rendered adjacency, clipping, overflow, missing glyphs and landscape transitions are not verified.
+- No bounded workflow repair. Adding Word Save As PDF would expand the helper beyond this inspection.
+
+## Product-preservation checks (after request enqueue)
+
+| Path | SHA-256 | Bytes | vs Step 8.1 final |
+|---|---|---:|---|
+| `build/output/lululemon/Lululemon_BAV.docx` | `014773bb10424ce8fd8384d5bc1edb04a4c932bc13c73246802ffb1b76be15d7` | 254029 | unchanged |
+| `build/output/lululemon/Lululemon_BAV.pdf` | `afbad9da9c5862169b350f9bcb34437a9f4eae918995f9f2b9fa298cd67e889c` | 301886 | unchanged |
+| `research/Lululemon_Drivers.md` | `618753d40cb6886c3b3939a7577f87db154d8fa3bb89fc8a6ed06d5472960984` | 25091 | unchanged |
+| `figures/drivers/{growth,geography,margin,cash}.png` | `2308545e…` / `9d99bf69…` / `55ccb38c…` / `289bb4e2…` | 54271 / 65707 / 52237 / 42449 | unchanged |
+| Forecast / Valuation / Overview | `e3b0c442…` | 0 | unchanged |
+| `DRIVER.md` | `33977c17d0b67f163638b5b844bfb318bf0d7a8af91d2d92c9c64c5bd00e87ea` | 45356 | unchanged |
+| `STYLE.md` | `4360b24bb849370a0fa48f21aa7cc83b8bf6b35c2ad9bac7e10de2829a107fc6` | 1645 | unchanged |
+
+Carried forward without repeating: Step 8.1 selective argument, six Lululemon applications, four figures, auditable appendix, traceability, regressions, and editorial-review reporting. Human editorial sign-off remains pending and is not required for technical acceptance.
+
+## Remaining toward Completion
+
+Controller capture of the 16 hash-bound Word views is pending. Until receipts and page rasters exist, rendered Word readability — including complete page count and page-specific STYLE/defect coverage — stays unresolved. This attempt does not close that requirement.
+
+
