@@ -1,6 +1,6 @@
-# Step 8.1.1 — Inspect current canonical DOCX rendering
+# Step 8.1.2 — Repair Word viewport positioning and inspect every page
 
-AUTOCYCLE_PLAN: {"finding_key": "Selective Driver research and canonical publication", "kind": "work", "minor": 1, "objective": "Inspect current canonical DOCX rendering", "plan_id": "822f70ff050849f5bc71c54f743d3173", "step_id": "8.1.1", "work_id": "368b46c5bcb843d59f6cd54df45691d0"}
+AUTOCYCLE_PLAN: {"finding_key": "Selective Driver research and canonical publication", "kind": "work", "minor": 2, "objective": "Repair Word viewport positioning and inspect every page", "plan_id": "838926ab1ebd4176b48e0d437a397faf", "step_id": "8.1.2", "work_id": "368b46c5bcb843d59f6cd54df45691d0"}
 
 ## Completion
 
@@ -8,30 +8,34 @@ The canonical Lululemon build and publication produce a selective, independently
 
 ## Bounded objective
 
-Obtain and inspect hash-bound rendered views of every page of the current canonical `build/output/lululemon/Lululemon_BAV.docx`, without regenerating products. Diagnose any rendering failure and retain precise evidence of the unresolved requirement.
+Diagnose and repair the Word capture workflow that repeats the opening page, then capture and visually inspect every page of the unchanged canonical Lululemon DOCX through the controller-owned slot.
 
 ## Work
 
-- Authenticate the implementation baseline, branch, ancestry and checkpoint binding through normal controller records, using `IMPLEMENT_BASE_SHA` from `.git/autocycle/resume-state` when available. Preserve ownership and unrelated work.
-- Read applicable Word-rendering guidance and existing requests, receipts and diagnostics. Establish whether any retained rendering applies to the current DOCX; earlier publication evidence requires demonstrated applicability.
-- Hash the canonical DOCX before inspection. RESULT records SHA-256 `014773bb10424ce8fd8384d5bc1edb04a4c932bc13c73246802ffb1b76be15d7`; investigate any mismatch rather than assuming that binding remains current.
-- Use the existing authorized Microsoft Word rendering workflow on an immutable, byte-identical inspection copy. Retain the source binding, renderer/version, request or execution record, complete page count, rendered artifact paths and hashes.
-- Capture every page at readable resolution. A PDF exported by Word from the bound DOCX may supply rendered views when its provenance is retained; the separately generated canonical publication PDF cannot establish DOCX fidelity.
-- Visually inspect every rendered page, using enlarged views where necessary. Check argument-before-appendix order, all four figures and nearby interpretations/qualifications, navigation, tables and landscape transitions, captions, page breaks, missing glyphs, clipping and overflow.
-- Check presentation against unchanged STYLE.md, including installed fonts, regular weight, heading/body sizes, spacing and grayscale readability. Structural measurements supplement visual inspection.
-- Record page-specific observations and coverage, including pages without defects. Do not infer Word pagination from the canonical PDF or count a successful render as a completed inspection.
-- If rendering fails, retain the exact failed stage, command/request, exit status, error, timeout and relevant diagnostics. Distinguish dispatch, document opening, identity confirmation, rendering/export and capture failures. Retry only after a concrete diagnosis or changed condition; use existing authorized routes and respect access controls.
-- Limit any technical repair to a demonstrated rendering-workflow defect necessary for this inspection, with focused verification. Do not change publication content or regenerate canonical products. Record discovered document defects for Review.
-- Recheck canonical product and authority-file hashes afterward. Preserve historical evidence and immutable snapshots; reuse prior tests and inspections only where their applicability is established.
+- Authenticate baseline, branch, ancestry and checkpoint binding through normal controller records, using `IMPLEMENT_BASE_SHA` from `.git/autocycle/resume-state` when available. Preserve ownership, recovery safeguards and unrelated work.
+- Verify canonical `build/output/lululemon/Lululemon_BAV.docx` and its immutable inspection copy against SHA-256 `014773bb10424ce8fd8384d5bc1edb04a4c932bc13c73246802ffb1b76be15d7`. Investigate mismatches before reusing evidence.
+- Read applicable Office workflow guidance, the Word positioning/capture implementation and relevant requests, receipts and diagnostics. Use authorized controller operations; do not bypass slot ownership or access controls.
+- Trace how requested character positions reach Word selection and the visible viewport. Check active document/window identity, positioning, scrolling, layout readiness and whether subsequent capture operations reset the view.
+- Use the opening and previously failed interior/appendix requests at offsets 5276, 10979 and 22731 as diagnostic controls. Compare requested positions with observed selection, page status and visible content; estimated OOXML offsets are not page locators.
+- Repair only the demonstrated positioning/capture defect. Add focused verification of changed workflow behavior and retain the repair and execution evidence. Do not redesign adjacent automation.
+- Before requesting full coverage, demonstrate native captures of distinct opening, interior and appendix content. A `CAPTURED` receipt or changed screenshot hash alone does not prove positioning succeeded.
+- Establish Word’s actual pagination from the bound document after layout settles. The reviewed opening shows “Page 1 of 20”; confirm the total and establish actual page locators rather than assuming all estimated offsets identify different pages.
+- Capture every page at readable resolution through the owned slot. Use overlapping views where a page cannot fit legibly; establish full-page coverage without gaps or duplicated opening views.
+- Retain renderer/version, source binding, controller requests and receipts, observed page identities, capture paths and hashes. Associate replacement captures with the requests they supersede while preserving failed evidence.
+- Visually inspect every page for argument-before-appendix order, all four figures and adjacent interpretations/qualifications, navigation, tables, landscape transitions, captions, page breaks, missing glyphs, clipping and overflow.
+- Check rendered presentation against unchanged STYLE.md, including fonts, weight, sizes, spacing and grayscale readability. Structural measurements supplement visual inspection.
+- If an already authorized Word-export route supplies page rasters, retain provenance from the bound DOCX. The independently generated canonical publication PDF cannot establish DOCX fidelity.
+- Retry failed operations only after a concrete diagnosis or changed condition. Record the failed stage and exact diagnostics; distinguish positioning/capture failure from document defects and evidenced access dependencies.
+- Recheck canonical product and authority-file hashes after inspection.
 
 ## Reporting and preserved scope
 
-Append measured results to RESULT.md: authenticated baseline, source and rendering bindings, complete page inventory, inspected coverage, findings, diagnostics, any bounded workflow repair and product-preservation checks.
+Append measured results to RESULT.md: authenticated baseline, viewport diagnosis and repair, distinct-position proof, confirmed page count, page-by-page capture and inspection inventory, findings and preservation checks. Record inspected pages without defects as well as any failures or remaining coverage gaps.
 
-Explicitly correct the prior acceptance interpretation: DOCX structure plus independently generated PDF rasters did not establish rendered Word readability. Preserve the historical record.
+Correct the stale “capture pending / zero inspected pages” account by appending the reviewed opening-page evidence and repeated-opening failure. Do not rewrite historical records or treat queued requests, successful capture status or duplicated views as whole-document acceptance.
 
-Carry forward the original publication commitment: selective evidence-qualified arguments, six Lululemon applications, integrated figures, auditable appendix, traceability, regression evidence and editorial-review reporting. Retain demonstrated implementation results without repeating completed preflight, builds or publication.
+Preserve completed selective research, all six Lululemon applications, integrated figures, appendix, traceability, regression evidence and editorial-review reporting. Reuse accepted evidence only where applicability is established; do not repeat completed preflight, builds or publication.
 
-Keep missing rendering evidence and any discovered defects unresolved until verified. A failed attempt does not itself establish an external dependency or satisfy Completion. Human editorial sign-off remains pending and is not required for technical acceptance.
+Do not regenerate or modify canonical products. Record any discovered document presentation defect for Review. Keep missing coverage unresolved until verified; workflow failure alone neither establishes an external dependency nor satisfies Completion.
 
-Preserve DRIVER.md and STYLE.md byte-for-byte, analytical/admission controls, optional Trainer behavior, research limitations and zero-byte reserved modules. Do not reopen accepted migration work or expand research scope. Cursor must not modify TARGET.md, SESSION.md or IMPLEMENTATION.md.
+Preserve DRIVER.md and STYLE.md byte-for-byte, analytical/admission controls, optional Trainer behavior, research limitations, immutable snapshots and zero-byte reserved modules. Do not reopen accepted migration work or expand research scope. Human editorial sign-off remains pending and is not required for technical acceptance. Cursor must not modify TARGET.md, SESSION.md or IMPLEMENTATION.md.
