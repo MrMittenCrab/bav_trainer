@@ -5445,4 +5445,193 @@ This bounded attempt finished the required acceptance pass and returns findings 
 
 Not started. This bounded attempt does not begin the next implementation step.
 
+# RESULT.md — Step 8.1 Selective Driver research and canonical publication
+
+**Status:** COMPLETE (this bounded attempt; Review adjudicates Step closure)  
+**Step:** 8.1 — Selective Driver research and canonical publication  
+**Work:** `368b46c5bcb843d59f6cd54df45691d0`  
+**Plan:** `1c20daa1c1c04b858b090ed5144d955e`  
+**Finding:** Selective Driver research and canonical publication  
+
+`TARGET.md` / `SESSION.md` / `IMPLEMENTATION.md`: read-only (unchanged vs this child's start).  
+TARGET SHA-256 `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` (36138).  
+SESSION SHA-256 `747c54e81121661522429be584fbb876ff2e653ae7c07f26f09cb3ea8c10066a` (4155).  
+IMPLEMENTATION SHA-256 `e5d7c9488bb407b3782381f729006576425975b4672b7cf1e4be70f1aa2cc851` (10080).  
+No commit / push / sync / checkpoint / branch change.
+
+**B:** `IMPLEMENT_BASE_SHA` / HEAD `bbd2327ae0d34966e7678c38e5f8163abf6b963a` on `checkpoint/20260913-183303`.  
+Interpreter for canonical build/publish/tests: `/Users/lizhiguo/Documents/Developer/.venv/bin/python` **3.14.0** (python-docx 1.2.0, reportlab 5.0.1, matplotlib 3.11.1).
+
+## Required plan change
+
+No required plan change. Human editorial sign-off remains pending and is not supplied by this attempt.
+
+## Architecture and changed files
+
+Generic investigate → qualify → select → publish. No company-name/slug branches. Publication still derives Word/PDF only from canonical Markdown and figures.
+
+| File | Role |
+|---|---|
+| `core/research/selection.py` | **New.** Question-centered claims, qualification, selection decisions |
+| `core/research/drivers.py` | Argument + appendix + selected figures; dropped page-triggered margin narrative |
+| `core/research/publish.py` | Title + `## Appendix` contract; dynamic figure refs; workpaper fields barred from main body |
+| `core/research/document.py` | Heading 1/2/3; appendix section/page break; keep-with-next / KeepTogether |
+| `core/research/style.py` | Set `font.enable_last_resort=False` only when the rcParam exists |
+| `core/data/historical_strategy.py` | `THEME_OPERATING_MARGIN`, `ROLE_ATTRIBUTION` |
+| `core/tests/fixtures/strategy/lululemon_management_disclosures.json` | Four FY2025 Item 7 attributions, including approximately $275 million |
+| `core/tests/test_research_drivers.py` | New heading/figure/six-application/evidence-dependency controls |
+| `core/tests/test_publication.py` | Appendix contract; PDF phrase whitespace |
+| `core/tests/test_current_build.py` | Expect `cash.png` |
+| `core/tests/test_revenue_driver.py` | Attribution locators are not Revenue Driver Analysis rows |
+| `core/tests/test_reported_margin.py` | Identity names live in the appendix relationship table |
+
+`DRIVER.md` and `STYLE.md` byte-for-byte unchanged.
+
+## Selection decisions
+
+Investigate/qualify before prose. No factor quota or confidence score.
+
+| Question | Decision | Why |
+|---|---|---|
+| footprint_intensity | selected | Latest-year store growth 5.74% vs revenue 4.86% |
+| comparable_sales | combined | Retained on own definitions; not trended or figured |
+| sales_per_square_foot | excluded | Blocked comparison adds no argument beyond the intensity-proxy boundary |
+| geographic_localization | selected | Aligned revenue/profit contrast including corporate reconciliation |
+| operating_margin_bridge | selected | Latest-year accounting identity |
+| management_margin_attribution | combined | Source-bound; not inserted into the bridge; no extra figure |
+| cash_conversion | selected | Distinct CFO vs net-income perspective |
+
+## Main arguments
+
+`build/output/lululemon/research/Lululemon_Drivers.md` (25091 bytes, 893 main-body words). Headings: title + `## Appendix` only in the main body; appendix uses `###` evidence sections.
+
+Opening (first 250 words) states international revenue offset, consolidated operating-profit deterioration, weaker cash conversion, unsigned mechanism, and CFO remainder −$67.381 million.
+
+Six applications in the main body: store-count is not new-store revenue; company-wide revenue/store is not productivity; comparable-sales definitions/calendars are not one trend; geography localizes and does not identify causes; the accounting bridge is not a mechanism; cash diagnostics are not manipulation and do not explain the whole CFO movement.
+
+Measured bindings: geo consolidated OP change −$295.082 million; CFO signed remainder −$67.381 million; “approximately $275 million” with Form 10-K pp. 28–29, counterfactual scope, unresolved corroboration, outside the bridge.
+
+## Figure purposes and table allocation
+
+| Figure | Claim / question | Notes |
+|---|---|---|
+| `growth.png` | Did store-count growth outpace consolidated revenue? | No comparable-sales line; FY2024 labeled 53-week |
+| `geography.png` | Did international revenue offset Americas profit deterioration? | Separate scales; corporate/unallocated on the profit panel only |
+| `margin.png` | Which accounting components reconstruct the latest OM change? | Signed identity; management estimate not mixed in |
+| `cash.png` | Did earnings continue to translate into CFO? | Paired CFO and net income |
+
+Detailed series, bridges, residuals, attributions, relationship records and methodology stay in the appendix. No main-body workpaper headings (Kind / Reconstruction / Residual / Stability / Contradictions / Result).
+
+## Tests changed and why
+
+- Drivers tests: replace Context/Growth/Geography/Margin/Conclusions/Limits with argument + Appendix; six applications; renamed-company / stripped-attribution / explicit-zero / missing-CFO controls; note-line ink bands taken from the last two raster rows (matplotlib 3.10 vs 3.11 y-shift).
+- Publication: required phrases include Appendix, $275 million, the six-application wording; PDF checks use whitespace-normalized text (`new-store` wraps across a line).
+- Revenue-driver admitted-history: operating-margin attributions must not appear as Revenue Driver Analysis locators.
+- Reported-margin schedule: identity names counted in the appendix relationship table, not the main body.
+- Current build: `cash.png` required.
+
+## Measured baseline → final
+
+Pre-edit canonical (old Context/Growth contract):
+
+| Artifact | SHA-256 | Bytes |
+|---|---|---|
+| Drivers.md | `3cf67013afa03e049e1b64a794e84ced2c3533e6f16b906ed48f21fdc8ae5071` | 20922 |
+| growth/geography/margin.png | `dd4aae26…` / `7112d2d5…` / `e7ebe708…` | 63564 / 51504 / 62436 |
+| cash.png | missing | — |
+| BAV.xlsx | `8ee68f8ebe44c5330d51c24e4bf1c1acdd0d85801f7db13a7ca1c42213f1f00e` | 229454 |
+| docx / pdf | `b6f917d6…` / `dbd9ee05…` | 214179 / 252880 |
+
+Final (`python -m bav build Lululemon` **0**; `check` **0**; `publish` **0**):
+
+| Artifact | SHA-256 | Bytes |
+|---|---|---|
+| Drivers.md | `618753d40cb6886c3b3939a7577f87db154d8fa3bb89fc8a6ed06d5472960984` | 25091 |
+| growth.png | `2308545efe834832d82fedeb905fd3517b1c08817fe979cc7b5e7abb74265b97` | 54271 |
+| geography.png | `9d99bf699ee442389e9f422898730524d662ad634779fc2d9d6ae9b94b08098d` | 65707 |
+| margin.png | `55ccb38cfc0727718e93dd4cad52b586eb10bead096ce75cd5063159cabd754e` | 52237 |
+| cash.png | `289bb4e2afacd236c8ab574f8df02851e19e7e4d9f1cf7aab079f4baefac514b` | 42449 |
+| BAV.xlsx | `37fb5cebac0a7a60c6c3fef6a043f3e3f6d87a68c86fe9f5dab8f555fde75140` | 229737 |
+| docx | `014773bb10424ce8fd8384d5bc1edb04a4c932bc13c73246802ffb1b76be15d7` | 254029 |
+| pdf | `afbad9da9c5862169b350f9bcb34437a9f4eae918995f9f2b9fa298cd67e889c` | 301886 |
+| Forecast/Valuation/Overview | empty SHA `e3b0c442…` | 0 |
+
+`python -m bav publish FastRetailing` **1** — `No publishable canonical research`; no Word/PDF written.
+
+| Suite | Measured |
+|---|---|
+| `test_research_drivers` | **10 passed** |
+| `test_publication` + Drivers + reported-margin identity | **33 passed** before the geography-title-only rebuild; Drivers rechecked **10 passed** after |
+| current_build + build_cli + build_contract + revenue_driver + reported_margin + geo analysis + earnings_quality + working_capital + trainer | **172 passed** (after identity-test fix; Fast Retailing Drivers test lives in `test_research_drivers`) |
+
+## Rendered inspection
+
+Coverage: canonical Markdown; four PNGs; Word headings/tables/section break; 17 reportlab PDF pages rendered to `.git/autocycle/step-8-1-inspect/pdf-page-*.png`. Structural checks alone were not the inspection.
+
+- Argument occupies pages 1–5; Appendix starts page 6; Drivers text before Appendix in Word and PDF.
+- Word: Heading 1/2/3; H1 and H3 `keep_with_next`; 13 tables; appendix `add_section`.
+- PDF: 4 embedded figures adjacent to their qualifications; no duplicate figure captions.
+- Geography title overflow (long left-axis title into the profit panel) was repaired with `fig.suptitle` plus short panel titles. Corporate/unallocated remains profit-panel only.
+- Remaining mechanical limits (not treated as blockers): some landscape header wraps (`Component-change`, Δ columns); page 9 is a short heading+intro before a wide margin table; STYLE repeated U+0020 is visible word spacing, not missing glyphs.
+
+Native Word visual capture was not requested. Inspection used python-docx + PyMuPDF page rasters of the published PDF.
+
+## Traceability
+
+Numbers come from existing BAV compute paths (revenue driver, geographic segment, reported margin, cash-flow line resolver). Source locators on the $275 million attribution: `LULU_FY2025_Annual_Report.pdf`, Form 10-K pp. 28–29 (and regional GM locators pp. 32–33). Units: statement thousands displayed as millions; residuals −$295.082 million and −$67.381 million shown at 3 decimals. Fiscal labels follow issuer mapping (displayed FY2024 ends 2 February 2025, 53-week). Missing observations stay blank; explicit zeros remain zero.
+
+## Calculation / workbook defects and repairs
+
+No workbook formula or dependency repair. No second calculation engine. No native Excel recalc.
+
+BAV.xlsx grew 229454 → 229737 because `_CheckContext` serializes the strategy fixture, which now includes four operating-margin attributions. Revenue Driver Analysis still excludes those locators. Analytical sheet formulas were not rewritten.
+
+`apply_research_style` skips unknown `font.enable_last_resort` so matplotlib 3.10 hosts do not KeyError; 3.11 still disables last-resort.
+
+## Unresolved research limitations and deferrals
+
+- Margin mechanism (tariff / markdown / mix / absorption) independently unresolved.
+- $275 million remains management-attributed, not an independently verified causal estimate.
+- CFO remainder −$67.381 million retained without a cause.
+- Comparable-sales observations not joinable as one deceleration.
+- SPSF productivity series excluded.
+- Inventory composition, tax timing, and regional price/volume/currency evidence not acquired.
+- Forecast / Valuation / Overview remain zero-byte. No forecast, valuation, recommendation, catalyst, or M&A-synergy conclusion.
+
+## Authority-file hash comparison
+
+| File | SHA-256 | Bytes | vs start |
+|---|---|---|---|
+| DRIVER.md | `33977c17d0b67f163638b5b844bfb318bf0d7a8af91d2d92c9c64c5bd00e87ea` | 45356 | unchanged |
+| STYLE.md | `4360b24bb849370a0fa48f21aa7cc83b8bf6b35c2ad9bac7e10de2829a107fc6` | 1645 | unchanged |
+| TARGET.md | `7f6de96abef3ae66efa75f8a65184eec24cad8fa4d31f2424cc7624450b9627f` | 36138 | read-only |
+| SESSION.md | `747c54e81121661522429be584fbb876ff2e653ae7c07f26f09cb3ea8c10066a` | 4155 | read-only |
+| IMPLEMENTATION.md | `e5d7c9488bb407b3782381f729006576425975b4672b7cf1e4be70f1aa2cc851` | 10080 | read-only |
+
+## Editorial review
+
+Generated paths:
+
+- `build/output/lululemon/research/Lululemon_Drivers.md`
+- `build/output/lululemon/Lululemon_BAV.docx`
+- `build/output/lululemon/Lululemon_BAV.pdf`
+
+Selected arguments: footprint/intensity divergence; geographic revenue vs profit localization; latest-year operating-margin identity plus management attribution; cash conversion with incomplete CFO reconciliation.
+
+Main-body figures: `growth.png`, `geography.png`, `margin.png`, `cash.png`.
+
+Material inclusion: latest-year growth/intensity, aligned geo revenue/profit with corporate items, OM bridge, $275 million attribution with locator, CFO/NI and remainder.
+
+Material exclusion: SPSF series; fabricated compsales trend; mechanism claims; mixing $275 million into the bridge; workpaper fields as the main-body reading structure; Forecast/Valuation/Overview content.
+
+**Human editorial sign-off: pending.** Automated checks establish technical and research-contract evidence only. They are not human approval.
+
+## Remaining toward Completion
+
+This bounded attempt finished the required production and verification for Step 8.1. Review independently judges Completion.
+
+- Human editorial sign-off is not supplied.
+- Landscape table header wraps and the short PDF page before the wide margin table remain mechanical limits.
+- Session exclusions (forecasting, valuation, recommendations) remain binding.
+
 

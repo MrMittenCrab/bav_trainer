@@ -16,6 +16,7 @@ from core.data.historical_strategy import (
     ROLE_STRATEGY,
     THEME_COMPARABLE_SALES,
     THEME_GEOGRAPHIC_GROWTH,
+    THEME_OPERATING_MARGIN,
     THEME_PRODUCTIVITY,
     THEME_STORE_EXPANSION,
     HistoricalStrategyData,
@@ -1029,7 +1030,17 @@ def test_lululemon_ordinary_disclosures_test_admitted_history(tmp_path):
     assert "Management statement" not in opening
     assert store.finding not in opening
     assert "Schedules: " not in opening
+    revenue_driver_themes = {
+        THEME_STORE_EXPANSION,
+        THEME_COMPARABLE_SALES,
+        THEME_PRODUCTIVITY,
+        THEME_GEOGRAPHIC_GROWTH,
+    }
     for disclosure in fixture.disclosures:
+        if disclosure.theme not in revenue_driver_themes:
+            assert disclosure.theme == THEME_OPERATING_MARGIN
+            assert disclosure_locator(disclosure) not in values
+            continue
         assert disclosure_locator(disclosure) in values
         if disclosure.role != ROLE_OBJECTIVE:
             assert disclosure.text in values

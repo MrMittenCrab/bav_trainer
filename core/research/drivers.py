@@ -1,15 +1,21 @@
 """Publish Drivers Markdown and figures from validated BAV outputs."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from pathlib import Path
+import re
 
 from ..data.historical_operating_kpis import FAMILY_COMPARABLE_SALES_GROWTH
+from ..data.historical_strategy import ROLE_ATTRIBUTION
 from ..data.interface import StandardizedFinancials
 from ..model.geographic_segment import (
     compute_geographic_segment_series,
     geographic_segment_applicable,
+)
+from ..model.inventory_analysis import (
+    compute_inventory_analysis_series,
+    inventory_analysis_applicable,
 )
 from ..model.line_resolver import resolve_line
 from ..model.management_kpi import compute_management_kpi_series, management_kpi_applicable
@@ -32,16 +38,55 @@ from ..model.revenue_driver import (
     revenue_driver_applicable,
 )
 from ..model.revenue_per_store import compute_revenue_per_store_series
+from .selection import ResearchSelection, select_driver_argument
 from .style import ResearchStyle, apply_research_style, finish_figure, new_figure
 
 RESERVED_MODULES = ("Forecast", "Valuation", "Overview")
-PEER_SECTIONS = (
+APPENDIX_HEADING = "## Appendix"
+OBSOLETE_SECTIONS = (
     "## Context",
     "## Growth",
     "## Geography",
     "## Margin",
     "## Conclusions",
     "## Limits",
+)
+WORKPAPER_FIELDS = (
+    "Kind",
+    "Reconstruction",
+    "Residual",
+    "Stability",
+    "Contradictions",
+    "Result",
+)
+_CFO_EXCLUDED_CONCEPTS = frozenset(
+    {
+        "net_cash_from_operating_activities",
+        "net_cash_from_investing_activities",
+        "net_cash_from_financing_activities",
+        "cash_beginning",
+        "cash_ending",
+        "change_in_cash",
+        "effect_of_fx_on_cash",
+        "capital_expenditures",
+        "acquisition_net_of_cash_acquired",
+        "other_investing_activities",
+        "other_financing_activities",
+        "proceeds_from_stock_based_compensation",
+        "repurchase_of_common_stock",
+        "shares_withheld_for_stock_based_compensation",
+        "settlement_of_net_investment_hedges",
+    }
+)
+_CFO_COMPONENT_HINTS = (
+    "change_in_",
+    "cash_flow_net_income",
+    "deferred_income",
+    "depreciation",
+    "stock_based_compensation",
+    "studio_obsolescence",
+    "derecognition",
+    "settlement_of_derivatives",
 )
 
 
@@ -58,8 +103,16 @@ def drivers_heading(company: str) -> str:
 
 
 def expected_sections(company: str) -> tuple[str, ...]:
-    return (drivers_heading(company),) + PEER_SECTIONS
-FIGURE_NAMES = ("growth.png", "geography.png", "margin.png")
+    return (drivers_heading(company), APPENDIX_HEADING)
+
+
+FIGURE_NAMES = ("growth.png", "geography.png", "margin.png", "cash.png")
+FIGURE_PLOTTERS = {
+    "growth.png": "plot_growth",
+    "geography.png": "plot_geography",
+    "margin.png": "plot_margin",
+    "cash.png": "plot_cash",
+}
 SEGMENT_LABELS = {
     "americas": "Americas",
     "china_mainland": "China Mainland",
@@ -80,6 +133,110 @@ def _numeric(value) -> float | None:
     if value is None or is_source_unavailable(value) or isinstance(value, str):
         return None
     return float(value)
+
+
+def _attribution_amount(text: str) -> str | None:
+    match = re.search(
+        r"approximately\s+\$[0-9]+(?:\.[0-9]+)?\s+million",
+        text,
+        flags=re.IGNORECASE,
+    )
+    return match.group(0) if match else None
+
+
+def _attributions_from_financials(
+    financials: StandardizedFinancials,
+) -> tuple[ManagementAttribution, ...]:
+    data = financials.historical_strategy
+    if data is None:
+        return ()
+    items: list[ManagementAttribution] = []
+    for disclosure in data.disclosures:
+        if disclosure.role != ROLE_ATTRIBUTION:
+            continue
+        items.append(
+            ManagementAttribution(
+                period=disclosure.period,
+                theme=disclosure.theme,
+                text=disclosure.text,
+                source_file=disclosure.source_file,
+                page_reference=disclosure.page_reference,
+                section=disclosure.section,
+                approximate_amount=_attribution_amount(disclosure.text),
+            )
+        )
+    return tuple(items)
+
+
+def _geo_amount_changes(
+    levels: dict,
+    axis: tuple[date, ...],
+    identities: tuple[str, ...],
+) -> tuple[dict[str, float | None], ...]:
+    rows: list[dict[str, float | None]] = []
+    for index, period in enumerate(axis):
+        current = levels.get(period) or {}
+        prior = levels.get(axis[index - 1]) if index else None
+        row: dict[str, float | None] = {}
+        for identity in identities:
+            now = _numeric(current.get(identity))
+            was = None if prior is None else _numeric(prior.get(identity))
+            row[identity] = None if now is None or was is None else now - was
+        rows.append(row)
+    return tuple(rows)
+
+
+def _mapped_numeric(mapping: dict, axis: tuple[date, ...]) -> tuple[float | None, ...]:
+    return tuple(_numeric(mapping.get(period)) for period in axis)
+
+
+def _is_cfo_component(concept: str) -> bool:
+    if concept in _CFO_EXCLUDED_CONCEPTS:
+        return False
+    return any(hint in concept for hint in _CFO_COMPONENT_HINTS)
+
+
+def _cash_series(
+    financials: StandardizedFinancials, axis: tuple[date, ...]
+) -> tuple[
+    tuple[float | None, ...],
+    tuple[float | None, ...],
+    tuple[float | None, ...],
+    tuple[float | None, ...],
+    tuple[float | None, ...],
+]:
+    cfo_item = resolve_line(
+        financials.cash_flow, "operating_cash_flow", required=False
+    ).item
+    ni_item = resolve_line(financials.income_statement, "net_income", required=False).item
+    cfo = tuple(
+        None if cfo_item is None else _numeric(cfo_item.values.get(period))
+        for period in axis
+    )
+    ni = tuple(
+        None if ni_item is None else _numeric(ni_item.values.get(period))
+        for period in axis
+    )
+    component_sum: list[float | None] = [None]
+    for index in range(1, len(axis)):
+        total = 0.0
+        known = False
+        for item in financials.cash_flow:
+            if not _is_cfo_component(item.concept):
+                continue
+            current = _numeric(item.values.get(axis[index]))
+            prior = _numeric(item.values.get(axis[index - 1]))
+            if current is None or prior is None:
+                continue
+            total += current - prior
+            known = True
+        component_sum.append(total if known else None)
+    cfo_change = _adjacent_numeric_changes(cfo)
+    remainder = tuple(
+        None if change is None or summed is None else change - summed
+        for change, summed in zip(cfo_change or (), tuple(component_sum))
+    )
+    return ni, cfo, cfo_change or tuple(None for _ in axis), tuple(component_sum), remainder
 
 
 def _adjacent_numeric_changes(
@@ -176,8 +333,8 @@ def _date_text(period: date) -> str:
     return period.strftime("%-d %B %Y")
 
 
-def _millions(thousands: float) -> float:
-    return round(thousands / 1000.0, 1)
+def _millions(thousands: float, digits: int = 1) -> float:
+    return round(thousands / 1000.0, digits)
 
 
 def _pct(value: float, digits: int = 2) -> str:
@@ -188,8 +345,9 @@ def _pp(value: float, digits: int = 3) -> str:
     return f"{value:.{digits}f} pp"
 
 
-def _money(millions: float) -> str:
-    return f"${millions:,.1f} million"
+def _money(millions: float, digits: int = 1) -> str:
+    sign = "−" if millions < 0 else ""
+    return f"{sign}${abs(millions):,.{digits}f} million"
 
 
 @dataclass(frozen=True)
@@ -198,6 +356,17 @@ class ComparableSalesPoint:
     percent: float
     population: str
     basis: str
+
+
+@dataclass(frozen=True)
+class ManagementAttribution:
+    period: date
+    theme: str
+    text: str
+    source_file: str
+    page_reference: str
+    section: str
+    approximate_amount: str | None = None
 
 
 @dataclass(frozen=True)
@@ -271,6 +440,22 @@ class DriversView:
     relationship_findings: tuple[str, ...] = ()
     assessments: tuple[MarginRelationshipAssessment, ...] = ()
     margin_explanation: str = ""
+    geo_profit_changes: tuple[dict[str, float | None], ...] | None = None
+    geo_reconciling_profit_change: tuple[float | None, ...] | None = None
+    geo_consolidated_profit_change: tuple[float | None, ...] | None = None
+    geo_profit_change_residual: tuple[float | None, ...] | None = None
+    geo_revenue_amount_changes: tuple[dict[str, float | None], ...] | None = None
+    net_income: tuple[float | None, ...] | None = None
+    net_income_change: tuple[float | None, ...] | None = None
+    cfo: tuple[float | None, ...] | None = None
+    cfo_change: tuple[float | None, ...] | None = None
+    cfo_component_sum: tuple[float | None, ...] | None = None
+    cfo_unexplained: tuple[float | None, ...] | None = None
+    inventory: tuple[float | None, ...] | None = None
+    inventory_change: tuple[float | None, ...] | None = None
+    cf_inventory_adjustment: tuple[float | None, ...] | None = None
+    attributions: tuple[ManagementAttribution, ...] = ()
+    selection: ResearchSelection | None = None
 
     def period_ended(self, period: date) -> str:
         return _date_text(period)
@@ -337,8 +522,8 @@ def assemble_drivers_view(
                 break
     store_test = next(item for item in analysis.tests if item.theme == THEME_STORE_EXPANSION)
     geo_test = next(item for item in analysis.tests if item.theme == THEME_GEOGRAPHIC_GROWTH)
-    if store_test.sample_size != 4 or geo_test.sample_size != 4:
-        raise ValueError("Drivers expected four aligned growth and geographic periods")
+    if store_test.sample_size < 1 or geo_test.sample_size < 1:
+        raise ValueError("Drivers requires at least one aligned growth and geographic period")
     week_period = _fifty_three_week_period(financials, tuple(axis))
     issuer_name = (
         _issuer_fiscal_name(financials, week_period) if week_period is not None else None
@@ -353,9 +538,7 @@ def assemble_drivers_view(
         raise ValueError("Drivers requires the validated three-component margin bridge")
     geo_recon = analysis.geographic_reconstruction
     footprint = analysis.footprint_identity
-    inspected = _inspected_latest_margin_explanation(financials, display_name)
-    extra = () if inspected is None else (inspected[1],)
-    assessments = _unique_assessments((*analysis.assessments, *extra))
+    assessments = _unique_assessments(analysis.assessments + margins.assessments)
     findings = tuple(_finding_sentence(item) for item in assessments)
     reported_om_change = _adjacent_numeric_changes(margins.reported_operating_margin)
     component_om = margins.reconstructed_component_operating_margin
@@ -370,6 +553,14 @@ def assemble_drivers_view(
             else reported - rebuilt
             for reported, rebuilt in zip(reported_om_change, component_om_change)
         )
+    ni_series, cfo_series, cfo_change, cfo_sum, cfo_remainder = _cash_series(
+        financials, tuple(axis)
+    )
+    inv_series = (
+        compute_inventory_analysis_series(financials, list(axis))
+        if inventory_analysis_applicable(financials)
+        else None
+    )
     footprint_reconstructed_change = None
     if footprint is not None:
         footprint_reconstructed_change = tuple(
@@ -382,7 +573,7 @@ def assemble_drivers_view(
                 footprint.interaction,
             )
         )
-    return DriversView(
+    view = DriversView(
         company_name=financials.company_name,
         display_name=display_name,
         currency=financials.currency,
@@ -497,8 +688,42 @@ def assemble_drivers_view(
         footprint_reconstructed_change=footprint_reconstructed_change,
         relationship_findings=findings,
         assessments=assessments,
-        margin_explanation="" if inspected is None else inspected[0],
+        margin_explanation="",
+        geo_profit_changes=tuple(
+            {
+                identity: _numeric(geo.operating_profit_amount_change[period][identity])
+                for identity in geo.identities
+            }
+            for period in axis
+        ),
+        geo_reconciling_profit_change=_mapped_numeric(
+            geo.reconciling_operating_profit_amount_change, tuple(axis)
+        ),
+        geo_consolidated_profit_change=_mapped_numeric(
+            geo.consolidated_operating_profit_amount_change, tuple(axis)
+        ),
+        geo_profit_change_residual=_mapped_numeric(
+            geo.operating_profit_amount_change_residual, tuple(axis)
+        ),
+        geo_revenue_amount_changes=_geo_amount_changes(
+            geo.net_revenue, tuple(axis), geo.identities
+        ),
+        net_income=ni_series,
+        net_income_change=_adjacent_numeric_changes(ni_series),
+        cfo=cfo_series,
+        cfo_change=cfo_change,
+        cfo_component_sum=cfo_sum,
+        cfo_unexplained=cfo_remainder,
+        inventory=None if inv_series is None else tuple(_numeric(value) for value in inv_series.inventories),
+        inventory_change=None if inv_series is None else tuple(_numeric(value) for value in inv_series.inventory_change),
+        cf_inventory_adjustment=(
+            None
+            if inv_series is None
+            else tuple(_numeric(value) for value in inv_series.change_in_inventories)
+        ),
+        attributions=_attributions_from_financials(financials),
     )
+    return replace(view, selection=select_driver_argument(view))
 
 
 _KIND_LABELS = {
@@ -525,95 +750,6 @@ _FORBIDDEN_RESEARCH = (
     "trainer",
     "answer key",
 )
-
-
-def _source_annual_reports(display_name: str) -> list[Path]:
-    from ..current_build import resolve_company
-
-    try:
-        company = resolve_company(display_name)
-    except ValueError:
-        return []
-    source = company.input / "source"
-    if not source.is_dir():
-        return []
-    return sorted(
-        path
-        for path in source.iterdir()
-        if path.is_file()
-        and path.suffix.lower() == ".pdf"
-        and "Annual_Report" in path.name
-    )
-
-
-def _inspected_latest_margin_explanation(
-    financials: StandardizedFinancials, display_name: str
-) -> tuple[str, MarginRelationshipAssessment] | None:
-    """Attribute Item 7 margin comments after inspecting the latest source PDF."""
-    reports = _source_annual_reports(display_name)
-    if not reports:
-        return None
-    pdf = reports[-1]
-    from ..ingestion.management_kpi_enrichment import inspect_source_pdf
-
-    inspection = inspect_source_pdf(pdf)
-    pages = {}
-    for printed in (28, 29, 32, 33):
-        physical = inspection.printed_to_physical.get(printed)
-        if physical is None:
-            return None
-        pages[printed] = inspection.page_texts.get(physical, "")
-    if "260 basis points" not in pages[28].casefold():
-        return None
-    if "380 basis points" not in pages[29].casefold() and "operating margin decreased" not in pages[29].casefold():
-        return None
-    if "275" not in pages[29] or "tariff" not in pages[29].casefold():
-        return None
-    if "markdowns" not in pages[32].casefold() or "tariff" not in pages[32].casefold():
-        return None
-    if "distribution center costs" not in pages[33].casefold():
-        return None
-    latest_label = financials.periods[-1].label if financials.periods else "latest year"
-    prose = (
-        f"The {latest_label} Form 10-K Item 7 ({pdf.name}, Form 10-K "
-        "pp. 28–29) reports a 260 basis-point gross-margin decline to 56.6% and "
-        "a 380 basis-point operating-margin decline to 19.9%. Management states "
-        "that increased tariffs and removal of the de minimis exemption reduced "
-        "2025 gross profit by approximately $275 million (p. 29). Americas gross "
-        "margin fell on lower product margin from higher tariffs and increased "
-        "markdowns and on higher occupancy costs as a percentage of revenue "
-        "(p. 32). China Mainland gross margin rose on lower occupancy and "
-        "depreciation costs as a percentage of revenue (pp. 32–33). Rest of "
-        "World gross margin fell on lower product margin and higher "
-        "distribution-center costs (p. 33). These are management explanations. "
-        "The $275 million figure is not a face-of-statement line and is not used "
-        "as a reconstructed bridge term."
-    )
-    assessment = MarginRelationshipAssessment(
-        name="latest-year management margin explanation",
-        kind="attributed_management_explanation",
-        direction=(
-            f"management attributes the {latest_label} gross-margin decline to "
-            "tariffs, markdowns, occupancy, and distribution-center costs"
-        ),
-        magnitude="management states approximately $275 million of 2025 gross-profit reduction from tariffs and de minimis removal",
-        reconstruction="not a face-of-statement component series",
-        residual="the independently reconstructed operating-margin change remains the income-statement identity",
-        stability="episodic trade-policy and markdown commentary for one year",
-        contradictions="management rounds the same-year gross-margin change to 260 bps and operating-margin change to 380 bps",
-        disclosure_support=(
-            f"{pdf.name} Form 10-K pp. 28–29 and 32–33, "
-            "inspected after ordinary extracts omitted the Item 7 narrative"
-        ),
-        established=False,
-        limitation=(
-            "Tariff, markdown, occupancy, and distribution-center effects are "
-            "not isolated on the income statement and cannot be folded into "
-            "the historical amount bridge without assuming undisclosed "
-            "subcomponents."
-        ),
-    )
-    return prose, assessment
 
 
 def _research_safe(text: str) -> str:
@@ -664,10 +800,10 @@ def _finding_sentence(item) -> str:
     )
 
 
-def _opt_money(thousands: float | None) -> str:
+def _opt_money(thousands: float | None, digits: int = 1) -> str:
     if thousands is None:
         return "n/a"
-    return _money(_millions(thousands))
+    return _money(_millions(thousands, digits), digits=digits)
 
 
 def _opt_pct(value: float | None, digits: int = 1) -> str:
@@ -1055,23 +1191,18 @@ def _assessment_block(view: DriversView) -> str:
     if not view.assessments:
         return ""
     rows = [
-        "| Relationship | Kind | Direction | Magnitude | Reconstruction | Residual | Stability | Contradictions | Disclosure | Result |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Relationship | Kind | Residual | Stability | Contradictions | Result |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
     for item in view.assessments:
         kind = _KIND_LABELS.get(item.kind, item.kind.replace("_", " "))
         rows.append(
-            "| {name} | {kind} | {direction} | {magnitude} | {recon} | {resid} | "
-            "{stable} | {contra} | {disc} | {result} |".format(
+            "| {name} | {kind} | {resid} | {stable} | {contra} | {result} |".format(
                 name=_research_safe(item.name),
                 kind=_research_safe(kind),
-                direction=_research_safe(item.direction),
-                magnitude=_research_safe(item.magnitude),
-                recon=_research_safe(item.reconstruction),
                 resid=_research_safe(item.residual),
                 stable=_research_safe(item.stability),
                 contra=_research_safe(item.contradictions),
-                disc=_research_safe(item.disclosure_support),
                 result="established" if item.established else "unestablished",
             )
         )
@@ -1088,7 +1219,388 @@ def _assessment_block(view: DriversView) -> str:
     )
 
 
-def render_drivers_markdown(view: DriversView) -> str:
+def _latest_growth_index(view: DriversView) -> int:
+    for index in range(len(view.periods) - 1, -1, -1):
+        if view.revenue_growth[index] is not None:
+            return index
+    return len(view.periods) - 1
+
+
+def _opening_paragraphs(view: DriversView, selection: ResearchSelection) -> list[str]:
+    latest = _latest_growth_index(view)
+    label = view.labels[latest]
+    parts: list[str] = []
+    rev_g = view.revenue_growth[latest]
+    store_g = view.store_growth[latest]
+    op_change = (
+        None
+        if view.geo_consolidated_profit_change is None
+        else view.geo_consolidated_profit_change[latest]
+    )
+    cfo_change = None if view.cfo_change is None else view.cfo_change[latest]
+    ni_change = None if view.net_income_change is None else view.net_income_change[latest]
+    first = (
+        f"In {label}, {view.display_name} revenue grew {_pct(rev_g)} while "
+        f"company-operated stores grew {_pct(store_g)}."
+        if rev_g is not None and store_g is not None
+        else f"{view.display_name} historical performance is reconstructed from the available BAV series."
+    )
+    if op_change is not None:
+        first += (
+            f" Operating profit changed by {_money(_millions(op_change))}, so "
+            "growth did not preserve the prior profit level."
+        )
+    parts.append(first)
+    if selection.selected("geographic_localization"):
+        contrib = view.geo_contributions[latest]
+        amounts = (
+            {}
+            if view.geo_revenue_amount_changes is None
+            else view.geo_revenue_amount_changes[latest]
+        )
+        profit = (
+            {}
+            if view.geo_profit_changes is None
+            else view.geo_profit_changes[latest]
+        )
+        reconciling = (
+            None
+            if view.geo_reconciling_profit_change is None
+            else view.geo_reconciling_profit_change[latest]
+        )
+        parts.append(
+            "International revenue more than offset the Americas decline "
+            f"({_pp(contrib.get('americas'))} Americas, "
+            f"{_pp(contrib.get('china_mainland'))} China Mainland, "
+            f"{_pp(contrib.get('rest_of_world'))} Rest of World"
+            + (
+                f"; Americas revenue {_money(_millions(amounts['americas']))}"
+                if amounts.get("americas") is not None
+                else ""
+            )
+            + "), but Americas operating profit "
+            + (
+                f"{_money(_millions(profit['americas']))}"
+                if profit.get("americas") is not None
+                else "declined"
+            )
+            + (
+                f" and corporate/unallocated items {_money(_millions(reconciling))}"
+                if reconciling is not None
+                else ""
+            )
+            + " left a weaker consolidated profit outcome. That localizes "
+            "where dependence moved; it does not identify the regional mechanism."
+        )
+    if selection.selected("cash_conversion") and cfo_change is not None and ni_change is not None:
+        remainder = (
+            None if view.cfo_unexplained is None else view.cfo_unexplained[latest]
+        )
+        parts.append(
+            f"Cash from operations changed by {_money(_millions(cfo_change))}, "
+            f"a larger movement than net income ({_money(_millions(ni_change))}). "
+            "The most consequential uncertainty is that the available cash-flow "
+            "components do not explain the whole CFO movement"
+            + (
+                f" (signed remainder {_money(_millions(remainder, 3), 3)})"
+                if remainder is not None
+                else ""
+            )
+            + ", and the margin mechanism remains independently unresolved."
+        )
+    elif selection.selected("operating_margin_bridge"):
+        parts.append(
+            "The accounting margin bridge reconstructs the latest operating-margin "
+            "change, but the economic mechanism remains unresolved."
+        )
+    return parts
+
+
+def _growth_argument(view: DriversView, latest: int) -> list[str]:
+    store_g = view.store_growth[latest]
+    rev_g = view.revenue_growth[latest]
+    intensity = None
+    if latest > 0:
+        prior = view.revenue_per_store[latest - 1]
+        current = view.revenue_per_store[latest]
+        intensity = current / prior - 1.0
+    store_term = (
+        None
+        if view.footprint_store_effect is None
+        else view.footprint_store_effect[latest]
+    )
+    week = _calendar_limitation(view).strip()
+    paragraphs = [
+        (
+            f"Store expansion outpaced company-wide revenue in {view.labels[latest]}: "
+            f"company-operated stores rose {_pct(store_g)} while consolidated revenue "
+            f"rose {_pct(rev_g)}"
+            + (
+                f", so company-wide revenue per period-end store fell {_pct(abs(intensity))}"
+                if intensity is not None and intensity < 0
+                else ""
+            )
+            + ". Store count is an operating KPI. Revenue per store is a proxy that "
+            "includes non-store revenue and is not store productivity. "
+            + (
+                f"The {_money(_millions(store_term))} store-count term in the "
+                "footprint identity is an arithmetic allocation, not measured "
+                "new-store revenue."
+                if store_term is not None
+                else ""
+            )
+        )
+    ]
+    latest_comp = next(
+        (point for point in reversed(view.comparable_sales) if point.period == view.periods[latest]),
+        view.comparable_sales[-1] if view.comparable_sales else None,
+    )
+    if latest_comp is not None:
+        paragraphs.append(
+            f"The latest reported comparable-sales observation is "
+            f"{latest_comp.percent:.0f}% on a "
+            f"{POPULATION_LABELS.get(latest_comp.population, latest_comp.population)} "
+            "basis. Each period's observation is retained on its own definition "
+            "and calendar; the observations are not one deceleration series, and "
+            "revenue growth minus comparable sales is not new-store contribution."
+        )
+    if week:
+        paragraphs.append(week)
+    paragraphs.append(
+        "![Did store-count growth outpace consolidated revenue growth?](../figures/drivers/growth.png)"
+    )
+    paragraphs.append(
+        "The paired growth rates show the latest divergence without connecting "
+        "comparable-sales observations. Weaker demand and slower maturation of "
+        "added capacity remain open; opening dates, mix, digital revenue and the "
+        "unequal-week comparison can produce the same pattern. Appendix Growth "
+        "evidence keeps the count/intensity/interaction bridge and rejected joins."
+    )
+    return paragraphs
+
+
+def _geography_argument(view: DriversView, latest: int) -> list[str]:
+    contrib = view.geo_contributions[latest]
+    amounts = (
+        {}
+        if view.geo_revenue_amount_changes is None
+        else view.geo_revenue_amount_changes[latest]
+    )
+    profit = (
+        {}
+        if view.geo_profit_changes is None
+        else view.geo_profit_changes[latest]
+    )
+    reconciling = (
+        None
+        if view.geo_reconciling_profit_change is None
+        else view.geo_reconciling_profit_change[latest]
+    )
+    consolidated = (
+        None
+        if view.geo_consolidated_profit_change is None
+        else view.geo_consolidated_profit_change[latest]
+    )
+    paragraphs = [
+        (
+            f"In {view.labels[latest]}, Americas revenue "
+            f"{_opt_money(amounts.get('americas')) if amounts else 'n/a'} "
+            f"while China Mainland {_opt_money(amounts.get('china_mainland')) if amounts else 'n/a'} "
+            f"and Rest of World {_opt_money(amounts.get('rest_of_world')) if amounts else 'n/a'}. "
+            f"Their contributions to consolidated revenue growth were "
+            f"{_pp(contrib.get('americas'))}, {_pp(contrib.get('china_mainland'))} "
+            f"and {_pp(contrib.get('rest_of_world'))}. International growth more "
+            "than offset the Americas revenue decline."
+        ),
+        (
+            "The profit localization is different. Americas operating profit "
+            f"{_opt_money(profit.get('americas')) if profit else 'n/a'}; "
+            f"China Mainland {_opt_money(profit.get('china_mainland')) if profit else 'n/a'} "
+            f"and Rest of World {_opt_money(profit.get('rest_of_world')) if profit else 'n/a'}"
+            + (
+                f"; corporate/unallocated items {_opt_money(reconciling)}"
+                if reconciling is not None
+                else ""
+            )
+            + (
+                f". Those changes reconcile to {_opt_money(consolidated, 3)} of "
+                "consolidated operating profit."
+                if consolidated is not None
+                else "."
+            )
+            + " This is reported segment evidence and arithmetic localization, "
+            "not a causal attribution or organic-growth claim."
+        ),
+        "![Did international revenue growth offset Americas profit deterioration?](../figures/drivers/geography.png)",
+        (
+            "The aligned panels keep revenue and profit on separate scales and "
+            "retain the corporate reconciliation on the profit side. Lower "
+            "Americas demand and cost pressure are plausible, but currency, mix, "
+            "calendar effects and cost allocation remain alternatives. Appendix "
+            "Geographic evidence keeps complete series, margins and residuals."
+        ),
+    ]
+    return paragraphs
+
+
+def _margin_argument(view: DriversView, latest: int) -> list[str]:
+    om = (
+        None
+        if view.reported_operating_margin_change is None
+        else view.reported_operating_margin_change[latest]
+    )
+    gm = (
+        None
+        if view.gross_margin_contribution is None
+        else view.gross_margin_contribution[latest]
+    )
+    sga = (
+        None
+        if view.sga_ratio_contribution is None
+        or latest >= len(view.sga_ratio_contribution)
+        else view.sga_ratio_contribution[latest]
+    )
+    impairment = (
+        None
+        if view.impairment_ratio_contribution is None
+        or latest >= len(view.impairment_ratio_contribution)
+        else view.impairment_ratio_contribution[latest]
+    )
+    other = (
+        None
+        if view.other_operating_ratio_contribution is None
+        or latest >= len(view.other_operating_ratio_contribution)
+        else view.other_operating_ratio_contribution[latest]
+    )
+    residual = (
+        None
+        if view.contribution_residual is None
+        or latest >= len(view.contribution_residual)
+        else view.contribution_residual[latest]
+    )
+    paragraphs = [
+        (
+            f"{view.labels[latest]} operating margin moved from "
+            f"{_pct(view.operating_margin[latest - 1], 1)} to "
+            f"{_pct(view.operating_margin[latest], 1)}"
+            + (f", {_opt_change_pp(om)}" if om is not None else "")
+            + " using unrounded ratios. "
+            f"Gross margin contributed {_opt_change_pp(gm)}, SG&A/revenue "
+            f"{_opt_change_pp(sga)}, impairment {_opt_change_pp(impairment)}, "
+            f"and other operating items {_opt_change_pp(other)}"
+            + (
+                f"; the residual versus the reported change is {_opt_change_pp(residual)}"
+                if residual is not None
+                else ""
+            )
+            + ". This is an identity and signed decomposition. It does not "
+            "establish tariff, markdown, mix or absorption mechanisms."
+        )
+    ]
+    latest_period = view.periods[latest]
+    attrs = [item for item in view.attributions if item.period == latest_period]
+    if attrs:
+        quantified = next((item for item in attrs if item.approximate_amount), None)
+        quotes = " ".join(item.text.rstrip(".") + "." for item in attrs)
+        locators = "; ".join(
+            f"{item.source_file}, {item.page_reference}" for item in attrs
+        )
+        paragraphs.append(
+            "Management attributes the latest-year pressure in source-bound "
+            f"commentary: {quotes} ({locators}). "
+            + (
+                f"{quantified.approximate_amount.capitalize()} is retained as "
+                "management's attributed gross-profit reduction against a "
+                "stated counterfactual; it is not an independently verified "
+                "causal estimate and is not inserted into the accounting bridge."
+                if quantified is not None
+                else "The attribution is preserved with its locator and is not "
+                "inserted into the accounting bridge."
+            )
+        )
+    paragraphs.append(
+        "![Which accounting components reconstruct the latest operating-margin change?](../figures/drivers/margin.png)"
+    )
+    paragraphs.append(
+        "The latest-year bridge isolates the accounting movements next to that "
+        "boundary. Cost pressure and mix remain credible alternatives. Earlier "
+        "margin recovery included disappearing episodic charges and is not a "
+        "pure operating-efficiency trend. Appendix Margin evidence keeps full "
+        "ratios, amount bridges and residuals."
+    )
+    return paragraphs
+
+
+def _cash_argument(view: DriversView, latest: int) -> list[str]:
+    cfo = None if view.cfo is None else view.cfo[latest]
+    ni = None if view.net_income is None else view.net_income[latest]
+    prior_cfo = None if view.cfo is None or latest < 1 else view.cfo[latest - 1]
+    prior_ni = None if view.net_income is None or latest < 1 else view.net_income[latest - 1]
+    cfo_change = None if view.cfo_change is None else view.cfo_change[latest]
+    remainder = None if view.cfo_unexplained is None else view.cfo_unexplained[latest]
+    inventory = None if view.inventory is None else view.inventory[latest]
+    prior_inv = None if view.inventory is None or latest < 1 else view.inventory[latest - 1]
+    inv_change = None if view.inventory_change is None else view.inventory_change[latest]
+    cf_inv = (
+        None
+        if view.cf_inventory_adjustment is None
+        else view.cf_inventory_adjustment[latest]
+    )
+    conversion = None if cfo is None or ni in (None, 0) else cfo / ni
+    prior_conversion = (
+        None if prior_cfo is None or prior_ni in (None, 0) else prior_cfo / prior_ni
+    )
+    paragraphs = [
+        (
+            f"Reported CFO moved from {_opt_money(prior_cfo)} to {_opt_money(cfo)} "
+            f"while net income moved from {_opt_money(prior_ni)} to {_opt_money(ni)}"
+            + (
+                f". CFO/net income moved from {prior_conversion:.2f} to {conversion:.2f}"
+                if conversion is not None and prior_conversion is not None
+                else ""
+            )
+            + (
+                f". The cash change of {_opt_money(cfo_change)} is larger than "
+                "the earnings change."
+                if cfo_change is not None
+                else "."
+            )
+            + " These are reported amounts and derived diagnostics, not an "
+            "earnings-quality judgment or a finding of manipulation."
+        )
+    ]
+    if inventory is not None and prior_inv is not None:
+        inv_growth = inventory / prior_inv - 1.0
+        paragraphs.append(
+            f"Inventory increased from {_opt_money(prior_inv)} to {_opt_money(inventory)} "
+            f"({_pct(inv_growth)}) against slower company revenue growth. "
+            "Inventory accumulation can consume cash, but growth preparation, "
+            "sourcing, currency, tax and other settlement timing compete with a "
+            "weak-demand reading. The cash-flow inventory line "
+            f"({_opt_money(cf_inv)}) is not substituted for the balance-sheet change "
+            f"({_opt_money(inv_change)})."
+        )
+    if remainder is not None:
+        paragraphs.append(
+            "The available operating-section component changes do not explain "
+            f"the whole CFO movement. The signed unexplained remainder is "
+            f"{_opt_money(remainder, 3)}. That difference is retained without "
+            "assigning a cause."
+        )
+    paragraphs.append(
+        "![Did reported earnings continue to translate into operating cash flow?](../figures/drivers/cash.png)"
+    )
+    paragraphs.append(
+        "The paired CFO and net-income comparison supplies the distinct cash "
+        "perspective. It does not attribute the full decline to working capital, "
+        "seasonality or manipulation. Appendix Cash evidence keeps the component "
+        "sum, remainder, inventory movements and the distinction between "
+        "balance-sheet and cash-flow inventory."
+    )
+    return paragraphs
+
+
+def _history_table(view: DriversView) -> str:
     rows = [
         "| Fiscal year | Period ended | Revenue | Operating profit | Operating margin | Company-operated stores |",
         "| --- | --- | ---: | ---: | ---: | ---: |",
@@ -1104,205 +1616,282 @@ def render_drivers_markdown(view: DriversView) -> str:
                 stores=f"{view.stores[index]:.0f}",
             )
         )
-    growth_periods = [
-        (view.labels[i], view.revenue_growth[i], view.store_growth[i])
-        for i in range(len(view.periods))
-        if view.revenue_growth[i] is not None and view.store_growth[i] is not None
-    ]
-    rev_growth_text = ", ".join(_pct(item[1]) for item in growth_periods)
-    store_growth_text = ", ".join(_pct(item[2]) for item in growth_periods)
-    latest = next(
-        i
-        for i in range(len(view.periods) - 1, -1, -1)
-        if view.revenue_growth[i] is not None
+    return (
+        "Historical levels used by the selected claims. Amounts are "
+        f"{view.units}, shown in millions of {view.currency}.\n\n"
+        + "\n".join(rows)
+        + "\n"
     )
-    compsales_parts = []
-    for point in view.comparable_sales:
-        label = view.labels[view.periods.index(point.period)]
-        compsales_parts.append(
-            f"{point.percent:.0f}% in {label} on a "
-            f"{POPULATION_LABELS.get(point.population, point.population)} basis"
+
+
+def _geo_profit_block(view: DriversView) -> str:
+    if not view.geo_profit_changes:
+        return ""
+    rows = [
+        "| Fiscal year | Americas | China Mainland | Rest of World | Corporate / unallocated | Consolidated | Residual |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    present = False
+    for index, label in enumerate(view.labels):
+        changes = view.geo_profit_changes[index]
+        if all(value is None for value in changes.values()):
+            continue
+        present = True
+        rows.append(
+            "| {label} | {am} | {cn} | {rw} | {corp} | {cons} | {res} |".format(
+                label=label,
+                am=_opt_money(changes.get("americas")),
+                cn=_opt_money(changes.get("china_mainland")),
+                rw=_opt_money(changes.get("rest_of_world")),
+                corp=_opt_money(
+                    None
+                    if view.geo_reconciling_profit_change is None
+                    else view.geo_reconciling_profit_change[index]
+                ),
+                cons=_opt_money(
+                    None
+                    if view.geo_consolidated_profit_change is None
+                    else view.geo_consolidated_profit_change[index],
+                    3,
+                ),
+                res=_opt_money(
+                    None
+                    if view.geo_profit_change_residual is None
+                    else view.geo_profit_change_residual[index]
+                ),
+            )
         )
-    compsales_text = "; ".join(compsales_parts)
-    store_only_text = ""
+    if not present:
+        return ""
+    return (
+        "Geographic operating-profit amount changes include corporate/"
+        "unallocated items and reconcile to the consolidated change. This "
+        "localizes the profit movement; it does not identify causes.\n\n"
+        + "\n".join(rows)
+        + "\n"
+    )
+
+
+def _compsales_block(view: DriversView) -> str:
+    if not view.comparable_sales:
+        return ""
+    rows = [
+        "| Fiscal year | Reported comparable sales | Population | Basis |",
+        "| --- | ---: | --- | --- |",
+    ]
+    for point in view.comparable_sales:
+        if point.period not in view.periods:
+            continue
+        rows.append(
+            "| {label} | {pct} | {pop} | {basis} |".format(
+                label=view.labels[view.periods.index(point.period)],
+                pct=f"{point.percent:.0f}%",
+                pop=POPULATION_LABELS.get(point.population, point.population),
+                basis=point.basis,
+            )
+        )
     if view.store_only_comparable_sales is not None:
         point = view.store_only_comparable_sales
-        store_only_text = (
-            f" {view.labels[view.periods.index(point.period)]} also reported "
-            f"{point.percent:.0f}% on a store-only basis."
+        if point.period in view.periods:
+            rows.append(
+                "| {label} | {pct} | {pop} | {basis} |".format(
+                    label=view.labels[view.periods.index(point.period)],
+                    pct=f"{point.percent:.0f}%",
+                    pop=POPULATION_LABELS.get(point.population, point.population),
+                    basis=point.basis,
+                )
+            )
+    return (
+        "Comparable-sales observations are retained as period-specific reported "
+        "KPIs. Changing channel definitions and calendars prevent a connected "
+        "trend. Revenue growth minus comparable sales is not labeled new-store "
+        "contribution.\n\n"
+        + "\n".join(rows)
+        + "\n"
+    )
+
+
+def _cash_block(view: DriversView) -> str:
+    if view.cfo is None or view.net_income is None:
+        return ""
+    rows = [
+        "| Fiscal year | CFO | Net income | CFO change | Component-change sum | Signed remainder | Inventory | Inventory change | CF inventory line |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    present = False
+    for index, label in enumerate(view.labels):
+        if view.cfo[index] is None and view.net_income[index] is None:
+            continue
+        present = True
+        rows.append(
+            "| {label} | {cfo} | {ni} | {chg} | {comp} | {rem} | {inv} | {ichg} | {cfinv} |".format(
+                label=label,
+                cfo=_opt_money(view.cfo[index]),
+                ni=_opt_money(view.net_income[index]),
+                chg=_opt_money(
+                    None if view.cfo_change is None else view.cfo_change[index]
+                ),
+                comp=_opt_money(
+                    None
+                    if view.cfo_component_sum is None
+                    else view.cfo_component_sum[index]
+                ),
+                rem=_opt_money(
+                    None if view.cfo_unexplained is None else view.cfo_unexplained[index],
+                    3,
+                ),
+                inv=_opt_money(None if view.inventory is None else view.inventory[index]),
+                ichg=_opt_money(
+                    None if view.inventory_change is None else view.inventory_change[index]
+                ),
+                cfinv=_opt_money(
+                    None
+                    if view.cf_inventory_adjustment is None
+                    else view.cf_inventory_adjustment[index]
+                ),
+            )
         )
-    geo_years = [
-        i
-        for i in range(len(view.periods))
-        if any(value is not None for value in view.geo_contributions[i].values())
+    if not present:
+        return ""
+    return (
+        "CFO and net income are reported amounts. The component-change sum is "
+        "the adjacent change in operating-section cash-flow lines excluding the "
+        "CFO total. The signed remainder is reported CFO change minus that sum. "
+        "Balance-sheet inventory change is not a cash-flow-statement "
+        "reconciliation. An incomplete explanation does not block the reported "
+        "CFO decline.\n\n"
+        + "\n".join(rows)
+        + "\n"
+    )
+
+
+def _attribution_block(view: DriversView) -> str:
+    if not view.attributions:
+        return ""
+    rows = [
+        "| Period | Theme | Attribution | Approximate amount | Source | Section |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
-    americas = [
-        _pp(view.geo_contributions[i]["americas"])
-        for i in geo_years
-        if view.geo_contributions[i]["americas"] is not None
+    for item in view.attributions:
+        label = (
+            view.labels[view.periods.index(item.period)]
+            if item.period in view.periods
+            else item.period.isoformat()
+        )
+        rows.append(
+            "| {label} | {theme} | {text} | {amt} | {src} | {sec} |".format(
+                label=label,
+                theme=item.theme.replace("_", " "),
+                text=item.text,
+                amt=item.approximate_amount or "qualitative",
+                src=f"{item.source_file}, {item.page_reference}",
+                sec=item.section,
+            )
+        )
+    return (
+        "Management attributions are source-bound disclosures. Approximate "
+        "wording, period, counterfactual scope and locators are retained. The "
+        "amounts are not independently verified and are not mixed with "
+        "reconciled accounting-bridge components.\n\n"
+        + "\n".join(rows)
+        + "\n"
+    )
+
+
+def _selection_block(view: DriversView) -> str:
+    if view.selection is None:
+        return ""
+    rows = [
+        "| Question | Decision | Reason | Strongest supported conclusion | Unresolved requirement |",
+        "| --- | --- | --- | --- | --- |",
     ]
-    china = [
-        _pp(view.geo_contributions[i]["china_mainland"])
-        for i in geo_years
-        if view.geo_contributions[i]["china_mainland"] is not None
-    ]
-    row = [
-        _pp(view.geo_contributions[i]["rest_of_world"])
-        for i in geo_years
-        if view.geo_contributions[i]["rest_of_world"] is not None
-    ]
-    latest_geo = view.geo_contributions[latest]
-    om_text = ", ".join(
-        f"{_pct(view.operating_margin[i], 1)} in {view.labels[i]}"
-        for i in range(len(view.periods))
+    by_id = {item.identifier: item for item in view.selection.questions}
+    for decision in view.selection.decisions:
+        question = by_id.get(decision.identifier)
+        rows.append(
+            "| {qid} | {action} | {reason} | {conc} | {need} |".format(
+                qid=decision.identifier.replace("_", " "),
+                action=decision.action,
+                reason=_research_safe(decision.reason),
+                conc="" if question is None else _research_safe(question.strongest_conclusion),
+                need="" if question is None else _research_safe(question.unresolved_requirement),
+            )
+        )
+    return (
+        "Selection records why candidates were selected, combined, retained, "
+        "deferred or excluded. There is no factor quota or numerical confidence "
+        "score.\n\n"
+        + "\n".join(rows)
+        + "\n"
     )
-    gm_text = ", ".join(
-        f"{_pct(view.gross_margin[i], 1)} in {view.labels[i]}"
-        for i in range(len(view.periods))
+
+
+def render_drivers_markdown(view: DriversView) -> str:
+    selection = view.selection or select_driver_argument(view)
+    latest = _latest_growth_index(view)
+    blocks = [drivers_heading(view.display_name), ""]
+    blocks.extend(_opening_paragraphs(view, selection))
+    if selection.selected("footprint_intensity"):
+        blocks.append("")
+        blocks.extend(_growth_argument(view, latest))
+    if selection.selected("geographic_localization"):
+        blocks.append("")
+        blocks.extend(_geography_argument(view, latest))
+    if selection.selected("operating_margin_bridge"):
+        blocks.append("")
+        blocks.extend(_margin_argument(view, latest))
+    if selection.selected("cash_conversion"):
+        blocks.append("")
+        blocks.extend(_cash_argument(view, latest))
+    blocks.append("")
+    blocks.append(APPENDIX_HEADING)
+    blocks.append("")
+    blocks.append("### Selected claims")
+    blocks.append("")
+    blocks.append(_selection_block(view))
+    if selection.selected("footprint_intensity") or selection.question("comparable_sales"):
+        blocks.append("### Growth evidence")
+        blocks.append("")
+        blocks.append(_history_table(view))
+        blocks.append(_footprint_block(view))
+        blocks.append(_compsales_block(view))
+    if selection.selected("geographic_localization"):
+        blocks.append("### Geographic evidence")
+        blocks.append("")
+        blocks.append(_geo_reconstruction_block(view))
+        blocks.append(_geo_profit_block(view))
+    if selection.selected("operating_margin_bridge"):
+        blocks.append("### Margin evidence")
+        blocks.append("")
+        blocks.append(_margin_component_block(view))
+        blocks.append(_amount_bridge_block(view))
+        blocks.append(_margin_change_block(view))
+        blocks.append(_attribution_block(view))
+    if selection.selected("cash_conversion"):
+        blocks.append("### Cash evidence")
+        blocks.append("")
+        blocks.append(_cash_block(view))
+    blocks.append("### Relationship records")
+    blocks.append("")
+    blocks.append(_assessment_block(view))
+    blocks.append(_residual_conclusion(view))
+    blocks.append("### Sources and methodology")
+    blocks.append("")
+    blocks.append(
+        "Numbers come from the existing verified BAV calculation path. "
+        "Reported facts, identities, proxies, localizations, management "
+        "attributions and unresolved questions are kept distinct. Exact "
+        "reconstruction does not establish causation. Missing observations "
+        "stay unavailable; an explicit zero remains zero. Fiscal-year labels "
+        "follow the issuer mapping and are not derived from the calendar year "
+        "of the period-end date."
     )
-    burden_text = ", ".join(
-        f"{_pct(view.net_operating_expense_burden[i], 1)} in {view.labels[i]}"
-        for i in range(len(view.periods))
-    )
-    gm_change = view.gross_margin_change[latest]
-    burden_change = view.net_operating_expense_burden_change[latest]
-    om_change = view.operating_margin_change[latest]
-    if gm_change is None or burden_change is None or om_change is None:
-        raise ValueError("Drivers requires a latest-period margin decomposition")
-    om_change_pp = om_change * 100
-    gm_change_pp = gm_change * 100
-    burden_change_pp = burden_change * 100
-    if abs(om_change_pp - (gm_change_pp - burden_change_pp)) > 1e-9:
-        raise ValueError("latest operating-margin change does not equal GM change minus burden change")
-    latest_gm_c = (
-        None
-        if view.gross_margin_contribution is None
-        else view.gross_margin_contribution[latest]
-    )
-    latest_sga_c = (
-        None
-        if view.sga_ratio_contribution is None
-        or latest >= len(view.sga_ratio_contribution)
-        else view.sga_ratio_contribution[latest]
-    )
-    latest_imp_c = (
-        None
-        if view.impairment_ratio_contribution is None
-        or latest >= len(view.impairment_ratio_contribution)
-        else view.impairment_ratio_contribution[latest]
-    )
-    latest_other_c = (
-        None
-        if view.other_operating_ratio_contribution is None
-        or latest >= len(view.other_operating_ratio_contribution)
-        else view.other_operating_ratio_contribution[latest]
-    )
-    latest_sum = (
-        None
-        if view.reconstructed_contribution_sum is None
-        or latest >= len(view.reconstructed_contribution_sum)
-        else view.reconstructed_contribution_sum[latest]
-    )
-    latest_resid = (
-        None
-        if view.contribution_residual is None
-        or latest >= len(view.contribution_residual)
-        else view.contribution_residual[latest]
-    )
-    if latest_gm_c is None or latest_sum is None:
-        raise ValueError("Drivers requires a latest-period component contribution schedule")
-    contribution_sentence = (
-        f"Signed contributions were Δgross margin {_opt_change_pp(latest_gm_c)} "
-        f"({_opt_bps(latest_gm_c)}), −Δ(SG&A/revenue) {_opt_change_pp(latest_sga_c)} "
-        f"({_opt_bps(latest_sga_c)}), −Δ(impairment or asset-related charges/revenue) "
-        f"{_opt_change_pp(latest_imp_c)} ({_opt_bps(latest_imp_c)}), and "
-        f"−Δ(other reported operating items/revenue) {_opt_change_pp(latest_other_c)} "
-        f"({_opt_bps(latest_other_c)}). The reconstructed sum is "
-        f"{_opt_change_pp(latest_sum)}; the residual versus the reported change is "
-        f"{_opt_change_pp(latest_resid)}."
-    )
-    definition_period = (
-        view.store_only_comparable_sales.period
-        if view.store_only_comparable_sales is not None
-        else view.comparable_sales[0].period
-    )
-    body = f"""{drivers_heading(view.display_name)}
-
-## Context
-
-{view.display_name} designs and sells athletic apparel through company-operated stores and digital channels. The history covers five fiscal years ended {_date_text(view.periods[0])} through {_date_text(view.periods[-1])}.
-
-Amounts are {view.units}, shown in millions of {view.currency}.
-
-{chr(10).join(rows)}
-
-## Growth
-
-Consolidated revenue rose from {_money(_millions(view.revenue[0]))} to {_money(_millions(view.revenue[-1]))}. Year-on-year growth was {rev_growth_text}.
-
-Company-operated stores increased from {view.stores[0]:.0f} to {view.stores[-1]:.0f}. Store-count growth was {store_growth_text}.
-
-In {view.labels[latest]}, store-count growth ({_pct(view.store_growth[latest])}) exceeded revenue growth ({_pct(view.revenue_growth[latest])}).
-
-{ _footprint_block(view) }
-
-Reported global comparable sales were {compsales_text}.{store_only_text} These percentages use different channel definitions.
-
-![Consolidated revenue growth and company-operated store-count growth](../figures/drivers/growth.png)
-
-## Geography
-
-Americas remained the largest region and supplied less of each year's incremental revenue: {", ".join(americas)}.
-
-China Mainland contributed {", ".join(china)}.
-
-Rest of World contributed {", ".join(row)}.
-
-In {view.labels[latest]}, China Mainland ({_pp(latest_geo["china_mainland"])}) and Rest of World ({_pp(latest_geo["rest_of_world"])}) more than offset Americas ({_pp(latest_geo["americas"])}).
-
-{ _geo_reconstruction_block(view) }
-
-![Geographic contribution to consolidated revenue growth](../figures/drivers/geography.png)
-
-## Margin
-
-Operating margin was {om_text}.
-
-In {view.labels[latest]}, operating-margin change was {om_change_pp:+.2f} pp. {contribution_sentence} That change also equals the gross-margin change ({gm_change_pp:+.2f} pp) minus the net-operating-expense-burden change ({burden_change_pp:+.2f} pp).
-
-Gross margin was {gm_text}. Net operating expense burden was {burden_text}.
-
-{view.margin_explanation or "Management explanations of the latest operating-margin movement are unavailable."}
-
-{ _margin_component_block(view) }
-{ _amount_bridge_block(view) }
-{ _margin_change_block(view) }
-
-![Component contributions to operating-margin change](../figures/drivers/margin.png)
-
-{ _residual_conclusion(view) }
-
-{ _assessment_block(view) }
-
-## Conclusions
-
-1. Revenue grew in every year and slowed from {_pct(growth_periods[0][1])} to {_pct(growth_periods[-1][1])} as stores rose from {view.stores[0]:.0f} to {view.stores[-1]:.0f}.
-2. In {view.labels[latest]}, stores grew faster than revenue ({_pct(view.store_growth[latest])} versus {_pct(view.revenue_growth[latest])}).
-3. Incremental revenue shifted toward China Mainland and Rest of World; Americas contributed {_pp(latest_geo["americas"])} in {view.labels[latest]}.
-4. Operating margin recovered from {_pct(view.operating_margin[1], 1)} in {view.labels[1]} to {_pct(view.operating_margin[-2], 1)} in {view.labels[-2]}, then fell to {_pct(view.operating_margin[-1], 1)} in {view.labels[-1]}.
-5. Reported comparable sales were positive in each observed year, on changing definitions.
-
-## Limits
-
-Comparable sales cannot be read as a continuous series. The year ended {_date_text(definition_period)} reports both a store-only series and a stores-plus-direct-to-consumer series; later years report stores plus e-commerce. Reported and constant-currency figures are separate.
-
-Geographic contributions split reported-currency revenue change. They are not organic growth, constant-currency growth, or a causal explanation.
-
-Sales per square foot cannot support a productivity reading. The {_date_text(definition_period)} filings disagree on the definition, later years do not line up on calendar and definition, and year-to-year sales-per-square-foot growth is not available. Revenue divided by stores is not store productivity.
-
-Mix, markdowns, freight, input costs, and leverage are unestablished: the extracted filings do not isolate those amounts for a historical bridge. An accounting identity does not validate a causal reading.
-{_calendar_limit_block(view)}"""
-    return body
+    body = "\n".join(part for part in blocks if part is not None)
+    lowered = body.lower()
+    for term in _FORBIDDEN_RESEARCH:
+        if term in lowered:
+            raise ValueError(f"Drivers prose contains {term!r}")
+    return body if body.endswith("\n") else body + "\n"
 
 
 def _figure_period_label(view: DriversView, index: int) -> str:
@@ -1320,9 +1909,16 @@ def _growth_labels(view: DriversView) -> list[str]:
 def plot_growth(view: DriversView, path: Path, style: ResearchStyle) -> None:
     fig, ax = new_figure(style)
     indexes = [
-        i for i in range(len(view.periods)) if view.revenue_growth[i] is not None
+        i
+        for i in range(len(view.periods))
+        if view.revenue_growth[i] is not None and view.store_growth[i] is not None
     ]
-    labels = _growth_labels(view)
+    labels = []
+    for index in indexes:
+        label = _figure_period_label(view, index)
+        if view.fifty_three_week_period == view.periods[index]:
+            label = f"{label}\n53-week"
+        labels.append(label)
     x = list(range(len(indexes)))
     width = 0.36
     revenue = [view.revenue_growth[i] * 100 for i in indexes]
@@ -1341,25 +1937,6 @@ def plot_growth(view: DriversView, path: Path, style: ResearchStyle) -> None:
         color=style.series_color(1),
         label="Company-operated store-count growth",
     )
-    compsales = {point.period: point for point in view.comparable_sales}
-    marker_x = []
-    marker_y = []
-    for position, index in enumerate(indexes):
-        point = compsales.get(view.periods[index])
-        if point is None:
-            continue
-        marker_x.append(position)
-        marker_y.append(point.percent)
-    if marker_x:
-        ax.plot(
-            marker_x,
-            marker_y,
-            linestyle="None",
-            marker="o",
-            markersize=5,
-            color=style.series_color(2),
-            label="Reported comparable sales, period-specific definition",
-        )
     ax.set_xticks(x, labels)
     ax.set_ylabel("Percent")
     ax.axhline(0, color=style.black, linewidth=0.8)
@@ -1368,130 +1945,185 @@ def plot_growth(view: DriversView, path: Path, style: ResearchStyle) -> None:
         fig,
         ax,
         style,
-        "Revenue growth, store-count growth, and reported comparable sales",
+        "Revenue growth versus store-count growth",
         f"Source: {view.display_name} BAV income statement and company-operated store counts.\n"
-        "Comparable sales use the reported global definition of each year and are not one series.",
+        "Comparable-sales observations are kept separate and are not connected here.",
         path,
     )
 
 
-def plot_geography(view: DriversView, path: Path, style: ResearchStyle) -> None:
-    fig, ax = new_figure(style)
-    indexes = [
-        i
-        for i in range(len(view.periods))
-        if any(value is not None for value in view.geo_contributions[i].values())
-    ]
-    labels = _growth_labels(view)
-    x = list(range(len(indexes)))
-    width = 0.24
-    for series_index, identity in enumerate(view.geo_identities):
-        values = [view.geo_contributions[i][identity] for i in indexes]
-        offset = (series_index - 1) * width
-        ax.bar(
-            [position + offset for position in x],
-            values,
-            width=width,
-            color=style.series_color(series_index),
-            label=SEGMENT_LABELS[identity],
-        )
-    ax.set_xticks(x, labels)
-    ax.set_ylabel("Percentage-point contribution")
+def _style_axis(ax, style: ResearchStyle) -> None:
+    ax.set_facecolor(style.white)
+    ax.tick_params(colors=style.black, width=0.8)
+    for spine in ax.spines.values():
+        spine.set_color(style.black)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
     ax.axhline(0, color=style.black, linewidth=0.8)
-    ax.legend(loc="upper right")
+
+
+def plot_geography(view: DriversView, path: Path, style: ResearchStyle) -> None:
+    from matplotlib import pyplot as plt
+
+    latest = _latest_growth_index(view)
+    identities = list(view.geo_identities)
+    labels = [SEGMENT_LABELS[identity] for identity in identities]
+    revenue = []
+    profit = []
+    for identity in identities:
+        amounts = (
+            {}
+            if view.geo_revenue_amount_changes is None
+            else view.geo_revenue_amount_changes[latest]
+        )
+        profits = (
+            {}
+            if view.geo_profit_changes is None
+            else view.geo_profit_changes[latest]
+        )
+        revenue.append(
+            None if amounts.get(identity) is None else _millions(amounts[identity])
+        )
+        profit.append(
+            None if profits.get(identity) is None else _millions(profits[identity])
+        )
+    reconciling = (
+        None
+        if view.geo_reconciling_profit_change is None
+        else view.geo_reconciling_profit_change[latest]
+    )
+    if reconciling is not None:
+        labels.append("Corporate / unallocated")
+        revenue.append(None)
+        profit.append(_millions(reconciling))
+    fig, axes = plt.subplots(1, 2, figsize=(7.5, 4.8), dpi=150)
+    fig.patch.set_facecolor(style.white)
+    fig.subplots_adjust(left=0.10, right=0.97, top=0.76, bottom=0.28, wspace=0.32)
+    x = list(range(len(labels)))
+    for ax, values, title, ylabel in (
+        (axes[0], revenue, "Revenue change", "USD millions"),
+        (axes[1], profit, "Operating-profit change", "USD millions"),
+    ):
+        _style_axis(ax, style)
+        heights = [0.0 if value is None else value for value in values]
+        colors = [
+            style.white if value is None else style.series_color(index)
+            for index, value in enumerate(values)
+        ]
+        edges = [
+            style.white if value is None else style.black
+            for value in values
+        ]
+        ax.bar(x, heights, color=colors, edgecolor=edges, linewidth=0.4)
+        ax.set_xticks(x, labels, rotation=25, ha="right")
+        ax.set_title(title, loc="left", color=style.black, fontsize=style.label_pt)
+        ax.set_ylabel(ylabel)
+    fig.suptitle(
+        f"{view.labels[latest]} geographic revenue and operating-profit change",
+        x=0.10,
+        ha="left",
+        color=style.black,
+        fontsize=style.title_pt,
+        fontweight="regular",
+    )
     finish_figure(
         fig,
-        ax,
+        axes[0],
         style,
-        "Geographic contribution to consolidated revenue growth",
+        "Revenue change",
         f"Source: {view.display_name} BAV geographic segment analysis.\n"
-        "Contributions are an arithmetic split of reported-currency revenue change.",
+        "Separate scales. Corporate/unallocated items appear only in the profit panel.",
         path,
     )
 
 
 def plot_margin(view: DriversView, path: Path, style: ResearchStyle) -> None:
-    fig, ax = new_figure(style)
-    indexes = [
-        i
-        for i in range(len(view.periods))
-        if view.gross_margin_contribution
-        and i < len(view.gross_margin_contribution)
-        and view.gross_margin_contribution[i] is not None
-    ]
-    labels = [_figure_period_label(view, i) for i in indexes]
-    x = list(range(len(indexes)))
+    latest = _latest_growth_index(view)
     series = [
         (view.gross_margin_contribution, "Gross margin"),
-        (view.sga_ratio_contribution, "SG&A, sign reversed"),
-        (view.impairment_ratio_contribution, "Impairment, sign reversed"),
-        (view.other_operating_ratio_contribution, "Other items, sign reversed"),
+        (view.sga_ratio_contribution, "SG&A / revenue"),
+        (view.impairment_ratio_contribution, "Impairment / revenue"),
+        (view.other_operating_ratio_contribution, "Other operating items"),
     ]
-    width = 0.18
-    offsets = (-1.5 * width, -0.5 * width, 0.5 * width, 1.5 * width)
-    for series_index, (values, label) in enumerate(series):
-        if not values:
+    labels = []
+    heights = []
+    for values, label in series:
+        if not values or latest >= len(values) or values[latest] is None:
             continue
-        heights = [
-            float("nan")
-            if index >= len(values) or values[index] is None
-            else values[index] * 100
-            for index in indexes
-        ]
-        ax.bar(
-            [position + offsets[series_index] for position in x],
-            heights,
-            width=width,
-            color=style.series_color(series_index),
-            label=label,
-        )
-    reported = []
-    marker_x = []
-    if view.reported_operating_margin_change:
-        for position, index in enumerate(indexes):
-            value = (
-                view.reported_operating_margin_change[index]
-                if index < len(view.reported_operating_margin_change)
-                else None
-            )
-            if value is None:
-                continue
-            marker_x.append(position)
-            reported.append(value * 100)
-    if marker_x:
-        ax.plot(
-            marker_x,
-            reported,
-            linestyle="None",
-            marker="o",
-            markersize=5,
+        labels.append(label)
+        heights.append(values[latest] * 100)
+    reported = (
+        None
+        if view.reported_operating_margin_change is None
+        or latest >= len(view.reported_operating_margin_change)
+        else view.reported_operating_margin_change[latest]
+    )
+    fig, ax = new_figure(style)
+    x = list(range(len(labels)))
+    ax.bar(x, heights, color=[style.series_color(i) for i in x], width=0.6)
+    if reported is not None:
+        ax.axhline(
+            reported * 100,
             color=style.black,
+            linewidth=1.0,
+            linestyle="--",
             label="Reported operating-margin change",
         )
-    ax.set_xticks(x, labels)
+        ax.legend(loc="best")
+    ax.set_xticks(x, labels, rotation=15, ha="right")
     ax.set_ylabel("Percentage-point contribution")
     ax.axhline(0, color=style.black, linewidth=0.8)
-    known = [
-        value * 100
-        for values, _label in series
-        if values
-        for index in indexes
-        if index < len(values) and values[index] is not None
-        for value in (values[index],)
-    ]
-    known.extend(reported)
-    if known:
-        low, high = min(known), max(known)
-        pad = max(1.2, 0.28 * (high - low))
-        ax.set_ylim(low - pad, high + pad)
-    ax.legend(loc="upper left", ncol=1)
     finish_figure(
         fig,
         ax,
         style,
-        "Component contributions to operating-margin change",
+        f"{view.labels[latest]} operating-margin bridge",
         f"Source: {view.display_name} BAV income statement.\n"
-        "Expense-ratio increases are negative contributions. Residuals remain explicit.",
+        "Signed identity only. Management estimates are not mixed into this bridge.",
+        path,
+    )
+
+
+def plot_cash(view: DriversView, path: Path, style: ResearchStyle) -> None:
+    indexes = [
+        i
+        for i in range(len(view.periods))
+        if view.cfo is not None
+        and view.net_income is not None
+        and view.cfo[i] is not None
+        and view.net_income[i] is not None
+    ]
+    if len(indexes) > 2:
+        indexes = indexes[-2:]
+    labels = [_figure_period_label(view, i) for i in indexes]
+    x = list(range(len(indexes)))
+    width = 0.36
+    fig, ax = new_figure(style)
+    ax.bar(
+        [i - width / 2 for i in x],
+        [_millions(view.cfo[i]) for i in indexes],
+        width=width,
+        color=style.series_color(0),
+        label="Cash from operations",
+    )
+    ax.bar(
+        [i + width / 2 for i in x],
+        [_millions(view.net_income[i]) for i in indexes],
+        width=width,
+        color=style.series_color(1),
+        label="Net income",
+    )
+    ax.set_xticks(x, labels)
+    ax.set_ylabel(f"Millions of {view.currency}")
+    ax.axhline(0, color=style.black, linewidth=0.8)
+    ax.legend(loc="best")
+    finish_figure(
+        fig,
+        ax,
+        style,
+        "Cash from operations versus net income",
+        f"Source: {view.display_name} BAV cash-flow and income statements.\n"
+        "Diagnostic comparison only; not a manipulation finding or complete CFO explanation.",
         path,
     )
 
@@ -1500,6 +2132,23 @@ def write_placeholders(research_dir: Path, company: str) -> None:
     research_dir.mkdir(parents=True, exist_ok=True)
     for name in placeholder_filenames(company):
         (research_dir / name).write_bytes(b"")
+
+
+_PLOT_BY_ID = {
+    "growth": plot_growth,
+    "geography": plot_geography,
+    "margin": plot_margin,
+    "cash": plot_cash,
+}
+
+
+def selected_figure_names(view: DriversView) -> tuple[str, ...]:
+    selection = view.selection or select_driver_argument(view)
+    names = []
+    for identifier in selection.figure_ids:
+        if identifier in _PLOT_BY_ID:
+            names.append(f"{identifier}.png")
+    return tuple(names)
 
 
 def publish_drivers(
@@ -1517,7 +2166,7 @@ def publish_drivers(
     (research_dir / drivers_filename(display_name)).write_text(
         render_drivers_markdown(view), encoding="utf-8"
     )
-    plot_growth(view, figures_dir / "growth.png", style)
-    plot_geography(view, figures_dir / "geography.png", style)
-    plot_margin(view, figures_dir / "margin.png", style)
+    for name in selected_figure_names(view):
+        identifier = name.removesuffix(".png")
+        _PLOT_BY_ID[identifier](view, figures_dir / name, style)
     return view

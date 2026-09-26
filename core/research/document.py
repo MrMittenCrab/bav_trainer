@@ -642,6 +642,34 @@ def _set_run_font(run, fonts: ResolvedFonts, size: float, *, italic: bool = Fals
     run._element.rPr.rFonts.set(qn("w:eastAsia"), fonts.cjk_name)
 
 
+def _configure_word_heading_styles(document, fonts: ResolvedFonts) -> None:
+    for level in (1, 2, 3):
+        style = document.styles[f"Heading {level}"]
+        style.font.name = fonts.latin_name
+        style.font.size = Pt(HEADING_PT)
+        style.font.bold = False
+        style.font.italic = False
+        style.font.color.rgb = RGBColor(0, 0, 0)
+        if style._element.rPr is not None:
+            style._element.rPr.rFonts.set(qn("w:ascii"), fonts.latin_name)
+            style._element.rPr.rFonts.set(qn("w:hAnsi"), fonts.latin_name)
+            style._element.rPr.rFonts.set(qn("w:eastAsia"), fonts.cjk_name)
+
+
+def _add_word_heading(document, block: Heading, fonts: ResolvedFonts):
+    level = min(max(block.level, 1), 3)
+    paragraph = document.add_paragraph(style=f"Heading {level}")
+    paragraph.clear()
+    _apply_paragraph_format(
+        paragraph,
+        before=SECTION_PT if block.level > 1 else RELATED_PT,
+        after=RELATED_PT,
+    )
+    run = paragraph.add_run(block.text)
+    _set_run_font(run, fonts, HEADING_PT)
+    return paragraph
+
+
 def _apply_paragraph_format(paragraph, *, before: float = 0, after: float = RELATED_PT) -> None:
     fmt = paragraph.paragraph_format
     fmt.space_before = Pt(before)
@@ -818,6 +846,7 @@ def _render_word(path: Path, company: str, fonts: ResolvedFonts, blocks: list[Bl
     normal._element.rPr.rFonts.set(qn("w:ascii"), fonts.latin_name)
     normal._element.rPr.rFonts.set(qn("w:hAnsi"), fonts.latin_name)
     normal._element.rPr.rFonts.set(qn("w:eastAsia"), fonts.cjk_name)
+    _configure_word_heading_styles(document, fonts)
     _set_section_page(document.sections[0], wide=False)
     _word_header_footer(document.sections[0], company, fonts)
     core = document.core_properties
@@ -839,19 +868,21 @@ def _render_word(path: Path, company: str, fonts: ResolvedFonts, blocks: list[Bl
             _word_header_footer(section, company, fonts)
             current_wide = want_wide
         if isinstance(block, Heading):
-            paragraph = document.add_paragraph()
-            _apply_paragraph_format(
-                paragraph,
-                before=SECTION_PT if block.level > 1 else RELATED_PT,
-                after=RELATED_PT,
-            )
-            run = paragraph.add_run(block.text)
-            _set_run_font(run, fonts, HEADING_PT)
+            if block.level == 2 and block.text.casefold() == "appendix" and index:
+                section = document.add_section()
+                _set_section_page(section, wide=False)
+                _word_header_footer(section, company, fonts)
+                current_wide = False
+            paragraph = _add_word_heading(document, block, fonts)
+            if isinstance(following, (FigureBlock, Body, TableBlock)):
+                paragraph.paragraph_format.keep_with_next = True
         elif isinstance(block, Body):
             paragraph = document.add_paragraph()
             _apply_paragraph_format(paragraph, before=0, after=RELATED_PT)
             run = paragraph.add_run(block.text)
             _set_run_font(run, fonts, BODY_PT)
+            if isinstance(following, FigureBlock):
+                paragraph.paragraph_format.keep_with_next = True
         elif isinstance(block, ListBlock):
             for index, item in enumerate(block.items, start=1):
                 paragraph = document.add_paragraph()
@@ -1070,7 +1101,11 @@ def _render_pdf(path: Path, company: str, fonts: ResolvedFonts, blocks: list[Blo
         story.append(PageBreak())
         current = target
 
+    skip_next = False
     for index, block in enumerate(blocks):
+        if skip_next:
+            skip_next = False
+            continue
         following = blocks[index + 1] if index + 1 < len(blocks) else None
         if isinstance(block, TableBlock) and block.layout == "landscape":
             switch("landscape")
@@ -1083,9 +1118,41 @@ def _render_pdf(path: Path, company: str, fonts: ResolvedFonts, blocks: list[Blo
             continue
         switch("portrait")
         if isinstance(block, Heading):
-            story.append(Paragraph(_escape_xml(block.text), styles["heading"]))
+            if block.level == 2 and block.text.casefold() == "appendix" and index:
+                switch("portrait")
+                story.append(PageBreak())
+            heading = Paragraph(_escape_xml(block.text), styles["heading"])
+            if isinstance(following, Body):
+                story.append(
+                    KeepTogether(
+                        [
+                            heading,
+                            Paragraph(_escape_xml(following.text), styles["body"]),
+                        ]
+                    )
+                )
+                skip_next = True
+                continue
+            if isinstance(following, FigureBlock):
+                story.append(
+                    KeepTogether(
+                        [heading, _figure_flowable(following, styles, portrait_w)]
+                    )
+                )
+                skip_next = True
+                continue
+            story.append(heading)
         elif isinstance(block, Body):
-            story.append(Paragraph(_escape_xml(block.text), styles["body"]))
+            paragraph = Paragraph(_escape_xml(block.text), styles["body"])
+            if isinstance(following, FigureBlock):
+                story.append(
+                    KeepTogether(
+                        [paragraph, _figure_flowable(following, styles, portrait_w)]
+                    )
+                )
+                skip_next = True
+                continue
+            story.append(paragraph)
         elif isinstance(block, ListBlock):
             for index, item in enumerate(block.items, start=1):
                 story.append(
@@ -1130,6 +1197,8 @@ def _validate_staged_publication(
     for heading in heading_text:
         if heading not in xml:
             raise ValueError(f"staged Word is missing heading {heading!r}")
+    if "Heading1" not in xml and "Heading 1" not in xml:
+        raise ValueError("staged Word is missing semantic Heading styles")
     figures = [block for block in blocks if isinstance(block, FigureBlock)]
     if len(media) < len(figures):
         raise ValueError("staged Word is missing embedded figures")

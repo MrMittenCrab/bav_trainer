@@ -89,6 +89,42 @@
       "source_file": "LULU_FY2024_Annual_Report.pdf",
       "page_reference": "Form 10-K p. 3",
       "section": "Item 1 — Business"
+    },
+    {
+      "theme": "operating_margin",
+      "role": "attribution",
+      "text": "Increased tariffs and the removal of the de minimis exemption resulted in a reduction to gross profit for 2025 of approximately $275 million.",
+      "period": "2026-02-01",
+      "source_file": "LULU_FY2025_Annual_Report.pdf",
+      "page_reference": "Form 10-K pp. 28–29",
+      "section": "Item 7 — Results of Operations"
+    },
+    {
+      "theme": "operating_margin",
+      "role": "attribution",
+      "text": "Americas gross margin decreased, primarily due to lower product margin, driven by higher tariffs and increased markdowns, and higher occupancy costs as a percentage of net revenue.",
+      "period": "2026-02-01",
+      "source_file": "LULU_FY2025_Annual_Report.pdf",
+      "page_reference": "Form 10-K p. 32",
+      "section": "Item 7 — Results of Operations"
+    },
+    {
+      "theme": "operating_margin",
+      "role": "attribution",
+      "text": "China Mainland gross margin increased, primarily due to lower occupancy and depreciation costs as a percentage of net revenue.",
+      "period": "2026-02-01",
+      "source_file": "LULU_FY2025_Annual_Report.pdf",
+      "page_reference": "Form 10-K pp. 32–33",
+      "section": "Item 7 — Results of Operations"
+    },
+    {
+      "theme": "operating_margin",
+      "role": "attribution",
+      "text": "Rest of World gross margin decreased, primarily due to lower product margin and higher distribution center costs as a percentage of net revenue.",
+      "period": "2026-02-01",
+      "source_file": "LULU_FY2025_Annual_Report.pdf",
+      "page_reference": "Form 10-K p. 33",
+      "section": "Item 7 — Results of Operations"
     }
   ]
 }

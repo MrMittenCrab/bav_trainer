@@ -236,9 +236,10 @@ def apply_research_style(*, accent: str | None = None) -> ResearchStyle:
             "patch.linewidth": 0,
             "pdf.fonttype": 42,
             "ps.fonttype": 42,
-            "font.enable_last_resort": False,
         }
     )
+    if "font.enable_last_resort" in plt.rcParams:
+        plt.rcParams["font.enable_last_resort"] = False
     global _ACTIVE_WORD_SPACE
     _ACTIVE_WORD_SPACE = _verified_word_space(fonts)
     return ResearchStyle(fonts=fonts, accent=accent, word_space=_ACTIVE_WORD_SPACE)

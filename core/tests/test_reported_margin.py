@@ -778,17 +778,20 @@ def test_rendered_component_contribution_schedule(tmp_path):
     awb.close()
 
     text = render_drivers_markdown(assemble_drivers_view(fin, company.name))
-    assert "Δgross margin" in text
-    assert "−Δ(SG&A/revenue)" in text
-    assert "−Δ(impairment/revenue)" in text
-    assert "Reconstructed sum" in text
-    assert "unrounded" in text
-    assert "10,000" in text
+    main, appendix = text.split("## Appendix", 1)
+    assert "Δgross margin" in appendix
+    assert "−Δ(SG&A/revenue)" in appendix
+    assert "−Δ(impairment/revenue)" in appendix
+    assert "Reconstructed sum" in appendix
+    assert "unrounded" in appendix
+    assert "10,000" in appendix
     names = [
         line.split("|")[1].strip()
-        for line in text.splitlines()
+        for line in appendix.splitlines()
         if line.startswith("| ") and " | " in line
     ]
     assert names.count("component operating-margin identity") == 1
     assert names.count("latest adjacent operating-margin movement") == 1
-    assert "component operating-margin contributions" in text
+    assert "component operating-margin contributions" in appendix
+    assert "component operating-margin identity" not in main
+    assert "## Kind" not in main and "### Residual" not in main

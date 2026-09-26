@@ -120,7 +120,7 @@ def test_company_build_rebuild_failure_and_workbook_contract(tmp_path, monkeypat
     for name in ('Lululemon_Forecast.md', 'Lululemon_Valuation.md', 'Lululemon_Overview.md'):
         path = research / name
         assert path.is_file() and path.stat().st_size == 0
-    for name in ('growth.png', 'geography.png', 'margin.png'):
+    for name in ('growth.png', 'geography.png', 'margin.png', 'cash.png'):
         assert (company.output / 'figures' / 'drivers' / name).is_file()
     wb = load_workbook(company.bav)
     assert 'Build Status' in wb.sheetnames

@@ -15,12 +15,17 @@ from PIL import Image
 from core.current_build import prepare_company_input, resolve_company
 from core.ingestion.management_kpi_enrichment import inspect_source_pdf
 from core.research.drivers import (
+    APPENDIX_HEADING,
+    OBSOLETE_SECTIONS,
+    WORKPAPER_FIELDS,
     _label_for,
     assemble_drivers_view,
     expected_sections,
     publish_drivers,
     render_drivers_markdown,
+    selected_figure_names,
 )
+from core.research.selection import select_driver_argument
 from core.research.publish import publish_company_research, verify_research_artifacts
 from core.research.style import (
     CJK_FACE,
@@ -102,7 +107,16 @@ def test_lululemon_drivers_from_validated_outputs(tmp_path):
         encoding="utf-8"
     )
     headings = [line for line in text.splitlines() if line.startswith("#")]
-    assert headings == list(expected_sections(company.name))
+    assert headings[0] == expected_sections(company.name)[0]
+    assert APPENDIX_HEADING in headings
+    assert headings[1] == APPENDIX_HEADING
+    assert not set(OBSOLETE_SECTIONS).intersection(headings)
+    main = text.split(APPENDIX_HEADING, 1)[0]
+    appendix = text.split(APPENDIX_HEADING, 1)[1]
+    opening = " ".join(main.split()[:250])
+    assert "international" in opening.lower() or "China Mainland" in opening
+    assert "profit" in opening.lower()
+    assert "cash" in opening.lower()
     lowered = text.lower()
     for term in FORBIDDEN_PROSE:
         assert term not in lowered, term
@@ -110,8 +124,18 @@ def test_lululemon_drivers_from_validated_outputs(tmp_path):
     assert "valuation" not in lowered
     assert "acquisition" not in lowered
     assert "synerg" not in lowered
-    conclusions = re.findall(r"^(\d+)\. ", text, flags=re.M)
-    assert 3 <= len(conclusions) <= 5
+    assert "price target" not in lowered
+    assert "catalyst" not in lowered
+    for field in WORKPAPER_FIELDS:
+        assert f"## {field}" not in main
+        assert f"### {field}" not in main
+    assert "new-store revenue" not in lowered.replace("not measured new-store revenue", "")
+    assert "not measured new-store revenue" in lowered
+    assert "not store productivity" in lowered
+    assert "not one deceleration" in lowered or "cannot be joined" in lowered
+    assert "not a causal" in lowered
+    assert "not inserted into the accounting bridge" in lowered or "not inserted into the accounting" in lowered
+    assert "not a manipulation" in lowered or "not an earnings-quality" in lowered
     for period, revenue in REVENUE_ANCHORS.items():
         assert view.revenue[view.periods.index(period)] == revenue
     for period, stores in INDEPENDENT_STORE_TOTALS.items():
@@ -123,14 +147,12 @@ def test_lululemon_drivers_from_validated_outputs(tmp_path):
     assert abs(view.geo_contributions[latest_i]["americas"] + 0.7660656852780181) < 1e-12
     assert abs(view.geo_contributions[latest_i]["china_mainland"] - 3.716068358083385) < 1e-12
     assert abs(view.geo_contributions[latest_i]["rest_of_world"] - 1.9089685936869283) < 1e-12
-    for index, period in enumerate(view.periods):
-        if view.consolidated_revenue_growth[index] is None:
-            continue
-        total = sum(view.geo_contributions[index].values())
-        assert abs(total - view.consolidated_revenue_growth[index] * 100) < 1e-9
+    assert view.geo_consolidated_profit_change[latest_i] == pytest.approx(-295082.0)
+    assert view.cfo_unexplained[latest_i] == pytest.approx(-67381.0)
+    assert "−$295.082 million" in text or "-$295.082 million" in text
+    assert "−$67.381 million" in text or "-$67.381 million" in text
     assert "−0.766 pp" in text or "-0.766 pp" in text
     assert "5.74%" in text and "4.86%" in text
-    latest_i = view.periods.index(latest)
     assert view.labels[latest_i] == "FY2025"
     assert view.labels[view.periods.index(FIFTY_THREE_WEEK_END)] == "FY2024"
     gm = view.gross_margin_change[latest_i]
@@ -138,40 +160,30 @@ def test_lululemon_drivers_from_validated_outputs(tmp_path):
     om = view.operating_margin_change[latest_i]
     assert gm is not None and burden is not None and om is not None
     assert abs(om - (gm - burden)) < 1e-12
-    assert "operating-margin change was -3.75 pp" in text
-    assert "gross-margin change (-2.62 pp)" in text
-    assert "net-operating-expense-burden change (+1.13 pp)" in text
-    assert "Δgross margin" in text
-    assert "−Δ(SG&A/revenue)" in text
-    assert "−Δ(impairment or asset-related charges/revenue)" in text
-    assert "−Δ(other reported operating items/revenue)" in text
-    assert "Reconstructed sum" in text
-    table_names = [
-        line.split("|")[1].strip()
-        for line in text.splitlines()
-        if line.startswith("| ") and line.count("|") >= 3
-    ]
-    assert table_names.count("component operating-margin identity") == 1
-    assert table_names.count("latest adjacent operating-margin movement") == 1
     assert view.gross_margin_contribution[-1] is not None
     assert view.contribution_residual[-1] == pytest.approx(0.0)
     assert "approximately $275 million" in text
     assert "Form 10-K pp. 28–29" in text or "Form 10-K pp. 28-29" in text
-    assert "Management explanations of the latest operating-margin movement are unavailable." not in text
-    assert "SG&A / revenue" in text
-    assert "Impairment / revenue" in text
     assert "company-wide revenue per store" in text.lower()
-    assert "not store productivity" in text.lower()
-    assert "unestablished" in text.lower()
-    assert "Residuals are computed from the validated reconstructions." in text
-    assert "Direction" in text and "Disclosure" in text
-    assert "geographic revenue reconstruction" in text.lower()
-    assert "footprint and intensity identity" in text.lower()
     assert view.sga_ratio[-1] == pytest.approx(4066556.0 / 11102600.0)
     assert view.impairment[1] == 407913.0
+    assert view.impairment_ratio_contribution[-1] == pytest.approx(0.0)
     assert view.operating_margin_residual[-1] == 0.0
     assert view.geo_residual is not None
     assert all(value == 0.0 for value in view.geo_residual)
+    assert view.selection is not None
+    assert "footprint_intensity" in view.selection.main_body_ids
+    assert "geographic_localization" in view.selection.main_body_ids
+    assert "operating_margin_bridge" in view.selection.main_body_ids
+    assert "cash_conversion" in view.selection.main_body_ids
+    assert selected_figure_names(view) == (
+        "growth.png",
+        "geography.png",
+        "margin.png",
+        "cash.png",
+    )
+    assert "growth.png" in main and "cash.png" in main
+    assert appendix.count("| Fiscal year |") >= 1
     assembled = assemble_drivers_view(fin, company.name)
     assert assembled.revenue == view.revenue
     assert assembled.operating_margin == view.operating_margin
@@ -188,13 +200,13 @@ def test_accent_disabled_and_enabled_remain_complete(tmp_path):
         name: hashlib.sha256(
             (tmp_path / "plain" / "figures" / "drivers" / name).read_bytes()
         ).hexdigest()
-        for name in ("growth.png", "geography.png", "margin.png")
+        for name in selected_figure_names(assemble_drivers_view(fin, company.name))
     }
     styled = {
         name: hashlib.sha256(
             (tmp_path / "accent" / "figures" / "drivers" / name).read_bytes()
         ).hexdigest()
-        for name in ("growth.png", "geography.png", "margin.png")
+        for name in selected_figure_names(assemble_drivers_view(fin, company.name))
     }
     assert plain == styled
 
@@ -351,10 +363,85 @@ def test_figure_word_spacing_uses_required_fonts_and_visible_gaps(tmp_path):
         int(FIGURE_SIZE[1] * FIGURE_DPI),
     )
     title_gaps = _interior_ink_gaps(path, 90, 125)
-    note_line_one = _interior_ink_gaps(path, 626, 644)
-    note_line_two = _interior_ink_gaps(path, 652, 672)
+    image_l = Image.open(path).convert("L")
+    note_bands: list[tuple[int, int]] = []
+    start = None
+    for y in range(image_l.size[1]):
+        ink = any(image_l.getpixel((x, y)) < 200 for x in range(image_l.size[0]))
+        if ink and start is None:
+            start = y
+        elif not ink and start is not None:
+            note_bands.append((start, y))
+            start = None
+    if start is not None:
+        note_bands.append((start, image_l.size[1]))
+    assert len(note_bands) >= 2, note_bands
+    note_line_one = _interior_ink_gaps(path, note_bands[-2][0], note_bands[-2][1])
+    note_line_two = _interior_ink_gaps(path, note_bands[-1][0], note_bands[-1][1])
     assert max(title_gaps) >= min_title, (title_gaps, min_title)
     assert max(note_line_one) >= min_note, (note_line_one, min_note)
     assert max(note_line_two) >= min_note, (note_line_two, min_note)
     assert sum(gap >= min_title for gap in title_gaps) >= 3
     assert sum(gap >= min_note for gap in note_line_one) >= 3
+
+
+def test_output_depends_on_evidence_and_not_company_name(tmp_path):
+    company = resolve_company("Lululemon")
+    fin = prepare_company_input(company, tmp_path / "input")
+    renamed = render_drivers_markdown(assemble_drivers_view(fin, "RenamedCo"))
+    assert renamed.startswith("# RenamedCo — Drivers")
+    assert "Lululemon — Drivers" not in renamed
+    assert "if company" not in renamed.lower()
+    assert "approximately $275 million" in renamed
+
+    missing_attr = assemble_drivers_view(fin, company.name)
+    from dataclasses import replace
+    stripped = replace(missing_attr, attributions=())
+    stripped = replace(stripped, selection=select_driver_argument(stripped))
+    stripped_text = render_drivers_markdown(stripped)
+    assert "approximately $275 million" not in stripped_text
+    assert "operating-margin" in stripped_text.lower()
+    assert "China Mainland" in stripped_text
+
+    zeroed = replace(
+        missing_attr,
+        impairment_ratio_contribution=tuple(
+            0.0 if value is not None else None
+            for value in missing_attr.impairment_ratio_contribution
+        ),
+    )
+    zeroed = replace(zeroed, selection=select_driver_argument(zeroed))
+    zero_text = render_drivers_markdown(zeroed)
+    assert "0.00 pp" in zero_text or "+0.00 pp" in zero_text or "0.00" in zero_text
+
+    from core.model.line_resolver import resolve_line
+    cfo = resolve_line(fin.cash_flow, "operating_cash_flow", required=True).item
+    latest = fin.periods[-1].end_date
+    del cfo.values[latest]
+    missing_cash = assemble_drivers_view(fin, company.name)
+    assert missing_cash.selection is not None
+    assert "cash_conversion" not in missing_cash.selection.main_body_ids
+    assert "footprint_intensity" in missing_cash.selection.main_body_ids
+    missing_text = render_drivers_markdown(missing_cash)
+    assert "cash.png" not in missing_text
+    assert "growth.png" in missing_text
+
+
+def test_incompatible_compsales_are_not_trended(tmp_path):
+    company = resolve_company("Lululemon")
+    fin = prepare_company_input(company, tmp_path / "input")
+    view = assemble_drivers_view(fin, company.name)
+    text = render_drivers_markdown(view)
+    trend = next(
+        claim
+        for question in view.selection.questions
+        if question.identifier == "comparable_sales"
+        for claim in question.claims
+        if claim.identifier == "compsales_trend"
+    )
+    assert trend.status == "blocked"
+    assert "not one deceleration" in text.lower() or "cannot be joined" in text.lower()
+    assert "new-store contribution" in text.lower()
+    main = text.split("## Appendix", 1)[0]
+    assert "25%, 13%, 4%" not in main
+    assert "connected trend" not in main.lower() or "not" in main.lower()
